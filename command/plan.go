@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
 )
@@ -25,6 +25,7 @@ potentially invalid.`
 
 type PlanCommand struct {
 	Meta
+	JobGetter
 	color *colorstring.Colorize
 }
 
@@ -37,6 +38,10 @@ Usage: nomad plan [options] <file>
   changes to the cluster but gives insight into whether the job could be run
   successfully and how it would affect existing allocations.
 
+  If the supplied path is "-", the jobfile is read from stdin. Otherwise
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
+
   A job modify index is returned with the plan. This value can be used when
   submitting the job using "nomad run -check-index", which will check that the job
   was not modified between the plan and run command before invoking the
@@ -48,6 +53,11 @@ Usage: nomad plan [options] <file>
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the the job's region is used.
 
+  Plan will return one of the following exit codes:
+    * 0: No allocations created or destroyed.
+    * 1: Allocations created or destroyed.
+    * 255: Error determining plan results.
+
 General Options:
 
   ` + generalOptionsUsage() + `
@@ -55,8 +65,8 @@ General Options:
 Plan Options:
 
   -diff
-	Determines whether the diff between the remote job and planned job is shown.
-	Defaults to true.
+    Determines whether the diff between the remote job and planned job is shown.
+    Defaults to true.
 
   -verbose
     Increase diff verbosity.
@@ -77,45 +87,45 @@ func (c *PlanCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
-		return 1
+		return 255
 	}
 
 	// Check that we got exactly one job
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error(c.Help())
-		return 1
+		return 255
 	}
-	file := args[0]
 
-	// Parse the job file
-	job, err := jobspec.ParseFile(file)
+	path := args[0]
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %s", file, err))
-		return 1
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
+		return 255
 	}
 
 	// Initialize any fields that need to be.
-	job.InitFields()
+	job.Canonicalize()
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
-		return 1
+		return 255
 	}
 
 	// Convert it to something we can use
 	apiJob, err := convertStructJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
-		return 1
+		return 255
 	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
+		return 255
 	}
 
 	// Force the region to be that of the job.
@@ -127,7 +137,7 @@ func (c *PlanCommand) Run(args []string) int {
 	resp, _, err := client.Jobs().Plan(apiJob, diff, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
-		return 1
+		return 255
 	}
 
 	// Print the diff if not disabled
@@ -138,11 +148,25 @@ func (c *PlanCommand) Run(args []string) int {
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
 	c.Ui.Output("")
 
 	// Print the job index info
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, file)))
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	return getExitCode(resp)
+}
+
+// getExitCode returns 0:
+// * 0: No allocations created or destroyed.
+// * 1: Allocations created or destroyed.
+func getExitCode(resp *api.JobPlanResponse) int {
+	// Check for changes
+	for _, d := range resp.Annotations.DesiredTGUpdates {
+		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate > 0 {
+			return 1
+		}
+	}
+
 	return 0
 }
 
@@ -155,7 +179,7 @@ func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(resp *api.JobPlanResponse) string {
+func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
 	var rolling *api.Evaluation
 	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
@@ -167,7 +191,12 @@ func formatDryRun(resp *api.JobPlanResponse) string {
 	if len(resp.FailedTGAllocs) == 0 {
 		out = "[bold][green]- All tasks successfully allocated.[reset]\n"
 	} else {
-		out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
+		// Change the output depending on if we are a system job or not
+		if job.Type == "system" {
+			out = "[bold][yellow]- WARNING: Failed to place allocations on all nodes.[reset]\n"
+		} else {
+			out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"
+		}
 		sorted := sortedTaskGroupFromMetrics(resp.FailedTGAllocs)
 		for _, tg := range sorted {
 			metrics := resp.FailedTGAllocs[tg]

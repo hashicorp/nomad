@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,12 @@ import (
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
+var (
+	osJavaDriverSupport = map[string]bool{
+		"linux": true,
+	}
+)
+
 // javaLocated checks whether java is installed so we can run java stuff.
 func javaLocated() bool {
 	_, err := exec.Command("java", "-version").CombinedOutput()
@@ -23,7 +30,6 @@ func javaLocated() bool {
 
 // The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
 	ctestutils.JavaCompatible(t)
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewJavaDriver(driverCtx)
@@ -40,7 +46,11 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("Fingerprinter should detect Java when it is installed")
 	}
 	if node.Attributes["driver.java"] != "1" {
-		t.Fatalf("missing driver")
+		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing java driver")
+		} else {
+			t.Skipf("missing java driver, no OS support")
+		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
 		if node.Attributes[key] == "" {
@@ -50,7 +60,6 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 }
 
 func TestJavaDriver_StartOpen_Wait(t *testing.T) {
-	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
@@ -103,7 +112,6 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Wait(t *testing.T) {
-	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
@@ -165,7 +173,6 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
-	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
@@ -224,7 +231,6 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestJavaDriverUser(t *testing.T) {
-	t.Parallel()
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}

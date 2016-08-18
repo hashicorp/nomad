@@ -69,7 +69,21 @@ func (d *DockerLogParser) Parse(line []byte) *SyslogMessage {
 func (d *DockerLogParser) logContentIndex(line []byte) int {
 	cursor := 0
 	numSpace := 0
+	numColons := 0
+	// first look for at least 2 colons. This matches into the date that has no more spaces in it
+	// DefaultFormatter log line look: '<30>2016-07-06T15:13:11Z00:00 hostname docker/9648c64f5037[16200]'
+	// UnixFormatter log line look: '<30>Jul  6 15:13:11 docker/9648c64f5037[16200]'
 	for i := 0; i < len(line); i++ {
+		if line[i] == ':' {
+			numColons += 1
+			if numColons == 2 {
+				cursor = i
+				break
+			}
+		}
+	}
+	// then look for the next space
+	for i := cursor; i < len(line); i++ {
 		if line[i] == ' ' {
 			numSpace += 1
 			if numSpace == 1 {
@@ -78,12 +92,14 @@ func (d *DockerLogParser) logContentIndex(line []byte) int {
 			}
 		}
 	}
+	// then the colon is what seperates it, followed by a space
 	for i := cursor; i < len(line); i++ {
-		if line[i] == ':' {
-			cursor = i
+		if line[i] == ':' && i+1 < len(line) && line[i+1] == ' ' {
+			cursor = i + 1
 			break
 		}
 	}
+	// return the cursor to the next character
 	return cursor + 1
 }
 

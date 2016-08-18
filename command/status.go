@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,8 +20,9 @@ const (
 
 type StatusCommand struct {
 	Meta
-	length             int
-	showEvals, verbose bool
+	length  int
+	evals   bool
+	verbose bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -59,7 +61,7 @@ func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&c.showEvals, "evals", false, "")
+	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -94,22 +96,12 @@ func (c *StatusCommand) Run(args []string) int {
 			return 1
 		}
 
-		// No output if we have no jobs
 		if len(jobs) == 0 {
+			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
-			return 0
+		} else {
+			c.Ui.Output(createStatusListOutput(jobs))
 		}
-
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(formatList(out))
 		return 0
 	}
 
@@ -125,16 +117,7 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
 		return 0
 	}
 	// Prefix lookup matched a single job
@@ -246,6 +229,33 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
+	// Query the summary
+	summary, _, err := client.Jobs().Summary(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job summary: %s", err)
+	}
+
+	// Format the summary
+	c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
+	if summary != nil {
+		summaries := make([]string, len(summary.Summary)+1)
+		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
+		taskGroups := make([]string, 0, len(summary.Summary))
+		for taskGroup := range summary.Summary {
+			taskGroups = append(taskGroups, taskGroup)
+		}
+		sort.Strings(taskGroups)
+		for idx, taskGroup := range taskGroups {
+			tgs := summary.Summary[taskGroup]
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+				taskGroup, tgs.Queued, tgs.Starting,
+				tgs.Running, tgs.Failed,
+				tgs.Complete, tgs.Lost,
+			)
+		}
+		c.Ui.Output(formatList(summaries))
+	}
+
 	// Determine latest evaluation with failures whose follow up hasn't
 	// completed, this is done while formatting
 	var latestFailedPlacement *api.Evaluation
@@ -278,7 +288,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		}
 	}
 
-	if c.verbose || c.showEvals {
+	if c.verbose || c.evals {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Evaluations[reset]"))
 		c.Ui.Output(formatList(evals))
 	}
@@ -291,15 +301,16 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	if len(jobAllocs) > 0 {
 		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status"
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status|Created At"
 		for i, alloc := range jobAllocs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
 				limit(alloc.ID, c.length),
 				limit(alloc.EvalID, c.length),
 				limit(alloc.NodeID, c.length),
 				alloc.TaskGroup,
 				alloc.DesiredStatus,
-				alloc.ClientStatus)
+				alloc.ClientStatus,
+				formatUnixNanoTime(alloc.CreateTime))
 		}
 
 		c.Ui.Output(formatList(allocs))
@@ -350,4 +361,18 @@ func convertApiJob(in *api.Job) (*structs.Job, error) {
 		return nil, err
 	}
 	return structJob, nil
+}
+
+// list general information about a list of jobs
+func createStatusListOutput(jobs []*api.JobListStub) string {
+	out := make([]string, len(jobs)+1)
+	out[0] = "ID|Type|Priority|Status"
+	for i, job := range jobs {
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+			job.ID,
+			job.Type,
+			job.Priority,
+			job.Status)
+	}
+	return formatList(out)
 }

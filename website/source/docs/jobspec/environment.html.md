@@ -126,7 +126,7 @@ gives time to view the data produced by tasks.
 
 Depending on the driver and operating system being targeted, the directories are
 made available in various ways. For example, on `docker` the directories are
-binded to the container, while on `exec` on Linux the directories are mounted into the
+bound to the container, while on `exec` on Linux the directories are mounted into the
 chroot. Regardless of how the directories are made available, the path to the
 directories can be read through the following environment variables:
 `NOMAD_ALLOC_DIR` and `NOMAD_TASK_DIR`.

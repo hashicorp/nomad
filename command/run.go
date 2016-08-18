@@ -5,15 +5,12 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,9 +21,7 @@ var (
 
 type RunCommand struct {
 	Meta
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
+	JobGetter
 }
 
 func (c *RunCommand) Help() string {
@@ -38,7 +33,8 @@ Usage: nomad run [options] <path>
   used to interact with Nomad.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -62,17 +58,17 @@ General Options:
 Run Options:
 
   -check-index
-	If set, the job is only registered or updated if the the passed
-	job modify index matches the server side version. If a check-index value of
-	zero is passed, the job is only registered if it does not yet exist. If a
-	non-zero value is passed, it ensures that the job is being updated from a
-	known state. The use of this flag is most common in conjunction with plan
-	command.
+    If set, the job is only registered or updated if the the passed
+    job modify index matches the server side version. If a check-index value of
+    zero is passed, the job is only registered if it does not yet exist. If a
+    non-zero value is passed, it ensures that the job is being updated from a
+    known state. The use of this flag is most common in conjunction with plan
+    command.
 
   -detach
-	Return immediately instead of entering monitor mode. After job submission,
-	the evaluation ID will be printed to the screen, which can be used to
-	examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After job submission,
+    the evaluation ID will be printed to the screen, which can be used to
+    examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -109,6 +105,13 @@ func (c *RunCommand) Run(args []string) int {
 		length = fullId
 	}
 
+	// Check that we got exactly one argument
+	args = flags.Args()
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+
 	// Check that we got exactly one node
 	args = flags.Args()
 	if len(args) != 1 {
@@ -116,36 +119,15 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Read the Jobfile
-	path := args[0]
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 1
-		}
-		f = file
-	}
-
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", f, err))
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 
 	// Initialize any fields that need to be.
-	job.InitFields()
+	job.Canonicalize()
 
 	// Check that the job is valid
 	if err := job.Validate(); err != nil {

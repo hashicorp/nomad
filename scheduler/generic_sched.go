@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,6 +25,9 @@ const (
 
 	// allocUpdating is the status used when a job requires an update
 	allocUpdating = "alloc is being updated due to job update"
+
+	// allocLost is the status used when an allocation is lost
+	allocLost = "alloc is lost since its node is down"
 
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
@@ -72,6 +74,7 @@ type GenericScheduler struct {
 
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
+	queuedAllocs   map[string]int
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -110,7 +113,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc)
+			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs)
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -128,7 +131,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-				s.failedTGAllocs, statusErr.EvalStatus, err.Error()); err != nil {
+				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -148,7 +152,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "")
+		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs)
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -184,6 +188,11 @@ func (s *GenericScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
+	numTaskGroups := 0
+	if s.job != nil {
+		numTaskGroups = len(s.job.TaskGroups)
+	}
+	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
@@ -241,6 +250,10 @@ func (s *GenericScheduler) process() (bool, error) {
 		return false, err
 	}
 
+	// Decrement the number of allocations pending per task group based on the
+	// number of allocations successfully placed
+	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
+
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {
 		s.logger.Printf("[DEBUG] sched: %#v: refresh forced", s.eval)
@@ -273,7 +286,7 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 			// status is failed so that they will be replaced. If they are
 			// complete but not failed, they shouldn't be replaced.
 			switch a.DesiredStatus {
-			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict, structs.AllocDesiredStatusFailed:
+			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 				return !a.RanSuccessfully()
 			default:
 			}
@@ -298,7 +311,26 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 			n--
 		}
 	}
-	return allocs[:n]
+
+	// If the job is batch, we want to filter allocations that have been
+	// replaced by a newer version for the same task group.
+	filtered := allocs[:n]
+	if s.batch {
+		byTG := make(map[string]*structs.Allocation)
+		for _, alloc := range filtered {
+			existing := byTG[alloc.Name]
+			if existing == nil || existing.CreateIndex < alloc.CreateIndex {
+				byTG[alloc.Name] = alloc
+			}
+		}
+
+		filtered = make([]*structs.Allocation, 0, len(byTG))
+		for _, alloc := range byTG {
+			filtered = append(filtered, alloc)
+		}
+	}
+
+	return filtered
 }
 
 // computeJobAllocs is used to reconcile differences between the job,
@@ -317,9 +349,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
-	// Filter out the allocations in a terminal state
-	allocs = s.filterCompleteAllocs(allocs)
-
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
@@ -327,34 +356,20 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
+	// Update the allocations which are in pending/running state on tainted
+	// nodes to lost
+	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
+
+	// Filter out the allocations in a terminal state
+	allocs = s.filterCompleteAllocs(allocs)
+
 	// Diff the required and existing allocations
 	diff := diffAllocs(s.job, tainted, groups, allocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
-	// XXX: For debugging purposes only. An issue was observed where a job had a
-	// task group with count > 0 that produced a diff where no action would be
-	// taken (every slice was empty). Below we dump debug information if this
-	// condition is hit.
-	diffSum := len(diff.stop) + len(diff.place) + len(diff.ignore) +
-		len(diff.update) + len(diff.migrate)
-	if diffSum == 0 && len(groups) != 0 {
-		s.logger.Printf("[ERR] sched: %d tasks to schedule but scheduler believes there is no work", len(groups))
-
-		// Get the original set of allocations for the job.
-		jobAllocs, err := s.state.AllocsByJob(s.eval.JobID)
-		if err != nil {
-			return fmt.Errorf("failed to get allocs for job '%s': %v", s.eval.JobID, err)
-		}
-		s.logger.Printf("[DEBUG] sched: job: %s", spew.Sdump(s.job))
-		s.logger.Printf("[DEBUG] sched: materializeTaskGroups() returned: %s", spew.Sdump(groups))
-		s.logger.Printf("[DEBUG] sched: AllocsByJob(%q) returned: %s", s.eval.JobID, spew.Sdump(jobAllocs))
-		s.logger.Printf("[DEBUG] sched: filterCompleteAllocs(): %s", spew.Sdump(allocs))
-		s.logger.Printf("[DEBUG] sched: taintedNodes(): %s", spew.Sdump(tainted))
-	}
-
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded)
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
 	// Attempt to do the upgrades in place
@@ -368,7 +383,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Check if a rolling upgrade strategy is being used
-	limit := len(diff.update) + len(diff.migrate)
+	limit := len(diff.update) + len(diff.migrate) + len(diff.lost)
 	if s.job != nil && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
@@ -379,9 +394,23 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Treat non in-place updates as an eviction and new placement.
 	s.limitReached = s.limitReached || evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
 
+	// Lost allocations should be transistioned to desired status stop and client
+	// status lost and a new placement should be made
+	s.limitReached = s.limitReached || markLostAndPlace(s.ctx, diff, diff.lost, allocLost, &limit)
+
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
+		if s.job != nil {
+			for _, tg := range s.job.TaskGroups {
+				s.queuedAllocs[tg.Name] = 0
+			}
+		}
 		return nil
+	}
+
+	// Record the number of allocations that needs to be placed per Task Group
+	for _, allocTuple := range diff.place {
+		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
 	// Compute the placements

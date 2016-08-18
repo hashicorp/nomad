@@ -849,7 +849,7 @@ func TestJobDiff(t *testing.T) {
 	for i, c := range cases {
 		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
-			t.Fatalf("case %d: expected errored")
+			t.Fatalf("case %d: expected errored", i+1)
 		} else if err != nil {
 			if !c.Error {
 				t.Fatalf("case %d: errored %#v", i+1, err)
@@ -2700,14 +2700,15 @@ func TestTaskDiff(t *testing.T) {
 						Name: "foo",
 						Checks: []*ServiceCheck{
 							{
-								Name:     "foo",
-								Type:     "http",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:          "foo",
+								Type:          "http",
+								Command:       "foo",
+								Args:          []string{"foo"},
+								Path:          "foo",
+								Protocol:      "http",
+								Interval:      1 * time.Second,
+								Timeout:       1 * time.Second,
+								InitialStatus: "critical",
 							},
 						},
 					},
@@ -2719,14 +2720,15 @@ func TestTaskDiff(t *testing.T) {
 						Name: "foo",
 						Checks: []*ServiceCheck{
 							{
-								Name:     "foo",
-								Type:     "tcp",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:          "foo",
+								Type:          "tcp",
+								Command:       "foo",
+								Args:          []string{"foo"},
+								Path:          "foo",
+								Protocol:      "http",
+								Interval:      1 * time.Second,
+								Timeout:       1 * time.Second,
+								InitialStatus: "passing",
 							},
 						},
 					},
@@ -2764,6 +2766,12 @@ func TestTaskDiff(t *testing.T) {
 										New:  "foo",
 									},
 									{
+										Type: DiffTypeEdited,
+										Name: "InitialStatus",
+										Old:  "critical",
+										New:  "passing",
+									},
+									{
 										Type: DiffTypeNone,
 										Name: "Interval",
 										Old:  "1000000000",
@@ -2780,6 +2788,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Path",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "PortLabel",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeNone,
@@ -2811,7 +2825,7 @@ func TestTaskDiff(t *testing.T) {
 	for i, c := range cases {
 		actual, err := c.Old.Diff(c.New, c.Contextual)
 		if c.Error && err == nil {
-			t.Fatalf("case %d: expected errored")
+			t.Fatalf("case %d: expected errored", i+1)
 		} else if err != nil {
 			if !c.Error {
 				t.Fatalf("case %d: errored %#v", i+1, err)

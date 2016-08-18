@@ -19,9 +19,13 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 	// Create the register request
 	alloc := mock.Alloc()
+	summary := mock.JobSummary(alloc.JobID)
 	state := s1.fsm.State()
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
-	if err != nil {
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -75,6 +79,10 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	// Create the alloc
 	alloc := mock.Alloc()
 
+	summary := mock.JobSummary(alloc.JobID)
+	if err := state.UpsertJobSummary(1, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
 		if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {
@@ -109,12 +117,13 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	alloc2.ID = alloc.ID
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpdateAllocsFromClient(3, []*structs.Allocation{alloc2}); err != nil {
+		state.UpsertJobSummary(3, mock.JobSummary(alloc2.JobID))
+		if err := state.UpdateAllocsFromClient(4, []*structs.Allocation{alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
-	req.MinQueryIndex = 2
+	req.MinQueryIndex = 3
 	start = time.Now()
 	var resp2 structs.AllocListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &resp2); err != nil {
@@ -124,8 +133,8 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
-	if resp2.Index != 3 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
+	if resp2.Index != 4 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 4)
 	}
 	if len(resp2.Allocations) != 1 || resp.Allocations[0].ID != alloc.ID ||
 		resp2.Allocations[0].ClientStatus != structs.AllocClientStatusRunning {
@@ -142,6 +151,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	// Create the register request
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
+	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -178,6 +188,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 	// First create an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
+		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -186,6 +197,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 	// Create the alloc we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
+		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -227,6 +239,8 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
 	state := s1.fsm.State()
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)

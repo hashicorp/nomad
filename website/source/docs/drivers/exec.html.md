@@ -26,7 +26,7 @@ The `exec` driver supports the following configuration in the job spec:
   path can be relative from the allocations's root directory.
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [intepretable Nomad
+    References to environment variables or any [interpretable Nomad
     variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 
@@ -96,9 +96,12 @@ the client and the configuration.
 On Linux, Nomad will use cgroups, and a chroot to isolate the
 resources of a process and as such the Nomad agent must be run as root.
 
-### Chroot
+### <a id="chroot"></a>Chroot
 The chroot is populated with data in the following folders from the host
 machine:
 
 `["/bin", "/etc", "/lib", "/lib32", "/lib64", "/run/resolvconf", "/sbin",
-"/usr/bin", "/usr/lib", "/usr/sbin", "/usr/share"]`
+"/usr"]`
+
+This list is configurable through the agent client
+[configuration file](/docs/agent/config.html#chroot_env).

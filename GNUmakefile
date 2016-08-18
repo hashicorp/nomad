@@ -27,6 +27,11 @@ cov:
 	open /tmp/coverage.html
 
 test: generate
+	@echo "--> Running go fmt" ;
+	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
+		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
+		exit 1; \
+	fi
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
@@ -75,8 +80,6 @@ install: bin/nomad
 	install -o root -g wheel -m 0755 ./bin/nomad /usr/local/bin/nomad
 
 travis:
-	@sudo apt-get install -y qemu
-	@sh -c "'$(PWD)/scripts/update_docker.sh'"
-	@sh -c "'$(PWD)/scripts/install_rkt.sh'"
+	@sh -c "'$(PWD)/scripts/travis.sh'"
 
 .PHONY: all bin cov integ test vet web web-push test-nodep

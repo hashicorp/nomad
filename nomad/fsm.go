@@ -9,6 +9,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/ugorji/go/codec"
 )
@@ -33,6 +34,7 @@ const (
 	AllocSnapshot
 	TimeTableSnapshot
 	PeriodicLaunchSnapshot
+	JobSummarySnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -133,6 +135,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAllocUpdate(buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
 		return n.applyAllocClientUpdate(buf[1:], log.Index)
+	case structs.ReconcileJobSummariesRequestType:
+		return n.applyReconcileSummaries(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -225,6 +229,13 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+
+	// COMPAT: Remove in 0.5
+	// Empty maps and slices should be treated as nil to avoid
+	// un-intended destructive updates in scheduler since we use
+	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	// the incoming job.
+	req.Job.Canonicalize()
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
@@ -365,7 +376,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	if j := req.Job; j != nil {
 		for _, alloc := range req.Alloc {
-			if alloc.Job == nil {
+			if alloc.Job == nil && !alloc.TerminalStatus() {
 				alloc.Job = j
 			}
 		}
@@ -402,6 +413,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
+	// Updating the allocs with the job id and task group name
+	for _, alloc := range req.Alloc {
+		if existing, _ := n.state.AllocByID(alloc.ID); existing != nil {
+			alloc.JobID = existing.JobID
+			alloc.TaskGroup = existing.TaskGroup
+		}
+	}
+
 	// Update all the client allocations
 	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
@@ -425,6 +444,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	}
 
 	return nil
+}
+
+// applyReconcileSummaries reconciles summaries for all the jobs
+func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
+	if err := n.state.ReconcileJobSummaries(index); err != nil {
+		return err
+	}
+	return n.reconcileQueuedAllocations(index)
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
@@ -499,6 +526,14 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(job); err != nil {
 				return err
 			}
+
+			// COMPAT: Remove in 0.5
+			// Empty maps and slices should be treated as nil to avoid
+			// un-intended destructive updates in scheduler since we use
+			// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			// the incoming job.
+			job.Canonicalize()
+
 			if err := restore.JobRestore(job); err != nil {
 				return err
 			}
@@ -539,13 +574,137 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case JobSummarySnapshot:
+			summary := new(structs.JobSummary)
+			if err := dec.Decode(summary); err != nil {
+				return err
+			}
+			if err := restore.JobSummaryRestore(summary); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
 		}
 	}
 
-	// Commit the state restore
 	restore.Commit()
+
+	// Create Job Summaries
+	// COMPAT 0.4 -> 0.4.1
+	// We can remove this in 0.5. This exists so that the server creates job
+	// summaries if they were not present previously. When users upgrade to 0.5
+	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
+	// remove this block.
+	index, err := n.state.Index("job_summary")
+	if err != nil {
+		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
+	}
+
+	// If the index is 0 that means there is no job summary in the snapshot so
+	// we will have to create them
+	if index == 0 {
+		// query the latest index
+		latestIndex, err := n.state.LatestIndex()
+		if err != nil {
+			return fmt.Errorf("unable to query latest index: %v", index)
+		}
+		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
+			return fmt.Errorf("error reconciling summaries: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// reconcileSummaries re-calculates the queued allocations for every job that we
+// created a Job Summary during the snap shot restore
+func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
+	// Get all the jobs
+	iter, err := n.state.Jobs()
+	if err != nil {
+		return err
+	}
+
+	snap, err := n.state.Snapshot()
+	if err != nil {
+		return fmt.Errorf("unable to create snapshot: %v", err)
+	}
+
+	// Invoking the scheduler for every job so that we can populate the number
+	// of queued allocations for every job
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
+		planner := &scheduler.Harness{
+			State: &snap.StateStore,
+		}
+		// Create an eval and mark it as requiring annotations and insert that as well
+		eval := &structs.Evaluation{
+			ID:             structs.GenerateUUID(),
+			Priority:       job.Priority,
+			Type:           job.Type,
+			TriggeredBy:    structs.EvalTriggerJobRegister,
+			JobID:          job.ID,
+			JobModifyIndex: job.JobModifyIndex + 1,
+			Status:         structs.EvalStatusPending,
+			AnnotatePlan:   true,
+		}
+
+		// Create the scheduler and run it
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
+		if err != nil {
+			return err
+		}
+
+		if err := sched.Process(eval); err != nil {
+			return err
+		}
+
+		// Get the job summary from the fsm state store
+		summary, err := n.state.JobSummaryByID(job.ID)
+		if err != nil {
+			return err
+		}
+
+		// Add the allocations scheduler has made to queued since these
+		// allocations are never getting placed until the scheduler is invoked
+		// with a real planner
+		if l := len(planner.Plans); l != 1 {
+			return fmt.Errorf("unexpected number of plans during restore %d. Please file an issue including the logs", l)
+		}
+		for _, allocations := range planner.Plans[0].NodeAllocation {
+			for _, allocation := range allocations {
+				tgSummary, ok := summary.Summary[allocation.TaskGroup]
+				if !ok {
+					return fmt.Errorf("task group %q not found while updating queued count", allocation.TaskGroup)
+				}
+				tgSummary.Queued += 1
+				summary.Summary[allocation.TaskGroup] = tgSummary
+			}
+		}
+
+		// Add the queued allocations attached to the evaluation to the queued
+		// counter of the job summary
+		if l := len(planner.Evals); l != 1 {
+			return fmt.Errorf("unexpected number of evals during restore %d. Please file an issue including the logs", l)
+		}
+		for tg, queued := range planner.Evals[0].QueuedAllocations {
+			tgSummary, ok := summary.Summary[tg]
+			if !ok {
+				return fmt.Errorf("task group %q not found while updating queued count", tg)
+			}
+			tgSummary.Queued += queued
+			summary.Summary[tg] = tgSummary
+		}
+
+		if err := n.state.UpsertJobSummary(index, summary); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -590,6 +749,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistPeriodicLaunches(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobSummaries(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -752,6 +915,30 @@ func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
 		// Write out a job registration
 		sink.Write([]byte{byte(PeriodicLaunchSnapshot)})
 		if err := encoder.Encode(launch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	summaries, err := s.snap.JobSummaries()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := summaries.Next()
+		if raw == nil {
+			break
+		}
+
+		jobSummary := raw.(structs.JobSummary)
+
+		sink.Write([]byte{byte(JobSummarySnapshot)})
+		if err := encoder.Encode(jobSummary); err != nil {
 			return err
 		}
 	}

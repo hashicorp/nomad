@@ -46,6 +46,7 @@ type QemuDriverConfig struct {
 	ImagePath   string           `mapstructure:"image_path"`
 	Accelerator string           `mapstructure:"accelerator"`
 	PortMap     []map[string]int `mapstructure:"port_map"` // A map of host port labels and to guest ports.
+	Args        []string         `mapstructure:"args"`     // extra arguments to qemu executable
 }
 
 // qemuHandle is returned from Start/Open as a handle to the PID
@@ -80,6 +81,9 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"port_map": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"args": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 		},
@@ -169,10 +173,15 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		"-name", vmID,
 		"-m", mem,
 		"-drive", "file=" + vmPath,
-		"-nodefconfig",
-		"-nodefaults",
 		"-nographic",
 	}
+
+	// Add pass through arguments to qemu executable. A user can specify
+	// these arguments in driver task configuration. These arguments are
+	// passed directly to the qemu driver as command line options.
+	// For example, args = [ "-nodefconfig", "-nodefaults" ]
+	// This will allow a VM with embedded configuration to boot successfully.
+	args = append(args, driverConfig.Args...)
 
 	// Check the Resources required Networks to add port mappings. If no resources
 	// are required, we assume the VM is a purely compute job and does not require

@@ -38,11 +38,17 @@ Alloc Status Options:
   -short
     Display short output. Shows only the most recent task event.
 
-  -stats 
-    Display detailed resource usage statistics
+  -stats
+    Display detailed resource usage statistics.
 
   -verbose
     Show full information.
+
+  -json
+    Output the allocation in its JSON format.
+
+  -t
+    Format and display allocation using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -53,13 +59,16 @@ func (c *AllocStatusCommand) Synopsis() string {
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short, displayStats, verbose bool
+	var short, displayStats, verbose, json bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&displayStats, "stats", false, "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -67,11 +76,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one allocation ID
 	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-	allocID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -79,6 +83,50 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
+
+	// If args not specified but output format is specified, format and output the allocations data list
+	if len(args) == 0 {
+		var format string
+		if json && len(tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if json {
+			format = "json"
+		} else if len(tmpl) > 0 {
+			format = "template"
+		}
+		if len(format) > 0 {
+			allocs, _, err := client.Allocations().List(nil)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying allocations: %v", err))
+				return 1
+			}
+			// Return nothing if no allocations found
+			if len(allocs) == 0 {
+				return 0
+			}
+
+			f, err := DataFormat(format, tmpl)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+				return 1
+			}
+
+			out, err := f.TransformData(allocs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+				return 1
+			}
+			c.Ui.Output(out)
+			return 0
+		}
+	}
+
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+	allocID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -128,6 +176,32 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	var format string
+	if json && len(tmpl) > 0 {
+		c.Ui.Error("Both -json and -t are not allowed")
+		return 1
+	} else if json {
+		format = "json"
+	} else if len(tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
+		f, err := DataFormat(format, tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(alloc)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	var statsErr error
@@ -194,7 +268,7 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		formatedTime := c.formatUnixNanoTime(event.Time)
+		formatedTime := formatUnixNanoTime(event.Time)
 
 		// Build up the description based on the event type.
 		var desc string
@@ -222,6 +296,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 				desc = event.DownloadError
 			} else {
 				desc = "Failed to download artifacts"
+			}
+		case api.TaskKilling:
+			if event.KillTimeout != 0 {
+				desc = fmt.Sprintf("Sent interupt. Waiting %v before force killing", event.KillTimeout)
+			} else {
+				desc = "Sent interupt"
 			}
 		case api.TaskKilled:
 			if event.KillError != "" {
@@ -296,7 +376,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v|%v|%v|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
 		humanize.IBytes(uint64(resource.DiskMB*bytesPerMegabyte)),
@@ -394,7 +474,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 		if l != 0 {
 			last := state.Events[l-1]
 			lastEvent = last.Type
-			lastTime = c.formatUnixNanoTime(last.Time)
+			lastTime = formatUnixNanoTime(last.Time)
 		}
 
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
@@ -423,10 +503,4 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
-}
-
-// formatUnixNanoTime is a helper for formating time for output.
-func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
-	t := time.Unix(0, nano)
-	return formatTime(t)
 }

@@ -123,7 +123,7 @@ Below is a table documenting common node attributes:
     <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
   </tr>
   <tr>
-    <td>hostname</td>
+    <td>unique.hostname</td>
     <td>Hostname of the client</td>
   </tr>
   <tr>
@@ -177,7 +177,7 @@ a particular node and as such can not be used in constraints.
   </tr>
   <tr>
     <td>${NOMAD_MEMORY_LIMIT}</td>
-    <td>The memory limit in MBits for the task</td>
+    <td>The memory limit in MBytes for the task</td>
   </tr>
   <tr>
     <td>${NOMAD_CPU_LIMIT}</td>

@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -18,6 +19,10 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	input_rkt := "rkt version 0.8.1"
 	input_appc := "appc version 1.2.0"
 	expected_rkt := "0.8.1"
@@ -34,6 +39,10 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
 	d := NewRktDriver(driverCtx)
@@ -59,6 +68,10 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 	// TODO: use test server to load from a fixture
 	task := &structs.Task{
@@ -105,6 +118,10 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
@@ -154,6 +171,10 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
@@ -202,6 +223,10 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 
 	exp := []byte{'w', 'i', 'n'}
@@ -262,6 +287,10 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name: "etcd",
@@ -294,5 +323,65 @@ func TestRktDriverUser(t *testing.T) {
 	msg := "unknown user alice"
 	if !strings.Contains(err.Error(), msg) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
+
+func TestRktTrustPrefix(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"trust_prefix": "example.com/invalid",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+			"args":         []string{"--version"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err == nil {
+		handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "Error running rkt trust"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
+
+func TestRktTaskValidate(t *testing.T) {
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"trust_prefix":       "coreos.com/etcd",
+			"image":              "coreos.com/etcd:v2.0.4",
+			"command":            "/etcd",
+			"args":               []string{"--version"},
+			"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
+			"dns_search_domains": []string{"example.com", "example.org", "example.net"},
+		},
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+	if err := d.Validate(task.Config); err != nil {
+		t.Fatalf("Validation error in TaskConfig : '%v'", err)
 	}
 }

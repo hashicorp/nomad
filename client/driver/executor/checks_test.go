@@ -102,7 +102,7 @@ func TestDockerScriptCheck(t *testing.T) {
 	}
 	defer removeContainer(client, container.ID)
 
-	if err := client.StartContainer(container.ID, &docker.HostConfig{}); err != nil {
+	if err := client.StartContainer(container.ID, container.HostConfig); err != nil {
 		t.Fatalf("error starting container", err)
 	}
 
@@ -133,5 +133,5 @@ func TestDockerScriptCheck(t *testing.T) {
 // removeContainer kills and removes a container
 func removeContainer(client *docker.Client, containerID string) {
 	client.KillContainer(docker.KillContainerOptions{ID: containerID})
-	client.RemoveContainer(docker.RemoveContainerOptions{ID: containerID, Force: true})
+	client.RemoveContainer(docker.RemoveContainerOptions{ID: containerID, RemoveVolumes: true, Force: true})
 }

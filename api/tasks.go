@@ -60,15 +60,16 @@ type RestartPolicy struct {
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id       string
-	Name     string
-	Type     string
-	Command  string
-	Args     []string
-	Path     string
-	Protocol string
-	Interval time.Duration
-	Timeout  time.Duration
+	Id        string
+	Name      string
+	Type      string
+	Command   string
+	Args      []string
+	Path      string
+	Protocol  string `mapstructure:"port"`
+	PortLabel string `mapstructure:"port"`
+	Interval  time.Duration
+	Timeout   time.Duration
 }
 
 // The Service model represents a Consul service definition
@@ -206,6 +207,7 @@ const (
 	TaskFailedValidation       = "Failed Validation"
 	TaskStarted                = "Started"
 	TaskTerminated             = "Terminated"
+	TaskKilling                = "Killing"
 	TaskKilled                 = "Killed"
 	TaskRestarting             = "Restarting"
 	TaskNotRestarting          = "Not Restarting"
@@ -223,6 +225,7 @@ type TaskEvent struct {
 	ExitCode        int
 	Signal          int
 	Message         string
+	KillTimeout     time.Duration
 	KillError       string
 	StartDelay      int64
 	DownloadError   string

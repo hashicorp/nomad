@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -35,6 +36,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// Set HTTP parameters on the query.
+	Params map[string]string
 }
 
 // WriteOptions are used to parameterize a write
@@ -71,6 +75,15 @@ type WriteMeta struct {
 	RequestTime time.Duration
 }
 
+// HttpBasicAuth is used to authenticate http client with HTTP Basic Authentication
+type HttpBasicAuth struct {
+	// Username to use for HTTP Basic Authentication
+	Username string
+
+	// Password to use for HTTP Basic Authentication
+	Password string
+}
+
 // Config is used to configure the creation of a client
 type Config struct {
 	// Address is the address of the Nomad agent
@@ -82,6 +95,9 @@ type Config struct {
 	// HttpClient is the client to use. Default will be
 	// used if not provided.
 	HttpClient *http.Client
+
+	// HttpAuth is the auth info to use for http access.
+	HttpAuth *HttpBasicAuth
 
 	// WaitTime limits how long a Watch will block. If not provided,
 	// the agent default values will be used.
@@ -96,6 +112,21 @@ func DefaultConfig() *Config {
 	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
 		config.Address = addr
+	}
+	if auth := os.Getenv("NOMAD_HTTP_AUTH"); auth != "" {
+		var username, password string
+		if strings.Contains(auth, ":") {
+			split := strings.SplitN(auth, ":", 2)
+			username = split[0]
+			password = split[1]
+		} else {
+			username = auth
+		}
+
+		config.HttpAuth = &HttpBasicAuth{
+			Username: username,
+			Password: password,
+		}
 	}
 	return config
 }
@@ -162,6 +193,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
+	for k, v := range q.Params {
+		r.params.Set(k, v)
+	}
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -200,6 +234,15 @@ func (r *request) toHTTP() (*http.Request, error) {
 		return nil, err
 	}
 
+	// Optionally configure HTTP basic authentication
+	if r.url.User != nil {
+		username := r.url.User.Username()
+		password, _ := r.url.User.Password()
+		req.SetBasicAuth(username, password)
+	} else if r.config.HttpAuth != nil {
+		req.SetBasicAuth(r.config.HttpAuth.Username, r.config.HttpAuth.Password)
+	}
+
 	req.Header.Add("Accept-Encoding", "gzip")
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
@@ -216,6 +259,7 @@ func (c *Client) newRequest(method, path string) *request {
 		method: method,
 		url: &url.URL{
 			Scheme: base.Scheme,
+			User:   base.User,
 			Host:   base.Host,
 			Path:   u.Path,
 		},
@@ -291,6 +335,19 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	}
 
 	return diff, resp, err
+}
+
+// rawQuery makes a GET request to the specified endpoint but returns just the
+// response body.
+func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, error) {
+	r := c.newRequest("GET", endpoint)
+	r.setQueryOptions(q)
+	_, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
 
 // Query is used to do a GET request against an endpoint

@@ -93,7 +93,6 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 }
 
 func TestDriver_GetTaskEnv(t *testing.T) {
-	t.Parallel()
 	task := &structs.Task{
 		Name: "Foo",
 		Env: map[string]string{
@@ -129,15 +128,19 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		"NOMAD_ADDR_one":                "1.2.3.4:80",
 		"NOMAD_IP_one":                  "1.2.3.4",
 		"NOMAD_PORT_one":                "80",
+		"NOMAD_HOST_PORT_one":           "80",
 		"NOMAD_ADDR_two":                "1.2.3.4:443",
 		"NOMAD_IP_two":                  "1.2.3.4",
 		"NOMAD_PORT_two":                "443",
+		"NOMAD_HOST_PORT_two":           "443",
 		"NOMAD_ADDR_admin":              "1.2.3.4:8081",
 		"NOMAD_IP_admin":                "1.2.3.4",
 		"NOMAD_PORT_admin":              "8081",
+		"NOMAD_HOST_PORT_admin":         "8081",
 		"NOMAD_ADDR_web":                "1.2.3.4:8086",
 		"NOMAD_IP_web":                  "1.2.3.4",
 		"NOMAD_PORT_web":                "8086",
+		"NOMAD_HOST_PORT_web":           "8086",
 		"NOMAD_META_CHOCOLATE":          "cake",
 		"NOMAD_META_STRAWBERRY":         "icecream",
 		"NOMAD_META_ELB_CHECK_INTERVAL": "30s",
@@ -158,7 +161,6 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 }
 
 func TestMapMergeStrInt(t *testing.T) {
-	t.Parallel()
 	a := map[string]int{
 		"cakes":   5,
 		"cookies": 3,
@@ -183,7 +185,6 @@ func TestMapMergeStrInt(t *testing.T) {
 }
 
 func TestMapMergeStrStr(t *testing.T) {
-	t.Parallel()
 	a := map[string]string{
 		"cake":   "chocolate",
 		"cookie": "caramel",

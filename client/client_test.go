@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,7 +23,13 @@ import (
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
-var nextPort uint32 = 16000
+var (
+	nextPort uint32 = 16000
+
+	osExecDriverSupport = map[string]bool{
+		"linux": true,
+	}
+)
 
 func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
@@ -225,7 +232,11 @@ func TestClient_Drivers(t *testing.T) {
 
 	node := c.Node()
 	if node.Attributes["driver.exec"] == "" {
-		t.Fatalf("missing exec driver")
+		if v, ok := osExecDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing exec driver")
+		} else {
+			t.Skipf("missing exec driver, no OS support")
+		}
 	}
 }
 
@@ -242,7 +253,11 @@ func TestClient_Drivers_InWhitelist(t *testing.T) {
 
 	node := c.Node()
 	if node.Attributes["driver.exec"] == "" {
-		t.Fatalf("missing exec driver")
+		if v, ok := osExecDriverSupport[runtime.GOOS]; v && ok {
+			t.Fatalf("missing exec driver")
+		} else {
+			t.Skipf("missing exec driver, no OS support")
+		}
 	}
 }
 
@@ -342,6 +357,9 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	alloc.ClientStatus = originalStatus
 
 	state := s1.State()
+	if err := state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID)); err != nil {
+		t.Fatal(err)
+	}
 	state.UpsertAllocs(100, []*structs.Allocation{alloc})
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -379,6 +397,12 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.NodeID = c1.Node().ID
 
 	state := s1.State()
+	if err := state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)); err != nil {
+		t.Fatal(err)
+	}
 	err := state.UpsertAllocs(100,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
@@ -454,8 +478,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	task.Config["args"] = []string{"10"}
 
 	state := s1.State()
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
-	if err != nil {
+	if err := state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.UpsertAllocs(100, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -470,8 +496,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	})
 
 	// Shutdown the client, saves state
-	err = c1.Shutdown()
-	if err != nil {
+	if err := c1.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

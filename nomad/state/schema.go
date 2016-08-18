@@ -19,6 +19,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
+		jobSummarySchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
@@ -115,6 +116,24 @@ func jobTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.ConditionalIndex{
 					Conditional: jobIsPeriodic,
+				},
+			},
+		},
+	}
+}
+
+// jobSummarySchema returns the memdb schema for the job summary table
+func jobSummarySchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_summary",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "JobID",
+					Lowercase: true,
 				},
 			},
 		},

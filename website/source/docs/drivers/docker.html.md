@@ -43,15 +43,14 @@ The following options are available for use in the job specification.
 
 * `command` - (Optional) The command to run when starting the container.
 
-*   `args` - (Optional) A list of arguments to the optional `command`. If no
-    `command` is present, `args` are ignored. References to environment variables
-    or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
+* `args` - (Optional) A list of arguments to the optional `command`. If no
+  `command` is present, `args` are ignored. References to environment variables
+  or any [interpretable Nomad variables](/docs/jobspec/interpreted.html) will be
+  interpreted before launching the task. For example:
 
-    ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-    ```
+  ```
+  args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
+  ```
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on
   start.
@@ -78,10 +77,11 @@ The following options are available for use in the job specification.
 
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
-  value. The default is `bridge`. Other networking modes may not work without
-  additional configuration on the host (which is outside the scope of Nomad).
-  Valid values pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or
-  `container:name`. See below for more details.
+  value. The default is `bridge` for all operating systems but Windows, which
+  defaults to `nat`. Other networking modes may not work without additional
+  configuration on the host (which is outside the scope of Nomad).  Valid values
+  pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
+  See below for more details.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
@@ -108,6 +108,8 @@ The following options are available for use in the job specification.
   
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `work_dir` - (Optional) The working directory inside the container.
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
@@ -130,7 +132,7 @@ The `auth` object supports the following keys:
 
 * `email` - (Optional) The account email.
 
-* `server_address` - (Optional) The server domain/ip without the protocol.
+* `server_address` - (Optional) The server domain/IP without the protocol.
   Docker Hub is used by default.
 
 Example:
@@ -172,8 +174,12 @@ You can allocate ports to your task using the port syntax described on the
 task "webservice" {
     driver = "docker"
 
-    port "http" {}
-    port "https" {}
+    resources {
+        network {
+            port "http" {}
+            port "https" {}
+        }
+    }
 }
 ```
 
@@ -256,7 +262,7 @@ socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
 
-For example, on ubuntu you can use the `usermod` command to add the `vagrant`
+For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
 user to the `docker` group so you can run Nomad without root:
 
     sudo usermod -G docker -a vagrant
@@ -301,18 +307,11 @@ options](/docs/agent/config.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
-  `true` will also allow containers to run with ipc_mode, pid_mode and uts_mode
-  set to `host`, which gives access to the hosts ipc, pid and UTS namespaces
-  respectively.  
-
-    cert := d.config.Read("docker.tls.cert")
-    key := d.config.Read("docker.tls.key")
-    ca := d.config.Read("docker.tls.ca")
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the
-config filie.
+config file.
 
 An example is given below: 
 

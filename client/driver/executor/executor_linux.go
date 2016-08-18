@@ -68,7 +68,7 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	}
 
 	// Entering the process in the cgroup
-	manager := getCgroupManager(e.groups, nil)
+	manager := getCgroupManager(e.resConCtx.groups, nil)
 	if err := manager.Apply(pid); err != nil {
 		e.logger.Printf("[ERR] executor: error applying pid to cgroup: %v", err)
 		if er := e.removeChrootMounts(); er != nil {
@@ -76,11 +76,11 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 		}
 		return err
 	}
-	e.cgPaths = manager.GetPaths()
-	cgConfig := cgroupConfig.Config{Cgroups: e.groups}
+	e.resConCtx.cgPaths = manager.GetPaths()
+	cgConfig := cgroupConfig.Config{Cgroups: e.resConCtx.groups}
 	if err := manager.Set(&cgConfig); err != nil {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
-		if er := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); er != nil {
+		if er := DestroyCgroup(e.resConCtx.groups, e.resConCtx.cgPaths, os.Getpid()); er != nil {
 			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
 		}
 		if er := e.removeChrootMounts(); er != nil {
@@ -94,19 +94,19 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 // configureCgroups converts a Nomad Resources specification into the equivalent
 // cgroup configuration. It returns an error if the resources are invalid.
 func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error {
-	e.groups = &cgroupConfig.Cgroup{}
-	e.groups.Resources = &cgroupConfig.Resources{}
+	e.resConCtx.groups = &cgroupConfig.Cgroup{}
+	e.resConCtx.groups.Resources = &cgroupConfig.Resources{}
 	cgroupName := structs.GenerateUUID()
-	e.groups.Path = filepath.Join("/nomad", cgroupName)
+	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
 	// TODO: verify this is needed for things like network access
-	e.groups.Resources.AllowAllDevices = true
+	e.resConCtx.groups.Resources.AllowAllDevices = true
 
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
-		e.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
+		e.resConCtx.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		e.groups.Resources.MemorySwap = int64(-1)
+		e.resConCtx.groups.Resources.MemorySwap = int64(-1)
 	}
 
 	if resources.CPU < 2 {
@@ -114,7 +114,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	e.groups.Resources.CpuShares = int64(resources.CPU)
+	e.resConCtx.groups.Resources.CpuShares = int64(resources.CPU)
 
 	if resources.IOPS != 0 {
 		// Validate it is in an acceptable range.
@@ -122,7 +122,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", resources.IOPS)
 		}
 
-		e.groups.Resources.BlkioWeight = uint16(resources.IOPS)
+		e.resConCtx.groups.Resources.BlkioWeight = uint16(resources.IOPS)
 	}
 
 	return nil
@@ -140,7 +140,7 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		return e.aggregatedResourceUsage(pidStats), nil
 	}
 	ts := time.Now()
-	manager := getCgroupManager(e.groups, e.cgPaths)
+	manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
 	stats, err := manager.GetStats()
 	if err != nil {
 		return nil, err
@@ -227,7 +227,12 @@ func (e *UniversalExecutor) configureChroot() error {
 		return err
 	}
 
-	if err := allocDir.Embed(e.ctx.Task.Name, chrootEnv); err != nil {
+	chroot := chrootEnv
+	if len(e.ctx.ChrootEnv) > 0 {
+		chroot = e.ctx.ChrootEnv
+	}
+
+	if err := allocDir.Embed(e.ctx.Task.Name, chroot); err != nil {
 		return err
 	}
 
@@ -255,8 +260,8 @@ func (e *UniversalExecutor) configureChroot() error {
 // should be called when tearing down the task.
 func (e *UniversalExecutor) removeChrootMounts() error {
 	// Prevent a race between Wait/ForceStop
-	e.cgLock.Lock()
-	defer e.cgLock.Unlock()
+	e.resConCtx.cgLock.Lock()
+	defer e.resConCtx.cgLock.Unlock()
 	return e.ctx.AllocDir.UnmountAll()
 }
 
@@ -266,7 +271,7 @@ func (e *UniversalExecutor) removeChrootMounts() error {
 // isolation
 func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 	if e.command.ResourceLimits {
-		manager := getCgroupManager(e.groups, e.cgPaths)
+		manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
 			return nil, err

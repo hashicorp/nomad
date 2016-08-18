@@ -17,7 +17,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -102,6 +101,10 @@ type ExecutorContext struct {
 
 	// AllocID is the allocation id to which the task belongs
 	AllocID string
+
+	// A mapping of directories on the host OS to attempt to embed inside each
+	// task's chroot.
+	ChrootEnv map[string]string
 
 	// Driver is the name of the driver that invoked the executor
 	Driver string
@@ -192,9 +195,7 @@ type UniversalExecutor struct {
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 
-	groups  *cgroupConfig.Cgroup
-	cgPaths map[string]string
-	cgLock  sync.Mutex
+	resConCtx resourceContainerContext
 
 	consulSyncer   *consul.Syncer
 	consulCtx      *ConsulContext
@@ -250,14 +251,15 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 
 	e.ctx.TaskEnv.Build()
-	// configuring the chroot, cgroup and enters the plugin process in the
-	// chroot
+	// configuring the chroot, resource container, and start the plugin
+	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
 		return nil, err
 	}
-	// Apply ourselves into the cgroup. The executor MUST be in the cgroup
-	// before the user task is started, otherwise we are subject to a fork
-	// attack in which a process escapes isolation by immediately forking.
+	// Apply ourselves into the resource container. The executor MUST be in
+	// the resource container before the user task is started, otherwise we
+	// are subject to a fork attack in which a process escapes isolation by
+	// immediately forking.
 	if err := e.applyLimits(os.Getpid()); err != nil {
 		return nil, err
 	}
@@ -301,7 +303,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	}
 	go e.collectPids()
 	go e.wait()
-	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := e.resConCtx.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
 }
 
@@ -389,7 +391,7 @@ func generateServiceKeys(allocID string, services []*structs.Service) map[consul
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
-	ic := &dstructs.IsolationConfig{Cgroup: e.groups, CgroupPaths: e.cgPaths}
+	ic := e.resConCtx.getIsolationConfig()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
@@ -425,8 +427,14 @@ var (
 	finishedErr = "os: process already finished"
 )
 
-// Exit cleans up the alloc directory, destroys cgroups and kills the user
-// process
+// ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
+// reminants of a child UniversalExecutor.
+func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
+	return clientCleanup(ic, pid)
+}
+
+// Exit cleans up the alloc directory, destroys resource container and kills the
+// user process
 func (e *UniversalExecutor) Exit() error {
 	var merr multierror.Error
 	if e.syslogServer != nil {
@@ -444,7 +452,7 @@ func (e *UniversalExecutor) Exit() error {
 		return nil
 	}
 
-	// Prefer killing the process via cgroups.
+	// Prefer killing the process via the resource container.
 	if e.cmd.Process != nil && !e.command.ResourceLimits {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
@@ -457,11 +465,9 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	if e.command.ResourceLimits {
-		e.cgLock.Lock()
-		if err := DestroyCgroup(e.groups, e.cgPaths, os.Getpid()); err != nil {
+		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		e.cgLock.Unlock()
 	}
 
 	if e.command.FSIsolation {

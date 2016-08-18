@@ -164,10 +164,9 @@ func (r *AllocRunner) SaveState() error {
 	}
 
 	// Save state for each task
-	r.taskLock.RLock()
-	defer r.taskLock.RUnlock()
+	runners := r.getTaskRunners()
 	var mErr multierror.Error
-	for _, tr := range r.tasks {
+	for _, tr := range runners {
 		if err := r.saveTaskRunnerState(tr); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -203,12 +202,11 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 }
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
-	var err error
-	if err = tr.SaveState(); err != nil {
-		r.logger.Printf("[ERR] client: failed to save state for alloc %s task '%s': %v",
+	if err := tr.SaveState(); err != nil {
+		return fmt.Errorf("failed to save state for alloc %s task '%s': %v",
 			r.alloc.ID, tr.task.Name, err)
 	}
-	return err
+	return nil
 }
 
 // DestroyState is used to cleanup after ourselves
@@ -431,29 +429,25 @@ OUTER:
 			}
 
 			// Update the task groups
-			r.taskLock.RLock()
-			for _, task := range tg.Tasks {
-				tr := r.tasks[task.Name]
+			runners := r.getTaskRunners()
+			for _, tr := range runners {
 				tr.Update(update)
 			}
-			r.taskLock.RUnlock()
-
 		case <-r.destroyCh:
 			break OUTER
 		}
 	}
 
 	// Destroy each sub-task
-	r.taskLock.Lock()
-	for _, tr := range r.tasks {
+	runners := r.getTaskRunners()
+	for _, tr := range runners {
 		tr.Destroy()
 	}
 
 	// Wait for termination of the task runners
-	for _, tr := range r.tasks {
+	for _, tr := range runners {
 		<-tr.WaitCh()
 	}
-	r.taskLock.Unlock()
 
 	// Final state sync
 	r.syncStatus()
@@ -494,6 +488,19 @@ func (r *AllocRunner) StatsReporter() AllocStatsReporter {
 	return r
 }
 
+// getTaskRunners is a helper that returns a copy of the task runners list using
+// the taskLock.
+func (r *AllocRunner) getTaskRunners() []*TaskRunner {
+	// Get the task runners
+	r.taskLock.RLock()
+	defer r.taskLock.RUnlock()
+	runners := make([]*TaskRunner, 0, len(r.tasks))
+	for _, tr := range r.tasks {
+		runners = append(runners, tr)
+	}
+	return runners
+}
+
 // LatestAllocStats returns the latest allocation stats. If the optional taskFilter is set
 // the allocation stats will only include the given task.
 func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
@@ -517,13 +524,7 @@ func (r *AllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResour
 		}
 	} else {
 		// Get the task runners
-		r.taskLock.RLock()
-		runners := make([]*TaskRunner, 0, len(r.tasks))
-		for _, tr := range r.tasks {
-			runners = append(runners, tr)
-		}
-		r.taskLock.RUnlock()
-
+		runners := r.getTaskRunners()
 		for _, tr := range runners {
 			l := tr.LatestResourceUsage()
 			if l != nil {

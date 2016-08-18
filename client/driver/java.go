@@ -203,11 +203,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "java",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv:   d.taskEnv,
+		Driver:    "java",
+		AllocDir:  ctx.AllocDir,
+		AllocID:   ctx.AllocID,
+		ChrootEnv: d.config.ChrootEnv,
+		Task:      task,
 	}
 
 	absPath, err := GetAbsolutePath("java")
@@ -287,10 +288,9 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
-			isoConf := id.IsolationConfig
 			ePid := pluginConfig.Reattach.Pid
-			if e := executor.DestroyCgroup(isoConf.Cgroup, isoConf.CgroupPaths, ePid); e != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
+			if e := executor.ClientCleanup(id.IsolationConfig, ePid); e != nil {
+				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying resource container failed: %v", e))
 			}
 		}
 		if e := ctx.AllocDir.UnmountAll(); e != nil {
@@ -390,10 +390,9 @@ func (h *javaHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
-			isoConf := h.isolationConfig
 			ePid := h.pluginClient.ReattachConfig().Pid
-			if e := executor.DestroyCgroup(isoConf.Cgroup, isoConf.CgroupPaths, ePid); e != nil {
-				h.logger.Printf("[ERR] driver.java: destroying cgroup failed while killing cgroup: %v", e)
+			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
+				h.logger.Printf("[ERR] driver.java: destroying resource container failed: %v", e)
 			}
 		} else {
 			if e := killProcess(h.userPid); e != nil {

@@ -60,7 +60,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		agent:    agent,
 		mux:      mux,
 		listener: ln,
-		logger:   log.New(logOutput, "", log.LstdFlags),
+		logger:   agent.logger,
 		addr:     ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
@@ -129,6 +129,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
+	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)

@@ -281,9 +281,11 @@ func TestJobs_Evaluations(t *testing.T) {
 	}
 	assertQueryMeta(t, qm)
 
-	// Check that we got the evals back
-	if n := len(evals); n == 0 || evals[0].ID != evalID {
-		t.Fatalf("expected 1 eval (%s), got: %#v", evalID, evals)
+	// Check that we got the evals back, evals are in order most recent to least recent
+	// so the last eval is the original registered eval
+	idx := len(evals) - 1
+	if n := len(evals); n == 0 || evals[idx].ID != evalID {
+		t.Fatalf("expected >= 1 eval (%s), got: %#v", evalID, evals[idx])
 	}
 }
 
@@ -485,6 +487,43 @@ func TestJobs_Plan(t *testing.T) {
 	// Can make this assertion because there are no clients.
 	if len(planResp.CreatedEvals) == 0 {
 		t.Fatalf("got no CreatedEvals: %#v", planResp)
+	}
+}
+
+func TestJobs_JobSummary(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Trying to retrieve a job summary before the job exists
+	// returns an error
+	_, _, err := jobs.Summary("job1", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Register the job
+	job := testJob()
+	taskName := job.TaskGroups[0].Name
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job summary again and ensure it exists
+	result, qm, err := jobs.Summary("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
+	if job.ID != result.JobID {
+		t.Fatalf("err: expected job id of %s saw %s", job.ID, result.JobID)
+	}
+	if _, ok := result.Summary[taskName]; !ok {
+		t.Fatalf("err: unable to find %s key in job summary", taskName)
 	}
 }
 

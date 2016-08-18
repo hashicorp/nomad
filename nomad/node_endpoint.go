@@ -66,9 +66,22 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return fmt.Errorf("invalid status for node")
 	}
 
+	// Set the timestamp when the node is registered
+	args.Node.StatusUpdatedAt = time.Now().Unix()
+
 	// Compute the node class
 	if err := args.Node.ComputeClass(); err != nil {
 		return fmt.Errorf("failed to computed node class: %v", err)
+	}
+
+	// Look for the node so we can detect a state transistion
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	originalNode, err := snap.NodeByID(args.Node.ID)
+	if err != nil {
+		return err
 	}
 
 	// Commit this update via Raft
@@ -80,7 +93,12 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	if structs.ShouldDrainNode(args.Node.Status) {
+	originalStatus := structs.NodeStatusInit
+	if originalNode != nil {
+		originalStatus = originalNode.Status
+	}
+	transitionToReady := transitionedToReady(args.Node.Status, originalStatus)
+	if structs.ShouldDrainNode(args.Node.Status) || transitionToReady {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.Node.ID, index)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
@@ -102,7 +120,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Set the reply index
 	reply.Index = index
-	snap, err := n.srv.fsm.State().Snapshot()
+	snap, err = n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -218,6 +236,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		return fmt.Errorf("node not found")
 	}
 
+	// Update the timestamp of when the node status was updated
+	node.StatusUpdatedAt = time.Now().Unix()
+
 	// Commit this update via Raft
 	var index uint64
 	if node.Status != args.Status {
@@ -230,9 +251,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check if we should trigger evaluations
-	initToReady := node.Status == structs.NodeStatusInit && args.Status == structs.NodeStatusReady
-	terminalToReady := node.Status == structs.NodeStatusDown && args.Status == structs.NodeStatusReady
-	transitionToReady := initToReady || terminalToReady
+	transitionToReady := transitionedToReady(args.Status, node.Status)
 	if structs.ShouldDrainNode(args.Status) || transitionToReady {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
@@ -265,6 +284,14 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	return nil
 }
 
+// transitionedToReady is a helper that takes a nodes new and old status and
+// returns whether it has transistioned to ready.
+func transitionedToReady(newStatus, oldStatus string) bool {
+	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
+	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
+	return initToReady || terminalToReady
+}
+
 // UpdateDrain is used to update the drain mode of a client node
 func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	reply *structs.NodeDrainUpdateResponse) error {
@@ -290,6 +317,9 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if node == nil {
 		return fmt.Errorf("node not found")
 	}
+
+	// Update the timestamp to
+	node.StatusUpdatedAt = time.Now().Unix()
 
 	// Commit this update via Raft
 	var index uint64

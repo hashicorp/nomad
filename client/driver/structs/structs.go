@@ -3,8 +3,6 @@ package structs
 import (
 	"fmt"
 	"time"
-
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const (
@@ -37,13 +35,6 @@ func (r *WaitResult) Successful() bool {
 func (r *WaitResult) String() string {
 	return fmt.Sprintf("Wait returned exit code %v, signal %v, and error %v",
 		r.ExitCode, r.Signal, r.Err)
-}
-
-// IsolationConfig has information about the isolation mechanism the executor
-// uses to put resource constraints and isolation on the user process
-type IsolationConfig struct {
-	Cgroup      *cgroupConfig.Cgroup
-	CgroupPaths map[string]string
 }
 
 // RecoverableError wraps an error and marks whether it is recoverable and could

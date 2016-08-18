@@ -343,8 +343,62 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	}
 }
 
+// This test ensures that even with a small domain of available ports we are
+// able to make a dynamic port allocation.
+func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
+
+	// Create a node that only has one free port
+	idx := NewNetworkIndex()
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					IP:     "192.168.0.100",
+					MBits:  1,
+				},
+			},
+		},
+	}
+	for i := MinDynamicPort; i < MaxDynamicPort-1; i++ {
+		n.Reserved.Networks[0].ReservedPorts = append(n.Reserved.Networks[0].ReservedPorts, Port{Value: i})
+	}
+
+	idx.SetNode(n)
+
+	// Ask for dynamic ports
+	ask := &NetworkResource{
+		DynamicPorts: []Port{{"http", 0}},
+	}
+	offer, err := idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if offer == nil {
+		t.Fatalf("bad")
+	}
+	if offer.IP != "192.168.0.100" {
+		t.Fatalf("bad: %#v", offer)
+	}
+	if len(offer.DynamicPorts) != 1 {
+		t.Fatalf("There should be three dynamic ports")
+	}
+	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
+		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
+	}
+}
+
 func TestIntContains(t *testing.T) {
-	l := []Port{{"one", 1}, {"two", 2}, {"ten", 10}, {"twenty", 20}}
+	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")
 	}

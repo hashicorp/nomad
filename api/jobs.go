@@ -159,6 +159,15 @@ func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *Wr
 	return &resp, wm, nil
 }
 
+func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, error) {
+	var resp JobSummary
+	qm, err := j.client.query("/v1/job/"+jobID+"/summary", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -199,6 +208,27 @@ type Job struct {
 	JobModifyIndex    uint64
 }
 
+// JobSummary summarizes the state of the allocations of a job
+type JobSummary struct {
+	JobID   string
+	Summary map[string]TaskGroupSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroup
+type TaskGroupSummary struct {
+	Queued   int
+	Complete int
+	Failed   int
+	Running  int
+	Starting int
+	Lost     int
+}
+
 // JobListStub is used to return a subset of information about
 // jobs during list operations.
 type JobListStub struct {
@@ -209,6 +239,7 @@ type JobListStub struct {
 	Priority          int
 	Status            string
 	StatusDescription string
+	JobSummary        *JobSummary
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
@@ -290,8 +321,8 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 // RegisterJobRequest is used to serialize a job registration
 type RegisterJobRequest struct {
 	Job            *Job
-	EnforceIndex   bool
-	JobModifyIndex uint64
+	EnforceIndex   bool   `json:",omitempty"`
+	JobModifyIndex uint64 `json:",omitempty"`
 }
 
 // registerJobResponse is used to deserialize a job response

@@ -47,9 +47,15 @@ func TestDiffAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.JobModifyIndex -= 1
 
-	tainted := map[string]bool{
-		"dead": true,
-		"zip":  false,
+	drainNode := mock.Node()
+	drainNode.Drain = true
+
+	deadNode := mock.Node()
+	deadNode.Status = structs.NodeStatusDown
+
+	tainted := map[string]*structs.Node{
+		"dead":      deadNode,
+		"drainNode": drainNode,
 	}
 
 	allocs := []*structs.Allocation{
@@ -80,8 +86,15 @@ func TestDiffAllocs(t *testing.T) {
 		// Migrate the 3rd
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "dead",
+			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
+			Job:    oldJob,
+		},
+		// Mark the 4th lost
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "dead",
+			Name:   "my-job.web[3]",
 			Job:    oldJob,
 		},
 	}
@@ -92,6 +105,7 @@ func TestDiffAllocs(t *testing.T) {
 	migrate := diff.migrate
 	stop := diff.stop
 	ignore := diff.ignore
+	lost := diff.lost
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {
@@ -113,8 +127,13 @@ func TestDiffAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
-	// We should place 7
-	if len(place) != 7 {
+	// We should mark the 5th alloc as lost
+	if len(lost) != 1 || lost[0].Alloc != allocs[4] {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should place 6
+	if len(place) != 6 {
 		t.Fatalf("bad: %#v", place)
 	}
 }
@@ -130,9 +149,15 @@ func TestDiffSystemAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.JobModifyIndex -= 1
 
-	tainted := map[string]bool{
-		"dead": true,
-		"baz":  false,
+	drainNode := mock.Node()
+	drainNode.Drain = true
+
+	deadNode := mock.Node()
+	deadNode.Status = structs.NodeStatusDown
+
+	tainted := map[string]*structs.Node{
+		"dead":      deadNode,
+		"drainNode": drainNode,
 	}
 
 	allocs := []*structs.Allocation{
@@ -152,7 +177,14 @@ func TestDiffSystemAllocs(t *testing.T) {
 			Job:    job,
 		},
 
-		// Stop allocation on dead.
+		// Stop allocation on draining node.
+		&structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "drainNode",
+			Name:   "my-job.web[0]",
+			Job:    oldJob,
+		},
+		// Mark as lost on a dead node
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
@@ -167,6 +199,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	migrate := diff.migrate
 	stop := diff.stop
 	ignore := diff.ignore
+	lost := diff.lost
 
 	// We should update the first alloc
 	if len(update) != 1 || update[0].Alloc != allocs[0] {
@@ -185,6 +218,11 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	// There should be no migrates.
 	if len(migrate) != 0 {
+		t.Fatalf("bad: %#v", migrate)
+	}
+
+	// We should mark the 5th alloc as lost
+	if len(lost) != 1 || lost[0].Alloc != allocs[3] {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
@@ -309,13 +347,26 @@ func TestTaintedNodes(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(tainted) != 5 {
+	if len(tainted) != 3 {
 		t.Fatalf("bad: %v", tainted)
 	}
-	if tainted[node1.ID] || tainted[node2.ID] {
+
+	if _, ok := tainted[node1.ID]; ok {
 		t.Fatalf("Bad: %v", tainted)
 	}
-	if !tainted[node3.ID] || !tainted[node4.ID] || !tainted["12345678-abcd-efab-cdef-123456789abc"] {
+	if _, ok := tainted[node2.ID]; ok {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted[node3.ID]; !ok || node == nil {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted[node4.ID]; !ok || node == nil {
+		t.Fatalf("Bad: %v", tainted)
+	}
+
+	if node, ok := tainted["12345678-abcd-efab-cdef-123456789abc"]; !ok || node != nil {
 		t.Fatalf("Bad: %v", tainted)
 	}
 }
@@ -488,7 +539,7 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -504,7 +555,7 @@ func TestSetStatus(t *testing.T) {
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	if err := setStatus(logger, h, eval, next, nil, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -520,7 +571,7 @@ func TestSetStatus(t *testing.T) {
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -536,7 +587,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -548,6 +599,23 @@ func TestSetStatus(t *testing.T) {
 	if !reflect.DeepEqual(newEval.FailedTGAllocs, metrics) {
 		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
 	}
+
+	// Test queued allocations
+	h = NewHarness(t)
+	queuedAllocs := map[string]int{"web": 1}
+
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval = h.Evals[0]
+	if !reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs) {
+		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	}
 }
 
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
@@ -556,7 +624,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -570,8 +638,10 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
@@ -602,7 +672,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -616,8 +686,10 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 			MemoryMB: 2048,
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
@@ -647,7 +719,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(1000, node))
+	noErr(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -664,6 +736,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
@@ -889,5 +962,78 @@ func TestDesiredUpdates(t *testing.T) {
 	desired := desiredUpdates(diff, inplace, destructive)
 	if !reflect.DeepEqual(desired, expected) {
 		t.Fatalf("desiredUpdates() returned %#v; want %#v", desired, expected)
+	}
+}
+
+func TestUtil_AdjustQueuedAllocations(t *testing.T) {
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.CreateIndex = 4
+	alloc3 := mock.Alloc()
+	alloc3.CreateIndex = 3
+	alloc4 := mock.Alloc()
+	alloc4.CreateIndex = 6
+
+	planResult := structs.PlanResult{
+		NodeUpdate: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{alloc1},
+		},
+		NodeAllocation: map[string][]*structs.Allocation{
+			"node-1": []*structs.Allocation{
+				alloc2,
+			},
+			"node-2": []*structs.Allocation{
+				alloc3, alloc4,
+			},
+		},
+		RefreshIndex: 3,
+		AllocIndex:   4,
+	}
+
+	queuedAllocs := map[string]int{"web": 2}
+	adjustQueuedAllocations(logger, &planResult, queuedAllocs)
+
+	if queuedAllocs["web"] != 1 {
+		t.Fatalf("expected: %v, actual: %v", 1, queuedAllocs["web"])
+	}
+}
+
+func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
+	node := mock.Node()
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc3 := mock.Alloc()
+	alloc3.NodeID = node.ID
+	alloc3.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc3.ClientStatus = structs.AllocClientStatusComplete
+
+	alloc4 := mock.Alloc()
+	alloc4.NodeID = node.ID
+	alloc4.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc4.ClientStatus = structs.AllocClientStatusFailed
+
+	allocs := []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}
+	plan := structs.Plan{
+		NodeUpdate: make(map[string][]*structs.Allocation),
+	}
+	tainted := map[string]*structs.Node{node.ID: node}
+
+	updateNonTerminalAllocsToLost(&plan, tainted, allocs)
+
+	allocsLost := make([]string, 0, 2)
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		allocsLost = append(allocsLost, alloc.ID)
+	}
+	expected := []string{alloc1.ID, alloc2.ID}
+	if !reflect.DeepEqual(allocsLost, expected) {
+		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
 	}
 }

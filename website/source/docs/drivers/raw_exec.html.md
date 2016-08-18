@@ -24,7 +24,7 @@ The `raw_exec` driver supports the following configuration in the job spec:
   path can be relative from the allocations's root directory.
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [intepretable Nomad
+    References to environment variables or any [interpretable Nomad
     variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 

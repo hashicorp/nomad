@@ -39,9 +39,6 @@ const (
 	// version to maintain an uniform interface across all drivers
 	minRktVersion = "0.14.0"
 
-	// bytesToMB is the conversion from bytes to megabytes.
-	bytesToMB = 1024 * 1024
-
 	// The key populated in the Node Attributes to indicate the presence of the
 	// Rkt driver
 	rktDriverAttr = "driver.rkt"
@@ -57,9 +54,12 @@ type RktDriver struct {
 
 type RktDriverConfig struct {
 	ImageName        string   `mapstructure:"image"`
+	Command          string   `mapstructure:"command"`
 	Args             []string `mapstructure:"args"`
+	TrustPrefix      string   `mapstructure:"trust_prefix"`
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Debug            bool     `mapstructure:"debug"`              // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -99,14 +99,23 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: true,
 			},
+			"command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"args": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"trust_prefix": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 			"dns_servers": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 			"dns_search_domains": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"debug": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
 		},
 	}
@@ -166,11 +175,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
-	// Validate that the config is valid.
+
+	// ACI image
 	img := driverConfig.ImageName
-	if img == "" {
-		return nil, fmt.Errorf("Missing ACI image for rkt")
-	}
 
 	// Get the tasks local directory.
 	taskName := d.DriverContext.taskName
@@ -182,12 +189,15 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Build the command.
 	var cmdArgs []string
 
+	// Add debug option to rkt command.
+	debug := driverConfig.Debug
+
 	// Add the given trust prefix
-	trustPrefix, trustCmd := task.Config["trust_prefix"]
+	trustPrefix := driverConfig.TrustPrefix
 	insecure := false
-	if trustCmd {
+	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix))
+		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%t", debug))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
@@ -199,7 +209,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		// Disble signature verification if the trust command was not run.
 		insecure = true
 	}
-
 	cmdArgs = append(cmdArgs, "run")
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", task.Name, ctx.AllocDir.SharedDir))
@@ -207,6 +216,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if insecure == true {
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
 	for k, v := range d.taskEnv.EnvMap() {
@@ -214,19 +224,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Check if the user has overridden the exec command.
-	if execCmd, ok := task.Config["command"]; ok {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", execCmd))
-	}
-
-	if task.Resources.MemoryMB == 0 {
-		return nil, fmt.Errorf("Memory limit cannot be zero")
-	}
-	if task.Resources.CPU == 0 {
-		return nil, fmt.Errorf("CPU limit cannot be zero")
+	if driverConfig.Command != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
 	}
 
 	// Add memory isolator
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)*bytesToMB))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)))
 
 	// Add CPU isolator
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
@@ -260,6 +263,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 			cmdArgs = append(cmdArgs, fmt.Sprintf("%v", arg))
 		}
 	}
+
+	// Set the host environment variables.
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	d.taskEnv.AppendHostEnvvars(filter)
 
 	bin, err := discover.NomadExecutable()
 	if err != nil {
@@ -311,7 +318,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
@@ -352,7 +359,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if h.executor.SyncServices(consulContext(d.config, "")); err != nil {
+	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
 	}
 	go h.run()

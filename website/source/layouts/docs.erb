@@ -35,6 +35,30 @@
                     <a href="/docs/cluster/bootstrapping.html">Creating a Cluster</a>
                 </li>
 
+                <li<%= sidebar_current("docs-jobops") %>>
+                    <a href="/docs/jobops/index.html">Operating a Job</a>
+					<ul class="nav">
+						<li<%= sidebar_current("docs-jobops-task-config") %>>
+							<a href="/docs/jobops/taskconfig.html">Task Configuration</a>
+                        </li>
+						<li<%= sidebar_current("docs-jobops-inspection") %>>
+							<a href="/docs/jobops/inspecting.html">Inspecting State</a>
+                        </li>
+						<li<%= sidebar_current("docs-jobops-resource-utilization") %>>
+							<a href="/docs/jobops/resources.html">Resource Utilization</a>
+                        </li>
+						<li<%= sidebar_current("docs-jobops-service-discovery") %>>
+							<a href="/docs/jobops/servicediscovery.html">Service Discovery</a>
+                        </li>
+						<li<%= sidebar_current("docs-jobops-logs") %>>
+							<a href="/docs/jobops/logs.html">Accessing Logs</a>
+                        </li>
+						<li<%= sidebar_current("docs-jobops-updating") %>>
+							<a href="/docs/jobops/updating.html">Updating Jobs</a>
+                        </li>
+					</ul>
+                </li>
+
 				<li<%= sidebar_current("docs-upgrade") %>>
 					<a href="/docs/upgrade/index.html">Upgrading</a>
 					<ul class="nav">
@@ -127,11 +151,17 @@
                         <li<%= sidebar_current("docs-commands-eval-status") %>>
                             <a href="/docs/commands/eval-status.html">eval-status</a>
                         </li>
+                        <li<%= sidebar_current("docs-commands-fs") %>>
+                            <a href="/docs/commands/fs.html">fs</a>
+                        </li>
 						<li<%= sidebar_current("docs-commands-init") %>>
 							<a href="/docs/commands/init.html">init</a>
 						</li>
 						<li<%= sidebar_current("docs-commands-inspect") %>>
 							<a href="/docs/commands/inspect.html">inspect</a>
+						</li>
+						<li<%= sidebar_current("docs-commands-logs") %>>
+							<a href="/docs/commands/logs.html">logs</a>
 						</li>
 						<li<%= sidebar_current("docs-commands-node-drain") %>>
 							<a href="/docs/commands/node-drain.html">node-drain</a>

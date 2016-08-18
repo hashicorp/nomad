@@ -153,6 +153,98 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Register_GetEvals(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register a system job.
+	job := mock.SystemJob()
+	state := s1.fsm.State()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the register request going directly to ready
+	node := mock.Node()
+	node.Status = structs.NodeStatusReady
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	ttl := resp.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for an eval caused by the system job.
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
+
+	evalID := resp.EvalIDs[0]
+	eval, err := state.EvalByID(evalID)
+	if err != nil {
+		t.Fatalf("could not get eval %v", evalID)
+	}
+
+	if eval.Type != "system" {
+		t.Fatalf("unexpected eval type; got %v; want %q", eval.Type, "system")
+	}
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected node")
+	}
+	if out.ModifyIndex != resp.Index {
+		t.Fatalf("index mis-match")
+	}
+
+	// Transistion it to down and then ready
+	node.Status = structs.NodeStatusDown
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
+
+	node.Status = structs.NodeStatusReady
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(resp.EvalIDs) != 1 {
+		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
+	}
+}
+
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -352,6 +444,131 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	}
 }
 
+// This test ensures that Nomad marks client state of allocations which are in
+// pending/running state to lost when a node is marked as down.
+func TestClientEndpoint_Drain_Down(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register a node
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register a service job
+	var jobResp structs.JobRegisterResponse
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	jobReq := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register a system job
+	var jobResp1 structs.JobRegisterResponse
+	job1 := mock.Job()
+	job1.TaskGroups[0].Count = 1
+	job1.Type = structs.JobTypeSystem
+	jobReq1 := &structs.JobRegisterRequest{
+		Job:          job1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq1, &jobResp1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Wait for the scheduler to create an allocation
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := s1.fsm.state.AllocsByJob(job.ID)
+		if err != nil {
+			return false, err
+		}
+		allocs1, err := s1.fsm.state.AllocsByJob(job1.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) > 0 && len(allocs1) > 0, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Drain the node
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:       node.ID,
+		Drain:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Mark the node as down
+	node.Status = structs.NodeStatusDown
+	reg = &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the allocation has transitioned to lost
+	testutil.WaitForResult(func() (bool, error) {
+		summary, err := s1.fsm.state.JobSummaryByID(job.ID)
+		if err != nil {
+			return false, err
+		}
+		expectedSummary := &structs.JobSummary{
+			JobID: job.ID,
+			Summary: map[string]structs.TaskGroupSummary{
+				"web": structs.TaskGroupSummary{
+					Queued: 1,
+					Lost:   1,
+				},
+			},
+			CreateIndex: jobResp.JobModifyIndex,
+			ModifyIndex: summary.ModifyIndex,
+		}
+		if !reflect.DeepEqual(summary, expectedSummary) {
+			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary, summary)
+		}
+
+		summary1, err := s1.fsm.state.JobSummaryByID(job1.ID)
+		if err != nil {
+			return false, err
+		}
+		expectedSummary1 := &structs.JobSummary{
+			JobID: job1.ID,
+			Summary: map[string]structs.TaskGroupSummary{
+				"web": structs.TaskGroupSummary{
+					Lost: 1,
+				},
+			},
+			CreateIndex: jobResp1.JobModifyIndex,
+			ModifyIndex: summary1.ModifyIndex,
+		}
+		if !reflect.DeepEqual(summary1, expectedSummary1) {
+			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary1, summary1)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestClientEndpoint_GetNode(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -390,8 +607,10 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 		t.Fatalf("bad ComputedClass: %#v", resp2.Node)
 	}
 
+	// Update the status updated at value
+	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	if !reflect.DeepEqual(node, resp2.Node) {
-		t.Fatalf("bad: %#v %#v", node, resp2.Node)
+		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
 	}
 
 	// Lookup non-existing node
@@ -533,6 +752,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -593,6 +813,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -654,6 +875,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
@@ -695,6 +917,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
+		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -743,6 +966,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
@@ -784,6 +1008,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
+		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
 		err := state.UpdateAllocsFromClient(200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -830,6 +1055,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -890,6 +1116,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -929,13 +1156,14 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
-	if err := state.UpsertAllocs(1, []*structs.Allocation{alloc}); err != nil {
+	state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(3, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1023,7 +1251,8 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	err = state.UpsertAllocs(2, []*structs.Allocation{alloc})
+	state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID))
+	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

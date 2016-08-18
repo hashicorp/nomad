@@ -15,6 +15,20 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.4.0
+
+Nomad 0.4.0 has backward incompatible changes in the logic for Consul
+deregistration.  When a Task which was started by Nomad 0.3.X is uncleanly shut
+down, the Nomad 0.4 Client will no longer clean up any stale services.  If an
+in-place upgrade of the Nomad client to 0.4 prevents the Task from gracefully
+shutting down and deregistering its Consul-registered services, the Nomad Client
+will not clean up the remaining Consul services registered with the 0.3
+Executor.
+
+We recommend draining a node before upgrading to 0.4.0 and then re-enabling the
+node once the upgrade is complete.
+
+
 ## Nomad 0.3.1
 
 Nomad 0.3.1 removes artifact downloading from driver configs and places them as

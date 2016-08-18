@@ -30,6 +30,8 @@ type NodeStatusCommand struct {
 	list_allocs bool
 	self        bool
 	stats       bool
+	json        bool
+	tmpl        string
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -66,6 +68,12 @@ Node Status Options:
 
   -verbose
     Display full information.
+
+  -json
+    Output the node in its JSON format.
+
+  -t
+    Format and display node using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -83,6 +91,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
 	flags.BoolVar(&c.stats, "stats", false, "")
+	flags.BoolVar(&c.json, "json", false, "")
+	flags.StringVar(&c.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -110,6 +120,17 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !c.self {
+		// If output format is specified, format and output the node data list
+		var format string
+		if c.json && len(c.tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if c.json {
+			format = "json"
+		} else if len(c.tmpl) > 0 {
+			format = "template"
+		}
+
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -122,6 +143,22 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 0
 		}
 
+		if len(format) > 0 {
+			f, err := DataFormat(format, c.tmpl)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+				return 1
+			}
+
+			out, err := f.TransformData(nodes)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+				return 1
+			}
+			c.Ui.Output(out)
+			return 0
+		}
+
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
 		if c.list_allocs {
@@ -129,6 +166,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		} else {
 			out[0] = "ID|DC|Name|Class|Drain|Status"
 		}
+
 		for i, node := range nodes {
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
@@ -214,6 +252,32 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	var format string
+	if c.json && len(c.tmpl) > 0 {
+		c.Ui.Error("Both -json and -t are not allowed")
+		return 1
+	} else if c.json {
+		format = "json"
+	} else if len(c.tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
+		f, err := DataFormat(format, c.tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(node)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	return c.formatNode(client, node)
@@ -410,7 +474,7 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory|Disk|IOPS"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v|%v/%v",
 		cpu,
 		total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
@@ -461,7 +525,7 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v",
 		math.Floor(cpu),
 		total.CPU,
 		humanize.IBytes(mem),
@@ -480,22 +544,36 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	// calculate disk usage
 	storageDevice := node.Attributes["unique.storage.volume"]
 	var diskUsed, diskSize uint64
+	var physical bool
 	for _, disk := range hostStats.DiskStats {
 		if disk.Device == storageDevice {
 			diskUsed = disk.Used
 			diskSize = disk.Size
+			physical = true
 		}
 	}
 
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%v/%v|%v/%v|%v/%v",
-		math.Floor(hostStats.CPUTicksConsumed),
-		node.Resources.CPU,
-		humanize.IBytes(hostStats.Memory.Used),
-		humanize.IBytes(hostStats.Memory.Total),
-		humanize.IBytes(diskUsed),
-		humanize.IBytes(diskSize),
-	)
+	if physical {
+		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v",
+			math.Floor(hostStats.CPUTicksConsumed),
+			node.Resources.CPU,
+			humanize.IBytes(hostStats.Memory.Used),
+			humanize.IBytes(hostStats.Memory.Total),
+			humanize.IBytes(diskUsed),
+			humanize.IBytes(diskSize),
+		)
+	} else {
+		// If non-physical device are used, output device name only,
+		// since nomad doesn't collect the stats data.
+		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|(%s)",
+			math.Floor(hostStats.CPUTicksConsumed),
+			node.Resources.CPU,
+			humanize.IBytes(hostStats.Memory.Used),
+			humanize.IBytes(hostStats.Memory.Total),
+			storageDevice,
+		)
+	}
 	return resources, nil
 }

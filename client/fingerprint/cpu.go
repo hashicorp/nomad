@@ -23,8 +23,7 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 
 func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	if err := stats.Init(); err != nil {
-		f.logger.Printf("[FATAL] fingerprint.cpu: unable to obtain CPU information: %v", err)
-		return false, err
+		return false, fmt.Errorf("Unable to obtain CPU information: %v", err)
 	}
 
 	modelName := stats.CPUModelName()

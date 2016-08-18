@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/consul/api"
 )
 
 func TestParse(t *testing.T) {
@@ -104,10 +106,11 @@ func TestParse(t *testing.T) {
 										PortLabel: "http",
 										Checks: []*structs.ServiceCheck{
 											{
-												Name:     "check-name",
-												Type:     "tcp",
-												Interval: 10 * time.Second,
-												Timeout:  2 * time.Second,
+												Name:      "check-name",
+												Type:      "tcp",
+												PortLabel: "admin",
+												Interval:  10 * time.Second,
+												Timeout:   2 * time.Second,
 											},
 										},
 									},
@@ -376,6 +379,45 @@ func TestParse(t *testing.T) {
 										RelativeDest:  "var/foo",
 									},
 								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-check-initial-status.hcl",
+			&structs.Job{
+				ID:       "check_initial_status",
+				Name:     "check_initial_status",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:  "group",
+						Count: 1,
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name: "task",
+								Services: []*structs.Service{
+									{
+										Name:      "check_initial_status-group-task",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []*structs.ServiceCheck{
+											{
+												Name:          "check-name",
+												Type:          "http",
+												Interval:      10 * time.Second,
+												Timeout:       2 * time.Second,
+												InitialStatus: api.HealthPassing,
+											},
+										},
+									},
+								},
+								LogConfig: structs.DefaultLogConfig(),
 							},
 						},
 					},

@@ -19,6 +19,14 @@ format.
 nomad plan [options] <file>
 ```
 
+The plan command requires a single argument, specifying the path to a file
+containing a [HCL job specification](/docs/jobspec/index.html). This file
+will be read and the job checked for any problems. If the
+supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
+from the file at the supplied path or downloaded and read from URL specified.
+Nomad downloads jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
+and support `go-getter` syntax.
+
 Plan invokes a dry-run of the scheduler to determine the effects of submitting
 either a new or updated version of a job. The plan will not result in any
 changes to the cluster but gives insight into whether the job could be run
@@ -35,6 +43,12 @@ give insight into what the scheduler will attempt to do and why.
 
 If the job has specified the region, the `-region` flag and `NOMAD_REGION`
 environment variable are overridden and the the job's region is used.
+
+Plan will return one of the following exit codes:
+
+  * 0: No allocations created or destroyed.
+  * 1: Allocations created or destroyed.
+  * 255: Error determining plan results.
 
 ## General Options
 

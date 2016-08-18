@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -203,7 +204,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 
 	// Setup the Consul syncer
 	if err := c.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("failed to create client Consul syncer: %v")
+		return nil, fmt.Errorf("failed to create client Consul syncer: %v", err)
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -344,8 +345,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	// Make the RPC request
 	if err := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply); err != nil {
 		c.rpcProxy.NotifyFailedServer(server)
-		c.logger.Printf("[ERR] client: RPC failed to server %s: %v", server.Addr, err)
-		return err
+		return fmt.Errorf("RPC failed to server %s: %v", server.Addr, err)
 	}
 	return nil
 }
@@ -604,11 +604,11 @@ func (c *Client) reservePorts() {
 func (c *Client) fingerprint() error {
 	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
 	whitelistEnabled := len(whitelist) > 0
-	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints)
+	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
 
 	var applied []string
 	var skipped []string
-	for _, name := range fingerprint.BuiltinFingerprints {
+	for _, name := range fingerprint.BuiltinFingerprints() {
 		// Skip modules that are not in the whitelist if it is enabled.
 		if _, ok := whitelist[name]; whitelistEnabled && !ok {
 			skipped = append(skipped, name)
@@ -738,7 +738,17 @@ func (c *Client) registerAndHeartbeat() {
 		select {
 		case <-heartbeat:
 			if err := c.updateNodeStatus(); err != nil {
-				heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				// The servers have changed such that this node has not been
+				// registered before
+				if strings.Contains(err.Error(), "node not found") {
+					// Re-register the node
+					c.logger.Printf("[INFO] client: re-registering node")
+					c.retryRegisterNode()
+					heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+				} else {
+					c.logger.Printf("[ERR] client: heartbeating failed: %v", err)
+					heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				}
 			} else {
 				c.heartbeatLock.Lock()
 				heartbeat = time.After(c.heartbeatTTL)
@@ -834,10 +844,9 @@ func (c *Client) registerNode() error {
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Node.Register", &req, &resp)
-	if err != nil {
+	if err := c.RPC("Node.Register", &req, &resp); err != nil {
 		if time.Since(c.start) > registerErrGrace {
-			c.logger.Printf("[ERR] client: failed to register node: %v", err)
+			return fmt.Errorf("failed to register node: %v", err)
 		}
 		return err
 	}
@@ -868,10 +877,8 @@ func (c *Client) updateNodeStatus() error {
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
-	err := c.RPC("Node.UpdateStatus", &req, &resp)
-	if err != nil {
-		c.logger.Printf("[ERR] client: failed to update status: %v", err)
-		return err
+	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
+		return fmt.Errorf("failed to update status: %v", err)
 	}
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node update", len(resp.EvalIDs))
@@ -1100,7 +1107,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 // watchNodeUpdates periodically checks for changes to the node attributes or meta map
 func (c *Client) watchNodeUpdates() {
 	c.logger.Printf("[DEBUG] client: periodically checking for node changes at duration %v", nodeUpdateRetryIntv)
-	var attrHash, metaHash uint64
+
+	// Initialize the hashes
+	_, attrHash, metaHash := c.hasNodeChanged(0, 0)
 	var changed bool
 	for {
 		select {
@@ -1395,7 +1404,11 @@ func (c *Client) collectHostStats() {
 			c.resourceUsageLock.Lock()
 			c.resourceUsage = ru
 			c.resourceUsageLock.Unlock()
-			c.emitStats(ru)
+
+			// Publish Node metrics if operator has opted in
+			if c.config.PublishNodeMetrics {
+				c.emitStats(ru)
+			}
 		case <-c.shutdownCh:
 			return
 		}

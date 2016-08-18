@@ -713,6 +713,146 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJobSummary(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	job.CreateIndex = resp.JobModifyIndex
+	job.ModifyIndex = resp.JobModifyIndex
+	job.JobModifyIndex = resp.JobModifyIndex
+
+	// Lookup the job summary
+	get := &structs.JobSummaryRequest{
+		JobID:        job.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+
+	expectedJobSummary := structs.JobSummary{
+		JobID: job.ID,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.CreateIndex,
+	}
+
+	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
+		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
+	}
+}
+
+func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a job and insert it
+	job1 := mock.Job()
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertJob(100, job1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Ensure the job summary request gets fired
+	req := &structs.JobSummaryRequest{
+		JobID: job1.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 50,
+		},
+	}
+	var resp structs.JobSummaryResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	// Upsert an allocation for the job which should trigger the watch.
+	time.AfterFunc(200*time.Millisecond, func() {
+		alloc := mock.Alloc()
+		alloc.JobID = job1.ID
+		alloc.Job = job1
+		if err := state.UpsertAllocs(200, []*structs.Allocation{alloc}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+	req = &structs.JobSummaryRequest{
+		JobID: job1.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 199,
+		},
+	}
+	start = time.Now()
+	var resp1 structs.JobSummaryResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp1.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if resp1.JobSummary == nil {
+		t.Fatalf("bad: %#v", resp)
+	}
+
+	// Job delete fires watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteJob(300, job1.ID); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	start = time.Now()
+
+	var resp2 structs.SingleJobResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Job != nil {
+		t.Fatalf("bad: %#v", resp2.Job)
+	}
+}
+
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -915,6 +1055,8 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.JobID = alloc1.JobID
 	state := s1.fsm.State()
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 	err := state.UpsertAllocs(1000,
 		[]*structs.Allocation{alloc1, alloc2})
 	if err != nil {
@@ -953,6 +1095,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
+		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -961,6 +1104,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
+		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)

@@ -151,7 +151,8 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_ADDR_https=127.0.0.1:443",
 		"NOMAD_PORT_https=443",
 		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_https=443",
+		"NOMAD_HOST_PORT_http=80",
+		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_META_FOO=baz",
 		"NOMAD_META_BAZ=bam",
 	}
@@ -177,7 +178,8 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 		"NOMAD_ADDR_https=127.0.0.1:443",
 		"NOMAD_PORT_https=443",
 		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_https=443",
+		"NOMAD_HOST_PORT_http=80",
+		"NOMAD_HOST_PORT_https=8080",
 		"bar=bang",
 		"foo=baz",
 	}
@@ -198,7 +200,8 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 		"NOMAD_ADDR_https=127.0.0.1:443",
 		"NOMAD_PORT_https=443",
 		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_https=443",
+		"NOMAD_HOST_PORT_https=8080",
+		"NOMAD_HOST_PORT_http=80",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)

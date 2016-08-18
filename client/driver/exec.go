@@ -121,11 +121,12 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "exec",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv:   d.taskEnv,
+		Driver:    "exec",
+		AllocDir:  ctx.AllocDir,
+		AllocID:   ctx.AllocID,
+		ChrootEnv: d.config.ChrootEnv,
+		Task:      task,
 	}
 
 	ps, err := exec.LaunchCmd(&executor.ExecCommand{
@@ -192,9 +193,8 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
 		if id.IsolationConfig != nil {
-			isoConf := id.IsolationConfig
 			ePid := pluginConfig.Reattach.Pid
-			if e := executor.DestroyCgroup(isoConf.Cgroup, isoConf.CgroupPaths, ePid); e != nil {
+			if e := executor.ClientCleanup(id.IsolationConfig, ePid); e != nil {
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
@@ -296,10 +296,9 @@ func (h *execHandle) run() {
 	// user pid might be holding onto.
 	if ps.ExitCode == 0 && err != nil {
 		if h.isolationConfig != nil {
-			isoConf := h.isolationConfig
 			ePid := h.pluginClient.ReattachConfig().Pid
-			if e := executor.DestroyCgroup(isoConf.Cgroup, isoConf.CgroupPaths, ePid); e != nil {
-				h.logger.Printf("[ERR] driver.exec: destroying cgroup failed while killing cgroup: %v", e)
+			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
+				h.logger.Printf("[ERR] driver.exec: destroying resource container failed: %v", e)
 			}
 		}
 		if e := h.allocDir.UnmountAll(); e != nil {

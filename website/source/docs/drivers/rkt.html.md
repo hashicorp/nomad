@@ -25,7 +25,7 @@ The `rkt` driver supports the following configuration in the job spec:
 * `command` - (Optional) A command to execute on the ACI.
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [intepretable Nomad
+    References to environment variables or any [interpretable Nomad
     variables](/docs/jobspec/interpreted.html) will be interpreted
     before launching the task. For example:
 
@@ -41,6 +41,8 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `dns_search_domains` - (Optional) A list of DNS search domains to be used in
    the containers
+
+* `debug` - (Optional) Enable rkt command debug option
 
 ## Task Directories
 

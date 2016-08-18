@@ -28,8 +28,8 @@ job "my-service" {
     # Spread tasks between us-west-1 and us-east-1
     datacenters = ["us-west-1", "us-east-1"]
 
-    # run this job globally
-    type = "system"
+    # run this with service scheduler
+    type = "service"
 
     # Rolling updates should be sequential
     update {
@@ -150,6 +150,8 @@ The `job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/jobspec/schedulers.html)
 
+<a id="update"></a>
+
 *   `update` - Specifies the task's update strategy. When omitted, rolling
     updates are disabled. The `update` block supports the following keys:
 
@@ -215,7 +217,7 @@ The `group` object supports the following keys:
 
 * `restart` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
-  job type. See the restart policy reference for more details.
+  job type. See the [restart policy reference](#restart_policy) for more details.
 
 * `task` - This can be specified multiple times, to add a task as
   part of the group.
@@ -266,12 +268,16 @@ The `task` object supports the following keys:
 
 * `meta` - Annotates the task group with opaque metadata.
 
+<a id="kill_timeout"></a>
+
 * `kill_timeout` - `kill_timeout` is a time duration that can be specified using
   the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
-  time between signaling a task it will be killed and actually killing it.
+  time between signaling a task it will be killed and actually killing it. Nomad
+  sends an `os.Interrupt` which on Unix systems is defined as `SIGINT`. After
+  the timeout a kill signal is sent (on Unix `SIGKILL`).
 
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
-  buffers of a Task. See the log rotation reference below for more details.
+  buffers of a Task. See the [log rotation section](#log_rotation) for more details.
 
 * `artifact` - Defines an artifact to be downloaded before the task is run. This
   can be provided multiple times to define additional artifacts to download. See
@@ -304,6 +310,8 @@ The `network` object supports the following keys:
         static = 6539
     }
     ```
+
+<a id="restart_policy"></a>
 
 ### Restart Policy
 
@@ -389,6 +397,8 @@ The `constraint` object supports the following keys:
     redundant since when placed at the job level, the constraint will be applied
     to all task groups.
 
+<a id="log_rotation"></a>
+
 ### Log Rotation
 
 The `logs` object configures the log rotation policy for a task's `stdout` and
@@ -415,15 +425,15 @@ In the above example we have asked Nomad to retain 3 rotated files for both
 `stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
 would be required for the task would be 60MB.
 
-### Artifact
-
 <a id="artifact_doc"></a>
+
+### Artifact
 
 Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
 allows downloading of artifacts from various sources using a URL as the input
 source. The key/value pairs given in the `options` block map directly to
-parameters appended to the supplied `source` url. These are then used by
+parameters appended to the supplied `source` URL. These are then used by
 `go-getter` to appropriately download the artifact. `go-getter` also has a CLI
 tool to validate its URL and can be used to check if the Nomad `artifact` is
 valid.
@@ -486,7 +496,7 @@ artifact {
 }
 ```
 
-or to override automatic detection in the url, use the s3 specific syntax
+or to override automatic detection in the URL, use the S3-specific syntax
 ```
 artifact {
   source = "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz"

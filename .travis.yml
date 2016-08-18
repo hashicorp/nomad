@@ -7,7 +7,7 @@ services:
 language: go
 
 go:
-  - 1.6.2
+  - tip
 
 matrix:
   allow_failures:
@@ -17,9 +17,13 @@ branches:
   only:
     - master
 
+before_install:  
+    - sudo apt-get update
+    - sudo apt-get install -y docker-engine
+    - sudo apt-get install -y qemu
+
 install:
-  - make travis
   - make bootstrap
 
 script:
-  - make test
+  - make travis

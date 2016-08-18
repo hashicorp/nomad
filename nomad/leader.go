@@ -166,6 +166,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		s.logger.Printf("[ERR] nomad: heartbeat timer setup failed: %v", err)
 		return err
 	}
+
+	// COMPAT 0.4 - 0.4.1
+	// Reconcile the summaries of the registered jobs. We reconcile summaries
+	// only if the server is 0.4.1 since summaries are not present in 0.4 they
+	// might be incorrect after upgrading to 0.4.1 the summaries might not be
+	// correct
+	if err := s.reconcileJobSummaries(); err != nil {
+		return fmt.Errorf("unable to reconcile job summaries: %v", err)
+	}
 	return nil
 }
 
@@ -372,7 +381,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 
 // periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
 func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
-	ticker := time.NewTimer(failedEvalUnblockInterval)
+	ticker := time.NewTicker(failedEvalUnblockInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -455,6 +464,25 @@ func (s *Server) reconcileMember(member serf.Member) error {
 			member, err)
 		return err
 	}
+	return nil
+}
+
+// reconcileJobSummaries reconciles the summaries of all the jobs registered in
+// the system
+// COMPAT 0.4 -> 0.4.1
+func (s *Server) reconcileJobSummaries() error {
+	index, err := s.fsm.state.LatestIndex()
+	if err != nil {
+		return fmt.Errorf("unable to read latest index: %v", err)
+	}
+	s.logger.Printf("[DEBUG] leader: reconciling job summaries at index: %v", index)
+
+	args := &structs.GenericResponse{}
+	msg := structs.ReconcileJobSummariesRequestType | structs.IgnoreUnknownTypeFlag
+	if _, _, err = s.raftApply(msg, args); err != nil {
+		return fmt.Errorf("reconciliation of job summaries failed: %v", err)
+	}
+
 	return nil
 }
 

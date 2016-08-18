@@ -39,7 +39,7 @@ func testServer(
 }
 
 func testJob(jobID string) *api.Job {
-	task := api.NewTask("task1", "exec").
+	task := api.NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&api.Resources{
 			MemoryMB: 256,

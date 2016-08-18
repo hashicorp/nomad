@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -88,7 +89,7 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[1].Error(), "group 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task group 1 validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -117,6 +118,7 @@ func testJob() *Job {
 				Name:  "web",
 				Count: 10,
 				RestartPolicy: &RestartPolicy{
+					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
 					Interval: 10 * time.Minute,
 					Delay:    1 * time.Minute,
@@ -145,12 +147,17 @@ func testJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
+							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									MBits:        50,
 									DynamicPorts: []Port{{Label: "http"}},
 								},
 							},
+						},
+						LogConfig: &LogConfig{
+							MaxFiles:      10,
+							MaxFileSizeMB: 1,
 						},
 					},
 				},
@@ -194,6 +201,27 @@ func TestJob_IsPeriodic(t *testing.T) {
 	}
 }
 
+func TestJob_SystemJob_Validate(t *testing.T) {
+	j := testJob()
+	j.Type = JobTypeSystem
+	j.Canonicalize()
+
+	err := j.Validate()
+	if err == nil || !strings.Contains(err.Error(), "exceed") {
+		t.Fatalf("expect error due to count")
+	}
+
+	j.TaskGroups[0].Count = 0
+	if err := j.Validate(); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+
+	j.TaskGroups[0].Count = 1
+	if err := j.Validate(); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		Count: -1,
@@ -231,6 +259,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 	}
+
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
@@ -239,7 +268,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 1 validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -288,12 +317,14 @@ func TestTask_Validate_Services(t *testing.T) {
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:     "check-name",
+				Type:     ServiceCheckTCP,
+				Interval: 0 * time.Second,
 			},
 			{
-				Name: "check-name",
-				Type: ServiceCheckTCP,
+				Name:    "check-name",
+				Type:    ServiceCheckTCP,
+				Timeout: 2 * time.Second,
 			},
 		},
 	}
@@ -326,6 +357,53 @@ func TestTask_Validate_Services(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "check \"check-name\" is duplicate") {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "interval (0s) can not be lower") {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestTask_Validate_Service_Check(t *testing.T) {
+
+	check1 := ServiceCheck{
+		Name:     "check-name",
+		Type:     ServiceCheckTCP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+	}
+
+	err := check1.validate()
+	if err != nil {
+		t.Fatal("err: %v", err)
+	}
+
+	check1.InitialStatus = "foo"
+	err = check1.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "invalid initial check state (foo)") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthCritical
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthPassing
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = ""
+	err = check1.validate()
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -679,7 +757,7 @@ func TestDistinctCheckID(t *testing.T) {
 
 }
 
-func TestService_InitFields(t *testing.T) {
+func TestService_Canonicalize(t *testing.T) {
 	job := "example"
 	taskGroup := "cache"
 	task := "redis"
@@ -688,25 +766,25 @@ func TestService_InitFields(t *testing.T) {
 		Name: "${TASK}-db",
 	}
 
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
 	}
 
 	s.Name = "db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
 	}
 
 	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
 	}
 
 	s.Name = "${BASE}-db"
-	s.InitFields(job, taskGroup, task)
+	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
 		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
 	}
@@ -744,7 +822,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 		},
 	}
 
-	j.InitFields()
+	j.Canonicalize()
 
 	service1Name := j.TaskGroups[0].Tasks[0].Services[0].Name
 	if service1Name != "my-job-web-frontend-default" {

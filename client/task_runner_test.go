@@ -146,18 +146,21 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", upd.events)
 	}
 
 	if upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[2].Type != structs.TaskKilled {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilled)
+	if upd.events[2].Type != structs.TaskKilling {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilling)
 	}
 
+	if upd.events[3].Type != structs.TaskKilled {
+		t.Fatalf("Third Event was %v; want %v", upd.events[3].Type, structs.TaskKilled)
+	}
 }
 
 func TestTaskRunner_Update(t *testing.T) {

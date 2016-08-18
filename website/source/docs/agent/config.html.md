@@ -180,6 +180,8 @@ nodes, unless otherwise specified:
   automatically bootstrap itself using Consul. For more details see the [`consul`
   section](#consul_options).
 
+<a id="telemetry_config"></a>
+
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
   external metrics collection servers. This is a key/value mapping and supports
   the following keys:
@@ -191,6 +193,28 @@ nodes, unless otherwise specified:
     server to forward metrics to.
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
+  * `circonus_api_token`
+    A valid [Circonus](http://circonus.com/) API Token used to create/manage check. If provided, metric management is enabled.
+  * `circonus_api_app`
+    A valid app name associated with the API token. By default, this is set to "consul".
+  * `circonus_api_url`
+    The base URL to use for contacting the Circonus API. By default, this is set to "https://api.circonus.com/v2".
+  * `circonus_submission_interval`
+    The interval at which metrics are submitted to Circonus. By default, this is set to "10s" (ten seconds).
+  * `circonus_submission_url`
+    The `check.config.submission_url` field, of a Check API object, from a previously created HTTPTRAP check.
+  * `circonus_check_id`
+    The Check ID (not **check bundle**) from a previously created HTTPTRAP check. The numeric portion of the `check._cid` field in the Check API object.
+  * `circonus_check_force_metric_activation`
+    Force activation of metrics which already exist and are not currently active. If check management is enabled, the default behavior is to add new metrics as they are encountered. If the metric already exists in the check, it will **not** be activated. This setting overrides that behavior. By default, this is set to "false".
+  * `circonus_check_instance_id`
+    Serves to uniquely identify the metrics coming from this *instance*.  It can be used to maintain metric continuity with transient or ephemeral instances as they move around within an infrastructure. By default, this is set to hostname:application name (e.g. "host123:consul").
+  * `circonus_check_search_tag`
+    A special tag which, when coupled with the instance id, helps to narrow down the search results when neither a Submission URL or Check ID is provided. By default, this is set to service:app (e.g. "service:consul").
+  * `circonus_broker_id`
+    The ID of a specific Circonus Broker to use when creating a new check. The numeric portion of `broker._cid` field in a Broker API object. If metric management is enabled and neither a Submission URL nor Check ID is provided, an attempt will be made to search for an existing check using Instance ID and Search Tag. If one is not found, a new HTTPTRAP check will be created. By default, this is not used and a random Enterprise Broker is selected, or, the default Circonus Public Broker.
+  * `circonus_broker_select_tag`
+    A special tag which will be used to select a Circonus Broker when a Broker ID is not provided. The best use of this is to as a hint for which broker should be used based on *where* this particular instance is running (e.g. a specific geo location or datacenter, dc:sfo). By default, this is not used.
 
 * `leave_on_interrupt`: Enables gracefully leaving when receiving the
   interrupt signal. By default, the agent will exit forcefully on any signal.
@@ -351,7 +375,7 @@ configured on client nodes.
     cluster.
   * <a id="retry_join">`retry_join`</a> Similar to [`start_join`](#start_join) but allows retrying a join
     if the first attempt fails. This is useful for cases where we know the
-    address will become available eventually. Use `retry_join` with an array as a replacement for 
+    address will become available eventually. Use `retry_join` with an array as a replacement for
     `start_join`, do not use both options.
   * <a id="retry_interval">`retry_interval`</a> The time to wait between join attempts. Defaults to 30s.
   * <a id="retry_max">`retry_max`</a> The maximum number of join attempts to be made before exiting
@@ -397,6 +421,9 @@ configured on server nodes.
   * <a id="options">`options`</a>: This is a key/value mapping of internal
     configuration for clients, such as for driver configuration. Please see
     [here](#options_map) for a description of available options.
+  * <a id="chroot_env">`chroot_env`</a>: This is a key/value mapping that
+    defines the chroot environment for jobs using the Exec and Java drivers.
+    Please see [here](#chroot_env_map) for an example and further information.
   * <a id="network_interface">`network_interface`</a>: This is a string to force
     network fingerprinting to use a specific network interface
   * <a id="network_speed">`network_speed`</a>: This is an int that sets the
@@ -407,6 +434,7 @@ configured on server nodes.
     task specifies a `kill_timeout` greater than `max_kill_timeout`,
     `max_kill_timeout` is used. This is to prevent a user being able to set an
     unreasonable timeout. If unset, a default is used.
+<a id="reserved"></a>
   * `reserved`: `reserved` is used to reserve a portion of the nodes resources
     from being used by Nomad when placing tasks.  It can be used to target
     a certain capacity usage for the node. For example, 20% of the nodes CPU
@@ -429,7 +457,7 @@ configured on server nodes.
       to reserve on all fingerprinted network devices. Ranges can be
       specified by using a hyphen separated the two inclusive ends.
 
-### <a id="options_map"></a>Client Options Map 
+### <a id="options_map"></a>Client Options Map
 
 The following is not an exhaustive list of options that can be passed to the
 Client, but rather the set of options that configure the Client and not the
@@ -445,7 +473,7 @@ documentation [here](/docs/drivers/index.html)
     `raw_exec` and `java` tasks. `env.blacklist` is a comma separated list of
     environment variable keys not to pass to these tasks. If specified, the
     defaults are overridden. The following are the default:
-    
+
     * `CONSUL_TOKEN`
     * `VAULT_TOKEN`
     * `ATLAS_TOKEN`
@@ -455,14 +483,14 @@ documentation [here](/docs/drivers/index.html)
 *   `user.blacklist`: An operator specifiable blacklist of users which a task is
     not allowed to run as when using a driver in `user.checked_drivers`.
     Defaults to:
-    
+
     * `root`
     * `Administrator`
 
 *   `user.checked_drivers`: An operator specifiable list of drivers to enforce
     the the `user.blacklist`. For drivers using containers, this enforcement often
     doesn't make sense and as such the default is set to:
-    
+
     * `exec`
     * `qemu`
     * `java`
@@ -471,7 +499,32 @@ documentation [here](/docs/drivers/index.html)
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
 
-## <a id="cli"></a>Command-line Options 
+### <a id="chroot_env_map"></a>Client ChrootEnv Map
+
+Drivers based on [Isolated Fork/Exec](/docs/drivers/exec.html) implement file
+system isolation using chroot on Linux.  The `chroot_env` map allows the chroot
+environment to be configured using source paths on the host operating system.
+The mapping format is: `source_path -> dest_path`.
+
+The following example specifies a chroot which contains just enough to run the
+`ls` utility, and not much else:
+
+```
+chroot_env {
+    "/bin/ls" = "/bin/ls"
+    "/etc/ld.so.cache" = "/etc/ld.so.cache"
+    "/etc/ld.so.conf" = "/etc/ld.so.conf"
+    "/etc/ld.so.conf.d" = "/etc/ld.so.conf.d"
+    "/lib" = "/lib"
+    "/lib64" = "/lib64"
+}
+```
+
+When `chroot_env` is unspecified, the `exec` driver will use a default chroot
+environment with the most commonly used parts of the operating system. See
+`exec` documentation for the full list [here](/docs/drivers/exec.html#chroot).
+
+## <a id="cli"></a>Command-line Options
 
 A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:

@@ -1,6 +1,9 @@
 package structs
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestBitmap(t *testing.T) {
 	// Check invalid sizes
@@ -14,9 +17,14 @@ func TestBitmap(t *testing.T) {
 	}
 
 	// Create a normal bitmap
-	b, err := NewBitmap(256)
+	var s uint = 256
+	b, err := NewBitmap(s)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if b.Size() != s {
+		t.Fatalf("bad size")
 	}
 
 	// Set a few bits
@@ -44,6 +52,39 @@ func TestBitmap(t *testing.T) {
 		if b.Check(uint(i)) {
 			t.Fatalf("bad")
 		}
+	}
+
+	// Check the indexes
+	idxs := b.IndexesInRange(true, 0, 500)
+	expected := []int{0, 255}
+	if !reflect.DeepEqual(idxs, expected) {
+		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
+	}
+
+	idxs = b.IndexesInRange(true, 1, 255)
+	expected = []int{255}
+	if !reflect.DeepEqual(idxs, expected) {
+		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
+	}
+
+	idxs = b.IndexesInRange(false, 0, 256)
+	if len(idxs) != 254 {
+		t.Fatalf("bad")
+	}
+
+	idxs = b.IndexesInRange(false, 100, 200)
+	if len(idxs) != 101 {
+		t.Fatalf("bad")
+	}
+
+	// Check the copy is correct
+	b2, err := b.Copy()
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if !reflect.DeepEqual(b, b2) {
+		t.Fatalf("bad")
 	}
 
 	// Clear

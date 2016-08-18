@@ -27,6 +27,7 @@ func (s *SyslogPluginCommand) Synopsis() string {
 func (s *SyslogPluginCommand) Run(args []string) int {
 	if len(args) == 0 {
 		s.Ui.Error("log output file isn't provided")
+		return 1
 	}
 	logFileName := args[0]
 	stdo, err := os.OpenFile(logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)

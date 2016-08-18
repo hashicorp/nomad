@@ -40,9 +40,11 @@ func TestEvaluations_List(t *testing.T) {
 	}
 	assertQueryMeta(t, qm)
 
-	// Check if we have the right list
-	if len(result) != 1 || result[0].ID != evalID {
-		t.Fatalf("bad: %#v", result)
+	// if the eval fails fast there can be more than 1
+	// but they are in order of most recent first, so look at the last one
+	idx := len(result) - 1
+	if len(result) == 0 || result[idx].ID != evalID {
+		t.Fatalf("expected eval (%s), got: %#v", evalID, result[idx])
 	}
 }
 

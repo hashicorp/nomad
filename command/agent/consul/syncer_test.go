@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -21,17 +22,33 @@ const (
 var (
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	check1 = structs.ServiceCheck{
-		Name:     "check-foo-1",
-		Type:     structs.ServiceCheckTCP,
-		Interval: 30 * time.Second,
-		Timeout:  5 * time.Second,
+		Name:          "check-foo-1",
+		Type:          structs.ServiceCheckTCP,
+		Interval:      30 * time.Second,
+		Timeout:       5 * time.Second,
+		InitialStatus: api.HealthPassing,
+	}
+	check2 = structs.ServiceCheck{
+		Name:      "check1",
+		Type:      "tcp",
+		PortLabel: "port2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
+	}
+	check3 = structs.ServiceCheck{
+		Name:      "check3",
+		Type:      "http",
+		PortLabel: "port3",
+		Path:      "/health?p1=1&p2=2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
 	}
 	service1 = structs.Service{
 		Name:      "foo-1",
 		Tags:      []string{"tag1", "tag2"},
 		PortLabel: "port1",
 		Checks: []*structs.ServiceCheck{
-			&check1,
+			&check1, &check2,
 		},
 	}
 
@@ -41,6 +58,41 @@ var (
 		PortLabel: "port2",
 	}
 )
+
+func TestCheckRegistration(t *testing.T) {
+	cs, err := NewSyncer(config.DefaultConsulConfig(), make(chan struct{}), logger)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	task := mockTask()
+	cs.SetAddrFinder(task.FindHostAndPortFor)
+
+	srvReg, _ := cs.createService(&service1, "domain", "key")
+	check1Reg, _ := cs.createCheckReg(&check1, srvReg)
+	check2Reg, _ := cs.createCheckReg(&check2, srvReg)
+	check3Reg, _ := cs.createCheckReg(&check3, srvReg)
+
+	expected := "10.10.11.5:20002"
+	if check1Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+	}
+
+	expected = "10.10.11.5:20003"
+	if check2Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check2Reg.TCP)
+	}
+
+	expected = "http://10.10.11.5:20004/health?p1=1&p2=2"
+	if check3Reg.HTTP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
+	}
+
+	expected = api.HealthPassing
+	if check1Reg.Status != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.Status)
+	}
+}
 
 func TestConsulServiceRegisterServices(t *testing.T) {
 	t.Skip()
@@ -176,6 +228,10 @@ func mockTask() *structs.Task {
 						structs.Port{
 							Label: "port2",
 							Value: 20003,
+						},
+						structs.Port{
+							Label: "port3",
+							Value: 20004,
 						},
 					},
 				},

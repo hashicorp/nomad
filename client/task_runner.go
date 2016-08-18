@@ -147,19 +147,15 @@ func (r *TaskRunner) RestoreState() error {
 
 	// Restore fields
 	if snap.Task == nil {
-		err := fmt.Errorf("task runner snapshot include nil Task")
-		r.logger.Printf("[ERR] client: %v", err)
-		return err
+		return fmt.Errorf("task runner snapshot include nil Task")
 	} else {
 		r.task = snap.Task
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 
 	if err := r.setTaskEnv(); err != nil {
-		err := fmt.Errorf("failed to create task environment for task %q in allocation %q: %v",
+		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
 			r.task.Name, r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", err)
-		return err
 	}
 
 	// Restore the driver
@@ -212,7 +208,7 @@ func (r *TaskRunner) DestroyState() error {
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
-		r.logger.Printf("[ERR] client: failed to save state of Task Runner: %v", r.task.Name)
+		r.logger.Printf("[ERR] client: failed to save state of Task Runner for task %q: %v", r.task.Name, err)
 	}
 
 	// Indicate the task has been updated.
@@ -233,17 +229,14 @@ func (r *TaskRunner) setTaskEnv() error {
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	if r.taskEnv == nil {
-		err := fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
-		return nil, err
+		return nil, fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
 	}
 
 	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
-		err = fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
+		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", err)
-		return nil, err
 	}
 	return driver, err
 }
@@ -323,7 +316,7 @@ func (r *TaskRunner) run() {
 			}
 
 			for _, artifact := range r.task.Artifacts {
-				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir, r.logger); err != nil {
+				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir); err != nil {
 					r.setState(structs.TaskStateDead,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
 					r.restartTracker.SetStartError(dstructs.NewRecoverableError(err, true))
@@ -392,6 +385,11 @@ func (r *TaskRunner) run() {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
 			case <-r.destroyCh:
+				// Mark that we received the kill event
+				timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
+				r.setState(structs.TaskStateRunning,
+					structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout))
+
 				// Kill the task using an exponential backoff in-case of failures.
 				destroySuccess, err := r.handleDestroy()
 				if !destroySuccess {
@@ -404,6 +402,11 @@ func (r *TaskRunner) run() {
 
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+
+				r.runningLock.Lock()
+				r.running = false
+				r.runningLock.Unlock()
+
 				return
 			}
 		}
@@ -461,17 +464,15 @@ func (r *TaskRunner) startTask() error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to create driver of task '%s' for alloc '%s': %v",
+		return fmt.Errorf("failed to create driver of task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
-		return err
 	}
 
 	// Start the job
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to start task '%s' for alloc '%s': %v",
+		return fmt.Errorf("failed to start task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
-		return err
 	}
 
 	r.handleLock.Lock()
@@ -630,7 +631,7 @@ func (r *TaskRunner) Destroy() {
 // emitStats emits resource usage stats of tasks to remote metrics collector
 // sinks
 func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
-	if ru.ResourceUsage.MemoryStats != nil {
+	if ru.ResourceUsage.MemoryStats != nil && r.config.PublishAllocationMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
@@ -639,7 +640,7 @@ func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
 	}
 
-	if ru.ResourceUsage.CpuStats != nil {
+	if ru.ResourceUsage.CpuStats != nil && r.config.PublishAllocationMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
@@ -647,6 +648,4 @@ func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
 	}
-
-	//TODO Add Pid stats when we add an API to enable/disable them
 }

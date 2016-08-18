@@ -31,6 +31,12 @@ Eval Status Options:
 
   -verbose
     Show full information.
+
+  -json
+    Output the evaluation in its JSON format.
+
+  -t
+    Format and display evaluation using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -41,12 +47,15 @@ func (c *EvalStatusCommand) Synopsis() string {
 }
 
 func (c *EvalStatusCommand) Run(args []string) int {
-	var monitor, verbose bool
+	var monitor, verbose, json bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet("eval-status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -54,11 +63,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one evaluation ID
 	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-	evalID := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -66,6 +70,51 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
+
+	// If args not specified but output format is specified, format and output the evaluations data list
+	if len(args) == 0 {
+		var format string
+		if json && len(tmpl) > 0 {
+			c.Ui.Error("Both -json and -t are not allowed")
+			return 1
+		} else if json {
+			format = "json"
+		} else if len(tmpl) > 0 {
+			format = "template"
+		}
+		if len(format) > 0 {
+			evals, _, err := client.Evaluations().List(nil)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying evaluations: %v", err))
+				return 1
+			}
+			// Return nothing if no evaluations found
+			if len(evals) == 0 {
+				return 0
+			}
+
+			f, err := DataFormat(format, tmpl)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+				return 1
+			}
+
+			out, err := f.TransformData(evals)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+				return 1
+			}
+			c.Ui.Output(out)
+			return 0
+		}
+	}
+
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
+	}
+
+	evalID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -93,6 +142,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No evaluation(s) with prefix or id %q found", evalID))
 		return 1
 	}
+
 	if len(evals) > 1 {
 		// Format the evals
 		out := make([]string, len(evals)+1)
@@ -122,6 +172,29 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the data
+	var format string
+	if json {
+		format = "json"
+	} else if len(tmpl) > 0 {
+		format = "template"
+	}
+	if len(format) > 0 {
+		f, err := DataFormat(format, tmpl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			return 1
+		}
+
+		out, err := f.TransformData(eval)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
 	}
 
 	failureString, failures := evalFailureStatus(eval)

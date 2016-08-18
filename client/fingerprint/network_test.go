@@ -3,11 +3,16 @@ package fingerprint
 import (
 	"fmt"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// Set skipOnlineTestEnvVar to a non-empty value to skip network tests.  Useful
+// when working offline (e.g. an airplane).
+const skipOnlineTestsEnvVar = "TEST_NOMAD_SKIP_ONLINE_NET"
 
 var (
 	lo = net.Interface{
@@ -138,6 +143,10 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) 
 }
 
 func TestNetworkFingerprint_basic(t *testing.T) {
+	if v := os.Getenv(skipOnlineTestsEnvVar); v != "" {
+		t.Skipf("Environment variable %+q not empty, skipping test", skipOnlineTestsEnvVar)
+	}
+
 	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -149,7 +158,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if !ok {
-		t.Fatalf("should apply")
+		t.Fatalf("should apply (HINT: working offline? Set env %q=y", skipOnlineTestsEnvVar)
 	}
 
 	assertNodeAttributeContains(t, node, "unique.network.ip-address")
