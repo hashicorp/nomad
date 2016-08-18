@@ -241,11 +241,6 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 
 	// Add the Consul and Vault configs
 	conf.ConsulConfig = a.config.Consul
-
-	// Enable vault if the token is present
-	if strings.TrimSpace(a.config.Vault.Token) != "" {
-		a.config.Vault.Enabled = true
-	}
 	conf.VaultConfig = a.config.Vault
 
 	return conf, nil
