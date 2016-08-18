@@ -1,7 +1,7 @@
 package agent
 
 import (
-  "os"
+	"os"
 	"testing"
 )
 
