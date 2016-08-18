@@ -39,6 +39,7 @@ type TestServerConfig struct {
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
+	Vault             *VaultConfig  `json:"vault,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
@@ -58,6 +59,11 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
+// VaultConfig is used to configure Vault
+type VaultConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -84,6 +90,9 @@ func defaultServerConfig() *TestServerConfig {
 			BootstrapExpect: 1,
 		},
 		Client: &ClientConfig{
+			Enabled: false,
+		},
+		Vault: &VaultConfig{
 			Enabled: false,
 		},
 	}
