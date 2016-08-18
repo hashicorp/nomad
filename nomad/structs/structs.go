@@ -354,6 +354,8 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
+// DeriveVaultTokenRequest is used to request wrapped Vault tokens for the
+// following tasks in the given allocation
 type DeriveVaultTokenRequest struct {
 	NodeID   string
 	SecretID string
@@ -362,11 +364,9 @@ type DeriveVaultTokenRequest struct {
 	QueryOptions
 }
 
+// DeriveVaultTokenResponse returns the wrapped tokens for each requested task
 type DeriveVaultTokenResponse struct {
-	NodeID   string
-	SecretID string
-	AllocID  string
-	Tasks    []string
+	Tasks map[string]string
 	QueryMeta
 }
 
