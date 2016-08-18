@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -161,7 +164,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	_, err = client.LookupToken("foo")
+	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatalf("Expected error because Vault is disabled: %v", err)
 	}
@@ -175,7 +178,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	_, err = client.LookupToken("foo")
+	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "established") {
 		t.Fatalf("Expected error because connection to Vault hasn't been made: %v", err)
 	}
@@ -202,7 +205,7 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	waitForConnection(client, t)
 
 	// Lookup ourselves
-	s, err := client.LookupToken(v.Config.Token)
+	s, err := client.LookupToken(context.Background(), v.Config.Token)
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -233,7 +236,7 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	}
 
 	// Lookup new child
-	s, err = client.LookupToken(s.Auth.ClientToken)
+	s, err = client.LookupToken(context.Background(), s.Auth.ClientToken)
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -245,5 +248,58 @@ func TestVaultClient_LookupToken(t *testing.T) {
 
 	if !reflect.DeepEqual(policies, expected) {
 		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
+}
+
+func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.setLimit(rate.Limit(1.0))
+
+	waitForConnection(client, t)
+
+	// Spin up many requests. These should block
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cancels := 0
+	numRequests := 10
+	unblock := make(chan struct{})
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			// Ensure all the goroutines are made
+			time.Sleep(10 * time.Millisecond)
+
+			// Lookup ourselves
+			_, err := client.LookupToken(ctx, v.Config.Token)
+			if err != nil {
+				if err == context.Canceled {
+					cancels += 1
+					return
+				}
+				t.Fatalf("self lookup failed: %v", err)
+				return
+			}
+
+			// Cancel the context
+			cancel()
+			time.AfterFunc(1*time.Second, func() { close(unblock) })
+		}()
+	}
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	case <-unblock:
+	}
+
+	desired := numRequests - 1
+	if cancels != desired {
+		t.Fatalf("Incorrect number of cancels; got %d; want %d", cancels, desired)
 	}
 }

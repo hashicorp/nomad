@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"context"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
 )
@@ -18,7 +20,7 @@ type TestVaultClient struct {
 	LookupTokenSecret map[string]*vapi.Secret
 }
 
-func (v *TestVaultClient) LookupToken(token string) (*vapi.Secret, error) {
+func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secret, error) {
 	var secret *vapi.Secret
 	var err error
 
@@ -64,7 +66,7 @@ func (v *TestVaultClient) SetLookupTokenAllowedPolicies(token string, policies [
 	v.SetLookupTokenSecret(token, s)
 }
 
-func (v *TestVaultClient) CreateToken(a *structs.Allocation, task string) (*vapi.Secret, error) {
+func (v *TestVaultClient) CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error) {
 	return nil, nil
 }
 

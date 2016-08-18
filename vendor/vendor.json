@@ -844,6 +844,12 @@
 			"revisionTime": "2016-04-21T02:29:30Z"
 		},
 		{
+			"checksumSHA1": "h/06ikMECfJoTkWj2e1nJ30aDDg=",
+			"path": "golang.org/x/time/rate",
+			"revision": "a4bde12657593d5e90d0533a3e4fd95e635124cb",
+			"revisionTime": "2016-02-02T18:34:45Z"
+		},
+		{
 			"checksumSHA1": "93uHIq25lffEKY47PV8dBPD+XuQ=",
 			"path": "gopkg.in/fsnotify.v1",
 			"revision": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb",
