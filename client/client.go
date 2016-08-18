@@ -128,6 +128,11 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// blockedAllocations are allocations which are blocked because their
+	// chained allocations haven't finished running
+	blockedAllocations map[string]*structs.Allocation
+	blockedAllocsLock  sync.RWMutex
+
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -941,6 +946,18 @@ func (c *Client) allocSync() {
 		case alloc := <-c.allocUpdates:
 			// Batch the allocation updates until the timer triggers.
 			updates[alloc.ID] = alloc
+
+			// If this alloc was blocking another alloc and transitioned to a
+			// terminal state then start the blocked allocation
+			c.blockedAllocsLock.Lock()
+			if alloc, ok := c.blockedAllocations[alloc.ID]; ok {
+				if err := c.addAlloc(alloc); err != nil {
+					c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
+						alloc.ID, err)
+				}
+				delete(c.blockedAllocations, alloc.ID)
+			}
+			c.blockedAllocsLock.Unlock()
 		case <-syncTicker.C:
 			// Fast path if there are no updates
 			if len(updates) == 0 {
@@ -1164,6 +1181,15 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Start the new allocations
 	for _, add := range diff.added {
+		// If the allocation is chanined and the previous allocation hasn't
+		// terminated yet, then add the alloc to the blocked queue.
+		if ar, ok := c.getAllocRunners()[add.PreviousAllocation]; ok && ar.alloc.Terminating() {
+			c.blockedAllocsLock.Lock()
+			c.blockedAllocations[add.PreviousAllocation] = add
+			c.blockedAllocsLock.Unlock()
+			continue
+		}
+
 		if err := c.addAlloc(add); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)

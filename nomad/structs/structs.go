@@ -2626,6 +2626,16 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 }
 
+// Terminating returns if the allocation is stopped and currently transitioning
+// to the terminal state
+func (a *Allocation) Terminating() bool {
+	if a.DesiredStatus == AllocDesiredStatusStop &&
+		(a.ClientStatus == AllocClientStatusRunning || a.ClientStatus == AllocClientStatusPending) {
+		return true
+	}
+	return false
+}
+
 // RanSuccessfully returns whether the client has ran the allocation and all
 // tasks finished successfully
 func (a *Allocation) RanSuccessfully() bool {
