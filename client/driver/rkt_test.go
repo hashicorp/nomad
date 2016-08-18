@@ -397,3 +397,49 @@ func TestRktTaskValidate(t *testing.T) {
 		t.Fatalf("Validation error in TaskConfig : '%v'", err)
 	}
 }
+
+// TODO: Port Mapping test should be ran with proper ACI image and test the port access.
+func TestRktDriver_PortsMapping(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"trust_prefix": "coreos.com/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+			"args":         []string{"--version"},
+			"port_map": []map[string]string{
+				map[string]string{
+					"main": "8080-tcp",
+				},
+			},
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+
+	// Attempt to open
+	handle2, err := d.Open(execCtx, handle.ID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle2 == nil {
+		t.Fatalf("missing handle")
+	}
+}
