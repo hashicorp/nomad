@@ -21,6 +21,11 @@ const (
 
 	// minimumTokenTTL is the minimum Token TTL allowed for child tokens.
 	minimumTokenTTL = 5 * time.Minute
+
+	// defaultTokenTTL is the default Token TTL used when the passed token is a
+	// root token such that child tokens aren't being created against a role
+	// that has defined a TTL
+	defaultTokenTTL = "72h"
 )
 
 // VaultClient is the Servers interface for interfacing with Vault
@@ -131,6 +136,9 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger) (*vaultClient, er
 		}
 
 		v.childTTL = c.TaskTokenTTL
+	} else {
+		// Default the TaskTokenTTL
+		v.childTTL = defaultTokenTTL
 	}
 
 	// Get the Vault API configuration
@@ -414,8 +422,58 @@ func (v *vaultClient) ConnectionEstablished() bool {
 	return v.connEstablished
 }
 
+// CreateToken takes the allocation and task and returns an appropriate Vault
+// token
 func (v *vaultClient) CreateToken(a *structs.Allocation, task string) (*vapi.Secret, error) {
-	return nil, nil
+	// Nothing to do
+	if !v.enabled {
+		return nil, fmt.Errorf("Vault integration disabled")
+	}
+
+	// Check if we have established a connection with Vault
+	if !v.ConnectionEstablished() {
+		return nil, fmt.Errorf("Connection to Vault has not been established. Retry")
+	}
+
+	// Retrieve the Vault block for the task
+	policies := a.Job.VaultPolicies()
+	if policies == nil {
+		return nil, fmt.Errorf("Job doesn't require Vault policies")
+	}
+	tg, ok := policies[a.TaskGroup]
+	if !ok {
+		return nil, fmt.Errorf("Task group does not require Vault policies")
+	}
+	taskVault, ok := tg[task]
+	if !ok {
+		return nil, fmt.Errorf("Task does not require Vault policies")
+	}
+
+	// Build the creation request
+	req := &vapi.TokenCreateRequest{
+		Policies: taskVault.Policies,
+		Metadata: map[string]string{
+			"AllocationID": a.ID,
+			"Task":         task,
+			"NodeID":       a.NodeID,
+		},
+		TTL:         v.childTTL,
+		DisplayName: fmt.Sprintf("%s: %s", a.ID, task),
+	}
+
+	// Make the request and switch depending on whether we are using a root
+	// token or a role based token
+	var secret *vapi.Secret
+	var err error
+	if v.token.Root {
+		req.Period = v.childTTL
+		secret, err = v.auth.Create(req)
+	} else {
+		// Make the token using the role
+		secret, err = v.auth.CreateWithRole(req, v.token.Role)
+	}
+
+	return secret, err
 }
 
 // LookupToken takes a Vault token and does a lookup against Vault

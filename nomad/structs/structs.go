@@ -354,6 +354,22 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
+type DeriveVaultTokenRequest struct {
+	NodeID   string
+	SecretID string
+	AllocID  string
+	Tasks    []string
+	QueryOptions
+}
+
+type DeriveVaultTokenResponse struct {
+	NodeID   string
+	SecretID string
+	AllocID  string
+	Tasks    []string
+	QueryMeta
+}
+
 // GenericRequest is used to request where no
 // specific information is needed.
 type GenericRequest struct {
@@ -1230,11 +1246,11 @@ func (j *Job) IsPeriodic() bool {
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
-func (j *Job) VaultPolicies() map[string]map[string][]string {
-	policies := make(map[string]map[string][]string, len(j.TaskGroups))
+func (j *Job) VaultPolicies() map[string]map[string]*Vault {
+	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
 
 	for _, tg := range j.TaskGroups {
-		tgPolicies := make(map[string][]string, len(tg.Tasks))
+		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
 		policies[tg.Name] = tgPolicies
 
 		for _, task := range tg.Tasks {
@@ -1242,7 +1258,7 @@ func (j *Job) VaultPolicies() map[string]map[string][]string {
 				continue
 			}
 
-			tgPolicies[task.Name] = task.Vault.Policies
+			tgPolicies[task.Name] = task.Vault
 		}
 	}
 

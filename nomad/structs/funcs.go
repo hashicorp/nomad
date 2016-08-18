@@ -253,12 +253,12 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
-func VaultPoliciesSet(policies map[string]map[string][]string) []string {
+func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	set := make(map[string]struct{})
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			for _, p := range tp {
+			for _, p := range tp.Policies {
 				set[p] = struct{}{}
 			}
 		}
