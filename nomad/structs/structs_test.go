@@ -1091,3 +1091,43 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		}
 	}
 }
+
+func TestAllocation_Terminating(t *testing.T) {
+	type desiredState struct {
+		ClientStatus  string
+		DesiredStatus string
+		Terminating   bool
+	}
+
+	harness := []desiredState{
+		{
+			ClientStatus:  AllocClientStatusPending,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminating:   true,
+		},
+		{
+			ClientStatus:  AllocClientStatusRunning,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminating:   true,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminating:   false,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusRun,
+			Terminating:   false,
+		},
+	}
+
+	for _, state := range harness {
+		alloc := Allocation{}
+		alloc.DesiredStatus = state.DesiredStatus
+		alloc.ClientStatus = state.ClientStatus
+		if alloc.Terminating() != state.Terminating {
+			t.Fatalf("expected: %v, actual: %v", state.Terminating, alloc.Terminating())
+		}
+	}
+}
