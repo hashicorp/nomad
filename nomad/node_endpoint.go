@@ -61,14 +61,15 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if len(args.Node.Attributes) == 0 {
 		return fmt.Errorf("missing attributes for client registration")
 	}
-	if args.Node.SecretID == "" {
-		// COMPAT: Remove after 0.6
-		// Need to check if this node is <0.4.x since SecretID is new in 0.5
-		if pre, err := nodePreSecretID(args.Node); err != nil {
-			return err
-		} else if !pre {
-			return fmt.Errorf("missing node secret ID for client registration")
-		}
+
+	// COMPAT: Remove after 0.6
+	// Need to check if this node is <0.4.x since SecretID is new in 0.5
+	pre, err := nodePreSecretID(args.Node)
+	if err != nil {
+		return err
+	}
+	if args.Node.SecretID == "" && !pre {
+		return fmt.Errorf("missing node secret ID for client registration")
 	}
 
 	// Default the status if none is given
@@ -95,6 +96,19 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	originalNode, err := snap.NodeByID(args.Node.ID)
 	if err != nil {
 		return err
+	}
+
+	have := ""
+	if originalNode != nil {
+		have = originalNode.SecretID
+	}
+	n.srv.logger.Printf("Incoming: %q; Have %q", args.Node.SecretID, have)
+
+	// Check if the SecretID has been tampered with
+	if !pre && originalNode != nil {
+		if args.Node.SecretID != originalNode.SecretID {
+			return fmt.Errorf("node secret ID does not match. Not registering node.")
+		}
 	}
 
 	// Commit this update via Raft

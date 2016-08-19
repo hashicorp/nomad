@@ -99,6 +99,33 @@ func TestClientEndpoint_Register_NoSecret(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the nodes SecretID
+	node.SecretID = structs.GenerateUUID()
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "Not registering") {
+		t.Fatalf("Expecting error regarding mismatching secret id", err)
+	}
+}
+
 func TestClientEndpoint_Deregister(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
