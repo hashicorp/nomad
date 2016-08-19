@@ -47,6 +47,7 @@ const (
 	AllocUpdateRequestType
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
+	VaultAccessorRegisterRequestType
 )
 
 const (
@@ -362,6 +363,24 @@ type DeriveVaultTokenRequest struct {
 	AllocID  string
 	Tasks    []string
 	QueryOptions
+}
+
+// VaultAccessorRegisterRequest is used to register a set of Vault accessors
+type VaultAccessorRegisterRequest struct {
+	Accessors []*VaultAccessor
+}
+
+// VaultAccessor is a reference to a created Vault token on behalf of
+// an allocation's task.
+type VaultAccessor struct {
+	AllocID     string
+	Task        string
+	NodeID      string
+	Accessor    string
+	CreationTTL int64
+
+	// Raft Indexes
+	CreateIndex uint64
 }
 
 // DeriveVaultTokenResponse returns the wrapped tokens for each requested task

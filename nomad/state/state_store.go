@@ -1113,6 +1113,124 @@ func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// UpsertVaultAccessors is used to register a set of Vault Accessors
+func (s *StateStore) UpsertVaultAccessor(index uint64, accessors []*structs.VaultAccessor) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, accessor := range accessors {
+		// Set the create index
+		accessor.CreateIndex = index
+
+		// Insert the accessor
+		if err := txn.Insert("vault_accessors", accessor); err != nil {
+			return fmt.Errorf("accessor insert failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"vault_accessors", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteVaultAccessor is used to delete a Vault Accessor
+func (s *StateStore) DeleteVaultAccessor(index uint64, accessor string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the accessor
+	existing, err := txn.First("vault_accessors", "id", accessor)
+	if err != nil {
+		return fmt.Errorf("accessor lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("vault_accessor not found")
+	}
+
+	// Delete the accessor
+	if err := txn.Delete("vault_accessors", existing); err != nil {
+		return fmt.Errorf("accessor delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"vault_accessors", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// VaultAccessor returns the given Vault accessor
+func (s *StateStore) VaultAccessor(accessor string) (*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("vault_accessors", "id", accessor)
+	if err != nil {
+		return nil, fmt.Errorf("accessor lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.VaultAccessor), nil
+	}
+
+	return nil, nil
+}
+
+// VaultAccessors returns an iterator of Vault accessors.
+func (s *StateStore) VaultAccessors() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("vault_accessors", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
+// VaultAccessorsByAlloc returns all the Vault accessors by alloc id
+func (s *StateStore) VaultAccessorsByAlloc(allocID string) ([]*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get("vault_accessors", "alloc_id", allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.VaultAccessor
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.VaultAccessor))
+	}
+	return out, nil
+}
+
+// VaultAccessorsByNode returns all the Vault accessors by node id
+func (s *StateStore) VaultAccessorsByNode(nodeID string) ([]*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get("vault_accessors", "node_id", nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.VaultAccessor
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.VaultAccessor))
+	}
+	return out, nil
+}
+
 // LastIndex returns the greatest index value for all indexes
 func (s *StateStore) LatestIndex() (uint64, error) {
 	indexes, err := s.Indexes()
@@ -1623,6 +1741,14 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	if err := r.txn.Insert("job_summary", *jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
+	}
+	return nil
+}
+
+// VaultAccessorRestore is used to restore a vault accessor
+func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) error {
+	if err := r.txn.Insert("vault_accessors", accessor); err != nil {
+		return fmt.Errorf("vault accessor insert failed: %v", err)
 	}
 	return nil
 }

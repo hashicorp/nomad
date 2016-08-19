@@ -976,6 +976,27 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	a1 := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+	state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{a1, a2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.VaultAccessor(a1.Accessor)
+	out2, _ := state2.VaultAccessor(a2.Accessor)
+	if !reflect.DeepEqual(a1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, a1)
+	}
+	if !reflect.DeepEqual(a2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, a2)
+	}
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
