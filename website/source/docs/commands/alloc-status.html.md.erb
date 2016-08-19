@@ -46,6 +46,7 @@ Name          = example.cache[0]
 Node ID       = 1f029d38
 Job ID        = example
 Client Status = running
+Created At    = 29/03/16 03:04:53 UTC
 
 ==> Tasks
 Name   State    Last Event  Time
@@ -63,6 +64,7 @@ Name          = example.cache[0]
 Node ID       = 1f029d38
 Job ID        = example
 Client Status = running
+Created At    = 29/03/16 03:04:53 UTC
 
 ==> Task Resources
 Task: "redis"
@@ -91,13 +93,14 @@ Time                   Type        Description
 Verbose status can also be accessed:
 
 ```
-$ nomad alloc-status a7365fe4
+$ nomad alloc-status --verbose a7365fe4
 ID              = a7365fe4-cb28-a6e9-f3d4-f99e49c89776
 Eval ID         = c3c9a1db-dbeb-8afa-0a83-4f1b8b5a03f5
 Name            = example.cache[0]
 Node ID         = 1f029d38-8d4b-a552-261f-e457b60f9b4b
 Job ID          = example
 Client Status   = running
+Created At      = 29/03/16 03:04:53 UTC
 Evaluated Nodes = 1
 Filtered Nodes  = 0
 Exhausted Nodes = 0

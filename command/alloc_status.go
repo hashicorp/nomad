@@ -220,6 +220,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, length)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
+		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
 	}
 
 	if verbose {
