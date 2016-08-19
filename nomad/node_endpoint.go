@@ -922,9 +922,9 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	if node == nil {
 		return fmt.Errorf("Node %q does not exist", args.NodeID)
 	}
-	//if node.SecretID != args.SecretID {
-	//return fmt.Errorf("SecretID mismatch")
-	//}
+	if node.SecretID != args.SecretID {
+		return fmt.Errorf("SecretID mismatch")
+	}
 
 	alloc, err := snap.AllocByID(args.AllocID)
 	if err != nil {
@@ -1007,6 +1007,41 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 	// Wait for everything to complete or for an error
 	err = g.Wait()
+	if err != nil {
+		// TODO Revoke any created token
+		return err
+	}
 
+	// Commit to Raft before returning any of the tokens
+	accessors := make([]*structs.VaultAccessor, 0, len(results))
+	tokens := make(map[string]string, len(results))
+	for task, secret := range results {
+		w := secret.WrapInfo
+		if w == nil {
+			return fmt.Errorf("Vault returned Secret without WrapInfo")
+		}
+
+		tokens[task] = w.Token
+		accessor := &structs.VaultAccessor{
+			Accessor:    w.WrappedAccessor,
+			Task:        task,
+			NodeID:      alloc.NodeID,
+			AllocID:     alloc.ID,
+			CreationTTL: w.TTL,
+		}
+
+		accessors = append(accessors, accessor)
+	}
+
+	req := structs.VaultAccessorRegisterRequest{Accessors: accessors}
+	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors failed: %v", err)
+		return err
+	}
+
+	reply.Index = index
+	reply.Tasks = tokens
+	n.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }

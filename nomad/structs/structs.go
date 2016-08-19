@@ -377,7 +377,7 @@ type VaultAccessor struct {
 	Task        string
 	NodeID      string
 	Accessor    string
-	CreationTTL int64
+	CreationTTL int
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -385,6 +385,7 @@ type VaultAccessor struct {
 
 // DeriveVaultTokenResponse returns the wrapped tokens for each requested task
 type DeriveVaultTokenResponse struct {
+	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
 	QueryMeta
 }
