@@ -1,6 +1,8 @@
 ## 0.5.0 (Unreleased)
 
 IMPROVEMENTS:
+  * core: Introduce node SecretID which can be used to minimize the available
+    surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * cli: `nomad alloc-status` shows allocation creation time [GH-1550]
 
 ## 0.4.1
