@@ -90,6 +90,7 @@ Name          = example.cache[1]
 Node ID       = 4beef22f
 Job ID        = example
 Client Status = running
+Created At    = 06/28/16 15:37:44 UTC
 
 Task "redis" is "running"
 Task Resources
@@ -126,6 +127,7 @@ Name          = example.cache[0]
 Node ID       = 13063955
 Job ID        = example
 Client Status = failed
+Created At    = 06/28/16 15:50:22 UTC
 
 Task "redis" is "dead"
 Task Resources
@@ -153,6 +155,7 @@ Name          = example.cache[0]
 Node ID       = 83ef596c
 Job ID        = example
 Client Status = pending
+Created At    = 06/28/16 15:55:48
 
 Task "redis" is "pending"
 Task Resources
