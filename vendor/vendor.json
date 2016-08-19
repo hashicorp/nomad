@@ -684,6 +684,12 @@
 			"revision": "80adcec1955ee4e97af357c30dee61aadcc02c10"
 		},
 		{
+			"checksumSHA1": "AXacfEchaUqT5RGmPmMXsOWRhv8=",
+			"path": "github.com/mitchellh/go-homedir",
+			"revision": "756f7b183b7ab78acdbbee5c7f392838ed459dda",
+			"revisionTime": "2016-06-21T17:42:43Z"
+		},
+		{
 			"checksumSHA1": "B791WoNcAY5+ElKZsCkHfym55O4=",
 			"path": "github.com/mitchellh/go-ps",
 			"revision": "e6c6068076470196af082b1ff896e24a51a87b2a",
