@@ -107,9 +107,6 @@ func NewDockerDriverConfig(task *structs.Task) (*DockerDriverConfig, error) {
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
-	if strings.Contains(driverConfig.ImageName, "https://") {
-		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
-	}
 
 	driverConfig.PortMap = mapMergeStrInt(driverConfig.PortMapRaw...)
 	driverConfig.Labels = mapMergeStrStr(driverConfig.LabelsRaw...)
