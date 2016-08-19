@@ -18,6 +18,14 @@ type TestVaultClient struct {
 	// LookupTokenSecret maps a token to the Vault secret that will be returned
 	// by the LookupToken call
 	LookupTokenSecret map[string]*vapi.Secret
+
+	// CreateTokenErrors maps a token to an error that will be returned by the
+	// CreateToken call
+	CreateTokenErrors map[string]map[string]error
+
+	// CreateTokenSecret maps a token to the Vault secret that will be returned
+	// by the CreateToken call
+	CreateTokenSecret map[string]map[string]*vapi.Secret
 }
 
 func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secret, error) {
@@ -67,7 +75,55 @@ func (v *TestVaultClient) SetLookupTokenAllowedPolicies(token string, policies [
 }
 
 func (v *TestVaultClient) CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error) {
-	return nil, nil
+	var secret *vapi.Secret
+	var err error
+
+	if v.CreateTokenSecret != nil {
+		tasks := v.CreateTokenSecret[a.ID]
+		if tasks != nil {
+			secret = tasks[task]
+		}
+	}
+	if v.CreateTokenErrors != nil {
+		tasks := v.CreateTokenErrors[a.ID]
+		if tasks != nil {
+			err = tasks[task]
+		}
+	}
+
+	return secret, err
+}
+
+// SetCreateTokenError sets the error that will be returned by the token
+// creation
+func (v *TestVaultClient) SetCreateTokenError(allocID, task string, err error) {
+	if v.CreateTokenErrors == nil {
+		v.CreateTokenErrors = make(map[string]map[string]error)
+	}
+
+	tasks := v.CreateTokenErrors[allocID]
+	if tasks == nil {
+		tasks = make(map[string]error)
+		v.CreateTokenErrors[allocID] = tasks
+	}
+
+	v.CreateTokenErrors[allocID][task] = err
+}
+
+// SetCreateTokenSecret sets the secret that will be returned by the token
+// creation
+func (v *TestVaultClient) SetCreateTokenSecret(allocID, task string, secret *vapi.Secret) {
+	if v.CreateTokenSecret == nil {
+		v.CreateTokenSecret = make(map[string]map[string]*vapi.Secret)
+	}
+
+	tasks := v.CreateTokenSecret[allocID]
+	if tasks == nil {
+		tasks = make(map[string]*vapi.Secret)
+		v.CreateTokenSecret[allocID] = tasks
+	}
+
+	v.CreateTokenSecret[allocID][task] = secret
 }
 
 func (v *TestVaultClient) Stop() {}

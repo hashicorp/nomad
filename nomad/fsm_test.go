@@ -770,6 +770,54 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertVaultAccessor(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	va := mock.VaultAccessor()
+	va2 := mock.VaultAccessor()
+	req := structs.VaultAccessorRegisterRequest{
+		Accessors: []*structs.VaultAccessor{va, va2},
+	}
+	buf, err := structs.Encode(structs.VaultAccessorRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out1 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out1.CreateIndex)
+	}
+	out2, err := fsm.State().VaultAccessor(va2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out2 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out2.CreateIndex)
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()

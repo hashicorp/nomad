@@ -936,6 +936,9 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	if alloc.NodeID != args.NodeID {
 		return fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID)
 	}
+	if alloc.TerminalStatus() {
+		return fmt.Errorf("Can't request Vault token for terminal allocation")
+	}
 
 	// Check the policies
 	policies := alloc.Job.VaultPolicies()
@@ -950,7 +953,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	var unneeded []string
 	for _, task := range args.Tasks {
 		taskVault := tg[task]
-		if len(taskVault.Policies) == 0 {
+		if taskVault == nil || len(taskVault.Policies) == 0 {
 			unneeded = append(unneeded, task)
 		}
 	}
