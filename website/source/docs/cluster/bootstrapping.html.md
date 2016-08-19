@@ -181,7 +181,7 @@ via the client configuration.
 ```
 client {
     enabled = true
-    servers = ["10.10.11.2:4648", "10.10.11.3:4648", "10.10.11.4:4648"]
+    servers = ["10.10.11.2:4647", "10.10.11.3:4647", "10.10.11.4:4647"]
 }
 ```
 
@@ -189,6 +189,9 @@ If servers are added or removed from the cluster, the information will be
 pushed to the client. This means, that only one server must be specified because
 after initial contact, the full set of servers in the client's region will be
 pushed to the client.
+
+The port corresponds to the RPC port. If no port is specified with the IP address,
+the default RCP port of `4647` is assumed.
 
 The same commmands can be used to start the servers and clients as shown in the
 bootstrapping with Consul section.
