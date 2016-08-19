@@ -350,6 +350,16 @@ configured on client nodes.
     is most common to use the odd-numbered integers `3` or `5` for this value,
     depending on the cluster size. A value of `1` does not provide any fault
     tolerance and is not recommended for production use cases.
+  * <a id="encrypt">`encrypt`</a>: Specifies the secret key to use for
+    encryption of Nomad network traffic. This key must be 16-bytes that are
+    Base64-encoded. The easiest way to create an encryption key is to use
+    [`nomad keygen`](/docs/commands/keygen.html). All nodes within a cluster must
+    share the same encryption key to communicate. The provided key is automatically
+    persisted to the data directory and loaded automatically whenever the agent
+    is restarted. This means that to encrypt Consul's gossip protocol, this option
+    only needs to be provided once on each agent's initial startup sequence. If
+    it is provided after Nomad has been initialized with an encryption key, then
+    the provided key is ignored and a warning will be displayed.
   * `data_dir`: This is the data directory used for server-specific data,
     including the replicated log. By default, this directory lives inside of the
     [data_dir](#data_dir) in the "server" sub-path.
@@ -538,6 +548,7 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
 * `-bootstrap-expect=<num>`: Equivalent to the
   [bootstrap_expect](#bootstrap_expect) config option.
+* `-encrypt=<key>`: Equivalent to the [encrypt](#encrypt) config option.
 * `-client`: Enable client mode on the local agent.
 * `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
