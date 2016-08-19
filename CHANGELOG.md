@@ -1,3 +1,8 @@
+## 0.5.0 (Unreleased)
+
+IMPROVEMENTS:
+  * cli: `nomad alloc-status` shows allocation creation time [GH-1550]
+
 ## 0.4.1
 
 __BACKWARDS INCOMPATIBILITIES:__
