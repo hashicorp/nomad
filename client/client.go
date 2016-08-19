@@ -509,21 +509,30 @@ func (c *Client) nodeID() (id string, secret string, err error) {
 	}
 
 	// Use existing ID if any
-	if len(idBuf) != 0 && len(secretBuf) != 0 {
-		return string(idBuf), string(secretBuf), nil
+	if len(idBuf) != 0 {
+		id = string(idBuf)
+	} else {
+		// Generate new ID
+		id = structs.GenerateUUID()
+
+		// Persist the ID
+		if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
+			return "", "", err
+		}
 	}
 
-	// Generate new ID
-	id = structs.GenerateUUID()
-	secret = structs.GenerateUUID()
+	if len(secretBuf) != 0 {
+		secret = string(secretBuf)
+	} else {
+		// Generate new ID
+		secret = structs.GenerateUUID()
 
-	// Persist the IDs
-	if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
-		return "", "", err
+		// Persist the ID
+		if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+			return "", "", err
+		}
 	}
-	if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
-		return "", "", err
-	}
+
 	return id, secret, nil
 }
 
