@@ -99,18 +99,6 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 }
 
-// Validate validates a docker driver config
-func (c *DockerDriverConfig) Validate() error {
-	if c.ImageName == "" {
-		return fmt.Errorf("Docker Driver needs an image name")
-	}
-
-	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
-	c.Labels = mapMergeStrStr(c.LabelsRaw...)
-
-	return nil
-}
-
 // NewDockerDriverConfig returns a docker driver config by parsing the HCL
 // config
 func NewDockerDriverConfig(task *structs.Task) (*DockerDriverConfig, error) {
@@ -123,9 +111,9 @@ func NewDockerDriverConfig(task *structs.Task) (*DockerDriverConfig, error) {
 		driverConfig.ImageName = strings.Replace(driverConfig.ImageName, "https://", "", 1)
 	}
 
-	if err := driverConfig.Validate(); err != nil {
-		return nil, err
-	}
+	driverConfig.PortMap = mapMergeStrInt(driverConfig.PortMapRaw...)
+	driverConfig.Labels = mapMergeStrStr(driverConfig.LabelsRaw...)
+
 	return &driverConfig, nil
 }
 
