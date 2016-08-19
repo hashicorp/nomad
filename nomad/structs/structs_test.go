@@ -1096,29 +1096,29 @@ func TestAllocation_Terminating(t *testing.T) {
 	type desiredState struct {
 		ClientStatus  string
 		DesiredStatus string
-		Terminating   bool
+		Terminated    bool
 	}
 
 	harness := []desiredState{
 		{
 			ClientStatus:  AllocClientStatusPending,
 			DesiredStatus: AllocDesiredStatusStop,
-			Terminating:   true,
+			Terminated:    false,
 		},
 		{
 			ClientStatus:  AllocClientStatusRunning,
 			DesiredStatus: AllocDesiredStatusStop,
-			Terminating:   true,
+			Terminated:    false,
 		},
 		{
 			ClientStatus:  AllocClientStatusFailed,
 			DesiredStatus: AllocDesiredStatusStop,
-			Terminating:   false,
+			Terminated:    true,
 		},
 		{
 			ClientStatus:  AllocClientStatusFailed,
 			DesiredStatus: AllocDesiredStatusRun,
-			Terminating:   false,
+			Terminated:    true,
 		},
 	}
 
@@ -1126,8 +1126,8 @@ func TestAllocation_Terminating(t *testing.T) {
 		alloc := Allocation{}
 		alloc.DesiredStatus = state.DesiredStatus
 		alloc.ClientStatus = state.ClientStatus
-		if alloc.Terminating() != state.Terminating {
-			t.Fatalf("expected: %v, actual: %v", state.Terminating, alloc.Terminating())
+		if alloc.Terminated() != state.Terminated {
+			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
 		}
 	}
 }

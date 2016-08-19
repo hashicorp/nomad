@@ -160,6 +160,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		logger:             logger,
 		hostStatsCollector: stats.NewHostStatsCollector(),
 		allocs:             make(map[string]*AllocRunner),
+		blockedAllocations: make(map[string]*structs.Allocation),
 		allocUpdates:       make(chan *structs.Allocation, 64),
 		shutdownCh:         make(chan struct{}),
 	}
@@ -950,12 +951,12 @@ func (c *Client) allocSync() {
 			// If this alloc was blocking another alloc and transitioned to a
 			// terminal state then start the blocked allocation
 			c.blockedAllocsLock.Lock()
-			if alloc, ok := c.blockedAllocations[alloc.ID]; ok {
-				if err := c.addAlloc(alloc); err != nil {
+			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
+				if err := c.addAlloc(blockedAlloc); err != nil {
 					c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
-						alloc.ID, err)
+						blockedAlloc.ID, err)
 				}
-				delete(c.blockedAllocations, alloc.ID)
+				delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
 			}
 			c.blockedAllocsLock.Unlock()
 		case <-syncTicker.C:
@@ -1183,7 +1184,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	for _, add := range diff.added {
 		// If the allocation is chanined and the previous allocation hasn't
 		// terminated yet, then add the alloc to the blocked queue.
-		if ar, ok := c.getAllocRunners()[add.PreviousAllocation]; ok && ar.alloc.Terminating() {
+		if ar, ok := c.getAllocRunners()[add.PreviousAllocation]; ok && !ar.Alloc().Terminated() {
 			c.blockedAllocsLock.Lock()
 			c.blockedAllocations[add.PreviousAllocation] = add
 			c.blockedAllocsLock.Unlock()

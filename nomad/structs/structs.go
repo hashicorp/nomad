@@ -2626,11 +2626,11 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 }
 
-// Terminating returns if the allocation is stopped and currently transitioning
-// to the terminal state
-func (a *Allocation) Terminating() bool {
-	if a.DesiredStatus == AllocDesiredStatusStop &&
-		(a.ClientStatus == AllocClientStatusRunning || a.ClientStatus == AllocClientStatusPending) {
+// Terminated returns if the allocation is in a terminal state on a client.
+func (a *Allocation) Terminated() bool {
+	if a.ClientStatus == AllocClientStatusFailed ||
+		a.ClientStatus == AllocClientStatusComplete ||
+		a.ClientStatus == AllocClientStatusLost {
 		return true
 	}
 	return false
