@@ -210,7 +210,8 @@ type NodeEvaluateRequest struct {
 
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
-	NodeID string
+	NodeID   string
+	SecretID string
 	QueryOptions
 }
 
@@ -592,6 +593,11 @@ type Node struct {
 	// by doing a concatenation of the Name and Datacenter as a simple
 	// approach. Alternatively a UUID may be used.
 	ID string
+
+	// SecretID is an ID that is only known by the Node and the set of Servers.
+	// It is not accessible via the API and is used to authenticate nodes
+	// conducting priviledged activities.
+	SecretID string
 
 	// Datacenter for this node
 	Datacenter string

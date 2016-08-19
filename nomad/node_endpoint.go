@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -57,6 +58,19 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if args.Node.Name == "" {
 		return fmt.Errorf("missing node name for client registration")
 	}
+	if len(args.Node.Attributes) == 0 {
+		return fmt.Errorf("missing attributes for client registration")
+	}
+
+	// COMPAT: Remove after 0.6
+	// Need to check if this node is <0.4.x since SecretID is new in 0.5
+	pre, err := nodePreSecretID(args.Node)
+	if err != nil {
+		return err
+	}
+	if args.Node.SecretID == "" && !pre {
+		return fmt.Errorf("missing node secret ID for client registration")
+	}
 
 	// Default the status if none is given
 	if args.Node.Status == "" {
@@ -82,6 +96,19 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	originalNode, err := snap.NodeByID(args.Node.ID)
 	if err != nil {
 		return err
+	}
+
+	have := ""
+	if originalNode != nil {
+		have = originalNode.SecretID
+	}
+	n.srv.logger.Printf("Incoming: %q; Have %q", args.Node.SecretID, have)
+
+	// Check if the SecretID has been tampered with
+	if !pre && originalNode != nil {
+		if args.Node.SecretID != originalNode.SecretID {
+			return fmt.Errorf("node secret ID does not match. Not registering node.")
+		}
 	}
 
 	// Commit this update via Raft
@@ -133,6 +160,22 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	return nil
+}
+
+// nodePreSecretID is a helper that returns whether the node is on a version
+// that is before SecretIDs were introduced
+func nodePreSecretID(node *structs.Node) (bool, error) {
+	a := node.Attributes
+	if a == nil {
+		return false, fmt.Errorf("node doesn't have attributes set")
+	}
+
+	v, ok := a["nomad.version"]
+	if !ok {
+		return false, fmt.Errorf("missing Nomad version in attributes")
+	}
+
+	return !strings.HasPrefix(v, "0.5"), nil
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
@@ -217,7 +260,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Verify the arguments
 	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID for client deregistration")
+		return fmt.Errorf("missing node ID for client status update")
 	}
 	if !structs.ValidNodeStatus(args.Status) {
 		return fmt.Errorf("invalid status for node")
@@ -235,6 +278,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if node == nil {
 		return fmt.Errorf("node not found")
 	}
+
+	// XXX: Could use the SecretID here but have to update the heartbeat system
+	// to track SecretIDs.
 
 	// Update the timestamp of when the node status was updated
 	node.StatusUpdatedAt = time.Now().Unix()
@@ -423,8 +469,10 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 			}
 
 			// Setup the output
-			reply.Node = out
 			if out != nil {
+				// Clear the secret ID
+				reply.Node = out.Copy()
+				reply.Node.SecretID = ""
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
@@ -432,6 +480,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 				if err != nil {
 					return err
 				}
+				reply.Node = nil
 				reply.Index = index
 			}
 
@@ -524,9 +573,32 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			if err != nil {
 				return err
 			}
-			allocs, err := snap.AllocsByNode(args.NodeID)
+
+			// Look for the node
+			node, err := snap.NodeByID(args.NodeID)
 			if err != nil {
 				return err
+			}
+
+			var allocs []*structs.Allocation
+			if node != nil {
+				// COMPAT: Remove in 0.6
+				// Check if the node should have a SecretID set
+				if args.SecretID == "" {
+					if pre, err := nodePreSecretID(node); err != nil {
+						return err
+					} else if !pre {
+						return fmt.Errorf("missing node secret ID for client status update")
+					}
+				} else if args.SecretID != node.SecretID {
+					return fmt.Errorf("node secret ID does not match")
+				}
+
+				var err error
+				allocs, err = snap.AllocsByNode(args.NodeID)
+				if err != nil {
+					return err
+				}
 			}
 
 			reply.Allocs = make(map[string]uint64)

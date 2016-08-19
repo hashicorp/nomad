@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,80 @@ func TestClientEndpoint_Register(t *testing.T) {
 	}
 	if out.ComputedClass == "" {
 		t.Fatal("ComputedClass not set")
+	}
+}
+
+func TestClientEndpoint_Register_NoSecret(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	node.SecretID = ""
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "secret") {
+		t.Fatalf("Expecting error regarding missing secret id: %v", err)
+	}
+
+	// Update the node to be pre-0.5
+	node.Attributes["nomad.version"] = "0.4.1"
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
+		t.Fatalf("Expecting error regarding missing secret id", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected node")
+	}
+	if out.CreateIndex != resp.Index {
+		t.Fatalf("index mis-match")
+	}
+	if out.ComputedClass == "" {
+		t.Fatal("ComputedClass not set")
+	}
+}
+
+func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the nodes SecretID
+	node.SecretID = structs.GenerateUUID()
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "Not registering") {
+		t.Fatalf("Expecting error regarding mismatching secret id", err)
 	}
 }
 
@@ -609,6 +684,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
+	node.SecretID = ""
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
 	}
@@ -822,6 +898,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
+		SecretID:     node.SecretID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var resp2 structs.NodeClientAllocsResponse
@@ -836,16 +913,24 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	// Lookup non-existing node
-	get.NodeID = "foobarbaz"
+	// Lookup node with bad SecretID
+	get.SecretID = "foobarbaz"
 	var resp3 structs.NodeClientAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp3); err != nil {
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp3)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("err: %v", err)
 	}
-	if resp3.Index != 100 {
+
+	// Lookup non-existing node
+	get.NodeID = structs.GenerateUUID()
+	var resp4 structs.NodeClientAllocsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp4.Index != 100 {
 		t.Fatalf("Bad index: %d %d", resp3.Index, 100)
 	}
-	if len(resp3.Allocs) != 0 {
+	if len(resp4.Allocs) != 0 {
 		t.Fatalf("unexpected node %#v", resp3.Allocs)
 	}
 }
@@ -886,7 +971,8 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 
 	// Lookup the allocs in a blocking query
 	req := &structs.NodeSpecificRequest{
-		NodeID: node.ID,
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 50,

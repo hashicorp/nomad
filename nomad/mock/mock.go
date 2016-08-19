@@ -9,13 +9,14 @@ import (
 func Node() *structs.Node {
 	node := &structs.Node{
 		ID:         structs.GenerateUUID(),
+		SecretID:   structs.GenerateUUID(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name": "linux",
-			"arch":        "x86",
-			"version":     "0.1.0",
-			"driver.exec": "1",
+			"kernel.name":   "linux",
+			"arch":          "x86",
+			"nomad.version": "0.5.0",
+			"driver.exec":   "1",
 		},
 		Resources: &structs.Resources{
 			CPU:      4000,
