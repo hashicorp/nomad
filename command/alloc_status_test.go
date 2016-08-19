@@ -115,7 +115,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output");
+		t.Fatal("expected to find alloc id in output")
 	}
 	if !strings.Contains(out, "Created At") {
 		t.Fatalf("expected to have 'Created At' but saw: %s", out)
