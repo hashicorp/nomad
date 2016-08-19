@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 export PING_SLEEP=30
 bash -c "while true; do echo \$(date) - building ...; sleep $PING_SLEEP; done" &

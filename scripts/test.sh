@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 # Create a temp dir and clean it up on exit
 TEMPDIR=`mktemp -d -t nomad-test.XXX`
