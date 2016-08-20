@@ -152,7 +152,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		delete(node.Attributes, rktDriverAttr)
-		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
+		return false, fmt.Errorf("Unable to parse rkt version string: %#v", rktMatches)
 	}
 
 	node.Attributes[rktDriverAttr] = "1"
@@ -164,9 +164,10 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	if currentVersion.LessThan(minVersion) {
 		if currentlyEnabled {
 			// Do not allow rkt < 0.14.0
-			d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
+			d.logger.Printf("[WARN] driver.rkt: rkt must have a version >= %s, disabling", minVersion)
 		}
-		node.Attributes[rktDriverAttr] = "0"
+		delete(node.Attributes, rktDriverAttr)
+		return false, nil
 	}
 	return true, nil
 }
