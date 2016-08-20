@@ -162,8 +162,10 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	minVersion, _ := version.NewVersion(minRktVersion)
 	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
 	if currentVersion.LessThan(minVersion) {
-		// Do not allow rkt < 0.14.0
-		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
+		if currentlyEnabled {
+			// Do not allow rkt < 0.14.0
+			d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
+		}
 		node.Attributes[rktDriverAttr] = "0"
 	}
 	return true, nil
