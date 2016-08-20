@@ -128,6 +128,11 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// blockedAllocations are allocations which are blocked because their
+	// chained allocations haven't finished running
+	blockedAllocations map[string]*structs.Allocation
+	blockedAllocsLock  sync.RWMutex
+
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -155,6 +160,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		logger:             logger,
 		hostStatsCollector: stats.NewHostStatsCollector(),
 		allocs:             make(map[string]*AllocRunner),
+		blockedAllocations: make(map[string]*structs.Allocation),
 		allocUpdates:       make(chan *structs.Allocation, 64),
 		shutdownCh:         make(chan struct{}),
 	}
@@ -966,6 +972,18 @@ func (c *Client) allocSync() {
 		case alloc := <-c.allocUpdates:
 			// Batch the allocation updates until the timer triggers.
 			updates[alloc.ID] = alloc
+
+			// If this alloc was blocking another alloc and transitioned to a
+			// terminal state then start the blocked allocation
+			c.blockedAllocsLock.Lock()
+			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
+				if err := c.addAlloc(blockedAlloc); err != nil {
+					c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
+						blockedAlloc.ID, err)
+				}
+				delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
+			}
+			c.blockedAllocsLock.Unlock()
 		case <-syncTicker.C:
 			// Fast path if there are no updates
 			if len(updates) == 0 {
@@ -1191,6 +1209,15 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Start the new allocations
 	for _, add := range diff.added {
+		// If the allocation is chanined and the previous allocation hasn't
+		// terminated yet, then add the alloc to the blocked queue.
+		if ar, ok := c.getAllocRunners()[add.PreviousAllocation]; ok && !ar.Alloc().Terminated() {
+			c.blockedAllocsLock.Lock()
+			c.blockedAllocations[add.PreviousAllocation] = add
+			c.blockedAllocsLock.Unlock()
+			continue
+		}
+
 		if err := c.addAlloc(add); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
