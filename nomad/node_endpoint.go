@@ -982,23 +982,29 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	results := make(map[string]*vapi.Secret, len(args.Tasks))
 	for i := 0; i < handlers; i++ {
 		g.Go(func() error {
-			task, ok := <-input
-			if !ok {
-				return nil
-			}
+			for {
+				select {
+				case task, ok := <-input:
+					if !ok {
+						return nil
+					}
 
-			secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
-			if err != nil {
-				return fmt.Errorf("failed to create token for task %q: %v", task, err)
-			}
+					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
+					if err != nil {
+						return fmt.Errorf("failed to create token for task %q: %v", task, err)
+					}
 
-			results[task] = secret
-			return nil
+					results[task] = secret
+				case <-ctx.Done():
+					return nil
+				}
+			}
 		})
 	}
 
 	// Send the input
 	go func() {
+		defer close(input)
 		for _, task := range args.Tasks {
 			select {
 			case <-ctx.Done():
@@ -1006,6 +1012,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 			case input <- task:
 			}
 		}
+
 	}()
 
 	// Wait for everything to complete or for an error

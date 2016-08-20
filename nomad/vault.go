@@ -421,7 +421,7 @@ func (v *vaultClient) Stop() {
 
 	v.l.Lock()
 	defer v.l.Unlock()
-	if !v.renewalRunning || !v.establishingConn {
+	if !v.renewalRunning && !v.establishingConn {
 		return
 	}
 

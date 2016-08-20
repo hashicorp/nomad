@@ -35,6 +35,7 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	defer client.Stop()
 
 	if client.ConnectionEstablished() {
 		t.Fatalf("bad")
@@ -184,6 +185,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 
 	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "disabled") {
@@ -222,6 +224,7 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 
 	waitForConnection(client, t)
 
@@ -281,6 +284,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 	client.setLimit(rate.Limit(1.0))
 
 	waitForConnection(client, t)
@@ -334,6 +338,7 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 
 	waitForConnection(client, t)
 
