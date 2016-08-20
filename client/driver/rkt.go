@@ -151,8 +151,11 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	rktMatches := reRktVersion.FindStringSubmatch(out)
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
+		if currentlyEnabled {
+			d.logger.Printf("[WARN] driver.rkt: unable to parse rkt version string: %#v", rktMatches)
+		}
 		delete(node.Attributes, rktDriverAttr)
-		return false, fmt.Errorf("Unable to parse rkt version string: %#v", rktMatches)
+		return false, nil
 	}
 
 	node.Attributes[rktDriverAttr] = "1"
