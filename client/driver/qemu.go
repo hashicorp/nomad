@@ -97,10 +97,6 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Get the current status so that we can log any debug messages only if the
-	// state changes
-	_, currentlyEnabled := node.Attributes[qemuDriverAttr]
-
 	bin := "qemu-system-x86_64"
 	if runtime.GOOS == "windows" {
 		// On windows, the "qemu-system-x86_64" command does not respond to the
@@ -120,9 +116,6 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
 
-	if !currentlyEnabled {
-		d.logger.Printf("[DEBUG] driver.qemu: enabling driver")
-	}
 	node.Attributes[qemuDriverAttr] = "1"
 	node.Attributes["driver.qemu.version"] = matches[1]
 	return true, nil

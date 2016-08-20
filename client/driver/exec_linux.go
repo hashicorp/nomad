@@ -26,9 +26,6 @@ func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		return false, nil
 	}
 
-	if !currentlyEnabled {
-		d.logger.Printf("[DEBUG] driver.exec: exec driver is enabled")
-	}
 	node.Attributes[execDriverAttr] = "1"
 	return true, nil
 }
