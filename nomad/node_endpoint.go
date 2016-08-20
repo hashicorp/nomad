@@ -98,12 +98,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
-	have := ""
-	if originalNode != nil {
-		have = originalNode.SecretID
-	}
-	n.srv.logger.Printf("Incoming: %q; Have %q", args.Node.SecretID, have)
-
 	// Check if the SecretID has been tampered with
 	if !pre && originalNode != nil {
 		if args.Node.SecretID != originalNode.SecretID {
