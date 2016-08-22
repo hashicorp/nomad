@@ -39,8 +39,10 @@ func testServer(
 }
 
 func testJob(jobID string) *api.Job {
-	task := api.NewTask("task1", "raw_exec").
-		SetConfig("command", "/bin/sleep").
+	task := api.NewTask("task1", "mock_driver").
+		SetConfig("kill_after", "1s").
+		SetConfig("run_for", "5s").
+		SetConfig("exit_code", 0).
 		Require(&api.Resources{
 			MemoryMB: 256,
 			DiskMB:   20,

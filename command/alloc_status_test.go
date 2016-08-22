@@ -1,9 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
@@ -78,6 +80,23 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		c.DevMode = true
 	})
 	defer srv.Stop()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	ui := new(cli.MockUi)
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
