@@ -1,3 +1,5 @@
+// +build nomad_test
+
 package driver
 
 import (

@@ -978,7 +978,7 @@ func (c *Client) allocSync() {
 			c.blockedAllocsLock.Lock()
 			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
 				if err := c.addAlloc(blockedAlloc); err != nil {
-					c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
+					c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
 						blockedAlloc.ID, err)
 				}
 				delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
