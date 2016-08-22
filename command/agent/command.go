@@ -213,13 +213,6 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	if config.Server.Enabled && config.Server.EncryptKey != "" {
-		if _, err := config.EncryptBytes(); err != nil {
-			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
-			return nil
-		}
-	}
-
 	// Ensure that we have the directories we neet to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")

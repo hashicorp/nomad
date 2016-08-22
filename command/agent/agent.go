@@ -362,6 +362,10 @@ func (a *Agent) setupKeyring(config *nomad.Config) error {
 	file := filepath.Join(a.config.DataDir, serfWANKeyring)
 
 	if a.config.Server.EncryptKey != "" {
+		if _, err := a.config.EncryptBytes(); err != nil {
+			return err
+		}
+
 		if _, err := os.Stat(file); err != nil {
 			if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
 				return err

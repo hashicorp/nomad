@@ -22,7 +22,7 @@ func initKeyring(path, key string) error {
 	var keys []string
 
 	if _, err := base64.StdEncoding.DecodeString(key); err != nil {
-		return fmt.Errorf("Invalid key: %s", err)
+		return fmt.Errorf("Invalid encryption key: %s", err)
 	}
 
 	// Just exit if the file already exists.
