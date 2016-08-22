@@ -507,7 +507,9 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 			r.resourceUsageLock.Lock()
 			r.resourceUsage = ru
 			r.resourceUsageLock.Unlock()
-			r.emitStats(ru)
+			if ru != nil {
+				r.emitStats(ru)
+			}
 		case <-stopCollection:
 			return
 		}

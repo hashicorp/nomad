@@ -598,3 +598,96 @@ func TestClient_Init(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 }
+
+func TestClient_BlockedAllocations(t *testing.T) {
+	s1, _ := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+	})
+
+	// Wait for the node to be ready
+	state := s1.State()
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.NodeByID(c1.Node().ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil || out.Status != structs.NodeStatusReady {
+			return false, fmt.Errorf("bad node: %#v", out)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Add an allocation
+	alloc := mock.Alloc()
+	alloc.NodeID = c1.Node().ID
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"kill_after":  "1s",
+		"run_for":     "100s",
+		"exit_code":   0,
+		"exit_signal": 0,
+		"exit_err":    "",
+	}
+
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(100, []*structs.Allocation{alloc})
+
+	// Wait until the client downloads and starts the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.AllocByID(alloc.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil || out.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("bad alloc: %#v", out)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Add a new chained alloc
+	alloc2 := alloc.Copy()
+	alloc2.ID = structs.GenerateUUID()
+	alloc2.Job = alloc.Job
+	alloc2.JobID = alloc.JobID
+	alloc2.PreviousAllocation = alloc.ID
+	if err := state.UpsertAllocs(200, []*structs.Allocation{alloc2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Enusre that the chained allocation is being tracked as blocked
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, ok := c1.blockedAllocations[alloc2.PreviousAllocation]
+		if ok && alloc.ID == alloc2.ID {
+			return true, nil
+		}
+		return false, fmt.Errorf("no blocked allocations")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Change the desired state of the parent alloc to stop
+	alloc1 := alloc.Copy()
+	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
+	if err := state.UpsertAllocs(300, []*structs.Allocation{alloc1}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that there are no blocked allocations
+	testutil.WaitForResult(func() (bool, error) {
+		_, ok := c1.blockedAllocations[alloc2.PreviousAllocation]
+		if ok {
+			return false, fmt.Errorf("blocked evals present")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
