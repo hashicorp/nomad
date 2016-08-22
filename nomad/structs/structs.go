@@ -2632,6 +2632,16 @@ func (a *Allocation) TerminalStatus() bool {
 	}
 }
 
+// Terminated returns if the allocation is in a terminal state on a client.
+func (a *Allocation) Terminated() bool {
+	if a.ClientStatus == AllocClientStatusFailed ||
+		a.ClientStatus == AllocClientStatusComplete ||
+		a.ClientStatus == AllocClientStatusLost {
+		return true
+	}
+	return false
+}
+
 // RanSuccessfully returns whether the client has ran the allocation and all
 // tasks finished successfully
 func (a *Allocation) RanSuccessfully() bool {
