@@ -1,9 +1,32 @@
 package agent
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+func makeAgentKeyring(t *testing.T, conf *Config, key string) (string, *Agent) {
+	dir, err := ioutil.TempDir("", "agent")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	conf.DataDir = dir
+
+	fileLAN := filepath.Join(dir, serfLANKeyring)
+	if err := initKeyring(fileLAN, key); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	agent, err := NewAgent(conf, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	return dir, agent
+}
 
 func TestAgent_LoadKeyrings(t *testing.T) {
 	key := "tbLJg26ZJyJ9pK3qhc9jig=="
