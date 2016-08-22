@@ -164,7 +164,7 @@ func NewTask(name, driver string) *Task {
 
 // Configure is used to configure a single k/v pair on
 // the task.
-func (t *Task) SetConfig(key, val string) *Task {
+func (t *Task) SetConfig(key string, val interface{}) *Task {
 	if t.Config == nil {
 		t.Config = make(map[string]interface{})
 	}
