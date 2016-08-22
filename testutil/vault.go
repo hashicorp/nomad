@@ -66,7 +66,7 @@ func NewTestVault(t *testing.T) *TestVault {
 		t:         t,
 		Addr:      bind,
 		HTTPAddr:  http,
-		RootToken: root,
+		RootToken: token,
 		Client:    client,
 		Config: &config.VaultConfig{
 			Enabled: true,

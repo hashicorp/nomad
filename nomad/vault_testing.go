@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -26,6 +27,8 @@ type TestVaultClient struct {
 	// CreateTokenSecret maps a token to the Vault secret that will be returned
 	// by the CreateToken call
 	CreateTokenSecret map[string]map[string]*vapi.Secret
+
+	RevokedTokens []*structs.VaultAccessor
 }
 
 func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secret, error) {
@@ -126,4 +129,11 @@ func (v *TestVaultClient) SetCreateTokenSecret(allocID, task string, secret *vap
 	v.CreateTokenSecret[allocID][task] = secret
 }
 
-func (v *TestVaultClient) Stop() {}
+func (v *TestVaultClient) RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error {
+	v.RevokedTokens = append(v.RevokedTokens, accessors...)
+	return nil
+}
+
+func (v *TestVaultClient) Stop()                                      {}
+func (v *TestVaultClient) SetActive(enabled bool)                     {}
+func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error { return nil }

@@ -31,24 +31,19 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	// Should be no error since Vault is not enabled
-	client, err := NewVaultClient(conf, logger)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	defer client.Stop()
-
-	if client.ConnectionEstablished() {
-		t.Fatalf("bad")
+	_, err := NewVaultClient(nil, logger, nil)
+	if err == nil || !strings.Contains(err.Error(), "valid") {
+		t.Fatalf("expected config error: %v", err)
 	}
 
 	conf.Enabled = true
-	_, err = NewVaultClient(conf, logger)
+	_, err = NewVaultClient(conf, logger, nil)
 	if err == nil || !strings.Contains(err.Error(), "token must be set") {
 		t.Fatalf("Expected token unset error: %v", err)
 	}
 
 	conf.Token = "123"
-	_, err = NewVaultClient(conf, logger)
+	_, err = NewVaultClient(conf, logger, nil)
 	if err == nil || !strings.Contains(err.Error(), "address must be set") {
 		t.Fatalf("Expected address unset error: %v", err)
 	}
@@ -62,7 +57,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -79,11 +74,69 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	v.Start()
 
 	waitForConnection(client, t)
+}
 
-	// Ensure that since we are using a root token that we haven started the
-	// renewal loop.
-	if client.renewalRunning {
-		t.Fatalf("No renewal loop should be running")
+func TestVaultClient_SetActive(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Do a lookup and expect an error about not being active
+	_, err = client.LookupToken(context.Background(), "123")
+	if err == nil || !strings.Contains(err.Error(), "not active") {
+		t.Fatalf("Expected not-active error: %v", err)
+	}
+
+	client.SetActive(true)
+
+	// Do a lookup of ourselves
+	_, err = client.LookupToken(context.Background(), v.RootToken)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+// Test that we can update the config and things keep working
+func TestVaultClient_SetConfig(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	v2 := testutil.NewTestVault(t).Start()
+	defer v2.Stop()
+
+	// Set the configs token in a new test role
+	v2.Config.Token = testVaultRoleAndToken(v2, t, 20)
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	if client.tokenData == nil || len(client.tokenData.Policies) != 1 {
+		t.Fatalf("unexpected token: %v", client.tokenData)
+	}
+
+	// Update the config
+	if err := client.SetConfig(v2.Config); err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	waitForConnection(client, t)
+
+	if client.tokenData == nil || len(client.tokenData.Policies) != 2 {
+		t.Fatalf("unexpected token: %v", client.tokenData)
 	}
 }
 
@@ -128,7 +181,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -177,29 +230,19 @@ func parseTTLFromLookup(s *vapi.Secret, t *testing.T) int64 {
 
 func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	conf := &config.VaultConfig{
-		Enabled: false,
-	}
-
-	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(conf, logger)
-	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
-	}
-	defer client.Stop()
-
-	_, err = client.LookupToken(context.Background(), "foo")
-	if err == nil || !strings.Contains(err.Error(), "disabled") {
-		t.Fatalf("Expected error because Vault is disabled: %v", err)
+		Enabled: true,
+		Addr:    "http://foobar:12345",
+		Token:   structs.GenerateUUID(),
 	}
 
 	// Enable vault but use a bad address so it never establishes a conn
-	conf.Enabled = true
-	conf.Addr = "http://foobar:12345"
-	conf.Token = structs.GenerateUUID()
-	client, err = NewVaultClient(conf, logger)
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(conf, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	client.SetActive(true)
+	defer client.Stop()
 
 	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "established") {
@@ -207,23 +250,16 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	}
 }
 
-func waitForConnection(v *vaultClient, t *testing.T) {
-	testutil.WaitForResult(func() (bool, error) {
-		return v.ConnectionEstablished(), nil
-	}, func(err error) {
-		t.Fatalf("Connection not established")
-	})
-}
-
 func TestVaultClient_LookupToken(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	client.SetActive(true)
 	defer client.Stop()
 
 	waitForConnection(client, t)
@@ -280,10 +316,11 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	defer v.Stop()
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	client.SetActive(true)
 	defer client.Stop()
 	client.setLimit(rate.Limit(1.0))
 
@@ -334,10 +371,11 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 	defer v.Stop()
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	client.SetActive(true)
 	defer client.Stop()
 
 	waitForConnection(client, t)
@@ -380,10 +418,11 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 	//testVaultRoleAndToken(v, t, 5)
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client, err := NewVaultClient(v.Config, logger)
+	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	client.SetActive(true)
 	defer client.Stop()
 
 	waitForConnection(client, t)
@@ -415,4 +454,111 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 	} else if s.WrapInfo.TTL != int(d.Seconds()) {
 		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
 	}
+}
+
+func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
+	v := testutil.NewTestVault(t)
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create some VaultAccessors
+	vas := []*structs.VaultAccessor{
+		mock.VaultAccessor(),
+		mock.VaultAccessor(),
+	}
+
+	if err := client.RevokeTokens(context.Background(), vas, false); err != nil {
+		t.Fatalf("RevokeTokens failed: %v", err)
+	}
+
+	// Wasn't committed
+	if len(client.revoking) != 0 {
+		t.Fatalf("didn't add to revoke loop")
+	}
+
+	if err := client.RevokeTokens(context.Background(), vas, true); err != nil {
+		t.Fatalf("RevokeTokens failed: %v", err)
+	}
+
+	// Was committed
+	if len(client.revoking) != 2 {
+		t.Fatalf("didn't add to revoke loop")
+	}
+}
+
+func TestVaultClient_RevokeTokens(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	purged := 0
+	purge := func(accessors []*structs.VaultAccessor) error {
+		purged += len(accessors)
+		return nil
+	}
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, purge)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create some vault tokens
+	auth := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: []string{"default"},
+	}
+	t1, err := auth.Create(&req)
+	if err != nil {
+		t.Fatalf("Failed to create vault token: %v", err)
+	}
+	if t1 == nil || t1.Auth == nil {
+		t.Fatalf("bad secret response: %+v", t1)
+	}
+	t2, err := auth.Create(&req)
+	if err != nil {
+		t.Fatalf("Failed to create vault token: %v", err)
+	}
+	if t2 == nil || t2.Auth == nil {
+		t.Fatalf("bad secret response: %+v", t2)
+	}
+
+	// Create two VaultAccessors
+	vas := []*structs.VaultAccessor{
+		&structs.VaultAccessor{Accessor: t1.Auth.Accessor},
+		&structs.VaultAccessor{Accessor: t2.Auth.Accessor},
+	}
+
+	// Issue a token revocation
+	if err := client.RevokeTokens(context.Background(), vas, true); err != nil {
+		t.Fatalf("RevokeTokens failed: %v", err)
+	}
+
+	// Lookup the token and make sure we get an error
+	if s, err := auth.Lookup(t1.Auth.ClientToken); err == nil {
+		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
+	}
+	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
+		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
+	}
+
+	if purged != 2 {
+		t.Fatalf("Expected purged 2; got %d", purged)
+	}
+}
+
+func waitForConnection(v *vaultClient, t *testing.T) {
+	testutil.WaitForResult(func() (bool, error) {
+		return v.ConnectionEstablished(), nil
+	}, func(err error) {
+		t.Fatalf("Connection not established")
+	})
 }

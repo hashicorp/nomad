@@ -2894,27 +2894,35 @@ func TestStateStore_UpsertVaultAccessors(t *testing.T) {
 	}
 }
 
-func TestStateStore_DeleteVaultAccessor(t *testing.T) {
+func TestStateStore_DeleteVaultAccessors(t *testing.T) {
 	state := testStateStore(t)
-	accessor := mock.VaultAccessor()
+	a1 := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+	accessors := []*structs.VaultAccessor{a1, a2}
 
-	err := state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{accessor})
+	err := state.UpsertVaultAccessor(1000, accessors)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeleteVaultAccessor(1001, accessor.Accessor)
+	err = state.DeleteVaultAccessors(1001, accessors)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.VaultAccessor(accessor.Accessor)
+	out, err := state.VaultAccessor(a1.Accessor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", accessor, out)
+		t.Fatalf("bad: %#v %#v", a1, out)
+	}
+	out, err = state.VaultAccessor(a2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", a2, out)
 	}
 
 	index, err := state.Index("vault_accessors")
