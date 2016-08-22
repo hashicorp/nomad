@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// path to persist the keyring file
 	serfWANKeyring = "serf/remote.keyring"
 )
 
