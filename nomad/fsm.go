@@ -457,7 +457,8 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 	return n.reconcileQueuedAllocations(index)
 }
 
-// applyUpsertVaultAccessor stores the Vault accessors for a given
+// applyUpsertVaultAccessor stores the Vault accessors for a given allocation
+// and task
 func (n *nomadFSM) applyUpsertVaultAccessor(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_vault_accessor"}, time.Now())
 	var req structs.VaultAccessorRegisterRequest
