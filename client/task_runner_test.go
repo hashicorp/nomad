@@ -71,7 +71,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	upd, tr := testTaskRunner(false)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy(structs.TaskKilled)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {
@@ -138,7 +138,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 	}
 
 	// Begin the tear down
-	tr.Destroy(structs.TaskKilled)
+	tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	select {
 	case <-tr.WaitCh():
@@ -171,7 +171,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	tr.task.Config["command"] = "/bin/sleep"
 	tr.task.Config["args"] = []string{"100"}
 	go tr.Run()
-	defer tr.Destroy(structs.TaskKilled)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
@@ -225,7 +225,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	tr.task.Config["command"] = "/bin/sleep"
 	tr.task.Config["args"] = []string{"10"}
 	go tr.Run()
-	defer tr.Destroy(structs.TaskKilled)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	// Snapshot state
 	time.Sleep(2 * time.Second)
@@ -240,7 +240,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
-	defer tr2.Destroy(structs.TaskKilled)
+	defer tr2.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	// Destroy and wait
 	testutil.WaitForResult(func() (bool, error) {
@@ -272,7 +272,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	upd, tr := testTaskRunnerFromAlloc(false, alloc)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy(structs.TaskKilled)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {
@@ -337,7 +337,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	upd, tr := testTaskRunnerFromAlloc(true, alloc)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy(structs.TaskKilled)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {

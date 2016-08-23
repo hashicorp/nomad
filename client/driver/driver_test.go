@@ -20,6 +20,7 @@ import (
 var basicResources = &structs.Resources{
 	CPU:      250,
 	MemoryMB: 256,
+	DiskMB:   20,
 	Networks: []*structs.NetworkResource{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
