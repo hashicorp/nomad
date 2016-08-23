@@ -4,6 +4,7 @@ IMPROVEMENTS:
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * cli: `nomad alloc-status` shows allocation creation time [GH-1550]
+  * client: Enforce shared allocation directory disk usage [GH-1580]
 
 ## 0.4.1
 
