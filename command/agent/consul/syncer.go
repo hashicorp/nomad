@@ -394,7 +394,7 @@ func (c *Syncer) syncChecks() error {
 	}
 
 	// Synchronize checks with Consul
-	missingChecks, _, changedChecks, staleChecks := c.calcChecksDiff(consulChecks)
+	missingChecks, existingChecks, changedChecks, staleChecks := c.calcChecksDiff(consulChecks)
 	for _, check := range missingChecks {
 		if err := c.registerCheck(check); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -402,6 +402,9 @@ func (c *Syncer) syncChecks() error {
 		c.registryLock.Lock()
 		c.trackedChecks[consulCheckID(check.ID)] = check
 		c.registryLock.Unlock()
+	}
+	for _, check := range existingChecks {
+		c.ensureCheckRunning(check)
 	}
 	for _, check := range changedChecks {
 		// NOTE(sean@): Do we need to deregister the check before
@@ -682,6 +685,20 @@ func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
 	}
 	c.registryLock.RUnlock()
 	return c.client.Agent().CheckRegister(chkReg)
+}
+
+// ensureCheckRunning verifies that registerd check is in running state
+func (c *Syncer) ensureCheckRunning(chk *consul.AgentCheckRegistration) {
+	c.registryLock.RLock()
+	defer c.registryLock.RUnlock()
+	cr, ok := c.checkRunners[consulCheckID(chk.ID)]
+	if !ok {
+		return
+	}
+	if !cr.Started() {
+		c.logger.Printf("[DEBUG] ensureCheckRunning Running existing check. %v", chk)
+		cr.Start()
+	}
 }
 
 // createCheckReg creates a Check that can be registered with Nomad. It also

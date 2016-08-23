@@ -47,6 +47,12 @@ func (r *CheckRunner) Start() {
 	r.started = true
 }
 
+func (r *CheckRunner) Started() bool {
+	r.startedLock.Lock()
+	defer r.startedLock.Unlock()
+	return r.started
+}
+
 // Stop is used to stop the check.
 func (r *CheckRunner) Stop() {
 	r.stopLock.Lock()
