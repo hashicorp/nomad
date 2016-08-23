@@ -898,7 +898,10 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobSummary(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
