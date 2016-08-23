@@ -52,7 +52,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -83,7 +83,7 @@ func TestAllocDir_LogDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 
 	expected := filepath.Join(d.AllocDir, SharedAllocName, LogDirName)
@@ -99,7 +99,7 @@ func TestAllocDir_EmbedNonExistent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -121,7 +121,7 @@ func TestAllocDir_EmbedDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -182,7 +182,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {

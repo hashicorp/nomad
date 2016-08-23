@@ -78,7 +78,7 @@ func testConfig() *config.Config {
 
 func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	cfg := testConfig()
-	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
+	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()), task.Resources.DiskMB)
 	allocDir.Build([]*structs.Task{task})
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)

@@ -727,6 +727,10 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+const (
+	BytesInMegabyte = 1024 * 1024
+)
+
 // DefaultResources returns the default resources for a task.
 func DefaultResources() *Resources {
 	return &Resources{
@@ -735,6 +739,11 @@ func DefaultResources() *Resources {
 		DiskMB:   300,
 		IOPS:     0,
 	}
+}
+
+// DiskInBytes returns the amount of disk resources in bytes.
+func (r *Resources) DiskInBytes() int64 {
+	return int64(r.DiskMB * BytesInMegabyte)
 }
 
 // Merge merges this resource with another resource.
@@ -2137,7 +2146,7 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Failed returns if the task has has failed.
+// Failed returns true if the task has has failed.
 func (ts *TaskState) Failed() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -2145,7 +2154,7 @@ func (ts *TaskState) Failed() bool {
 	}
 
 	switch ts.Events[l-1].Type {
-	case TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
+	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
 		return true
 	default:
 		return false
@@ -2207,6 +2216,14 @@ const (
 	// TaskArtifactDownloadFailed indicates that downloading the artifacts
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
+
+	// TaskDiskExceeded indicates that one of the tasks in a taskgroup has
+	// exceeded the requested disk resources.
+	TaskDiskExceeded = "Disk Resources Exceeded"
+
+	// TaskSiblingFailed indicates that a sibling task in the task group has
+	// failed.
+	TaskSiblingFailed = "Sibling task failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -2240,6 +2257,16 @@ type TaskEvent struct {
 
 	// Validation fields
 	ValidationError string // Validation error
+
+	// The maximum allowed task disk size.
+	DiskLimit int64
+
+	// The recorded task disk size.
+	DiskSize int64
+
+	// Name of the sibling task that caused termination of the task that
+	// the TaskEvent refers to.
+	FailedSibling string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2319,6 +2346,21 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
 	e.KillTimeout = timeout
+	return e
+}
+
+func (e *TaskEvent) SetDiskLimit(limit int64) *TaskEvent {
+	e.DiskLimit = limit
+	return e
+}
+
+func (e *TaskEvent) SetDiskSize(size int64) *TaskEvent {
+	e.DiskSize = size
+	return e
+}
+
+func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
+	e.FailedSibling = sibling
 	return e
 }
 
