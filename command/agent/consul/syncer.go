@@ -687,16 +687,12 @@ func (c *Syncer) registerCheck(chkReg *consul.AgentCheckRegistration) error {
 	return c.client.Agent().CheckRegister(chkReg)
 }
 
-// ensureCheckRunning verifies that registerd check is in running state
+// ensureCheckRunning starts the check runner for a check if it's not already running
 func (c *Syncer) ensureCheckRunning(chk *consul.AgentCheckRegistration) {
 	c.registryLock.RLock()
 	defer c.registryLock.RUnlock()
-	cr, ok := c.checkRunners[consulCheckID(chk.ID)]
-	if !ok {
-		return
-	}
-	if !cr.Started() {
-		c.logger.Printf("[DEBUG] ensureCheckRunning Running existing check. %v", chk)
+	if cr, ok := c.checkRunners[consulCheckID(chk.ID)]; ok && !cr.Started() {
+		c.logger.Printf("[DEBUG] consul.syncer: starting runner for existing check. %v", chk.ID)
 		cr.Start()
 	}
 }

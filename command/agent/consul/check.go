@@ -47,6 +47,7 @@ func (r *CheckRunner) Start() {
 	r.started = true
 }
 
+// Started returns if the check runner has started running
 func (r *CheckRunner) Started() bool {
 	r.startedLock.Lock()
 	defer r.startedLock.Unlock()
