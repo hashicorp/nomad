@@ -248,7 +248,9 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	go c.rpcProxy.Run()
 
 	// Start renewing tokens and secrets
-	go c.vaultClient.Start()
+	if c.vaultClient != nil {
+		go c.vaultClient.Start()
+	}
 
 	return c, nil
 }
@@ -1298,13 +1300,25 @@ func (c *Client) setupVaultClient() error {
 	if c.config.VaultConfig == nil {
 		return fmt.Errorf("nil vault config")
 	}
+
+	if !c.config.VaultConfig.Enabled {
+		return nil
+	}
+
 	if c.config.VaultConfig.Token == "" {
 		return fmt.Errorf("vault token not set")
 	}
 
 	var err error
-	if c.vaultClient, err = vaultclient.NewVaultClient(c.config.VaultConfig, c.logger); err != nil {
+	if c.vaultClient, err = vaultclient.NewVaultClient(c.Node(), c.Region(),
+		c.config.VaultConfig, c.logger, c.config.RPCHandler, c.connPool,
+		c.rpcProxy); err != nil {
 		return err
+	}
+
+	if c.vaultClient == nil {
+		c.logger.Printf("[ERR] client: failed to create vault client")
+		return fmt.Errorf("failed to create vault client")
 	}
 
 	return nil
