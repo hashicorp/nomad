@@ -28,7 +28,7 @@ production as it does not persist state.
 
 ```
 vagrant@nomad:~$ sudo nomad agent -dev
-    No configuration files loaded
+
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
@@ -40,47 +40,27 @@ vagrant@nomad:~$ sudo nomad agent -dev
 
 ==> Nomad agent started! Log data will stream in below:
 
-    2016/08/23 21:26:03 [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
-    2016/08/23 21:26:03.853216 [INFO] nomad: starting 1 scheduling worker(s) for [service batch system _core]
-    2016/08/23 21:26:03.854711 [INFO] client: using state directory /tmp/NomadClient632906511
-    2016/08/23 21:26:03.854732 [INFO] client: using alloc directory /tmp/NomadClient174428962
-    2016/08/23 21:26:03.854761 [DEBUG] client: built-in fingerprints: [arch cgroup cpu env_aws env_gce host memory network nomad storage]
-    2016/08/23 21:26:03.854879 [INFO] fingerprint.cgroups: cgroups are available
-    2016/08/23 21:26:03.854951 [DEBUG] fingerprint.cpu: frequency: 2294 MHz
-    2016/08/23 21:26:03.854954 [DEBUG] fingerprint.cpu: core count: 1
-    2016/08/23 21:26:03 [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state (Leader: "")
-    2016/08/23 21:26:03.861876 [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
-    2016/08/23 21:26:03.861924 [DEBUG] client: fingerprinting cgroup every 15s
-    2016/08/23 21:26:05 [WARN] raft: Heartbeat timeout from "" reached, starting election
-    2016/08/23 21:26:05 [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
-    2016/08/23 21:26:05 [DEBUG] raft: Votes needed: 1
-    2016/08/23 21:26:05 [DEBUG] raft: Vote granted from 127.0.0.1:4647. Tally: 1
-    2016/08/23 21:26:05 [INFO] raft: Election won. Tally: 1
-    2016/08/23 21:26:05 [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
-    2016/08/23 21:26:05 [INFO] raft: Disabling EnableSingleNode (bootstrap)
-    2016/08/23 21:26:05 [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
-    2016/08/23 21:26:05.685611 [INFO] nomad: cluster leadership acquired
-    2016/08/23 21:26:05.685685 [DEBUG] leader: reconciling job summaries at index: 0
-    2016/08/23 21:26:05.855402 [DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping
-    2016/08/23 21:26:07.855934 [DEBUG] fingerprint.env_gce: Could not read value for attribute "machine-type"
-    2016/08/23 21:26:07.855942 [DEBUG] fingerprint.env_gce: Error querying GCE Metadata URL, skipping
-    2016/08/23 21:26:07.860576 [DEBUG] fingerprint.network: Detected interface lo with IP 127.0.0.1 during fingerprinting
-    2016/08/23 21:26:07.861368 [DEBUG] fingerprint.network: Unable to read link speed from /sys/class/net/lo/speed
-    2016/08/23 21:26:07.861376 [DEBUG] fingerprint.network: Unable to read link speed; setting to default 100
-    2016/08/23 21:26:07.863896 [DEBUG] client: applied fingerprints [arch cgroup cpu host memory network nomad storage]
-    2016/08/23 21:26:07.863914 [DEBUG] driver.exec: exec driver is enabled
-    2016/08/23 21:26:07.864114 [DEBUG] client: fingerprinting exec every 15s
-    2016/08/23 21:26:07.864966 [DEBUG] driver.docker: using client connection initialized from environment
-    2016/08/23 21:26:07.867270 [DEBUG] client: available drivers [exec raw_exec docker]
-    2016/08/23 21:26:07.868498 [DEBUG] client: fingerprinting docker every 15s
-    2016/08/23 21:26:07.872181 [DEBUG] client: node registration complete
-    2016/08/23 21:26:07.872209 [DEBUG] client: periodically checking for node changes at duration 5s
-    2016/08/23 21:26:07.872352 [DEBUG] client: updated allocations at index 1 (pulled 0) (filtered 0)
-    2016/08/23 21:26:07.872411 [DEBUG] client: allocs: (added 0) (removed 0) (updated 0) (ignore 0)
-    2016/08/23 21:26:07.879168 [DEBUG] client: state updated to ready
-    2016/08/23 21:26:07.879907 [DEBUG] consul.syncer: error in syncing: 1 error(s) occurred:
-
-* Get http://127.0.0.1:8500/v1/agent/services: dial tcp 127.0.0.1:8500: getsockopt: connection refused
+    [INFO] serf: EventMemberJoin: nomad.global 127.0.0.1
+    [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
+    [INFO] client: using alloc directory /tmp/NomadClient599911093
+    [INFO] raft: Node at 127.0.0.1:4647 [Follower] entering Follower state
+    [INFO] nomad: adding server nomad.global (Addr: 127.0.0.1:4647) (DC: dc1)
+    [WARN] fingerprint.network: Ethtool not found, checking /sys/net speed file
+    [WARN] raft: Heartbeat timeout reached, starting election
+    [INFO] raft: Node at 127.0.0.1:4647 [Candidate] entering Candidate state
+    [DEBUG] raft: Votes needed: 1
+    [DEBUG] raft: Vote granted. Tally: 1
+    [INFO] raft: Election won. Tally: 1
+    [INFO] raft: Node at 127.0.0.1:4647 [Leader] entering Leader state
+    [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    [DEBUG] raft: Node 127.0.0.1:4647 updated peer set (2): [127.0.0.1:4647]
+    [INFO] nomad: cluster leadership acquired
+    [DEBUG] client: applied fingerprints [arch cpu host memory storage network]
+    [DEBUG] client: available drivers [docker exec java]
+    [DEBUG] client: node registration complete
+    [DEBUG] client: updated allocations at index 1 (0 allocs)
+    [DEBUG] client: allocs: (added 0) (removed 0) (updated 0) (ignore 0)
+    [DEBUG] client: state updated to ready
 ```
 
 As you can see, the Nomad agent has started and has output some log
@@ -119,8 +99,8 @@ ring using the [`server-members`](/docs/commands/server-members.html) command:
 
 ```text
 $ nomad server-members
-Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
-nomad.global  127.0.0.1  4648  alive   true    2         0.4.1  dc1         global
+Name          Address    Port  Status  Leader  Protocol  Build     Datacenter  Region
+nomad.global  127.0.0.1  4648  alive   true    2         0.4.0rc2  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its
