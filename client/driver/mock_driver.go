@@ -16,6 +16,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Add the mock driver to the list of builtin drivers
+func init() {
+	BuiltinDrivers["mock_driver"] = NewMockDriver
+}
+
 // MockDriverConfig is the driver configuration for the MockDriver
 type MockDriverConfig struct {
 
