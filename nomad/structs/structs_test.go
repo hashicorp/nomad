@@ -224,8 +224,25 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 
 func TestJob_VaultPolicies(t *testing.T) {
 	j0 := &Job{}
-	e0 := make(map[string]map[string][]string, 0)
+	e0 := make(map[string]map[string]*Vault, 0)
 
+	vj1 := &Vault{
+		Policies: []string{
+			"p1",
+			"p2",
+		},
+	}
+	vj2 := &Vault{
+		Policies: []string{
+			"p3",
+			"p4",
+		},
+	}
+	vj3 := &Vault{
+		Policies: []string{
+			"p5",
+		},
+	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
@@ -235,13 +252,8 @@ func TestJob_VaultPolicies(t *testing.T) {
 						Name: "t1",
 					},
 					&Task{
-						Name: "t2",
-						Vault: &Vault{
-							Policies: []string{
-								"p1",
-								"p2",
-							},
-						},
+						Name:  "t2",
+						Vault: vj1,
 					},
 				},
 			},
@@ -249,40 +261,31 @@ func TestJob_VaultPolicies(t *testing.T) {
 				Name: "bar",
 				Tasks: []*Task{
 					&Task{
-						Name: "t3",
-						Vault: &Vault{
-							Policies: []string{
-								"p3",
-								"p4",
-							},
-						},
+						Name:  "t3",
+						Vault: vj2,
 					},
 					&Task{
-						Name: "t4",
-						Vault: &Vault{
-							Policies: []string{
-								"p5",
-							},
-						},
+						Name:  "t4",
+						Vault: vj3,
 					},
 				},
 			},
 		},
 	}
 
-	e1 := map[string]map[string][]string{
-		"foo": map[string][]string{
-			"t2": []string{"p1", "p2"},
+	e1 := map[string]map[string]*Vault{
+		"foo": map[string]*Vault{
+			"t2": vj1,
 		},
-		"bar": map[string][]string{
-			"t3": []string{"p3", "p4"},
-			"t4": []string{"p5"},
+		"bar": map[string]*Vault{
+			"t3": vj2,
+			"t4": vj3,
 		},
 	}
 
 	cases := []struct {
 		Job      *Job
-		Expected map[string]map[string][]string
+		Expected map[string]map[string]*Vault
 	}{
 		{
 			Job:      j0,

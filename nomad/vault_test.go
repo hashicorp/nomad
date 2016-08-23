@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -9,10 +10,20 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/time/rate"
+
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
+)
+
+const (
+	// authPolicy is a policy that allows token creation operations
+	authPolicy = `path "auth/token/create/*" {
+	capabilities = ["create", "read", "update", "delete", "list"]
+}`
 )
 
 func TestVaultClient_BadConfig(t *testing.T) {
@@ -24,6 +35,7 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	defer client.Stop()
 
 	if client.ConnectionEstablished() {
 		t.Fatalf("bad")
@@ -75,15 +87,20 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	}
 }
 
-func TestVaultClient_RenewalLoop(t *testing.T) {
-	v := testutil.NewTestVault(t).Start()
-	defer v.Stop()
+// testVaultRoleAndToken creates a test Vault role where children are created
+// with the passed period. A token created in that role is returned
+func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+	// Build the auth policy
+	sys := v.Client.Sys()
+	if err := sys.PutPolicy("auth", authPolicy); err != nil {
+		t.Fatalf("failed to create auth policy: %v", err)
+	}
 
 	// Build a role
 	l := v.Client.Logical()
 	d := make(map[string]interface{}, 2)
-	d["allowed_policies"] = "default"
-	d["period"] = 5
+	d["allowed_policies"] = "default,auth"
+	d["period"] = rolePeriod
 	l.Write("auth/token/roles/test", d)
 
 	// Create a new token with the role
@@ -99,8 +116,15 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 		t.Fatalf("bad secret response: %+v", s)
 	}
 
-	// Set the configs token
-	v.Config.Token = s.Auth.ClientToken
+	return s.Auth.ClientToken
+}
+
+func TestVaultClient_RenewalLoop(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = testVaultRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -114,6 +138,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 	time.Sleep(8 * time.Second)
 
 	// Get the current TTL
+	a := v.Client.Auth().Token()
 	s2, err := a.Lookup(v.Config.Token)
 	if err != nil {
 		t.Fatalf("failed to lookup token: %v", err)
@@ -160,8 +185,9 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 
-	_, err = client.LookupToken("foo")
+	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatalf("Expected error because Vault is disabled: %v", err)
 	}
@@ -175,7 +201,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	_, err = client.LookupToken("foo")
+	_, err = client.LookupToken(context.Background(), "foo")
 	if err == nil || !strings.Contains(err.Error(), "established") {
 		t.Fatalf("Expected error because connection to Vault hasn't been made: %v", err)
 	}
@@ -198,11 +224,12 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
+	defer client.Stop()
 
 	waitForConnection(client, t)
 
 	// Lookup ourselves
-	s, err := client.LookupToken(v.Config.Token)
+	s, err := client.LookupToken(context.Background(), v.Config.Token)
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -233,7 +260,7 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	}
 
 	// Lookup new child
-	s, err = client.LookupToken(s.Auth.ClientToken)
+	s, err = client.LookupToken(context.Background(), s.Auth.ClientToken)
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -245,5 +272,147 @@ func TestVaultClient_LookupToken(t *testing.T) {
 
 	if !reflect.DeepEqual(policies, expected) {
 		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
+}
+
+func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+	client.setLimit(rate.Limit(1.0))
+
+	waitForConnection(client, t)
+
+	// Spin up many requests. These should block
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cancels := 0
+	numRequests := 10
+	unblock := make(chan struct{})
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			// Ensure all the goroutines are made
+			time.Sleep(10 * time.Millisecond)
+
+			// Lookup ourselves
+			_, err := client.LookupToken(ctx, v.Config.Token)
+			if err != nil {
+				if err == context.Canceled {
+					cancels += 1
+					return
+				}
+				t.Fatalf("self lookup failed: %v", err)
+				return
+			}
+
+			// Cancel the context
+			cancel()
+			time.AfterFunc(1*time.Second, func() { close(unblock) })
+		}()
+	}
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	case <-unblock:
+	}
+
+	desired := numRequests - 1
+	if cancels != desired {
+		t.Fatalf("Incorrect number of cancels; got %d; want %d", cancels, desired)
+	}
+}
+
+func TestVaultClient_CreateToken_Root(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	s, err := client.CreateToken(context.Background(), a, task.Name)
+	if err != nil {
+		t.Fatalf("CreateToken failed: %v", err)
+	}
+
+	// Ensure that created secret is a wrapped token
+	if s == nil || s.WrapInfo == nil {
+		t.Fatalf("Bad secret: %#v", s)
+	}
+
+	d, err := time.ParseDuration(vaultTokenCreateTTL)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if s.WrapInfo.WrappedAccessor == "" {
+		t.Fatalf("Bad accessor: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.Token == "" {
+		t.Fatalf("Bad token: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.TTL != int(d.Seconds()) {
+		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
+	}
+}
+
+func TestVaultClient_CreateToken_Role(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = testVaultRoleAndToken(v, t, 5)
+	//testVaultRoleAndToken(v, t, 5)
+	// Start the client
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	s, err := client.CreateToken(context.Background(), a, task.Name)
+	if err != nil {
+		t.Fatalf("CreateToken failed: %v", err)
+	}
+
+	// Ensure that created secret is a wrapped token
+	if s == nil || s.WrapInfo == nil {
+		t.Fatalf("Bad secret: %#v", s)
+	}
+
+	d, err := time.ParseDuration(vaultTokenCreateTTL)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if s.WrapInfo.WrappedAccessor == "" {
+		t.Fatalf("Bad accessor: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.Token == "" {
+		t.Fatalf("Bad token: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.TTL != int(d.Seconds()) {
+		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
 	}
 }

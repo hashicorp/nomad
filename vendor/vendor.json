@@ -623,10 +623,16 @@
 			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
-			"checksumSHA1": "0rkVtm9F1/pW9EGhHYJpCnY99O8=",
+			"checksumSHA1": "RAJfRxZ8UmcL6+7VuXAZxBlnM/4=",
+			"path": "github.com/hashicorp/vault",
+			"revision": "fece3ca069fc5bafec5280bbcb0c0693ff69fdaf",
+			"revisionTime": "2016-08-17T21:47:06Z"
+		},
+		{
+			"checksumSHA1": "JH8wmQ8cWdn7mYu1T7gJ3IMIrec=",
 			"path": "github.com/hashicorp/vault/api",
-			"revision": "fbecd94926e289d3b81d8dae6136452a6c4c93f6",
-			"revisionTime": "2016-08-13T15:54:01Z"
+			"revision": "fece3ca069fc5bafec5280bbcb0c0693ff69fdaf",
+			"revisionTime": "2016-08-17T21:47:06Z"
 		},
 		{
 			"checksumSHA1": "5lR6EdY0ARRdKAq3hZcL38STD8Q=",
@@ -828,6 +834,12 @@
 			"revisionTime": "2016-05-25T13:11:03Z"
 		},
 		{
+			"checksumSHA1": "S0DP7Pn7sZUmXc55IzZnNvERu6s=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": "316e794f7b5e3df4e95175a45a5fb8b12f85cb4f",
+			"revisionTime": "2016-07-15T18:54:39Z"
+		},
+		{
 			"path": "golang.org/x/sys/unix",
 			"revision": "50c6bc5e4292a1d4e65c6e9be5f53be28bcbe28e"
 		},
@@ -836,6 +848,12 @@
 			"path": "golang.org/x/sys/windows",
 			"revision": "b776ec39b3e54652e09028aaaaac9757f4f8211a",
 			"revisionTime": "2016-04-21T02:29:30Z"
+		},
+		{
+			"checksumSHA1": "h/06ikMECfJoTkWj2e1nJ30aDDg=",
+			"path": "golang.org/x/time/rate",
+			"revision": "a4bde12657593d5e90d0533a3e4fd95e635124cb",
+			"revisionTime": "2016-02-02T18:34:45Z"
 		},
 		{
 			"checksumSHA1": "93uHIq25lffEKY47PV8dBPD+XuQ=",

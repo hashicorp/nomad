@@ -770,6 +770,54 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertVaultAccessor(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	va := mock.VaultAccessor()
+	va2 := mock.VaultAccessor()
+	req := structs.VaultAccessorRegisterRequest{
+		Accessors: []*structs.VaultAccessor{va, va2},
+	}
+	buf, err := structs.Encode(structs.VaultAccessorRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out1 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out1.CreateIndex)
+	}
+	out2, err := fsm.State().VaultAccessor(va2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out2 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out2.CreateIndex)
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -973,6 +1021,27 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	}
 	if !reflect.DeepEqual(js2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", js2, out2)
+	}
+}
+
+func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	a1 := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+	state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{a1, a2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.VaultAccessor(a1.Accessor)
+	out2, _ := state2.VaultAccessor(a2.Accessor)
+	if !reflect.DeepEqual(a1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, a1)
+	}
+	if !reflect.DeepEqual(a2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, a2)
 	}
 }
 

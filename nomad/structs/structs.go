@@ -47,6 +47,7 @@ const (
 	AllocUpdateRequestType
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
+	VaultAccessorRegisterRequestType
 )
 
 const (
@@ -352,6 +353,41 @@ type AllocsGetRequest struct {
 type PeriodicForceRequest struct {
 	JobID string
 	WriteRequest
+}
+
+// DeriveVaultTokenRequest is used to request wrapped Vault tokens for the
+// following tasks in the given allocation
+type DeriveVaultTokenRequest struct {
+	NodeID   string
+	SecretID string
+	AllocID  string
+	Tasks    []string
+	QueryOptions
+}
+
+// VaultAccessorRegisterRequest is used to register a set of Vault accessors
+type VaultAccessorRegisterRequest struct {
+	Accessors []*VaultAccessor
+}
+
+// VaultAccessor is a reference to a created Vault token on behalf of
+// an allocation's task.
+type VaultAccessor struct {
+	AllocID     string
+	Task        string
+	NodeID      string
+	Accessor    string
+	CreationTTL int
+
+	// Raft Indexes
+	CreateIndex uint64
+}
+
+// DeriveVaultTokenResponse returns the wrapped tokens for each requested task
+type DeriveVaultTokenResponse struct {
+	// Tasks is a mapping between the task name and the wrapped token
+	Tasks map[string]string
+	QueryMeta
 }
 
 // GenericRequest is used to request where no
@@ -1239,11 +1275,11 @@ func (j *Job) IsPeriodic() bool {
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
-func (j *Job) VaultPolicies() map[string]map[string][]string {
-	policies := make(map[string]map[string][]string, len(j.TaskGroups))
+func (j *Job) VaultPolicies() map[string]map[string]*Vault {
+	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
 
 	for _, tg := range j.TaskGroups {
-		tgPolicies := make(map[string][]string, len(tg.Tasks))
+		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
 		policies[tg.Name] = tgPolicies
 
 		for _, task := range tg.Tasks {
@@ -1251,7 +1287,7 @@ func (j *Job) VaultPolicies() map[string]map[string][]string {
 				continue
 			}
 
-			tgPolicies[task.Name] = task.Vault.Policies
+			tgPolicies[task.Name] = task.Vault
 		}
 	}
 

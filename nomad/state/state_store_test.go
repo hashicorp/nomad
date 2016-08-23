@@ -2833,6 +2833,206 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertVaultAccessors(t *testing.T) {
+	state := testStateStore(t)
+	a := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+
+	err := state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{a, a2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessor(a.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(a, out) {
+		t.Fatalf("bad: %#v %#v", a, out)
+	}
+
+	out, err = state.VaultAccessor(a2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(a2, out) {
+		t.Fatalf("bad: %#v %#v", a2, out)
+	}
+
+	iter, err := state.VaultAccessors()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		count++
+		accessor := raw.(*structs.VaultAccessor)
+
+		if !reflect.DeepEqual(accessor, a) && !reflect.DeepEqual(accessor, a2) {
+			t.Fatalf("bad: %#v", accessor)
+		}
+	}
+
+	if count != 2 {
+		t.Fatalf("bad: %d", count)
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_DeleteVaultAccessor(t *testing.T) {
+	state := testStateStore(t)
+	accessor := mock.VaultAccessor()
+
+	err := state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{accessor})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeleteVaultAccessor(1001, accessor.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessor(accessor.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", accessor, out)
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_VaultAccessorsByAlloc(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	var accessors []*structs.VaultAccessor
+	var expected []*structs.VaultAccessor
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.VaultAccessor()
+		accessor.AllocID = alloc.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.VaultAccessor()
+		accessors = append(accessors, accessor)
+	}
+
+	err := state.UpsertVaultAccessor(1000, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessorsByAlloc(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(expected) != len(out) {
+		t.Fatalf("bad: %#v %#v", len(expected), len(out))
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_VaultAccessorsByNode(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+	var accessors []*structs.VaultAccessor
+	var expected []*structs.VaultAccessor
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.VaultAccessor()
+		accessor.NodeID = node.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.VaultAccessor()
+		accessors = append(accessors, accessor)
+	}
+
+	err := state.UpsertVaultAccessor(1000, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessorsByNode(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(expected) != len(out) {
+		t.Fatalf("bad: %#v %#v", len(expected), len(out))
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_RestoreVaultAccessor(t *testing.T) {
+	state := testStateStore(t)
+	a := mock.VaultAccessor()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.VaultAccessorRestore(a)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.VaultAccessor(a.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, a) {
+		t.Fatalf("Bad: %#v %#v", out, a)
+	}
+}
+
 // setupNotifyTest takes a state store and a set of watch items, then creates
 // and subscribes a notification channel for each item.
 func setupNotifyTest(state *StateStore, items ...watch.Item) notifyTest {

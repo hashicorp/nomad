@@ -1,21 +1,29 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
+	vapi "github.com/hashicorp/vault/api"
 )
 
 const (
 	// batchUpdateInterval is how long we wait to batch updates
 	batchUpdateInterval = 50 * time.Millisecond
+
+	// maxParallelRequestsPerDerive  is the maximum number of parallel Vault
+	// create token requests that may be outstanding per derive request
+	maxParallelRequestsPerDerive = 16
 )
 
 // Node endpoint is used for client interactions
@@ -867,4 +875,177 @@ func (b *batchFuture) Respond(index uint64, err error) {
 	b.index = index
 	b.err = err
 	close(b.doneCh)
+}
+
+// DeriveVaultToken is used by the clients to request wrapped Vault tokens for
+// tasks
+func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
+	reply *structs.DeriveVaultTokenResponse) error {
+	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+	if args.SecretID == "" {
+		return fmt.Errorf("missing node SecretID")
+	}
+	if args.AllocID == "" {
+		return fmt.Errorf("missing allocation ID")
+	}
+	if len(args.Tasks) == 0 {
+		return fmt.Errorf("no tasks specified")
+	}
+
+	// Verify the following:
+	// * The Node exists and has the correct SecretID
+	// * The Allocation exists on the specified node
+	// * The allocation contains the given tasks and they each require Vault
+	//   tokens
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	node, err := snap.NodeByID(args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("Node %q does not exist", args.NodeID)
+	}
+	if node.SecretID != args.SecretID {
+		return fmt.Errorf("SecretID mismatch")
+	}
+
+	alloc, err := snap.AllocByID(args.AllocID)
+	if err != nil {
+		return err
+	}
+	if alloc == nil {
+		return fmt.Errorf("Allocation %q does not exist", args.AllocID)
+	}
+	if alloc.NodeID != args.NodeID {
+		return fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID)
+	}
+	if alloc.TerminalStatus() {
+		return fmt.Errorf("Can't request Vault token for terminal allocation")
+	}
+
+	// Check the policies
+	policies := alloc.Job.VaultPolicies()
+	if policies == nil {
+		return fmt.Errorf("Job doesn't require Vault policies")
+	}
+	tg, ok := policies[alloc.TaskGroup]
+	if !ok {
+		return fmt.Errorf("Task group does not require Vault policies")
+	}
+
+	var unneeded []string
+	for _, task := range args.Tasks {
+		taskVault := tg[task]
+		if taskVault == nil || len(taskVault.Policies) == 0 {
+			unneeded = append(unneeded, task)
+		}
+	}
+
+	if len(unneeded) != 0 {
+		return fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
+			strings.Join(unneeded, ", "))
+	}
+
+	// At this point the request is valid and we should contact Vault for
+	// tokens.
+
+	// Create an error group where we will spin up a fixed set of goroutines to
+	// handle deriving tokens but where if any fails the whole group is
+	// canceled.
+	g, ctx := errgroup.WithContext(context.Background())
+
+	// Cap the handlers
+	handlers := len(args.Tasks)
+	if handlers > maxParallelRequestsPerDerive {
+		handlers = maxParallelRequestsPerDerive
+	}
+
+	// Create the Vault Tokens
+	input := make(chan string, handlers)
+	results := make(map[string]*vapi.Secret, len(args.Tasks))
+	for i := 0; i < handlers; i++ {
+		g.Go(func() error {
+			for {
+				select {
+				case task, ok := <-input:
+					if !ok {
+						return nil
+					}
+
+					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
+					if err != nil {
+						return fmt.Errorf("failed to create token for task %q: %v", task, err)
+					}
+
+					results[task] = secret
+				case <-ctx.Done():
+					return nil
+				}
+			}
+		})
+	}
+
+	// Send the input
+	go func() {
+		defer close(input)
+		for _, task := range args.Tasks {
+			select {
+			case <-ctx.Done():
+				return
+			case input <- task:
+			}
+		}
+
+	}()
+
+	// Wait for everything to complete or for an error
+	err = g.Wait()
+	if err != nil {
+		// TODO Revoke any created token
+		return err
+	}
+
+	// Commit to Raft before returning any of the tokens
+	accessors := make([]*structs.VaultAccessor, 0, len(results))
+	tokens := make(map[string]string, len(results))
+	for task, secret := range results {
+		w := secret.WrapInfo
+		if w == nil {
+			return fmt.Errorf("Vault returned Secret without WrapInfo")
+		}
+
+		tokens[task] = w.Token
+		accessor := &structs.VaultAccessor{
+			Accessor:    w.WrappedAccessor,
+			Task:        task,
+			NodeID:      alloc.NodeID,
+			AllocID:     alloc.ID,
+			CreationTTL: w.TTL,
+		}
+
+		accessors = append(accessors, accessor)
+	}
+
+	req := structs.VaultAccessorRegisterRequest{Accessors: accessors}
+	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors failed: %v", err)
+		return err
+	}
+
+	reply.Index = index
+	reply.Tasks = tokens
+	n.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
 }

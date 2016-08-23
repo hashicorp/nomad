@@ -290,6 +290,16 @@ func Alloc() *structs.Allocation {
 	return alloc
 }
 
+func VaultAccessor() *structs.VaultAccessor {
+	return &structs.VaultAccessor{
+		Accessor:    structs.GenerateUUID(),
+		NodeID:      structs.GenerateUUID(),
+		AllocID:     structs.GenerateUUID(),
+		CreationTTL: 86400,
+		Task:        "foo",
+	}
+}
+
 func Plan() *structs.Plan {
 	return &structs.Plan{
 		Priority: 50,

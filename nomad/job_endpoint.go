@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -83,7 +84,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 
 			vault := j.srv.vault
-			s, err := vault.LookupToken(args.Job.VaultToken)
+			s, err := vault.LookupToken(context.Background(), args.Job.VaultToken)
 			if err != nil {
 				return err
 			}

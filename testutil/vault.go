@@ -119,6 +119,6 @@ func (tv *TestVault) waitForAPI() {
 // getPort returns the next available port to bind Vault against
 func getPort() uint64 {
 	p := vaultStartPort + vaultPortOffset
-	offset += 1
+	vaultPortOffset += 1
 	return p
 }

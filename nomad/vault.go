@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
+
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -21,16 +24,25 @@ const (
 
 	// minimumTokenTTL is the minimum Token TTL allowed for child tokens.
 	minimumTokenTTL = 5 * time.Minute
+
+	// defaultTokenTTL is the default Token TTL used when the passed token is a
+	// root token such that child tokens aren't being created against a role
+	// that has defined a TTL
+	defaultTokenTTL = "72h"
+
+	// requestRateLimit is the maximum number of requests per second Nomad will
+	// make against Vault
+	requestRateLimit rate.Limit = 500.0
 )
 
 // VaultClient is the Servers interface for interfacing with Vault
 type VaultClient interface {
 	// CreateToken takes an allocation and task and returns an appropriate Vault
 	// Secret
-	CreateToken(a *structs.Allocation, task string) (*vapi.Secret, error)
+	CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error)
 
 	// LookupToken takes a token string and returns its capabilities.
-	LookupToken(token string) (*vapi.Secret, error)
+	LookupToken(ctx context.Context, token string) (*vapi.Secret, error)
 
 	// Stop is used to stop token renewal.
 	Stop()
@@ -52,6 +64,9 @@ type tokenData struct {
 // the Server with the ability to create child tokens and lookup the permissions
 // of tokens.
 type vaultClient struct {
+	// limiter is used to rate limit requests to Vault
+	limiter *rate.Limiter
+
 	// client is the Vault API client
 	client *vapi.Client
 
@@ -104,6 +119,7 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger) (*vaultClient, er
 		enabled: c.Enabled,
 		config:  c,
 		logger:  logger,
+		limiter: rate.NewLimiter(requestRateLimit, int(requestRateLimit)),
 	}
 
 	// If vault is not enabled do not configure an API client or start any token
@@ -131,6 +147,9 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger) (*vaultClient, er
 		}
 
 		v.childTTL = c.TaskTokenTTL
+	} else {
+		// Default the TaskTokenTTL
+		v.childTTL = defaultTokenTTL
 	}
 
 	// Get the Vault API configuration
@@ -155,6 +174,11 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger) (*vaultClient, er
 	v.shutdownCh = make(chan struct{})
 	go v.establishConnection()
 	return v, nil
+}
+
+// setLimit is used to update the rate limit
+func (v *vaultClient) setLimit(l rate.Limit) {
+	v.limiter = rate.NewLimiter(l, int(l))
 }
 
 // establishConnection is used to make first contact with Vault. This should be
@@ -397,7 +421,7 @@ func (v *vaultClient) Stop() {
 
 	v.l.Lock()
 	defer v.l.Unlock()
-	if !v.renewalRunning || !v.establishingConn {
+	if !v.renewalRunning && !v.establishingConn {
 		return
 	}
 
@@ -414,12 +438,9 @@ func (v *vaultClient) ConnectionEstablished() bool {
 	return v.connEstablished
 }
 
-func (v *vaultClient) CreateToken(a *structs.Allocation, task string) (*vapi.Secret, error) {
-	return nil, nil
-}
-
-// LookupToken takes a Vault token and does a lookup against Vault
-func (v *vaultClient) LookupToken(token string) (*vapi.Secret, error) {
+// CreateToken takes the allocation and task and returns an appropriate Vault
+// token. The call is rate limited and may be canceled with the passed policy
+func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error) {
 	// Nothing to do
 	if !v.enabled {
 		return nil, fmt.Errorf("Vault integration disabled")
@@ -428,6 +449,70 @@ func (v *vaultClient) LookupToken(token string) (*vapi.Secret, error) {
 	// Check if we have established a connection with Vault
 	if !v.ConnectionEstablished() {
 		return nil, fmt.Errorf("Connection to Vault has not been established. Retry")
+	}
+
+	// Retrieve the Vault block for the task
+	policies := a.Job.VaultPolicies()
+	if policies == nil {
+		return nil, fmt.Errorf("Job doesn't require Vault policies")
+	}
+	tg, ok := policies[a.TaskGroup]
+	if !ok {
+		return nil, fmt.Errorf("Task group does not require Vault policies")
+	}
+	taskVault, ok := tg[task]
+	if !ok {
+		return nil, fmt.Errorf("Task does not require Vault policies")
+	}
+
+	// Build the creation request
+	req := &vapi.TokenCreateRequest{
+		Policies: taskVault.Policies,
+		Metadata: map[string]string{
+			"AllocationID": a.ID,
+			"Task":         task,
+			"NodeID":       a.NodeID,
+		},
+		TTL:         v.childTTL,
+		DisplayName: fmt.Sprintf("%s: %s", a.ID, task),
+	}
+
+	// Ensure we are under our rate limit
+	if err := v.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
+	// Make the request and switch depending on whether we are using a root
+	// token or a role based token
+	var secret *vapi.Secret
+	var err error
+	if v.token.Root {
+		req.Period = v.childTTL
+		secret, err = v.auth.Create(req)
+	} else {
+		// Make the token using the role
+		secret, err = v.auth.CreateWithRole(req, v.token.Role)
+	}
+
+	return secret, err
+}
+
+// LookupToken takes a Vault token and does a lookup against Vault. The call is
+// rate limited and may be canceled with passed context.
+func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secret, error) {
+	// Nothing to do
+	if !v.enabled {
+		return nil, fmt.Errorf("Vault integration disabled")
+	}
+
+	// Check if we have established a connection with Vault
+	if !v.ConnectionEstablished() {
+		return nil, fmt.Errorf("Connection to Vault has not been established. Retry")
+	}
+
+	// Ensure we are under our rate limit
+	if err := v.limiter.Wait(ctx); err != nil {
+		return nil, err
 	}
 
 	// Lookup the token
