@@ -60,16 +60,17 @@ type RestartPolicy struct {
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id        string
-	Name      string
-	Type      string
-	Command   string
-	Args      []string
-	Path      string
-	Protocol  string `mapstructure:"port"`
-	PortLabel string `mapstructure:"port"`
-	Interval  time.Duration
-	Timeout   time.Duration
+	Id            string
+	Name          string
+	Type          string
+	Command       string
+	Args          []string
+	Path          string
+	Protocol      string `mapstructure:"port"`
+	PortLabel     string `mapstructure:"port"`
+	Interval      time.Duration
+	Timeout       time.Duration
+	InitialStatus string `mapstructure:"initial_status"`
 }
 
 // The Service model represents a Consul service definition
