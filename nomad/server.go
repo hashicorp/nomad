@@ -150,15 +150,16 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status   *Status
-	Node     *Node
-	Job      *Job
-	Eval     *Eval
-	Plan     *Plan
-	Alloc    *Alloc
-	Region   *Region
-	Periodic *Periodic
-	System   *System
+	Status           *Status
+	Node             *Node
+	Job              *Job
+	Eval             *Eval
+	Plan             *Plan
+	Alloc            *Alloc
+	Region           *Region
+	Periodic         *Periodic
+	System           *System
+	KeyringOperation *KeyringOperation
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -561,6 +562,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.endpoints.Region = &Region{s}
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.System = &System{s}
+	s.endpoints.KeyringOperation = &KeyringOperation{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
@@ -572,6 +574,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.rpcServer.Register(s.endpoints.Region)
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.System)
+	s.rpcServer.Register(s.endpoints.KeyringOperation)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
