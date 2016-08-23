@@ -15,8 +15,8 @@ func makeAgentKeyring(t *testing.T, conf *Config, key string) (string, *Agent) {
 
 	conf.DataDir = dir
 
-	fileLAN := filepath.Join(dir, serfLANKeyring)
-	if err := initKeyring(fileLAN, key); err != nil {
+	fileWAN := filepath.Join(dir, serfWANKeyring)
+	if err := initKeyring(fileWAN, key); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -46,7 +46,7 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 	}
 
 	// Server should auto-load WAN keyring file
-	dir2, agent2 := makeAgentKeyring(t, nil, key)
+	dir2, agent2 := makeAgentKeyring(t, DefaultConfig(), key)
 	defer os.RemoveAll(dir2)
 	defer agent2.Shutdown()
 
