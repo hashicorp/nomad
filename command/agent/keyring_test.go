@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"fmt"
 )
 
 func makeAgentKeyring(t *testing.T, conf *Config, key string) (string, *Agent) {
@@ -57,5 +58,46 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 	}
 	if c.SerfConfig.MemberlistConfig.Keyring == nil {
 		t.Fatalf("keyring should be loaded")
+	}
+}
+
+func TestAgent_InitKeyring(t *testing.T) {
+	key1 := "tbLJg26ZJyJ9pK3qhc9jig=="
+	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
+	expected := fmt.Sprintf(`["%s"]`, key1)
+
+	dir, err := ioutil.TempDir("", "consul")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	file := filepath.Join(dir, "keyring")
+
+	// First initialize the keyring
+	if err := initKeyring(file, key1); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if string(content) != expected {
+		t.Fatalf("bad: %s", content)
+	}
+
+	// Try initializing again with a different key
+	if err := initKeyring(file, key2); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Content should still be the same
+	content, err = ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if string(content) != expected {
+		t.Fatalf("bad: %s", content)
 	}
 }
