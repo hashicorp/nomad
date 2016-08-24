@@ -190,9 +190,10 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &structs.TaskGroup{
-				Name:  t.Name,
-				Count: 1,
-				Tasks: []*structs.Task{t},
+				Name:      t.Name,
+				Count:     1,
+				LocalDisk: structs.DefaultLocalDisk(),
+				Tasks:     []*structs.Task{t},
 			}
 		}
 	}
@@ -240,6 +241,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			"restart",
 			"meta",
 			"task",
+			"local_disk",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -253,6 +255,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		delete(m, "meta")
 		delete(m, "task")
 		delete(m, "restart")
+		delete(m, "local_disk")
 
 		// Default count to 1 if not specified
 		if _, ok := m["count"]; !ok {
@@ -277,6 +280,14 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
 			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', restart ->", n))
+			}
+		}
+
+		// Parse local disk
+		g.LocalDisk = structs.DefaultLocalDisk()
+		if o := listVal.Filter("local_disk"); len(o.Items) > 0 {
+			if err := parseLocalDisk(&g.LocalDisk, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', local_disk ->", n))
 			}
 		}
 
@@ -413,6 +424,38 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 
 		*result = append(*result, &c)
 	}
+
+	return nil
+}
+
+func parseLocalDisk(result **structs.LocalDisk, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'local_disk' block allowed")
+	}
+
+	// Get our local_disk object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"sticky",
+		"disk",
+	}
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var localDisk structs.LocalDisk
+	if err := mapstructure.WeakDecode(m, &localDisk); err != nil {
+		return err
+	}
+	*result = &localDisk
 
 	return nil
 }
@@ -835,7 +878,6 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 	// Check for invalid keys
 	valid := []string{
 		"cpu",
-		"disk",
 		"iops",
 		"memory",
 		"network",

@@ -82,6 +82,12 @@ type Service struct {
 	Checks    []ServiceCheck
 }
 
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	Sticky bool
+	DiskMB int `mapstructure:"disk"`
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name          string
@@ -89,6 +95,7 @@ type TaskGroup struct {
 	Constraints   []*Constraint
 	Tasks         []*Task
 	RestartPolicy *RestartPolicy
+	LocalDisk     *LocalDisk
 	Meta          map[string]string
 }
 

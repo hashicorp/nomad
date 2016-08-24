@@ -1541,6 +1541,9 @@ type TaskGroup struct {
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
 
+	// LocalDisk is the disk resources that the task group requests
+	LocalDisk *LocalDisk
+
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
@@ -1611,6 +1614,14 @@ func (tg *TaskGroup) Validate() error {
 		}
 	} else {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
+	}
+
+	if tg.LocalDisk != nil {
+		if err := tg.LocalDisk.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	} else {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a local disk object", tg.Name))
 	}
 
 	// Check for duplicate tasks
@@ -2550,6 +2561,26 @@ func (c *Constraint) Validate() error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	Sticky bool
+	DiskMB int `mapstructure:"disk"`
+}
+
+// DefaultLocalDisk returns a LocalDisk with default configurations
+func DefaultLocalDisk() *LocalDisk {
+	return &LocalDisk{
+		DiskMB: 300,
+	}
+}
+
+func (d *LocalDisk) Validate() error {
+	if d.DiskMB < 10 {
+		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)
+	}
+	return nil
 }
 
 // Vault stores the set of premissions a task needs access to from Vault.
