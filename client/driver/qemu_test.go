@@ -15,7 +15,11 @@ import (
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	ctestutils.QemuCompatible(t)
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	task := &structs.Task{
+		Name:      "foo",
+		Resources: structs.DefaultResources(),
+	}
+	driverCtx, _ := testDriverContexts(task)
 	d := NewQemuDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
