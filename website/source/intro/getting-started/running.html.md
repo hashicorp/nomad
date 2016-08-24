@@ -99,8 +99,8 @@ ring using the [`server-members`](/docs/commands/server-members.html) command:
 
 ```text
 $ nomad server-members
-Name          Address    Port  Status  Leader  Protocol  Build     Datacenter  Region
-nomad.global  127.0.0.1  4648  alive   true    2         0.4.0rc2  dc1         global
+Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
+nomad.global  127.0.0.1  4648  alive   true    2         0.4.1  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its
