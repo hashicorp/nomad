@@ -8,27 +8,6 @@ import (
 	"fmt"
 )
 
-func makeAgentKeyring(t *testing.T, conf *Config, key string) (string, *Agent) {
-	dir, err := ioutil.TempDir("", "agent")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	conf.DataDir = dir
-
-	fileWAN := filepath.Join(dir, serfWANKeyring)
-	if err := initKeyring(fileWAN, key); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	agent, err := NewAgent(conf, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	return dir, agent
-}
-
 func TestAgent_LoadKeyrings(t *testing.T) {
 	key := "tbLJg26ZJyJ9pK3qhc9jig=="
 
@@ -47,7 +26,7 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 	}
 
 	// Server should auto-load WAN keyring file
-	dir2, agent2 := makeAgentKeyring(t, DefaultConfig(), key)
+	dir2, agent2 := makeAgentKeyring(t, key)
 	defer os.RemoveAll(dir2)
 	defer agent2.Shutdown()
 
@@ -66,7 +45,7 @@ func TestAgent_InitKeyring(t *testing.T) {
 	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
 	expected := fmt.Sprintf(`["%s"]`, key1)
 
-	dir, err := ioutil.TempDir("", "consul")
+	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

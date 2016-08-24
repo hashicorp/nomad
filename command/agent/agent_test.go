@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"net"
 	"os"
 	"strings"
@@ -35,8 +36,7 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
-func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
-	dir := tmpDir(t)
+func getConfig() *Config {
 	conf := DevConfig()
 
 	// Customize the server configuration
@@ -67,6 +67,13 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
 
+	return conf
+}
+
+func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
+	dir := tmpDir(t)
+	conf := getConfig()
+
 	if cb != nil {
 		cb(conf)
 	}
@@ -76,6 +83,25 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 		os.RemoveAll(dir)
 		t.Fatalf("err: %v", err)
 	}
+	return dir, agent
+}
+
+func makeAgentKeyring(t *testing.T, key string) (string, *Agent) {
+	dir := tmpDir(t)
+	conf := getConfig()
+	conf.DataDir = dir
+
+	fileWAN := filepath.Join(dir, serfWANKeyring)
+	if err := initKeyring(fileWAN, key); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	agent, err := NewAgent(conf, os.Stderr)
+	if err != nil {
+		os.RemoveAll(dir)
+		t.Fatalf("err: %v", err)
+	}
+
 	return dir, agent
 }
 
