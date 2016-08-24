@@ -3,7 +3,7 @@ package nomad
 import (
 	"encoding/base64"
 	"fmt"
-  "testing"
+	"testing"
 
 	"github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
@@ -48,7 +48,6 @@ func TestKeyringOperationEndpoint_SingleNodeCluster(t *testing.T) {
 		t.Fatalf("should have one wan response")
 	}
 }
-
 
 func TestKeyringOperationEndpoint_CrossDCCluster(t *testing.T) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)

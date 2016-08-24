@@ -1,11 +1,11 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-	"fmt"
 )
 
 func TestAgent_LoadKeyrings(t *testing.T) {

@@ -3,9 +3,9 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
