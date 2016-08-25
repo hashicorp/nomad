@@ -7,8 +7,7 @@ EXTERNAL_TOOLS=\
 	golang.org/x/tools/cmd/cover \
 	github.com/axw/gocov/gocov \
 	gopkg.in/matm/v1/gocov-html \
-	github.com/ugorji/go/codec/codecgen \
-	github.com/hashicorp/vault
+	github.com/ugorji/go/codec/codecgen
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
