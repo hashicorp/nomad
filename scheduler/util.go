@@ -540,7 +540,7 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 	c := tgConstrainTuple{
 		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
 		drivers:     make(map[string]struct{}),
-		size:        new(structs.Resources),
+		size:        &structs.Resources{DiskMB: tg.LocalDisk.DiskMB},
 	}
 
 	c.constraints = append(c.constraints, tg.Constraints...)

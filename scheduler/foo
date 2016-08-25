@@ -1,0 +1,243 @@
+=== RUN   TestAnnotateTaskGroup_Updates
+--- PASS: TestAnnotateTaskGroup_Updates (0.00s)
+=== RUN   TestAnnotateCountChange_NonEdited
+--- PASS: TestAnnotateCountChange_NonEdited (0.00s)
+=== RUN   TestAnnotateCountChange
+--- PASS: TestAnnotateCountChange (0.00s)
+=== RUN   TestAnnotateTask_NonEdited
+--- PASS: TestAnnotateTask_NonEdited (0.00s)
+=== RUN   TestAnnotateTask
+--- PASS: TestAnnotateTask (0.00s)
+=== RUN   TestEvalContext_ProposedAlloc
+--- PASS: TestEvalContext_ProposedAlloc (0.00s)
+=== RUN   TestEvalEligibility_JobStatus
+false 
+--- PASS: TestEvalEligibility_JobStatus (0.00s)
+=== RUN   TestEvalEligibility_TaskGroupStatus
+--- PASS: TestEvalEligibility_TaskGroupStatus (0.00s)
+=== RUN   TestEvalEligibility_SetJob
+--- PASS: TestEvalEligibility_SetJob (0.00s)
+=== RUN   TestEvalEligibility_GetClasses
+--- PASS: TestEvalEligibility_GetClasses (0.00s)
+=== RUN   TestStaticIterator_Reset
+--- PASS: TestStaticIterator_Reset (0.00s)
+=== RUN   TestStaticIterator_SetNodes
+--- PASS: TestStaticIterator_SetNodes (0.00s)
+=== RUN   TestRandomIterator
+--- PASS: TestRandomIterator (0.00s)
+=== RUN   TestDriverChecker
+--- PASS: TestDriverChecker (0.00s)
+=== RUN   TestConstraintChecker
+--- PASS: TestConstraintChecker (0.00s)
+=== RUN   TestResolveConstraintTarget
+--- PASS: TestResolveConstraintTarget (0.00s)
+=== RUN   TestCheckConstraint
+--- PASS: TestCheckConstraint (0.00s)
+=== RUN   TestCheckLexicalOrder
+--- PASS: TestCheckLexicalOrder (0.00s)
+=== RUN   TestCheckVersionConstraint
+--- PASS: TestCheckVersionConstraint (0.00s)
+=== RUN   TestCheckRegexpConstraint
+--- PASS: TestCheckRegexpConstraint (0.00s)
+=== RUN   TestProposedAllocConstraint_JobDistinctHosts
+--- PASS: TestProposedAllocConstraint_JobDistinctHosts (0.00s)
+=== RUN   TestProposedAllocConstraint_JobDistinctHosts_Infeasible
+--- PASS: TestProposedAllocConstraint_JobDistinctHosts_Infeasible (0.00s)
+=== RUN   TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount
+--- PASS: TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount (0.00s)
+=== RUN   TestProposedAllocConstraint_TaskGroupDistinctHosts
+--- PASS: TestProposedAllocConstraint_TaskGroupDistinctHosts (0.00s)
+=== RUN   TestFeasibilityWrapper_JobIneligible
+--- PASS: TestFeasibilityWrapper_JobIneligible (0.00s)
+=== RUN   TestFeasibilityWrapper_JobEscapes
+--- PASS: TestFeasibilityWrapper_JobEscapes (0.00s)
+=== RUN   TestFeasibilityWrapper_JobAndTg_Eligible
+--- PASS: TestFeasibilityWrapper_JobAndTg_Eligible (0.00s)
+=== RUN   TestFeasibilityWrapper_JobEligible_TgIneligible
+--- PASS: TestFeasibilityWrapper_JobEligible_TgIneligible (0.00s)
+=== RUN   TestFeasibilityWrapper_JobEligible_TgEscaped
+--- PASS: TestFeasibilityWrapper_JobEligible_TgEscaped (0.00s)
+=== RUN   TestServiceSched_JobRegister
+--- PASS: TestServiceSched_JobRegister (0.00s)
+=== RUN   TestServiceSched_JobRegister_Annotate
+--- PASS: TestServiceSched_JobRegister_Annotate (0.00s)
+=== RUN   TestServiceSched_JobRegister_CountZero
+--- PASS: TestServiceSched_JobRegister_CountZero (0.00s)
+=== RUN   TestServiceSched_JobRegister_AllocFail
+--- PASS: TestServiceSched_JobRegister_AllocFail (0.00s)
+=== RUN   TestServiceSched_JobRegister_CreateBlockedEval
+--- PASS: TestServiceSched_JobRegister_CreateBlockedEval (0.00s)
+=== RUN   TestServiceSched_JobRegister_FeasibleAndInfeasibleTG
+--- PASS: TestServiceSched_JobRegister_FeasibleAndInfeasibleTG (0.00s)
+=== RUN   TestServiceSched_EvaluateMaxPlanEval
+--- PASS: TestServiceSched_EvaluateMaxPlanEval (0.00s)
+=== RUN   TestServiceSched_Plan_Partial_Progress
+--- PASS: TestServiceSched_Plan_Partial_Progress (0.00s)
+=== RUN   TestServiceSched_EvaluateBlockedEval
+--- PASS: TestServiceSched_EvaluateBlockedEval (0.00s)
+=== RUN   TestServiceSched_EvaluateBlockedEval_Finished
+--- PASS: TestServiceSched_EvaluateBlockedEval_Finished (0.00s)
+=== RUN   TestServiceSched_JobModify
+--- PASS: TestServiceSched_JobModify (0.00s)
+=== RUN   TestServiceSched_JobModify_IncrCount_NodeLimit
+--- PASS: TestServiceSched_JobModify_IncrCount_NodeLimit (0.00s)
+=== RUN   TestServiceSched_JobModify_CountZero
+--- PASS: TestServiceSched_JobModify_CountZero (0.00s)
+=== RUN   TestServiceSched_JobModify_Rolling
+--- PASS: TestServiceSched_JobModify_Rolling (0.00s)
+=== RUN   TestServiceSched_JobModify_InPlace
+--- PASS: TestServiceSched_JobModify_InPlace (0.00s)
+=== RUN   TestServiceSched_JobDeregister
+--- PASS: TestServiceSched_JobDeregister (0.00s)
+=== RUN   TestServiceSched_NodeDown
+--- PASS: TestServiceSched_NodeDown (0.00s)
+=== RUN   TestServiceSched_NodeUpdate
+--- PASS: TestServiceSched_NodeUpdate (0.00s)
+=== RUN   TestServiceSched_NodeDrain
+--- PASS: TestServiceSched_NodeDrain (0.00s)
+=== RUN   TestServiceSched_NodeDrain_Down
+--- PASS: TestServiceSched_NodeDrain_Down (0.00s)
+=== RUN   TestServiceSched_NodeDrain_Queued_Allocations
+--- PASS: TestServiceSched_NodeDrain_Queued_Allocations (0.00s)
+=== RUN   TestServiceSched_NodeDrain_UpdateStrategy
+--- PASS: TestServiceSched_NodeDrain_UpdateStrategy (0.00s)
+=== RUN   TestServiceSched_RetryLimit
+--- PASS: TestServiceSched_RetryLimit (0.00s)
+=== RUN   TestBatchSched_Run_CompleteAlloc
+--- PASS: TestBatchSched_Run_CompleteAlloc (0.00s)
+=== RUN   TestBatchSched_Run_DrainedAlloc
+--- PASS: TestBatchSched_Run_DrainedAlloc (0.00s)
+=== RUN   TestBatchSched_Run_FailedAlloc
+--- PASS: TestBatchSched_Run_FailedAlloc (0.00s)
+=== RUN   TestBatchSched_Run_FailedAllocQueuedAllocations
+--- PASS: TestBatchSched_Run_FailedAllocQueuedAllocations (0.00s)
+=== RUN   TestBatchSched_ReRun_SuccessfullyFinishedAlloc
+--- PASS: TestBatchSched_ReRun_SuccessfullyFinishedAlloc (0.00s)
+=== RUN   TestGenericSched_FilterCompleteAllocs
+--- PASS: TestGenericSched_FilterCompleteAllocs (0.00s)
+=== RUN   TestGenericSched_ChainedAlloc
+--- PASS: TestGenericSched_ChainedAlloc (0.00s)
+=== RUN   TestFeasibleRankIterator
+--- PASS: TestFeasibleRankIterator (0.00s)
+=== RUN   TestBinPackIterator_NoExistingAlloc
+--- FAIL: TestBinPackIterator_NoExistingAlloc (0.00s)
+	rank_test.go:88: Bad: []
+=== RUN   TestBinPackIterator_PlannedAlloc
+--- FAIL: TestBinPackIterator_PlannedAlloc (0.00s)
+	rank_test.go:167: Bad: []*scheduler.RankedNode(nil)
+=== RUN   TestBinPackIterator_ExistingAlloc
+--- FAIL: TestBinPackIterator_ExistingAlloc (0.00s)
+	rank_test.go:252: Bad: []*scheduler.RankedNode(nil)
+=== RUN   TestBinPackIterator_ExistingAlloc_PlannedEvict
+--- FAIL: TestBinPackIterator_ExistingAlloc_PlannedEvict (0.00s)
+	rank_test.go:341: Bad: []*scheduler.RankedNode(nil)
+=== RUN   TestJobAntiAffinity_PlannedAlloc
+--- PASS: TestJobAntiAffinity_PlannedAlloc (0.00s)
+=== RUN   TestLimitIterator
+--- PASS: TestLimitIterator (0.00s)
+=== RUN   TestMaxScoreIterator
+--- PASS: TestMaxScoreIterator (0.00s)
+=== RUN   TestServiceStack_SetNodes
+--- PASS: TestServiceStack_SetNodes (0.00s)
+=== RUN   TestServiceStack_SetJob
+--- PASS: TestServiceStack_SetJob (0.00s)
+=== RUN   TestServiceStack_Select_Size
+--- PASS: TestServiceStack_Select_Size (0.00s)
+=== RUN   TestServiceStack_Select_MetricsReset
+--- PASS: TestServiceStack_Select_MetricsReset (0.00s)
+=== RUN   TestServiceStack_Select_DriverFilter
+--- PASS: TestServiceStack_Select_DriverFilter (0.00s)
+=== RUN   TestServiceStack_Select_ConstraintFilter
+--- PASS: TestServiceStack_Select_ConstraintFilter (0.00s)
+=== RUN   TestServiceStack_Select_BinPack_Overflow
+--- PASS: TestServiceStack_Select_BinPack_Overflow (0.00s)
+=== RUN   TestSystemStack_SetNodes
+--- PASS: TestSystemStack_SetNodes (0.00s)
+=== RUN   TestSystemStack_SetJob
+--- PASS: TestSystemStack_SetJob (0.00s)
+=== RUN   TestSystemStack_Select_Size
+--- PASS: TestSystemStack_Select_Size (0.00s)
+=== RUN   TestSystemStack_Select_MetricsReset
+--- PASS: TestSystemStack_Select_MetricsReset (0.00s)
+=== RUN   TestSystemStack_Select_DriverFilter
+--- PASS: TestSystemStack_Select_DriverFilter (0.00s)
+=== RUN   TestSystemStack_Select_ConstraintFilter
+--- PASS: TestSystemStack_Select_ConstraintFilter (0.00s)
+=== RUN   TestSystemStack_Select_BinPack_Overflow
+--- PASS: TestSystemStack_Select_BinPack_Overflow (0.00s)
+=== RUN   TestSystemSched_JobRegister
+--- PASS: TestSystemSched_JobRegister (0.00s)
+=== RUN   TestSystemSched_ExhaustResources
+--- PASS: TestSystemSched_ExhaustResources (0.00s)
+=== RUN   TestSystemSched_JobRegister_Annotate
+--- PASS: TestSystemSched_JobRegister_Annotate (0.00s)
+=== RUN   TestSystemSched_JobRegister_AddNode
+--- PASS: TestSystemSched_JobRegister_AddNode (0.00s)
+=== RUN   TestSystemSched_JobRegister_AllocFail
+--- PASS: TestSystemSched_JobRegister_AllocFail (0.00s)
+=== RUN   TestSystemSched_JobModify
+--- PASS: TestSystemSched_JobModify (0.00s)
+=== RUN   TestSystemSched_JobModify_Rolling
+--- PASS: TestSystemSched_JobModify_Rolling (0.00s)
+=== RUN   TestSystemSched_JobModify_InPlace
+--- PASS: TestSystemSched_JobModify_InPlace (0.00s)
+=== RUN   TestSystemSched_JobDeregister
+--- PASS: TestSystemSched_JobDeregister (0.00s)
+=== RUN   TestSystemSched_NodeDown
+--- PASS: TestSystemSched_NodeDown (0.00s)
+=== RUN   TestSystemSched_NodeDrain_Down
+--- PASS: TestSystemSched_NodeDrain_Down (0.00s)
+=== RUN   TestSystemSched_NodeDrain
+--- PASS: TestSystemSched_NodeDrain (0.00s)
+=== RUN   TestSystemSched_NodeUpdate
+--- PASS: TestSystemSched_NodeUpdate (0.00s)
+=== RUN   TestSystemSched_RetryLimit
+--- PASS: TestSystemSched_RetryLimit (0.00s)
+=== RUN   TestSystemSched_Queued_With_Constraints
+--- PASS: TestSystemSched_Queued_With_Constraints (0.00s)
+=== RUN   TestSystemSched_ChainedAlloc
+--- PASS: TestSystemSched_ChainedAlloc (0.00s)
+=== RUN   TestMaterializeTaskGroups
+--- PASS: TestMaterializeTaskGroups (0.00s)
+=== RUN   TestDiffAllocs
+--- PASS: TestDiffAllocs (0.00s)
+=== RUN   TestDiffSystemAllocs
+--- PASS: TestDiffSystemAllocs (0.00s)
+=== RUN   TestReadyNodesInDCs
+--- PASS: TestReadyNodesInDCs (0.00s)
+=== RUN   TestRetryMax
+--- PASS: TestRetryMax (0.00s)
+=== RUN   TestTaintedNodes
+--- PASS: TestTaintedNodes (0.00s)
+=== RUN   TestShuffleNodes
+--- PASS: TestShuffleNodes (0.00s)
+=== RUN   TestTasksUpdated
+--- PASS: TestTasksUpdated (0.00s)
+=== RUN   TestEvictAndPlace_LimitLessThanAllocs
+--- PASS: TestEvictAndPlace_LimitLessThanAllocs (0.00s)
+=== RUN   TestEvictAndPlace_LimitEqualToAllocs
+--- PASS: TestEvictAndPlace_LimitEqualToAllocs (0.00s)
+=== RUN   TestSetStatus
+--- PASS: TestSetStatus (0.00s)
+=== RUN   TestInplaceUpdate_ChangedTaskGroup
+--- PASS: TestInplaceUpdate_ChangedTaskGroup (0.00s)
+=== RUN   TestInplaceUpdate_NoMatch
+--- PASS: TestInplaceUpdate_NoMatch (0.00s)
+=== RUN   TestInplaceUpdate_Success
+--- PASS: TestInplaceUpdate_Success (0.00s)
+=== RUN   TestEvictAndPlace_LimitGreaterThanAllocs
+--- PASS: TestEvictAndPlace_LimitGreaterThanAllocs (0.00s)
+=== RUN   TestTaskGroupConstraints
+--- FAIL: TestTaskGroupConstraints (0.00s)
+	util_test.go:886: taskGroupConstraints(&{web 10 [  bar] <nil> [0xc4201624d0 0xc420162580] 0xc4202c6650 map[]}) returned &{1000 512 300 0 []}; want &{1000 512 0 0 []}
+=== RUN   TestProgressMade
+--- PASS: TestProgressMade (0.00s)
+=== RUN   TestDesiredUpdates
+--- PASS: TestDesiredUpdates (0.00s)
+=== RUN   TestUtil_AdjustQueuedAllocations
+--- PASS: TestUtil_AdjustQueuedAllocations (0.00s)
+=== RUN   TestUtil_UpdateNonTerminalAllocsToLost
+--- PASS: TestUtil_UpdateNonTerminalAllocsToLost (0.00s)
+FAIL
+exit status 1
+FAIL	github.com/hashicorp/nomad/scheduler	0.070s

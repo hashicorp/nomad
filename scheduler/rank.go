@@ -10,9 +10,10 @@ import (
 // along with a node when iterating. This state can be modified as
 // various rank methods are applied.
 type RankedNode struct {
-	Node          *structs.Node
-	Score         float64
-	TaskResources map[string]*structs.Resources
+	Node           *structs.Node
+	Score          float64
+	TaskResources  map[string]*structs.Resources
+	AllocResources *structs.Resources
 
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
@@ -42,6 +43,10 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 		r.TaskResources = make(map[string]*structs.Resources)
 	}
 	r.TaskResources[task.Name] = resource
+}
+
+func (r *RankedNode) SetAllocResources(resources *structs.Resources) {
+	r.AllocResources = resources
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
@@ -131,11 +136,11 @@ func (iter *StaticRankIterator) Reset() {
 // BinPackIterator is a RankIterator that scores potential options
 // based on a bin-packing algorithm.
 type BinPackIterator struct {
-	ctx      Context
-	source   RankIterator
-	evict    bool
-	priority int
-	tasks    []*structs.Task
+	ctx       Context
+	source    RankIterator
+	evict     bool
+	priority  int
+	taskGroup *structs.TaskGroup
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
@@ -154,8 +159,8 @@ func (iter *BinPackIterator) SetPriority(p int) {
 	iter.priority = p
 }
 
-func (iter *BinPackIterator) SetTasks(tasks []*structs.Task) {
-	iter.tasks = tasks
+func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
+	iter.taskGroup = taskGroup
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
@@ -182,8 +187,10 @@ OUTER:
 		netIdx.AddAllocs(proposed)
 
 		// Assign the resources for each task
-		total := new(structs.Resources)
-		for _, task := range iter.tasks {
+		total := &structs.Resources{
+			DiskMB: iter.taskGroup.LocalDisk.DiskMB,
+		}
+		for _, task := range iter.taskGroup.Tasks {
 			taskResources := task.Resources.Copy()
 
 			// Check if we need a network resource
@@ -210,6 +217,7 @@ OUTER:
 			// Accumulate the total resource requirement
 			total.Add(taskResources)
 		}
+		option.AllocResources = total
 
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{Resources: total})
