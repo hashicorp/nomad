@@ -71,6 +71,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
 	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -89,6 +90,9 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 			return false, fmt.Errorf("Not enough updates")
 		}
 		last := upd.Allocs[upd.Count-1]
+
+		// web task should have completed successfully while bad task
+		// retries artififact fetching
 		webstate := last.TaskStates["web"]
 		if webstate.State != structs.TaskStateDead {
 			return false, fmt.Errorf("expected web to be dead but found %q", last.TaskStates["web"].State)
@@ -96,8 +100,14 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 		if !webstate.Successful() {
 			return false, fmt.Errorf("expected web to have exited successfully")
 		}
-		if last.TaskStates["bad"].State != structs.TaskStatePending {
-			return false, fmt.Errorf("expected bad to be pending but found %q", last.TaskStates["web"].State)
+
+		// bad task should have failed
+		badstate := last.TaskStates["bad"]
+		if badstate.State != structs.TaskStateDead {
+			return false, fmt.Errorf("expected bad to be dead but found %q", last.TaskStates["web"].State)
+		}
+		if !badstate.Failed() {
+			return false, fmt.Errorf("expected bad to have failed")
 		}
 		return true, nil
 	}, func(err error) {
