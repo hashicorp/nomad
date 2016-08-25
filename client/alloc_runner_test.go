@@ -173,7 +173,7 @@ func TestAllocRunner_DiskExceeded_Destroy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Create a 20mb file in the shared alloc directory, which should cause the
+	// Create a 20mb file in the alloc directory, which should cause the
 	// allocation to terminate in a failed state.
 	name := ar.ctx.AllocDir.AllocDir + "/20mb.bin"
 	f, err := os.Create(name)
