@@ -65,17 +65,16 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 
 // TestAllocRuner_RetryArtifact ensures that if one task in a task group is
 // retrying fetching an artifact, other tasks in the the group should be able
-// to proceed. See #1558
+// to proceed.
 func TestAllocRunner_RetryArtifact(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 
 	alloc := mock.Alloc()
+	alloc.Job.Type = structs.JobTypeBatch
 
-	// Create a copy of the task for testing #1558
+	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	badtask.Name = "bad"
-
-	// Add a bad artifact to one of the tasks
 	badtask.Artifacts = []*structs.TaskArtifact{
 		{GetterSource: "http://127.1.1.111:12315/foo/bar/baz"},
 	}
@@ -90,8 +89,12 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 			return false, fmt.Errorf("Not enough updates")
 		}
 		last := upd.Allocs[upd.Count-1]
-		if last.TaskStates["web"].State != structs.TaskStatePending {
-			return false, fmt.Errorf("expected web to be pending but found %q", last.TaskStates["web"].State)
+		webstate := last.TaskStates["web"]
+		if webstate.State != structs.TaskStateDead {
+			return false, fmt.Errorf("expected web to be dead but found %q", last.TaskStates["web"].State)
+		}
+		if !webstate.Successful() {
+			return false, fmt.Errorf("expected web to have exited successfully")
 		}
 		if last.TaskStates["bad"].State != structs.TaskStatePending {
 			return false, fmt.Errorf("expected bad to be pending but found %q", last.TaskStates["web"].State)
