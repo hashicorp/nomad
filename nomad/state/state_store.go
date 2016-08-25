@@ -360,6 +360,9 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
 	// from task resources
 	for i, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
 		var diskMB int
 		for j, task := range tg.Tasks {
 			if task.Resources != nil {
@@ -1713,6 +1716,9 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
 	// from task resources
 	for i, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
 		var diskMB int
 		for j, task := range tg.Tasks {
 			if task.Resources != nil {

@@ -823,9 +823,6 @@ func (r *Resources) MeetsMinResources() error {
 	if r.MemoryMB < 10 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
 	}
-	if r.DiskMB < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum DiskMB value is 10; got %d", r.DiskMB))
-	}
 	if r.IOPS < 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
 	}
@@ -1638,7 +1635,7 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(); err != nil {
+		if err := task.Validate(tg.LocalDisk); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -2036,7 +2033,7 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate() error {
+func (t *Task) Validate(localDisk *LocalDisk) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -2060,6 +2057,13 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// Esnure the task isn't asking for disk resources
+	if t.Resources != nil {
+		if t.Resources.DiskMB > 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+		}
+	}
+
 	// Validate the log config
 	if t.LogConfig == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
@@ -2079,12 +2083,12 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	if t.LogConfig != nil && t.Resources != nil {
+	if t.LogConfig != nil && localDisk != nil {
 		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if t.Resources.DiskMB <= logUsage {
+		if localDisk.DiskMB <= logUsage {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
-					logUsage, t.Resources.DiskMB))
+					logUsage, localDisk.DiskMB))
 		}
 	}
 

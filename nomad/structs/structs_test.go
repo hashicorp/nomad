@@ -115,8 +115,9 @@ func testJob() *Job {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:  "web",
-				Count: 10,
+				Name:      "web",
+				Count:     10,
+				LocalDisk: DefaultLocalDisk(),
 				RestartPolicy: &RestartPolicy{
 					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
@@ -345,20 +346,24 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[0].Error(), "should have a local disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
+	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
 
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
-	err := task.Validate()
+	localDisk := DefaultLocalDisk()
+	err := task.Validate(localDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -371,7 +376,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate()
+	err = task.Validate(localDisk)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -382,13 +387,13 @@ func TestTask_Validate(t *testing.T) {
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
-	err = task.Validate()
+	localDisk.DiskMB = 200
+	err = task.Validate(localDisk)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -416,18 +421,20 @@ func TestTask_Validate_Services(t *testing.T) {
 		Name: "service-name",
 	}
 
+	localDisk := DefaultLocalDisk()
 	task := &Task{
 		Name:   "web",
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
-	err := task.Validate()
+	localDisk.DiskMB = 200
+
+	err := task.Validate(localDisk)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -494,12 +501,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
-		Resources: &Resources{
-			DiskMB: 1,
-		},
+	}
+	localDisk := &LocalDisk{
+		DiskMB: 1,
 	}
 
-	err := task.Validate()
+	err := task.Validate(localDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)

@@ -317,6 +317,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				Metrics:       s.ctx.Metrics(),
 				NodeID:        option.Node.ID,
 				TaskResources: option.TaskResources,
+				Resources:     option.AllocResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
 			}
