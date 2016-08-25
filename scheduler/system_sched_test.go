@@ -80,6 +80,68 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestSystemSched_JobRegister_LocalDiskConstraint(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a nodes
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job
+	job := mock.SystemJob()
+	job.TaskGroups[0].LocalDisk.DiskMB = 60 * 1024
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create another job with a lot of disk resource ask so that it doesn't fit
+	// the node
+	job1 := mock.SystemJob()
+	job1.TaskGroups[0].LocalDisk.DiskMB = 60 * 1024
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job1))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	if err := h.Process(NewSystemScheduler, eval); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 1 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Create a new harness to test the scheduling result for the second job
+	h1 := NewHarnessWithState(t, h.State)
+	// Create a mock evaluation to register the job
+	eval1 := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job1.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job1.ID,
+	}
+
+	// Process the evaluation
+	if err := h1.Process(NewSystemScheduler, eval1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err = h1.State.AllocsByJob(job1.ID)
+	noErr(t, err)
+	if len(out) != 0 {
+		t.Fatalf("bad: %#v", out)
+	}
+}
+
 func TestSystemSched_ExhaustResources(t *testing.T) {
 	h := NewHarness(t)
 

@@ -452,6 +452,7 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 				TaskGroup:     missing.TaskGroup.Name,
 				Metrics:       s.ctx.Metrics(),
 				NodeID:        option.Node.ID,
+				Resources:     option.AllocResources,
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,

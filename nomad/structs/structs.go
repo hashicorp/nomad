@@ -772,7 +772,6 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
-		DiskMB:   300,
 		IOPS:     0,
 	}
 }
@@ -2569,7 +2568,10 @@ func (c *Constraint) Validate() error {
 
 // LocalDisk is an ephemeral disk object
 type LocalDisk struct {
+	// Sticky indicates whether the allocation is sticky to a node
 	Sticky bool
+
+	// DiskMB is the size of the local disk
 	DiskMB int `mapstructure:"disk"`
 }
 
@@ -2580,6 +2582,7 @@ func DefaultLocalDisk() *LocalDisk {
 	}
 }
 
+// Validate validates LocalDisk
 func (d *LocalDisk) Validate() error {
 	if d.DiskMB < 10 {
 		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)

@@ -444,11 +444,6 @@ func TestStateStore_UpsertJob_NoLocalDisk(t *testing.T) {
 	job.TaskGroups[0].LocalDisk = nil
 	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
 
-	notify := setupNotifyTest(
-		state,
-		watch.Item{Table: "jobs"},
-		watch.Item{Job: job.ID})
-
 	err := state.UpsertJob(1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -470,30 +465,6 @@ func TestStateStore_UpsertJob_NoLocalDisk(t *testing.T) {
 	if !reflect.DeepEqual(expected, out) {
 		t.Fatalf("bad: %#v %#v", expected, out)
 	}
-
-	index, err := state.Index("jobs")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1000 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	summary, err := state.JobSummaryByID(job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if summary == nil {
-		t.Fatalf("nil summary")
-	}
-	if summary.JobID != job.ID {
-		t.Fatalf("bad summary id: %v", summary.JobID)
-	}
-	_, ok := summary.Summary["web"]
-	if !ok {
-		t.Fatalf("nil summary for task group")
-	}
-	notify.verify(t)
 }
 
 func TestStateStore_DeleteJob_Job(t *testing.T) {
