@@ -623,16 +623,16 @@
 			"revisionTime": "2016-06-09T00:18:40Z"
 		},
 		{
-			"checksumSHA1": "RAJfRxZ8UmcL6+7VuXAZxBlnM/4=",
+			"checksumSHA1": "eGzvBRMFD6ZB3A6uO750np7Om/E=",
 			"path": "github.com/hashicorp/vault",
-			"revision": "fece3ca069fc5bafec5280bbcb0c0693ff69fdaf",
-			"revisionTime": "2016-08-17T21:47:06Z"
+			"revision": "182ba68a9589d4cef95234134aaa498a686e3de3",
+			"revisionTime": "2016-08-21T23:40:57Z"
 		},
 		{
 			"checksumSHA1": "JH8wmQ8cWdn7mYu1T7gJ3IMIrec=",
 			"path": "github.com/hashicorp/vault/api",
-			"revision": "fece3ca069fc5bafec5280bbcb0c0693ff69fdaf",
-			"revisionTime": "2016-08-17T21:47:06Z"
+			"revision": "182ba68a9589d4cef95234134aaa498a686e3de3",
+			"revisionTime": "2016-08-21T23:40:57Z"
 		},
 		{
 			"checksumSHA1": "5lR6EdY0ARRdKAq3hZcL38STD8Q=",
