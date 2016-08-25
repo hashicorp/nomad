@@ -8,7 +8,7 @@ import (
 )
 
 // KeygenCommand is a Command implementation that generates an encryption
-// key for use in `consul agent`.
+// key for use in `nomad agent`.
 type KeygenCommand struct {
 	Meta
 }
