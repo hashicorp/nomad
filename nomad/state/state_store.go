@@ -357,6 +357,25 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
+	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
+	// from task resources
+	for i, tg := range job.TaskGroups {
+		var diskMB int
+		for j, task := range tg.Tasks {
+			if task.Resources != nil {
+				resources := task.Resources
+				diskMB += resources.DiskMB
+				resources.DiskMB = 0
+				task.Resources = resources
+				tg.Tasks[j] = task
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+		job.TaskGroups[i] = tg
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1690,6 +1709,26 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 func (r *StateRestore) JobRestore(job *structs.Job) error {
 	r.items.Add(watch.Item{Table: "jobs"})
 	r.items.Add(watch.Item{Job: job.ID})
+
+	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
+	// from task resources
+	for i, tg := range job.TaskGroups {
+		var diskMB int
+		for j, task := range tg.Tasks {
+			if task.Resources != nil {
+				resources := task.Resources
+				diskMB += resources.DiskMB
+				resources.DiskMB = 0
+				task.Resources = resources
+				tg.Tasks[j] = task
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+		job.TaskGroups[i] = tg
+	}
+
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
