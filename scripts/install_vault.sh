@@ -2,7 +2,7 @@
 
 set -ex
 
-VAULT_VERSION="0.6.0"
+VAULT_VERSION="0.6.1"
 CURDIR=`pwd`
 
 echo Fetching Vault ${VAULT_VERSION}...
