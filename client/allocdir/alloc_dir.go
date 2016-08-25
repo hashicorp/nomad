@@ -514,11 +514,11 @@ func (d *AllocDir) StopDiskWatcher() {
 	}
 }
 
-// syncDiskUsage walks the shared allocation directory recursively and
+// syncDiskUsage walks the allocation directory recursively and
 // calculates the total consumed disk space.
 func (d *AllocDir) syncDiskUsage() error {
 	var size int64
-	err := filepath.Walk(d.SharedDir,
+	err := filepath.Walk(d.AllocDir,
 		func(path string, info os.FileInfo, err error) error {
 			// Ignore paths that do not have a valid FileInfo object
 			if err == nil {
