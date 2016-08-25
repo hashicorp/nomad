@@ -404,8 +404,10 @@ func (r *TaskRunner) run() {
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
 
-				// Store that task event that provides context on the task destroy.
-				r.setState(structs.TaskStateDead, r.destroyEvent)
+				// Store the task event that provides context on the task destroy.
+				if r.destroyEvent.Type != structs.TaskKilled {
+					r.setState(structs.TaskStateDead, r.destroyEvent)
+				}
 
 				r.runningLock.Lock()
 				r.running = false

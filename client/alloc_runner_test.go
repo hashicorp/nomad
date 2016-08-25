@@ -521,8 +521,8 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if lastE := state1.Events[len(state1.Events)-1]; lastE.Type != structs.TaskKilled {
-			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskKilled)
+		if lastE := state1.Events[len(state1.Events)-1]; lastE.Type != structs.TaskSiblingFailed {
+			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskSiblingFailed)
 		}
 
 		// Task Two should be failed
