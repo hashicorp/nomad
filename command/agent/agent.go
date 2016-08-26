@@ -24,7 +24,7 @@ const (
 	clientHttpCheckInterval = 10 * time.Second
 	clientHttpCheckTimeout  = 3 * time.Second
 	serverHttpCheckInterval = 10 * time.Second
-	serverHttpCheckTimeout  = 3 * time.Second
+	serverHttpCheckTimeout  = 6 * time.Second
 	serverRpcCheckInterval  = 10 * time.Second
 	serverRpcCheckTimeout   = 3 * time.Second
 	serverSerfCheckInterval = 10 * time.Second
