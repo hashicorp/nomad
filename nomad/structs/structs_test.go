@@ -148,7 +148,6 @@ func testJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									MBits:        50,
