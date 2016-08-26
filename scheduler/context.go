@@ -133,6 +133,13 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 	// Materialize the proposed slice
 	proposed = make([]*structs.Allocation, 0, len(proposedIDs))
 	for _, alloc := range proposedIDs {
+		if alloc.Job == nil {
+			job, err := e.state.JobByID(alloc.JobID)
+			if err != nil {
+				return nil, fmt.Errorf("error retreiving job %q: %v", alloc.JobID, err)
+			}
+			alloc.Job = job
+		}
 		proposed = append(proposed, alloc)
 	}
 

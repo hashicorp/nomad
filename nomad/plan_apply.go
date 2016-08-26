@@ -355,7 +355,15 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	proposed = structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
+	// Copy the allocs and set the job
+	proposedAllocs := make([]*structs.Allocation, len(proposed))
+	for i, alloc := range proposed {
+		newAlloc := alloc.Copy()
+		newAlloc.Job = plan.Job
+		proposedAllocs[i] = newAlloc
+	}
+
 	// Check if these allocations fit
-	fit, _, _, err := structs.AllocsFit(node, proposed, nil)
+	fit, _, _, err := structs.AllocsFit(node, proposedAllocs, nil)
 	return fit, err
 }
