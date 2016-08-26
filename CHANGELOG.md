@@ -7,6 +7,8 @@ IMPROVEMENTS:
   * client: Enforce shared allocation directory disk usage [GH-1580]
 
 BUG FIXES:
+  * client: Artifact download failures will be retried before failing tasks
+    [GH-1558]
   * discovery: Fix HTTP timeout with Server HTTP health check when there is no
     leader [GH-1656]
 
