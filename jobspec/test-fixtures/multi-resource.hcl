@@ -1,5 +1,11 @@
 job "binstore-storagelocker" {
     group "binsl" {
+        local_disk {
+            disk = 500
+        }
+        local_disk {
+            disk = 100
+        }
         count = 5
         task "binstore" {
             driver = "docker"

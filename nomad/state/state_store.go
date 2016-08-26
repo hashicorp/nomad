@@ -364,13 +364,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 			continue
 		}
 		var diskMB int
-		for j, task := range tg.Tasks {
+		for _, task := range tg.Tasks {
 			if task.Resources != nil {
-				resources := task.Resources
-				diskMB += resources.DiskMB
-				resources.DiskMB = 0
-				task.Resources = resources
-				tg.Tasks[j] = task
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
 			}
 		}
 		tg.LocalDisk = &structs.LocalDisk{
@@ -1720,13 +1717,10 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 			continue
 		}
 		var diskMB int
-		for j, task := range tg.Tasks {
+		for _, task := range tg.Tasks {
 			if task.Resources != nil {
-				resources := task.Resources
-				diskMB += resources.DiskMB
-				resources.DiskMB = 0
-				task.Resources = resources
-				tg.Tasks[j] = task
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
 			}
 		}
 		tg.LocalDisk = &structs.LocalDisk{

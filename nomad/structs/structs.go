@@ -1564,6 +1564,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 
 	ntg.Meta = CopyMapStringString(ntg.Meta)
+
+	if tg.LocalDisk != nil {
+		ntg.LocalDisk = tg.LocalDisk.Copy()
+	}
 	return ntg
 }
 
@@ -2056,7 +2060,7 @@ func (t *Task) Validate(localDisk *LocalDisk) error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	// Esnure the task isn't asking for disk resources
+	// Ensure the task isn't asking for disk resources
 	if t.Resources != nil {
 		if t.Resources.DiskMB > 0 {
 			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
@@ -2588,6 +2592,13 @@ func (d *LocalDisk) Validate() error {
 		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)
 	}
 	return nil
+}
+
+// Copy copies the LocalDisk struct and returns a new one
+func (d *LocalDisk) Copy() *LocalDisk {
+	ld := new(LocalDisk)
+	*ld = *d
+	return ld
 }
 
 // Vault stores the set of premissions a task needs access to from Vault.
