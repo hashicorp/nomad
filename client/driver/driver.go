@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"sync"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -121,8 +120,6 @@ type DriverHandle interface {
 
 // ExecContext is shared between drivers within an allocation
 type ExecContext struct {
-	sync.Mutex
-
 	// AllocDir contains information about the alloc directory structure.
 	AllocDir *allocdir.AllocDir
 
