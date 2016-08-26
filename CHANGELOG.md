@@ -6,6 +6,10 @@ IMPROVEMENTS:
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * client: Enforce shared allocation directory disk usage [GH-1580]
 
+BUG FIXES:
+  * discovery: Fix HTTP timeout with Server HTTP health check when there is no
+    leader [GH-1656]
+
 ## 0.4.1
 
 __BACKWARDS INCOMPATIBILITIES:__
