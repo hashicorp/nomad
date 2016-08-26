@@ -94,7 +94,7 @@ state. They are loosely-coupled using a gossip protocol, which allows users to
 submit jobs to any region or query the state of any region transparently. Requests
 are forwarded to the appropriate server to be processed and the results returned.
 
-The servers in each datacenter are all part of a single consensus group. This means
+The servers in each region are all part of a single consensus group. This means
 that they work together to elect a single leader which has extra duties. The leader
 is responsible for processing all queries and transactions. Nomad is optimistically
 concurrent, meaning all servers participate in making scheduling decisions in parallel.
