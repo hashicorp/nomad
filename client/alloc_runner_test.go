@@ -71,7 +71,8 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
-	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 1
+	alloc.Job.TaskGroups[0].RestartPolicy.Delay = time.Duration(4*testutil.TestMultiplier()) * time.Second
 
 	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
