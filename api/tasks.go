@@ -128,6 +128,12 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	return g
 }
 
+// RequireDisk adds a local disk to the task group
+func (g *TaskGroup) RequireDisk(disk *LocalDisk) *TaskGroup {
+	g.LocalDisk = disk
+	return g
+}
+
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
 	MaxFiles      int

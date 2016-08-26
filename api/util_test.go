@@ -1,8 +1,6 @@
 package api
 
-import (
-	"testing"
-)
+import "testing"
 
 func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 	if qm.LastIndex == 0 {
@@ -25,7 +23,6 @@ func testJob() *Job {
 		Require(&Resources{
 			CPU:      100,
 			MemoryMB: 256,
-			DiskMB:   25,
 			IOPS:     10,
 		}).
 		SetLogConfig(&LogConfig{
@@ -34,7 +31,10 @@ func testJob() *Job {
 		})
 
 	group := NewTaskGroup("group1", 1).
-		AddTask(task)
+		AddTask(task).
+		RequireDisk(&LocalDisk{
+			DiskMB: 25,
+		})
 
 	job := NewBatchJob("job1", "redis", "region1", 1).
 		AddDatacenter("dc1").
