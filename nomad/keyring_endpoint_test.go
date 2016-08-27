@@ -14,7 +14,7 @@ const (
 	key = "H1dfkSZOVnP/JUnaBfTzXg=="
 )
 
-func TestKeyringOperationEndpoint_SingleNodeCluster(t *testing.T) {
+func TestKeyringEndpoint_SingleNodeCluster(t *testing.T) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -33,7 +33,7 @@ func TestKeyringOperationEndpoint_SingleNodeCluster(t *testing.T) {
 		Operation:  structs.KeyringList,
 		Datacenter: "dc1",
 	}
-	if err := msgpackrpc.CallWithCodec(codec, "KeyringOperation.Execute", req, &out); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Keyring.Execute", req, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -49,7 +49,7 @@ func TestKeyringOperationEndpoint_SingleNodeCluster(t *testing.T) {
 	}
 }
 
-func TestKeyringOperationEndpoint_CrossDCCluster(t *testing.T) {
+func TestKeyringEndpoint_CrossDCCluster(t *testing.T) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -81,7 +81,7 @@ func TestKeyringOperationEndpoint_CrossDCCluster(t *testing.T) {
 	req2 := &structs.KeyringRequest{
 		Operation: structs.KeyringList,
 	}
-	if err := msgpackrpc.CallWithCodec(codec, "KeyringOperation.Execute", req2, &out2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Keyring.Execute", req2, &out2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

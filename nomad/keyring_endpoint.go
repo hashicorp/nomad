@@ -7,12 +7,12 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-type KeyringOperation struct {
+type Keyring struct {
 	srv *Server
 }
 
 // Execute will query the WAN gossip keyrings of all servers.
-func (k *KeyringOperation) Execute(
+func (k *Keyring) Execute(
 	args *structs.KeyringRequest,
 	reply *structs.KeyringResponses) error {
 

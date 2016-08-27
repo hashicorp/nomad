@@ -112,7 +112,7 @@ func (a *Agent) keyringProcess(args *structs.KeyringRequest) (*structs.KeyringRe
 	if a.server == nil {
 		return nil, fmt.Errorf("keyring operations must run against a server node")
 	}
-	if err := a.RPC("KeyringOperation.Execute", args, &reply); err != nil {
+	if err := a.RPC("Keyring.Execute", args, &reply); err != nil {
 		return &reply, err
 	}
 
