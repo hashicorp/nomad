@@ -41,7 +41,7 @@ The `Qemu` driver supports the following configuration in the job spec:
   guest VM's port 6539.
 
 * `args` - (Optional) A `[]string` that is passed to qemu as command line options.
-  For example, `args = [ "-nodefconfig", "-nodefaults" ]`
+  For example, `args = [ "-nodefconfig", "-nodefaults" ]`.
 
 ## Examples
 
