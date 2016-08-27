@@ -33,7 +33,7 @@ The `Qemu` driver supports the following configuration in the job spec:
 
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
   If the host machine has `Qemu` installed with KVM support, users can specify
-  `kvm` for the `accelerator`. Default is `tcg`
+  `kvm` for the `accelerator`. Default is `tcg`.
 
 * `port_map` - (Optional) A `map[string]int` that maps port labels to ports
   on the guest. This forwards the host port to the guest VM. For example,
@@ -41,7 +41,7 @@ The `Qemu` driver supports the following configuration in the job spec:
   guest VM's port 6539.
 
 * `args` - (Optional) A `[]string` that is passed to qemu as command line options.
-  For example, `args = [ "-nodefconfig", "-nodefaults" ]
+  For example, `args = [ "-nodefconfig", "-nodefaults" ]`
 
 ## Examples
 
@@ -71,7 +71,7 @@ task "virtual" {
 ## Client Requirements
 
 The `Qemu` driver requires Qemu to be installed and in your system's `$PATH`.
-The task must also specify at least one artifact to download as this is the only
+The task must also specify at least one artifact to download, as this is the only
 way to retrieve the image being run.
 
 ## Client Attributes
