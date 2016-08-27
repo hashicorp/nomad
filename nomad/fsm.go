@@ -397,6 +397,12 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		for _, task := range alloc.TaskResources {
 			alloc.Resources.Add(task)
 		}
+
+		taskGroup := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		if taskGroup == nil {
+			return fmt.Errorf("unable to find task group %q in job %q", alloc.TaskGroup, alloc.Job)
+		}
+		alloc.Resources.DiskMB = taskGroup.LocalDisk.DiskMB
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {

@@ -644,6 +644,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Resources should be recomputed
+	resources.DiskMB = alloc.Job.TaskGroups[0].LocalDisk.DiskMB
 	alloc.Resources = resources
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("bad: %#v %#v", alloc, out)

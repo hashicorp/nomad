@@ -10,10 +10,9 @@ import (
 // along with a node when iterating. This state can be modified as
 // various rank methods are applied.
 type RankedNode struct {
-	Node           *structs.Node
-	Score          float64
-	TaskResources  map[string]*structs.Resources
-	AllocResources *structs.Resources
+	Node          *structs.Node
+	Score         float64
+	TaskResources map[string]*structs.Resources
 
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
@@ -43,10 +42,6 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 		r.TaskResources = make(map[string]*structs.Resources)
 	}
 	r.TaskResources[task.Name] = resource
-}
-
-func (r *RankedNode) SetAllocResources(resources *structs.Resources) {
-	r.AllocResources = resources
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
@@ -217,7 +212,6 @@ OUTER:
 			// Accumulate the total resource requirement
 			total.Add(taskResources)
 		}
-		option.AllocResources = total
 
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{Resources: total})
