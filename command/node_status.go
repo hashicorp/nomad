@@ -284,13 +284,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 }
 
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
-	// Get the host stats
-	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
-	if nodeStatsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
-	}
-
 	// Format the header output
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(node.ID, c.length)),
@@ -300,13 +293,22 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
 	}
-	if hostStats != nil {
-		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
-		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
-	}
-	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
-	if !c.short {
+	if c.short {
+		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
+	} else {
+		// Get the host stats
+		hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+		if nodeStatsErr != nil {
+			c.Ui.Output("")
+			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
+		}
+		if hostStats != nil {
+			uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
+			basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
+		}
+		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
+
 		// Get list of running allocations on the node
 		runningAllocs, err := getRunningAllocs(client, node.ID)
 		if err != nil {
