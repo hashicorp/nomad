@@ -1750,6 +1750,15 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 	r.items.Add(watch.Item{AllocEval: alloc.EvalID})
 	r.items.Add(watch.Item{AllocJob: alloc.JobID})
 	r.items.Add(watch.Item{AllocNode: alloc.NodeID})
+
+	//COMPAT 0.4.1 -> 0.5
+	// Set the shared resources if it's not present
+	if alloc.SharedResources == nil {
+		alloc.SharedResources = &structs.Resources{
+			DiskMB: alloc.Resources.DiskMB,
+		}
+	}
+
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}

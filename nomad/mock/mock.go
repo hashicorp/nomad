@@ -258,7 +258,7 @@ func Alloc() *structs.Allocation {
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
-			DiskMB:   10,
+			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					Device:        "eth0",
@@ -273,7 +273,6 @@ func Alloc() *structs.Allocation {
 			"web": &structs.Resources{
 				CPU:      500,
 				MemoryMB: 256,
-				DiskMB:   10,
 				Networks: []*structs.NetworkResource{
 					&structs.NetworkResource{
 						Device:        "eth0",
@@ -284,6 +283,9 @@ func Alloc() *structs.Allocation {
 					},
 				},
 			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
 		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,

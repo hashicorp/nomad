@@ -390,6 +390,14 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
+			// COMPAT 0.4.1 -> 0.5
+			// Set the shared resources for allocations which don't have them
+			if alloc.SharedResources == nil {
+				alloc.SharedResources = &structs.Resources{
+					DiskMB: alloc.Resources.DiskMB,
+				}
+			}
+
 			continue
 		}
 
@@ -398,11 +406,8 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 			alloc.Resources.Add(task)
 		}
 
-		taskGroup := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-		if taskGroup == nil {
-			return fmt.Errorf("unable to find task group %q in job %q", alloc.TaskGroup, alloc.Job)
-		}
-		alloc.Resources.DiskMB = taskGroup.LocalDisk.DiskMB
+		// Add the shared resources
+		alloc.Resources.Add(alloc.SharedResources)
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {

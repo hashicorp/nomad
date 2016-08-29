@@ -934,6 +934,35 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc1.SharedResources = nil
+	alloc2.SharedResources = nil
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.AllocByID(alloc1.ID)
+	out2, _ := state2.AllocByID(alloc2.ID)
+	alloc1.SharedResources = &structs.Resources{DiskMB: 150}
+	alloc2.SharedResources = &structs.Resources{DiskMB: 150}
+
+	if !reflect.DeepEqual(alloc1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
+	}
+	if !reflect.DeepEqual(alloc2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
+	}
+}
+
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)

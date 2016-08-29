@@ -64,10 +64,10 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 			}
 		} else if alloc.TaskResources != nil {
 
-			// Adding the disk resource ask for the allocation to the used
+			// Adding the shared resource asks for the allocation to the used
 			// resources
-			if taskGroup := alloc.Job.LookupTaskGroup(alloc.TaskGroup); taskGroup != nil {
-				used.DiskMB += taskGroup.LocalDisk.DiskMB
+			if err := used.Add(alloc.SharedResources); err != nil {
+				return false, "", nil, err
 			}
 			// Allocations within the plan have the combined resources stripped
 			// to save space, so sum up the individual task resources.

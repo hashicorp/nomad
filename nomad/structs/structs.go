@@ -2672,6 +2672,10 @@ type Allocation struct {
 	// of this allocation of the task group.
 	Resources *Resources
 
+	// SharedResources are the resources that are shared by all the tasks in an
+	// allocation
+	SharedResources *Resources
+
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
@@ -2719,6 +2723,7 @@ func (a *Allocation) Copy() *Allocation {
 
 	na.Job = na.Job.Copy()
 	na.Resources = na.Resources.Copy()
+	na.SharedResources = na.SharedResources.Copy()
 
 	if a.TaskResources != nil {
 		tr := make(map[string]*Resources, len(na.TaskResources))
