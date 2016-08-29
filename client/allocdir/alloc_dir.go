@@ -85,9 +85,9 @@ type AllocDir struct {
 	// any monitoring on it should stop.
 	watchCh chan struct{}
 
-	// maxSize represents the total amount of megabytes that the shared allocation
+	// MaxSize represents the total amount of megabytes that the shared allocation
 	// directory is allowed to consume.
-	maxSize int
+	MaxSize int
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir
@@ -117,7 +117,7 @@ func NewAllocDir(allocDir string, maxSize int) *AllocDir {
 		MinCheckDiskInterval:      minCheckDiskInterval,
 		CheckDiskMaxEnforcePeriod: checkDiskMaxEnforcePeriod,
 		TaskDirs:                  make(map[string]string),
-		maxSize:                   maxSize,
+		MaxSize:                   maxSize,
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
@@ -488,7 +488,7 @@ func (d *AllocDir) StartDiskWatcher() {
 				log.Printf("[WARN] client: failed to sync disk usage: %v", err)
 			}
 			// Calculate the disk ratio.
-			diskRatio := float64(d.size) / float64(d.maxSize*structs.BytesInMegabyte)
+			diskRatio := float64(d.size) / float64(d.MaxSize*structs.BytesInMegabyte)
 
 			// Exponentially decrease the interval when the disk ratio increases.
 			nextInterval := time.Duration(int64(1.0/(0.1*math.Pow(diskRatio, 2))+5)) * time.Second
