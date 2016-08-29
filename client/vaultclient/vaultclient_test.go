@@ -161,7 +161,7 @@ func TestVaultClient_Heap(t *testing.T) {
 	if err := c.heap.Push(renewalReq1, now.Add(50*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.IsTracked("id1") {
+	if !c.isTracked("id1") {
 		t.Fatalf("id1 should have been tracked")
 	}
 
@@ -173,7 +173,7 @@ func TestVaultClient_Heap(t *testing.T) {
 	if err := c.heap.Push(renewalReq2, now.Add(40*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.IsTracked("id2") {
+	if !c.isTracked("id2") {
 		t.Fatalf("id2 should have been tracked")
 	}
 
@@ -185,7 +185,7 @@ func TestVaultClient_Heap(t *testing.T) {
 	if err := c.heap.Push(renewalReq3, now.Add(60*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.IsTracked("id3") {
+	if !c.isTracked("id3") {
 		t.Fatalf("id3 should have been tracked")
 	}
 
@@ -226,15 +226,15 @@ func TestVaultClient_Heap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c.IsTracked("id1") {
+	if c.isTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
-	if c.IsTracked("id1") {
+	if c.isTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
-	if c.IsTracked("id1") {
+	if c.isTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
