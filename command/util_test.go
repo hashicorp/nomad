@@ -45,7 +45,6 @@ func testJob(jobID string) *api.Job {
 		SetConfig("exit_code", 0).
 		Require(&api.Resources{
 			MemoryMB: 256,
-			DiskMB:   20,
 			CPU:      100,
 		}).
 		SetLogConfig(&api.LogConfig{
@@ -54,7 +53,10 @@ func testJob(jobID string) *api.Job {
 		})
 
 	group := api.NewTaskGroup("group1", 1).
-		AddTask(task)
+		AddTask(task).
+		RequireDisk(&api.LocalDisk{
+			DiskMB: 20,
+		})
 
 	job := api.NewBatchJob(jobID, jobID, "region1", 1).
 		AddDatacenter("dc1").

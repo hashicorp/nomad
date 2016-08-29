@@ -772,7 +772,6 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
-		DiskMB:   300,
 		IOPS:     0,
 	}
 }
@@ -822,9 +821,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < 10 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
-	}
-	if r.DiskMB < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum DiskMB value is 10; got %d", r.DiskMB))
 	}
 	if r.IOPS < 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
@@ -1541,6 +1537,9 @@ type TaskGroup struct {
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
 
+	// LocalDisk is the disk resources that the task group requests
+	LocalDisk *LocalDisk
+
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
@@ -1565,6 +1564,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 
 	ntg.Meta = CopyMapStringString(ntg.Meta)
+
+	if tg.LocalDisk != nil {
+		ntg.LocalDisk = tg.LocalDisk.Copy()
+	}
 	return ntg
 }
 
@@ -1613,6 +1616,14 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
+	if tg.LocalDisk != nil {
+		if err := tg.LocalDisk.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	} else {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a local disk object", tg.Name))
+	}
+
 	// Check for duplicate tasks
 	tasks := make(map[string]int)
 	for idx, task := range tg.Tasks {
@@ -1627,7 +1638,7 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(); err != nil {
+		if err := task.Validate(tg.LocalDisk); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -2025,7 +2036,7 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate() error {
+func (t *Task) Validate(localDisk *LocalDisk) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -2049,6 +2060,13 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// Ensure the task isn't asking for disk resources
+	if t.Resources != nil {
+		if t.Resources.DiskMB > 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+		}
+	}
+
 	// Validate the log config
 	if t.LogConfig == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
@@ -2068,12 +2086,12 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	if t.LogConfig != nil && t.Resources != nil {
+	if t.LogConfig != nil && localDisk != nil {
 		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if t.Resources.DiskMB <= logUsage {
+		if localDisk.DiskMB <= logUsage {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
-					logUsage, t.Resources.DiskMB))
+					logUsage, localDisk.DiskMB))
 		}
 	}
 
@@ -2552,6 +2570,37 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	// Sticky indicates whether the allocation is sticky to a node
+	Sticky bool
+
+	// DiskMB is the size of the local disk
+	DiskMB int `mapstructure:"disk"`
+}
+
+// DefaultLocalDisk returns a LocalDisk with default configurations
+func DefaultLocalDisk() *LocalDisk {
+	return &LocalDisk{
+		DiskMB: 300,
+	}
+}
+
+// Validate validates LocalDisk
+func (d *LocalDisk) Validate() error {
+	if d.DiskMB < 10 {
+		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)
+	}
+	return nil
+}
+
+// Copy copies the LocalDisk struct and returns a new one
+func (d *LocalDisk) Copy() *LocalDisk {
+	ld := new(LocalDisk)
+	*ld = *d
+	return ld
+}
+
 // Vault stores the set of premissions a task needs access to from Vault.
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
@@ -2623,6 +2672,10 @@ type Allocation struct {
 	// of this allocation of the task group.
 	Resources *Resources
 
+	// SharedResources are the resources that are shared by all the tasks in an
+	// allocation
+	SharedResources *Resources
+
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
@@ -2670,6 +2723,7 @@ func (a *Allocation) Copy() *Allocation {
 
 	na.Job = na.Job.Copy()
 	na.Resources = na.Resources.Copy()
+	na.SharedResources = na.SharedResources.Copy()
 
 	if a.TaskResources != nil {
 		tr := make(map[string]*Resources, len(na.TaskResources))

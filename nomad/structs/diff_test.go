@@ -1277,6 +1277,151 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// LocalDisk added
+			Old: &TaskGroup{},
+			New: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: true,
+					DiskMB: 100,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "LocalDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "DiskMB",
+								Old:  "",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Sticky",
+								Old:  "",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// LocalDisk deleted
+			Old: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: true,
+					DiskMB: 100,
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "LocalDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Sticky",
+								Old:  "true",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// LocalDisk edited
+			Old: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: true,
+					DiskMB: 150,
+				},
+			},
+			New: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: false,
+					DiskMB: 90,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "LocalDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "DiskMB",
+								Old:  "150",
+								New:  "90",
+							},
+
+							{
+								Type: DiffTypeEdited,
+								Name: "Sticky",
+								Old:  "true",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// LocalDisk edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: false,
+					DiskMB: 100,
+				},
+			},
+			New: &TaskGroup{
+				LocalDisk: &LocalDisk{
+					Sticky: true,
+					DiskMB: 90,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "LocalDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "90",
+							},
+
+							{
+								Type: DiffTypeEdited,
+								Name: "Sticky",
+								Old:  "false",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Tasks edited
 			Old: &TaskGroup{
 				Tasks: []*Task{

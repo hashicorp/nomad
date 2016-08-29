@@ -82,6 +82,12 @@ type Service struct {
 	Checks    []ServiceCheck
 }
 
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	Sticky bool
+	DiskMB int `mapstructure:"disk"`
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name          string
@@ -89,6 +95,7 @@ type TaskGroup struct {
 	Constraints   []*Constraint
 	Tasks         []*Task
 	RestartPolicy *RestartPolicy
+	LocalDisk     *LocalDisk
 	Meta          map[string]string
 }
 
@@ -118,6 +125,12 @@ func (g *TaskGroup) SetMeta(key, val string) *TaskGroup {
 // AddTask is used to add a new task to a task group.
 func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	g.Tasks = append(g.Tasks, t)
+	return g
+}
+
+// RequireDisk adds a local disk to the task group
+func (g *TaskGroup) RequireDisk(disk *LocalDisk) *TaskGroup {
+	g.LocalDisk = disk
 	return g
 }
 

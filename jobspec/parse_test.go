@@ -49,8 +49,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "outside",
-						Count: 1,
+						Name:      "outside",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",
@@ -86,6 +87,10 @@ func TestParse(t *testing.T) {
 							Attempts: 5,
 							Delay:    15 * time.Second,
 							Mode:     "delay",
+						},
+						LocalDisk: &structs.LocalDisk{
+							Sticky: true,
+							DiskMB: 150,
 						},
 						Tasks: []*structs.Task{
 							&structs.Task{
@@ -123,7 +128,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     0,
 									Networks: []*structs.NetworkResource{
 										&structs.NetworkResource{
@@ -168,7 +172,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     30,
 								},
 								Constraints: []*structs.Constraint{
@@ -313,8 +316,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "bar",
-						Count: 1,
+						Name:      "bar",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "bar",
@@ -356,8 +360,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "binsl",
-						Count: 1,
+						Name:      "binsl",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "binstore",
@@ -365,7 +370,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      100,
 									MemoryMB: 10,
-									DiskMB:   300,
 									IOPS:     0,
 								},
 								LogConfig: &structs.LogConfig{
@@ -406,8 +410,9 @@ func TestParse(t *testing.T) {
 				Region:   "global",
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "group",
-						Count: 1,
+						Name:      "group",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name: "task",

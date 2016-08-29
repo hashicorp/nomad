@@ -42,6 +42,11 @@ job "binstore-storagelocker" {
       mode     = "delay"
     }
 
+    local_disk {
+        sticky = true
+        disk   = 150
+    }
+
     task "binstore" {
       driver = "docker"
       user   = "bob"

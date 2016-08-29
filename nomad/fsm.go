@@ -390,6 +390,14 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
+			// COMPAT 0.4.1 -> 0.5
+			// Set the shared resources for allocations which don't have them
+			if alloc.SharedResources == nil {
+				alloc.SharedResources = &structs.Resources{
+					DiskMB: alloc.Resources.DiskMB,
+				}
+			}
+
 			continue
 		}
 
@@ -397,6 +405,9 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		for _, task := range alloc.TaskResources {
 			alloc.Resources.Add(task)
 		}
+
+		// Add the shared resources
+		alloc.Resources.Add(alloc.SharedResources)
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {

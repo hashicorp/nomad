@@ -50,8 +50,8 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	// Ensure the eval has no spawned blocked eval
-	if len(h.Evals) != 1 {
-		t.Fatalf("bad: %#v", h.Evals)
+	if len(h.CreateEvals) != 0 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
 		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
@@ -86,6 +86,71 @@ func TestServiceSched_JobRegister(t *testing.T) {
 				used[port.Value] = struct{}{}
 			}
 		}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job with count 2 and disk as 60GB so that only one allocation
+	// can fit
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].LocalDisk.DiskMB = 88 * 1024
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval has a blocked eval
+	if len(h.CreateEvals) != 1 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
+	// Ensure the plan allocated only one allocation
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	out, err := h.State.AllocsByJob(job.ID)
+	noErr(t, err)
+
+	// Ensure only one allocation was placed
+	if len(out) != 1 {
+		t.Fatalf("bad: %#v", out)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)

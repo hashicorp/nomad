@@ -63,6 +63,12 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 				return false, "", nil, err
 			}
 		} else if alloc.TaskResources != nil {
+
+			// Adding the shared resource asks for the allocation to the used
+			// resources
+			if err := used.Add(alloc.SharedResources); err != nil {
+				return false, "", nil, err
+			}
 			// Allocations within the plan have the combined resources stripped
 			// to save space, so sum up the individual task resources.
 			for _, taskResource := range alloc.TaskResources {

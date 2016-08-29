@@ -223,6 +223,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// LocalDisk diff
+	diskDiff := primitiveObjectDiff(tg.LocalDisk, other.LocalDisk, nil, "LocalDisk", contextual)
+	if diskDiff != nil {
+		diff.Objects = append(diff.Objects, diskDiff)
+	}
+
 	// Tasks diff
 	tasks, err := taskDiffs(tg.Tasks, other.Tasks, contextual)
 	if err != nil {

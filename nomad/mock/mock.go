@@ -79,6 +79,9 @@ func Job() *structs.Job {
 			&structs.TaskGroup{
 				Name:  "web",
 				Count: 10,
+				LocalDisk: &structs.LocalDisk{
+					DiskMB: 150,
+				},
 				RestartPolicy: &structs.RestartPolicy{
 					Attempts: 3,
 					Interval: 10 * time.Minute,
@@ -120,7 +123,6 @@ func Job() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   150,
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
@@ -178,6 +180,7 @@ func SystemJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				LocalDisk: structs.DefaultLocalDisk(),
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",
@@ -255,7 +258,7 @@ func Alloc() *structs.Allocation {
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
-			DiskMB:   10,
+			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					Device:        "eth0",
@@ -270,7 +273,6 @@ func Alloc() *structs.Allocation {
 			"web": &structs.Resources{
 				CPU:      500,
 				MemoryMB: 256,
-				DiskMB:   10,
 				Networks: []*structs.NetworkResource{
 					&structs.NetworkResource{
 						Device:        "eth0",
@@ -281,6 +283,9 @@ func Alloc() *structs.Allocation {
 					},
 				},
 			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
 		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,

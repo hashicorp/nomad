@@ -61,6 +61,14 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	}
 
 	a1 := &Allocation{
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name:      "web",
+					LocalDisk: DefaultLocalDisk(),
+				},
+			},
+		},
 		TaskResources: map[string]*Resources{
 			"web": &Resources{
 				Networks: []*NetworkResource{

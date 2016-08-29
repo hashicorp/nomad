@@ -846,6 +846,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 		Name:        "web",
 		Count:       10,
 		Constraints: []*structs.Constraint{constr},
+		LocalDisk:   &structs.LocalDisk{},
 		Tasks: []*structs.Task{
 			&structs.Task{
 				Driver: "exec",

@@ -455,6 +455,10 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
+
+				SharedResources: &structs.Resources{
+					DiskMB: missing.TaskGroup.LocalDisk.DiskMB,
+				},
 			}
 
 			// If the new allocation is replacing an older allocation then we
