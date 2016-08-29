@@ -309,27 +309,26 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 		return nil, fmt.Errorf("missing task names")
 	}
 
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if group == nil {
+		return nil, fmt.Errorf("group name in allocation is not present in job")
+	}
+
 	verifiedTasks := []string{}
 	found := false
-	// Check if the given task names actually exist in the allocation under
-	// the correct group name
-	for _, group := range alloc.Job.TaskGroups {
-		// Refer only to the group belonging to the allocation
-		if group.Name == alloc.TaskGroup {
-			for _, taskName := range taskNames {
-				found = false
-				for _, task := range group.Tasks {
-					if task.Name == taskName {
-						found = true
-					}
-				}
-				if !found {
-					c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
-					return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
-				}
-				verifiedTasks = append(verifiedTasks, taskName)
+	// Check if the given task names actually exist in the allocation
+	for _, taskName := range taskNames {
+		found = false
+		for _, task := range group.Tasks {
+			if task.Name == taskName {
+				found = true
 			}
 		}
+		if !found {
+			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+		}
+		verifiedTasks = append(verifiedTasks, taskName)
 	}
 
 	// DeriveVaultToken of nomad server can take in a set of tasks and
