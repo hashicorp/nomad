@@ -204,14 +204,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	var statsErr error
-	var stats *api.AllocResourceUsage
-	stats, statsErr = client.Allocations().Stats(alloc, nil)
-	if statsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
-	}
-
 	// Format the allocation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, length)),
@@ -236,6 +228,13 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if short {
 		c.shortTaskStatus(alloc)
 	} else {
+		var statsErr error
+		var stats *api.AllocResourceUsage
+		stats, statsErr = client.Allocations().Stats(alloc, nil)
+		if statsErr != nil {
+			c.Ui.Output("")
+			c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+		}
 		c.outputTaskDetails(alloc, stats, displayStats)
 	}
 
