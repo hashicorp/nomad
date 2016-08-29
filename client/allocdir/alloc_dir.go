@@ -14,6 +14,7 @@ import (
 	"gopkg.in/tomb.v1"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
 )
@@ -46,11 +47,21 @@ var (
 	// regardless of driver.
 	TaskLocal = "local"
 
+	// TaskSecrets is the the name of the secret directory inside each task
+	// directory
+	TaskSecrets = "secrets"
+
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = []string{"tmp"}
 )
 
 type AllocDir struct {
+	// AllocID is the allocation ID for this directory
+	AllocID string
+
+	// SecretDir is used to build the secret directory for the allocation
+	SecretDir *secretdir.SecretDir
+
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
 	AllocDir string
@@ -110,8 +121,10 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory and maxSize as the maximum allowed size in megabytes.
-func NewAllocDir(allocDir string, maxSize int) *AllocDir {
+func NewAllocDir(allocID, allocDir string, maxSize int, sdir *secretdir.SecretDir) *AllocDir {
 	d := &AllocDir{
+		AllocID:                   allocID,
+		SecretDir:                 sdir,
 		AllocDir:                  allocDir,
 		MaxCheckDiskInterval:      maxCheckDiskInterval,
 		MinCheckDiskInterval:      minCheckDiskInterval,
@@ -145,12 +158,24 @@ func (d *AllocDir) UnmountAll() error {
 		// Check if the directory has the shared alloc mounted.
 		taskAlloc := filepath.Join(dir, SharedAllocName)
 		if d.pathExists(taskAlloc) {
-			if err := d.unmountSharedDir(taskAlloc); err != nil {
+			if err := d.unmount(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to unmount shared alloc dir %q: %v", taskAlloc, err))
 			} else if err := os.RemoveAll(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to delete shared alloc dir %q: %v", taskAlloc, err))
+			}
+		}
+
+		// Remove the secrets dir
+		taskSecrets := filepath.Join(dir, TaskSecrets)
+		if d.pathExists(taskSecrets) {
+			if err := d.unmount(taskSecrets); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to unmount secrets dir %q: %v", taskSecrets, err))
+			} else if err := os.RemoveAll(taskSecrets); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to delete secrets dir %q: %v", taskSecrets, err))
 			}
 		}
 
@@ -222,6 +247,18 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			if err := d.dropDirPermissions(local); err != nil {
 				return err
 			}
+		}
+
+		// Get the secret directory
+		sdir, err := d.SecretDir.CreateFor(d.AllocID, t.Name)
+		if err != nil {
+			return fmt.Errorf("Creating secret directory for task %q failed: %v", t.Name, err)
+		}
+
+		// Mount the secret directory
+		taskSecret := filepath.Join(taskDir, TaskSecrets)
+		if err := d.mount(sdir, taskSecret); err != nil {
+			return fmt.Errorf("failed to mount secret directory: %v", err)
 		}
 	}
 
@@ -332,7 +369,7 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	}
 
 	taskLoc := filepath.Join(taskDir, SharedAllocName)
-	if err := d.mountSharedDir(taskLoc); err != nil {
+	if err := d.mount(d.SharedDir, taskLoc); err != nil {
 		return fmt.Errorf("Failed to mount shared directory for task %v: %v", task, err)
 	}
 

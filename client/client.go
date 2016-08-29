@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/rpcproxy"
+	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
@@ -77,6 +78,9 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// secretDir is the secrets directory nested under the state directory
+	secretDir = "secrets"
 )
 
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
@@ -106,6 +110,8 @@ type Client struct {
 	rpcProxy *rpcproxy.RPCProxy
 
 	connPool *nomad.ConnPool
+
+	secretDir *secretdir.SecretDir
 
 	// lastHeartbeatFromQuorum is an atomic int32 acting as a bool.  When
 	// true, the last heartbeat message had a leader.  When false (0),
@@ -275,6 +281,14 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Printf("[INFO] client: using alloc directory %v", c.config.AllocDir)
+
+	// Initialize the secret directory
+	sdir, err := secretdir.NewSecretDir(filepath.Join(c.config.StateDir, secretDir))
+	if err != nil {
+		return err
+	}
+	c.secretDir = sdir
+
 	return nil
 }
 
@@ -327,6 +341,10 @@ func (c *Client) Shutdown() error {
 			<-ar.WaitCh()
 		}
 		c.allocLock.Unlock()
+
+		if err := c.secretDir.Destroy(); err != nil {
+			return err
+		}
 	}
 
 	c.shutdown = true
@@ -449,7 +467,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.secretDir)
 		c.configLock.RUnlock()
 		c.allocLock.Lock()
 		c.allocs[id] = ar
@@ -1264,7 +1282,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.secretDir)
 	c.configLock.RUnlock()
 	go ar.Run()
 

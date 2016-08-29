@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -51,16 +52,19 @@ type AllocRunner struct {
 
 	dirtyCh chan struct{}
 
-	ctx        *driver.ExecContext
-	ctxLock    sync.Mutex
-	tasks      map[string]*TaskRunner
-	taskStates map[string]*structs.TaskState
-	restored   map[string]struct{}
-	taskLock   sync.RWMutex
+	ctx     *driver.ExecContext
+	ctxLock sync.Mutex
 
+	tasks    map[string]*TaskRunner
+	restored map[string]struct{}
+	taskLock sync.RWMutex
+
+	taskStates     map[string]*structs.TaskState
 	taskStatusLock sync.RWMutex
 
 	updateCh chan *structs.Allocation
+
+	secretDir *secretdir.SecretDir
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -80,12 +84,13 @@ type allocRunnerState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation) *AllocRunner {
+	alloc *structs.Allocation, secretDir *secretdir.SecretDir) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
 		updater:    updater,
 		logger:     logger,
 		alloc:      alloc,
+		secretDir:  secretDir,
 		dirtyCh:    make(chan struct{}, 1),
 		tasks:      make(map[string]*TaskRunner),
 		taskStates: copyTaskStates(alloc.TaskStates),
@@ -386,9 +391,11 @@ func (r *AllocRunner) Run() {
 	// Create the execution context
 	r.ctxLock.Lock()
 	if r.ctx == nil {
-		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID), r.Alloc().Resources.DiskMB)
+		path := filepath.Join(r.config.AllocDir, r.alloc.ID)
+		size := r.Alloc().Resources.DiskMB
+		allocDir := allocdir.NewAllocDir(r.alloc.ID, path, size, r.secretDir)
 		if err := allocDir.Build(tg.Tasks); err != nil {
-			r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
+			r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
 			r.ctxLock.Unlock()
 			return
