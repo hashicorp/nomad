@@ -16,6 +16,8 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+type TokenDeriverFunc func(*structs.Allocation, []string, *vaultapi.Client) (map[string]string, error)
+
 // The interface which nomad client uses to interact with vault and
 // periodically renews the tokens and secrets.
 type VaultClient interface {
@@ -51,11 +53,7 @@ type VaultClient interface {
 // Implementation of VaultClient interface to interact with vault and perform
 // token and lease renewals periodically.
 type vaultClient struct {
-	// Client's region
-	region string
-
-	// The node in which this vault client is running in
-	node *structs.Node
+	tokenDeriver TokenDeriverFunc
 
 	// running indicates if the renewal loop is active or not
 	running bool
@@ -137,19 +135,9 @@ type vaultClientHeap struct {
 type vaultDataHeapImp []*vaultClientHeapEntry
 
 // NewVaultClient returns a new vault client from the given config.
-func NewVaultClient(node *structs.Node, region string, config *config.VaultConfig,
-	logger *log.Logger, rpcHandler clientconfig.RPCHandler, connPool *nomad.ConnPool,
-	rpcProxy *rpcproxy.RPCProxy) (*vaultClient, error) {
+func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver TokenDeriverFunc) (*vaultClient, error) {
 	if !config.Enabled {
 		return nil, nil
-	}
-
-	if node == nil {
-		return nil, fmt.Errorf("nil node")
-	}
-
-	if region == "" {
-		return nil, fmt.Errorf("missing region")
 	}
 
 	if config == nil {
@@ -164,22 +152,9 @@ func NewVaultClient(node *structs.Node, region string, config *config.VaultConfi
 		return nil, fmt.Errorf("nil logger")
 	}
 
-	if connPool == nil {
-		return nil, fmt.Errorf("nil connection pool")
-	}
-
-	if rpcProxy == nil {
-		return nil, fmt.Errorf("nil rpc proxy")
-	}
-
 	c := &vaultClient{
-		rpcHandler: rpcHandler,
-		connPool:   connPool,
-		rpcProxy:   rpcProxy,
-		region:     region,
-		node:       node,
-		config:     config,
-		stopCh:     make(chan struct{}),
+		config: config,
+		stopCh: make(chan struct{}),
 		// Update channel should be a buffered channel
 		updateCh: make(chan struct{}, 1),
 		heap:     newVaultClientHeap(),
@@ -301,85 +276,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 		return nil, fmt.Errorf("vault client is not running")
 	}
 
-	if alloc == nil {
-		return nil, fmt.Errorf("nil allocation")
-	}
-
-	if taskNames == nil || len(taskNames) == 0 {
-		return nil, fmt.Errorf("missing task names")
-	}
-
-	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if group == nil {
-		return nil, fmt.Errorf("group name in allocation is not present in job")
-	}
-
-	verifiedTasks := []string{}
-	found := false
-	// Check if the given task names actually exist in the allocation
-	for _, taskName := range taskNames {
-		found = false
-		for _, task := range group.Tasks {
-			if task.Name == taskName {
-				found = true
-			}
-		}
-		if !found {
-			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
-			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
-		}
-		verifiedTasks = append(verifiedTasks, taskName)
-	}
-
-	// DeriveVaultToken of nomad server can take in a set of tasks and
-	// creates tokens for all the tasks.
-	req := &structs.DeriveVaultTokenRequest{
-		NodeID:   c.node.ID,
-		SecretID: c.node.SecretID,
-		AllocID:  alloc.ID,
-		Tasks:    verifiedTasks,
-		QueryOptions: structs.QueryOptions{
-			Region:     c.region,
-			AllowStale: true,
-		},
-	}
-
-	// Derive the tokens
-	var resp structs.DeriveVaultTokenResponse
-	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
-		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", err)
-		return nil, fmt.Errorf("failed to derive vault tokens: %v", err)
-	}
-	if resp.Tasks == nil {
-		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
-		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
-	}
-
-	unwrappedTokens := make(map[string]string)
-
-	// Retrieve the wrapped tokens from the response and unwrap it
-	for _, taskName := range verifiedTasks {
-		// Get the wrapped token
-		wrappedToken, ok := resp.Tasks[taskName]
-		if !ok {
-			c.logger.Printf("[ERR] client.vault: wrapped token missing for task %q", taskName)
-			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
-		}
-
-		// Unwrap the vault token
-		unwrapResp, err := c.client.Logical().Unwrap(wrappedToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
-		}
-		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
-		}
-
-		// Append the unwrapped token to the return value
-		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
-	}
-
-	return unwrappedTokens, nil
+	return c.tokenDeriver(alloc, taskNames, c.client)
 }
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
@@ -700,27 +597,6 @@ func (c *vaultClient) nextRenewal() (*vaultClientRenewalRequest, time.Time) {
 	}
 
 	return nextEntry.req, nextEntry.next
-}
-
-// RPC is used to forward an RPC call to a nomad server, or fail if no servers
-func (c *vaultClient) RPC(method string, args interface{}, reply interface{}) error {
-	// Invoke the RPCHandler if it exists
-	if c.rpcHandler != nil {
-		return c.rpcHandler.RPC(method, args, reply)
-	}
-
-	// Pick a server to request from
-	server := c.rpcProxy.FindServer()
-	if server == nil {
-		return fmt.Errorf("no known servers")
-	}
-
-	// Make the RPC request
-	if err := c.connPool.RPC(c.region, server.Addr, structs.ApiMajorVersion, method, args, reply); err != nil {
-		c.rpcProxy.NotifyFailedServer(server)
-		return fmt.Errorf("RPC failed to server %s: %v", server.Addr, err)
-	}
-	return nil
 }
 
 // Additional helper functions on top of interface methods

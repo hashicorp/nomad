@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -1310,9 +1311,7 @@ func (c *Client) setupVaultClient() error {
 	}
 
 	var err error
-	if c.vaultClient, err = vaultclient.NewVaultClient(c.Node(), c.Region(),
-		c.config.VaultConfig, c.logger, c.config.RPCHandler, c.connPool,
-		c.rpcProxy); err != nil {
+	if c.vaultClient, err = vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.tokenDeriver); err != nil {
 		return err
 	}
 
@@ -1322,6 +1321,88 @@ func (c *Client) setupVaultClient() error {
 	}
 
 	return nil
+}
+
+func (c *Client) tokenDeriver(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
+	if alloc == nil {
+		return nil, fmt.Errorf("nil allocation")
+	}
+
+	if taskNames == nil || len(taskNames) == 0 {
+		return nil, fmt.Errorf("missing task names")
+	}
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if group == nil {
+		return nil, fmt.Errorf("group name in allocation is not present in job")
+	}
+
+	verifiedTasks := []string{}
+	found := false
+	// Check if the given task names actually exist in the allocation
+	for _, taskName := range taskNames {
+		found = false
+		for _, task := range group.Tasks {
+			if task.Name == taskName {
+				found = true
+			}
+		}
+		if !found {
+			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+		}
+		verifiedTasks = append(verifiedTasks, taskName)
+	}
+
+	// DeriveVaultToken of nomad server can take in a set of tasks and
+	// creates tokens for all the tasks.
+	req := &structs.DeriveVaultTokenRequest{
+		NodeID:   c.Node().ID,
+		SecretID: c.Node().SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    verifiedTasks,
+		QueryOptions: structs.QueryOptions{
+			Region:     c.Region(),
+			AllowStale: true,
+		},
+	}
+
+	// Derive the tokens
+	var resp structs.DeriveVaultTokenResponse
+	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", err)
+		return nil, fmt.Errorf("failed to derive vault tokens: %v", err)
+	}
+	if resp.Tasks == nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
+		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
+	}
+
+	unwrappedTokens := make(map[string]string)
+
+	// Retrieve the wrapped tokens from the response and unwrap it
+	for _, taskName := range verifiedTasks {
+		// Get the wrapped token
+		wrappedToken, ok := resp.Tasks[taskName]
+		if !ok {
+			c.logger.Printf("[ERR] client.vault: wrapped token missing for task %q", taskName)
+			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
+		}
+
+		// Unwrap the vault token
+		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+		}
+		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+		}
+
+		// Append the unwrapped token to the return value
+		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
+	}
+
+	return unwrappedTokens, nil
 }
 
 // setupConsulSyncer creates Client-mode consul.Syncer which periodically
