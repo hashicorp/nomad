@@ -527,9 +527,9 @@ func (p *Process) fillFromIO() (*IOCountersStat, error) {
 			ret.ReadCount = t
 		case "syscw":
 			ret.WriteCount = t
-		case "readBytes":
+		case "read_bytes":
 			ret.ReadBytes = t
-		case "writeBytes":
+		case "write_bytes":
 			ret.WriteBytes = t
 		}
 	}

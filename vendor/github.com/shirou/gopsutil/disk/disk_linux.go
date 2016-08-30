@@ -292,6 +292,10 @@ func IOCounters() (map[string]IOCountersStat, error) {
 		if err != nil {
 			return ret, err
 		}
+		mergedReads, err := strconv.ParseUint((fields[4]), 10, 64)
+		if err != nil {
+			return ret, err
+		}
 		rbytes, err := strconv.ParseUint((fields[5]), 10, 64)
 		if err != nil {
 			return ret, err
@@ -304,6 +308,10 @@ func IOCounters() (map[string]IOCountersStat, error) {
 		if err != nil {
 			return ret, err
 		}
+		mergedWrites, err := strconv.ParseUint((fields[8]), 10, 64)
+		if err != nil {
+			return ret, err
+		}
 		wbytes, err := strconv.ParseUint((fields[9]), 10, 64)
 		if err != nil {
 			return ret, err
@@ -312,18 +320,25 @@ func IOCounters() (map[string]IOCountersStat, error) {
 		if err != nil {
 			return ret, err
 		}
+		iopsInProgress, err := strconv.ParseUint((fields[11]), 10, 64)
+		if err != nil {
+			return ret, err
+		}
 		iotime, err := strconv.ParseUint((fields[12]), 10, 64)
 		if err != nil {
 			return ret, err
 		}
 		d := IOCountersStat{
-			ReadBytes:  rbytes * SectorSize,
-			WriteBytes: wbytes * SectorSize,
-			ReadCount:  reads,
-			WriteCount: writes,
-			ReadTime:   rtime,
-			WriteTime:  wtime,
-			IoTime:     iotime,
+			ReadBytes:        rbytes * SectorSize,
+			WriteBytes:       wbytes * SectorSize,
+			ReadCount:        reads,
+			WriteCount:       writes,
+			MergedReadCount:  mergedReads,
+			MergedWriteCount: mergedWrites,
+			ReadTime:         rtime,
+			WriteTime:        wtime,
+			IopsInProgress:   iopsInProgress,
+			IoTime:           iotime,
 		}
 		if d == empty {
 			continue
