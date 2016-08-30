@@ -124,8 +124,9 @@ func IOCounters() (map[string]IOCountersStat, error) {
 			WriteCount: d.Operations[DEVSTAT_WRITE],
 			ReadBytes:  d.Bytes[DEVSTAT_READ],
 			WriteBytes: d.Bytes[DEVSTAT_WRITE],
-			ReadTime:   d.Duration[DEVSTAT_READ].Compute(),
-			WriteTime:  d.Duration[DEVSTAT_WRITE].Compute(),
+			ReadTime:   uint64(d.Duration[DEVSTAT_READ].Compute() * 1000),
+			WriteTime:  uint64(d.Duration[DEVSTAT_WRITE].Compute() * 1000),
+			IoTime:     uint64(d.Busy_time.Compute() * 1000),
 			Name:       name,
 		}
 		ret[name] = ds
@@ -134,9 +135,9 @@ func IOCounters() (map[string]IOCountersStat, error) {
 	return ret, nil
 }
 
-func (b Bintime) Compute() uint64 {
+func (b Bintime) Compute() float64 {
 	BINTIME_SCALE := 5.42101086242752217003726400434970855712890625e-20
-	return uint64(b.Sec) + b.Frac*uint64(BINTIME_SCALE)
+	return float64(b.Sec) + float64(b.Frac)*BINTIME_SCALE
 }
 
 // BT2LD(time)     ((long double)(time).sec + (time).frac * BINTIME_SCALE)

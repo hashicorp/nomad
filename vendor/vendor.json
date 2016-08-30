@@ -758,58 +758,52 @@
 			"revisionTime": "2016-04-29T17:20:22Z"
 		},
 		{
-			"checksumSHA1": "UkExAUfzi5jJ08QYurU223nLThM=",
+			"checksumSHA1": "Y13016ky4eYYAcgajHFtgxkkoW8=",
 			"path": "github.com/shirou/gopsutil",
-			"revision": "2728d81cdef579d6ed88d2fd5c71e85aa83eaba8",
-			"revisionTime": "2016-06-25T09:45:55Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "G1oy2AGv5pCnNL0hRfg+mlX4Uq4=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "ToLFWWpwBceipBQRASIxs36Glok=",
 			"path": "github.com/shirou/gopsutil/cpu",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "x4HZyWURx/UwxHVrdaTGbTFd198=",
+			"checksumSHA1": "NOh16yOqf+hH+0XMJp3uV1Kb9FA=",
 			"path": "github.com/shirou/gopsutil/disk",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "tV0skuyoy255WiTlKjd24T+5DeU=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "h0VVpxfeH65DnrSUtatFdvDS+RU=",
 			"path": "github.com/shirou/gopsutil/host",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "zJZyxS96XiEnDJSZkWwXtktziRY=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "UnT7JW8ZDcUVJUYOPBfW6SToB0k=",
 			"path": "github.com/shirou/gopsutil/internal/common",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "LUipApIqOLcKbZfwXknNCifGles=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "icZu8CrEyx4utr0MSc8CfTgQ1tU=",
 			"path": "github.com/shirou/gopsutil/mem",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "k57srhFXKSysrFdEh3b6oiO48hw=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "hk7C6mEL2gyz79NfGa/s8YxPMUE=",
 			"path": "github.com/shirou/gopsutil/net",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
-			"checksumSHA1": "+m5V0QobB9gklJkz+zk0NvaSeOs=",
-			"comment": "1.0.0-230-gf58654f",
+			"checksumSHA1": "cjLXT38Rtk5H/Sx+05PEqU8ta5Y=",
 			"path": "github.com/shirou/gopsutil/process",
-			"revision": "5c1bfed85550640833e8bbf50156d114ba99fbf2",
-			"revisionTime": "2016-06-17T08:26:08Z"
+			"revision": "859c81da50839c6829da58c9e90e1fff1edd8194",
+			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
 			"path": "github.com/shirou/w32",

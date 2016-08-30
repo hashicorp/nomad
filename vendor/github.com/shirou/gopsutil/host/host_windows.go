@@ -54,11 +54,9 @@ func Info() (*InfoStat, error) {
 	}
 
 	procs, err := process.Pids()
-	if err != nil {
-		return ret, err
+	if err == nil {
+		ret.Procs = uint64(len(procs))
 	}
-
-	ret.Procs = uint64(len(procs))
 
 	return ret, nil
 }
