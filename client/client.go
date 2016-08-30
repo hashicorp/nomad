@@ -1306,10 +1306,6 @@ func (c *Client) setupVaultClient() error {
 		return nil
 	}
 
-	if c.config.VaultConfig.Token == "" {
-		return fmt.Errorf("vault token not set")
-	}
-
 	var err error
 	if c.vaultClient, err =
 		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
