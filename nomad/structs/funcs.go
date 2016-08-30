@@ -28,17 +28,29 @@ func RemoveAllocs(alloc []*Allocation, remove []*Allocation) []*Allocation {
 	return alloc
 }
 
-// FilterTerminalAllocs filters out all allocations in a terminal state
-func FilterTerminalAllocs(allocs []*Allocation) []*Allocation {
+// FilterTerminalAllocs filters out all allocations in a terminal state and
+// returns the terminal allocations
+func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
+	terminalAllocsByName := make(map[string]*Allocation)
 	n := len(allocs)
 	for i := 0; i < n; i++ {
 		if allocs[i].TerminalStatus() {
+
+			// Add the allocation to the terminal allocs map if it's not already
+			// added or has a higher create index than the one which is
+			// currently present.
+			alloc, ok := terminalAllocsByName[allocs[i].Name]
+			if !ok || alloc.CreateIndex < allocs[i].CreateIndex {
+				terminalAllocsByName[allocs[i].Name] = allocs[i]
+			}
+
+			// Remove the allocation
 			allocs[i], allocs[n-1] = allocs[n-1], nil
 			i--
 			n--
 		}
 	}
-	return allocs[:n]
+	return allocs[:n], terminalAllocsByName
 }
 
 // AllocsFit checks if a given set of allocations will fit on a node.

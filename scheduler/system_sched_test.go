@@ -80,6 +80,76 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestSystemeSched_JobRegister_StickyAllocs(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job
+	job := mock.SystemJob()
+	job.TaskGroups[0].LocalDisk.Sticky = true
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	if err := h.Process(NewSystemScheduler, eval); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure the plan allocated
+	plan := h.Plans[0]
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Get an allocation and mark it as failed
+	alloc := planned[4].Copy()
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to handle the update
+	eval = &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+	}
+	h1 := NewHarnessWithState(t, h.State)
+	if err := h1.Process(NewSystemScheduler, eval); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we have created only one new allocation
+	plan = h1.Plans[0]
+	var newPlanned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		newPlanned = append(newPlanned, allocList...)
+	}
+	if len(newPlanned) != 1 {
+		t.Fatalf("bad plan: %#v", plan)
+	}
+	// Ensure that the new allocation was placed on the same node as the older
+	// one
+	if newPlanned[0].NodeID != alloc.NodeID || newPlanned[0].PreviousAllocation != alloc.ID {
+		t.Fatalf("expected: %#v, actual: %#v", alloc, newPlanned[0])
+	}
+}
+
 func TestSystemSched_JobRegister_LocalDiskConstraint(t *testing.T) {
 	h := NewHarness(t)
 
@@ -364,7 +434,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	out = structs.FilterTerminalAllocs(out)
+	out, _ = structs.FilterTerminalAllocs(out)
 	if len(out) != 11 {
 		t.Fatalf("bad: %#v", out)
 	}
@@ -492,7 +562,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	out = structs.FilterTerminalAllocs(out)
+	out, _ = structs.FilterTerminalAllocs(out)
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
@@ -756,7 +826,7 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure no remaining allocations
-	out = structs.FilterTerminalAllocs(out)
+	out, _ = structs.FilterTerminalAllocs(out)
 	if len(out) != 0 {
 		t.Fatalf("bad: %#v", out)
 	}

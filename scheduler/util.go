@@ -60,7 +60,8 @@ func (d *diffResult) Append(other *diffResult) {
 // (no longer required), those that should be ignored and those that are lost
 // that need to be replaced (running on a lost node).
 func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
-	required map[string]*structs.TaskGroup, allocs []*structs.Allocation) *diffResult {
+	required map[string]*structs.TaskGroup, allocs []*structs.Allocation,
+	terminalAllocs map[string]*structs.Allocation) *diffResult {
 	result := &diffResult{}
 
 	// Scan the existing updates
@@ -143,6 +144,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			result.place = append(result.place, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
+				Alloc:     terminalAllocs[name],
 			})
 		}
 	}
@@ -152,7 +154,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 // diffSystemAllocs is like diffAllocs however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]*structs.Node,
-	allocs []*structs.Allocation) *diffResult {
+	allocs []*structs.Allocation, terminalAllocs map[string]*structs.Allocation) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
 	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
@@ -172,12 +174,18 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 
 	result := &diffResult{}
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffAllocs(job, taintedNodes, required, allocs)
+		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
 
 		// Mark the alloc as being for a specific node.
 		for i := range diff.place {
 			alloc := &diff.place[i]
-			alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+
+			// If the new allocation isn't annotated with a previous allocation
+			// or if the previous allocation isn't from the same node then we
+			// annotate the allocTuple with a new Allocation
+			if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
+				alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+			}
 		}
 
 		// Migrate does not apply to system jobs and instead should be marked as

@@ -125,6 +125,42 @@ func TestServiceStack_Select_Size(t *testing.T) {
 	}
 }
 
+func TestServiceStack_Select_PreferringNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+
+	job := mock.Job()
+	stack.SetJob(job)
+
+	// Create a preferred node
+	preferredNode := mock.Node()
+	option, _ := stack.SelectPreferringNodes(job.TaskGroups[0], []*structs.Node{preferredNode})
+	if option == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+	if option.Node.ID != preferredNode.ID {
+		t.Fatalf("expected: %v, actual: %v", option.Node.ID, preferredNode.ID)
+	}
+
+	// Change the preferred node's kernel to windows and ensure the allocations
+	// are placed elsewhere
+	preferredNode1 := preferredNode.Copy()
+	preferredNode1.Attributes["kernel.name"] = "windows"
+	preferredNode1.ComputeClass()
+	option, _ = stack.SelectPreferringNodes(job.TaskGroups[0], []*structs.Node{preferredNode1})
+	if option == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if option.Node.ID != nodes[0].ID {
+		t.Fatalf("expected: %#v, actual: %#v", nodes[0], option.Node)
+	}
+}
+
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{

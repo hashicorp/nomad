@@ -99,7 +99,29 @@ func TestDiffAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffAllocs(job, tainted, required, allocs)
+	// Have three terminal allocs
+	terminalAllocs := map[string]*structs.Allocation{
+		"my-job.web[4]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[4]",
+			Job:    job,
+		},
+		"my-job.web[5]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[5]",
+			Job:    job,
+		},
+		"my-job.web[6]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[6]",
+			Job:    job,
+		},
+	}
+
+	diff := diffAllocs(job, tainted, required, allocs, terminalAllocs)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -136,13 +158,26 @@ func TestDiffAllocs(t *testing.T) {
 	if len(place) != 6 {
 		t.Fatalf("bad: %#v", place)
 	}
+
+	// Ensure that the allocations which are replacements of terminal allocs are
+	// annotated
+	for name, alloc := range terminalAllocs {
+		for _, allocTuple := range diff.place {
+			if name == allocTuple.Name {
+				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
+					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
+				}
+			}
+		}
+	}
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
 	job := mock.SystemJob()
 
 	// Create three alive nodes.
-	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"}}
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"},
+		{ID: "pipe"}}
 
 	// The "old" job has a previous modify index
 	oldJob := new(structs.Job)
@@ -193,7 +228,17 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, tainted, allocs)
+	// Have three terminal allocs
+	terminalAllocs := map[string]*structs.Allocation{
+		"my-job.web[0]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "pipe",
+			Name:   "my-job.web[0]",
+			Job:    job,
+		},
+	}
+
+	diff := diffSystemAllocs(job, nodes, tainted, allocs, terminalAllocs)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -227,8 +272,20 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	// We should place 1
-	if len(place) != 1 {
+	if len(place) != 2 {
 		t.Fatalf("bad: %#v", place)
+	}
+
+	// Ensure that the allocations which are replacements of terminal allocs are
+	// annotated
+	for _, alloc := range terminalAllocs {
+		for _, allocTuple := range diff.place {
+			if alloc.NodeID == allocTuple.Alloc.NodeID {
+				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
+					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
+				}
+			}
+		}
 	}
 }
 

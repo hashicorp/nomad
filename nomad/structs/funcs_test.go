@@ -38,12 +38,16 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		},
 	}
 
-	out := FilterTerminalAllocs(l)
+	out, terminalAllocs := FilterTerminalAllocs(l)
 	if len(out) != 1 {
 		t.Fatalf("bad: %#v", out)
 	}
 	if out[0].ID != "foo" {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	if len(terminalAllocs) != 1 {
+		t.Fatalf("bad: %#v", terminalAllocs)
 	}
 }
 
