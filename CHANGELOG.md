@@ -9,6 +9,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
+  * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
   * discovery: Fix HTTP timeout with Server HTTP health check when there is no
     leader [GH-1656]
 
