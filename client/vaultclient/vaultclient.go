@@ -345,7 +345,7 @@ func (c *vaultClient) RenewToken(token string, increment int) <-chan error {
 	// Perform the renewal of the token and send any error to the dedicated
 	// error channel.
 	if err := c.renew(renewalReq); err != nil {
-		c.logger.Printf("[ERR] Renewal of token failed: %v", err)
+		c.logger.Printf("[ERR] client.vault: renewal of token failed: %v", err)
 	}
 
 	return errCh
@@ -384,7 +384,7 @@ func (c *vaultClient) RenewLease(leaseId string, increment int) <-chan error {
 
 	// Renew the secret and send any error to the dedicated error channel
 	if err := c.renew(renewalReq); err != nil {
-		c.logger.Printf("[ERR] Renewal of lease failed: %v", err)
+		c.logger.Printf("[ERR] client.vault: renewal of lease failed: %v", err)
 	}
 
 	return errCh
@@ -460,8 +460,6 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		rand.Seed(time.Now().Unix())
 		duration = min + rand.Intn(max-min)
 	}
-	c.logger.Printf("[DEBUG] client.vault: req.increment: %d, leaseDuration: %d, duration: %d",
-		req.increment, leaseDuration, duration)
 
 	// Determine the next renewal time
 	next := time.Now().Add(time.Duration(duration) * time.Second)
@@ -472,7 +470,8 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			strings.Contains(renewalErr.Error(), "token not found")) {
 		fatal = true
 	} else if renewalErr != nil {
-		c.logger.Printf("[ERR] renewal of lease or token failed due to a non-fatal error. Retrying at %v", next.String())
+		c.logger.Printf("[DEBUG] client.vault: req.increment: %d, leaseDuration: %d, duration: %d", req.increment, leaseDuration, duration)
+		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v", next.String())
 	}
 
 	if c.isTracked(req.id) {
@@ -574,7 +573,7 @@ func (c *vaultClient) run() {
 		select {
 		case <-renewalCh:
 			if err := c.renew(renewalReq); err != nil {
-				c.logger.Printf("[ERR] Renewal of token failed: %v", err)
+				c.logger.Printf("[ERR] client.vault: renewal of token failed: %v", err)
 			}
 		case <-c.updateCh:
 			continue
