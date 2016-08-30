@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
-	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/rpcproxy"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+// TokenDeriverFunc takes in an allocation and a set of tasks and derives a
+// wrapped token for all the tasks, from the nomad server. All the derived
+// wrapped tokens will be unwrapped using the vault API client.
 type TokenDeriverFunc func(*structs.Allocation, []string, *vaultapi.Client) (map[string]string, error)
 
 // The interface which nomad client uses to interact with vault and
@@ -53,6 +54,10 @@ type VaultClient interface {
 // Implementation of VaultClient interface to interact with vault and perform
 // token and lease renewals periodically.
 type vaultClient struct {
+	// tokenDeriver is a function pointer passed in by the client to derive
+	// tokens by making RPC calls to the nomad server. The wrapped tokens
+	// returned by the nomad server will be unwrapped by this function
+	// using the vault API client.
 	tokenDeriver TokenDeriverFunc
 
 	// running indicates if the renewal loop is active or not
@@ -82,10 +87,6 @@ type vaultClient struct {
 
 	lock   sync.RWMutex
 	logger *log.Logger
-
-	rpcHandler clientconfig.RPCHandler
-	rpcProxy   *rpcproxy.RPCProxy
-	connPool   *nomad.ConnPool
 }
 
 // tokenData holds the relevant information about the Vault token passed to the
@@ -333,8 +334,7 @@ func (c *vaultClient) RenewToken(token string, increment int) <-chan error {
 	// Perform the renewal of the token and send any error to the dedicated
 	// error channel.
 	if err := c.renew(renewalReq); err != nil {
-		errCh <- err
-		close(errCh)
+		c.logger.Printf("[ERR] Renewal of token failed: %v", err)
 	}
 
 	return errCh
@@ -370,8 +370,7 @@ func (c *vaultClient) RenewLease(leaseId string, increment int) <-chan error {
 
 	// Renew the secret and send any error to the dedicated error channel
 	if err := c.renew(renewalReq); err != nil {
-		errCh <- err
-		close(errCh)
+		c.logger.Printf("[ERR] Renewal of lease failed: %v", err)
 	}
 
 	return errCh
@@ -453,17 +452,55 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	// Determine the next renewal time
 	next := time.Now().Add(time.Duration(duration) * time.Second)
 
+	fatal := false
+	if renewalErr != nil &&
+		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
+			strings.Contains(renewalErr.Error(), "token not found")) {
+		fatal = true
+	} else if renewalErr != nil {
+		c.logger.Printf("[ERR] renewal of lease or token failed due to a non-fatal error. Retrying at %v", next.String())
+	}
+
 	if c.isTracked(req.id) {
+		if fatal {
+			// If encountered with an error where in a lease or a
+			// token is not valid at all with vault, and if that
+			// item is tracked by the renewal loop, stop renewing
+			// it by removing the corresponding heap entry.
+			if err := c.heap.Remove(req.id); err != nil {
+				return fmt.Errorf("failed to remove heap entry. err: %v", err)
+			}
+			delete(c.heap.heapMap, req.id)
+
+			// Report the fatal error to the client
+			req.errCh <- renewalErr
+			close(req.errCh)
+
+			return renewalErr
+		}
+
 		// If the identifier is already tracked, this indicates a
 		// subsequest renewal. In this case, update the existing
 		// element in the heap with the new renewal time.
-
-		// There is no need to signal an update to the renewal loop
-		// here because this case is hit from the renewal loop itself.
 		if err := c.heap.Update(req, next); err != nil {
 			return fmt.Errorf("failed to update heap entry. err: %v", err)
 		}
+
+		// There is no need to signal an update to the renewal loop
+		// here because this case is hit from the renewal loop itself.
 	} else {
+		if fatal {
+			// If encountered with an error where in a lease or a
+			// token is not valid at all with vault, and if that
+			// item is not tracked by renewal loop, don't add it.
+
+			// Report the fatal error to the client
+			req.errCh <- renewalErr
+			close(req.errCh)
+
+			return renewalErr
+		}
+
 		// If the identifier is not already tracked, this is a first
 		// renewal request. In this case, add an entry into the heap
 		// with the next renewal time.
@@ -481,10 +518,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		}
 	}
 
-	// Returning the renewal error here ensures that an entry is either
-	// added or updated in the min-heap. This is done to not starve other
-	// entries in heap.
-	return renewalErr
+	return nil
 }
 
 // run is the renewal loop which performs the periodic renewals of both the
@@ -526,7 +560,7 @@ func (c *vaultClient) run() {
 		select {
 		case <-renewalCh:
 			if err := c.renew(renewalReq); err != nil {
-				renewalReq.errCh <- err
+				c.logger.Printf("[ERR] Renewal of token failed: %v", err)
 			}
 		case <-c.updateCh:
 			continue

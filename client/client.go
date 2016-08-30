@@ -250,7 +250,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 
 	// Start renewing tokens and secrets
 	if c.vaultClient != nil {
-		go c.vaultClient.Start()
+		c.vaultClient.Start()
 	}
 
 	return c, nil
