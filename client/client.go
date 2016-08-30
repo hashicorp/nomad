@@ -23,9 +23,11 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/rpcproxy"
 	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -147,6 +149,9 @@ type Client struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	// client to interact with vault for token and secret renewals
+	vaultClient vaultclient.VaultClient
 }
 
 // NewClient is used to create a new client from the given configuration
@@ -213,6 +218,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		return nil, fmt.Errorf("failed to create client Consul syncer: %v", err)
 	}
 
+	// Setup the vault client for token and secret renewals
+	if err := c.setupVaultClient(); err != nil {
+		return nil, fmt.Errorf("failed to setup vault client: %v", err)
+	}
+
 	// Register and then start heartbeating to the servers.
 	go c.registerAndHeartbeat()
 
@@ -237,6 +247,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// times out and there are no Nomad servers available, this data is
 	// populated by periodically polling Consul, if available.
 	go c.rpcProxy.Run()
+
+	// Start renewing tokens and secrets
+	if c.vaultClient != nil {
+		c.vaultClient.Start()
+	}
 
 	return c, nil
 }
@@ -317,6 +332,11 @@ func (c *Client) Shutdown() error {
 
 	if c.shutdown {
 		return nil
+	}
+
+	// Stop renewing tokens and secrets
+	if c.vaultClient != nil {
+		c.vaultClient.Stop()
 	}
 
 	// Destroy all the running allocations.
@@ -1273,6 +1293,116 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocs[alloc.ID] = ar
 	c.allocLock.Unlock()
 	return nil
+}
+
+// setupVaultClient creates an object to periodically renew tokens and secrets
+// with vault.
+func (c *Client) setupVaultClient() error {
+	if c.config.VaultConfig == nil {
+		return fmt.Errorf("nil vault config")
+	}
+
+	if !c.config.VaultConfig.Enabled {
+		return nil
+	}
+
+	var err error
+	if c.vaultClient, err =
+		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
+		return err
+	}
+
+	if c.vaultClient == nil {
+		c.logger.Printf("[ERR] client: failed to create vault client")
+		return fmt.Errorf("failed to create vault client")
+	}
+
+	return nil
+}
+
+// deriveToken takes in an allocation and a set of tasks and derives vault
+// tokens for each of the tasks, unwraps all of them using the supplied vault
+// client and returns a map of unwrapped tokens, indexed by the task name.
+func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
+	if alloc == nil {
+		return nil, fmt.Errorf("nil allocation")
+	}
+
+	if taskNames == nil || len(taskNames) == 0 {
+		return nil, fmt.Errorf("missing task names")
+	}
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if group == nil {
+		return nil, fmt.Errorf("group name in allocation is not present in job")
+	}
+
+	verifiedTasks := []string{}
+	found := false
+	// Check if the given task names actually exist in the allocation
+	for _, taskName := range taskNames {
+		found = false
+		for _, task := range group.Tasks {
+			if task.Name == taskName {
+				found = true
+			}
+		}
+		if !found {
+			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+		}
+		verifiedTasks = append(verifiedTasks, taskName)
+	}
+
+	// DeriveVaultToken of nomad server can take in a set of tasks and
+	// creates tokens for all the tasks.
+	req := &structs.DeriveVaultTokenRequest{
+		NodeID:   c.Node().ID,
+		SecretID: c.Node().SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    verifiedTasks,
+		QueryOptions: structs.QueryOptions{
+			Region:     c.Region(),
+			AllowStale: true,
+		},
+	}
+
+	// Derive the tokens
+	var resp structs.DeriveVaultTokenResponse
+	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", err)
+		return nil, fmt.Errorf("failed to derive vault tokens: %v", err)
+	}
+	if resp.Tasks == nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
+		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
+	}
+
+	unwrappedTokens := make(map[string]string)
+
+	// Retrieve the wrapped tokens from the response and unwrap it
+	for _, taskName := range verifiedTasks {
+		// Get the wrapped token
+		wrappedToken, ok := resp.Tasks[taskName]
+		if !ok {
+			c.logger.Printf("[ERR] client.vault: wrapped token missing for task %q", taskName)
+			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
+		}
+
+		// Unwrap the vault token
+		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+		}
+		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+		}
+
+		// Append the unwrapped token to the return value
+		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
+	}
+
+	return unwrappedTokens, nil
 }
 
 // setupConsulSyncer creates Client-mode consul.Syncer which periodically

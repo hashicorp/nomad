@@ -149,6 +149,7 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		VaultConfig:             config.DefaultVaultConfig(),
 		ConsulConfig:            config.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,
 		Region:                  "global",

@@ -85,6 +85,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := config.DefaultConfig()
+	conf.VaultConfig.Enabled = false
 	conf.DevMode = true
 	if cb != nil {
 		cb(conf)
