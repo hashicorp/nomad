@@ -174,6 +174,8 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 		trackedChecks:     make(map[consulCheckID]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[consulCheckID]*CheckRunner),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
+		// default noop implementation of addrFinder
+		addrFinder: func(string) (string, int) { return "", 0 },
 	}
 
 	return &consulSyncer, nil
@@ -264,22 +266,47 @@ func (c *Syncer) SetServices(domain ServiceDomain, services map[ServiceKey]*stru
 		return mErr.ErrorOrNil()
 	}
 
+	// Update the services and checks groups for this domain
 	c.groupsLock.Lock()
-	for serviceKey, service := range registeredServices {
-		serviceKeys, ok := c.servicesGroups[domain]
-		if !ok {
-			serviceKeys = make(map[ServiceKey]*consul.AgentServiceRegistration, len(registeredServices))
-			c.servicesGroups[domain] = serviceKeys
+
+	// Create map for service group if it doesn't exist
+	serviceKeys, ok := c.servicesGroups[domain]
+	if !ok {
+		serviceKeys = make(map[ServiceKey]*consul.AgentServiceRegistration, len(registeredServices))
+		c.servicesGroups[domain] = serviceKeys
+	}
+
+	// Remove stale services
+	for existingServiceKey := range serviceKeys {
+		if _, ok := registeredServices[existingServiceKey]; !ok {
+			// Exisitng service needs to be removed
+			delete(serviceKeys, existingServiceKey)
 		}
+	}
+
+	// Add registered services
+	for serviceKey, service := range registeredServices {
 		serviceKeys[serviceKey] = service
 	}
-	for serviceKey, checks := range registeredChecks {
-		serviceKeys, ok := c.checkGroups[domain]
-		if !ok {
-			serviceKeys = make(map[ServiceKey][]*consul.AgentCheckRegistration, len(registeredChecks))
-			c.checkGroups[domain] = serviceKeys
+
+	// Create map for check group if it doesn't exist
+	checkKeys, ok := c.checkGroups[domain]
+	if !ok {
+		checkKeys = make(map[ServiceKey][]*consul.AgentCheckRegistration, len(registeredChecks))
+		c.checkGroups[domain] = checkKeys
+	}
+
+	// Remove stale checks
+	for existingCheckKey := range checkKeys {
+		if _, ok := registeredChecks[existingCheckKey]; !ok {
+			// Exisitng check needs to be removed
+			delete(checkKeys, existingCheckKey)
 		}
-		serviceKeys[serviceKey] = checks
+	}
+
+	// Add registered checks
+	for checkKey, checks := range registeredChecks {
+		checkKeys[checkKey] = checks
 	}
 	c.groupsLock.Unlock()
 
