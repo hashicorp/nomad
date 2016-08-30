@@ -1311,7 +1311,8 @@ func (c *Client) setupVaultClient() error {
 	}
 
 	var err error
-	if c.vaultClient, err = vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.tokenDeriver); err != nil {
+	if c.vaultClient, err =
+		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
 		return err
 	}
 
@@ -1323,7 +1324,10 @@ func (c *Client) setupVaultClient() error {
 	return nil
 }
 
-func (c *Client) tokenDeriver(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
+// deriveToken takes in an allocation and a set of tasks and derives vault
+// tokens for each of the tasks, unwraps all of them using the supplied vault
+// client and returns a map of unwrapped tokens, indexed by the task name.
+func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
 	if alloc == nil {
 		return nil, fmt.Errorf("nil allocation")
 	}

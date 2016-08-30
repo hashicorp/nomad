@@ -7,9 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/rpcproxy"
-	"github.com/hashicorp/nomad/nomad"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 )
@@ -20,12 +17,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	logger := log.New(os.Stderr, "TEST: ", log.Lshortfile|log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "10s"
-	node := &structs.Node{}
-	connPool := &nomad.ConnPool{}
-	rpcProxy := &rpcproxy.RPCProxy{}
-	var rpcHandler config.RPCHandler
-	c, err := NewVaultClient(node, "global", v.Config, logger, rpcHandler,
-		connPool, rpcProxy)
+	c, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -58,12 +50,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	logger := log.New(os.Stderr, "TEST: ", log.Lshortfile|log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "10s"
-	node := &structs.Node{}
-	connPool := &nomad.ConnPool{}
-	rpcProxy := &rpcproxy.RPCProxy{}
-	var rpcHandler config.RPCHandler
-	c, err := NewVaultClient(node, "global", v.Config, logger, rpcHandler,
-		connPool, rpcProxy)
+	c, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -138,12 +125,7 @@ func TestVaultClient_Heap(t *testing.T) {
 	conf.VaultConfig.TaskTokenTTL = "10s"
 
 	logger := log.New(os.Stderr, "TEST: ", log.Lshortfile|log.LstdFlags)
-	node := &structs.Node{}
-	connPool := &nomad.ConnPool{}
-	rpcProxy := &rpcproxy.RPCProxy{}
-	var rpcHandler config.RPCHandler
-	c, err := NewVaultClient(node, "global", conf.VaultConfig, logger, rpcHandler,
-		connPool, rpcProxy)
+	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
