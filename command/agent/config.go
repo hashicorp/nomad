@@ -767,6 +767,12 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.collectionInterval != 0 {
 		result.collectionInterval = b.collectionInterval
 	}
+	if b.PublishNodeMetrics {
+		result.PublishNodeMetrics = true
+	}
+	if b.PublishAllocationMetrics {
+		result.PublishAllocationMetrics = true
+	}
 	if b.CirconusAPIToken != "" {
 		result.CirconusAPIToken = b.CirconusAPIToken
 	}
