@@ -150,7 +150,7 @@ count = 3
 
 Once you have finished modifying the job specification, use [`plan`
 command](/docs/commands/plan.html) to invoke a dry-run of the scheduler to see
-what would happen if your ran the updated job:
+what would happen if you ran the updated job:
 
 ```
 $ nomad plan example.nomad
