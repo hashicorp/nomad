@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 )
@@ -24,7 +25,11 @@ func TestRemoveAllocs(t *testing.T) {
 
 func TestFilterTerminalAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{ID: "bar", DesiredStatus: AllocDesiredStatusEvict},
+		&Allocation{
+			ID:            "bar",
+			Name:          "myname1",
+			DesiredStatus: AllocDesiredStatusEvict,
+		},
 		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
 		&Allocation{
 			ID:            "foo",
@@ -33,8 +38,17 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		},
 		&Allocation{
 			ID:            "bam",
+			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusComplete,
+			CreateIndex:   5,
+		},
+		&Allocation{
+			ID:            "lol",
+			Name:          "myname",
+			DesiredStatus: AllocDesiredStatusRun,
+			ClientStatus:  AllocClientStatusComplete,
+			CreateIndex:   2,
 		},
 	}
 
@@ -46,8 +60,16 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	if len(terminalAllocs) != 1 {
+	if len(terminalAllocs) != 3 {
+		for _, o := range terminalAllocs {
+			fmt.Printf("%#v \n", o)
+		}
+
 		t.Fatalf("bad: %#v", terminalAllocs)
+	}
+
+	if terminalAllocs["myname"].ID != "bam" {
+		t.Fatalf("bad: %#v", terminalAllocs["myname"])
 	}
 }
 
