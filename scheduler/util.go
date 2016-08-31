@@ -59,6 +59,13 @@ func (d *diffResult) Append(other *diffResult) {
 // need to be migrated (node is draining), the allocs that need to be evicted
 // (no longer required), those that should be ignored and those that are lost
 // that need to be replaced (running on a lost node).
+//
+// job is the job whose allocs is going to be diff-ed.
+// taintedNodes is an index of the nodes which are either down or in drain mode
+// by name.
+// required is a set of allocations that must exist.
+// allocs is a list of non terminal allocations.
+// terminalAllocs is an index of the latest terminal allocations by name.
 func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 	required map[string]*structs.TaskGroup, allocs []*structs.Allocation,
 	terminalAllocs map[string]*structs.Allocation) *diffResult {
@@ -153,6 +160,13 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 
 // diffSystemAllocs is like diffAllocs however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
+//
+// job is the job whose allocs is going to be diff-ed.
+// nodes is a list of nodes in ready state.
+// taintedNodes is an index of the nodes which are either down or in drain mode
+// by name.
+// allocs is a list of non terminal allocations.
+// terminalAllocs is an index of the latest terminal allocations by name.
 func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]*structs.Node,
 	allocs []*structs.Allocation, terminalAllocs map[string]*structs.Allocation) *diffResult {
 

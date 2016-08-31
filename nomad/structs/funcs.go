@@ -29,7 +29,7 @@ func RemoveAllocs(alloc []*Allocation, remove []*Allocation) []*Allocation {
 }
 
 // FilterTerminalAllocs filters out all allocations in a terminal state and
-// returns the terminal allocations
+// returns the latest terminal allocations
 func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
 	terminalAllocsByName := make(map[string]*Allocation)
 	n := len(allocs)
