@@ -378,7 +378,7 @@ func (c *Syncer) Shutdown() error {
 	// De-register all the services from Consul
 	services, err := c.queryAgentServices()
 	if err != nil {
-		c.logger.Printf("[WARN] consul.syncer: failed to register services due to error: %v", err)
+		c.logger.Printf("[WARN] consul.syncer: failed to fetch services for deregistering due to error: %v", err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for serviceID := range services {
