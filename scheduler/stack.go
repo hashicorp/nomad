@@ -171,6 +171,19 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	return option, tgConstr.size
 }
 
+// SelectPreferredNode returns a node where an allocation of the task group can
+// be placed, the node passed to it is preferred over the other available nodes
+func (s *GenericStack) SelectPreferringNodes(tg *structs.TaskGroup, nodes []*structs.Node) (*RankedNode, *structs.Resources) {
+	originalNodes := s.source.nodes
+	s.source.SetNodes(nodes)
+	if option, resources := s.Select(tg); option != nil {
+		s.source.SetNodes(originalNodes)
+		return option, resources
+	}
+	s.source.SetNodes(originalNodes)
+	return s.Select(tg)
+}
+
 // SystemStack is the Stack used for the System scheduler. It is designed to
 // attempt to make placements on all nodes.
 type SystemStack struct {
