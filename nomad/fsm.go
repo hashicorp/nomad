@@ -476,8 +476,7 @@ func (n *nomadFSM) applyUpsertVaultAccessor(buf []byte, index uint64) interface{
 	return nil
 }
 
-// applyDeregisterVaultAccessor stores the Vault accessors for a given allocation
-// and task
+// applyDeregisterVaultAccessor deregisters a set of Vault accessors
 func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_vault_accessor"}, time.Now())
 	var req structs.VaultAccessorsRequest

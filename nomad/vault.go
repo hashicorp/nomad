@@ -73,7 +73,7 @@ type VaultClient interface {
 // PurgeVaultAccessor is called to remove VaultAccessors from the system. If
 // the function returns an error, the token will still be tracked and revocation
 // will retry till there is a success
-type PurgeVaultAccessor func(accessors []*structs.VaultAccessor) error
+type PurgeVaultAccessorFn func(accessors []*structs.VaultAccessor) error
 
 // tokenData holds the relevant information about the Vault token passed to the
 // client.
@@ -115,7 +115,7 @@ type vaultClient struct {
 
 	// revoking tracks the VaultAccessors that must be revoked
 	revoking map[*structs.VaultAccessor]time.Time
-	purgeFn  PurgeVaultAccessor
+	purgeFn  PurgeVaultAccessorFn
 	revLock  sync.Mutex
 
 	// active indicates whether the vaultClient is active. It should be
@@ -141,7 +141,7 @@ type vaultClient struct {
 
 // NewVaultClient returns a Vault client from the given config. If the client
 // couldn't be made an error is returned.
-func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaultAccessor) (*vaultClient, error) {
+func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaultAccessorFn) (*vaultClient, error) {
 	if c == nil {
 		return nil, fmt.Errorf("must pass valid VaultConfig")
 	}

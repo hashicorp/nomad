@@ -723,6 +723,8 @@ func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation) {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// For each allocation we are updating check if we should revoke any
+	// Vault Accessors
 	var revoke []*structs.VaultAccessor
 	for _, alloc := range updates {
 		// Skip any allocation that isn't dead on the client
