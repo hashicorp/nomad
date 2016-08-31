@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -121,29 +121,25 @@ func (a *Agent) keyringProcess(args *structs.KeyringRequest) (*structs.KeyringRe
 
 // ListKeys lists out all keys installed on the collective Nomad cluster. This
 // includes servers in all DC's.
-func (a *Agent) ListKeys(token string) (*structs.KeyringResponses, error) {
+func (a *Agent) ListKeys() (*structs.KeyringResponses, error) {
 	args := structs.KeyringRequest{Operation: structs.KeyringList}
-	args.Token = token
 	return a.keyringProcess(&args)
 }
 
 // InstallKey installs a new gossip encryption key
-func (a *Agent) InstallKey(key, token string) (*structs.KeyringResponses, error) {
+func (a *Agent) InstallKey(key string) (*structs.KeyringResponses, error) {
 	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringInstall}
-	args.Token = token
 	return a.keyringProcess(&args)
 }
 
 // UseKey changes the primary encryption key used to encrypt messages
-func (a *Agent) UseKey(key, token string) (*structs.KeyringResponses, error) {
+func (a *Agent) UseKey(key string) (*structs.KeyringResponses, error) {
 	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringUse}
-	args.Token = token
 	return a.keyringProcess(&args)
 }
 
 // RemoveKey will remove a gossip encryption key from the keyring
-func (a *Agent) RemoveKey(key, token string) (*structs.KeyringResponses, error) {
+func (a *Agent) RemoveKey(key string) (*structs.KeyringResponses, error) {
 	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringRemove}
-	args.Token = token
 	return a.keyringProcess(&args)
 }

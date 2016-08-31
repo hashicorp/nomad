@@ -3,7 +3,7 @@ package nomad
 import (
 	"errors"
 
-	"github.com/hashicorp/consul/consul/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 

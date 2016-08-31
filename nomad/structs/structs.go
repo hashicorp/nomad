@@ -3178,3 +3178,54 @@ func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)
 	return buf.Bytes(), err
 }
+
+type KeyringOp string
+
+const (
+	KeyringList    KeyringOp = "list"
+	KeyringInstall           = "install"
+	KeyringUse               = "use"
+	KeyringRemove            = "remove"
+)
+
+// KeyringRequest encapsulates a request to modify an encryption keyring.
+// It can be used for install, remove, or use key type operations.
+type KeyringRequest struct {
+	Operation  KeyringOp
+	Key        string
+	Datacenter string
+	Forwarded  bool
+	QueryOptions
+}
+
+func (r *KeyringRequest) RequestDatacenter() string {
+	return r.Datacenter
+}
+
+// KeyringResponse is a unified key response and can be used for install,
+// remove, use, as well as listing key queries.
+type KeyringResponse struct {
+	WAN        bool
+	Datacenter string
+	Messages   map[string]string
+	Keys       map[string]int
+	NumNodes   int
+	Error      string
+}
+
+// KeyringResponses holds multiple responses to keyring queries. Each
+// datacenter replies independently, and KeyringResponses is used as a
+// container for the set of all responses.
+type KeyringResponses struct {
+	Responses []*KeyringResponse
+	QueryMeta
+}
+
+func (r *KeyringResponses) Add(v interface{}) {
+	val := v.(*KeyringResponses)
+	r.Responses = append(r.Responses, val.Responses...)
+}
+
+func (r *KeyringResponses) New() interface{} {
+	return new(KeyringResponses)
+}
