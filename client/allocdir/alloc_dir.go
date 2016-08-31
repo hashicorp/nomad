@@ -14,7 +14,6 @@ import (
 	"gopkg.in/tomb.v1"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
 )
@@ -55,12 +54,14 @@ var (
 	TaskDirs = []string{"tmp"}
 )
 
+type CreateSecretDirFn func(allocID, task string) (path string, err error)
+
 type AllocDir struct {
 	// AllocID is the allocation ID for this directory
 	AllocID string
 
-	// SecretDir is used to build the secret directory for the allocation
-	SecretDir *secretdir.SecretDir
+	// TODO
+	createSecretDirFn CreateSecretDirFn
 
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
@@ -121,10 +122,9 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory and maxSize as the maximum allowed size in megabytes.
-func NewAllocDir(allocID, allocDir string, maxSize int, sdir *secretdir.SecretDir) *AllocDir {
+func NewAllocDir(allocID, allocDir string, maxSize int) *AllocDir {
 	d := &AllocDir{
 		AllocID:                   allocID,
-		SecretDir:                 sdir,
 		AllocDir:                  allocDir,
 		MaxCheckDiskInterval:      maxCheckDiskInterval,
 		MinCheckDiskInterval:      minCheckDiskInterval,
@@ -134,6 +134,10 @@ func NewAllocDir(allocID, allocDir string, maxSize int, sdir *secretdir.SecretDi
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
+}
+
+func (d *AllocDir) SetSecretDirFn(fn CreateSecretDirFn) {
+	d.createSecretDirFn = fn
 }
 
 // Tears down previously build directory structure.
@@ -250,15 +254,17 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 		}
 
 		// Get the secret directory
-		sdir, err := d.SecretDir.CreateFor(d.AllocID, t.Name)
-		if err != nil {
-			return fmt.Errorf("Creating secret directory for task %q failed: %v", t.Name, err)
-		}
+		if d.createSecretDirFn != nil {
+			sdir, err := d.createSecretDirFn(d.AllocID, t.Name)
+			if err != nil {
+				return fmt.Errorf("Creating secret directory for task %q failed: %v", t.Name, err)
+			}
 
-		// Mount the secret directory
-		taskSecret := filepath.Join(taskDir, TaskSecrets)
-		if err := d.mount(sdir, taskSecret); err != nil {
-			return fmt.Errorf("failed to mount secret directory: %v", err)
+			// Mount the secret directory
+			taskSecret := filepath.Join(taskDir, TaskSecrets)
+			if err := d.mount(sdir, taskSecret); err != nil {
+				return fmt.Errorf("failed to mount secret directory: %v", err)
+			}
 		}
 	}
 

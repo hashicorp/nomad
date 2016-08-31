@@ -64,7 +64,7 @@ type AllocRunner struct {
 
 	updateCh chan *structs.Allocation
 
-	secretDir *secretdir.SecretDir
+	secretDir secretdir.SecretDirectory
 
 	destroy     bool
 	destroyCh   chan struct{}
@@ -84,7 +84,7 @@ type allocRunnerState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation, secretDir *secretdir.SecretDir) *AllocRunner {
+	alloc *structs.Allocation, secretDir secretdir.SecretDirectory) *AllocRunner {
 	ar := &AllocRunner{
 		config:     config,
 		updater:    updater,
@@ -131,6 +131,8 @@ func (r *AllocRunner) RestoreState() error {
 	}
 	if r.ctx == nil {
 		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil context"))
+	} else {
+		r.ctx.AllocDir.SetSecretDirFn(r.secretDir.CreateFor)
 	}
 	if e := snapshotErrors.ErrorOrNil(); e != nil {
 		return e
@@ -393,7 +395,8 @@ func (r *AllocRunner) Run() {
 	if r.ctx == nil {
 		path := filepath.Join(r.config.AllocDir, r.alloc.ID)
 		size := r.Alloc().Resources.DiskMB
-		allocDir := allocdir.NewAllocDir(r.alloc.ID, path, size, r.secretDir)
+		allocDir := allocdir.NewAllocDir(r.alloc.ID, path, size)
+		allocDir.SetSecretDirFn(r.secretDir.CreateFor)
 		if err := allocDir.Build(tg.Tasks); err != nil {
 			r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))

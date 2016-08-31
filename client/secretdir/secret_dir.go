@@ -8,6 +8,12 @@ import (
 
 const ()
 
+type SecretDirectory interface {
+	Destroy() error
+	CreateFor(allocID, task string) (path string, err error)
+	Remove(allocID, task string) error
+}
+
 type SecretDir struct {
 	// Dir is the path to the secret directory
 	Dir string
