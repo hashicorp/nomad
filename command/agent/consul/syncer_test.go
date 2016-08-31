@@ -216,9 +216,14 @@ func TestConsulServiceUpdateService(t *testing.T) {
 	if len(agentServices) != 3 {
 		t.Fatalf("expected 3 services in consul but found %d:\n%#v", len(agentServices), agentServices)
 	}
+	consulServices := make(map[string]*api.AgentService, 3)
+	for _, as := range agentServices {
+		consulServices[as.ID] = as
+	}
 
 	found := 0
 	for _, s := range cs.flattenedServices() {
+		// Assert sure changes were applied to internal state
 		switch s.Name {
 		case "foo1":
 			found++
@@ -237,6 +242,22 @@ func TestConsulServiceUpdateService(t *testing.T) {
 			found++
 		default:
 			t.Errorf("unexpected service: %s", s.Name)
+		}
+
+		// Assert internal state equals consul's state
+		cs, ok := consulServices[s.ID]
+		if !ok {
+			t.Errorf("service not in consul: %s id: %s", s.Name, s.ID)
+			continue
+		}
+		if !reflect.DeepEqual(s.Tags, cs.Tags) {
+			t.Errorf("mismatched tags in syncer state and consul for %s:\nsyncer: %v\nconsul: %v", s.Name, s.Tags, cs.Tags)
+		}
+		if cs.Port != s.Port {
+			t.Errorf("mismatched port in syncer state and consul for %s\nsyncer: %v\nconsul: %v", s.Name, s.Port, cs.Port)
+		}
+		if cs.Address != s.Address {
+			t.Errorf("mismatched address in syncer state and consul for %s\nsyncer: %v\nconsul: %v", s.Name, s.Address, cs.Address)
 		}
 	}
 	if found != 3 {
