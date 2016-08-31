@@ -147,12 +147,25 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 		t.Fatalf("expected 0 checks but found %d", numchecks)
 	}
 
-	agentServices, err := cs.queryAgentServices()
+	// Assert services are in consul
+	agentServices, err := cs.client.Agent().Services()
 	if err != nil {
 		t.Fatalf("error querying consul services: %v", err)
 	}
-	if len(agentServices) != numservices {
-		t.Fatalf("expected %d services in consul but found %d:\n%#v", numservices, len(agentServices), agentServices)
+	found := 0
+	for id, as := range agentServices {
+		if id == "consul" {
+			found++
+			continue
+		}
+		if _, ok := services[ServiceKey(as.Service)]; ok {
+			found++
+			continue
+		}
+		t.Errorf("unexpected service in consul: %s", id)
+	}
+	if found != 3 {
+		t.Fatalf("expected 3 services in consul but found %d:\nconsul: %#v", len(agentServices), agentServices)
 	}
 
 	agentChecks, err := cs.queryChecks()
