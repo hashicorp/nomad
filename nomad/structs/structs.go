@@ -48,6 +48,7 @@ const (
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
 	VaultAccessorRegisterRequestType
+	VaultAccessorDegisterRequestType
 )
 
 const (
@@ -365,8 +366,8 @@ type DeriveVaultTokenRequest struct {
 	QueryOptions
 }
 
-// VaultAccessorRegisterRequest is used to register a set of Vault accessors
-type VaultAccessorRegisterRequest struct {
+// VaultAccessorsRequest is used to operate on a set of Vault accessors
+type VaultAccessorsRequest struct {
 	Accessors []*VaultAccessor
 }
 

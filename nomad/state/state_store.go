@@ -1154,24 +1154,19 @@ func (s *StateStore) UpsertVaultAccessor(index uint64, accessors []*structs.Vaul
 	return nil
 }
 
-// DeleteVaultAccessor is used to delete a Vault Accessor
-func (s *StateStore) DeleteVaultAccessor(index uint64, accessor string) error {
+// DeleteVaultAccessors is used to delete a set of Vault Accessors
+func (s *StateStore) DeleteVaultAccessors(index uint64, accessors []*structs.VaultAccessor) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	// Lookup the accessor
-	existing, err := txn.First("vault_accessors", "id", accessor)
-	if err != nil {
-		return fmt.Errorf("accessor lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("vault_accessor not found")
+	for _, accessor := range accessors {
+		// Delete the accessor
+		if err := txn.Delete("vault_accessors", accessor); err != nil {
+			return fmt.Errorf("accessor delete failed: %v", err)
+		}
 	}
 
-	// Delete the accessor
-	if err := txn.Delete("vault_accessors", existing); err != nil {
-		return fmt.Errorf("accessor delete failed: %v", err)
-	}
 	if err := txn.Insert("index", &IndexEntry{"vault_accessors", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}

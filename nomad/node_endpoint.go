@@ -11,6 +11,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
@@ -215,7 +216,7 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 	return nil
 }
 
-// Deregister is used to remove a client from the client. If a client should
+// Deregister is used to remove a client from the cluster. If a client should
 // just be made unavailable for scheduling, a status update is preferred.
 func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Deregister", args, args, reply); done {
@@ -243,6 +244,20 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
 		return err
+	}
+
+	// Determine if there are any Vault accessors on the node
+	accessors, err := n.srv.State().VaultAccessorsByNode(args.NodeID)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for node %q failed: %v", args.NodeID, err)
+		return err
+	}
+
+	if len(accessors) != 0 {
+		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: revoking accessors for node %q failed: %v", args.NodeID, err)
+			return err
+		}
 	}
 
 	// Setup the reply
@@ -311,7 +326,22 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check if we need to setup a heartbeat
-	if args.Status != structs.NodeStatusDown {
+	switch args.Status {
+	case structs.NodeStatusDown:
+		// Determine if there are any Vault accessors on the node
+		accessors, err := n.srv.State().VaultAccessorsByNode(args.NodeID)
+		if err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for node %q failed: %v", args.NodeID, err)
+			return err
+		}
+
+		if len(accessors) != 0 {
+			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+				n.srv.logger.Printf("[ERR] nomad.client: revoking accessors for node %q failed: %v", args.NodeID, err)
+				return err
+			}
+		}
+	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: heartbeat reset failed: %v", err)
@@ -686,13 +716,41 @@ func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation) {
 	}
 
 	// Commit this update via Raft
+	var mErr multierror.Error
 	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, batch)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: alloc update failed: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// For each allocation we are updating check if we should revoke any
+	// Vault Accessors
+	var revoke []*structs.VaultAccessor
+	for _, alloc := range updates {
+		// Skip any allocation that isn't dead on the client
+		if !alloc.Terminated() {
+			continue
+		}
+
+		// Determine if there are any Vault accessors for the allocation
+		accessors, err := n.srv.State().VaultAccessorsByAlloc(alloc.ID)
+		if err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for alloc %q failed: %v", alloc.ID, err)
+			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		revoke = append(revoke, accessors...)
+	}
+
+	if len(revoke) != 0 {
+		if err := n.srv.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: batched accessor revocation failed: %v", err)
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	// Respond to the future
-	future.Respond(index, err)
+	future.Respond(index, mErr.ErrorOrNil())
 }
 
 // List is used to list the available nodes
@@ -1011,10 +1069,6 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 	// Wait for everything to complete or for an error
 	err = g.Wait()
-	if err != nil {
-		// TODO Revoke any created token
-		return err
-	}
 
 	// Commit to Raft before returning any of the tokens
 	accessors := make([]*structs.VaultAccessor, 0, len(results))
@@ -1037,7 +1091,17 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 		accessors = append(accessors, accessor)
 	}
 
-	req := structs.VaultAccessorRegisterRequest{Accessors: accessors}
+	// If there was an error revoke the created tokens
+	if err != nil {
+		var mErr multierror.Error
+		mErr.Errors = append(mErr.Errors, err)
+		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, false); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		return mErr.ErrorOrNil()
+	}
+
+	req := structs.VaultAccessorsRequest{Accessors: accessors}
 	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors failed: %v", err)

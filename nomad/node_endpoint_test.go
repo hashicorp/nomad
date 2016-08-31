@@ -170,6 +170,65 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Deregister_Vault(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Swap the servers Vault Client
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Put some Vault accessors in the state store for that node
+	state := s1.fsm.State()
+	va1 := mock.VaultAccessor()
+	va1.NodeID = node.ID
+	va2 := mock.VaultAccessor()
+	va2.NodeID = node.ID
+	state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va1, va2})
+
+	// Deregister
+	dereg := &structs.NodeDeregisterRequest{
+		NodeID:       node.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected node")
+	}
+
+	// Check that the endpoint revoked the tokens
+	if l := len(tvc.RevokedTokens); l != 2 {
+		t.Fatalf("Deregister revoked %d tokens; want 2", l)
+	}
+}
+
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -226,6 +285,63 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 	if out.ModifyIndex != resp2.Index {
 		t.Fatalf("index mis-match")
+	}
+}
+
+func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	ttl := resp.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Swap the servers Vault Client
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Put some Vault accessors in the state store for that node
+	state := s1.fsm.State()
+	va1 := mock.VaultAccessor()
+	va1.NodeID = node.ID
+	va2 := mock.VaultAccessor()
+	va2.NodeID = node.ID
+	state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va1, va2})
+
+	// Update the status to be down
+	dereg := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check that the endpoint revoked the tokens
+	if l := len(tvc.RevokedTokens); l != 2 {
+		t.Fatalf("Deregister revoked %d tokens; want 2", l)
 	}
 }
 
@@ -1232,6 +1348,81 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	}
 	if out.ClientStatus != structs.AllocClientStatusFailed {
 		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Swap the servers Vault Client
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Inject fake allocation and vault accessor
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	if err := state.UpsertAllocs(100, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	va := mock.VaultAccessor()
+	va.NodeID = node.ID
+	va.AllocID = alloc.ID
+	if err := state.UpsertVaultAccessor(101, []*structs.VaultAccessor{va}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Attempt update
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	// Update the alloc
+	update := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{clientAlloc},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeAllocsResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("Bad index: %d", resp2.Index)
+	}
+	if diff := time.Since(start); diff < batchUpdateInterval {
+		t.Fatalf("too fast: %v", diff)
+	}
+
+	// Lookup the alloc
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.ClientStatus != structs.AllocClientStatusFailed {
+		t.Fatalf("Bad: %#v", out)
+	}
+
+	if l := len(tvc.RevokedTokens); l != 1 {
+		t.Fatalf("Deregister revoked %d tokens; want 1", l)
 	}
 }
 

@@ -567,7 +567,7 @@ func (s *Server) setupConsulSyncer() error {
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger)
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
 	if err != nil {
 		return err
 	}

@@ -777,7 +777,7 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 
 	va := mock.VaultAccessor()
 	va2 := mock.VaultAccessor()
-	req := structs.VaultAccessorRegisterRequest{
+	req := structs.VaultAccessorsRequest{
 		Accessors: []*structs.VaultAccessor{va, va2},
 	}
 	buf, err := structs.Encode(structs.VaultAccessorRegisterRequestType, req)
@@ -810,6 +810,47 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	}
 	if out1.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", out2.CreateIndex)
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestFSM_DeregisterVaultAccessor(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	va := mock.VaultAccessor()
+	va2 := mock.VaultAccessor()
+	accessors := []*structs.VaultAccessor{va, va2}
+
+	// Insert the accessors
+	if err := fsm.State().UpsertVaultAccessor(1000, accessors); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	req := structs.VaultAccessorsRequest{
+		Accessors: accessors,
+	}
+	buf, err := structs.Encode(structs.VaultAccessorDegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out1 != nil {
+		t.Fatalf("not deleted!")
 	}
 
 	tt := fsm.TimeTable()
