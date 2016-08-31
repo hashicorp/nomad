@@ -143,6 +143,8 @@ func TestConfig_Merge(t *testing.T) {
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
 			DisableHostname:                    true,
+			PublishNodeMetrics:                 true,
+			PublishAllocationMetrics:           true,
 			CirconusAPIToken:                   "1",
 			CirconusAPIApp:                     "nomad",
 			CirconusAPIURL:                     "https://api.circonus.com/v2",
