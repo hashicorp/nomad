@@ -119,10 +119,6 @@ type Syncer struct {
 	// Checks all guarded by the registryLock.
 	registryLock sync.RWMutex
 
-	// trackedChecks and trackedServices are registered with consul
-	trackedChecks   map[consulCheckID]*consul.AgentCheckRegistration
-	trackedServices map[consulServiceID]*consul.AgentServiceRegistration
-
 	// checkRunners are delegated Consul checks being ran by the Syncer
 	checkRunners map[consulCheckID]*CheckRunner
 
@@ -170,8 +166,6 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 		shutdownCh:        shutdownCh,
 		servicesGroups:    make(map[ServiceDomain]map[ServiceKey]*consul.AgentServiceRegistration),
 		checkGroups:       make(map[ServiceDomain]map[ServiceKey][]*consul.AgentCheckRegistration),
-		trackedServices:   make(map[consulServiceID]*consul.AgentServiceRegistration),
-		trackedChecks:     make(map[consulCheckID]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[consulCheckID]*CheckRunner),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
 		// default noop implementation of addrFinder
@@ -382,7 +376,12 @@ func (c *Syncer) Shutdown() error {
 	}
 
 	// De-register all the services from Consul
-	for serviceID := range c.trackedServices {
+	services, err := c.queryAgentServices()
+	if err != nil {
+		c.logger.Printf("[WARN] consul.syncer: failed to register services due to error: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	for serviceID := range services {
 		convertedID := string(serviceID)
 		if err := c.client.Agent().ServiceDeregister(convertedID); err != nil {
 			c.logger.Printf("[WARN] consul.syncer: failed to deregister service ID %+q: %v", convertedID, err)
@@ -426,9 +425,6 @@ func (c *Syncer) syncChecks() error {
 		if err := c.registerCheck(check); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.registryLock.Lock()
-		c.trackedChecks[consulCheckID(check.ID)] = check
-		c.registryLock.Unlock()
 	}
 	for _, check := range existingChecks {
 		c.ensureCheckRunning(check)
@@ -450,9 +446,6 @@ func (c *Syncer) syncChecks() error {
 		if err := c.deregisterCheck(consulCheckID(check.ID)); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.registryLock.Lock()
-		delete(c.trackedChecks, consulCheckID(check.ID))
-		c.registryLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
@@ -471,8 +464,8 @@ func compareConsulCheck(localCheck *consul.AgentCheckRegistration, consulCheck *
 }
 
 // calcChecksDiff takes the argument (consulChecks) and calculates the delta
-// between the consul.Syncer's list of known checks (c.trackedChecks).  Three
-// arrays are returned:
+// between the consul.Syncer's list of known checks (c.flattenedChecks()).
+// Four arrays are returned:
 //
 // 1) a slice of checks that exist only locally in the Syncer and are missing
 // from the Consul Agent (consulChecks) and therefore need to be registered.
@@ -506,13 +499,12 @@ func (c *Syncer) calcChecksDiff(consulChecks map[consulCheckID]*consul.AgentChec
 		changedChecksCount = 0
 		agentChecks        = 0
 	)
-	c.registryLock.RLock()
-	localChecks := make(map[string]*mergedCheck, len(c.trackedChecks)+len(consulChecks))
-	for _, localCheck := range c.flattenedChecks() {
+	flattenedChecks := c.flattenedChecks()
+	localChecks := make(map[string]*mergedCheck, len(flattenedChecks)+len(consulChecks))
+	for _, localCheck := range flattenedChecks {
 		localChecksCount++
 		localChecks[localCheck.ID] = &mergedCheck{localCheck, 'l'}
 	}
-	c.registryLock.RUnlock()
 	for _, consulCheck := range consulChecks {
 		if localCheck, found := localChecks[consulCheck.CheckID]; found {
 			localChecksCount--
@@ -588,7 +580,7 @@ func compareConsulService(localService *consul.AgentServiceRegistration, consulS
 
 // calcServicesDiff takes the argument (consulServices) and calculates the
 // delta between the consul.Syncer's list of known services
-// (c.trackedServices).  Four arrays are returned:
+// (c.flattenedServices()).  Four arrays are returned:
 //
 // 1) a slice of services that exist only locally in the Syncer and are
 // missing from the Consul Agent (consulServices) and therefore need to be
@@ -618,10 +610,9 @@ func (c *Syncer) calcServicesDiff(consulServices map[consulServiceID]*consul.Age
 		changedServicesCount = 0
 		agentServices        = 0
 	)
-	c.registryLock.RLock()
-	localServices := make(map[string]*mergedService, len(c.trackedServices)+len(consulServices))
-	c.registryLock.RUnlock()
-	for _, localService := range c.flattenedServices() {
+	flattenedServices := c.flattenedServices()
+	localServices := make(map[string]*mergedService, len(flattenedServices)+len(consulServices))
+	for _, localService := range flattenedServices {
 		localServicesCount++
 		localServices[localService.ID] = &mergedService{localService, 'l'}
 	}
@@ -683,9 +674,6 @@ func (c *Syncer) syncServices() error {
 		if err := c.client.Agent().ServiceRegister(service); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.registryLock.Lock()
-		c.trackedServices[consulServiceID(service.ID)] = service
-		c.registryLock.Unlock()
 	}
 	for _, service := range changedServices {
 		// Re-register the local service
@@ -697,9 +685,6 @@ func (c *Syncer) syncServices() error {
 		if err := c.deregisterService(service.ID); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		c.registryLock.Lock()
-		delete(c.trackedServices, consulServiceID(service.ID))
-		c.registryLock.Unlock()
 	}
 	return mErr.ErrorOrNil()
 }
