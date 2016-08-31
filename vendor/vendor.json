@@ -13,6 +13,12 @@
 			"revisionTime": "2016-04-19T20:25:41Z"
 		},
 		{
+			"checksumSHA1": "OTN4c1F0p+mEG2CpkU1Kuavupf0=",
+			"path": "github.com/RackSec/srslog",
+			"revision": "259aed10dfa74ea2961eddd1d9847619f6e98837",
+			"revisionTime": "2016-01-20T22:33:50Z"
+		},
+		{
 			"comment": "v0.8.7-87-g4b6ea73",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
