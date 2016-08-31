@@ -80,3 +80,100 @@ func TestAgent_InitKeyring(t *testing.T) {
 		t.Fatalf("bad: %s", content)
 	}
 }
+
+func TestAgent_ListKeys(t *testing.T) {
+	key := "tbLJg26ZJyJ9pK3qhc9jig=="
+	dir, agent := makeAgentKeyring(t, key)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	responses, err := agent.ListKeys()
+	if err != nil{
+		t.Fatalf("err: %s", err)
+	}
+	if len(responses.Responses) != 1 {
+		t.Fatal("err: should have only 1 response")
+	}
+
+	keys := responses.Responses[0].Keys
+	if len(keys) != 1 {
+		t.Fatal("err: should have only 1 key")
+	}
+	if _, ok := keys[key]; !ok {
+		t.Fatal("err: Key not found %s", key)
+	}
+}
+
+func TestAgent_InstallKey(t *testing.T) {
+	key1 := "tbLJg26ZJyJ9pK3qhc9jig=="
+	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
+	dir, agent := makeAgentKeyring(t, key1)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	responses, err := agent.InstallKey(key2)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	responses, err = agent.ListKeys()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	keys := responses.Responses[0].Keys
+	if len(keys) != 2 {
+		t.Fatal("err: should have 2 keys")
+	}
+	if _, ok := keys[key2]; !ok {
+		t.Fatal("err: Key not found %s", key2)
+	}
+}
+
+func TestAgent_UseKey(t *testing.T) {
+	key1 := "tbLJg26ZJyJ9pK3qhc9jig=="
+	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
+	dir, agent := makeAgentKeyring(t, key1)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	_, err := agent.InstallKey(key2)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	_, err = agent.UseKey(key2)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestAgent_RemoveKey(t *testing.T) {
+	key1 := "tbLJg26ZJyJ9pK3qhc9jig=="
+	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
+	dir, agent := makeAgentKeyring(t, key1)
+	defer os.RemoveAll(dir)
+	defer agent.Shutdown()
+
+	_, err := agent.InstallKey(key2)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	responses, err := agent.RemoveKey(key2)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	responses, err = agent.ListKeys()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	keys := responses.Responses[0].Keys
+	if len(keys) != 1 {
+		t.Fatal("err: should have 1 key")
+	}
+	if _, ok := keys[key1]; !ok {
+		t.Fatal("err: Key not found %s", key1)
+	}
+}
