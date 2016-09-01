@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver"
@@ -94,10 +95,13 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				return err
 			}
 
-			subset, offending := structs.SliceStringIsSubset(allowedPolicies, desiredPolicies)
-			if !subset {
-				return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
-					strings.Join(offending, ", "))
+			// If we are given a root token it can access all policies
+			if !lib.StrContains(allowedPolicies, "root") {
+				subset, offending := structs.SliceStringIsSubset(allowedPolicies, desiredPolicies)
+				if !subset {
+					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
+						strings.Join(offending, ", "))
+				}
 			}
 		}
 	}

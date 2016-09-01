@@ -830,8 +830,9 @@ func (c *Client) registerAndHeartbeat() {
 					c.retryRegisterNode()
 					heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
 				} else {
-					c.logger.Printf("[ERR] client: heartbeating failed: %v", err)
-					heartbeat = time.After(c.retryIntv(registerRetryIntv))
+					intv := c.retryIntv(registerRetryIntv)
+					c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
+					heartbeat = time.After(intv)
 				}
 			} else {
 				c.heartbeatLock.Lock()

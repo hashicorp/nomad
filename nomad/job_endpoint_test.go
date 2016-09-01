@@ -490,6 +490,10 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	goodPolicies := []string{"foo", "bar", "baz"}
 	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
 
+	rootToken := structs.GenerateUUID()
+	rootPolicies := []string{"root"}
+	tvc.SetLookupTokenAllowedPolicies(rootToken, rootPolicies)
+
 	errToken := structs.GenerateUUID()
 	expectedErr := fmt.Errorf("return errors from vault")
 	tvc.SetLookupTokenError(errToken, expectedErr)
@@ -530,6 +534,36 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+	if out.VaultToken != "" {
+		t.Fatalf("vault token not cleared")
+	}
+
+	// Create the register request with another job asking for a vault policy but
+	// send the root Vault token
+	job2 := mock.Job()
+	job2.VaultToken = rootToken
+	job2.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{policy}}
+	req = &structs.JobRegisterRequest{
+		Job:          job2,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check for the job in the FSM
+	out, err = state.JobByID(job2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
