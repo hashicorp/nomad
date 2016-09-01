@@ -5,6 +5,8 @@ IMPROVEMENTS:
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * client: Enforce shared allocation directory disk usage [GH-1580]
+  * client: Introduce a `secrets/` directory to tasks where sensitive data can
+    be written [GH-1671]
 
 BUG FIXES:
   * client: Artifact download failures will be retried before failing tasks
