@@ -149,10 +149,6 @@ func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver
 		return nil, nil
 	}
 
-	if config.TaskTokenTTL == "" {
-		return nil, fmt.Errorf("task_token_ttl not set")
-	}
-
 	if logger == nil {
 		return nil, fmt.Errorf("nil logger")
 	}
@@ -240,8 +236,8 @@ OUTER:
 		case <-retryTimer.C:
 			// Ensure the API is reachable
 			if _, err := c.client.Sys().InitStatus(); err != nil {
-				c.logger.Printf("[WARN] client.vault: failed to contact Vault API. Retrying in %v",
-					c.config.ConnectionRetryIntv)
+				c.logger.Printf("[WARN] client.vault: failed to contact Vault API. Retrying in %v: %v",
+					c.config.ConnectionRetryIntv, err)
 				retryTimer.Reset(c.config.ConnectionRetryIntv)
 				continue OUTER
 			}

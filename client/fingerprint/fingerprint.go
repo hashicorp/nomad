@@ -17,6 +17,7 @@ const (
 
 func init() {
 	builtinFingerprintMap["arch"] = NewArchFingerprint
+	builtinFingerprintMap["consul"] = NewConsulFingerprint
 	builtinFingerprintMap["cpu"] = NewCPUFingerprint
 	builtinFingerprintMap["env_aws"] = NewEnvAWSFingerprint
 	builtinFingerprintMap["env_gce"] = NewEnvGCEFingerprint
@@ -25,6 +26,7 @@ func init() {
 	builtinFingerprintMap["network"] = NewNetworkFingerprint
 	builtinFingerprintMap["nomad"] = NewNomadFingerprint
 	builtinFingerprintMap["storage"] = NewStorageFingerprint
+	builtinFingerprintMap["vault"] = NewVaultFingerprint
 
 	// Initialize the list of available fingerprinters per platform.  Each
 	// platform defines its own list of available fingerprinters.

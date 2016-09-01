@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -12,11 +12,6 @@ import (
 )
 
 func TestConsulFingerprint(t *testing.T) {
-	addr := os.Getenv("CONSUL_HTTP_ADDR")
-	if addr == "" {
-		t.Skipf("No consul process running, skipping test")
-	}
-
 	fp := NewConsulFingerprint(testLogger())
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -29,6 +24,7 @@ func TestConsulFingerprint(t *testing.T) {
 	defer ts.Close()
 
 	config := config.DefaultConfig()
+	config.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
 	ok, err := fp.Fingerprint(config, node)
 	if err != nil {
