@@ -22,6 +22,16 @@ const (
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
 )
 
+var (
+	// vaultConstraint is the implicit constraint added to jobs requesting a
+	// Vault token
+	vaultConstraint = &structs.Constraint{
+		LTarget: "${attr.vault.version}",
+		RTarget: ">= 0.6.1",
+		Operand: structs.ConstraintVersion,
+	}
+)
+
 // Job endpoint is used for job interactions
 type Job struct {
 	srv *Server
@@ -71,8 +81,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Ensure that the job has permissions for the requested Vault tokens
-	desiredPolicies := structs.VaultPoliciesSet(args.Job.VaultPolicies())
-	if len(desiredPolicies) != 0 {
+	policies := args.Job.VaultPolicies()
+	if len(policies) != 0 {
 		vconf := j.srv.config.VaultConfig
 		if !vconf.Enabled {
 			return fmt.Errorf("Vault not enabled and Vault policies requested")
@@ -97,11 +107,34 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 			// If we are given a root token it can access all policies
 			if !lib.StrContains(allowedPolicies, "root") {
-				subset, offending := structs.SliceStringIsSubset(allowedPolicies, desiredPolicies)
+				flatPolicies := structs.VaultPoliciesSet(policies)
+				subset, offending := structs.SliceStringIsSubset(allowedPolicies, flatPolicies)
 				if !subset {
 					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
 						strings.Join(offending, ", "))
 				}
+			}
+		}
+
+		// Add implicit constraints that the task groups are run on a Node with
+		// Vault
+		for _, tg := range args.Job.TaskGroups {
+			_, ok := policies[tg.Name]
+			if !ok {
+				// Not requesting Vault
+				continue
+			}
+
+			found := false
+			for _, c := range tg.Constraints {
+				if c.Equal(vaultConstraint) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				tg.Constraints = append(tg.Constraints, vaultConstraint)
 			}
 		}
 	}

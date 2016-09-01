@@ -547,6 +547,16 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		t.Fatalf("vault token not cleared")
 	}
 
+	// Check that an implicit constraint was created
+	constraints := out.TaskGroups[0].Constraints
+	if l := len(constraints); l != 1 {
+		t.Fatalf("Unexpected number of tests: %v", l)
+	}
+
+	if !constraints[0].Equal(vaultConstraint) {
+		t.Fatalf("bad constraint; got %#v; want %#v", constraints[0], vaultConstraint)
+	}
+
 	// Create the register request with another job asking for a vault policy but
 	// send the root Vault token
 	job2 := mock.Job()

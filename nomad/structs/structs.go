@@ -2534,6 +2534,13 @@ type Constraint struct {
 	str     string // Memoized string
 }
 
+// Equal checks if two constraints are equal
+func (c *Constraint) Equal(o *Constraint) bool {
+	return c.LTarget == o.LTarget &&
+		c.RTarget == o.RTarget &&
+		c.Operand == o.Operand
+}
+
 func (c *Constraint) Copy() *Constraint {
 	if c == nil {
 		return nil
