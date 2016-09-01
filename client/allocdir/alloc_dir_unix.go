@@ -14,11 +14,17 @@ import (
 )
 
 var (
-	//Path inside container for mounted directory shared across tasks in a task group.
+	// SharedAllocContainerPath is the path inside container for mounted
+	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("/", SharedAllocName)
 
-	//Path inside container for mounted directory for local storage.
+	// TaskLocalContainer is the path inside a container for mounted directory
+	// for local storage.
 	TaskLocalContainerPath = filepath.Join("/", TaskLocal)
+
+	// TaskSecretsContainerPath is the path inside a container for mounted
+	// secrets directory
+	TaskSecretsContainerPath = filepath.Join("/", TaskSecrets)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {

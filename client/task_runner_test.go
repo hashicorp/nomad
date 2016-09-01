@@ -38,13 +38,13 @@ func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEve
 	m.events = append(m.events, event)
 }
 
-func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
-	return testTaskRunnerFromAlloc(restarts, mock.Alloc())
+func testTaskRunner(t *testing.T, restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
+	return testTaskRunnerFromAlloc(t, restarts, mock.Alloc())
 }
 
 // Creates a mock task runner using the first task in the first task group of
 // the passed allocation.
-func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTaskStateUpdater, *TaskRunner) {
+func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) (*MockTaskStateUpdater, *TaskRunner) {
 	logger := testLogger()
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
@@ -55,7 +55,8 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID), task.Resources.DiskMB)
+	path := filepath.Join(conf.AllocDir, alloc.ID)
+	allocDir := allocdir.NewAllocDir(alloc.ID, path, task.Resources.DiskMB, allocdir.TestCreateSecretDirFn)
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
@@ -68,7 +69,7 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(false)
+	upd, tr := testTaskRunner(t, false)
 	tr.MarkReceived()
 	go tr.Run()
 	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
@@ -103,7 +104,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(true)
+	upd, tr := testTaskRunner(t, true)
 	tr.MarkReceived()
 	defer tr.ctx.AllocDir.Destroy()
 
@@ -165,7 +166,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 
 func TestTaskRunner_Update(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, tr := testTaskRunner(false)
+	_, tr := testTaskRunner(t, false)
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -219,7 +220,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(false)
+	upd, tr := testTaskRunner(t, false)
 
 	// Change command to ensure we run for a bit
 	tr.task.Config["command"] = "/bin/sleep"
@@ -269,7 +270,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	upd, tr := testTaskRunnerFromAlloc(t, false, alloc)
 	tr.MarkReceived()
 	go tr.Run()
 	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
@@ -334,7 +335,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		Mode:     structs.RestartPolicyModeFail,
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(true, alloc)
+	upd, tr := testTaskRunnerFromAlloc(t, true, alloc)
 	tr.MarkReceived()
 	go tr.Run()
 	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
@@ -384,7 +385,9 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 }
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
-	_, tr := testTaskRunner(false)
+	_, tr := testTaskRunner(t, false)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Try to run as root with exec.
 	tr.task.Driver = "exec"
