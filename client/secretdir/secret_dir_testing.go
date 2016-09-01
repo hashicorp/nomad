@@ -11,6 +11,9 @@ import (
 type TestSecretDir struct {
 	// Dir is the path to the secret directory
 	Dir string
+
+	// MemoryUsed is returned when the MemoryUse function is called
+	MemoryUsed int
 }
 
 func NewTestSecretDir(t *testing.T) *TestSecretDir {
@@ -46,3 +49,5 @@ func (s *TestSecretDir) Remove(allocID, task string) error {
 	path := s.getPathFor(allocID, task)
 	return os.RemoveAll(path)
 }
+
+func (s *TestSecretDir) MemoryUse() int { return s.MemoryUsed }

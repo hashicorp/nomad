@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -147,6 +148,22 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestClient_ReserveSecretDir(t *testing.T) {
+	c := testClient(t, nil)
+	defer c.Shutdown()
+
+	tsd := secretdir.NewTestSecretDir(t)
+	c.secretDir = tsd
+	expected := 10
+	tsd.MemoryUsed = expected
+
+	c.reserveResources()
+	res := c.Node().Reserved
+	if res == nil || res.MemoryMB != expected {
+		t.Fatalf("Unexpected reserved memory: %v", res)
+	}
 }
 
 func TestClient_Fingerprint(t *testing.T) {

@@ -1,9 +1,9 @@
 package allocdir
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 var (
@@ -18,14 +18,14 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 	return fileCopy(src, dst, perm)
 }
 
-// The windows version does nothing currently.
+// Hardlinks the shared directory. As a side-effect the src and dest directory
+// must be on the same filesystem.
 func (d *AllocDir) mount(src, dest string) error {
-	return errors.New("Mount on Windows not supported.")
+	return syscall.Link(src, dest)
 }
 
-// The windows version does nothing currently.
 func (d *AllocDir) unmount(dir string) error {
-	return nil
+	return syscall.Unlink(dir)
 }
 
 // The windows version does nothing currently.

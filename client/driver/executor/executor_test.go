@@ -38,10 +38,7 @@ func mockAllocDir(t *testing.T) (*structs.Task, *allocdir.AllocDir) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
 	path := filepath.Join(os.TempDir(), alloc.ID)
-	allocDir := allocdir.NewAllocDir(alloc.ID, path, task.Resources.DiskMB)
-	allocDir.SetSecretDirFn(func(a, b string) (string, error) {
-		return ioutil.TempDir("", "")
-	})
+	allocDir := allocdir.NewAllocDir(alloc.ID, path, task.Resources.DiskMB, allocdir.TestCreateSecretDirFn)
 	if err := allocDir.Build([]*structs.Task{task}); err != nil {
 		log.Panicf("allocDir.Build() failed: %v", err)
 	}

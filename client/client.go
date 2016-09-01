@@ -111,7 +111,7 @@ type Client struct {
 
 	connPool *nomad.ConnPool
 
-	secretDir *secretdir.SecretDir
+	secretDir secretdir.SecretDirectory
 
 	// lastHeartbeatFromQuorum is an atomic int32 acting as a bool.  When
 	// true, the last heartbeat message had a leader.  When false (0),
@@ -192,7 +192,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	}
 
 	// Setup the reserved resources
-	c.reservePorts()
+	c.reserveResources()
 
 	// Store the config copy before restoring state but after it has been
 	// initialized.
@@ -603,10 +603,24 @@ func (c *Client) setupNode() error {
 	return nil
 }
 
+// reserveResources is used to reserve resources on the Node that will be
+// registered with the Server.
+func (c *Client) reserveResources() {
+	c.reservePorts()
+
+	// Add the memory consumed by the secret directory
+	c.configLock.Lock()
+	if c.config.Node.Reserved == nil {
+		c.config.Node.Reserved = new(structs.Resources)
+	}
+	c.config.Node.Reserved.MemoryMB += c.secretDir.MemoryUse()
+	c.configLock.Unlock()
+}
+
 // reservePorts is used to reserve ports on the fingerprinted network devices.
 func (c *Client) reservePorts() {
-	c.configLock.RLock()
-	defer c.configLock.RUnlock()
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
 	global := c.config.GloballyReservedPorts
 	if len(global) == 0 {
 		return

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/secretdir"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -57,9 +56,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
 	path := filepath.Join(conf.AllocDir, alloc.ID)
-	allocDir := allocdir.NewAllocDir(alloc.ID, path, task.Resources.DiskMB)
-	sdir := secretdir.NewTestSecretDir(t)
-	allocDir.SetSecretDirFn(sdir.CreateFor)
+	allocDir := allocdir.NewAllocDir(alloc.ID, path, task.Resources.DiskMB, allocdir.TestCreateSecretDirFn)
 	allocDir.Build([]*structs.Task{task})
 
 	ctx := driver.NewExecContext(allocDir, alloc.ID)

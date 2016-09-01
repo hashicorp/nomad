@@ -2,7 +2,6 @@ package driver
 
 import (
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -82,11 +81,8 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	cfg := testConfig()
 	id := structs.GenerateUUID()
 	path := filepath.Join(cfg.AllocDir, id)
-	allocDir := allocdir.NewAllocDir(id, path, task.Resources.DiskMB)
+	allocDir := allocdir.NewAllocDir(id, path, task.Resources.DiskMB, allocdir.TestCreateSecretDirFn)
 	allocDir.Build([]*structs.Task{task})
-	allocDir.SetSecretDirFn(func(a, b string) (string, error) {
-		return ioutil.TempDir("", "")
-	})
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)
 

@@ -6,9 +6,8 @@ import (
 	"path/filepath"
 )
 
-const ()
-
 type SecretDirectory interface {
+	MemoryUse() int
 	Destroy() error
 	CreateFor(allocID, task string) (path string, err error)
 	Remove(allocID, task string) error
@@ -38,8 +37,7 @@ func (s *SecretDir) init() error {
 		return fmt.Errorf("failed to stat secret dir: %v", err)
 	}
 
-	// TODO this shouldn't be hardcoded
-	if err := s.create(32); err != nil {
+	if err := s.create(); err != nil {
 		return fmt.Errorf("failed to create secret dir: %v", err)
 	}
 

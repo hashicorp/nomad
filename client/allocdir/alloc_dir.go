@@ -60,7 +60,8 @@ type AllocDir struct {
 	// AllocID is the allocation ID for this directory
 	AllocID string
 
-	// TODO
+	// createSecretDirFn is used to create a secret directory and retrieve the
+	// path to it so that it can be mounted in the task directory.
 	createSecretDirFn CreateSecretDirFn
 
 	// AllocDir is the directory used for storing any state
@@ -121,8 +122,10 @@ type AllocDirFS interface {
 }
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
-// the allocation directory and maxSize as the maximum allowed size in megabytes.
-func NewAllocDir(allocID, allocDir string, maxSize int) *AllocDir {
+// the allocation directory and maxSize as the maximum allowed size in
+// megabytes. The secretDirFn is used to create secret directories and get their
+// path which will then be mounted into the task directory
+func NewAllocDir(allocID, allocDir string, maxSize int, secretDirFn CreateSecretDirFn) *AllocDir {
 	d := &AllocDir{
 		AllocID:                   allocID,
 		AllocDir:                  allocDir,
@@ -131,11 +134,14 @@ func NewAllocDir(allocID, allocDir string, maxSize int) *AllocDir {
 		CheckDiskMaxEnforcePeriod: checkDiskMaxEnforcePeriod,
 		TaskDirs:                  make(map[string]string),
 		MaxSize:                   maxSize,
+		createSecretDirFn:         secretDirFn,
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
 }
 
+// SetSecretDirFn is used to set the function used to create secret
+// directories.
 func (d *AllocDir) SetSecretDirFn(fn CreateSecretDirFn) {
 	d.createSecretDirFn = fn
 }
@@ -263,7 +269,11 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			// Mount the secret directory
 			taskSecret := filepath.Join(taskDir, TaskSecrets)
 			if err := d.mount(sdir, taskSecret); err != nil {
-				return fmt.Errorf("failed to mount secret directory: %v", err)
+				return fmt.Errorf("failed to mount secret directory for task %q: %v", t.Name, err)
+			}
+
+			if err := d.dropDirPermissions(taskSecret); err != nil {
+				return err
 			}
 		}
 	}
