@@ -17,7 +17,7 @@ const (
 	consulUnavailable = "unavailable"
 )
 
-// ConsulFingerprint is used to fingerprint the architecture
+// ConsulFingerprint is used to fingerprint for Consul
 type ConsulFingerprint struct {
 	logger    *log.Logger
 	client    *consul.Client

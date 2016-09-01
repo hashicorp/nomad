@@ -17,7 +17,7 @@ const (
 	vaultUnavailable = "unavailable"
 )
 
-// ConsulFingerprint is used to fingerprint the architecture
+// VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
 	logger    *log.Logger
 	client    *vapi.Client
@@ -56,7 +56,7 @@ func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node
 
 		// Print a message indicating that Vault is not available anymore
 		if f.lastState == vaultAvailable {
-			f.logger.Printf("[INFO] fingerprint.consul: Vault is unavailable")
+			f.logger.Printf("[INFO] fingerprint.vault: Vault is unavailable")
 		}
 		f.lastState = vaultUnavailable
 		return false, nil
