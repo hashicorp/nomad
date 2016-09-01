@@ -24,7 +24,7 @@ type ConsulFingerprint struct {
 	lastState string
 }
 
-// NewConsulFingerprint is used to create an OS fingerprint
+// NewConsulFingerprint is used to create a Consul fingerprint
 func NewConsulFingerprint(logger *log.Logger) Fingerprint {
 	return &ConsulFingerprint{logger: logger, lastState: consulUnavailable}
 }
