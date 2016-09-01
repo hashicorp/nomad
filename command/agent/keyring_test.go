@@ -88,7 +88,7 @@ func TestAgent_ListKeys(t *testing.T) {
 	defer agent.Shutdown()
 
 	responses, err := agent.ListKeys()
-	if err != nil{
+	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if len(responses.Responses) != 1 {
