@@ -57,6 +57,60 @@ allocation was placed.
 <dl>
   <dt>Description</dt>
   <dd>
+     Read contents of a file in an allocation directory at a particular offset.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/client/fs/readat/<Allocation-ID>`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    <ul>
+      <li>
+        <span class="param">path</span>
+        <span class="param-flags">required</span>
+         The path relative to the root of the allocation directory. It 
+         defaults to `/`
+      </li>
+    </ul>
+    <ul>
+      <li>
+        <span class="param">offset</span>
+        <span class="param-flags">required</span>
+        The byte offset from where content is going to be read.
+      </li>
+    </ul>
+    <ul>
+      <li>
+        <span class="param">limit</span>
+        <span class="param-flags">required</span>
+        The number of bytes to read from the offset.
+      </li>
+    </ul>
+
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```
+...
+07:49 docker/3e8f0f4a67c2[924]: 1:M 22 Jun 21:07:49.110 # Server started, Redis version 3.2.1
+07:49 docker/3e8f0f4a67c2[924]: 1:M 22 Jun 21:07:49.110 * The server is now ready to accept connections on port 6379
+...
+    ```
+
+  </dd>
+
+</dl>
+
+
+<dl>
+  <dt>Description</dt>
+  <dd>
      Stream contents of a file in an allocation directory.
   </dd>
 
