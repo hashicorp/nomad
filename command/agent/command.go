@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper/flag-slice"
 	"github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 )
@@ -64,6 +65,7 @@ func (c *Command) readConfig() *Config {
 		Client: &ClientConfig{},
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
+		Vault:  &config.VaultConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -104,6 +106,12 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
 	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
 	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
+
+	// Vault options
+	flags.BoolVar(&cmdConfig.Vault.Enabled, "vault-enabled", false, "")
+	flags.BoolVar(&cmdConfig.Vault.AllowUnauthenticated, "vault-allow-unauthenticated", false, "")
+	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
+	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -852,6 +860,23 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+Vault Options:
+
+  -vault-enabled
+    Whether to enable or disable Vault integration.
+
+  -vault-address=<addr>
+    The address to communicate with Vault. This should be provided with the http://
+    or https:// prefix.
+
+  -vault-token=<token>
+    The Vault token used to derive tokens from Vault on behalf of clients.
+    This only needs to be set on Servers.
+
+  -vault-allow-unauthenticated
+    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    authentication. The flag only applies to Servers.
 
 Atlas Options:
 
