@@ -438,6 +438,9 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	if !ok {
 		return nil, fmt.Errorf("alloc not found")
 	}
+	if ar.ctx == nil {
+		return nil, fmt.Errorf("alloc dir not found")
+	}
 	return ar.ctx.AllocDir, nil
 }
 

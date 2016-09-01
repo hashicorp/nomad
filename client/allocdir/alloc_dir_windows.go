@@ -7,11 +7,17 @@ import (
 )
 
 var (
-	//Path inside container for mounted directory that is shared across tasks in a task group.
+	// SharedAllocContainerPath is the path inside container for mounted
+	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
 
-	//Path inside container for mounted directory for local storage.
+	// TaskLocalContainer is the path inside a container for mounted directory
+	// for local storage.
 	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
+
+	// TaskSecretsContainerPath is the path inside a container for mounted
+	// secrets directory
+	TaskSecretsContainerPath = filepath.Join("c:\\", TaskSecrets)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
@@ -21,11 +27,16 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 // Hardlinks the shared directory. As a side-effect the src and dest directory
 // must be on the same filesystem.
 func (d *AllocDir) mount(src, dest string) error {
-	return syscall.Link(src, dest)
+	return os.Symlink(src, dest)
 }
 
 func (d *AllocDir) unmount(dir string) error {
-	return syscall.Unlink(dir)
+	p, err := syscall.UTF16PtrFromString(dir)
+	if err != nil {
+		return err
+	}
+
+	return syscall.RemoveDirectory(p)
 }
 
 // The windows version does nothing currently.

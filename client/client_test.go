@@ -156,8 +156,9 @@ func TestClient_ReserveSecretDir(t *testing.T) {
 
 	tsd := secretdir.NewTestSecretDir(t)
 	c.secretDir = tsd
-	expected := 10
-	tsd.MemoryUsed = expected
+	secretUsage := 10
+	expected := c.Node().Reserved.MemoryMB + secretUsage
+	tsd.MemoryUsed = secretUsage
 
 	c.reserveResources()
 	res := c.Node().Reserved
