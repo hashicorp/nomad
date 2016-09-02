@@ -81,7 +81,23 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("file %v hasn't been removed", memLimits)
 	}
 
-	expected := "/:\nalloc/\nbin/\ndev/\netc/\nlib/\nlib64/\nlocal/\nproc/\ntmp/\nusr/\n\n/etc/:\nld.so.cache\nld.so.conf\nld.so.conf.d/"
+	expected := `/:
+alloc/
+bin/
+dev/
+etc/
+lib/
+lib64/
+local/
+proc/
+secrets/
+tmp/
+usr/
+
+/etc/:
+ld.so.cache
+ld.so.conf
+ld.so.conf.d/`
 	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
 	output, err := ioutil.ReadFile(file)
 	if err != nil {

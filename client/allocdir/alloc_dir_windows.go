@@ -7,11 +7,17 @@ import (
 )
 
 var (
-	//Path inside container for mounted directory that is shared across tasks in a task group.
+	// SharedAllocContainerPath is the path inside container for mounted
+	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
 
-	//Path inside container for mounted directory for local storage.
+	// TaskLocalContainer is the path inside a container for mounted directory
+	// for local storage.
 	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
+
+	// TaskSecretsContainerPath is the path inside a container for mounted
+	// secrets directory
+	TaskSecretsContainerPath = filepath.Join("c:\\", TaskSecrets)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
@@ -21,6 +27,16 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 // The windows version does nothing currently.
 func (d *AllocDir) mountSharedDir(dir string) error {
 	return errors.New("Mount on Windows not supported.")
+}
+
+// createSecretDir creates the secrets dir folder at the given path
+func (d *AllocDir) createSecretDir(dir string) error {
+	return os.MkdirAll(dir, 0777)
+}
+
+// removeSecretDir removes the secrets dir folder
+func (d *AllocDir) removeSecretDir(dir string) error {
+	return os.RemoveAll(dir)
 }
 
 // The windows version does nothing currently.

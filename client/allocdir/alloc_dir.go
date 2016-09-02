@@ -46,6 +46,10 @@ var (
 	// regardless of driver.
 	TaskLocal = "local"
 
+	// TaskSecrets is the the name of the secret directory inside each task
+	// directory
+	TaskSecrets = "secrets"
+
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = []string{"tmp"}
 )
@@ -154,6 +158,14 @@ func (d *AllocDir) UnmountAll() error {
 			}
 		}
 
+		taskSecret := filepath.Join(dir, TaskSecrets)
+		if d.pathExists(taskSecret) {
+			if err := d.removeSecretDir(taskSecret); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to remove the secret dir %q: %v", taskSecret, err))
+			}
+		}
+
 		// Unmount dev/ and proc/ have been mounted.
 		d.unmountSpecialDirs(dir)
 	}
@@ -222,6 +234,16 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			if err := d.dropDirPermissions(local); err != nil {
 				return err
 			}
+		}
+
+		// Create the secret directory
+		secret := filepath.Join(taskDir, TaskSecrets)
+		if err := d.createSecretDir(secret); err != nil {
+			return err
+		}
+
+		if err := d.dropDirPermissions(secret); err != nil {
+			return err
 		}
 	}
 

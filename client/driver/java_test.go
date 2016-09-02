@@ -35,7 +35,8 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		Name:      "foo",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, _ := testDriverContexts(task)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{

@@ -575,6 +575,14 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Destroy all the allocations
+	c2.allocLock.Lock()
+	for _, ar := range c2.allocs {
+		ar.Destroy()
+		<-ar.WaitCh()
+	}
+	c2.allocLock.Unlock()
 }
 
 func TestClient_Init(t *testing.T) {
@@ -608,6 +616,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
+	defer c1.Shutdown()
 
 	// Wait for the node to be ready
 	state := s1.State()
@@ -691,4 +700,13 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Destroy all the allocations
+	c1.allocLock.Lock()
+	for _, ar := range c1.allocs {
+		ar.Destroy()
+		<-ar.WaitCh()
+	}
+	c1.allocLock.Unlock()
+
 }

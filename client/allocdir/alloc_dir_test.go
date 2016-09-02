@@ -73,6 +73,10 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 		if _, err := os.Stat(tDir); os.IsNotExist(err) {
 			t.Fatalf("Build(%v) didn't create TaskDir %v", tasks, tDir)
 		}
+
+		if _, err := os.Stat(filepath.Join(tDir, TaskSecrets)); os.IsNotExist(err) {
+			t.Fatalf("Build(%v) didn't create secret dir %v", tasks)
+		}
 	}
 }
 
