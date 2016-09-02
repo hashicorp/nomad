@@ -53,7 +53,7 @@ func (d *AllocDir) createSecretDir(dir string) error {
 func (d *AllocDir) removeSecretDir(dir string) error {
 	if unix.Geteuid() == 0 {
 		if err := syscall.Unmount(dir, 0); err != nil {
-			return err
+			return os.NewSyscallError("unmount", err)
 		}
 	}
 
