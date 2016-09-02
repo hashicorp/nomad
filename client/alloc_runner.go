@@ -66,6 +66,9 @@ type AllocRunner struct {
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
+
+	// serialize saveAllocRunnerState calls
+	persistLock sync.Mutex
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -179,8 +182,12 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
+	r.persistLock.Lock()
+	defer r.persistLock.Unlock()
+
 	// Create the snapshot.
 	alloc := r.Alloc()
+
 	r.allocLock.Lock()
 	states := alloc.TaskStates
 	allocClientStatus := r.allocClientStatus
