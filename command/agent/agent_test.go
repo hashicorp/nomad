@@ -146,7 +146,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Addresses.RPC = "127.0.0.2"
 	conf.Addresses.Serf = "127.0.0.2"
 	conf.Addresses.HTTP = "127.0.0.2"
-	conf.AdvertiseAddrs.HTTP = ""
+	conf.AdvertiseAddrs.HTTP = "10.0.0.1"
+	conf.AdvertiseAddrs.RPC = ""
+	conf.AdvertiseAddrs.Serf = "10.0.0.2"
 
 	out, err = a.serverConfig()
 	if err != nil {
@@ -158,15 +160,20 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
 	}
-	if addr := a.serverHTTPAddr; addr != "127.0.0.2:4646" {
-		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
+	if addr := a.serverHTTPAddr; addr != "10.0.0.1:4646" {
+		t.Fatalf("expect 10.0.0.1:4646, got: %s", addr)
 	}
 	// NOTE: AdvertiseAddr > Addresses > BindAddr > Defaults
 	if addr := a.serverRPCAddr; addr != "127.0.0.1:4001" {
 		t.Fatalf("expect 127.0.0.1:4001, got: %s", addr)
 	}
-	if addr := a.serverSerfAddr; addr != "127.0.0.1:4000" {
-		t.Fatalf("expect 127.0.0.1:4000, got: %s", addr)
+	if addr := a.serverSerfAddr; addr != "10.0.0.2:4000" {
+		t.Fatalf("expect 10.0.0.2:4000, got: %s", addr)
+	}
+
+	// It correctly identifies the bind address when requested
+	if addr := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.2:4646" {
+		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
 	}
 
 	conf.Server.NodeGCThreshold = "42g"
