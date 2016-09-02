@@ -6,7 +6,7 @@ IMPROVEMENTS:
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * client: Enforce shared allocation directory disk usage [GH-1580]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
-    be written [GH-1671]
+    be written [GH-1681]
 
 BUG FIXES:
   * client: Artifact download failures will be retried before failing tasks
