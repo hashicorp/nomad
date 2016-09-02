@@ -99,6 +99,7 @@ func TestAgent_ListKeys(t *testing.T) {
 	if len(keys) != 1 {
 		t.Fatal("err: should have only 1 key")
 	}
+
 	if _, ok := keys[key]; !ok {
 		t.Fatal("err: Key not found %s", key)
 	}
