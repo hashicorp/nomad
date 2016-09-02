@@ -51,13 +51,14 @@ type AllocRunner struct {
 
 	dirtyCh chan struct{}
 
-	ctx        *driver.ExecContext
-	ctxLock    sync.Mutex
-	tasks      map[string]*TaskRunner
-	taskStates map[string]*structs.TaskState
-	restored   map[string]struct{}
-	taskLock   sync.RWMutex
+	ctx     *driver.ExecContext
+	ctxLock sync.Mutex
 
+	tasks    map[string]*TaskRunner
+	restored map[string]struct{}
+	taskLock sync.RWMutex
+
+	taskStates     map[string]*structs.TaskState
 	taskStatusLock sync.RWMutex
 
 	updateCh chan *structs.Allocation
@@ -125,9 +126,6 @@ func (r *AllocRunner) RestoreState() error {
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
 		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil allocation"))
-	}
-	if r.ctx == nil {
-		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil context"))
 	}
 	if e := snapshotErrors.ErrorOrNil(); e != nil {
 		return e
