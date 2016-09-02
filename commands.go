@@ -126,6 +126,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"shutdown-task": func() (cli.Command, error) {
+			return &command.ShutdownTaskCommand{
+				Meta: meta,
+			}, nil
+		},
 		"status": func() (cli.Command, error) {
 			return &command.StatusCommand{
 				Meta: meta,

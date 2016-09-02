@@ -4,10 +4,11 @@ package executor
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/client/driver/logging"
 	"io"
 	"log/syslog"
-
-	"github.com/hashicorp/nomad/client/driver/logging"
+	"os"
+	"os/exec"
 )
 
 func (e *UniversalExecutor) LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error) {
@@ -47,4 +48,14 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 			e.lro.Write([]byte{'\n'})
 		}
 	}
+}
+
+func (e *UniversalExecutor) sendShutdownTask(proc *os.Process) error {
+	if err := proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
+		return fmt.Errorf("executor.shutdown error: %v", err)
+	}
+	return nil
+}
+
+func setSysProcAttributes(cmd *exec.Cmd) {
 }

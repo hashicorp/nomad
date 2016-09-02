@@ -41,6 +41,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		case "syslog":
 		case "fs ls", "fs cat", "fs stat":
 		case "check":
+		case "shutdown-task":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}
