@@ -381,7 +381,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	// Set environment variables.
 	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
 	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-	d.taskEnv.SetTaskLocalDir(allocdir.TaskSecretsContainerPath)
 
 	config := &docker.Config{
 		Image:     driverConfig.ImageName,

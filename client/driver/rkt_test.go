@@ -376,7 +376,6 @@ func TestRktTaskValidate(t *testing.T) {
 			"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
 			"dns_search_domains": []string{"example.com", "example.org", "example.net"},
 		},
-		Resources: basicResources,
 	}
 	driverCtx, execCtx := testDriverContexts(task)
 	defer execCtx.AllocDir.Destroy()

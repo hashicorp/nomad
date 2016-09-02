@@ -52,12 +52,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	secretDirFn := func(allocID, task string) (string, error) {
-		return ioutil.TempDir("", "")
-	}
-
-	allocID := "123"
-	d := NewAllocDir(allocID, tmp, structs.DefaultResources().DiskMB, secretDirFn)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -78,10 +73,6 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 		if _, err := os.Stat(tDir); os.IsNotExist(err) {
 			t.Fatalf("Build(%v) didn't create TaskDir %v", tasks, tDir)
 		}
-
-		if _, err := os.Stat(filepath.Join(tDir, TaskSecrets)); os.IsNotExist(err) {
-			t.Fatalf("Build(%v) didn't create secret dir %v", tasks)
-		}
 	}
 }
 
@@ -92,7 +83,7 @@ func TestAllocDir_LogDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir("123", tmp, structs.DefaultResources().DiskMB, TestCreateSecretDirFn)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 
 	expected := filepath.Join(d.AllocDir, SharedAllocName, LogDirName)
@@ -108,7 +99,7 @@ func TestAllocDir_EmbedNonExistent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir("123", tmp, structs.DefaultResources().DiskMB, TestCreateSecretDirFn)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -130,7 +121,7 @@ func TestAllocDir_EmbedDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir("123", tmp, structs.DefaultResources().DiskMB, TestCreateSecretDirFn)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {
@@ -191,7 +182,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir("123", tmp, structs.DefaultResources().DiskMB, TestCreateSecretDirFn)
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d.Destroy()
 	tasks := []*structs.Task{t1, t2}
 	if err := d.Build(tasks); err != nil {

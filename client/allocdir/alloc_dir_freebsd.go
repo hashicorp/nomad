@@ -4,13 +4,13 @@ import (
 	"syscall"
 )
 
-// Hardlinks the shared directory. As a side-effect the src and dest directory
-// must be on the same filesystem.
-func (d *AllocDir) mount(src, dest string) error {
-	return syscall.Link(src, dest)
+// Hardlinks the shared directory. As a side-effect the shared directory and
+// task directory must be on the same filesystem.
+func (d *AllocDir) mountSharedDir(dir string) error {
+	return syscall.Link(d.SharedDir, dir)
 }
 
-func (d *AllocDir) unmount(dir string) error {
+func (d *AllocDir) unmountSharedDir(dir string) error {
 	return syscall.Unlink(dir)
 }
 
