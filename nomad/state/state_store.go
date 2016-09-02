@@ -357,23 +357,9 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
-	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
-	// from task resources
-	for _, tg := range job.TaskGroups {
-		if tg.LocalDisk != nil {
-			continue
-		}
-		var diskMB int
-		for _, task := range tg.Tasks {
-			if task.Resources != nil {
-				diskMB += task.Resources.DiskMB
-				task.Resources.DiskMB = 0
-			}
-		}
-		tg.LocalDisk = &structs.LocalDisk{
-			DiskMB: diskMB,
-		}
-	}
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// COMPAT 0.4.1 -> 0.5
+	s.addLocalDiskToTaskGroups(job)
 
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
@@ -973,6 +959,12 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 
 		if err := s.updateSummaryWithAlloc(index, alloc, exist, watcher, txn); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
+		// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+		// COMPAT 0.4.1 -> 0.5
+		if alloc.Job != nil {
+			s.addLocalDiskToTaskGroups(alloc.Job)
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
@@ -1664,6 +1656,25 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	return nil
 }
 
+// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
+func (s *StateStore) addLocalDiskToTaskGroups(job *structs.Job) {
+	for _, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
+		var diskMB int
+		for _, task := range tg.Tasks {
+			if task.Resources != nil {
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+	}
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -1704,23 +1715,9 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 	r.items.Add(watch.Item{Table: "jobs"})
 	r.items.Add(watch.Item{Job: job.ID})
 
-	// COMPAT 0.4.1 -> 0.5 Create the LocalDisk if it's nil by adding up DiskMB
-	// from task resources
-	for _, tg := range job.TaskGroups {
-		if tg.LocalDisk != nil {
-			continue
-		}
-		var diskMB int
-		for _, task := range tg.Tasks {
-			if task.Resources != nil {
-				diskMB += task.Resources.DiskMB
-				task.Resources.DiskMB = 0
-			}
-		}
-		tg.LocalDisk = &structs.LocalDisk{
-			DiskMB: diskMB,
-		}
-	}
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// COMPAT 0.4.1 -> 0.5
+	r.addLocalDiskToTaskGroups(job)
 
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1746,12 +1743,17 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 	r.items.Add(watch.Item{AllocJob: alloc.JobID})
 	r.items.Add(watch.Item{AllocNode: alloc.NodeID})
 
-	//COMPAT 0.4.1 -> 0.5
 	// Set the shared resources if it's not present
+	// COMPAT 0.4.1 -> 0.5
 	if alloc.SharedResources == nil {
 		alloc.SharedResources = &structs.Resources{
 			DiskMB: alloc.Resources.DiskMB,
 		}
+	}
+
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	if alloc.Job != nil {
+		r.addLocalDiskToTaskGroups(alloc.Job)
 	}
 
 	if err := r.txn.Insert("allocs", alloc); err != nil {
@@ -1792,6 +1794,25 @@ func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) err
 		return fmt.Errorf("vault accessor insert failed: %v", err)
 	}
 	return nil
+}
+
+// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
+func (r *StateRestore) addLocalDiskToTaskGroups(job *structs.Job) {
+	for _, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
+		var diskMB int
+		for _, task := range tg.Tasks {
+			if task.Resources != nil {
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+	}
 }
 
 // stateWatch holds shared state for watching updates. This is

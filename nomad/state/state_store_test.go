@@ -1792,6 +1792,33 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_UpsertAlloc_NoLocalDisk(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].LocalDisk = nil
+	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := alloc.Copy()
+	expected.Job.TaskGroups[0].LocalDisk = &structs.LocalDisk{DiskMB: 120}
+	if !reflect.DeepEqual(expected, out) {
+		t.Fatalf("bad: %#v %#v", expected, out)
+	}
+}
+
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -2487,6 +2514,38 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	}
 
 	notify.verify(t)
+}
+
+func TestStateStore_RestoreAlloc_NoLocalDisk(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].LocalDisk = nil
+	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.AllocRestore(alloc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	restore.Commit()
+
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := alloc.Copy()
+	expected.Job.TaskGroups[0].LocalDisk = &structs.LocalDisk{DiskMB: 120}
+	expected.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
+
+	if !reflect.DeepEqual(out, expected) {
+		t.Fatalf("Bad: %#v %#v", out, expected)
+	}
 }
 
 func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
