@@ -26,7 +26,8 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 		Name:      "foo",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, _ := testDriverContexts(task)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewExecDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{

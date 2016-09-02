@@ -21,7 +21,8 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 		Name:      "foo",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, _ := testDriverContexts(task)
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),

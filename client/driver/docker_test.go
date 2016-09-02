@@ -117,7 +117,8 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 
 // This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo", Resources: basicResources})
+	driverCtx, execCtx := testDriverContexts(&structs.Task{Name: "foo", Resources: basicResources})
+	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),

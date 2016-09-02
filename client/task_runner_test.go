@@ -385,6 +385,8 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	_, tr := testTaskRunner(false)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
 
 	// Try to run as root with exec.
 	tr.task.Driver = "exec"
