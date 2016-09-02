@@ -46,24 +46,11 @@ var (
 	// regardless of driver.
 	TaskLocal = "local"
 
-	// TaskSecrets is the the name of the secret directory inside each task
-	// directory
-	TaskSecrets = "secrets"
-
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = []string{"tmp"}
 )
 
-type CreateSecretDirFn func(allocID, task string) (path string, err error)
-
 type AllocDir struct {
-	// AllocID is the allocation ID for this directory
-	AllocID string
-
-	// createSecretDirFn is used to create a secret directory and retrieve the
-	// path to it so that it can be mounted in the task directory.
-	createSecretDirFn CreateSecretDirFn
-
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
 	AllocDir string
@@ -122,28 +109,18 @@ type AllocDirFS interface {
 }
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
-// the allocation directory and maxSize as the maximum allowed size in
-// megabytes. The secretDirFn is used to create secret directories and get their
-// path which will then be mounted into the task directory
-func NewAllocDir(allocID, allocDir string, maxSize int, secretDirFn CreateSecretDirFn) *AllocDir {
+// the allocation directory and maxSize as the maximum allowed size in megabytes.
+func NewAllocDir(allocDir string, maxSize int) *AllocDir {
 	d := &AllocDir{
-		AllocID:                   allocID,
 		AllocDir:                  allocDir,
 		MaxCheckDiskInterval:      maxCheckDiskInterval,
 		MinCheckDiskInterval:      minCheckDiskInterval,
 		CheckDiskMaxEnforcePeriod: checkDiskMaxEnforcePeriod,
 		TaskDirs:                  make(map[string]string),
 		MaxSize:                   maxSize,
-		createSecretDirFn:         secretDirFn,
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
-}
-
-// SetSecretDirFn is used to set the function used to create secret
-// directories.
-func (d *AllocDir) SetSecretDirFn(fn CreateSecretDirFn) {
-	d.createSecretDirFn = fn
 }
 
 // Tears down previously build directory structure.
@@ -168,24 +145,12 @@ func (d *AllocDir) UnmountAll() error {
 		// Check if the directory has the shared alloc mounted.
 		taskAlloc := filepath.Join(dir, SharedAllocName)
 		if d.pathExists(taskAlloc) {
-			if err := d.unmount(taskAlloc); err != nil {
+			if err := d.unmountSharedDir(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to unmount shared alloc dir %q: %v", taskAlloc, err))
 			} else if err := os.RemoveAll(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to delete shared alloc dir %q: %v", taskAlloc, err))
-			}
-		}
-
-		// Remove the secrets dir
-		taskSecrets := filepath.Join(dir, TaskSecrets)
-		if d.pathExists(taskSecrets) {
-			if err := d.unmount(taskSecrets); err != nil {
-				mErr.Errors = append(mErr.Errors,
-					fmt.Errorf("failed to unmount secrets dir %q: %v", taskSecrets, err))
-			} else if err := os.RemoveAll(taskSecrets); err != nil {
-				mErr.Errors = append(mErr.Errors,
-					fmt.Errorf("failed to delete secrets dir %q: %v", taskSecrets, err))
 			}
 		}
 
@@ -255,24 +220,6 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			}
 
 			if err := d.dropDirPermissions(local); err != nil {
-				return err
-			}
-		}
-
-		// Get the secret directory
-		if d.createSecretDirFn != nil {
-			sdir, err := d.createSecretDirFn(d.AllocID, t.Name)
-			if err != nil {
-				return fmt.Errorf("Creating secret directory for task %q failed: %v", t.Name, err)
-			}
-
-			// Mount the secret directory
-			taskSecret := filepath.Join(taskDir, TaskSecrets)
-			if err := d.mount(sdir, taskSecret); err != nil {
-				return fmt.Errorf("failed to mount secret directory for task %q: %v", t.Name, err)
-			}
-
-			if err := d.dropDirPermissions(taskSecret); err != nil {
 				return err
 			}
 		}
@@ -385,7 +332,7 @@ func (d *AllocDir) MountSharedDir(task string) error {
 	}
 
 	taskLoc := filepath.Join(taskDir, SharedAllocName)
-	if err := d.mount(d.SharedDir, taskLoc); err != nil {
+	if err := d.mountSharedDir(taskLoc); err != nil {
 		return fmt.Errorf("Failed to mount shared directory for task %v: %v", task, err)
 	}
 

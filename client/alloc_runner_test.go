@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/secretdir"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
@@ -26,7 +25,7 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 	m.Allocs = append(m.Allocs, alloc)
 }
 
-func testAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
+func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
@@ -36,17 +35,17 @@ func testAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation, restarts 
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, secretdir.NewTestSecretDir(t))
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
 	return upd, ar
 }
 
-func testAllocRunner(t *testing.T, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	return testAllocRunnerFromAlloc(t, mock.Alloc(), restarts)
+func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
+	return testAllocRunnerFromAlloc(mock.Alloc(), restarts)
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -83,7 +82,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	}
 
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
-	upd, ar := testAllocRunnerFromAlloc(t, alloc, true)
+	upd, ar := testAllocRunnerFromAlloc(alloc, true)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -119,7 +118,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -208,7 +207,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 func TestAllocRunner_DiskExceeded_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -314,7 +313,7 @@ func TestAllocRunner_DiskExceeded_Destroy(t *testing.T) {
 }
 func TestAllocRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -366,7 +365,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 func TestAllocRunner_Update(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, ar := testAllocRunner(t, false)
+	_, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -392,7 +391,7 @@ func TestAllocRunner_Update(t *testing.T) {
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -414,7 +413,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.secretDir)
+		&structs.Allocation{ID: ar.alloc.ID})
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -442,7 +441,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 	ar.logger = prefixedTestLogger("ar1: ")
 
 	// Ensure task takes some time
@@ -486,7 +485,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.secretDir)
+		&structs.Allocation{ID: ar.alloc.ID})
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
 	if err != nil {
@@ -548,7 +547,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
