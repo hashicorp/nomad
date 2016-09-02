@@ -92,6 +92,13 @@ func persistState(path string, data interface{}) error {
 	if err := os.Rename(tmpPath, path); err != nil {
 		return fmt.Errorf("failed to rename tmp to path: %v", err)
 	}
+
+	// Sanity check since users have reported empty state files on disk
+	if stat, err := os.Stat(path); err != nil {
+		return fmt.Errorf("unable to stat state file %s: %v", path, err)
+	} else if stat.Size() == 0 {
+		return fmt.Errorf("persisted invalid state file %s; see https://github.com/hashicorp/nomad/issues/1367")
+	}
 	return nil
 }
 

@@ -180,12 +180,9 @@ func (r *AllocRunner) SaveState() error {
 
 func (r *AllocRunner) saveAllocRunnerState() error {
 	// Create the snapshot.
-	r.taskStatusLock.RLock()
-	states := copyTaskStates(r.taskStates)
-	r.taskStatusLock.RUnlock()
-
 	alloc := r.Alloc()
 	r.allocLock.Lock()
+	states := alloc.TaskStates
 	allocClientStatus := r.allocClientStatus
 	allocClientDescription := r.allocClientDescription
 	r.allocLock.Unlock()
