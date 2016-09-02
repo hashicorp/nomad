@@ -77,7 +77,6 @@ type allocRunnerState struct {
 	Alloc                  *structs.Allocation
 	AllocClientStatus      string
 	AllocClientDescription string
-	TaskStates             map[string]*structs.TaskState
 	Context                *driver.ExecContext
 }
 
@@ -121,7 +120,7 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 	r.allocClientStatus = snap.AllocClientStatus
 	r.allocClientDescription = snap.AllocClientDescription
-	r.taskStates = snap.TaskStates
+	r.taskStates = snap.Alloc.TaskStates
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -189,7 +188,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	alloc := r.Alloc()
 
 	r.allocLock.Lock()
-	states := alloc.TaskStates
 	allocClientStatus := r.allocClientStatus
 	allocClientDescription := r.allocClientDescription
 	r.allocLock.Unlock()
@@ -204,7 +202,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		Context:                ctx,
 		AllocClientStatus:      allocClientStatus,
 		AllocClientDescription: allocClientDescription,
-		TaskStates:             states,
 	}
 	return persistState(r.stateFilePath(), &snap)
 }
