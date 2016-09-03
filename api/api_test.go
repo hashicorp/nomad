@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,14 +91,26 @@ func TestRequestTime(t *testing.T) {
 
 func TestDefaultConfig_env(t *testing.T) {
 	url := "http://1.2.3.4:5678"
+	auth := []string{"nomaduser", "12345"}
 
 	os.Setenv("NOMAD_ADDR", url)
 	defer os.Setenv("NOMAD_ADDR", "")
+
+	os.Setenv("NOMAD_HTTP_AUTH", strings.Join(auth, ":"))
+	defer os.Setenv("NOMAD_HTTP_AUTH", "")
 
 	config := DefaultConfig()
 
 	if config.Address != url {
 		t.Errorf("expected %q to be %q", config.Address, url)
+	}
+
+	if config.HttpAuth.Username != auth[0] {
+		t.Errorf("expected %q to be %q", config.HttpAuth.Username, auth[0])
+	}
+
+	if config.HttpAuth.Password != auth[1] {
+		t.Errorf("expected %q to be %q", config.HttpAuth.Password, auth[1])
 	}
 }
 

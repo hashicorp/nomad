@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/args"
@@ -46,6 +47,8 @@ const (
 	AllocUpdateRequestType
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
+	VaultAccessorRegisterRequestType
+	VaultAccessorDegisterRequestType
 )
 
 const (
@@ -209,7 +212,8 @@ type NodeEvaluateRequest struct {
 
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
-	NodeID string
+	NodeID   string
+	SecretID string
 	QueryOptions
 }
 
@@ -350,6 +354,41 @@ type AllocsGetRequest struct {
 type PeriodicForceRequest struct {
 	JobID string
 	WriteRequest
+}
+
+// DeriveVaultTokenRequest is used to request wrapped Vault tokens for the
+// following tasks in the given allocation
+type DeriveVaultTokenRequest struct {
+	NodeID   string
+	SecretID string
+	AllocID  string
+	Tasks    []string
+	QueryOptions
+}
+
+// VaultAccessorsRequest is used to operate on a set of Vault accessors
+type VaultAccessorsRequest struct {
+	Accessors []*VaultAccessor
+}
+
+// VaultAccessor is a reference to a created Vault token on behalf of
+// an allocation's task.
+type VaultAccessor struct {
+	AllocID     string
+	Task        string
+	NodeID      string
+	Accessor    string
+	CreationTTL int
+
+	// Raft Indexes
+	CreateIndex uint64
+}
+
+// DeriveVaultTokenResponse returns the wrapped tokens for each requested task
+type DeriveVaultTokenResponse struct {
+	// Tasks is a mapping between the task name and the wrapped token
+	Tasks map[string]string
+	QueryMeta
 }
 
 // GenericRequest is used to request where no
@@ -592,6 +631,11 @@ type Node struct {
 	// approach. Alternatively a UUID may be used.
 	ID string
 
+	// SecretID is an ID that is only known by the Node and the set of Servers.
+	// It is not accessible via the API and is used to authenticate nodes
+	// conducting priviledged activities.
+	SecretID string
+
 	// Datacenter for this node
 	Datacenter string
 
@@ -720,14 +764,22 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+const (
+	BytesInMegabyte = 1024 * 1024
+)
+
 // DefaultResources returns the default resources for a task.
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
-		DiskMB:   300,
 		IOPS:     0,
 	}
+}
+
+// DiskInBytes returns the amount of disk resources in bytes.
+func (r *Resources) DiskInBytes() int64 {
+	return int64(r.DiskMB * BytesInMegabyte)
 }
 
 // Merge merges this resource with another resource.
@@ -770,9 +822,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < 10 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
-	}
-	if r.DiskMB < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum DiskMB value is 10; got %d", r.DiskMB))
 	}
 	if r.IOPS < 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
@@ -1061,6 +1110,11 @@ type Job struct {
 	// job. This is opaque to Nomad.
 	Meta map[string]string
 
+	// VaultToken is the Vault token that proves the submitter of the job has
+	// access to the specified Vault policies. This field is only used to
+	// transfer the token and is not stored after Job submission.
+	VaultToken string `mapstructure:"vault_token"`
+
 	// Job status
 	Status string
 
@@ -1215,6 +1269,26 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 // IsPeriodic returns whether a job is periodic.
 func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
+}
+
+// VaultPolicies returns the set of Vault policies per task group, per task
+func (j *Job) VaultPolicies() map[string]map[string]*Vault {
+	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
+		policies[tg.Name] = tgPolicies
+
+		for _, task := range tg.Tasks {
+			if task.Vault == nil {
+				continue
+			}
+
+			tgPolicies[task.Name] = task.Vault
+		}
+	}
+
+	return policies
 }
 
 // JobListStub is used to return a subset of job information
@@ -1464,6 +1538,9 @@ type TaskGroup struct {
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
 
+	// LocalDisk is the disk resources that the task group requests
+	LocalDisk *LocalDisk
+
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
@@ -1488,6 +1565,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 
 	ntg.Meta = CopyMapStringString(ntg.Meta)
+
+	if tg.LocalDisk != nil {
+		ntg.LocalDisk = tg.LocalDisk.Copy()
+	}
 	return ntg
 }
 
@@ -1536,6 +1617,14 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
+	if tg.LocalDisk != nil {
+		if err := tg.LocalDisk.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	} else {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a local disk object", tg.Name))
+	}
+
 	// Check for duplicate tasks
 	tasks := make(map[string]int)
 	for idx, task := range tg.Tasks {
@@ -1550,7 +1639,7 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(); err != nil {
+		if err := task.Validate(tg.LocalDisk); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -1591,15 +1680,16 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name      string        // Name of the check, defaults to id
-	Type      string        // Type of the check - tcp, http, docker and script
-	Command   string        // Command is the command to run for script checks
-	Args      []string      // Args is a list of argumes for script checks
-	Path      string        // path of the health check url for http type check
-	Protocol  string        // Protocol to use if check is http, defaults to http
-	PortLabel string        `mapstructure:"port"` // The port to use for tcp/http checks
-	Interval  time.Duration // Interval of the check
-	Timeout   time.Duration // Timeout of the response from the check before consul fails the check
+	Name          string        // Name of the check, defaults to id
+	Type          string        // Type of the check - tcp, http, docker and script
+	Command       string        // Command is the command to run for script checks
+	Args          []string      // Args is a list of argumes for script checks
+	Path          string        // path of the health check url for http type check
+	Protocol      string        // Protocol to use if check is http, defaults to http
+	PortLabel     string        `mapstructure:"port"` // The port to use for tcp/http checks
+	Interval      time.Duration // Interval of the check
+	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
+	InitialStatus string        `mapstructure:"initial_status"` // Initial status of the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -1651,6 +1741,17 @@ func (sc *ServiceCheck) validate() error {
 
 	if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
+	}
+
+	switch sc.InitialStatus {
+	case "":
+	case api.HealthUnknown:
+	case api.HealthPassing:
+	case api.HealthWarning:
+	case api.HealthCritical:
+	default:
+		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q, %q or empty`, sc.InitialStatus, api.HealthUnknown, api.HealthPassing, api.HealthWarning, api.HealthCritical)
+
 	}
 
 	return nil
@@ -1830,6 +1931,10 @@ type Task struct {
 	// List of service definitions exposed by the Task
 	Services []*Service
 
+	// Vault is used to define the set of Vault policies that this task should
+	// have access to.
+	Vault *Vault
+
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
 	Constraints []*Constraint
@@ -1871,6 +1976,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 
+	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
 
@@ -1931,7 +2037,7 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate() error {
+func (t *Task) Validate(localDisk *LocalDisk) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -1955,6 +2061,13 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// Ensure the task isn't asking for disk resources
+	if t.Resources != nil {
+		if t.Resources.DiskMB > 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+		}
+	}
+
 	// Validate the log config
 	if t.LogConfig == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
@@ -1974,12 +2087,12 @@ func (t *Task) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	if t.LogConfig != nil && t.Resources != nil {
+	if t.LogConfig != nil && localDisk != nil {
 		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if t.Resources.DiskMB <= logUsage {
+		if localDisk.DiskMB <= logUsage {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
-					logUsage, t.Resources.DiskMB))
+					logUsage, localDisk.DiskMB))
 		}
 	}
 
@@ -1987,6 +2100,12 @@ func (t *Task) Validate() error {
 		if err := artifact.Validate(); err != nil {
 			outer := fmt.Errorf("Artifact %d validation failed: %v", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	if t.Vault != nil {
+		if err := t.Vault.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Vault validation failed: %v", err))
 		}
 	}
 
@@ -2082,7 +2201,7 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Failed returns if the task has has failed.
+// Failed returns true if the task has has failed.
 func (ts *TaskState) Failed() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -2090,7 +2209,7 @@ func (ts *TaskState) Failed() bool {
 	}
 
 	switch ts.Events[l-1].Type {
-	case TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
+	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
 		return true
 	default:
 		return false
@@ -2152,6 +2271,14 @@ const (
 	// TaskArtifactDownloadFailed indicates that downloading the artifacts
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
+
+	// TaskDiskExceeded indicates that one of the tasks in a taskgroup has
+	// exceeded the requested disk resources.
+	TaskDiskExceeded = "Disk Resources Exceeded"
+
+	// TaskSiblingFailed indicates that a sibling task in the task group has
+	// failed.
+	TaskSiblingFailed = "Sibling task failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -2185,6 +2312,16 @@ type TaskEvent struct {
 
 	// Validation fields
 	ValidationError string // Validation error
+
+	// The maximum allowed task disk size.
+	DiskLimit int64
+
+	// The recorded task disk size.
+	DiskSize int64
+
+	// Name of the sibling task that caused termination of the task that
+	// the TaskEvent refers to.
+	FailedSibling string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2264,6 +2401,21 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
 	e.KillTimeout = timeout
+	return e
+}
+
+func (e *TaskEvent) SetDiskLimit(limit int64) *TaskEvent {
+	e.DiskLimit = limit
+	return e
+}
+
+func (e *TaskEvent) SetDiskSize(size int64) *TaskEvent {
+	e.DiskSize = size
+	return e
+}
+
+func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
+	e.FailedSibling = sibling
 	return e
 }
 
@@ -2419,6 +2571,67 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	// Sticky indicates whether the allocation is sticky to a node
+	Sticky bool
+
+	// DiskMB is the size of the local disk
+	DiskMB int `mapstructure:"disk"`
+}
+
+// DefaultLocalDisk returns a LocalDisk with default configurations
+func DefaultLocalDisk() *LocalDisk {
+	return &LocalDisk{
+		DiskMB: 300,
+	}
+}
+
+// Validate validates LocalDisk
+func (d *LocalDisk) Validate() error {
+	if d.DiskMB < 10 {
+		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)
+	}
+	return nil
+}
+
+// Copy copies the LocalDisk struct and returns a new one
+func (d *LocalDisk) Copy() *LocalDisk {
+	ld := new(LocalDisk)
+	*ld = *d
+	return ld
+}
+
+// Vault stores the set of premissions a task needs access to from Vault.
+type Vault struct {
+	// Policies is the set of policies that the task needs access to
+	Policies []string
+}
+
+// Copy returns a copy of this Vault block.
+func (v *Vault) Copy() *Vault {
+	if v == nil {
+		return nil
+	}
+
+	nv := new(Vault)
+	*nv = *v
+	return nv
+}
+
+// Validate returns if the Vault block is valid.
+func (v *Vault) Validate() error {
+	if v == nil {
+		return nil
+	}
+
+	if len(v.Policies) == 0 {
+		return fmt.Errorf("Policy list can not be empty")
+	}
+
+	return nil
+}
+
 const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
@@ -2460,6 +2673,10 @@ type Allocation struct {
 	// of this allocation of the task group.
 	Resources *Resources
 
+	// SharedResources are the resources that are shared by all the tasks in an
+	// allocation
+	SharedResources *Resources
+
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
@@ -2481,6 +2698,9 @@ type Allocation struct {
 
 	// TaskStates stores the state of each task,
 	TaskStates map[string]*TaskState
+
+	// PreviousAllocation is the allocation that this allocation is replacing
+	PreviousAllocation string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -2504,6 +2724,7 @@ func (a *Allocation) Copy() *Allocation {
 
 	na.Job = na.Job.Copy()
 	na.Resources = na.Resources.Copy()
+	na.SharedResources = na.SharedResources.Copy()
 
 	if a.TaskResources != nil {
 		tr := make(map[string]*Resources, len(na.TaskResources))
@@ -2542,6 +2763,16 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+// Terminated returns if the allocation is in a terminal state on a client.
+func (a *Allocation) Terminated() bool {
+	if a.ClientStatus == AllocClientStatusFailed ||
+		a.ClientStatus == AllocClientStatusComplete ||
+		a.ClientStatus == AllocClientStatusLost {
+		return true
+	}
+	return false
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all

@@ -93,6 +93,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"disable_anonymous_signature",
 		"atlas",
 		"consul",
+		"vault",
 		"http_api_response_headers",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
@@ -113,6 +114,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "telemetry")
 	delete(m, "atlas")
 	delete(m, "consul")
+	delete(m, "vault")
 	delete(m, "http_api_response_headers")
 
 	// Decode the rest
@@ -173,6 +175,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("consul"); len(o.Items) > 0 {
 		if err := parseConsulConfig(&result.Consul, o); err != nil {
 			return multierror.Prefix(err, "consul ->")
+		}
+	}
+
+	// Parse the vault config
+	if o := list.Filter("vault"); len(o.Items) > 0 {
+		if err := parseVaultConfig(&result.Vault, o); err != nil {
+			return multierror.Prefix(err, "vault ->")
 		}
 	}
 
@@ -630,6 +639,56 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	}
 
 	*result = consulConfig
+	return nil
+}
+
+func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'vault' block allowed")
+	}
+
+	// Get our Vault object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"address",
+		"allow_unauthenticated",
+		"enabled",
+		"task_token_ttl",
+		"tls_ca_file",
+		"tls_ca_path",
+		"tls_cert_file",
+		"tls_key_file",
+		"tls_server_name",
+		"tls_skip_verify",
+		"token",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	vaultConfig := config.DefaultVaultConfig()
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &vaultConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = vaultConfig
 	return nil
 }
 

@@ -2,14 +2,11 @@ package command
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
@@ -28,10 +25,8 @@ potentially invalid.`
 
 type PlanCommand struct {
 	Meta
+	JobGetter
 	color *colorstring.Colorize
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
 }
 
 func (c *PlanCommand) Help() string {
@@ -44,7 +39,8 @@ Usage: nomad plan [options] <file>
   successfully and how it would affect existing allocations.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   A job modify index is returned with the plan. This value can be used when
   submitting the job using "nomad run -check-index", which will check that the job
@@ -101,32 +97,11 @@ func (c *PlanCommand) Run(args []string) int {
 		return 255
 	}
 
-	// Read the Jobfile
 	path := args[0]
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-		path = "stdin"
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 255
-		}
-		f = file
-	}
-
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file %s: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
 	}
 

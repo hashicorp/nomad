@@ -392,7 +392,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	if len(offer.DynamicPorts) != 1 {
 		t.Fatalf("There should be three dynamic ports")
 	}
-	if p := offer.DynamicPorts[0].Value; p == MaxDynamicPort {
+	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
 		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
 	}
 }

@@ -1,8 +1,6 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad)
+Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 =========
-
 -	Website: https://www.nomadproject.io
--	IRC: `#nomad-tool` on Freenode
 -	Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
 
 ![Nomad](https://raw.githubusercontent.com/hashicorp/nomad/master/website/source/assets/images/logo-header%402x.png?token=AAkIoLO_y1g3wgHMr3QO-559BN22rN0kks5V_2HpwA%3D%3D)
@@ -57,7 +55,7 @@ Developing Nomad
 
 If you wish to work on Nomad itself or any of its built-in systems,
 you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.5+ is *required*).
+machine (version 1.7+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The

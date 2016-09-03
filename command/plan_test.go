@@ -28,10 +28,10 @@ func TestPlanCommand_Fails(t *testing.T) {
 
 	// Fails when specified file does not exist
 	if code := cmd.Run([]string{"/unicorns/leprechauns"}); code != 255 {
-		t.Fatalf("expect exit 1, got: %d", code)
+		t.Fatalf("expect exit 255, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error opening") {
-		t.Fatalf("expect parsing error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect getting job struct error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 
@@ -45,10 +45,10 @@ func TestPlanCommand_Fails(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if code := cmd.Run([]string{fh1.Name()}); code != 255 {
-		t.Fatalf("expect exit 1, got: %d", code)
+		t.Fatalf("expect exit 255, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error parsing") {
-		t.Fatalf("expect parsing error, got: %s", err)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting job struct") {
+		t.Fatalf("expect parsing error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 
@@ -62,7 +62,7 @@ func TestPlanCommand_Fails(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if code := cmd.Run([]string{fh2.Name()}); code != 255 {
-		t.Fatalf("expect exit 1, got: %d", code)
+		t.Fatalf("expect exit 255, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error validating") {
 		t.Fatalf("expect validation error, got: %s", out)
@@ -85,7 +85,6 @@ job "job1" {
 			driver = "exec"
 			resources = {
 				cpu = 1000
-				disk = 150
 				memory = 512
 			}
 		}
@@ -95,7 +94,7 @@ job "job1" {
 		t.Fatalf("err: %s", err)
 	}
 	if code := cmd.Run([]string{"-address=nope", fh3.Name()}); code != 255 {
-		t.Fatalf("expected exit code 1, got: %d", code)
+		t.Fatalf("expected exit code 255, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error during plan") {
 		t.Fatalf("expected failed query error, got: %s", out)
@@ -111,7 +110,7 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &PlanCommand{
 		Meta:      Meta{Ui: ui},
-		testStdin: stdinR,
+		JobGetter: JobGetter{testStdin: stdinR},
 	}
 
 	go func() {
@@ -125,7 +124,6 @@ job "job1" {
                         driver = "exec"
                         resources = {
                                 cpu = 1000
-                                disk = 150
                                 memory = 512
                         }
                 }
@@ -136,11 +134,27 @@ job "job1" {
 
 	args := []string{"-"}
 	if code := cmd.Run(args); code != 255 {
-		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
+		t.Fatalf("expected exit code 255, got %d: %q", code, ui.ErrorWriter.String())
 	}
 
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
-		t.Fatalf("expected runtime error, got: %s", out)
+		t.Fatalf("expected connection refused error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
+}
+
+func TestPlanCommand_From_URL(t *testing.T) {
+	ui := new(cli.MockUi)
+	cmd := &PlanCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	args := []string{"https://example.com/foo/bar"}
+	if code := cmd.Run(args); code != 255 {
+		t.Fatalf("expected exit code 255, got %d: %q", code, ui.ErrorWriter.String())
+	}
+
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting jobfile") {
+		t.Fatalf("expected error getting jobfile, got: %s", out)
+	}
 }

@@ -55,13 +55,13 @@ func TestBitmap(t *testing.T) {
 	}
 
 	// Check the indexes
-	idxs := b.IndexesInRange(true, 0, 256)
+	idxs := b.IndexesInRange(true, 0, 500)
 	expected := []int{0, 255}
 	if !reflect.DeepEqual(idxs, expected) {
 		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
 	}
 
-	idxs = b.IndexesInRange(true, 1, 256)
+	idxs = b.IndexesInRange(true, 1, 255)
 	expected = []int{255}
 	if !reflect.DeepEqual(idxs, expected) {
 		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
@@ -73,7 +73,7 @@ func TestBitmap(t *testing.T) {
 	}
 
 	idxs = b.IndexesInRange(false, 100, 200)
-	if len(idxs) != 100 {
+	if len(idxs) != 101 {
 		t.Fatalf("bad")
 	}
 

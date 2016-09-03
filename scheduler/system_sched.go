@@ -196,10 +196,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
 	// Filter out the allocations in a terminal state
-	allocs = structs.FilterTerminalAllocs(allocs)
+	allocs, terminalAllocs := structs.FilterTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs)
+	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs, terminalAllocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the allocs to stop
@@ -319,6 +319,16 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
+
+				SharedResources: &structs.Resources{
+					DiskMB: missing.TaskGroup.LocalDisk.DiskMB,
+				},
+			}
+
+			// If the new allocation is replacing an older allocation then we
+			// set the record the older allocation id so that they are chained
+			if missing.Alloc != nil {
+				alloc.PreviousAllocation = missing.Alloc.ID
 			}
 
 			s.plan.AppendAlloc(alloc)

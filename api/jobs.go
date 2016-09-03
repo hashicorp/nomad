@@ -201,6 +201,7 @@ type Job struct {
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
 	Meta              map[string]string
+	VaultToken        string
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64

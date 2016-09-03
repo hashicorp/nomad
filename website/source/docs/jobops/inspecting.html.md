@@ -39,14 +39,14 @@ Task Group "cache":
   * Dimension "cpu exhausted" exhausted on 1 nodes
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status
-12681940  8e38e6cf  4beef22f  cache       run      running
-395c5882  8e38e6cf  4beef22f  cache       run      running
-4d7c6f84  8e38e6cf  4beef22f  cache       run      running
-843b07b8  8e38e6cf  4beef22f  cache       run      running
-a8bc6d3e  8e38e6cf  4beef22f  cache       run      running
-b0beb907  8e38e6cf  4beef22f  cache       run      running
-da21c1fd  8e38e6cf  4beef22f  cache       run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
+12681940  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+395c5882  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+4d7c6f84  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+843b07b8  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+a8bc6d3e  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+b0beb907  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
+da21c1fd  8e38e6cf  4beef22f  cache       run      running  08/08/16 21:03:19 CDT
 ```
 
 In the above example we see that the job has a "blocked" evaluation that is in
@@ -90,6 +90,7 @@ Name          = example.cache[1]
 Node ID       = 4beef22f
 Job ID        = example
 Client Status = running
+Created At    = 06/28/16 15:37:44 UTC
 
 Task "redis" is "running"
 Task Resources
@@ -126,6 +127,7 @@ Name          = example.cache[0]
 Node ID       = 13063955
 Job ID        = example
 Client Status = failed
+Created At    = 06/28/16 15:50:22 UTC
 
 Task "redis" is "dead"
 Task Resources
@@ -153,6 +155,7 @@ Name          = example.cache[0]
 Node ID       = 83ef596c
 Job ID        = example
 Client Status = pending
+Created At    = 06/28/16 15:55:48
 
 Task "redis" is "pending"
 Task Resources

@@ -46,6 +46,12 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 			ret.Active = t * 1024
 		case "Inactive":
 			ret.Inactive = t * 1024
+		case "Writeback":
+			ret.Writeback = t * 1024
+		case "WritebackTmp":
+			ret.WritebackTmp = t * 1024
+		case "Dirty":
+			ret.Dirty = t * 1024
 		}
 	}
 	if !memavail {

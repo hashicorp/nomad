@@ -1,6 +1,7 @@
 package allocdir
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -12,6 +13,16 @@ func (d *AllocDir) mountSharedDir(dir string) error {
 
 func (d *AllocDir) unmountSharedDir(dir string) error {
 	return syscall.Unlink(dir)
+}
+
+// createSecretDir creates the secrets dir folder at the given path
+func (d *AllocDir) createSecretDir(dir string) error {
+	return os.MkdirAll(dir, 0777)
+}
+
+// removeSecretDir removes the secrets dir folder
+func (d *AllocDir) removeSecretDir(dir string) error {
+	return os.RemoveAll(dir)
 }
 
 // MountSpecialDirs mounts the dev and proc file system on the chroot of the

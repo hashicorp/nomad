@@ -22,7 +22,9 @@ The run command requires a single argument, specifying the path to a file
 containing a valid [job specification](/docs/jobspec/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling. If the
 supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
-from the file at the supplied path.
+from the file at the supplied path or downloaded and read from URL specified.
+Nomad downloads jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
+and support `go-getter` syntax.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
@@ -36,6 +38,10 @@ client connection issues or internal errors, are indicated by exit code 1.
 
 If the job has specified the region, the -region flag and NOMAD_REGION
 environment variable are overridden and the the job's region is used.
+
+The run command will set the `vault_token` of the job based on the following
+precedence, going from highest to lowest: the `-vault-token` flag, the
+`$VAULT_TOKEN` environment variable and finally the value in the job file.
 
 ## General Options
 
@@ -53,6 +59,11 @@ environment variable are overridden and the the job's region is used.
 * `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval-status](/docs/commands/eval-status.html) command
+
+* `-vault-token`: If set, the passed Vault token is stored in the job before
+  sending to the Nomad servers. This allows passing the Vault token without
+  storing it in the job file. This overrides the token found in $VAULT_TOKEN
+  environment variable and that found in the job.
 
 * `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.

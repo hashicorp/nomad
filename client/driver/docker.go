@@ -381,6 +381,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	// Set environment variables.
 	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
 	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskSecretsContainerPath)
 
 	config := &docker.Config{
 		Image:     driverConfig.ImageName,
@@ -414,9 +415,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		},
 	}
 
-	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
-	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
-	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
+	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
+	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
 
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
@@ -861,7 +862,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("Failed to find container %s: %v", pid.ContainerID, err)
+		return nil, fmt.Errorf("Failed to find container %s", pid.ContainerID)
 	}
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {

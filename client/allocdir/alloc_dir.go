@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"math"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"gopkg.in/tomb.v1"
@@ -13,6 +16,20 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
+)
+
+const (
+	// The minimum frequency to use for disk monitoring.
+	minCheckDiskInterval = 3 * time.Minute
+
+	// The maximum frequency to use for disk monitoring.
+	maxCheckDiskInterval = 15 * time.Second
+
+	// The amount of time that maxCheckDiskInterval is always used after
+	// starting the allocation. This prevents unbounded disk usage that would
+	// otherwise be possible for a number of minutes if we started with the
+	// minCheckDiskInterval.
+	checkDiskMaxEnforcePeriod = 5 * time.Minute
 )
 
 var (
@@ -29,6 +46,10 @@ var (
 	// regardless of driver.
 	TaskLocal = "local"
 
+	// TaskSecrets is the the name of the secret directory inside each task
+	// directory
+	TaskSecrets = "secrets"
+
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = []string{"tmp"}
 )
@@ -44,6 +65,33 @@ type AllocDir struct {
 
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]string
+
+	// Size is the total consumed disk size of the shared directory in bytes
+	size     int64
+	sizeLock sync.RWMutex
+
+	// The minimum frequency to use for disk monitoring.
+	MinCheckDiskInterval time.Duration
+
+	// The maximum frequency to use for disk monitoring.
+	MaxCheckDiskInterval time.Duration
+
+	// The amount of time that maxCheckDiskInterval is always used after
+	// starting the allocation. This prevents unbounded disk usage that would
+	// otherwise be possible for a number of minutes if we started with the
+	// minCheckDiskInterval.
+	CheckDiskMaxEnforcePeriod time.Duration
+
+	// running reflects the state of the disk watcher process.
+	running bool
+
+	// watchCh signals that the alloc directory is being torn down and that
+	// any monitoring on it should stop.
+	watchCh chan struct{}
+
+	// MaxSize represents the total amount of megabytes that the shared allocation
+	// directory is allowed to consume.
+	MaxSize int
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir
@@ -64,14 +112,24 @@ type AllocDirFS interface {
 	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
 }
 
-func NewAllocDir(allocDir string) *AllocDir {
-	d := &AllocDir{AllocDir: allocDir, TaskDirs: make(map[string]string)}
+// NewAllocDir initializes the AllocDir struct with allocDir as base path for
+// the allocation directory and maxSize as the maximum allowed size in megabytes.
+func NewAllocDir(allocDir string, maxSize int) *AllocDir {
+	d := &AllocDir{
+		AllocDir:                  allocDir,
+		MaxCheckDiskInterval:      maxCheckDiskInterval,
+		MinCheckDiskInterval:      minCheckDiskInterval,
+		CheckDiskMaxEnforcePeriod: checkDiskMaxEnforcePeriod,
+		TaskDirs:                  make(map[string]string),
+		MaxSize:                   maxSize,
+	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
 }
 
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
+
 	// Unmount all mounted shared alloc dirs.
 	var mErr multierror.Error
 	if err := d.UnmountAll(); err != nil {
@@ -97,6 +155,14 @@ func (d *AllocDir) UnmountAll() error {
 			} else if err := os.RemoveAll(taskAlloc); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to delete shared alloc dir %q: %v", taskAlloc, err))
+			}
+		}
+
+		taskSecret := filepath.Join(dir, TaskSecrets)
+		if d.pathExists(taskSecret) {
+			if err := d.removeSecretDir(taskSecret); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to remove the secret dir %q: %v", taskSecret, err))
 			}
 		}
 
@@ -168,6 +234,16 @@ func (d *AllocDir) Build(tasks []*structs.Task) error {
 			if err := d.dropDirPermissions(local); err != nil {
 				return err
 			}
+		}
+
+		// Create the secret directory
+		secret := filepath.Join(taskDir, TaskSecrets)
+		if err := d.createSecretDir(secret); err != nil {
+			return err
+		}
+
+		if err := d.dropDirPermissions(secret); err != nil {
+			return err
 		}
 	}
 
@@ -396,4 +472,83 @@ func (d *AllocDir) pathExists(path string) bool {
 		}
 	}
 	return true
+}
+
+// GetSize returns the size of the shared allocation directory.
+func (d *AllocDir) GetSize() int64 {
+	d.sizeLock.Lock()
+	defer d.sizeLock.Unlock()
+
+	return d.size
+}
+
+// setSize sets the size of the shared allocation directory.
+func (d *AllocDir) setSize(size int64) {
+	d.sizeLock.Lock()
+	defer d.sizeLock.Unlock()
+
+	d.size = size
+}
+
+// StartDiskWatcher periodically checks the disk space consumed by the shared
+// allocation directory.
+func (d *AllocDir) StartDiskWatcher() {
+	start := time.Now()
+
+	sync := time.NewTimer(d.MaxCheckDiskInterval)
+	defer sync.Stop()
+
+	d.running = true
+	d.watchCh = make(chan struct{})
+
+	for {
+		select {
+		case <-d.watchCh:
+			return
+		case <-sync.C:
+			if err := d.syncDiskUsage(); err != nil {
+				log.Printf("[WARN] client: failed to sync disk usage: %v", err)
+			}
+			// Calculate the disk ratio.
+			diskRatio := float64(d.size) / float64(d.MaxSize*structs.BytesInMegabyte)
+
+			// Exponentially decrease the interval when the disk ratio increases.
+			nextInterval := time.Duration(int64(1.0/(0.1*math.Pow(diskRatio, 2))+5)) * time.Second
+
+			// Use the maximum interval for the first five minutes or if the
+			// disk ratio is sufficiently high. Also use the minimum check interval
+			// if the disk ratio becomes low enough.
+			if nextInterval < d.MaxCheckDiskInterval || time.Since(start) < d.CheckDiskMaxEnforcePeriod {
+				nextInterval = d.MaxCheckDiskInterval
+			} else if nextInterval > d.MinCheckDiskInterval {
+				nextInterval = d.MinCheckDiskInterval
+			}
+			sync.Reset(nextInterval)
+		}
+	}
+}
+
+// StopDiskWatcher closes the watch channel which causes the disk monitoring to stop.
+func (d *AllocDir) StopDiskWatcher() {
+	if d.running {
+		d.running = false
+		close(d.watchCh)
+	}
+}
+
+// syncDiskUsage walks the allocation directory recursively and
+// calculates the total consumed disk space.
+func (d *AllocDir) syncDiskUsage() error {
+	var size int64
+	err := filepath.Walk(d.AllocDir,
+		func(path string, info os.FileInfo, err error) error {
+			// Ignore paths that do not have a valid FileInfo object
+			if err == nil {
+				size += info.Size()
+			}
+			return nil
+		})
+	// Store the disk consumption
+	d.setSize(size)
+	return err
 }

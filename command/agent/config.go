@@ -91,6 +91,10 @@ type Config struct {
 	// discover the current Nomad servers.
 	Consul *config.ConsulConfig `mapstructure:"consul"`
 
+	// Vault contains the configuration for the Vault Agent and
+	// parameters necessary to derive tokens.
+	Vault *config.VaultConfig `mapstructure:"vault"`
+
 	// NomadConfig is used to override the default config.
 	// This is largly used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
@@ -452,6 +456,7 @@ func DefaultConfig() *Config {
 		ChecksUseAdvertise: false,
 		Atlas:              &AtlasConfig{},
 		Consul:             config.DefaultConsulConfig(),
+		Vault:              config.DefaultVaultConfig(),
 		Client: &ClientConfig{
 			Enabled:        false,
 			NetworkSpeed:   100,
@@ -608,6 +613,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Consul = result.Consul.Merge(b.Consul)
 	}
 
+	// Apply the Vault Configuration
+	if result.Vault == nil && b.Vault != nil {
+		vaultConfig := *b.Vault
+		result.Vault = &vaultConfig
+	} else if b.Vault != nil {
+		result.Vault = result.Vault.Merge(b.Vault)
+	}
+
 	// Merge config files lists
 	result.Files = append(result.Files, b.Files...)
 
@@ -757,6 +770,12 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.collectionInterval != 0 {
 		result.collectionInterval = b.collectionInterval
+	}
+	if b.PublishNodeMetrics {
+		result.PublishNodeMetrics = true
+	}
+	if b.PublishAllocationMetrics {
+		result.PublishAllocationMetrics = true
 	}
 	if b.CirconusAPIToken != "" {
 		result.CirconusAPIToken = b.CirconusAPIToken

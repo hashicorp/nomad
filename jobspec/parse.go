@@ -139,6 +139,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"meta",
 		"task",
 		"group",
+		"vault_token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
@@ -189,9 +190,10 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &structs.TaskGroup{
-				Name:  t.Name,
-				Count: 1,
-				Tasks: []*structs.Task{t},
+				Name:      t.Name,
+				Count:     1,
+				LocalDisk: structs.DefaultLocalDisk(),
+				Tasks:     []*structs.Task{t},
 			}
 		}
 	}
@@ -239,6 +241,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			"restart",
 			"meta",
 			"task",
+			"local_disk",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -252,6 +255,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		delete(m, "meta")
 		delete(m, "task")
 		delete(m, "restart")
+		delete(m, "local_disk")
 
 		// Default count to 1 if not specified
 		if _, ok := m["count"]; !ok {
@@ -276,6 +280,14 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
 			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', restart ->", n))
+			}
+		}
+
+		// Parse local disk
+		g.LocalDisk = structs.DefaultLocalDisk()
+		if o := listVal.Filter("local_disk"); len(o.Items) > 0 {
+			if err := parseLocalDisk(&g.LocalDisk, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', local_disk ->", n))
 			}
 		}
 
@@ -416,6 +428,38 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 	return nil
 }
 
+func parseLocalDisk(result **structs.LocalDisk, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'local_disk' block allowed")
+	}
+
+	// Get our local_disk object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"sticky",
+		"disk",
+	}
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var localDisk structs.LocalDisk
+	if err := mapstructure.WeakDecode(m, &localDisk); err != nil {
+		return err
+	}
+	*result = &localDisk
+
+	return nil
+}
+
 // parseBool takes an interface value and tries to convert it to a boolean and
 // returns an error if the type can't be converted.
 func parseBool(value interface{}) (bool, error) {
@@ -460,17 +504,18 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 		// Check for invalid keys
 		valid := []string{
-			"driver",
-			"user",
-			"env",
-			"service",
+			"artifact",
 			"config",
 			"constraint",
+			"driver",
+			"env",
+			"kill_timeout",
+			"logs",
 			"meta",
 			"resources",
-			"logs",
-			"kill_timeout",
-			"artifact",
+			"service",
+			"user",
+			"vault",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -480,14 +525,15 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
 		}
+		delete(m, "artifact")
 		delete(m, "config")
-		delete(m, "env")
 		delete(m, "constraint")
-		delete(m, "service")
+		delete(m, "env")
+		delete(m, "logs")
 		delete(m, "meta")
 		delete(m, "resources")
-		delete(m, "logs")
-		delete(m, "artifact")
+		delete(m, "service")
+		delete(m, "vault")
 
 		// Build the task
 		var t structs.Task
@@ -621,6 +667,16 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			if err := parseArtifacts(&t.Artifacts, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', artifact ->", n))
 			}
+		}
+
+		// If we have a vault block, then parse that
+		if o := listVal.Filter("vault"); len(o.Items) > 0 {
+			var v structs.Vault
+			if err := parseVault(&v, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', vault ->", n))
+			}
+
+			t.Vault = &v
 		}
 
 		*result = append(*result, &t)
@@ -770,6 +826,7 @@ func parseChecks(service *structs.Service, checkObjs *ast.ObjectList) error {
 			"port",
 			"command",
 			"args",
+			"initial_status",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -821,7 +878,6 @@ func parseResources(result *structs.Resources, list *ast.ObjectList) error {
 	// Check for invalid keys
 	valid := []string{
 		"cpu",
-		"disk",
 		"iops",
 		"memory",
 		"network",
@@ -1008,6 +1064,46 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 		return err
 	}
 	*result = &p
+	return nil
+}
+
+func parseVault(result *structs.Vault, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) == 0 {
+		return nil
+	}
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'vault' block allowed per task")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("vault: should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"policies",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "vault ->")
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	if err := mapstructure.WeakDecode(m, result); err != nil {
+		return err
+	}
+
 	return nil
 }
 

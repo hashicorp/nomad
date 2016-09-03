@@ -24,6 +24,7 @@ Name          = example.cache[0]
 Node ID       = 39acd6e0
 Job ID        = example
 Client Status = running
+Created At    = 06/28/16 16:42:42 UTC
 
 Task "redis" is "running"
 Task Resources

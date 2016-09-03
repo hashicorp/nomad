@@ -11,14 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchellh/go-ps"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/go-ps"
 )
 
 var (
@@ -38,7 +37,7 @@ func mockAllocDir(t *testing.T) (*structs.Task, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID), task.Resources.DiskMB)
 	if err := allocDir.Build([]*structs.Task{task}); err != nil {
 		log.Panicf("allocDir.Build() failed: %v", err)
 	}

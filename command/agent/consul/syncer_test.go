@@ -1,13 +1,14 @@
 package consul
 
 import (
-	"fmt"
 	"log"
+	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -18,44 +19,7 @@ const (
 	serviceGroupName = "executor"
 )
 
-var (
-	logger = log.New(os.Stdout, "", log.LstdFlags)
-	check1 = structs.ServiceCheck{
-		Name:     "check-foo-1",
-		Type:     structs.ServiceCheckTCP,
-		Interval: 30 * time.Second,
-		Timeout:  5 * time.Second,
-	}
-	check2 = structs.ServiceCheck{
-		Name:      "check1",
-		Type:      "tcp",
-		PortLabel: "port2",
-		Interval:  3 * time.Second,
-		Timeout:   1 * time.Second,
-	}
-	check3 = structs.ServiceCheck{
-		Name:      "check3",
-		Type:      "http",
-		PortLabel: "port3",
-		Path:      "/health?p1=1&p2=2",
-		Interval:  3 * time.Second,
-		Timeout:   1 * time.Second,
-	}
-	service1 = structs.Service{
-		Name:      "foo-1",
-		Tags:      []string{"tag1", "tag2"},
-		PortLabel: "port1",
-		Checks: []*structs.ServiceCheck{
-			&check1, &check2,
-		},
-	}
-
-	service2 = structs.Service{
-		Name:      "foo-2",
-		Tags:      []string{"tag1", "tag2"},
-		PortLabel: "port2",
-	}
-)
+var logger = log.New(os.Stdout, "", log.LstdFlags)
 
 func TestCheckRegistration(t *testing.T) {
 	cs, err := NewSyncer(config.DefaultConsulConfig(), make(chan struct{}), logger)
@@ -63,153 +27,39 @@ func TestCheckRegistration(t *testing.T) {
 		t.Fatalf("Err: %v", err)
 	}
 
-	task := mockTask()
-	cs.SetAddrFinder(task.FindHostAndPortFor)
-
-	srvReg, _ := cs.createService(&service1, "domain", "key")
-	check1Reg, _ := cs.createCheckReg(&check1, srvReg)
-	check2Reg, _ := cs.createCheckReg(&check2, srvReg)
-	check3Reg, _ := cs.createCheckReg(&check3, srvReg)
-
-	expected := "10.10.11.5:20002"
-	if check1Reg.TCP != expected {
-		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+	check1 := structs.ServiceCheck{
+		Name:          "check-foo-1",
+		Type:          structs.ServiceCheckTCP,
+		Interval:      30 * time.Second,
+		Timeout:       5 * time.Second,
+		InitialStatus: api.HealthPassing,
 	}
-
-	expected = "10.10.11.5:20003"
-	if check2Reg.TCP != expected {
-		t.Fatalf("expected: %v, actual: %v", expected, check2Reg.TCP)
+	check2 := structs.ServiceCheck{
+		Name:      "check1",
+		Type:      "tcp",
+		PortLabel: "port2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
 	}
-
-	expected = "http://10.10.11.5:20004/health?p1=1&p2=2"
-	if check3Reg.HTTP != expected {
-		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
+	check3 := structs.ServiceCheck{
+		Name:      "check3",
+		Type:      "http",
+		PortLabel: "port3",
+		Path:      "/health?p1=1&p2=2",
+		Interval:  3 * time.Second,
+		Timeout:   1 * time.Second,
 	}
-
-}
-
-func TestConsulServiceRegisterServices(t *testing.T) {
-	t.Skip()
-
-	shutdownCh := make(chan struct{})
-	cs, err := NewSyncer(config.DefaultConsulConfig(), shutdownCh, logger)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
+	service1 := structs.Service{
+		Name:      "foo-1",
+		Tags:      []string{"tag1", "tag2"},
+		PortLabel: "port1",
+		Checks: []*structs.ServiceCheck{
+			&check1, &check2,
+		},
 	}
-	// Skipping the test if consul isn't present
-	if !cs.consulPresent() {
-		return
-	}
-	task := mockTask()
-	//cs.SetServiceRegPrefix(serviceRegPrefix)
-	cs.SetAddrFinder(task.FindHostAndPortFor)
-	if err := cs.SyncServices(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer cs.Shutdown()
-
-	// service1 := &structs.Service{Name: task.Name}
-	// service2 := &structs.Service{Name: task.Name}
-	//services := []*structs.Service{service1, service2}
-	//service1.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service1), task.Name, allocID)
-	//service2.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service2), task.Name, allocID)
-
-	//cs.SetServices(serviceGroupName, services)
-	// if err := servicesPresent(t, services, cs); err != nil {
-	// 	t.Fatalf("err : %v", err)
-	// }
-	// FIXME(sean@)
-	// if err := checksPresent(t, []string{check1.Hash(service1ID)}, cs); err != nil {
-	// 	t.Fatalf("err : %v", err)
-	// }
-}
-
-func TestConsulServiceUpdateService(t *testing.T) {
-	t.Skip()
-
-	shutdownCh := make(chan struct{})
-	cs, err := NewSyncer(config.DefaultConsulConfig(), shutdownCh, logger)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
-	// Skipping the test if consul isn't present
-	if !cs.consulPresent() {
-		return
-	}
-
-	task := mockTask()
-	//cs.SetServiceRegPrefix(serviceRegPrefix)
-	cs.SetAddrFinder(task.FindHostAndPortFor)
-	if err := cs.SyncServices(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer cs.Shutdown()
-
-	//Update Service defn 1
-	newTags := []string{"tag3"}
-	task.Services[0].Tags = newTags
-	if err := cs.SyncServices(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Make sure all the services and checks are still present
-	// service1 := &structs.Service{Name: task.Name}
-	// service2 := &structs.Service{Name: task.Name}
-	//services := []*structs.Service{service1, service2}
-	//service1.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service1), task.Name, allocID)
-	//service2.ServiceID = fmt.Sprintf("%s-%s:%s/%s", cs.GenerateServiceID(serviceGroupName, service2), task.Name, allocID)
-	// if err := servicesPresent(t, services, cs); err != nil {
-	// 	t.Fatalf("err : %v", err)
-	// }
-	// FIXME(sean@)
-	// if err := checksPresent(t, []string{check1.Hash(service1ID)}, cs); err != nil {
-	// 	t.Fatalf("err : %v", err)
-	// }
-
-	// check if service defn 1 has been updated
-	// consulServices, err := cs.client.Agent().Services()
-	// if err != nil {
-	// 	t.Fatalf("errL: %v", err)
-	// }
-	// srv, _ := consulServices[service1.ServiceID]
-	// if !reflect.DeepEqual(srv.Tags, newTags) {
-	// 	t.Fatalf("expected tags: %v, actual: %v", newTags, srv.Tags)
-	// }
-}
-
-// func servicesPresent(t *testing.T, configuredServices []*structs.Service, syncer *Syncer) error {
-// 	var mErr multierror.Error
-// 	// services, err := syncer.client.Agent().Services()
-// 	// if err != nil {
-// 	// 	t.Fatalf("err: %v", err)
-// 	// }
-
-// 	// for _, configuredService := range configuredServices {
-// 	// 	if _, ok := services[configuredService.ServiceID]; !ok {
-// 	// 		mErr.Errors = append(mErr.Errors, fmt.Errorf("service ID %q not synced", configuredService.ServiceID))
-// 	// 	}
-// 	// }
-// 	return mErr.ErrorOrNil()
-// }
-
-func checksPresent(t *testing.T, checkIDs []string, syncer *Syncer) error {
-	var mErr multierror.Error
-	checks, err := syncer.client.Agent().Checks()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	for _, checkID := range checkIDs {
-		if _, ok := checks[checkID]; !ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check ID %q not synced", checkID))
-		}
-	}
-	return mErr.ErrorOrNil()
-}
-
-func mockTask() *structs.Task {
 	task := structs.Task{
 		Name:     "foo",
-		Services: []*structs.Service{&service1, &service2},
+		Services: []*structs.Service{&service1},
 		Resources: &structs.Resources{
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
@@ -232,5 +82,198 @@ func mockTask() *structs.Task {
 			},
 		},
 	}
-	return &task
+	cs.SetAddrFinder(task.FindHostAndPortFor)
+	srvReg, _ := cs.createService(&service1, "domain", "key")
+	check1Reg, _ := cs.createCheckReg(&check1, srvReg)
+	check2Reg, _ := cs.createCheckReg(&check2, srvReg)
+	check3Reg, _ := cs.createCheckReg(&check3, srvReg)
+
+	expected := "10.10.11.5:20002"
+	if check1Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.TCP)
+	}
+
+	expected = "10.10.11.5:20003"
+	if check2Reg.TCP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check2Reg.TCP)
+	}
+
+	expected = "http://10.10.11.5:20004/health?p1=1&p2=2"
+	if check3Reg.HTTP != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check3Reg.HTTP)
+	}
+
+	expected = api.HealthPassing
+	if check1Reg.Status != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, check1Reg.Status)
+	}
+}
+
+func TestConsulServiceRegisterServices(t *testing.T) {
+	cs, err := NewSyncer(config.DefaultConsulConfig(), nil, logger)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	defer cs.Shutdown()
+	// Skipping the test if consul isn't present
+	if !cs.consulPresent() {
+		t.Skip("skipping because consul isn't present")
+	}
+
+	service1 := &structs.Service{Name: "foo", Tags: []string{"a", "b"}}
+	service2 := &structs.Service{Name: "foo"}
+	services := map[ServiceKey]*structs.Service{
+		GenerateServiceKey(service1): service1,
+		GenerateServiceKey(service2): service2,
+	}
+
+	// Call SetServices to update services in consul
+	if err := cs.SetServices(serviceGroupName, services); err != nil {
+		t.Fatalf("error setting services: %v", err)
+	}
+
+	// Manually call SyncServers to cause a synchronous consul update
+	if err := cs.SyncServices(); err != nil {
+		t.Fatalf("error syncing services: %v", err)
+	}
+
+	numservices := len(cs.flattenedServices())
+	if numservices != 2 {
+		t.Fatalf("expected 2 services but found %d", numservices)
+	}
+
+	numchecks := len(cs.flattenedChecks())
+	if numchecks != 0 {
+		t.Fatalf("expected 0 checks but found %d", numchecks)
+	}
+
+	// Assert services are in consul
+	agentServices, err := cs.client.Agent().Services()
+	if err != nil {
+		t.Fatalf("error querying consul services: %v", err)
+	}
+	found := 0
+	for id, as := range agentServices {
+		if id == "consul" {
+			found++
+			continue
+		}
+		if _, ok := services[ServiceKey(as.Service)]; ok {
+			found++
+			continue
+		}
+		t.Errorf("unexpected service in consul: %s", id)
+	}
+	if found != 3 {
+		t.Fatalf("expected 3 services in consul but found %d:\nconsul: %#v", len(agentServices), agentServices)
+	}
+
+	agentChecks, err := cs.queryChecks()
+	if err != nil {
+		t.Fatalf("error querying consul checks: %v", err)
+	}
+	if len(agentChecks) != numchecks {
+		t.Fatalf("expected %d checks in consul but found %d:\n%#v", numservices, len(agentChecks), agentChecks)
+	}
+}
+
+func TestConsulServiceUpdateService(t *testing.T) {
+	cs, err := NewSyncer(config.DefaultConsulConfig(), nil, logger)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	defer cs.Shutdown()
+	// Skipping the test if consul isn't present
+	if !cs.consulPresent() {
+		t.Skip("skipping because consul isn't present")
+	}
+	cs.SetAddrFinder(func(h string) (string, int) {
+		a, pstr, _ := net.SplitHostPort(h)
+		p, _ := net.LookupPort("tcp", pstr)
+		return a, p
+	})
+
+	service1 := &structs.Service{Name: "foo1", Tags: []string{"a", "b"}}
+	service2 := &structs.Service{Name: "foo2"}
+	services := map[ServiceKey]*structs.Service{
+		GenerateServiceKey(service1): service1,
+		GenerateServiceKey(service2): service2,
+	}
+	if err := cs.SetServices(serviceGroupName, services); err != nil {
+		t.Fatalf("error setting services: %v", err)
+	}
+	if err := cs.SyncServices(); err != nil {
+		t.Fatalf("error syncing services: %v", err)
+	}
+
+	// Now update both services
+	service1 = &structs.Service{Name: "foo1", Tags: []string{"a", "z"}}
+	service2 = &structs.Service{Name: "foo2", PortLabel: ":8899"}
+	service3 := &structs.Service{Name: "foo3"}
+	services = map[ServiceKey]*structs.Service{
+		GenerateServiceKey(service1): service1,
+		GenerateServiceKey(service2): service2,
+		GenerateServiceKey(service3): service3,
+	}
+	if err := cs.SetServices(serviceGroupName, services); err != nil {
+		t.Fatalf("error setting services: %v", err)
+	}
+	if err := cs.SyncServices(); err != nil {
+		t.Fatalf("error syncing services: %v", err)
+	}
+
+	agentServices, err := cs.queryAgentServices()
+	if err != nil {
+		t.Fatalf("error querying consul services: %v", err)
+	}
+	if len(agentServices) != 3 {
+		t.Fatalf("expected 3 services in consul but found %d:\n%#v", len(agentServices), agentServices)
+	}
+	consulServices := make(map[string]*api.AgentService, 3)
+	for _, as := range agentServices {
+		consulServices[as.ID] = as
+	}
+
+	found := 0
+	for _, s := range cs.flattenedServices() {
+		// Assert sure changes were applied to internal state
+		switch s.Name {
+		case "foo1":
+			found++
+			if !reflect.DeepEqual(service1.Tags, s.Tags) {
+				t.Errorf("incorrect tags on foo1:\n  expected: %v\n  found: %v", service1.Tags, s.Tags)
+			}
+		case "foo2":
+			found++
+			if s.Address != "" {
+				t.Errorf("expected empty host on foo2 but found %q", s.Address)
+			}
+			if s.Port != 8899 {
+				t.Errorf("expected port 8899 on foo2 but found %d", s.Port)
+			}
+		case "foo3":
+			found++
+		default:
+			t.Errorf("unexpected service: %s", s.Name)
+		}
+
+		// Assert internal state equals consul's state
+		cs, ok := consulServices[s.ID]
+		if !ok {
+			t.Errorf("service not in consul: %s id: %s", s.Name, s.ID)
+			continue
+		}
+		if !reflect.DeepEqual(s.Tags, cs.Tags) {
+			t.Errorf("mismatched tags in syncer state and consul for %s:\nsyncer: %v\nconsul: %v", s.Name, s.Tags, cs.Tags)
+		}
+		if cs.Port != s.Port {
+			t.Errorf("mismatched port in syncer state and consul for %s\nsyncer: %v\nconsul: %v", s.Name, s.Port, cs.Port)
+		}
+		if cs.Address != s.Address {
+			t.Errorf("mismatched address in syncer state and consul for %s\nsyncer: %v\nconsul: %v", s.Name, s.Address, cs.Address)
+		}
+	}
+	if found != 3 {
+		t.Fatalf("expected 3 services locally but found %d", found)
+	}
 }

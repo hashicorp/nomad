@@ -278,7 +278,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 // filterCompleteAllocs filters allocations that are terminal and should be
 // re-placed.
-func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
+func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) ([]*structs.Allocation, map[string]*structs.Allocation) {
 	filter := func(a *structs.Allocation) bool {
 		if s.batch {
 			// Allocs from batch jobs should be filtered when the desired status
@@ -303,9 +303,20 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 		return a.TerminalStatus()
 	}
 
+	terminalAllocsByName := make(map[string]*structs.Allocation)
 	n := len(allocs)
 	for i := 0; i < n; i++ {
 		if filter(allocs[i]) {
+
+			// Add the allocation to the terminal allocs map if it's not already
+			// added or has a higher create index than the one which is
+			// currently present.
+			alloc, ok := terminalAllocsByName[allocs[i].Name]
+			if !ok || alloc.CreateIndex < allocs[i].CreateIndex {
+				terminalAllocsByName[allocs[i].Name] = allocs[i]
+			}
+
+			// Remove the allocation
 			allocs[i], allocs[n-1] = allocs[n-1], nil
 			i--
 			n--
@@ -330,7 +341,7 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []
 		}
 	}
 
-	return filtered
+	return filtered, terminalAllocsByName
 }
 
 // computeJobAllocs is used to reconcile differences between the job,
@@ -361,10 +372,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
 	// Filter out the allocations in a terminal state
-	allocs = s.filterCompleteAllocs(allocs)
+	allocs, terminalAllocs := s.filterCompleteAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffAllocs(s.job, tainted, groups, allocs)
+	diff := diffAllocs(s.job, tainted, groups, allocs, terminalAllocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the allocs to stop
@@ -435,8 +446,19 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 			continue
 		}
 
+		// Find the preferred node
+		preferredNode, err := s.findPreferredNode(&missing)
+		if err != nil {
+			return err
+		}
+
 		// Attempt to match the task group
-		option, _ := s.stack.Select(missing.TaskGroup)
+		var option *RankedNode
+		if preferredNode != nil {
+			option, _ = s.stack.SelectPreferringNodes(missing.TaskGroup, []*structs.Node{preferredNode})
+		} else {
+			option, _ = s.stack.Select(missing.TaskGroup)
+		}
 
 		// Store the available nodes by datacenter
 		s.ctx.Metrics().NodesAvailable = byDC
@@ -455,6 +477,16 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
+
+				SharedResources: &structs.Resources{
+					DiskMB: missing.TaskGroup.LocalDisk.DiskMB,
+				},
+			}
+
+			// If the new allocation is replacing an older allocation then we
+			// set the record the older allocation id so that they are chained
+			if missing.Alloc != nil {
+				alloc.PreviousAllocation = missing.Alloc.ID
 			}
 
 			s.plan.AppendAlloc(alloc)
@@ -469,4 +501,19 @@ func (s *GenericScheduler) computePlacements(place []allocTuple) error {
 	}
 
 	return nil
+}
+
+// findPreferredNode finds the preferred node for an allocation
+func (s *GenericScheduler) findPreferredNode(allocTuple *allocTuple) (node *structs.Node, err error) {
+	if allocTuple.Alloc != nil {
+		taskGroup := allocTuple.Alloc.Job.LookupTaskGroup(allocTuple.Alloc.TaskGroup)
+		if taskGroup == nil {
+			err = fmt.Errorf("can't find task group of existing allocation %q", allocTuple.Alloc.ID)
+			return
+		}
+		if taskGroup.LocalDisk.Sticky == true {
+			node, err = s.state.NodeByID(allocTuple.Alloc.NodeID)
+		}
+	}
+	return
 }

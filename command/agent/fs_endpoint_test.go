@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/ugorji/go/codec"
 )
@@ -375,9 +376,11 @@ func TestStreamFramer_Order(t *testing.T) {
 	select {
 	case <-resultCh:
 	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		got := receivedBuf.String()
-		want := expected.String()
-		t.Fatalf("Got %v; want %v", got, want)
+		if reflect.DeepEqual(expected, receivedBuf) {
+			got := receivedBuf.String()
+			want := expected.String()
+			t.Fatalf("Got %v; want %v", got, want)
+		}
 	}
 
 	// Close the reader and wait. This should cause the runner to exit
@@ -446,7 +449,7 @@ func tempAllocDir(t *testing.T) *allocdir.AllocDir {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
 
-	return allocdir.NewAllocDir(dir)
+	return allocdir.NewAllocDir(dir, structs.DefaultResources().DiskMB)
 }
 
 type nopWriteCloser struct {

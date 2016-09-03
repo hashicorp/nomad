@@ -154,7 +154,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.proposedAllocConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
-	s.binPack.SetTasks(tg.Tasks)
+	s.binPack.SetTaskGroup(tg)
 
 	// Find the node with the max score
 	option := s.maxScore.Next()
@@ -169,6 +169,19 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
 	return option, tgConstr.size
+}
+
+// SelectPreferredNode returns a node where an allocation of the task group can
+// be placed, the node passed to it is preferred over the other available nodes
+func (s *GenericStack) SelectPreferringNodes(tg *structs.TaskGroup, nodes []*structs.Node) (*RankedNode, *structs.Resources) {
+	originalNodes := s.source.nodes
+	s.source.SetNodes(nodes)
+	if option, resources := s.Select(tg); option != nil {
+		s.source.SetNodes(originalNodes)
+		return option, resources
+	}
+	s.source.SetNodes(originalNodes)
+	return s.Select(tg)
 }
 
 // SystemStack is the Stack used for the System scheduler. It is designed to
@@ -242,7 +255,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
-	s.binPack.SetTasks(tg.Tasks)
+	s.binPack.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 
 	// Get the next option that satisfies the constraints.

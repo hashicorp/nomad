@@ -644,6 +644,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Resources should be recomputed
+	resources.DiskMB = alloc.Job.TaskGroups[0].LocalDisk.DiskMB
 	alloc.Resources = resources
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("bad: %#v %#v", alloc, out)
@@ -770,6 +771,95 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertVaultAccessor(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	va := mock.VaultAccessor()
+	va2 := mock.VaultAccessor()
+	req := structs.VaultAccessorsRequest{
+		Accessors: []*structs.VaultAccessor{va, va2},
+	}
+	buf, err := structs.Encode(structs.VaultAccessorRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out1 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out1.CreateIndex)
+	}
+	out2, err := fsm.State().VaultAccessor(va2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out2 == nil {
+		t.Fatalf("not found!")
+	}
+	if out1.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out2.CreateIndex)
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestFSM_DeregisterVaultAccessor(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	va := mock.VaultAccessor()
+	va2 := mock.VaultAccessor()
+	accessors := []*structs.VaultAccessor{va, va2}
+
+	// Insert the accessors
+	if err := fsm.State().UpsertVaultAccessor(1000, accessors); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	req := structs.VaultAccessorsRequest{
+		Accessors: accessors,
+	}
+	buf, err := structs.Encode(structs.VaultAccessorDegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out1 != nil {
+		t.Fatalf("not deleted!")
+	}
+
+	tt := fsm.TimeTable()
+	index := tt.NearestIndex(time.Now().UTC())
+	if index != 1 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -885,6 +975,35 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc1.SharedResources = nil
+	alloc2.SharedResources = nil
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.AllocByID(alloc1.ID)
+	out2, _ := state2.AllocByID(alloc2.ID)
+	alloc1.SharedResources = &structs.Resources{DiskMB: 150}
+	alloc2.SharedResources = &structs.Resources{DiskMB: 150}
+
+	if !reflect.DeepEqual(alloc1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
+	}
+	if !reflect.DeepEqual(alloc2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
+	}
+}
+
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
@@ -973,6 +1092,27 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	}
 	if !reflect.DeepEqual(js2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", js2, out2)
+	}
+}
+
+func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	a1 := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+	state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{a1, a2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.VaultAccessor(a1.Accessor)
+	out2, _ := state2.VaultAccessor(a2.Accessor)
+	if !reflect.DeepEqual(a1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, a1)
+	}
+	if !reflect.DeepEqual(a2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, a2)
 	}
 }
 

@@ -1,4 +1,23 @@
-## 0.4.1 (UNRELEASED)
+## 0.5.0 (Unreleased)
+
+IMPROVEMENTS:
+  * core: Introduce node SecretID which can be used to minimize the available
+    surface area of RPCs to malicious Nomad Clients [GH-1597] 
+  * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
+  * client: Enforce shared allocation directory disk usage [GH-1580]
+  * client: Introduce a `secrets/` directory to tasks where sensitive data can
+    be written [GH-1681]
+
+BUG FIXES:
+  * client: Artifact download failures will be retried before failing tasks
+    [GH-1558]
+  * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
+  * discovery: Fix old services not getting removed from consul on update
+    [GH-1668]
+  * discovery: Fix HTTP timeout with Server HTTP health check when there is no
+    leader [GH-1656]
+
+## 0.4.1
 
 __BACKWARDS INCOMPATIBILITIES:__
   * telemetry: Operators will have to explicitly opt-in for Nomad client to
@@ -14,20 +33,27 @@ IMPROVEMENTS:
   * api/cli: Support for tailing/streaming files [GH-1404, GH-1420]
   * api/server: Support for querying job summaries [GH-1455]
   * cli: `nomad logs` command for streaming task logs [GH-1444]
+  * cli: `nomad status` shows the create time of allocations [GH-1540]
   * cli: `nomad plan` exit code indicates if changes will occur [GH-1502]
   * cli: status commands support JSON output and go template formating [GH-1503]
   * cli: Validate and plan command supports reading from stdin [GH-1460,
     GH-1458]
+  * cli: Allow basic authentication through address and environment variable
+    [GH-1610]
   * cli: `nomad node-status` shows volume name for non-physical volumes instead
     of showing 0B used [GH-1538]
+  * cli: Support retrieving job files using go-getter in the `run`, `plan` and
+    `validate` command [GH-1511]
   * client: Add killing event to task state [GH-1457]
   * client: Fingerprint network speed on Windows [GH-1443]
-  * discovery: Support for initial check status [GH-1562]
+  * discovery: Support for initial check status [GH-1599]
+  * discovery: Support for query params in health check urls [GH-1562]
   * driver/docker: Allow working directory to be configured [GH-1513]
   * driver/docker: Remove docker volumes when removing container [GH-1519]
   * driver/docker: Set windows containers network mode to nat by default
     [GH-1521]
   * driver/exec: Allow chroot environment to be configurable [GH-1518]
+  * driver/qemu: Allows users to pass extra args to the qemu driver [GH-1596]
   * telemetry: Circonus integration for telemetry metrics [GH-1459]
   * telemetry: Allow operators to opt-in for publishing metrics [GH-1501]
 
@@ -45,13 +71,16 @@ BUG FIXES:
     terminal [GH-1508]
   * agent: Fix advertise address when using IPv6 [GH-1465]
   * cli: Fix node-status when using IPv6 advertise address [GH-1465]
+  * client: Merging telemetry configuration properly [GH-1670]
   * client: Task start errors adhere to restart policy mode [GH-1405]
+  * client: Reregister with servers if node is unregistered [GH-1593]
   * client: Killing an allocation doesn't cause allocation stats to block
     [GH-1454]
   * driver/docker: Disable swap on docker driver [GH-1480]
   * driver/docker: Fix improper gating on priviledged mode [GH-1506]
   * driver/docker: Default network type is "nat" on Windows [GH-1521]
   * driver/docker: Cleanup created volume when destroying container [GH-1519]
+  * driver/rkt: Set host environment variables [GH-1581]
   * driver/rkt: Validate the command and trust_prefix configs [GH-1493]
   * plan: Plan on system jobs discounts nodes that do not meet required
     constraints [GH-1568]

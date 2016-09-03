@@ -544,3 +544,31 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestLeader_RestoreVaultAccessors(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert a vault accessor that should be revoked
+	state := s1.fsm.State()
+	va := mock.VaultAccessor()
+	if err := state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Swap the Vault client
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Do a restore
+	if err := s1.restoreRevokingAccessors(); err != nil {
+		t.Fatalf("Failed to restore: %v", err)
+	}
+
+	if len(tvc.RevokedTokens) != 1 && tvc.RevokedTokens[0].Accessor != va.Accessor {
+		t.Fatalf("Bad revoked accessors: %v", tvc.RevokedTokens)
+	}
+}

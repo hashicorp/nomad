@@ -84,8 +84,10 @@ func perCPUTimes() ([]TimesStat, error) {
 }
 
 func allCPUTimes() ([]TimesStat, error) {
-	var count C.mach_msg_type_number_t = C.HOST_CPU_LOAD_INFO_COUNT
+	var count C.mach_msg_type_number_t
 	var cpuload C.host_cpu_load_info_data_t
+
+	count = C.HOST_CPU_LOAD_INFO_COUNT
 
 	status := C.host_statistics(C.host_t(C.mach_host_self()),
 		C.HOST_CPU_LOAD_INFO,

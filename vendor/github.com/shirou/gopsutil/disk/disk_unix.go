@@ -21,6 +21,10 @@ func Usage(path string) (*UsageStat, error) {
 		InodesFree:  (uint64(stat.Ffree)),
 	}
 
+	// if could not get InodesTotal, return empty
+	if ret.InodesTotal < ret.InodesFree {
+		return ret, nil
+	}
 	ret.InodesUsed = (ret.InodesTotal - ret.InodesFree)
 	ret.InodesUsedPercent = (float64(ret.InodesUsed) / float64(ret.InodesTotal)) * 100.0
 	ret.Used = (uint64(stat.Blocks) - uint64(stat.Bfree)) * uint64(bsize)

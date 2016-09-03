@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/consul/api"
 )
 
 func TestParse(t *testing.T) {
@@ -26,6 +28,7 @@ func TestParse(t *testing.T) {
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
 				Region:      "global",
+				VaultToken:  "foo",
 
 				Meta: map[string]string{
 					"foo": "bar",
@@ -46,8 +49,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "outside",
-						Count: 1,
+						Name:      "outside",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",
@@ -83,6 +87,10 @@ func TestParse(t *testing.T) {
 							Attempts: 5,
 							Delay:    15 * time.Second,
 							Mode:     "delay",
+						},
+						LocalDisk: &structs.LocalDisk{
+							Sticky: true,
+							DiskMB: 150,
 						},
 						Tasks: []*structs.Task{
 							&structs.Task{
@@ -120,7 +128,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     0,
 									Networks: []*structs.NetworkResource{
 										&structs.NetworkResource{
@@ -151,6 +158,9 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Vault: &structs.Vault{
+									Policies: []string{"foo", "bar"},
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -162,7 +172,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     30,
 								},
 								Constraints: []*structs.Constraint{
@@ -189,6 +198,12 @@ func TestParse(t *testing.T) {
 
 		{
 			"multi-resource.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multi-vault.hcl",
 			nil,
 			true,
 		},
@@ -301,8 +316,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "bar",
-						Count: 1,
+						Name:      "bar",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "bar",
@@ -344,8 +360,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "binsl",
-						Count: 1,
+						Name:      "binsl",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "binstore",
@@ -353,7 +370,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      100,
 									MemoryMB: 10,
-									DiskMB:   300,
 									IOPS:     0,
 								},
 								LogConfig: &structs.LogConfig{
@@ -377,6 +393,46 @@ func TestParse(t *testing.T) {
 										RelativeDest:  "var/foo",
 									},
 								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-check-initial-status.hcl",
+			&structs.Job{
+				ID:       "check_initial_status",
+				Name:     "check_initial_status",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:      "group",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name: "task",
+								Services: []*structs.Service{
+									{
+										Name:      "check_initial_status-group-task",
+										Tags:      []string{"foo", "bar"},
+										PortLabel: "http",
+										Checks: []*structs.ServiceCheck{
+											{
+												Name:          "check-name",
+												Type:          "http",
+												Interval:      10 * time.Second,
+												Timeout:       2 * time.Second,
+												InitialStatus: api.HealthPassing,
+											},
+										},
+									},
+								},
+								LogConfig: structs.DefaultLogConfig(),
 							},
 						},
 					},

@@ -204,14 +204,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	var statsErr error
-	var stats *api.AllocResourceUsage
-	stats, statsErr = client.Allocations().Stats(alloc, nil)
-	if statsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
-	}
-
 	// Format the allocation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, length)),
@@ -220,6 +212,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, length)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
+		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
 	}
 
 	if verbose {
@@ -235,6 +228,13 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if short {
 		c.shortTaskStatus(alloc)
 	} else {
+		var statsErr error
+		var stats *api.AllocResourceUsage
+		stats, statsErr = client.Allocations().Stats(alloc, nil)
+		if statsErr != nil {
+			c.Ui.Output("")
+			c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+		}
 		c.outputTaskDetails(alloc, stats, displayStats)
 	}
 
@@ -268,7 +268,7 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		formatedTime := c.formatUnixNanoTime(event.Time)
+		formatedTime := formatUnixNanoTime(event.Time)
 
 		// Build up the description based on the event type.
 		var desc string
@@ -474,7 +474,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 		if l != 0 {
 			last := state.Events[l-1]
 			lastEvent = last.Type
-			lastTime = c.formatUnixNanoTime(last.Time)
+			lastTime = formatUnixNanoTime(last.Time)
 		}
 
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
@@ -503,10 +503,4 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
-}
-
-// formatUnixNanoTime is a helper for formating time for output.
-func (c *AllocStatusCommand) formatUnixNanoTime(nano int64) string {
-	t := time.Unix(0, nano)
-	return formatTime(t)
 }

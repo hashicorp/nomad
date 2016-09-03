@@ -22,7 +22,12 @@ import (
 
 func TestExecDriver_Fingerprint(t *testing.T) {
 	ctestutils.ExecCompatible(t)
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	task := &structs.Task{
+		Name:      "foo",
+		Resources: structs.DefaultResources(),
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewExecDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{

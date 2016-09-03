@@ -39,6 +39,7 @@ type TestServerConfig struct {
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
+	Vault             *VaultConfig  `json:"vault,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
@@ -58,6 +59,11 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
+// VaultConfig is used to configure Vault
+type VaultConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -84,6 +90,9 @@ func defaultServerConfig() *TestServerConfig {
 			BootstrapExpect: 1,
 		},
 		Client: &ClientConfig{
+			Enabled: false,
+		},
+		Vault: &VaultConfig{
 			Enabled: false,
 		},
 	}
@@ -177,6 +186,11 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	} else {
 		server.waitForAPI()
 	}
+
+	// Wait for the client to be ready
+	if nomadConfig.DevMode {
+		server.waitForClient()
+	}
 	return server
 }
 
@@ -233,6 +247,44 @@ func (s *TestServer) waitForLeader() {
 		if leader := resp.Header.Get("X-Nomad-KnownLeader"); leader != "true" {
 			return false, fmt.Errorf("Nomad leader status: %#v", leader)
 		}
+		return true, nil
+	}, func(err error) {
+		defer s.Stop()
+		s.t.Fatalf("err: %s", err)
+	})
+}
+
+// waitForClient waits for the Nomad client to be ready. The function returns
+// immediately if the server is not in dev mode.
+func (s *TestServer) waitForClient() {
+	if !s.Config.DevMode {
+		return
+	}
+
+	WaitForResult(func() (bool, error) {
+		resp, err := s.HTTPClient.Get(s.url("/v1/nodes"))
+		if err != nil {
+			return false, err
+		}
+		defer resp.Body.Close()
+		if err := s.requireOK(resp); err != nil {
+			return false, err
+		}
+
+		var decoded []struct {
+			ID     string
+			Status string
+		}
+
+		dec := json.NewDecoder(resp.Body)
+		if err := dec.Decode(&decoded); err != nil {
+			return false, err
+		}
+
+		if len(decoded) != 1 || decoded[0].Status != "ready" {
+			return false, fmt.Errorf("Node not ready: %v", decoded)
+		}
+
 		return true, nil
 	}, func(err error) {
 		defer s.Stop()

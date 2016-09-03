@@ -233,7 +233,7 @@ hostname              x     x      x       x
   proces              x     x
   os                  x     x      x       x
   platform            x     x      x
-  platformfamiliy     x     x      x
+  platformfamily      x     x      x
   virtualization      x
 **CPU**
   VendorID            x     x      x       x

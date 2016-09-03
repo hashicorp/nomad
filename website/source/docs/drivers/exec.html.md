@@ -12,7 +12,7 @@ Name: `exec`
 
 The `exec` driver is used to simply execute a particular command for a task.
 However, unlike [`raw_exec`](raw_exec.html) it uses the underlying isolation
-primitives of the operating system to limit the tasks access to resources. While
+primitives of the operating system to limit the task's access to resources. While
 simple, since the `exec` driver  can invoke any command, it can be used to call
 scripts or other wrappers which provide higher level features.
 
@@ -22,7 +22,7 @@ The `exec` driver supports the following configuration in the job spec:
 
 * `command` - The command to execute. Must be provided. If executing a binary
   that exists on the host, the path must be absolute. If executing a binary that
-  is download from an [`artifact`](/docs/jobspec/index.html#artifact_doc), the
+  is downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc), the
   path can be relative from the allocations's root directory.
 
 *   `args` - (Optional) A list of arguments to the optional `command`.
@@ -73,7 +73,7 @@ To execute a binary downloaded from an [`artifact`](/docs/jobspec/index.html#art
 
 The `exec` driver can only be run when on Linux and running Nomad as root.
 `exec` is limited to this configuration because currently isolation of resources
-is only guaranteed on Linux. Further the host must have cgroups mounted properly
+is only guaranteed on Linux. Further, the host must have cgroups mounted properly
 in order for the driver to work.
 
 If you are receiving the error `* Constraint "missing drivers" filtered <> nodes`
@@ -97,7 +97,7 @@ On Linux, Nomad will use cgroups, and a chroot to isolate the
 resources of a process and as such the Nomad agent must be run as root.
 
 ### <a id="chroot"></a>Chroot
-The chroot is populated with data in the following folders from the host
+The chroot is populated with data in the following directories from the host
 machine:
 
 `["/bin", "/etc", "/lib", "/lib32", "/lib64", "/run/resolvconf", "/sbin",

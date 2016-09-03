@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,9 +23,11 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/rpcproxy"
 	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -127,6 +130,11 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// blockedAllocations are allocations which are blocked because their
+	// chained allocations haven't finished running
+	blockedAllocations map[string]*structs.Allocation
+	blockedAllocsLock  sync.RWMutex
+
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -141,6 +149,9 @@ type Client struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	// client to interact with vault for token and secret renewals
+	vaultClient vaultclient.VaultClient
 }
 
 // NewClient is used to create a new client from the given configuration
@@ -154,6 +165,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		logger:             logger,
 		hostStatsCollector: stats.NewHostStatsCollector(),
 		allocs:             make(map[string]*AllocRunner),
+		blockedAllocations: make(map[string]*structs.Allocation),
 		allocUpdates:       make(chan *structs.Allocation, 64),
 		shutdownCh:         make(chan struct{}),
 	}
@@ -206,6 +218,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		return nil, fmt.Errorf("failed to create client Consul syncer: %v", err)
 	}
 
+	// Setup the vault client for token and secret renewals
+	if err := c.setupVaultClient(); err != nil {
+		return nil, fmt.Errorf("failed to setup vault client: %v", err)
+	}
+
 	// Register and then start heartbeating to the servers.
 	go c.registerAndHeartbeat()
 
@@ -230,6 +247,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// times out and there are no Nomad servers available, this data is
 	// populated by periodically polling Consul, if available.
 	go c.rpcProxy.Run()
+
+	// Start renewing tokens and secrets
+	if c.vaultClient != nil {
+		c.vaultClient.Start()
+	}
 
 	return c, nil
 }
@@ -310,6 +332,11 @@ func (c *Client) Shutdown() error {
 
 	if c.shutdown {
 		return nil
+	}
+
+	// Stop renewing tokens and secrets
+	if c.vaultClient != nil {
+		c.vaultClient.Stop()
 	}
 
 	// Destroy all the running allocations.
@@ -485,33 +512,54 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 	return runners
 }
 
-// nodeID restores a persistent unique ID or generates a new one
-func (c *Client) nodeID() (string, error) {
+// nodeIDs restores the nodes persistent unique ID and SecretID or generates new
+// ones
+func (c *Client) nodeID() (id string, secret string, err error) {
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return structs.GenerateUUID(), nil
+		return structs.GenerateUUID(), structs.GenerateUUID(), nil
 	}
 
 	// Attempt to read existing ID
-	path := filepath.Join(c.config.StateDir, "client-id")
-	buf, err := ioutil.ReadFile(path)
+	idPath := filepath.Join(c.config.StateDir, "client-id")
+	idBuf, err := ioutil.ReadFile(idPath)
 	if err != nil && !os.IsNotExist(err) {
-		return "", err
+		return "", "", err
+	}
+
+	// Attempt to read existing secret ID
+	secretPath := filepath.Join(c.config.StateDir, "secret-id")
+	secretBuf, err := ioutil.ReadFile(secretPath)
+	if err != nil && !os.IsNotExist(err) {
+		return "", "", err
 	}
 
 	// Use existing ID if any
-	if len(buf) != 0 {
-		return string(buf), nil
+	if len(idBuf) != 0 {
+		id = string(idBuf)
+	} else {
+		// Generate new ID
+		id = structs.GenerateUUID()
+
+		// Persist the ID
+		if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
+			return "", "", err
+		}
 	}
 
-	// Generate new ID
-	id := structs.GenerateUUID()
+	if len(secretBuf) != 0 {
+		secret = string(secretBuf)
+	} else {
+		// Generate new ID
+		secret = structs.GenerateUUID()
 
-	// Persist the ID
-	if err := ioutil.WriteFile(path, []byte(id), 0700); err != nil {
-		return "", err
+		// Persist the ID
+		if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+			return "", "", err
+		}
 	}
-	return id, nil
+
+	return id, secret, nil
 }
 
 // setupNode is used to setup the initial node
@@ -522,11 +570,13 @@ func (c *Client) setupNode() error {
 		c.config.Node = node
 	}
 	// Generate an iD for the node
-	var err error
-	node.ID, err = c.nodeID()
+	id, secretID, err := c.nodeID()
 	if err != nil {
 		return fmt.Errorf("node ID setup failed: %v", err)
 	}
+
+	node.ID = id
+	node.SecretID = secretID
 	if node.Attributes == nil {
 		node.Attributes = make(map[string]string)
 	}
@@ -737,7 +787,17 @@ func (c *Client) registerAndHeartbeat() {
 		select {
 		case <-heartbeat:
 			if err := c.updateNodeStatus(); err != nil {
-				heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				// The servers have changed such that this node has not been
+				// registered before
+				if strings.Contains(err.Error(), "node not found") {
+					// Re-register the node
+					c.logger.Printf("[INFO] client: re-registering node")
+					c.retryRegisterNode()
+					heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+				} else {
+					c.logger.Printf("[ERR] client: heartbeating failed: %v", err)
+					heartbeat = time.After(c.retryIntv(registerRetryIntv))
+				}
 			} else {
 				c.heartbeatLock.Lock()
 				heartbeat = time.After(c.heartbeatTTL)
@@ -816,6 +876,8 @@ func (c *Client) retryRegisterNode() {
 	for {
 		if err := c.registerNode(); err == nil {
 			break
+		} else {
+			c.logger.Printf("[ERR] client: %v", err)
 		}
 		select {
 		case <-time.After(c.retryIntv(registerRetryIntv)):
@@ -930,6 +992,18 @@ func (c *Client) allocSync() {
 		case alloc := <-c.allocUpdates:
 			// Batch the allocation updates until the timer triggers.
 			updates[alloc.ID] = alloc
+
+			// If this alloc was blocking another alloc and transitioned to a
+			// terminal state then start the blocked allocation
+			c.blockedAllocsLock.Lock()
+			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
+				if err := c.addAlloc(blockedAlloc); err != nil {
+					c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
+						blockedAlloc.ID, err)
+				}
+				delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
+			}
+			c.blockedAllocsLock.Unlock()
 		case <-syncTicker.C:
 			// Fast path if there are no updates
 			if len(updates) == 0 {
@@ -981,8 +1055,10 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	// The request and response for getting the map of allocations that should
 	// be running on the Node to their AllocModifyIndex which is incremented
 	// when the allocation is updated by the servers.
+	n := c.Node()
 	req := structs.NodeSpecificRequest{
-		NodeID: c.Node().ID,
+		NodeID:   n.ID,
+		SecretID: n.SecretID,
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
 			AllowStale: true,
@@ -1153,6 +1229,16 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Start the new allocations
 	for _, add := range diff.added {
+		// If the allocation is chanined and the previous allocation hasn't
+		// terminated yet, then add the alloc to the blocked queue.
+		if ar, ok := c.getAllocRunners()[add.PreviousAllocation]; ok && !ar.Alloc().Terminated() {
+			c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue", add.ID)
+			c.blockedAllocsLock.Lock()
+			c.blockedAllocations[add.PreviousAllocation] = add
+			c.blockedAllocsLock.Unlock()
+			continue
+		}
+
 		if err := c.addAlloc(add); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
@@ -1207,6 +1293,116 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.allocs[alloc.ID] = ar
 	c.allocLock.Unlock()
 	return nil
+}
+
+// setupVaultClient creates an object to periodically renew tokens and secrets
+// with vault.
+func (c *Client) setupVaultClient() error {
+	if c.config.VaultConfig == nil {
+		return fmt.Errorf("nil vault config")
+	}
+
+	if !c.config.VaultConfig.Enabled {
+		return nil
+	}
+
+	var err error
+	if c.vaultClient, err =
+		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
+		return err
+	}
+
+	if c.vaultClient == nil {
+		c.logger.Printf("[ERR] client: failed to create vault client")
+		return fmt.Errorf("failed to create vault client")
+	}
+
+	return nil
+}
+
+// deriveToken takes in an allocation and a set of tasks and derives vault
+// tokens for each of the tasks, unwraps all of them using the supplied vault
+// client and returns a map of unwrapped tokens, indexed by the task name.
+func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
+	if alloc == nil {
+		return nil, fmt.Errorf("nil allocation")
+	}
+
+	if taskNames == nil || len(taskNames) == 0 {
+		return nil, fmt.Errorf("missing task names")
+	}
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if group == nil {
+		return nil, fmt.Errorf("group name in allocation is not present in job")
+	}
+
+	verifiedTasks := []string{}
+	found := false
+	// Check if the given task names actually exist in the allocation
+	for _, taskName := range taskNames {
+		found = false
+		for _, task := range group.Tasks {
+			if task.Name == taskName {
+				found = true
+			}
+		}
+		if !found {
+			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+		}
+		verifiedTasks = append(verifiedTasks, taskName)
+	}
+
+	// DeriveVaultToken of nomad server can take in a set of tasks and
+	// creates tokens for all the tasks.
+	req := &structs.DeriveVaultTokenRequest{
+		NodeID:   c.Node().ID,
+		SecretID: c.Node().SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    verifiedTasks,
+		QueryOptions: structs.QueryOptions{
+			Region:     c.Region(),
+			AllowStale: true,
+		},
+	}
+
+	// Derive the tokens
+	var resp structs.DeriveVaultTokenResponse
+	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", err)
+		return nil, fmt.Errorf("failed to derive vault tokens: %v", err)
+	}
+	if resp.Tasks == nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
+		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
+	}
+
+	unwrappedTokens := make(map[string]string)
+
+	// Retrieve the wrapped tokens from the response and unwrap it
+	for _, taskName := range verifiedTasks {
+		// Get the wrapped token
+		wrappedToken, ok := resp.Tasks[taskName]
+		if !ok {
+			c.logger.Printf("[ERR] client.vault: wrapped token missing for task %q", taskName)
+			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
+		}
+
+		// Unwrap the vault token
+		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+		}
+		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
+			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+		}
+
+		// Append the unwrapped token to the return value
+		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
+	}
+
+	return unwrappedTokens, nil
 }
 
 // setupConsulSyncer creates Client-mode consul.Syncer which periodically
@@ -1406,10 +1602,7 @@ func (c *Client) collectHostStats() {
 
 // emitStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitStats(hStats *stats.HostStats) {
-	nodeID, err := c.nodeID()
-	if err != nil {
-		return
-	}
+	nodeID := c.Node().ID
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "total"}, float32(hStats.Memory.Total))
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "available"}, float32(hStats.Memory.Available))
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "used"}, float32(hStats.Memory.Used))

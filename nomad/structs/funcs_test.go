@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 )
@@ -24,7 +25,11 @@ func TestRemoveAllocs(t *testing.T) {
 
 func TestFilterTerminalAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{ID: "bar", DesiredStatus: AllocDesiredStatusEvict},
+		&Allocation{
+			ID:            "bar",
+			Name:          "myname1",
+			DesiredStatus: AllocDesiredStatusEvict,
+		},
 		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
 		&Allocation{
 			ID:            "foo",
@@ -33,17 +38,38 @@ func TestFilterTerminalAllocs(t *testing.T) {
 		},
 		&Allocation{
 			ID:            "bam",
+			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusComplete,
+			CreateIndex:   5,
+		},
+		&Allocation{
+			ID:            "lol",
+			Name:          "myname",
+			DesiredStatus: AllocDesiredStatusRun,
+			ClientStatus:  AllocClientStatusComplete,
+			CreateIndex:   2,
 		},
 	}
 
-	out := FilterTerminalAllocs(l)
+	out, terminalAllocs := FilterTerminalAllocs(l)
 	if len(out) != 1 {
 		t.Fatalf("bad: %#v", out)
 	}
 	if out[0].ID != "foo" {
 		t.Fatalf("bad: %#v", out)
+	}
+
+	if len(terminalAllocs) != 3 {
+		for _, o := range terminalAllocs {
+			fmt.Printf("%#v \n", o)
+		}
+
+		t.Fatalf("bad: %#v", terminalAllocs)
+	}
+
+	if terminalAllocs["myname"].ID != "bam" {
+		t.Fatalf("bad: %#v", terminalAllocs["myname"])
 	}
 }
 
@@ -61,6 +87,14 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	}
 
 	a1 := &Allocation{
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name:      "web",
+					LocalDisk: DefaultLocalDisk(),
+				},
+			},
+		},
 		TaskResources: map[string]*Resources{
 			"web": &Resources{
 				Networks: []*NetworkResource{
@@ -233,5 +267,20 @@ func TestGenerateUUID(t *testing.T) {
 		if !matched || err != nil {
 			t.Fatalf("expected match %s %v %s", id, matched, err)
 		}
+	}
+}
+
+func TestSliceStringIsSubset(t *testing.T) {
+	l := []string{"a", "b", "c"}
+	s := []string{"d"}
+
+	sub, offending := SliceStringIsSubset(l, l[:1])
+	if !sub || len(offending) != 0 {
+		t.Fatalf("bad %v %v", sub, offending)
+	}
+
+	sub, offending = SliceStringIsSubset(l, s)
+	if sub || len(offending) == 0 || offending[0] != "d" {
+		t.Fatalf("bad %v %v", sub, offending)
 	}
 }

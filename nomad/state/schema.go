@@ -23,6 +23,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
+		vaultAccessorTableSchema,
 	}
 
 	// Add each of the tables
@@ -286,6 +287,44 @@ func allocTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "EvalID",
+				},
+			},
+		},
+	}
+}
+
+// vaultAccessorTableSchema returns the MemDB schema for the Vault Accessor
+// Table. This table tracks Vault accessors for tokens created on behalf of
+// allocations required Vault tokens.
+func vaultAccessorTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "vault_accessors",
+		Indexes: map[string]*memdb.IndexSchema{
+			// The primary index is the accessor id
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Accessor",
+				},
+			},
+
+			"alloc_id": &memdb.IndexSchema{
+				Name:         "alloc_id",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AllocID",
+				},
+			},
+
+			"node_id": &memdb.IndexSchema{
+				Name:         "node_id",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodeID",
 				},
 			},
 		},

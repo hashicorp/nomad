@@ -216,9 +216,18 @@ when retrieving metrics using the above described signals.
 # Client Metrics
 
 The Nomad client emits metrics related to the resource usage of the allocations
-and tasks running on it and the node itself. By default the collection interval
-is 1 second but it can be changed by the changing the value of the
-`collection_interval` key in the `telemetry` configuration block.
+and tasks running on it and the node itself.  Operators have to explicity turn
+on publishing host and allocation metrics. Publishing allocation and host
+metrics can be turned on by setting the value of `publish_allocation_metrics`
+`publish_node_metrics` to `true`.
+
+
+By default the collection interval is 1 second but it can be changed by the
+changing the value of the `collection_interval` key in the `telemetry`
+configuration block.  
+
+Please see the [agent configuration](/docs/agent/config.html#telemetry_config)
+page for more details.
 
 ## Host Metrics
 

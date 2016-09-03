@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -114,8 +115,9 @@ func testJob() *Job {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:  "web",
-				Count: 10,
+				Name:      "web",
+				Count:     10,
+				LocalDisk: DefaultLocalDisk(),
 				RestartPolicy: &RestartPolicy{
 					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
@@ -146,7 +148,6 @@ func testJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									MBits:        50,
@@ -221,6 +222,89 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	}
 }
 
+func TestJob_VaultPolicies(t *testing.T) {
+	j0 := &Job{}
+	e0 := make(map[string]map[string]*Vault, 0)
+
+	vj1 := &Vault{
+		Policies: []string{
+			"p1",
+			"p2",
+		},
+	}
+	vj2 := &Vault{
+		Policies: []string{
+			"p3",
+			"p4",
+		},
+	}
+	vj3 := &Vault{
+		Policies: []string{
+			"p5",
+		},
+	}
+	j1 := &Job{
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "foo",
+				Tasks: []*Task{
+					&Task{
+						Name: "t1",
+					},
+					&Task{
+						Name:  "t2",
+						Vault: vj1,
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "bar",
+				Tasks: []*Task{
+					&Task{
+						Name:  "t3",
+						Vault: vj2,
+					},
+					&Task{
+						Name:  "t4",
+						Vault: vj3,
+					},
+				},
+			},
+		},
+	}
+
+	e1 := map[string]map[string]*Vault{
+		"foo": map[string]*Vault{
+			"t2": vj1,
+		},
+		"bar": map[string]*Vault{
+			"t3": vj2,
+			"t4": vj3,
+		},
+	}
+
+	cases := []struct {
+		Job      *Job
+		Expected map[string]map[string]*Vault
+	}{
+		{
+			Job:      j0,
+			Expected: e0,
+		},
+		{
+			Job:      j1,
+			Expected: e1,
+		},
+	}
+
+	for i, c := range cases {
+		got := c.Job.VaultPolicies()
+		if !reflect.DeepEqual(got, c.Expected) {
+			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
+		}
+	}
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		Count: -1,
@@ -261,20 +345,24 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[0].Error(), "should have a local disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
+	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
 
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
-	err := task.Validate()
+	localDisk := DefaultLocalDisk()
+	err := task.Validate(localDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -287,7 +375,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate()
+	err = task.Validate(localDisk)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -298,13 +386,13 @@ func TestTask_Validate(t *testing.T) {
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
-	err = task.Validate()
+	localDisk.DiskMB = 200
+	err = task.Validate(localDisk)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -332,18 +420,20 @@ func TestTask_Validate_Services(t *testing.T) {
 		Name: "service-name",
 	}
 
+	localDisk := DefaultLocalDisk()
 	task := &Task{
 		Name:   "web",
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
-	err := task.Validate()
+	localDisk.DiskMB = 200
+
+	err := task.Validate(localDisk)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -359,7 +449,50 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "interval (0) can not be lower") {
+	if !strings.Contains(err.Error(), "interval (0s) can not be lower") {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestTask_Validate_Service_Check(t *testing.T) {
+
+	check1 := ServiceCheck{
+		Name:     "check-name",
+		Type:     ServiceCheckTCP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+	}
+
+	err := check1.validate()
+	if err != nil {
+		t.Fatal("err: %v", err)
+	}
+
+	check1.InitialStatus = "foo"
+	err = check1.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+
+	if !strings.Contains(err.Error(), "invalid initial check state (foo)") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthCritical
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = api.HealthPassing
+	err = check1.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check1.InitialStatus = ""
+	err = check1.validate()
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -367,12 +500,12 @@ func TestTask_Validate_Services(t *testing.T) {
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
-		Resources: &Resources{
-			DiskMB: 1,
-		},
+	}
+	localDisk := &LocalDisk{
+		DiskMB: 1,
 	}
 
-	err := task.Validate()
+	err := task.Validate(localDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
@@ -964,6 +1097,46 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
 			continue
+		}
+	}
+}
+
+func TestAllocation_Terminated(t *testing.T) {
+	type desiredState struct {
+		ClientStatus  string
+		DesiredStatus string
+		Terminated    bool
+	}
+
+	harness := []desiredState{
+		{
+			ClientStatus:  AllocClientStatusPending,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    false,
+		},
+		{
+			ClientStatus:  AllocClientStatusRunning,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    false,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    true,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusRun,
+			Terminated:    true,
+		},
+	}
+
+	for _, state := range harness {
+		alloc := Allocation{}
+		alloc.DesiredStatus = state.DesiredStatus
+		alloc.ClientStatus = state.ClientStatus
+		if alloc.Terminated() != state.Terminated {
+			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
 		}
 	}
 }

@@ -75,8 +75,8 @@ Task Group  Queued  Starting  Running  Failed  Complete  Lost
 cache       0       0         1        0       0         0
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status
-dadcdb81  61b0b423  72687b1a  cache       run      running
+ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
+dadcdb81  61b0b423  72687b1a  cache       run      running  06/23/16 01:41:13 UTC
 ```
 
 Here we can see that the result of our evaluation was the creation of an
@@ -93,6 +93,7 @@ Name          = example.cache[0]
 Node ID       = 72687b1a
 Job ID        = example
 Client Status = running
+Created At    = 06/23/16 01:41:13 UTC
 
 Task "redis" is "running"
 Task Resources
@@ -149,7 +150,7 @@ count = 3
 
 Once you have finished modifying the job specification, use [`plan`
 command](/docs/commands/plan.html) to invoke a dry-run of the scheduler to see
-what would happen if your ran the updated job:
+what would happen if you ran the updated job:
 
 ```
 $ nomad plan example.nomad

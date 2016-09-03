@@ -33,7 +33,7 @@ The `java` driver supports the following configuration in the job spec:
     ```
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking
-  java. These options are passed not validated in any way in Nomad.
+  java. These options are passed without being validated in any way by Nomad.
 
 ## Examples
 
@@ -61,8 +61,8 @@ task "web" {
 
 ## Client Requirements
 
-The `java` driver requires Java to be installed and in your systems `$PATH`. The
-task must also specify at least one artifact to download as this is the only way
+The `java` driver requires Java to be installed and in your system's `$PATH`. The
+task must also specify at least one artifact to download, as this is the only way
 to retrieve the Jar being run.
 
 ## Client Attributes
@@ -82,7 +82,7 @@ the client and the configuration.
 
 On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
 to isolate the resources of a process. If the Nomad agent is not
-running as root many of these mechanisms cannot be used.
+running as root, many of these mechanisms cannot be used.
 
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.

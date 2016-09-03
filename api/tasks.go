@@ -60,16 +60,17 @@ type RestartPolicy struct {
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id        string
-	Name      string
-	Type      string
-	Command   string
-	Args      []string
-	Path      string
-	Protocol  string `mapstructure:"port"`
-	PortLabel string `mapstructure:"port"`
-	Interval  time.Duration
-	Timeout   time.Duration
+	Id            string
+	Name          string
+	Type          string
+	Command       string
+	Args          []string
+	Path          string
+	Protocol      string `mapstructure:"port"`
+	PortLabel     string `mapstructure:"port"`
+	Interval      time.Duration
+	Timeout       time.Duration
+	InitialStatus string `mapstructure:"initial_status"`
 }
 
 // The Service model represents a Consul service definition
@@ -81,6 +82,12 @@ type Service struct {
 	Checks    []ServiceCheck
 }
 
+// LocalDisk is an ephemeral disk object
+type LocalDisk struct {
+	Sticky bool
+	DiskMB int `mapstructure:"disk"`
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name          string
@@ -88,6 +95,7 @@ type TaskGroup struct {
 	Constraints   []*Constraint
 	Tasks         []*Task
 	RestartPolicy *RestartPolicy
+	LocalDisk     *LocalDisk
 	Meta          map[string]string
 }
 
@@ -120,6 +128,12 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	return g
 }
 
+// RequireDisk adds a local disk to the task group
+func (g *TaskGroup) RequireDisk(disk *LocalDisk) *TaskGroup {
+	g.LocalDisk = disk
+	return g
+}
+
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
 	MaxFiles      int
@@ -140,6 +154,7 @@ type Task struct {
 	KillTimeout time.Duration
 	LogConfig   *LogConfig
 	Artifacts   []*TaskArtifact
+	Vault       *Vault
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -147,6 +162,10 @@ type TaskArtifact struct {
 	GetterSource  string
 	GetterOptions map[string]string
 	RelativeDest  string
+}
+
+type Vault struct {
+	Policies []string
 }
 
 // NewTask creates and initializes a new Task.
@@ -159,7 +178,7 @@ func NewTask(name, driver string) *Task {
 
 // Configure is used to configure a single k/v pair on
 // the task.
-func (t *Task) SetConfig(key, val string) *Task {
+func (t *Task) SetConfig(key string, val interface{}) *Task {
 	if t.Config == nil {
 		t.Config = make(map[string]interface{})
 	}
@@ -213,6 +232,7 @@ const (
 	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
+	TaskDiskExceeded           = "Disk Exceeded"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

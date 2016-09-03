@@ -48,8 +48,12 @@ type VirtualMemoryStat struct {
 
 	// Linux specific numbers
 	// https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s2-proc-meminfo.html
-	Buffers uint64 `json:"buffers"`
-	Cached  uint64 `json:"cached"`
+	// https://www.kernel.org/doc/Documentation/filesystems/proc.txt
+	Buffers      uint64 `json:"buffers"`
+	Cached       uint64 `json:"cached"`
+	Writeback    uint64 `json:"writeback"`
+	Dirty        uint64 `json:"dirty"`
+	WritebackTmp uint64 `json:"writebacktmp"`
 }
 
 type SwapMemoryStat struct {

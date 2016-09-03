@@ -357,6 +357,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// COMPAT 0.4.1 -> 0.5
+	s.addLocalDiskToTaskGroups(job)
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -957,6 +961,12 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("error updating job summary: %v", err)
 		}
 
+		// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+		// COMPAT 0.4.1 -> 0.5
+		if alloc.Job != nil {
+			s.addLocalDiskToTaskGroups(alloc.Job)
+		}
+
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
@@ -1111,6 +1121,119 @@ func (s *StateStore) Allocs() (memdb.ResultIterator, error) {
 		return nil, err
 	}
 	return iter, nil
+}
+
+// UpsertVaultAccessors is used to register a set of Vault Accessors
+func (s *StateStore) UpsertVaultAccessor(index uint64, accessors []*structs.VaultAccessor) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, accessor := range accessors {
+		// Set the create index
+		accessor.CreateIndex = index
+
+		// Insert the accessor
+		if err := txn.Insert("vault_accessors", accessor); err != nil {
+			return fmt.Errorf("accessor insert failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"vault_accessors", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteVaultAccessors is used to delete a set of Vault Accessors
+func (s *StateStore) DeleteVaultAccessors(index uint64, accessors []*structs.VaultAccessor) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the accessor
+	for _, accessor := range accessors {
+		// Delete the accessor
+		if err := txn.Delete("vault_accessors", accessor); err != nil {
+			return fmt.Errorf("accessor delete failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"vault_accessors", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// VaultAccessor returns the given Vault accessor
+func (s *StateStore) VaultAccessor(accessor string) (*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	existing, err := txn.First("vault_accessors", "id", accessor)
+	if err != nil {
+		return nil, fmt.Errorf("accessor lookup failed: %v", err)
+	}
+
+	if existing != nil {
+		return existing.(*structs.VaultAccessor), nil
+	}
+
+	return nil, nil
+}
+
+// VaultAccessors returns an iterator of Vault accessors.
+func (s *StateStore) VaultAccessors() (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("vault_accessors", "id")
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
+// VaultAccessorsByAlloc returns all the Vault accessors by alloc id
+func (s *StateStore) VaultAccessorsByAlloc(allocID string) ([]*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get("vault_accessors", "alloc_id", allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.VaultAccessor
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.VaultAccessor))
+	}
+	return out, nil
+}
+
+// VaultAccessorsByNode returns all the Vault accessors by node id
+func (s *StateStore) VaultAccessorsByNode(nodeID string) ([]*structs.VaultAccessor, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get("vault_accessors", "node_id", nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.VaultAccessor
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.VaultAccessor))
+	}
+	return out, nil
 }
 
 // LastIndex returns the greatest index value for all indexes
@@ -1533,6 +1656,25 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	return nil
 }
 
+// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
+func (s *StateStore) addLocalDiskToTaskGroups(job *structs.Job) {
+	for _, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
+		var diskMB int
+		for _, task := range tg.Tasks {
+			if task.Resources != nil {
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+	}
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -1572,6 +1714,11 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 func (r *StateRestore) JobRestore(job *structs.Job) error {
 	r.items.Add(watch.Item{Table: "jobs"})
 	r.items.Add(watch.Item{Job: job.ID})
+
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// COMPAT 0.4.1 -> 0.5
+	r.addLocalDiskToTaskGroups(job)
+
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -1595,6 +1742,20 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 	r.items.Add(watch.Item{AllocEval: alloc.EvalID})
 	r.items.Add(watch.Item{AllocJob: alloc.JobID})
 	r.items.Add(watch.Item{AllocNode: alloc.NodeID})
+
+	// Set the shared resources if it's not present
+	// COMPAT 0.4.1 -> 0.5
+	if alloc.SharedResources == nil {
+		alloc.SharedResources = &structs.Resources{
+			DiskMB: alloc.Resources.DiskMB,
+		}
+	}
+
+	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	if alloc.Job != nil {
+		r.addLocalDiskToTaskGroups(alloc.Job)
+	}
+
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}
@@ -1625,6 +1786,33 @@ func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}
 	return nil
+}
+
+// VaultAccessorRestore is used to restore a vault accessor
+func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) error {
+	if err := r.txn.Insert("vault_accessors", accessor); err != nil {
+		return fmt.Errorf("vault accessor insert failed: %v", err)
+	}
+	return nil
+}
+
+// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
+func (r *StateRestore) addLocalDiskToTaskGroups(job *structs.Job) {
+	for _, tg := range job.TaskGroups {
+		if tg.LocalDisk != nil {
+			continue
+		}
+		var diskMB int
+		for _, task := range tg.Tasks {
+			if task.Resources != nil {
+				diskMB += task.Resources.DiskMB
+				task.Resources.DiskMB = 0
+			}
+		}
+		tg.LocalDisk = &structs.LocalDisk{
+			DiskMB: diskMB,
+		}
+	}
 }
 
 // stateWatch holds shared state for watching updates. This is

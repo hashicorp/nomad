@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,9 +22,7 @@ var (
 
 type RunCommand struct {
 	Meta
-
-	// The fields below can be overwritten for tests
-	testStdin io.Reader
+	JobGetter
 }
 
 func (c *RunCommand) Help() string {
@@ -38,7 +34,8 @@ Usage: nomad run [options] <path>
   used to interact with Nomad.
 
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
-  it is read from the file at the supplied path.
+  it is read from the file at the supplied path or downloaded and
+  read from URL specified.
 
   Upon successful job submission, this command will immediately
   enter an interactive monitor. This is useful to watch Nomad's
@@ -54,6 +51,10 @@ Usage: nomad run [options] <path>
 
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the the job's region is used.
+
+  The run command will set the vault_token of the job based on the following
+  precedence, going from highest to lowest: the -vault-token flag, the
+  $VAULT_TOKEN environment variable and finally the value in the job file.
 
 General Options:
 
@@ -77,6 +78,12 @@ Run Options:
   -verbose
     Display full information.
 
+  -vault-token
+    If set, the passed Vault token is stored in the job before sending to the
+    Nomad servers. This allows passing the Vault token without storing it in
+    the job file. This overrides the token found in $VAULT_TOKEN environment
+    variable and that found in the job.
+
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
@@ -90,7 +97,7 @@ func (c *RunCommand) Synopsis() string {
 
 func (c *RunCommand) Run(args []string) int {
 	var detach, verbose, output bool
-	var checkIndexStr string
+	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -98,6 +105,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
+	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -116,32 +124,17 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Read the Jobfile
-	path := args[0]
-
-	var f io.Reader
-	switch path {
-	case "-":
-		if c.testStdin != nil {
-			f = c.testStdin
-		} else {
-			f = os.Stdin
-		}
-		path = "stdin"
-	default:
-		file, err := os.Open(path)
-		defer file.Close()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error opening file %q: %v", path, err))
-			return 1
-		}
-		f = file
+	// Check that we got exactly one node
+	args = flags.Args()
+	if len(args) != 1 {
+		c.Ui.Error(c.Help())
+		return 1
 	}
 
-	// Parse the JobFile
-	job, err := jobspec.Parse(f)
+	// Get Job struct from Jobfile
+	job, err := c.JobGetter.StructJob(args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing job file from %s: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 
@@ -156,6 +149,16 @@ func (c *RunCommand) Run(args []string) int {
 
 	// Check if the job is periodic.
 	periodic := job.IsPeriodic()
+
+	// Parse the Vault token
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	if vaultToken != "" {
+		job.VaultToken = vaultToken
+	}
 
 	// Convert it to something we can use
 	apiJob, err := convertStructJob(job)
