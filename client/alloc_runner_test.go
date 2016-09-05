@@ -445,9 +445,10 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.logger = prefixedTestLogger("ar1: ")
 
 	// Ensure task takes some time
+
+	ar.alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"1000"}
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
