@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package logging
 
@@ -7,11 +7,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"log/syslog"
 	"net"
 	"os"
 	"runtime"
 
+	syslog "github.com/RackSec/srslog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"

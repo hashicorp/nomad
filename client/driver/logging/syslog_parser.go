@@ -1,12 +1,13 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package logging
 
 import (
 	"fmt"
 	"log"
-	"log/syslog"
 	"strconv"
+
+	syslog "github.com/RackSec/srslog"
 )
 
 // Errors related to parsing priority
