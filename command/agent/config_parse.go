@@ -95,6 +95,12 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"consul",
 		"vault",
 		"http_api_response_headers",
+		"verify_incoming",
+		"verify_outgoing",
+		"ca_file",
+		"cert_file",
+		"key_file",
+		"domain",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")

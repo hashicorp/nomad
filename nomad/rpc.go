@@ -98,7 +98,7 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 	}
 
 	// Enforce TLS if VerifyIncoming is set
-	if s.config.RequireTLS && !isTLS && RPCType(buf[0]) != rpcTLS {
+	if s.config.VerifyIncoming && !isTLS && RPCType(buf[0]) != rpcTLS {
 		s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted with RequireTLS set")
 		conn.Close()
 		return

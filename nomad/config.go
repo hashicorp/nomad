@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -20,6 +21,7 @@ const (
 	DefaultRegion   = "global"
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
+	DefaultDomain   = "nomad"
 )
 
 // These are the protocol versions that Nomad can understand
@@ -91,8 +93,32 @@ type Config struct {
 	// RaftTimeout is applied to any network traffic for raft. Defaults to 10s.
 	RaftTimeout time.Duration
 
-	// RequireTLS ensures that all RPC traffic is protected with TLS
-	RequireTLS bool
+	// VerifyIncoming is used to verify the authenticity of incoming connections.
+	// This means that TCP requests are forbidden, only allowing for TLS. TLS connections
+	// must match a provided certificate authority. This can be used to force client auth.
+	VerifyIncoming bool
+
+	// VerifyOutgoing is used to verify the authenticity of outgoing connections.
+	// This means that TLS requests are used. TLS connections must match a provided
+	// certificate authority. This is used to verify authenticity of server nodes.
+	// This also ensures that the certificate presented is valid for server.<datacenter>.<region>.
+	// This prevents a compromised client from being restarted as a server, and then
+	// intercepting request traffic as well as being added as a raft peer.
+	VerifyOutgoing bool
+
+	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
+	// or VerifyOutgoing to verify the TLS connection.
+	CAFile string
+
+	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	CertFile string
+
+	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	KeyFile string
+
+	Domain string
 
 	// SerfConfig is the configuration for the serf cluster
 	SerfConfig *serf.Config
@@ -216,6 +242,7 @@ func DefaultConfig() *Config {
 		Region:                 DefaultRegion,
 		Datacenter:             DefaultDC,
 		NodeName:               hostname,
+		Domain:                 DefaultDomain,
 		ProtocolVersion:        ProtocolVersionMax,
 		RaftConfig:             raft.DefaultConfig(),
 		RaftTimeout:            10 * time.Second,
@@ -262,4 +289,18 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 	return c
+}
+
+func (c *Config) TlsConfig() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming:       c.VerifyIncoming,
+		VerifyOutgoing:       c.VerifyOutgoing,
+		VerifyServerHostname: c.VerifyOutgoing,
+		CAFile:               c.CAFile,
+		CertFile:             c.CertFile,
+		KeyFile:              c.KeyFile,
+		NodeName:             c.NodeName,
+		Domain:               c.Domain,
+	}
+	return tlsConf
 }

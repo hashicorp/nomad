@@ -133,6 +133,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
 	}
 
+	// Copy the TLS configuration
+	conf.VerifyIncoming = a.config.VerifyIncoming
+	conf.VerifyOutgoing = a.config.VerifyOutgoing
+	conf.CAFile = a.config.CAFile
+	conf.CertFile = a.config.CertFile
+	conf.KeyFile = a.config.KeyFile
+	conf.Domain = a.config.Domain
+
 	// Set up the advertise addrs
 	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
 		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
@@ -288,8 +296,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
-		a.logger.Printf(`Nomad client ignores consul related configuration in client options. 
-		Please refer to the guide https://www.nomadproject.io/docs/agent/config.html#consul_options 
+		a.logger.Printf(`Nomad client ignores consul related configuration in client options.
+		Please refer to the guide https://www.nomadproject.io/docs/agent/config.html#consul_options
 		to configure Nomad to work with Consul.`)
 	}
 
@@ -450,8 +458,28 @@ func (a *Agent) setupClient() error {
 		}
 	}
 
+	// Create the tls wrapper for outgoing connections
+	nomadConf := a.config.NomadConfig
+	if nomadConf == nil {
+		nomadConf = nomad.DefaultConfig()
+	}
+	nomadConf.VerifyIncoming = a.config.VerifyIncoming
+	nomadConf.VerifyOutgoing = a.config.VerifyOutgoing
+	nomadConf.CAFile = a.config.CAFile
+	nomadConf.CertFile = a.config.CertFile
+	nomadConf.KeyFile = a.config.KeyFile
+	nomadConf.Domain = a.config.Domain
+
+	tlsConf := nomadConf.TlsConfig()
+
+	// Create the tls Wrapper
+	tlsWrap, err := tlsConf.OutgoingTLSWrapper()
+	if err != nil {
+		return err
+	}
+
 	// Create the client
-	client, err := client.NewClient(conf, a.consulSyncer, a.logger)
+	client, err := client.NewClient(conf, a.consulSyncer, a.logger, tlsWrap)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

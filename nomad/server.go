@@ -187,13 +187,27 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		return nil, err
 	}
 
+	// Create the tls wrapper for outgoing connections
+	tlsConf := config.TlsConfig()
+	tlsWrap, err := tlsConf.OutgoingTLSWrapper()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the incoming tls config
+	incomingTLS, err := tlsConf.IncomingTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the server
 	s := &Server{
 		config:       config,
 		consulSyncer: consulSyncer,
-		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
+		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:       logger,
 		rpcServer:    rpc.NewServer(),
+		rpcTLS:       incomingTLS,
 		peers:        make(map[string][]*serverParts),
 		localPeers:   make(map[string]*serverParts),
 		reconcileCh:  make(chan serf.Member, 32),
@@ -215,8 +229,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	}
 
 	// Initialize the RPC layer
-	// TODO: TLS...
-	if err := s.setupRPC(nil); err != nil {
+	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
 		s.logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
@@ -624,9 +637,9 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 
 	// Provide a DC specific wrapper. Raft replication is only
 	// ever done in the same datacenter, so we can provide it as a constant.
-	// wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
-	// TODO: TLS...
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, nil)
+	//wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
+	wrapper := tlsutil.SpecificDC(s.config.Region, tlsWrap)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 	return nil
 }
 
