@@ -210,7 +210,7 @@ nomad server-join 10.10.11.8:4648
 ```
 
 Servers across regions discover other servers in the cluster via the gossip
-protocol and hence it enough to join one known server.
+protocol and hence it's enough to join one known server.
 
 If the Consul clusters in the different Nomad regions are federated, and Consul
 `server_auto_join` is enabled, then federation occurs automatically.
