@@ -181,7 +181,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 
 	// It correctly identifies the bind address when requested
-	if addr := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.2:4646" {
+	if addr, err := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.2:4646" || err != nil {
 		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
 	}
 

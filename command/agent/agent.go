@@ -134,23 +134,6 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
 	}
 
-	// Set up the advertise addrs
-	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
-		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving serf advertise address: %s", err)
-		}
-		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
-		conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
-	}
-	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
-		rpcAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving rpc advertise address: %s", err)
-		}
-		conf.RPCAdvertise = rpcAddr
-	}
-
 	// Set up the bind addresses
 	rpcAddr, err := a.getRPCAddr(true)
 	if err != nil {
@@ -181,6 +164,9 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	a.serverHTTPAddr = net.JoinHostPort(httpAddr.IP.String(), strconv.Itoa(httpAddr.Port))
 	a.serverRPCAddr = net.JoinHostPort(rpcAddr.IP.String(), strconv.Itoa(rpcAddr.Port))
 	a.serverSerfAddr = net.JoinHostPort(serfAddr.IP.String(), strconv.Itoa(serfAddr.Port))
+	conf.RPCAdvertise = rpcAddr
+	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
+	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
 
 	// Set up gc threshold and heartbeat grace period
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
