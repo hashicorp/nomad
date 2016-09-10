@@ -255,6 +255,10 @@ func (j *JobGetter) StructJob(jpath string) (*structs.Job, error) {
 		}
 		defer os.Remove(job.Name())
 
+		if err := job.Close(); err != nil {
+			return nil, err
+		}
+
 		// Get the pwd
 		pwd, err := os.Getwd()
 		if err != nil {

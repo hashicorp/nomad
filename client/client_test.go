@@ -510,9 +510,9 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.NodeID = c1.Node().ID
 	alloc1.Job = job
 	alloc1.JobID = job.ID
+	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	task := alloc1.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"100"}
+	task.Config["run_for"] = "10s"
 
 	state := s1.State()
 	if err := state.UpsertJob(100, job); err != nil {

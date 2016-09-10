@@ -1,11 +1,12 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package executor
 
 import (
 	"fmt"
 	"io"
-	"log/syslog"
+
+	syslog "github.com/RackSec/srslog"
 
 	"github.com/hashicorp/nomad/client/driver/logging"
 )
