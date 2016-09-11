@@ -449,6 +449,7 @@ func (a *Agent) setupClient() error {
 type addrSelector func(bool) (*net.TCPAddr, error)
 
 // Choose the right address given a selector, and return it as a PortLabel
+// preferBind is a weak preference, and will skip 0.0.0.0
 func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, error) {
 	addr, err := selector(preferBind)
 	if err != nil {
@@ -466,15 +467,22 @@ func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, erro
 	return address, nil
 }
 
-// HTTP address selector
+// Address selectors
+// Resolve Bind address and Advertise address. Skip 0.0.0.0 unless
+// we're looking for the Bind address, since that's the only time
+// it's useful
 func (a *Agent) getHTTPAddr(returnBind bool) (*net.TCPAddr, error) {
 	var serverAddr string
-	if a.config.AdvertiseAddrs.HTTP != "" && !returnBind {
-		serverAddr = a.config.AdvertiseAddrs.HTTP
-	} else if a.config.Addresses.HTTP != "" {
-		serverAddr = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
-	} else if a.config.BindAddr != "" {
-		serverAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.HTTP))
+	advertAddr := a.config.AdvertiseAddrs.HTTP
+	bindAddr := a.config.Addresses.HTTP
+	globalBindAddr := a.config.BindAddr
+
+	if advertAddr != "" && !returnBind {
+		serverAddr = advertAddr
+	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.HTTP))
+	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.HTTP))
 	} else {
 		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
 	}
@@ -486,15 +494,18 @@ func (a *Agent) getHTTPAddr(returnBind bool) (*net.TCPAddr, error) {
 	return addr, nil
 }
 
-// RPC address selector
 func (a *Agent) getRPCAddr(returnBind bool) (*net.TCPAddr, error) {
 	var serverAddr string
-	if a.config.AdvertiseAddrs.RPC != "" && !returnBind {
-		serverAddr = a.config.AdvertiseAddrs.RPC
-	} else if a.config.Addresses.RPC != "" {
-		serverAddr = net.JoinHostPort(a.config.Addresses.RPC, strconv.Itoa(a.config.Ports.RPC))
-	} else if a.config.BindAddr != "" {
-		serverAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.RPC))
+	advertAddr := a.config.AdvertiseAddrs.RPC
+	bindAddr := a.config.Addresses.RPC
+	globalBindAddr := a.config.BindAddr
+
+	if advertAddr != "" && !returnBind {
+		serverAddr = advertAddr
+	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.RPC))
+	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.RPC))
 	} else {
 		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.RPC))
 	}
@@ -506,15 +517,18 @@ func (a *Agent) getRPCAddr(returnBind bool) (*net.TCPAddr, error) {
 	return addr, nil
 }
 
-// Serf address selector
 func (a *Agent) getSerfAddr(returnBind bool) (*net.TCPAddr, error) {
 	var serverAddr string
-	if a.config.AdvertiseAddrs.Serf != "" && !returnBind {
-		serverAddr = a.config.AdvertiseAddrs.Serf
-	} else if a.config.Addresses.Serf != "" {
-		serverAddr = net.JoinHostPort(a.config.Addresses.Serf, strconv.Itoa(a.config.Ports.Serf))
-	} else if a.config.BindAddr != "" {
-		serverAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.Serf))
+	advertAddr := a.config.AdvertiseAddrs.Serf
+	bindAddr := a.config.Addresses.Serf
+	globalBindAddr := a.config.BindAddr
+
+	if advertAddr != "" && !returnBind {
+		serverAddr = advertAddr
+	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.Serf))
+	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
+		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.Serf))
 	} else {
 		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.Serf))
 	}

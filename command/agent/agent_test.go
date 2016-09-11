@@ -205,10 +205,21 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
 	}
 
-	// selectAddr does not return 0.0.0.0 with preferBind
+	// We don't resolve 0.0.0.0 unless we're asking for bind
 	conf.Addresses.HTTP = "0.0.0.0"
-	if addr, err := a.selectAddr(a.getHTTPAddr, true); addr != "10.0.0.10:4646" || err != nil {
-		t.Fatalf("expect 10.0.0.10:4646, got: %s", addr)
+	conf.AdvertiseAddrs.HTTP = ""
+	if addr, err := a.getHTTPAddr(false); addr.IP.String() != "127.0.0.3" || err != nil {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr.IP.String())
+	}
+
+	// We still get 0.0.0.0 when explicitly asking for bind
+	if addr, err := a.getHTTPAddr(true); addr.IP.String() != "0.0.0.0" || err != nil {
+		t.Fatalf("expect 0.0.0.0, got: %s", addr.IP.String())
+	}
+
+	// selectAddr does not return 0.0.0.0 with preferBind
+	if addr, err := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.3:4646" || err != nil {
+		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 
 	conf.Server.NodeGCThreshold = "42g"
