@@ -455,7 +455,7 @@ func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, erro
 		return "", err
 	}
 
-	if preferBind && strings.HasPrefix(addr.IP.String(), "0.0.0.0:") {
+	if preferBind && addr.IP.String() == "0.0.0.0" {
 		addr, err = selector(false)
 		if err != nil {
 			return "", err
