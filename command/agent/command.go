@@ -395,7 +395,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Initialize the telemetry
-	if err := c.setupTelementry(config); err != nil {
+	if err := c.setupTelemetry(config); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
 	}
@@ -556,8 +556,8 @@ func (c *Command) handleReload(config *Config) *Config {
 	return newConf
 }
 
-// setupTelementry is used ot setup the telemetry sub-systems
-func (c *Command) setupTelementry(config *Config) error {
+// setupTelemetry is used ot setup the telemetry sub-systems
+func (c *Command) setupTelemetry(config *Config) error {
 	/* Setup telemetry
 	Aggregate on 10 second intervals for 1 minute. Expose the
 	metrics over stderr when there is a SIGUSR1 received.
