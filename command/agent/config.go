@@ -49,7 +49,7 @@ type Config struct {
 	// VerifyOutgoing is used to verify the authenticity of outgoing connections.
 	// This means that TLS requests are used. TLS connections must match a provided
 	// certificate authority. This is used to verify authenticity of server nodes.
-	// This also ensures that the certificate presented is valid for server.<datacenter>.<region>.
+	// This also ensures that the certificate presented is valid for server.<region>.<domain>.
 	// This prevents a compromised client from being restarted as a server, and then
 	// intercepting request traffic as well as being added as a raft peer.
 	VerifyOutgoing bool `mapstructure:"verify_outgoing"`
