@@ -274,7 +274,8 @@ The `task` object supports the following keys:
   the `s`, `m`, and `h` suffixes, such as `30s`. It can be used to configure the
   time between signaling a task it will be killed and actually killing it. Nomad
   sends an `os.Interrupt` which on Unix systems is defined as `SIGINT`. After
-  the timeout a kill signal is sent (on Unix `SIGKILL`).
+  the timeout a kill signal is sent (on Unix `SIGKILL`). The default
+  `kill_timeout` is 5 seconds.
 
 * `logs` - Logs allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the [log rotation section](#log_rotation) for more details.
