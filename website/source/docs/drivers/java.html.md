@@ -61,9 +61,10 @@ task "web" {
 
 ## Client Requirements
 
-The `java` driver requires Java to be installed and in your system's `$PATH`. The
-task must also specify at least one artifact to download, as this is the only way
-to retrieve the Jar being run.
+The `java` driver requires Java to be installed and in your system's `$PATH`. On 
+Linux, Nomad must run as root since it will use `chroot` and `cgroups` which
+require root privileges. The task must also specify at least one artifact to
+download, as this is the only way to retrieve the Jar being run.
 
 ## Client Attributes
 
