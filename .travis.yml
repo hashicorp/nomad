@@ -15,7 +15,7 @@ branches:
 
 before_install:  
     - sudo apt-get update
-    - sudo apt-get install -y docker-engine liblxc1
+    - sudo apt-get install -y docker-engine liblxc1 lxc-dev
     - sudo apt-get install -y qemu
     - ./scripts/install_consul.sh
     - ./scripts/install_vault.sh
