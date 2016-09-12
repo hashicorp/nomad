@@ -979,6 +979,12 @@
 			"revisionTime": "2016-06-29T01:11:04Z"
 		},
 		{
+			"checksumSHA1": "i97goLq3AIfUNB8l1hxGGMSW0+s=",
+			"path": "gopkg.in/lxc/go-lxc.v2",
+			"revision": "f8a6938e600c634232eeef79dc04a1226f73a88b",
+			"revisionTime": "2016-08-03T16:52:18Z"
+		},
+		{
 			"checksumSHA1": "TO8baX+t1Qs7EmOYth80MkbKzFo=",
 			"path": "gopkg.in/tomb.v1",
 			"revision": "dd632973f1e7218eb1089048e0798ec9ae7dceb8",
