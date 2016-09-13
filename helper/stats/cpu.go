@@ -20,16 +20,13 @@ var (
 func Init() error {
 	var err error
 	onceLer.Do(func() {
-		if cpuNumCores, err = cpu.Counts(true); err != nil {
-			err = fmt.Errorf("Unable to determine the number of CPU cores available: %v", err)
-			return
-		}
-
 		var cpuInfo []cpu.InfoStat
 		if cpuInfo, err = cpu.Info(); err != nil {
 			err = fmt.Errorf("Unable to obtain CPU information: %v", err)
 			return
 		}
+
+		cpuNumCores := len(cpuInfo)
 
 		for _, cpu := range cpuInfo {
 			cpuModelName = cpu.ModelName
