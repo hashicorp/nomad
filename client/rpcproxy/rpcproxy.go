@@ -473,7 +473,7 @@ func (p *RPCProxy) RebalanceServers() {
 			foundHealthyServer = true
 			break
 		}
-		p.logger.Printf(`[DEBUG] client.rpcproxy: pinging server "%s" failed: %s`, selectedServer.String(), err)
+		p.logger.Printf(`[DEBUG] client.rpcproxy: pinging server "%s" failed: %v`, selectedServer, err)
 
 		l.cycleServer()
 	}
