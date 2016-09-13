@@ -635,9 +635,6 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 
-	// Provide a DC specific wrapper. Raft replication is only
-	// ever done in the same datacenter, so we can provide it as a constant.
-	//wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
 	wrapper := tlsutil.SpecificDC(s.config.Region, tlsWrap)
 	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 	return nil

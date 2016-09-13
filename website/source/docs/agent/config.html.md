@@ -247,6 +247,37 @@ nodes, unless otherwise specified:
   }
   ```
 
+* `ca_file`: This provides a file path to a PEM-encoded certificate
+  authority. The certificate authority is used to check the authenticity of
+  client and server connections with the appropriate `verify_incoming` or
+  `verify_outgoing`.
+
+* `cert_file`: This provides a file path to a PEM-encoded certificate. The
+  certificate is provided to clients or servers to verify the agent's
+  authenticity. It must be provided along with `key_file`
+
+* `key_file`: This provides a the file path to a PEM-encoded private key. The
+  key is used with the certificate to verify the agent's authenticity.  This
+  must be provided along with `cert_file`
+
+* `verify_incoming`: If set to true, Nomad requires that all incoming
+  connections make use of TLS and that the client provides a certificate signed
+  by the Certificate Authority from the `ca_file`. By default, this
+  is false, and Nomad will not enforce the use of TLS or verify a client's
+  authenticity. This applies to server RPC API.
+
+* `verify_outgoing`: If set to true, Nomad requires that all outgoing
+  connections make use of TLS and that the server provides a certificate that is
+  signed by the Certificate Authority from the `ca_file` and matches
+  "server.&lt;region&gt;.&lt;domain&gt;" hostname. The latter is important to
+  prevent a compromised client from being restarted as a server, and thus being
+  able to perform a MITM attack or to be added as a Raft peer. By default, this
+  is false, and Nomad will not make use of TLS for outgoing connections. This
+  applies to clients and servers as both will make outgoing connections.
+
+* `domain`: This is used during `ca_file` verification if `verify_outgoing`
+  option is enabled. If not provided, it defaults to `nomad`.
+
 * `atlas`: See the [`atlas` options](#atlas_options) for more details.
 
 ## <a id="consul_options"></a>Consul Options
