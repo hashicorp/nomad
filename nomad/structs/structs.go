@@ -740,6 +740,11 @@ func (n *Node) Stub() *NodeListStub {
 	}
 }
 
+// Ready returns if the node is ready to run allocations
+func (n *Node) Ready() bool {
+	return n.Status == NodeStatusReady && !n.Drain
+}
+
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
