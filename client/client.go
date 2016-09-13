@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -109,12 +108,13 @@ type Client struct {
 
 	connPool *nomad.ConnPool
 
-	// lastHeartbeatFromQuorum is an atomic int32 acting as a bool.  When
-	// true, the last heartbeat message had a leader.  When false (0),
-	// the last heartbeat did not include the RPC address of the leader,
-	// indicating that the server is in the minority or middle of an
-	// election.
-	lastHeartbeatFromQuorum int32
+	// lastHeartbeatFromQuorum is true when the last heartbeat message had
+	// a leader.  When false the last heartbeat did not include the RPC
+	// address of the leader, indicating that the server is in the minority
+	// or middle of an election.
+	//
+	// Must acquire heartbeatLock to access.
+	lastHeartbeatFromQuorum bool
 
 	// consulPullHeartbeatDeadline is the deadline at which this Nomad
 	// Agent will begin polling Consul for a list of Nomad Servers.  When
@@ -953,12 +953,12 @@ func (c *Client) updateNodeStatus() error {
 	// has connectivity to the existing majority of Nomad Servers, but
 	// only if it queries Consul.
 	if resp.LeaderRPCAddr == "" {
-		atomic.CompareAndSwapInt32(&c.lastHeartbeatFromQuorum, 1, 0)
+		c.lastHeartbeatFromQuorum = false
 		return nil
 	}
 
 	const heartbeatFallbackFactor = 3
-	atomic.CompareAndSwapInt32(&c.lastHeartbeatFromQuorum, 0, 1)
+	c.lastHeartbeatFromQuorum = true
 	c.consulPullHeartbeatDeadline = time.Now().Add(heartbeatFallbackFactor * resp.HeartbeatTTL)
 	return nil
 }
@@ -1423,7 +1423,7 @@ func (c *Client) setupConsulSyncer() error {
 		// If the last heartbeat didn't contain a leader, give the
 		// Nomad server this Agent is talking to one more attempt at
 		// providing a heartbeat that does contain a leader.
-		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
+		if c.lastHeartbeatFromQuorum && now.Before(c.consulPullHeartbeatDeadline) {
 			c.heartbeatLock.Unlock()
 			return nil
 		}
@@ -1512,7 +1512,7 @@ func (c *Client) setupConsulSyncer() error {
 		c.logger.Printf("[INFO] client.consul: bootstrap adding following Servers: %q", nomadServerServices)
 
 		c.heartbeatLock.Lock()
-		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
+		if c.lastHeartbeatFromQuorum && now.Before(c.consulPullHeartbeatDeadline) {
 			c.heartbeatLock.Unlock()
 			// Common, healthy path
 			if err := c.rpcProxy.SetBackupServers(nomadServerServices); err != nil {
