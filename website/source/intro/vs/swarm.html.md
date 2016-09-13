@@ -8,7 +8,7 @@ description: |-
 
 # Nomad vs. Docker Swarm
 
-Docker Swarm is the native clustering solution for Docker. It provides
+Docker Swarm is the native orchestration solution for Docker. It provides
 an API compatible with the Docker Remote API, and allows containers to
 be scheduled across many machines.
 
@@ -19,19 +19,21 @@ Nomad is designed with extensible drivers and support will be extended to all
 common drivers.
 
 Docker Swarm provides API compatibility with their remote API, which focuses
-on the container abstraction. Nomad uses a higher-level abstraction of jobs.
-Jobs contain task groups, which are sets of tasks. This allows more complex
+on the container abstraction, but also higher-level abstractions like services and tasks,
+providing a self-contained unique experience for Devs and Ops as well.
+Nomad also uses a higher-level abstraction of jobs. Jobs contain task groups, 
+which are sets of tasks. This allows more complex
 applications to be expressed and easily managed without reasoning about the
-individual containers that compose the application.
+individual containers that compose the application. 
 
-The architectures also differ between Nomad and Docker Swarm.
-Nomad does not depend on external systems for coordination or storage,
-is distributed, highly available, and supports multi-datacenter
-and multi-region configurations.
+Not surprisingly, both Nomad and Docker Swarm share modern design principles.
+No external dependencies for coordination or storage,
+distributed, highly available, multi-datacenter support, multi-region configurations.
 
-By contrast, Swarm is not distributed or highly available by default.
-External systems must be used for coordination to support replication.
+As Docker Swarm, Nomad is distributed and highly available by default.
+No need to use external systems for coordination to support replication.
+Plus, you get TLS-level security out-of-the-box in Docker Swarm.
 When replication is enabled, Swarm uses an active/standby model,
 meaning the other servers cannot be used to make scheduling decisions.
-Swarm also does not support multiple failure isolation regions or federation.
-
+Swarm also did not support multiple failure isolation regions or federation,
+untile the new filtering ability with labels.
