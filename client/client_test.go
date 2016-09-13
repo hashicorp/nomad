@@ -145,6 +145,7 @@ func TestClient_RPC_TLS(t *testing.T) {
 	conf := nomad.DefaultConfig()
 	conf.VerifyIncoming = true
 	conf.VerifyOutgoing = true
+	conf.CAFile = "../test/ca/root.cer"
 	conf.CertFile = "../test/key/client.cer"
 	conf.KeyFile = "../test/key/client.key"
 	tlsWrap, err := conf.TlsConfig().OutgoingTLSWrapper()
@@ -651,7 +652,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// Wait for the node to be ready
