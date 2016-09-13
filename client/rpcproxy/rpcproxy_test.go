@@ -54,12 +54,11 @@ type fauxConnPool struct {
 }
 
 func (cp *fauxConnPool) PingNomadServer(region string, majorVersion int, s *ServerEndpoint) (bool, error) {
-	var success bool
 	successProb := rand.Float64()
 	if successProb > cp.failPct {
-		success = true
+		return true, nil
 	}
-	return success, nil
+	return false, fmt.Errorf("fake error")
 }
 
 type fauxSerf struct {
