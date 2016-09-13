@@ -69,6 +69,9 @@ type TaskRunner struct {
 	destroyLock  sync.Mutex
 	destroyEvent *structs.TaskEvent
 	waitCh       chan struct{}
+
+	// serialize SaveState calls
+	persistLock sync.Mutex
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
@@ -186,6 +189,9 @@ func (r *TaskRunner) RestoreState() error {
 
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
+	r.persistLock.Lock()
+	defer r.persistLock.Unlock()
+
 	snap := taskRunnerState{
 		Task:               r.task,
 		Version:            r.config.Version,
