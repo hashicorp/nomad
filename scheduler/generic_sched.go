@@ -512,7 +512,13 @@ func (s *GenericScheduler) findPreferredNode(allocTuple *allocTuple) (node *stru
 			return
 		}
 		if taskGroup.LocalDisk.Sticky == true {
-			node, err = s.state.NodeByID(allocTuple.Alloc.NodeID)
+			var preferredNode *structs.Node
+			preferredNode, err = s.state.NodeByID(allocTuple.Alloc.NodeID)
+
+			// The node is preferred only if it is ready
+			if preferredNode.Ready() {
+				node = preferredNode
+			}
 		}
 	}
 	return
