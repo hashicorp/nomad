@@ -299,9 +299,9 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			}
 		case api.TaskKilling:
 			if event.KillTimeout != 0 {
-				desc = fmt.Sprintf("Sent interupt. Waiting %v before force killing", event.KillTimeout)
+				desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
 			} else {
-				desc = "Sent interupt"
+				desc = "Sent interrupt"
 			}
 		case api.TaskKilled:
 			if event.KillError != "" {
