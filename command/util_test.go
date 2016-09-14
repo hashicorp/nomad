@@ -54,8 +54,8 @@ func testJob(jobID string) *api.Job {
 
 	group := api.NewTaskGroup("group1", 1).
 		AddTask(task).
-		RequireDisk(&api.LocalDisk{
-			DiskMB: 20,
+		RequireDisk(&api.EphemeralDisk{
+			SizeMB: 20,
 		})
 
 	job := api.NewBatchJob(jobID, jobID, "region1", 1).

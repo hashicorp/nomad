@@ -183,7 +183,7 @@ OUTER:
 
 		// Assign the resources for each task
 		total := &structs.Resources{
-			DiskMB: iter.taskGroup.LocalDisk.DiskMB,
+			DiskMB: iter.taskGroup.EphemeralDisk.SizeMB,
 		}
 		for _, task := range iter.taskGroup.Tasks {
 			taskResources := task.Resources.Copy()

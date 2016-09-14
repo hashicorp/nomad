@@ -900,10 +900,10 @@ func TestTaskGroupConstraints(t *testing.T) {
 	constr3 := &structs.Constraint{Operand: "<"}
 
 	tg := &structs.TaskGroup{
-		Name:        "web",
-		Count:       10,
-		Constraints: []*structs.Constraint{constr},
-		LocalDisk:   &structs.LocalDisk{},
+		Name:          "web",
+		Count:         10,
+		Constraints:   []*structs.Constraint{constr},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			&structs.Task{
 				Driver: "exec",

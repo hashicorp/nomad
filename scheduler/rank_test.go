@@ -69,7 +69,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	static := NewStaticRankIterator(ctx, nodes)
 
 	taskGroup := &structs.TaskGroup{
-		LocalDisk: &structs.LocalDisk{},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			{
 				Name: "web",
@@ -147,7 +147,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	}
 
 	taskGroup := &structs.TaskGroup{
-		LocalDisk: &structs.LocalDisk{},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			{
 				Name: "web",
@@ -233,7 +233,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	taskGroup := &structs.TaskGroup{
-		LocalDisk: &structs.LocalDisk{},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			{
 				Name: "web",
@@ -321,7 +321,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{alloc1}
 
 	taskGroup := &structs.TaskGroup{
-		LocalDisk: &structs.LocalDisk{},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			{
 				Name: "web",

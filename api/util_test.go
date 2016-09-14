@@ -32,8 +32,8 @@ func testJob() *Job {
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task).
-		RequireDisk(&LocalDisk{
-			DiskMB: 25,
+		RequireDisk(&EphemeralDisk{
+			SizeMB: 25,
 		})
 
 	job := NewBatchJob("job1", "redis", "region1", 1).

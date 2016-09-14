@@ -321,7 +321,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				ClientStatus:  structs.AllocClientStatusPending,
 
 				SharedResources: &structs.Resources{
-					DiskMB: missing.TaskGroup.LocalDisk.DiskMB,
+					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
 				},
 			}
 

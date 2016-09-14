@@ -433,15 +433,15 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	notify.verify(t)
 }
 
-// This test ensures that UpsertJob creates the LocalDisk is a job doesn't have
+// This test ensures that UpsertJob creates the EphemeralDisk is a job doesn't have
 // one and clear out the task's disk resource asks
 // COMPAT 0.4.1 -> 0.5
-func TestStateStore_UpsertJob_NoLocalDisk(t *testing.T) {
+func TestStateStore_UpsertJob_NoEphemeralDisk(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	// Set the LocalDisk to nil and set the tasks's DiskMB to 150
-	job.TaskGroups[0].LocalDisk = nil
+	// Set the EphemeralDisk to nil and set the tasks's DiskMB to 150
+	job.TaskGroups[0].EphemeralDisk = nil
 	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
 
 	err := state.UpsertJob(1000, job)
@@ -454,11 +454,11 @@ func TestStateStore_UpsertJob_NoLocalDisk(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Expect the state store to create the LocalDisk and clear out Tasks's
+	// Expect the state store to create the EphemeralDisk and clear out Tasks's
 	// DiskMB
 	expected := job.Copy()
-	expected.TaskGroups[0].LocalDisk = &structs.LocalDisk{
-		DiskMB: 150,
+	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
+		SizeMB: 150,
 	}
 	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
 
@@ -847,15 +847,15 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	notify.verify(t)
 }
 
-// This test ensures that the state restore creates the LocalDisk for a job if
+// This test ensures that the state restore creates the EphemeralDisk for a job if
 // it doesn't have one
 // COMPAT 0.4.1 -> 0.5
-func TestStateStore_Jobs_NoLocalDisk(t *testing.T) {
+func TestStateStore_Jobs_NoEphemeralDisk(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	// Set LocalDisk to nil and set the DiskMB to 150
-	job.TaskGroups[0].LocalDisk = nil
+	// Set EphemeralDisk to nil and set the DiskMB to 150
+	job.TaskGroups[0].EphemeralDisk = nil
 	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
 
 	notify := setupNotifyTest(
@@ -881,8 +881,8 @@ func TestStateStore_Jobs_NoLocalDisk(t *testing.T) {
 
 	// Expect job to have local disk and clear out the task's disk resource ask
 	expected := job.Copy()
-	expected.TaskGroups[0].LocalDisk = &structs.LocalDisk{
-		DiskMB: 150,
+	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
+		SizeMB: 150,
 	}
 	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
 	if !reflect.DeepEqual(out, expected) {
@@ -1792,10 +1792,10 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	notify.verify(t)
 }
 
-func TestStateStore_UpsertAlloc_NoLocalDisk(t *testing.T) {
+func TestStateStore_UpsertAlloc_NoEphemeralDisk(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].LocalDisk = nil
+	alloc.Job.TaskGroups[0].EphemeralDisk = nil
 	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
 
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
@@ -1813,7 +1813,7 @@ func TestStateStore_UpsertAlloc_NoLocalDisk(t *testing.T) {
 	}
 
 	expected := alloc.Copy()
-	expected.Job.TaskGroups[0].LocalDisk = &structs.LocalDisk{DiskMB: 120}
+	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
 	if !reflect.DeepEqual(expected, out) {
 		t.Fatalf("bad: %#v %#v", expected, out)
 	}
@@ -2516,10 +2516,10 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	notify.verify(t)
 }
 
-func TestStateStore_RestoreAlloc_NoLocalDisk(t *testing.T) {
+func TestStateStore_RestoreAlloc_NoEphemeralDisk(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].LocalDisk = nil
+	alloc.Job.TaskGroups[0].EphemeralDisk = nil
 	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
 
 	restore, err := state.Restore()
@@ -2540,7 +2540,7 @@ func TestStateStore_RestoreAlloc_NoLocalDisk(t *testing.T) {
 	}
 
 	expected := alloc.Copy()
-	expected.Job.TaskGroups[0].LocalDisk = &structs.LocalDisk{DiskMB: 120}
+	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
 	expected.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
 
 	if !reflect.DeepEqual(out, expected) {
