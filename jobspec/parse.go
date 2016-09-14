@@ -283,7 +283,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			}
 		}
 
-		// Parse local disk
+		// Parse ephemeral disk
 		g.EphemeralDisk = structs.DefaultEphemeralDisk()
 		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
 			if err := parseEphemeralDisk(&g.EphemeralDisk, o); err != nil {
