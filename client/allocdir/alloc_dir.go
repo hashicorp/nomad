@@ -552,3 +552,11 @@ func (d *AllocDir) syncDiskUsage() error {
 	d.setSize(size)
 	return err
 }
+
+func (d *AllocDir) GetSecretDir(task string) (string, error) {
+	if t, ok := d.TaskDirs[task]; !ok {
+		return "", fmt.Errorf("Allocation directory doesn't contain task %q", task)
+	} else {
+		return filepath.Join(t, TaskSecrets), nil
+	}
+}

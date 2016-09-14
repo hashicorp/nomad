@@ -163,6 +163,23 @@ func TestEnvironment_AsList(t *testing.T) {
 	}
 }
 
+func TestEnvironment_VaultToken(t *testing.T) {
+	n := mock.Node()
+	env := NewTaskEnvironment(n).SetVaultToken("123", false).Build()
+
+	act := env.EnvList()
+	if len(act) != 0 {
+		t.Fatalf("Unexpected environment variables: %v", act)
+	}
+
+	env = env.SetVaultToken("123", true).Build()
+	act = env.EnvList()
+	exp := []string{"VAULT_TOKEN=123"}
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("env.List() returned %v; want %v", act, exp)
+	}
+}
+
 func TestEnvironment_ClearEnvvars(t *testing.T) {
 	n := mock.Node()
 	env := NewTaskEnvironment(n).
