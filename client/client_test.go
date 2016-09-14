@@ -106,6 +106,16 @@ func testClient(t *testing.T, cb func(c *config.Config), tlsWrap tlsutil.DCWrapp
 	return client
 }
 
+func configureTLS(config *nomad.Config, mode string) {
+	config.VerifyIncoming = true
+	config.VerifyOutgoing = true
+	config.CAFile = "../test/ca/root.cer"
+	config.CertFile = fmt.Sprintf("../test/key/%s.cer", mode)
+	config.KeyFile = fmt.Sprintf("../test/key/%s.key", mode)
+	config.Domain = "internal"
+	config.Region = "test"
+}
+
 func TestClient_StartStop(t *testing.T) {
 	client := testClient(t, nil, nil)
 	if err := client.Shutdown(); err != nil {
@@ -134,20 +144,12 @@ func TestClient_RPC(t *testing.T) {
 
 func TestClient_RPC_TLS(t *testing.T) {
 	s1, addr := testServer(t, func(c *nomad.Config) {
-		c.VerifyIncoming = true
-		c.VerifyOutgoing = true
-		c.CAFile = "../test/ca/root.cer"
-		c.CertFile = "../test/key/server.cer"
-		c.KeyFile = "../test/key/server.key"
+		configureTLS(c, "server")
 	})
 	defer s1.Shutdown()
 
 	conf := nomad.DefaultConfig()
-	conf.VerifyIncoming = true
-	conf.VerifyOutgoing = true
-	conf.CAFile = "../test/ca/root.cer"
-	conf.CertFile = "../test/key/client.cer"
-	conf.KeyFile = "../test/key/client.key"
+	configureTLS(conf, "client")
 	tlsWrap, err := conf.TlsConfig().OutgoingTLSWrapper()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -155,6 +157,7 @@ func TestClient_RPC_TLS(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
+		c.Region = "test"
 	}, tlsWrap)
 	defer c1.Shutdown()
 

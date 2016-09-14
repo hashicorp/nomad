@@ -89,6 +89,8 @@ func configureTLS(config *Config) {
 	config.CAFile = "../test/ca/root.cer"
 	config.CertFile = "../test/key/server.cer"
 	config.KeyFile = "../test/key/server.key"
+	config.Domain = "internal"
+	config.Region = "test"
 }
 
 func testJoin(t *testing.T, s1 *Server, other ...*Server) {
