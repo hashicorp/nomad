@@ -410,7 +410,7 @@ func (r *TaskRunner) run() {
 			case <-r.destroyCh:
 				// Store the task event that provides context on the task destroy.
 				if r.destroyEvent.Type != structs.TaskKilled {
-					r.setState(structs.TaskStateDead, r.destroyEvent)
+					r.setState(structs.TaskStateRunning, r.destroyEvent)
 				}
 
 				// Mark that we received the kill event

@@ -11,38 +11,6 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
-func TestVaultClient_EstablishConnection(t *testing.T) {
-	v := testutil.NewTestVault(t)
-
-	logger := log.New(os.Stderr, "TEST: ", log.Lshortfile|log.LstdFlags)
-	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	v.Config.TaskTokenTTL = "10s"
-	c, err := NewVaultClient(v.Config, logger, nil)
-	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
-	}
-
-	c.Start()
-	defer c.Stop()
-
-	// Sleep a little while and check that no connection has been established.
-	time.Sleep(100 * time.Duration(testutil.TestMultiplier()) * time.Millisecond)
-
-	if c.ConnectionEstablished() {
-		t.Fatalf("ConnectionEstablished() returned true before Vault server started")
-	}
-
-	// Start Vault
-	v.Start()
-	defer v.Stop()
-
-	testutil.WaitForResult(func() (bool, error) {
-		return c.ConnectionEstablished(), nil
-	}, func(err error) {
-		t.Fatalf("Connection not established")
-	})
-}
-
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
@@ -89,12 +57,15 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 
 		tokens[i] = secret.Auth.ClientToken
 
-		errCh := c.RenewToken(tokens[i], secret.Auth.LeaseDuration)
+		errCh, err := c.RenewToken(tokens[i], secret.Auth.LeaseDuration)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
 		go func(errCh <-chan error) {
-			var err error
 			for {
 				select {
-				case err = <-errCh:
+				case err := <-errCh:
 					t.Fatalf("error while renewing the token: %v", err)
 				}
 			}
@@ -105,7 +76,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 		t.Fatalf("bad: heap length: expected: %d, actual: %d", num, c.heap.Length())
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Duration(5*testutil.TestMultiplier()) * time.Second)
 
 	for i := 0; i < num; i++ {
 		if err := c.StopRenewToken(tokens[i]); err != nil {

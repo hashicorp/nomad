@@ -1293,16 +1293,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 // setupVaultClient creates an object to periodically renew tokens and secrets
 // with vault.
 func (c *Client) setupVaultClient() error {
-	// TODO Want the vault client to always be valid. Should just return an
-	// error if it is not enabled
-	if c.config.VaultConfig == nil {
-		return fmt.Errorf("nil vault config")
-	}
-
-	if !c.config.VaultConfig.Enabled {
-		return nil
-	}
-
 	var err error
 	if c.vaultClient, err =
 		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {

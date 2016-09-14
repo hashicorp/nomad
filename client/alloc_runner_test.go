@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/client/vaultclient"
 )
 
 type MockAllocStateUpdater struct {
@@ -35,7 +36,8 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
+	vclient, _ := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient)
 	return upd, ar
 }
 
@@ -413,7 +415,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -485,7 +487,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
 	if err != nil {
@@ -576,7 +578,10 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if lastE := state1.Events[len(state1.Events)-1]; lastE.Type != structs.TaskSiblingFailed {
+		if len(state1.Events) < 3 {
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+		if lastE := state1.Events[len(state1.Events)-3]; lastE.Type != structs.TaskSiblingFailed {
 			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskSiblingFailed)
 		}
 
