@@ -90,8 +90,8 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
-					Name:      "web",
-					LocalDisk: DefaultLocalDisk(),
+					Name:          "web",
+					EphemeralDisk: DefaultEphemeralDisk(),
 				},
 			},
 		},

@@ -91,7 +91,7 @@ func TestSystemeSched_JobRegister_StickyAllocs(t *testing.T) {
 
 	// Create a job
 	job := mock.SystemJob()
-	job.TaskGroups[0].LocalDisk.Sticky = true
+	job.TaskGroups[0].EphemeralDisk.Sticky = true
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
@@ -150,7 +150,7 @@ func TestSystemeSched_JobRegister_StickyAllocs(t *testing.T) {
 	}
 }
 
-func TestSystemSched_JobRegister_LocalDiskConstraint(t *testing.T) {
+func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create a nodes
@@ -159,13 +159,13 @@ func TestSystemSched_JobRegister_LocalDiskConstraint(t *testing.T) {
 
 	// Create a job
 	job := mock.SystemJob()
-	job.TaskGroups[0].LocalDisk.DiskMB = 60 * 1024
+	job.TaskGroups[0].EphemeralDisk.SizeMB = 60 * 1024
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create another job with a lot of disk resource ask so that it doesn't fit
 	// the node
 	job1 := mock.SystemJob()
-	job1.TaskGroups[0].LocalDisk.DiskMB = 60 * 1024
+	job1.TaskGroups[0].EphemeralDisk.SizeMB = 60 * 1024
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job1))
 
 	// Create a mock evaluation to register the job

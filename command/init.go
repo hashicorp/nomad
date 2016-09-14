@@ -121,6 +121,17 @@ job "example" {
 			mode = "delay"
 		}
 
+		ephemeral_disk {
+			# When sticky is true and the task group is updated, the scheduler
+			# will prefer to place the updated allocation on the same node and
+			# will migrate the data. This is useful for tasks that store data
+			# that should persist across allocation updates.
+			# sticky = true
+
+			# Size of the shared ephemeral disk between tasks in the task group.
+			size = 300
+		}
+
 		# Define a task to run
 		task "redis" {
 			# Use Docker to run the task.

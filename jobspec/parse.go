@@ -190,10 +190,10 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		result.TaskGroups = make([]*structs.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &structs.TaskGroup{
-				Name:      t.Name,
-				Count:     1,
-				LocalDisk: structs.DefaultLocalDisk(),
-				Tasks:     []*structs.Task{t},
+				Name:          t.Name,
+				Count:         1,
+				EphemeralDisk: structs.DefaultEphemeralDisk(),
+				Tasks:         []*structs.Task{t},
 			}
 		}
 	}
@@ -241,7 +241,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			"restart",
 			"meta",
 			"task",
-			"local_disk",
+			"ephemeral_disk",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -255,7 +255,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		delete(m, "meta")
 		delete(m, "task")
 		delete(m, "restart")
-		delete(m, "local_disk")
+		delete(m, "ephemeral_disk")
 
 		// Default count to 1 if not specified
 		if _, ok := m["count"]; !ok {
@@ -283,11 +283,11 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			}
 		}
 
-		// Parse local disk
-		g.LocalDisk = structs.DefaultLocalDisk()
-		if o := listVal.Filter("local_disk"); len(o.Items) > 0 {
-			if err := parseLocalDisk(&g.LocalDisk, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', local_disk ->", n))
+		// Parse ephemeral disk
+		g.EphemeralDisk = structs.DefaultEphemeralDisk()
+		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
+			if err := parseEphemeralDisk(&g.EphemeralDisk, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', ephemeral_disk ->", n))
 			}
 		}
 
@@ -428,19 +428,19 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 	return nil
 }
 
-func parseLocalDisk(result **structs.LocalDisk, list *ast.ObjectList) error {
+func parseEphemeralDisk(result **structs.EphemeralDisk, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'local_disk' block allowed")
+		return fmt.Errorf("only one 'ephemeral_disk' block allowed")
 	}
 
-	// Get our local_disk object
+	// Get our ephemeral_disk object
 	obj := list.Items[0]
 
 	// Check for invalid keys
 	valid := []string{
 		"sticky",
-		"disk",
+		"size",
 	}
 	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
@@ -451,11 +451,11 @@ func parseLocalDisk(result **structs.LocalDisk, list *ast.ObjectList) error {
 		return err
 	}
 
-	var localDisk structs.LocalDisk
-	if err := mapstructure.WeakDecode(m, &localDisk); err != nil {
+	var ephemeralDisk structs.EphemeralDisk
+	if err := mapstructure.WeakDecode(m, &ephemeralDisk); err != nil {
 		return err
 	}
-	*result = &localDisk
+	*result = &ephemeralDisk
 
 	return nil
 }

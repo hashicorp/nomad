@@ -357,9 +357,9 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
-	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
 	// COMPAT 0.4.1 -> 0.5
-	s.addLocalDiskToTaskGroups(job)
+	s.addEphemeralDiskToTaskGroups(job)
 
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
@@ -961,10 +961,10 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			return fmt.Errorf("error updating job summary: %v", err)
 		}
 
-		// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
 		// COMPAT 0.4.1 -> 0.5
 		if alloc.Job != nil {
-			s.addLocalDiskToTaskGroups(alloc.Job)
+			s.addEphemeralDiskToTaskGroups(alloc.Job)
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
@@ -1656,10 +1656,10 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	return nil
 }
 
-// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
-func (s *StateStore) addLocalDiskToTaskGroups(job *structs.Job) {
+// addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
+func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	for _, tg := range job.TaskGroups {
-		if tg.LocalDisk != nil {
+		if tg.EphemeralDisk != nil {
 			continue
 		}
 		var diskMB int
@@ -1669,8 +1669,8 @@ func (s *StateStore) addLocalDiskToTaskGroups(job *structs.Job) {
 				task.Resources.DiskMB = 0
 			}
 		}
-		tg.LocalDisk = &structs.LocalDisk{
-			DiskMB: diskMB,
+		tg.EphemeralDisk = &structs.EphemeralDisk{
+			SizeMB: diskMB,
 		}
 	}
 }
@@ -1715,9 +1715,9 @@ func (r *StateRestore) JobRestore(job *structs.Job) error {
 	r.items.Add(watch.Item{Table: "jobs"})
 	r.items.Add(watch.Item{Job: job.ID})
 
-	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
 	// COMPAT 0.4.1 -> 0.5
-	r.addLocalDiskToTaskGroups(job)
+	r.addEphemeralDiskToTaskGroups(job)
 
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1751,9 +1751,9 @@ func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
 		}
 	}
 
-	// Create the LocalDisk if it's nil by adding up DiskMB from task resources.
+	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
 	if alloc.Job != nil {
-		r.addLocalDiskToTaskGroups(alloc.Job)
+		r.addEphemeralDiskToTaskGroups(alloc.Job)
 	}
 
 	if err := r.txn.Insert("allocs", alloc); err != nil {
@@ -1796,21 +1796,21 @@ func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) err
 	return nil
 }
 
-// addLocalDiskToTaskGroups adds missing LocalDisk objects to TaskGroups
-func (r *StateRestore) addLocalDiskToTaskGroups(job *structs.Job) {
+// addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
+func (r *StateRestore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	for _, tg := range job.TaskGroups {
-		if tg.LocalDisk != nil {
+		if tg.EphemeralDisk != nil {
 			continue
 		}
-		var diskMB int
+		var sizeMB int
 		for _, task := range tg.Tasks {
 			if task.Resources != nil {
-				diskMB += task.Resources.DiskMB
+				sizeMB += task.Resources.DiskMB
 				task.Resources.DiskMB = 0
 			}
 		}
-		tg.LocalDisk = &structs.LocalDisk{
-			DiskMB: diskMB,
+		tg.EphemeralDisk = &structs.EphemeralDisk{
+			SizeMB: sizeMB,
 		}
 	}
 }

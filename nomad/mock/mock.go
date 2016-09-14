@@ -79,8 +79,8 @@ func Job() *structs.Job {
 			&structs.TaskGroup{
 				Name:  "web",
 				Count: 10,
-				LocalDisk: &structs.LocalDisk{
-					DiskMB: 150,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
 				},
 				RestartPolicy: &structs.RestartPolicy{
 					Attempts: 3,
@@ -180,7 +180,7 @@ func SystemJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
-				LocalDisk: structs.DefaultLocalDisk(),
+				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",

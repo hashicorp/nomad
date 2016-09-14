@@ -42,9 +42,9 @@ job "binstore-storagelocker" {
       mode     = "delay"
     }
 
-    local_disk {
+    ephemeral_disk {
         sticky = true
-        disk   = 150
+        size = 150
     }
 
     task "binstore" {
