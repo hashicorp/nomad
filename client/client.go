@@ -1509,7 +1509,7 @@ func (c *Client) setupConsulSyncer() error {
 		}
 
 		// Log the servers we are adding
-		c.logger.Printf("[DEBUG] client.consul: bootstrap adding following Servers: %q", nomadServerServices)
+		c.logger.Printf("[INFO] client.consul: bootstrap adding following Servers: %q", nomadServerServices)
 
 		c.heartbeatLock.Lock()
 		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
