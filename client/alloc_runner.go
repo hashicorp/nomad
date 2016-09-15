@@ -179,6 +179,12 @@ func (r *AllocRunner) RestoreState() error {
 		msg := fmt.Sprintf("failed to recover Vault tokens for allocation %q: %v", r.alloc.ID, vaultErr)
 		r.logger.Printf("[ERR] client: %s", msg)
 		r.setStatus(structs.AllocClientStatusFailed, msg)
+
+		// Destroy the task runners and set the error
+		r.destroyTaskRunners(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(vaultErr))
+
+		// Handle cleanup
+		go r.handleDestroy()
 	}
 
 	return mErr.ErrorOrNil()
@@ -515,10 +521,24 @@ OUTER:
 		}
 	}
 
+	// Kill the task runners
+	r.destroyTaskRunners(taskDestroyEvent)
+
+	// Stop watching the shared allocation directory
+	r.ctx.AllocDir.StopDiskWatcher()
+
+	// Block until we should destroy the state of the alloc
+	r.handleDestroy()
+	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+}
+
+// destroyTaskRunners destroys the task runners, waits for them to terminate and
+// then saves state.
+func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 	// Destroy each sub-task
 	runners := r.getTaskRunners()
 	for _, tr := range runners {
-		tr.Destroy(taskDestroyEvent)
+		tr.Destroy(destroyEvent)
 	}
 
 	// Wait for termination of the task runners
@@ -528,13 +548,6 @@ OUTER:
 
 	// Final state sync
 	r.syncStatus()
-
-	// Stop watching the shared allocation directory
-	r.ctx.AllocDir.StopDiskWatcher()
-
-	// Block until we should destroy the state of the alloc
-	r.handleDestroy()
-	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
 
 // vaultToken acts as a tuple of the token and renewal channel

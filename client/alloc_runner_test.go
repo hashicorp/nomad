@@ -326,7 +326,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 	// Begin the tear down
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		ar.Destroy()
 	}()
 
