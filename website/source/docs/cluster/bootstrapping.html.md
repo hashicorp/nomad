@@ -54,11 +54,6 @@ servers and clients. A suggested base configuration is:
 # Name the region, if omitted, the default "global" region will be used.
 region = "europe"
 
-# Clients will connect to servers in other datacenters as a backup if no
-# local servers can be found. It's highly recommended to run servers in each
-# datacenter.
-datacenter = "dc1"
-
 # Persist data to a location that will survive a machine reboot.
 data_dir = "/opt/nomad/"
 
