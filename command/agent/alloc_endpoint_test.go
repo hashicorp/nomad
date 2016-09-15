@@ -172,6 +172,23 @@ func TestHTTP_AllocStats(t *testing.T) {
 
 		// Make the request
 		_, err = s.Server.ClientAllocRequest(respW, req)
+		if !strings.Contains(err.Error(), resourceNotFoundErr) {
+			t.Fatalf("err: %v", err)
+		}
+	})
+}
+
+func TestHTTP_AllocSnapshot(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.ClientAllocRequest(respW, req)
 		if !strings.Contains(err.Error(), allocNotFoundErr) {
 			t.Fatalf("err: %v", err)
 		}
