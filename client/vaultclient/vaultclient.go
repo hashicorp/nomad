@@ -204,6 +204,10 @@ func (c *vaultClient) Start() {
 		return
 	}
 
+	c.lock.Lock()
+	c.running = true
+	c.lock.Unlock()
+
 	go c.run()
 }
 
@@ -382,8 +386,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		renewResp, err := c.client.Auth().Token().RenewSelf(req.increment)
 		if err != nil {
 			renewalErr = fmt.Errorf("failed to renew the vault token: %v", err)
-		}
-		if renewResp == nil || renewResp.Auth == nil {
+		} else if renewResp == nil || renewResp.Auth == nil {
 			renewalErr = fmt.Errorf("failed to renew the vault token")
 		} else {
 			// Don't set this if renewal fails
@@ -394,8 +397,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		renewResp, err := c.client.Sys().Renew(req.id, req.increment)
 		if err != nil {
 			renewalErr = fmt.Errorf("failed to renew vault secret: %v", err)
-		}
-		if renewResp == nil {
+		} else if renewResp == nil {
 			renewalErr = fmt.Errorf("failed to renew vault secret")
 		} else {
 			// Don't set this if renewal fails
@@ -422,11 +424,12 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
-			strings.Contains(renewalErr.Error(), "token not found")) {
+			strings.Contains(renewalErr.Error(), "token not found") ||
+			strings.Contains(renewalErr.Error(), "permission denied")) {
 		fatal = true
 	} else if renewalErr != nil {
 		c.logger.Printf("[DEBUG] client.vault: req.increment: %d, leaseDuration: %d, duration: %d", req.increment, leaseDuration, duration)
-		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v", next.String())
+		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v: %v", next.String(), renewalErr)
 	}
 
 	if c.isTracked(req.id) {
@@ -495,10 +498,6 @@ func (c *vaultClient) run() {
 	if !c.config.Enabled {
 		return
 	}
-
-	c.lock.Lock()
-	c.running = true
-	c.lock.Unlock()
 
 	var renewalCh <-chan time.Time
 	for c.config.Enabled && c.running {

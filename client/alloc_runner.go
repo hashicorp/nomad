@@ -557,7 +557,9 @@ func (r *AllocRunner) deriveVaultTokens() error {
 		return nil
 	}
 
-	renewingTokens := make(map[string]vaultToken, len(required))
+	if r.vaultTokens == nil {
+		r.vaultTokens = make(map[string]vaultToken, len(required))
+	}
 
 	// Get the tokens
 	tokens, err := r.vaultClient.DeriveToken(r.Alloc(), required)
@@ -568,6 +570,11 @@ func (r *AllocRunner) deriveVaultTokens() error {
 	// Persist the tokens to the appropriate secret directories
 	adir := r.ctx.AllocDir
 	for task, token := range tokens {
+		// Has been recovered
+		if _, ok := r.vaultTokens[task]; ok {
+			continue
+		}
+
 		secretDir, err := adir.GetSecretDir(task)
 		if err != nil {
 			return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", task, r.alloc.ID, err)
@@ -587,7 +594,7 @@ func (r *AllocRunner) deriveVaultTokens() error {
 			multierror.Append(&mErr, errMsg)
 
 			// Clean up any token that we have started renewing
-			for _, token := range renewingTokens {
+			for _, token := range r.vaultTokens {
 				if err := r.vaultClient.StopRenewToken(token.token); err != nil {
 					multierror.Append(&mErr, err)
 				}
@@ -595,13 +602,13 @@ func (r *AllocRunner) deriveVaultTokens() error {
 
 			return mErr.ErrorOrNil()
 		}
-		renewingTokens[task] = vaultToken{token: token, renewalCh: renewCh}
+		r.vaultTokens[task] = vaultToken{token: token, renewalCh: renewCh}
 	}
 
-	r.vaultTokens = renewingTokens
 	return nil
 }
 
+// tasksRequiringVaultTokens returns the set of tasks that require a Vault token
 func (r *AllocRunner) tasksRequiringVaultTokens() ([]string, error) {
 	// Get the tasks
 	tg := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
