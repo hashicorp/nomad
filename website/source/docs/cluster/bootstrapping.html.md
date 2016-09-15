@@ -99,9 +99,6 @@ server {
 And an equally simple configuration can be used for clients:
 
 ```
-# Replace with the relevant datacenter.
-datacenter = "dc1"
-
 client {
     enabled = true
 }
