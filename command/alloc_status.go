@@ -335,6 +335,24 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Task exceeded restart policy"
 			}
+		case api.TaskDiskExceeded:
+			if event.DiskLimit != 0 && event.DiskSize != 0 {
+				desc = fmt.Sprintf("Disk size exceeded maximum: %d > %d", event.DiskSize, event.DiskLimit)
+			} else {
+				desc = "Task exceeded disk quota"
+			}
+		case api.TaskVaultRenewalFailed:
+			if event.VaultError != "" {
+				desc = event.VaultError
+			} else {
+				desc = "Task's Vault token failed to be renewed"
+			}
+		case api.TaskSiblingFailed:
+			if event.FailedSibling != "" {
+				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+			} else {
+				desc = "Task's sibling failed"
+			}
 		}
 
 		// Reverse order so we are sorted by time

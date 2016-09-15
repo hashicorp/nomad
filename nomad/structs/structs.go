@@ -2209,7 +2209,8 @@ func (ts *TaskState) Failed() bool {
 	}
 
 	switch ts.Events[l-1].Type {
-	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
+	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed,
+		TaskFailedValidation, TaskVaultRenewalFailed:
 		return true
 	default:
 		return false
@@ -2326,8 +2327,8 @@ type TaskEvent struct {
 	// the TaskEvent refers to.
 	FailedSibling string
 
-	// VaultErr is the error from token renewal
-	VaultErr string
+	// VaultError is the error from token renewal
+	VaultError string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2427,7 +2428,7 @@ func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
 
 func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 	if err != nil {
-		e.VaultErr = err.Error()
+		e.VaultError = err.Error()
 	}
 	return e
 }

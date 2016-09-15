@@ -233,6 +233,8 @@ const (
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
 	TaskDiskExceeded           = "Disk Exceeded"
+	TaskVaultRenewalFailed     = "Vault token renewal failed"
+	TaskSiblingFailed          = "Sibling task failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -250,4 +252,8 @@ type TaskEvent struct {
 	StartDelay      int64
 	DownloadError   string
 	ValidationError string
+	DiskLimit       int64
+	DiskSize        int64
+	FailedSibling   string
+	VaultError      string
 }
