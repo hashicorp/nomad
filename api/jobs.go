@@ -191,6 +191,7 @@ type PeriodicConfig struct {
 type Job struct {
 	Region            string
 	ID                string
+	ParentID          string
 	Name              string
 	Type              string
 	Priority          int
