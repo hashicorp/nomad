@@ -182,6 +182,9 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
 		return nil, fmt.Errorf("unable to set memory limits: %v", err)
 	}
+	if err := c.SetCgroupItem("cpu.shares", strconv.Itoa(task.Resources.CPU)); err != nil {
+		return nil, fmt.Errorf("unable to set cpu shares: %v", err)
+	}
 
 	handle := lxcDriverHandle{
 		container:      c,
