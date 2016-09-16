@@ -181,6 +181,21 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("error setting network type configuration: %v", err)
 	}
 
+	// Bind mount the shared alloc dir and task local dir in the container
+	taskLocalDir, ok := ctx.AllocDir.TaskDirs[task.Name]
+	if !ok {
+		return nil, fmt.Errorf("failed to find task local directory: %v", task.Name)
+	}
+	taskDirMount := fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir)
+	allocDirMount := fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir)
+
+	if err := c.SetConfigItem("lxc.mount.entry", allocDirMount); err != nil {
+		return nil, fmt.Errorf("error setting alloc dir bind mounts configuration: %v", err)
+	}
+	if err := c.SetConfigItem("lxc.mount.entry", taskDirMount); err != nil {
+		return nil, fmt.Errorf("error setting task dir bind mounts configuration: %v", err)
+	}
+
 	if err := c.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start container: %v", err)
 	}
