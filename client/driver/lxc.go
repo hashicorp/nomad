@@ -175,9 +175,16 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := c.Create(options); err != nil {
 		return nil, fmt.Errorf("unable to create container: %v", err)
 	}
+
+	// Set the network type to none
+	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
+		return nil, fmt.Errorf("error setting network type configuration: %v", err)
+	}
+
 	if err := c.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start container: %v", err)
 	}
+
 	// Set the resource limits
 	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
 		return nil, fmt.Errorf("unable to set memory limits: %v", err)
