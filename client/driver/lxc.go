@@ -26,6 +26,9 @@ import (
 )
 
 const (
+
+	// containerMonitorIntv is the interval at which the driver checks if the
+	// container is still alive
 	containerMonitorIntv = 2 * time.Second
 )
 
@@ -59,6 +62,8 @@ type LxcDriverConfig struct {
 	FlushCache           bool     "mapstructure:`flush_cache`"
 	ForceCache           bool     "mapstructure:`force_cache`"
 	TemplateArgs         []string "mapstructure:`template_args`"
+	LogLevel             string   `mapstructure:"log_level"`
+	Verbosity            string
 }
 
 // NewLxcDriver returns a new instance of the LXC driver
@@ -119,12 +124,21 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeArray,
 				Required: false,
 			},
+			"log_level": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: false,
+			},
+			"verbosity": &fields.FieldSchema{
+				Type:     fields.TypeString,
+				Required: false,
+			},
 		},
 	}
 
 	if err := fd.Validate(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -156,9 +170,33 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("unable to create container: %v", err)
 	}
 
-	// TODO make them driver configuration
-	c.SetVerbosity(lxc.Verbose)
-	c.SetLogLevel(lxc.TRACE)
+	var verbosity lxc.Verbosity
+	switch driverConfig.Verbosity {
+	case "verbose":
+		verbosity = lxc.Verbose
+	case "", "quiet":
+		verbosity = lxc.Quiet
+	default:
+		return nil, fmt.Errorf("lxc driver config 'verbosity' can only be either quiet or verbose")
+	}
+	c.SetVerbosity(verbosity)
+
+	var logLevel lxc.LogLevel
+	switch driverConfig.LogLevel {
+	case "trace":
+		logLevel = lxc.TRACE
+	case "debug":
+		logLevel = lxc.DEBUG
+	case "info":
+		logLevel = lxc.INFO
+	case "warn":
+		logLevel = lxc.WARN
+	case "", "error":
+		logLevel = lxc.ERROR
+	default:
+		return nil, fmt.Errorf("lxc driver config 'log_level' can only be trace, debug, info, warn or error")
+	}
+	c.SetLogLevel(logLevel)
 
 	logFile := filepath.Join(ctx.AllocDir.LogDir(), fmt.Sprintf("%v-lxc.log", task.Name))
 	c.SetLogFile(logFile)
@@ -227,7 +265,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	return &handle, nil
 }
 
-// Open opena the driver to monitor an existing LXC container
+// Open creates the driver to monitor an existing LXC container
 func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
 	pid := &lxcPID{}
 	if err := json.Unmarshal([]byte(handleID), pid); err != nil {
@@ -359,7 +397,7 @@ func (h *lxcDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	for _, rawMemStat := range rawMemStats {
 		key, val, err := keysToVal(rawMemStat)
 		if err != nil {
-			h.logger.Printf("[ERR] driver.lxc: error getting stat for key %q: %v", key, err)
+			h.logger.Printf("[ERR] driver.lxc: error getting stat for line %q", rawMemStat)
 			continue
 		}
 		if _, ok := memData[key]; ok {
@@ -439,6 +477,9 @@ func (h *lxcDriverHandle) run() {
 
 func keysToVal(line string) (string, uint64, error) {
 	tokens := strings.Split(line, " ")
+	if len(tokens) != 2 {
+		return "", 0, fmt.Errorf("line isn't a k/v pair")
+	}
 	key := tokens[0]
 	val, err := strconv.ParseUint(tokens[1], 10, 64)
 	return key, val, err
