@@ -3,7 +3,9 @@
 package driver
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -90,19 +92,11 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return &h, nil
 }
 
-// TODO implement Open when we need it.
-// Open re-connects the driver to the running task
-func (m *MockDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	return nil, nil
-}
-
-// TODO implement Open when we need it.
 // Validate validates the mock driver configuration
 func (m *MockDriver) Validate(map[string]interface{}) error {
 	return nil
 }
 
-// TODO implement Open when we need it.
 // Fingerprint fingerprints a node and returns if MockDriver is enabled
 func (m *MockDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	node.Attributes["driver.mock_driver"] = "1"
@@ -123,12 +117,58 @@ type mockDriverHandle struct {
 	doneCh      chan struct{}
 }
 
-// TODO Implement when we need it.
-func (h *mockDriverHandle) ID() string {
-	return ""
+type mockDriverID struct {
+	TaskName    string
+	RunFor      time.Duration
+	KillAfter   time.Duration
+	KillTimeout time.Duration
+	ExitCode    int
+	ExitSignal  int
+	ExitErr     error
 }
 
-// TODO Implement when we need it.
+func (h *mockDriverHandle) ID() string {
+	id := mockDriverID{
+		TaskName:    h.taskName,
+		RunFor:      h.runFor,
+		KillAfter:   h.killAfter,
+		KillTimeout: h.killAfter,
+		ExitCode:    h.exitCode,
+		ExitSignal:  h.exitSignal,
+		ExitErr:     h.exitErr,
+	}
+
+	data, err := json.Marshal(id)
+	if err != nil {
+		h.logger.Printf("[ERR] driver.mock_driver: failed to marshal ID to JSON: %s", err)
+	}
+	return string(data)
+}
+
+// Open re-connects the driver to the running task
+func (m *MockDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
+	id := &mockDriverID{}
+	if err := json.Unmarshal([]byte(handleID), id); err != nil {
+		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
+	}
+
+	h := mockDriverHandle{
+		taskName:    id.TaskName,
+		runFor:      id.RunFor,
+		killAfter:   id.KillAfter,
+		killTimeout: id.KillTimeout,
+		exitCode:    id.ExitCode,
+		exitSignal:  id.ExitSignal,
+		exitErr:     id.ExitErr,
+		logger:      m.logger,
+		doneCh:      make(chan struct{}),
+		waitCh:      make(chan *dstructs.WaitResult, 1),
+	}
+
+	go h.run()
+	return &h, nil
+}
+
 func (h *mockDriverHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
