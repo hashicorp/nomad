@@ -662,7 +662,7 @@ func (r *AllocRunner) recoverVaultTokens() error {
 			return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", task, r.alloc.ID, err)
 		}
 
-		// Write the token to the file system
+		// Read the token from the secret directory
 		tokenPath := filepath.Join(secretDir, vaultTokenFile)
 		data, err := ioutil.ReadFile(tokenPath)
 		if err != nil {
