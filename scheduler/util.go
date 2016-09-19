@@ -190,15 +190,20 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 	for nodeID, allocs := range nodeAllocs {
 		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
 
-		// Mark the alloc as being for a specific node.
-		for i := range diff.place {
-			alloc := &diff.place[i]
+		// If the node is tainted there should be no placements made
+		if _, ok := taintedNodes[nodeID]; ok {
+			diff.place = nil
+		} else {
+			// Mark the alloc as being for a specific node.
+			for i := range diff.place {
+				alloc := &diff.place[i]
 
-			// If the new allocation isn't annotated with a previous allocation
-			// or if the previous allocation isn't from the same node then we
-			// annotate the allocTuple with a new Allocation
-			if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
-				alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+				// If the new allocation isn't annotated with a previous allocation
+				// or if the previous allocation isn't from the same node then we
+				// annotate the allocTuple with a new Allocation
+				if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
+					alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+				}
 			}
 		}
 
