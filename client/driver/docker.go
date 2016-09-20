@@ -104,6 +104,8 @@ type DockerDriverConfig struct {
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
+	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	VolumesFrom      []string            `mapstructure:"volumes_from"`       // List of volumes-from
 }
 
 // Validate validates a docker driver config
@@ -125,6 +127,14 @@ func (c *DockerDriverConfig) Validate() error {
 				Config: make(map[string]string),
 			},
 		}
+	}
+
+	if c.Volumes == nil {
+		c.Volumes = make([]string, 0)
+	}
+
+	if c.VolumesFrom == nil {
+		c.VolumesFrom = make([]string, 0)
 	}
 
 	return nil
@@ -247,6 +257,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"logging": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"volumes": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"volumes_from": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 		},
@@ -431,6 +447,10 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 
 	d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
 
+	//Merge nomad container binds and user specified binds
+	d.logger.Printf("[DEBUG] Unmodified binds from nomad: %+v\n", binds)
+	binds = append(binds, driverConfig.Volumes...)
+
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		Memory:     memLimit,
@@ -441,7 +461,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
-		Binds: binds,
+		Binds:       binds,
+		VolumesFrom: driverConfig.VolumesFrom,
 		LogConfig: docker.LogConfig{
 			Type:   driverConfig.Logging[0].Type,
 			Config: driverConfig.Logging[0].Config,
@@ -451,6 +472,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Config["image"])
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Config["image"])
+	d.logger.Printf("[DEBUG] driver.docker: binding Volumes-From: %#v for %s", hostConfig.VolumesFrom, task.Config["image"])
 
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
