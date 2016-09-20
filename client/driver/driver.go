@@ -166,8 +166,9 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 		env.SetAlloc(alloc)
 	}
 
-	// TODO: make this conditional on the task's vault block allowing it
-	env.SetVaultToken(vaultToken, true)
+	if task.Vault != nil {
+		env.SetVaultToken(vaultToken, task.Vault.Env)
+	}
 
 	return env.Build(), nil
 }

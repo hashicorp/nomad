@@ -160,6 +160,7 @@ func TestParse(t *testing.T) {
 								},
 								Vault: &structs.Vault{
 									Policies: []string{"foo", "bar"},
+									Env:      true,
 								},
 							},
 							&structs.Task{
@@ -459,6 +460,7 @@ func TestParse(t *testing.T) {
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
 									Policies: []string{"group"},
+									Env:      true,
 								},
 							},
 							&structs.Task{
@@ -466,6 +468,7 @@ func TestParse(t *testing.T) {
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
 									Policies: []string{"task"},
+									Env:      false,
 								},
 							},
 						},
@@ -480,6 +483,7 @@ func TestParse(t *testing.T) {
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
 									Policies: []string{"job"},
+									Env:      true,
 								},
 							},
 						},

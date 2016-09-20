@@ -2630,6 +2630,10 @@ func (d *EphemeralDisk) Copy() *EphemeralDisk {
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
+
+	// Env marks whether the Vault Token should be exposed as an environment
+	// variable
+	Env bool
 }
 
 // Copy returns a copy of this Vault block.
