@@ -282,7 +282,7 @@ The `task` object supports the following keys:
 
 * `artifact` - Defines an artifact to be downloaded before the task is run. This
   can be provided multiple times to define additional artifacts to download. See
-  the artifacts reference for more details.
+  the [artifacts reference section](#artifact_doc) for more details.
 
 ### Resources
 
