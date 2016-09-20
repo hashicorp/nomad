@@ -74,6 +74,12 @@ type DockerDriverAuth struct {
 	ServerAddress string `mapstructure:"server_address"` // server address of the registry
 }
 
+type DockerLoggingOpts struct {
+	Type      string              `mapstructure:"type"`
+	ConfigRaw []map[string]string `mapstructure:"config"`
+	Config    map[string]string   `mapstructure:"-"`
+}
+
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImages       []string            `mapstructure:"load"`               // LoadImage is array of paths to image archive files
@@ -97,6 +103,7 @@ type DockerDriverConfig struct {
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
+	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 }
 
 // Validate validates a docker driver config
@@ -107,6 +114,18 @@ func (c *DockerDriverConfig) Validate() error {
 
 	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
+
+	//if no logging is present, set default values. Otherwise, convert the raw logging data into a logging object
+	if len(c.Logging) != 0 {
+		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
+	} else {
+		c.Logging = []DockerLoggingOpts{
+			{
+				Type:   "syslog",
+				Config: make(map[string]string),
+			},
+		}
+	}
 
 	return nil
 }
@@ -226,6 +245,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"work_dir": &fields.FieldSchema{
 				Type: fields.TypeString,
+			},
+			"logging": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 		},
 	}
@@ -403,6 +425,20 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	}
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
+
+	if len(driverConfig.Logging) != 0 {
+		d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
+		if driverConfig.Logging[0].Type == "" {
+			driverConfig.Logging[0].Type = "syslog"
+		}
+
+		if driverConfig.Logging[0].Config["syslog-address"] == "" {
+			driverConfig.Logging[0].Config["syslog-address"] = syslogAddr
+		}
+	}
+
+	d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
+
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		Memory:     memLimit,
@@ -415,10 +451,8 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
 		LogConfig: docker.LogConfig{
-			Type: "syslog",
-			Config: map[string]string{
-				"syslog-address": syslogAddr,
-			},
+			Type:   driverConfig.Logging[0].Type,
+			Config: driverConfig.Logging[0].Config,
 		},
 	}
 
