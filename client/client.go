@@ -150,7 +150,7 @@ type Client struct {
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
 
-	// client to interact with vault for token and secret renewals
+	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
 }
 
@@ -208,11 +208,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	}
 	c.configLock.RUnlock()
 
-	// Restore the state
-	if err := c.restoreState(); err != nil {
-		return nil, fmt.Errorf("failed to restore state: %v", err)
-	}
-
 	// Setup the Consul syncer
 	if err := c.setupConsulSyncer(); err != nil {
 		return nil, fmt.Errorf("failed to create client Consul syncer: %v", err)
@@ -221,6 +216,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// Setup the vault client for token and secret renewals
 	if err := c.setupVaultClient(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
+	}
+
+	// Restore the state
+	if err := c.restoreState(); err != nil {
+		return nil, fmt.Errorf("failed to restore state: %v", err)
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -247,11 +247,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// times out and there are no Nomad servers available, this data is
 	// populated by periodically polling Consul, if available.
 	go c.rpcProxy.Run()
-
-	// Start renewing tokens and secrets
-	if c.vaultClient != nil {
-		c.vaultClient.Start()
-	}
 
 	return c, nil
 }
@@ -469,7 +464,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
 		c.configLock.RUnlock()
 		c.allocLock.Lock()
 		c.allocs[id] = ar
@@ -1285,7 +1280,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
 	c.configLock.RUnlock()
 	go ar.Run()
 
@@ -1299,14 +1294,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 // setupVaultClient creates an object to periodically renew tokens and secrets
 // with vault.
 func (c *Client) setupVaultClient() error {
-	if c.config.VaultConfig == nil {
-		return fmt.Errorf("nil vault config")
-	}
-
-	if !c.config.VaultConfig.Enabled {
-		return nil
-	}
-
 	var err error
 	if c.vaultClient, err =
 		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
@@ -1317,6 +1304,9 @@ func (c *Client) setupVaultClient() error {
 		c.logger.Printf("[ERR] client: failed to create vault client")
 		return fmt.Errorf("failed to create vault client")
 	}
+
+	// Start renewing tokens and secrets
+	c.vaultClient.Start()
 
 	return nil
 }

@@ -2209,7 +2209,8 @@ func (ts *TaskState) Failed() bool {
 	}
 
 	switch ts.Events[l-1].Type {
-	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed, TaskFailedValidation:
+	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed,
+		TaskFailedValidation, TaskVaultRenewalFailed:
 		return true
 	default:
 		return false
@@ -2279,6 +2280,9 @@ const (
 	// TaskSiblingFailed indicates that a sibling task in the task group has
 	// failed.
 	TaskSiblingFailed = "Sibling task failed"
+
+	// TaskVaultRenewalFailed indicates that Vault token renewal failed
+	TaskVaultRenewalFailed = "Vault token renewal failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -2322,6 +2326,9 @@ type TaskEvent struct {
 	// Name of the sibling task that caused termination of the task that
 	// the TaskEvent refers to.
 	FailedSibling string
+
+	// VaultError is the error from token renewal
+	VaultError string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2416,6 +2423,13 @@ func (e *TaskEvent) SetDiskSize(size int64) *TaskEvent {
 
 func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
 	e.FailedSibling = sibling
+	return e
+}
+
+func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
+	if err != nil {
+		e.VaultError = err.Error()
+	}
 	return e
 }
 

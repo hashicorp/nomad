@@ -320,8 +320,6 @@ OUTER:
 		}
 	}
 
-	atomic.StoreInt32(&v.connEstablished, 1)
-
 	// Retrieve our token, validate it and parse the lease duration
 	if err := v.parseSelfToken(); err != nil {
 		v.logger.Printf("[ERR] vault: failed to lookup self token and not retrying: %v", err)
@@ -340,6 +338,8 @@ OUTER:
 			time.Duration(v.tokenData.CreationTTL)*time.Second)
 		v.tomb.Go(wrapNilError(v.renewalLoop))
 	}
+
+	atomic.StoreInt32(&v.connEstablished, 1)
 }
 
 // renewalLoop runs the renew loop. This should only be called if we are given a
@@ -562,7 +562,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 			"NodeID":       a.NodeID,
 		},
 		TTL:         v.childTTL,
-		DisplayName: fmt.Sprintf("%s: %s", a.ID, task),
+		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
 	// Ensure we are under our rate limit

@@ -212,6 +212,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, length)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
+		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
 		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
 	}
 
@@ -333,6 +334,24 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 				desc = event.RestartReason
 			} else {
 				desc = "Task exceeded restart policy"
+			}
+		case api.TaskDiskExceeded:
+			if event.DiskLimit != 0 && event.DiskSize != 0 {
+				desc = fmt.Sprintf("Disk size exceeded maximum: %d > %d", event.DiskSize, event.DiskLimit)
+			} else {
+				desc = "Task exceeded disk quota"
+			}
+		case api.TaskVaultRenewalFailed:
+			if event.VaultError != "" {
+				desc = event.VaultError
+			} else {
+				desc = "Task's Vault token failed to be renewed"
+			}
+		case api.TaskSiblingFailed:
+			if event.FailedSibling != "" {
+				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+			} else {
+				desc = "Task's sibling failed"
 			}
 		}
 

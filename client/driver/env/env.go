@@ -60,6 +60,9 @@ const (
 
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
+
+	// VaultToken is the environment variable for passing the Vault token
+	VaultToken = "VAULT_TOKEN"
 )
 
 // The node values that can be interpreted.
@@ -77,22 +80,24 @@ const (
 // TaskEnvironment is used to expose information to a task via environment
 // variables and provide interpolation of Nomad variables.
 type TaskEnvironment struct {
-	Env           map[string]string
-	TaskMeta      map[string]string
-	TaskGroupMeta map[string]string
-	JobMeta       map[string]string
-	AllocDir      string
-	TaskDir       string
-	SecretDir     string
-	CpuLimit      int
-	MemLimit      int
-	TaskName      string
-	AllocIndex    int
-	AllocId       string
-	AllocName     string
-	Node          *structs.Node
-	Networks      []*structs.NetworkResource
-	PortMap       map[string]int
+	Env              map[string]string
+	TaskMeta         map[string]string
+	TaskGroupMeta    map[string]string
+	JobMeta          map[string]string
+	AllocDir         string
+	TaskDir          string
+	SecretDir        string
+	CpuLimit         int
+	MemLimit         int
+	TaskName         string
+	AllocIndex       int
+	AllocId          string
+	AllocName        string
+	Node             *structs.Node
+	Networks         []*structs.NetworkResource
+	PortMap          map[string]int
+	VaultToken       string
+	InjectVaultToken bool
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -201,6 +206,11 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		for k, v := range t.Node.Meta {
 			t.NodeValues[fmt.Sprintf("%s%s", nodeMetaPrefix, k)] = v
 		}
+	}
+
+	// Build the Vault Token
+	if t.InjectVaultToken && t.VaultToken != "" {
+		t.TaskEnv[VaultToken] = t.VaultToken
 	}
 
 	// Interpret the environment variables
@@ -444,5 +454,17 @@ func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
 	t.TaskName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetVaultToken(token string, inject bool) *TaskEnvironment {
+	t.VaultToken = token
+	t.InjectVaultToken = inject
+	return t
+}
+
+func (t *TaskEnvironment) ClearVaultToken() *TaskEnvironment {
+	t.VaultToken = ""
+	t.InjectVaultToken = false
 	return t
 }

@@ -348,17 +348,24 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 	if !ok {
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
+	secret, err := alloc.GetSecretDir(task.Name)
+	if err != nil {
+		return nil, err
+	}
 
 	allocDirBind := fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocContainerPath)
 	taskLocalBind := fmt.Sprintf("%s:%s", local, allocdir.TaskLocalContainerPath)
+	secretDirBind := fmt.Sprintf("%s:%s", secret, allocdir.TaskSecretsContainerPath)
 
 	if selinuxLabel := d.config.Read("docker.volumes.selinuxlabel"); selinuxLabel != "" {
 		allocDirBind = fmt.Sprintf("%s:%s", allocDirBind, selinuxLabel)
 		taskLocalBind = fmt.Sprintf("%s:%s", taskLocalBind, selinuxLabel)
+		secretDirBind = fmt.Sprintf("%s:%s", secretDirBind, selinuxLabel)
 	}
 	return []string{
 		allocDirBind,
 		taskLocalBind,
+		secretDirBind,
 	}, nil
 }
 

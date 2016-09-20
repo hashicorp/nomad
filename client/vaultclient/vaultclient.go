@@ -38,7 +38,7 @@ type VaultClient interface {
 
 	// RenewToken renews a token with the given increment and adds it to
 	// the min-heap for periodic renewal.
-	RenewToken(string, int) <-chan error
+	RenewToken(string, int) (<-chan error, error)
 
 	// StopRenewToken removes the token from the min-heap, stopping its
 	// renewal.
@@ -46,7 +46,7 @@ type VaultClient interface {
 
 	// RenewLease renews a vault secret's lease and adds the lease
 	// identifier to the min-heap for periodic renewal.
-	RenewLease(string, int) <-chan error
+	RenewLease(string, int) (<-chan error, error)
 
 	// StopRenewLease removes a secret's lease ID from the min-heap,
 	// stopping its renewal.
@@ -64,10 +64,6 @@ type vaultClient struct {
 
 	// running indicates if the renewal loop is active or not
 	running bool
-
-	// connEstablished marks whether the connection to vault was successful
-	// or not
-	connEstablished bool
 
 	// tokenData is the data of the passed VaultClient token
 	token *tokenData
@@ -145,10 +141,6 @@ func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver
 		return nil, fmt.Errorf("nil vault config")
 	}
 
-	if !config.Enabled {
-		return nil, nil
-	}
-
 	if logger == nil {
 		return nil, fmt.Errorf("nil logger")
 	}
@@ -157,9 +149,14 @@ func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver
 		config: config,
 		stopCh: make(chan struct{}),
 		// Update channel should be a buffered channel
-		updateCh: make(chan struct{}, 1),
-		heap:     newVaultClientHeap(),
-		logger:   logger,
+		updateCh:     make(chan struct{}, 1),
+		heap:         newVaultClientHeap(),
+		logger:       logger,
+		tokenDeriver: tokenDeriver,
+	}
+
+	if !config.Enabled {
+		return c, nil
 	}
 
 	// Get the Vault API configuration
@@ -207,52 +204,11 @@ func (c *vaultClient) Start() {
 		return
 	}
 
-	c.logger.Printf("[DEBUG] client.vault: establishing connection to vault")
-	go c.establishConnection()
-}
-
-// ConnectionEstablished indicates whether VaultClient successfully established
-// connection to vault or not
-func (c *vaultClient) ConnectionEstablished() bool {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.connEstablished
-}
-
-// establishConnection is used to make first contact with Vault. This should be
-// called in a go-routine since the connection is retried till the Vault Client
-// is stopped or the connection is successfully made at which point the renew
-// loop is started.
-func (c *vaultClient) establishConnection() {
-	// Create the retry timer and set initial duration to zero so it fires
-	// immediately
-	retryTimer := time.NewTimer(0)
-
-OUTER:
-	for {
-		select {
-		case <-c.stopCh:
-			return
-		case <-retryTimer.C:
-			// Ensure the API is reachable
-			if _, err := c.client.Sys().InitStatus(); err != nil {
-				c.logger.Printf("[WARN] client.vault: failed to contact Vault API. Retrying in %v: %v",
-					c.config.ConnectionRetryIntv, err)
-				retryTimer.Reset(c.config.ConnectionRetryIntv)
-				continue OUTER
-			}
-
-			break OUTER
-		}
-	}
-
 	c.lock.Lock()
-	c.connEstablished = true
+	c.running = true
 	c.lock.Unlock()
 
-	// Begin the renewal loop
 	go c.run()
-	c.logger.Printf("[DEBUG] client.vault: started")
 }
 
 // Stops the renewal loop of vault client
@@ -273,6 +229,9 @@ func (c *vaultClient) Stop() {
 // The return value is a map containing all the unwrapped tokens indexed by the
 // task name.
 func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
+	if !c.config.Enabled {
+		return nil, fmt.Errorf("vault client not enabled")
+	}
 	if !c.running {
 		return nil, fmt.Errorf("vault client is not running")
 	}
@@ -283,15 +242,14 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
 // token used by the task.
 func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
+	if !c.config.Enabled {
+		return nil, fmt.Errorf("vault client not enabled")
+	}
 	if token == "" {
 		return nil, fmt.Errorf("missing token")
 	}
 	if path == "" {
 		return nil, fmt.Errorf("missing consul ACL token vault path")
-	}
-
-	if !c.ConnectionEstablished() {
-		return nil, fmt.Errorf("connection with vault is not yet established")
 	}
 
 	c.lock.Lock()
@@ -314,20 +272,18 @@ func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error)
 // the caller be notified of a renewal failure asynchronously for appropriate
 // actions to be taken. The caller of this function need not have to close the
 // error channel.
-func (c *vaultClient) RenewToken(token string, increment int) <-chan error {
-	// Create a buffered error channel
-	errCh := make(chan error, 1)
-
+func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, error) {
 	if token == "" {
-		errCh <- fmt.Errorf("missing token")
-		close(errCh)
-		return errCh
+		err := fmt.Errorf("missing token")
+		return nil, err
 	}
 	if increment < 1 {
-		errCh <- fmt.Errorf("increment cannot be less than 1")
-		close(errCh)
-		return errCh
+		err := fmt.Errorf("increment cannot be less than 1")
+		return nil, err
 	}
+
+	// Create a buffered error channel
+	errCh := make(chan error, 1)
 
 	// Create a renewal request and indicate that the identifier in the
 	// request is a token and not a lease
@@ -342,9 +298,10 @@ func (c *vaultClient) RenewToken(token string, increment int) <-chan error {
 	// error channel.
 	if err := c.renew(renewalReq); err != nil {
 		c.logger.Printf("[ERR] client.vault: renewal of token failed: %v", err)
+		return nil, err
 	}
 
-	return errCh
+	return errCh, nil
 }
 
 // RenewLease renews the supplied lease identifier for a supplied duration (in
@@ -354,22 +311,19 @@ func (c *vaultClient) RenewToken(token string, increment int) <-chan error {
 // This helps the caller be notified of a renewal failure asynchronously for
 // appropriate actions to be taken. The caller of this function need not have
 // to close the error channel.
-func (c *vaultClient) RenewLease(leaseId string, increment int) <-chan error {
-	c.logger.Printf("[DEBUG] client.vault: renewing lease %q", leaseId)
-	// Create a buffered error channel
-	errCh := make(chan error, 1)
-
+func (c *vaultClient) RenewLease(leaseId string, increment int) (<-chan error, error) {
 	if leaseId == "" {
-		errCh <- fmt.Errorf("missing lease ID")
-		close(errCh)
-		return errCh
+		err := fmt.Errorf("missing lease ID")
+		return nil, err
 	}
 
 	if increment < 1 {
-		errCh <- fmt.Errorf("increment cannot be less than 1")
-		close(errCh)
-		return errCh
+		err := fmt.Errorf("increment cannot be less than 1")
+		return nil, err
 	}
+
+	// Create a buffered error channel
+	errCh := make(chan error, 1)
 
 	// Create a renewal request using the supplied lease and duration
 	renewalReq := &vaultClientRenewalRequest{
@@ -381,9 +335,10 @@ func (c *vaultClient) RenewLease(leaseId string, increment int) <-chan error {
 	// Renew the secret and send any error to the dedicated error channel
 	if err := c.renew(renewalReq); err != nil {
 		c.logger.Printf("[ERR] client.vault: renewal of lease failed: %v", err)
+		return nil, err
 	}
 
-	return errCh
+	return errCh, nil
 }
 
 // renew is a common method to handle renewal of both tokens and secret leases.
@@ -395,6 +350,9 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	if !c.config.Enabled {
+		return fmt.Errorf("vault client not enabled")
+	}
 	if !c.running {
 		return fmt.Errorf("vault client is not running")
 	}
@@ -402,10 +360,15 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	if req == nil {
 		return fmt.Errorf("nil renewal request")
 	}
+	if req.errCh == nil {
+		return fmt.Errorf("renewal request error channel nil")
+	}
 	if req.id == "" {
+		close(req.errCh)
 		return fmt.Errorf("missing id in renewal request")
 	}
 	if req.increment < 1 {
+		close(req.errCh)
 		return fmt.Errorf("increment cannot be less than 1")
 	}
 
@@ -423,8 +386,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		renewResp, err := c.client.Auth().Token().RenewSelf(req.increment)
 		if err != nil {
 			renewalErr = fmt.Errorf("failed to renew the vault token: %v", err)
-		}
-		if renewResp == nil || renewResp.Auth == nil {
+		} else if renewResp == nil || renewResp.Auth == nil {
 			renewalErr = fmt.Errorf("failed to renew the vault token")
 		} else {
 			// Don't set this if renewal fails
@@ -435,8 +397,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		renewResp, err := c.client.Sys().Renew(req.id, req.increment)
 		if err != nil {
 			renewalErr = fmt.Errorf("failed to renew vault secret: %v", err)
-		}
-		if renewResp == nil {
+		} else if renewResp == nil {
 			renewalErr = fmt.Errorf("failed to renew vault secret")
 		} else {
 			// Don't set this if renewal fails
@@ -463,11 +424,12 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
-			strings.Contains(renewalErr.Error(), "token not found")) {
+			strings.Contains(renewalErr.Error(), "token not found") ||
+			strings.Contains(renewalErr.Error(), "permission denied")) {
 		fatal = true
 	} else if renewalErr != nil {
 		c.logger.Printf("[DEBUG] client.vault: req.increment: %d, leaseDuration: %d, duration: %d", req.increment, leaseDuration, duration)
-		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v", next.String())
+		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v: %v", next.String(), renewalErr)
 	}
 
 	if c.isTracked(req.id) {
@@ -536,10 +498,6 @@ func (c *vaultClient) run() {
 	if !c.config.Enabled {
 		return
 	}
-
-	c.lock.Lock()
-	c.running = true
-	c.lock.Unlock()
 
 	var renewalCh <-chan time.Time
 	for c.config.Enabled && c.running {

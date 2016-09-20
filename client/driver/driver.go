@@ -135,7 +135,7 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 // GetTaskEnv converts the alloc dir, the node, task and alloc into a
 // TaskEnvironment.
 func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
-	task *structs.Task, alloc *structs.Allocation) (*env.TaskEnvironment, error) {
+	task *structs.Task, alloc *structs.Allocation, vaultToken string) (*env.TaskEnvironment, error) {
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	env := env.NewTaskEnvironment(node).
@@ -165,6 +165,9 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 	if alloc != nil {
 		env.SetAlloc(alloc)
 	}
+
+	// TODO: make this conditional on the task's vault block allowing it
+	env.SetVaultToken(vaultToken, true)
 
 	return env.Build(), nil
 }

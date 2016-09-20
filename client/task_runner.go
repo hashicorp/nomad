@@ -64,6 +64,11 @@ type TaskRunner struct {
 	// downloaded
 	artifactsDownloaded bool
 
+	// vaultToken and vaultRenewalCh are optionally set if the task requires
+	// Vault tokens
+	vaultToken     string
+	vaultRenewalCh <-chan error
+
 	destroy      bool
 	destroyCh    chan struct{}
 	destroyLock  sync.Mutex
@@ -115,6 +120,13 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 
 	return tc
+}
+
+// SetVaultToken is used to set the Vault token and renewal channel for the task
+// runner
+func (r *TaskRunner) SetVaultToken(token string, renewalCh <-chan error) {
+	r.vaultToken = token
+	r.vaultRenewalCh = renewalCh
 }
 
 // MarkReceived marks the task as received.
@@ -224,7 +236,7 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 // setTaskEnv sets the task environment. It returns an error if it could not be
 // created.
 func (r *TaskRunner) setTaskEnv() error {
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc)
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc, r.vaultToken)
 	if err != nil {
 		return err
 	}
@@ -390,7 +402,23 @@ func (r *TaskRunner) run() {
 				if err := r.handleUpdate(update); err != nil {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
+			case err := <-r.vaultRenewalCh:
+				if err == nil {
+					// Only handle once.
+					continue
+				}
+
+				// This is a fatal error as the task is not valid if it
+				// requested a Vault token and the token has now expired.
+				r.logger.Printf("[WARN] client: vault token for task %q not renewed: %v", r.task.Name, err)
+				r.Destroy(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(err))
+
 			case <-r.destroyCh:
+				// Store the task event that provides context on the task destroy.
+				if r.destroyEvent.Type != structs.TaskKilled {
+					r.setState(structs.TaskStateRunning, r.destroyEvent)
+				}
+
 				// Mark that we received the kill event
 				timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
 				r.setState(structs.TaskStateRunning,
@@ -408,11 +436,6 @@ func (r *TaskRunner) run() {
 
 				// Store that the task has been destroyed and any associated error.
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
-
-				// Store the task event that provides context on the task destroy.
-				if r.destroyEvent.Type != structs.TaskKilled {
-					r.setState(structs.TaskStateDead, r.destroyEvent)
-				}
 
 				r.runningLock.Lock()
 				r.running = false

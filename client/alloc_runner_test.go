@@ -3,7 +3,9 @@ package client
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/client/vaultclient"
 )
 
 type MockAllocStateUpdater struct {
@@ -35,7 +38,8 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
+	vclient := vaultclient.NewMockVaultClient()
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient)
 	return upd, ar
 }
 
@@ -324,7 +328,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 	// Begin the tear down
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		ar.Destroy()
 	}()
 
@@ -390,13 +394,15 @@ func TestAllocRunner_Update(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(false)
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 
-	// Ensure task takes some time
-	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
 
 	// Snapshot state
@@ -413,28 +419,43 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
 
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar2.tasks) != 1 {
+			return false, fmt.Errorf("Incorrect number of tasks")
+		}
+
+		if upd.Count == 0 {
+			return false, nil
+		}
+
+		last := upd.Allocs[upd.Count-1]
+		return last.ClientStatus == structs.AllocClientStatusRunning, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
 	// Destroy and wait
 	ar2.Destroy()
 	start := time.Now()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		alloc := ar2.Alloc()
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("Bad client status; got %v; want %v", alloc.ClientStatus, structs.AllocClientStatusComplete)
 		}
-		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus != structs.AllocClientStatusPending, nil
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > time.Duration(testutil.TestMultiplier()*15)*time.Second {
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
@@ -486,7 +507,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
 	if err != nil {
@@ -577,7 +598,10 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if lastE := state1.Events[len(state1.Events)-1]; lastE.Type != structs.TaskSiblingFailed {
+		if len(state1.Events) < 3 {
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+		if lastE := state1.Events[len(state1.Events)-3]; lastE.Type != structs.TaskSiblingFailed {
 			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskSiblingFailed)
 		}
 
@@ -594,4 +618,246 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestAllocRunner_SimpleRun_VaultToken(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{"exit_code": "0"}
+	task.Vault = &structs.Vault{
+		Policies: []string{"default"},
+	}
+
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	tr, ok := ar.tasks[task.Name]
+	if !ok {
+		t.Fatalf("No task runner made")
+	}
+
+	// Check that the task runner was given the token
+	token := tr.vaultToken
+	if token == "" || tr.vaultRenewalCh == nil {
+		t.Fatalf("Vault token not set properly")
+	}
+
+	// Check that it was written to disk
+	secretDir, err := ar.ctx.AllocDir.GetSecretDir(task.Name)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("token not written to disk: %v", err)
+	}
+
+	if string(data) != token {
+		t.Fatalf("Bad token written to disk")
+	}
+
+	// Check that we stopped renewing the token
+	mockVC := ar.vaultClient.(*vaultclient.MockVaultClient)
+	if len(mockVC.StoppedTokens) != 1 || mockVC.StoppedTokens[0] != token {
+		t.Fatalf("We didn't stop renewing the token")
+	}
+}
+
+func TestAllocRunner_SaveRestoreState_VaultTokens_Valid(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies: []string{"default"},
+	}
+
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	go ar.Run()
+
+	// Snapshot state
+	var token string
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar.tasks) != 1 {
+			return false, fmt.Errorf("Task not started")
+		}
+
+		tr, ok := ar.tasks[task.Name]
+		if !ok {
+			return false, fmt.Errorf("Incorrect task runner")
+		}
+
+		if tr.vaultToken == "" {
+			return false, fmt.Errorf("Bad token")
+		}
+
+		token = tr.vaultToken
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("task never started: %v", err)
+	})
+
+	err := ar.SaveState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a new alloc runner
+	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
+	err = ar2.RestoreState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	go ar2.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar2.tasks) != 1 {
+			return false, fmt.Errorf("Incorrect number of tasks")
+		}
+
+		tr, ok := ar2.tasks[task.Name]
+		if !ok {
+			return false, fmt.Errorf("Incorrect task runner")
+		}
+
+		if tr.vaultToken != token {
+			return false, fmt.Errorf("Got token %q; want %q", tr.vaultToken, token)
+		}
+
+		if upd.Count == 0 {
+			return false, nil
+		}
+
+		last := upd.Allocs[upd.Count-1]
+		return last.ClientStatus == structs.AllocClientStatusRunning, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
+	// Destroy and wait
+	ar2.Destroy()
+	start := time.Now()
+
+	testutil.WaitForResult(func() (bool, error) {
+		alloc := ar2.Alloc()
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("Bad client status; got %v; want %v", alloc.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
+		t.Fatalf("took too long to terminate")
+	}
+}
+
+func TestAllocRunner_SaveRestoreState_VaultTokens_Invalid(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies: []string{"default"},
+	}
+
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	go ar.Run()
+
+	// Snapshot state
+	var token string
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar.tasks) != 1 {
+			return false, fmt.Errorf("Task not started")
+		}
+
+		tr, ok := ar.tasks[task.Name]
+		if !ok {
+			return false, fmt.Errorf("Incorrect task runner")
+		}
+
+		if tr.vaultToken == "" {
+			return false, fmt.Errorf("Bad token")
+		}
+
+		token = tr.vaultToken
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("task never started: %v", err)
+	})
+
+	err := ar.SaveState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a new alloc runner
+	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
+
+	// Invalidate the token
+	mockVC := ar2.vaultClient.(*vaultclient.MockVaultClient)
+	renewErr := fmt.Errorf("Test disallowing renewal")
+	mockVC.SetRenewTokenError(token, renewErr)
+
+	// Restore and run
+	err = ar2.RestoreState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	go ar2.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, nil
+		}
+
+		last := upd.Allocs[upd.Count-1]
+		return last.ClientStatus == structs.AllocClientStatusFailed, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
+	// Destroy and wait
+	ar2.Destroy()
+	start := time.Now()
+
+	testutil.WaitForResult(func() (bool, error) {
+		alloc := ar2.Alloc()
+		if alloc.ClientStatus != structs.AllocClientStatusFailed {
+			return false, fmt.Errorf("Bad client status; got %v; want %v", alloc.ClientStatus, structs.AllocClientStatusFailed)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
+		t.Fatalf("took too long to terminate")
+	}
 }
