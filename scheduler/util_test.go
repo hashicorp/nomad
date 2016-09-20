@@ -175,15 +175,6 @@ func TestDiffAllocs(t *testing.T) {
 func TestDiffSystemAllocs(t *testing.T) {
 	job := mock.SystemJob()
 
-	// Create three alive nodes.
-	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"},
-		{ID: "pipe"}}
-
-	// The "old" job has a previous modify index
-	oldJob := new(structs.Job)
-	*oldJob = *job
-	oldJob.JobModifyIndex -= 1
-
 	drainNode := mock.Node()
 	drainNode.Drain = true
 
@@ -191,9 +182,18 @@ func TestDiffSystemAllocs(t *testing.T) {
 	deadNode.Status = structs.NodeStatusDown
 
 	tainted := map[string]*structs.Node{
-		"dead":      deadNode,
-		"drainNode": drainNode,
+		deadNode.ID:  deadNode,
+		drainNode.ID: drainNode,
 	}
+
+	// Create three alive nodes.
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"},
+		{ID: "pipe"}, {ID: drainNode.ID}, {ID: deadNode.ID}}
+
+	// The "old" job has a previous modify index
+	oldJob := new(structs.Job)
+	*oldJob = *job
+	oldJob.JobModifyIndex -= 1
 
 	allocs := []*structs.Allocation{
 		// Update allocation on baz
@@ -215,14 +215,14 @@ func TestDiffSystemAllocs(t *testing.T) {
 		// Stop allocation on draining node.
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "drainNode",
+			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 		// Mark as lost on a dead node
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "dead",
+			NodeID: deadNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
@@ -272,8 +272,8 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	// We should place 1
-	if len(place) != 2 {
-		t.Fatalf("bad: %#v", place)
+	if l := len(place); l != 2 {
+		t.Fatalf("bad: %#v", l)
 	}
 
 	// Ensure that the allocations which are replacements of terminal allocs are
@@ -900,10 +900,10 @@ func TestTaskGroupConstraints(t *testing.T) {
 	constr3 := &structs.Constraint{Operand: "<"}
 
 	tg := &structs.TaskGroup{
-		Name:        "web",
-		Count:       10,
-		Constraints: []*structs.Constraint{constr},
-		LocalDisk:   &structs.LocalDisk{},
+		Name:          "web",
+		Count:         10,
+		Constraints:   []*structs.Constraint{constr},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			&structs.Task{
 				Driver: "exec",

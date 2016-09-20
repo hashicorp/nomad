@@ -66,6 +66,9 @@ type AllocRunner struct {
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
+
+	// serialize saveAllocRunnerState calls
+	persistLock sync.Mutex
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -74,7 +77,6 @@ type allocRunnerState struct {
 	Alloc                  *structs.Allocation
 	AllocClientStatus      string
 	AllocClientDescription string
-	TaskStates             map[string]*structs.TaskState
 	Context                *driver.ExecContext
 }
 
@@ -118,7 +120,7 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 	r.allocClientStatus = snap.AllocClientStatus
 	r.allocClientDescription = snap.AllocClientDescription
-	r.taskStates = snap.TaskStates
+	r.taskStates = snap.Alloc.TaskStates
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -179,12 +181,12 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
-	// Create the snapshot.
-	r.taskStatusLock.RLock()
-	states := copyTaskStates(r.taskStates)
-	r.taskStatusLock.RUnlock()
+	r.persistLock.Lock()
+	defer r.persistLock.Unlock()
 
+	// Create the snapshot.
 	alloc := r.Alloc()
+
 	r.allocLock.Lock()
 	allocClientStatus := r.allocClientStatus
 	allocClientDescription := r.allocClientDescription
@@ -200,7 +202,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		Context:                ctx,
 		AllocClientStatus:      allocClientStatus,
 		AllocClientDescription: allocClientDescription,
-		TaskStates:             states,
 	}
 	return persistState(r.stateFilePath(), &snap)
 }

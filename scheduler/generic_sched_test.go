@@ -102,7 +102,7 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	job.TaskGroups[0].LocalDisk.Sticky = true
+	job.TaskGroups[0].EphemeralDisk.Sticky = true
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
@@ -172,7 +172,7 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	// can fit
 	job := mock.Job()
 	job.TaskGroups[0].Count = 2
-	job.TaskGroups[0].LocalDisk.DiskMB = 88 * 1024
+	job.TaskGroups[0].EphemeralDisk.SizeMB = 88 * 1024
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job

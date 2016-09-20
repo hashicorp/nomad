@@ -115,9 +115,9 @@ func testJob() *Job {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:      "web",
-				Count:     10,
-				LocalDisk: DefaultLocalDisk(),
+				Name:          "web",
+				Count:         10,
+				EphemeralDisk: DefaultEphemeralDisk(),
 				RestartPolicy: &RestartPolicy{
 					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
@@ -361,8 +361,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
-	localDisk := DefaultLocalDisk()
-	err := task.Validate(localDisk)
+	ephemeralDisk := DefaultEphemeralDisk()
+	err := task.Validate(ephemeralDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -375,7 +375,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(localDisk)
+	err = task.Validate(ephemeralDisk)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -391,8 +391,8 @@ func TestTask_Validate(t *testing.T) {
 		},
 		LogConfig: DefaultLogConfig(),
 	}
-	localDisk.DiskMB = 200
-	err = task.Validate(localDisk)
+	ephemeralDisk.SizeMB = 200
+	err = task.Validate(ephemeralDisk)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -420,7 +420,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		Name: "service-name",
 	}
 
-	localDisk := DefaultLocalDisk()
+	ephemeralDisk := DefaultEphemeralDisk()
 	task := &Task{
 		Name:   "web",
 		Driver: "docker",
@@ -431,9 +431,9 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 		Services: []*Service{s1, s2},
 	}
-	localDisk.DiskMB = 200
+	ephemeralDisk.SizeMB = 200
 
-	err := task.Validate(localDisk)
+	err := task.Validate(ephemeralDisk)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -501,11 +501,11 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
 	}
-	localDisk := &LocalDisk{
-		DiskMB: 1,
+	ephemeralDisk := &EphemeralDisk{
+		SizeMB: 1,
 	}
 
-	err := task.Validate(localDisk)
+	err := task.Validate(ephemeralDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)

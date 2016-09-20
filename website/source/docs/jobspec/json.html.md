@@ -296,7 +296,7 @@ The `Task` object supports the following keys:
   used to configure the time between signaling a task it will be killed and
   actually killing it. Drivers first sends a task the `SIGINT` signal and then
   sends `SIGTERM` if the task doesn't die after the `KillTimeout` duration has
-  elapsed.
+  elapsed. The default `KillTimeout` is 5 seconds.
 
 * `LogConfig` - This allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.

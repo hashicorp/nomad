@@ -9,6 +9,7 @@ IMPROVEMENTS:
     be written [GH-1681]
 
 BUG FIXES:
+  * client: Prevent race when persisting state file [GH-1682]
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]

@@ -1538,8 +1538,8 @@ type TaskGroup struct {
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
 
-	// LocalDisk is the disk resources that the task group requests
-	LocalDisk *LocalDisk
+	// EphemeralDisk is the disk resources that the task group requests
+	EphemeralDisk *EphemeralDisk
 
 	// Meta is used to associate arbitrary metadata with this
 	// task group. This is opaque to Nomad.
@@ -1566,8 +1566,8 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	ntg.Meta = CopyMapStringString(ntg.Meta)
 
-	if tg.LocalDisk != nil {
-		ntg.LocalDisk = tg.LocalDisk.Copy()
+	if tg.EphemeralDisk != nil {
+		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
 	}
 	return ntg
 }
@@ -1617,8 +1617,8 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
-	if tg.LocalDisk != nil {
-		if err := tg.LocalDisk.Validate(); err != nil {
+	if tg.EphemeralDisk != nil {
+		if err := tg.EphemeralDisk.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	} else {
@@ -1639,7 +1639,7 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(tg.LocalDisk); err != nil {
+		if err := task.Validate(tg.EphemeralDisk); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -2037,7 +2037,7 @@ func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(localDisk *LocalDisk) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -2087,12 +2087,12 @@ func (t *Task) Validate(localDisk *LocalDisk) error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	if t.LogConfig != nil && localDisk != nil {
+	if t.LogConfig != nil && ephemeralDisk != nil {
 		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if localDisk.DiskMB <= logUsage {
+		if ephemeralDisk.SizeMB <= logUsage {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
-					logUsage, localDisk.DiskMB))
+					logUsage, ephemeralDisk.SizeMB))
 		}
 	}
 
@@ -2571,33 +2571,33 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// LocalDisk is an ephemeral disk object
-type LocalDisk struct {
+// EphemeralDisk is an ephemeral disk object
+type EphemeralDisk struct {
 	// Sticky indicates whether the allocation is sticky to a node
 	Sticky bool
 
-	// DiskMB is the size of the local disk
-	DiskMB int `mapstructure:"disk"`
+	// SizeMB is the size of the local disk
+	SizeMB int `mapstructure:"size"`
 }
 
-// DefaultLocalDisk returns a LocalDisk with default configurations
-func DefaultLocalDisk() *LocalDisk {
-	return &LocalDisk{
-		DiskMB: 300,
+// DefaultEphemeralDisk returns a EphemeralDisk with default configurations
+func DefaultEphemeralDisk() *EphemeralDisk {
+	return &EphemeralDisk{
+		SizeMB: 300,
 	}
 }
 
-// Validate validates LocalDisk
-func (d *LocalDisk) Validate() error {
-	if d.DiskMB < 10 {
-		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.DiskMB)
+// Validate validates EphemeralDisk
+func (d *EphemeralDisk) Validate() error {
+	if d.SizeMB < 10 {
+		return fmt.Errorf("minimum DiskMB value is 10; got %d", d.SizeMB)
 	}
 	return nil
 }
 
-// Copy copies the LocalDisk struct and returns a new one
-func (d *LocalDisk) Copy() *LocalDisk {
-	ld := new(LocalDisk)
+// Copy copies the EphemeralDisk struct and returns a new one
+func (d *EphemeralDisk) Copy() *EphemeralDisk {
+	ld := new(EphemeralDisk)
 	*ld = *d
 	return ld
 }
