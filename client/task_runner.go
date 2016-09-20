@@ -502,8 +502,11 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 	for {
 		select {
 		case <-next.C:
-			ru, err := r.handle.Stats()
 			next.Reset(r.config.StatsCollectionInterval)
+			if r.handle == nil {
+				continue
+			}
+			ru, err := r.handle.Stats()
 
 			if err != nil {
 				// We do not log when the plugin is shutdown as this is simply a
