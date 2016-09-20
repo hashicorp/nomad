@@ -12,6 +12,8 @@ BUG FIXES:
   * client: Prevent race when persisting state file [GH-1682]
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
+  * client: Fix a crash related to stats publishing when driver hasn't started
+    yet [GH-1723]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
   * discovery: Fix old services not getting removed from consul on update
     [GH-1668]
