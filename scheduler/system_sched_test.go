@@ -1315,3 +1315,61 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
+
+func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register two nodes with two different classes
+	node := mock.Node()
+	node.NodeClass = "green"
+	node.ComputeClass()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	node2 := mock.Node()
+	node2.NodeClass = "blue"
+	node2.ComputeClass()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+
+	// Create a Job with two task groups, each constrianed on node class
+	job := mock.SystemJob()
+	tg1 := job.TaskGroups[0]
+	tg1.Constraints = append(tg1.Constraints,
+		&structs.Constraint{
+			LTarget: "${node.class}",
+			RTarget: "green",
+			Operand: "==",
+		})
+
+	tg2 := tg1.Copy()
+	tg2.Name = "web2"
+	tg2.Constraints[0].RTarget = "blue"
+	job.TaskGroups = append(job.TaskGroups, tg2)
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	qa := h.Evals[0].QueuedAllocations
+	if qa["web"] != 0 || qa["web2"] != 0 {
+		t.Fatalf("bad queued allocations %#v", qa)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
