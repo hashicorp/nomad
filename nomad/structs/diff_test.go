@@ -397,6 +397,39 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Datacenter contextual
+			Contextual: true,
+			Old: &Job{
+				Datacenters: []string{"foo", "bar"},
+			},
+			New: &Job{
+				Datacenters: []string{"foo", "bar"},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeNone,
+						Name: "Datacenters",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Datacenters",
+								Old:  "bar",
+								New:  "bar",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Datacenters",
+								Old:  "foo",
+								New:  "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Update strategy edited
 			Old: &Job{
 				Update: UpdateStrategy{
@@ -2957,6 +2990,211 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Type",
 										Old:  "http",
 										New:  "tcp",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault added
+			Old: &Task{},
+			New: &Task{
+				Vault: &Vault{
+					Policies: []string{"foo", "bar"},
+					Env:      true,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Env",
+								Old:  "",
+								New:  "true",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "foo",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault deleted
+			Old: &Task{
+				Vault: &Vault{
+					Policies: []string{"foo", "bar"},
+					Env:      true,
+				},
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Env",
+								Old:  "true",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "bar",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault edited
+			Old: &Task{
+				Vault: &Vault{
+					Policies: []string{"foo", "bar"},
+					Env:      true,
+				},
+			},
+			New: &Task{
+				Vault: &Vault{
+					Policies: []string{"bar", "baz"},
+					Env:      false,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Env",
+								Old:  "true",
+								New:  "false",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "baz",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// LogConfig edited with context
+			Contextual: true,
+			Old: &Task{
+				Vault: &Vault{
+					Policies: []string{"foo", "bar"},
+					Env:      true,
+				},
+			},
+			New: &Task{
+				Vault: &Vault{
+					Policies: []string{"bar", "baz"},
+					Env:      true,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Env",
+								Old:  "true",
+								New:  "true",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "baz",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Policies",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
 									},
 								},
 							},
