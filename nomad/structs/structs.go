@@ -1622,7 +1622,7 @@ func (tg *TaskGroup) Validate() error {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	} else {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a local disk object", tg.Name))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a Ephemeral Disk object", tg.Name))
 	}
 
 	// Check for duplicate tasks
