@@ -359,6 +359,9 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if !reflect.DeepEqual(at.Artifacts, bt.Artifacts) {
 			return true
 		}
+		if !reflect.DeepEqual(at.Vault, bt.Vault) {
+			return true
+		}
 
 		// Inspect the network to see if the dynamic ports are different
 		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
