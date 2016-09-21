@@ -540,6 +540,12 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j14.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j15 := mock.Job()
+	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	if !tasksUpdated(j1.TaskGroups[0], j15.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {

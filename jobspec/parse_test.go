@@ -160,6 +160,7 @@ func TestParse(t *testing.T) {
 								},
 								Vault: &structs.Vault{
 									Policies: []string{"foo", "bar"},
+									Env:      true,
 								},
 							},
 							&structs.Task{
@@ -433,6 +434,57 @@ func TestParse(t *testing.T) {
 									},
 								},
 								LogConfig: structs.DefaultLogConfig(),
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"vault_inheritance.hcl",
+			&structs.Job{
+				ID:       "example",
+				Name:     "example",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:      "cache",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"group"},
+									Env:      true,
+								},
+							},
+							&structs.Task{
+								Name:      "redis2",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"task"},
+									Env:      false,
+								},
+							},
+						},
+					},
+					&structs.TaskGroup{
+						Name:      "cache2",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"job"},
+									Env:      true,
+								},
 							},
 						},
 					},
