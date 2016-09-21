@@ -1844,7 +1844,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Now we should get an error about the job not needing any Vault secrets
 	err = msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "without defined Vault") {
+	if err == nil || !strings.Contains(err.Error(), "does not require") {
 		t.Fatalf("Expected no policies error: %v", err)
 	}
 

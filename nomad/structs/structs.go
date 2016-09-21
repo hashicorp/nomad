@@ -1277,7 +1277,6 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 
 	for _, tg := range j.TaskGroups {
 		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
-		policies[tg.Name] = tgPolicies
 
 		for _, task := range tg.Tasks {
 			if task.Vault == nil {
@@ -1285,6 +1284,10 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 			}
 
 			tgPolicies[task.Name] = task.Vault
+		}
+
+		if len(tgPolicies) != 0 {
+			policies[tg.Name] = tgPolicies
 		}
 	}
 
