@@ -546,6 +546,12 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j15.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j16 := mock.Job()
+	j16.TaskGroups[0].EphemeralDisk.Sticky = true
+	if !tasksUpdated(j1.TaskGroups[0], j16.TaskGroups[0]) {
+		t.Fatal("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
