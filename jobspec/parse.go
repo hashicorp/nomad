@@ -101,6 +101,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "meta")
 	delete(m, "update")
 	delete(m, "periodic")
+	delete(m, "vault")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -139,6 +140,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"meta",
 		"task",
 		"group",
+		"vault",
 		"vault_token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
@@ -205,6 +207,23 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		}
 	}
 
+	// If we have a vault block, then parse that
+	if o := listVal.Filter("vault"); len(o.Items) > 0 {
+		var jobVault structs.Vault
+		if err := parseVault(&jobVault, o); err != nil {
+			return multierror.Prefix(err, "vault ->")
+		}
+
+		// Go through the task groups/tasks and if they don't have a Vault block, set it
+		for _, tg := range result.TaskGroups {
+			for _, task := range tg.Tasks {
+				if task.Vault == nil {
+					task.Vault = &jobVault
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -242,6 +261,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 			"meta",
 			"task",
 			"ephemeral_disk",
+			"vault",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -256,6 +276,7 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		delete(m, "task")
 		delete(m, "restart")
 		delete(m, "ephemeral_disk")
+		delete(m, "vault")
 
 		// Default count to 1 if not specified
 		if _, ok := m["count"]; !ok {
@@ -309,6 +330,21 @@ func parseGroups(result *structs.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
 			if err := parseTasks(result.Name, g.Name, &g.Tasks, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', task:", n))
+			}
+		}
+
+		// If we have a vault block, then parse that
+		if o := listVal.Filter("vault"); len(o.Items) > 0 {
+			var tgVault structs.Vault
+			if err := parseVault(&tgVault, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', vault ->", n))
+			}
+
+			// Go through the tasks and if they don't have a Vault block, set it
+			for _, task := range g.Tasks {
+				if task.Vault == nil {
+					task.Vault = &tgVault
+				}
 			}
 		}
 

@@ -440,6 +440,54 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"vault_inheritance.hcl",
+			&structs.Job{
+				ID:       "example",
+				Name:     "example",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:      "cache",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"group"},
+								},
+							},
+							&structs.Task{
+								Name:      "redis2",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"task"},
+								},
+							},
+						},
+					},
+					&structs.TaskGroup{
+						Name:      "cache2",
+						Count:     1,
+						LocalDisk: structs.DefaultLocalDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies: []string{"job"},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
