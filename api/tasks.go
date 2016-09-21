@@ -166,6 +166,7 @@ type TaskArtifact struct {
 
 type Vault struct {
 	Policies []string
+	Env      bool
 }
 
 // NewTask creates and initializes a new Task.
