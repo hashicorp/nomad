@@ -335,6 +335,11 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		return true
 	}
 
+	// Check ephemeral disk
+	if !reflect.DeepEqual(a.EphemeralDisk, b.EphemeralDisk) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -385,8 +390,6 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
-			return true
-		} else if ar.DiskMB != br.DiskMB {
 			return true
 		} else if ar.IOPS != br.IOPS {
 			return true
