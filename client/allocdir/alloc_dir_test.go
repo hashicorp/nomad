@@ -235,7 +235,6 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
-
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
@@ -287,4 +286,62 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	if len(files) != 2 {
 		t.Fatalf("bad files: %#v", files)
 	}
+}
+
+func TestAllocDir_Move(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d1 := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
+	defer d1.Destroy()
+
+	d2 := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
+	defer d2.Destroy()
+
+	tasks := []*structs.Task{t1, t2}
+	if err := d1.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	if err := d2.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	dataDir := filepath.Join(d1.SharedDir, "data")
+	taskDir := d1.TaskDirs[t1.Name]
+	taskLocal := filepath.Join(taskDir, "local")
+
+	// Write a file to the shared dir.
+	exp := []byte{'f', 'o', 'o'}
+	file := "bar"
+	if err := ioutil.WriteFile(filepath.Join(dataDir, file), exp, 0777); err != nil {
+		t.Fatalf("Couldn't write file to shared directory: %v", err)
+	}
+
+	// Write a file to the task local
+	exp = []byte{'b', 'a', 'r'}
+	file1 := "lol"
+	if err := ioutil.WriteFile(filepath.Join(taskLocal, file1), exp, 0777); err != nil {
+		t.Fatalf("couldn't write to task local directory: %v", err)
+	}
+
+	// Move the d1 allocdir to d2
+	if err := d2.Move(d1, []*structs.Task{t1, t2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure the files in d1 are present in d2
+	fi, err := os.Stat(filepath.Join(d2.SharedDir, "data", "bar"))
+	if err != nil || fi == nil {
+		t.Fatalf("data dir was not moved")
+	}
+
+	fi, err = os.Stat(filepath.Join(d2.TaskDirs[t1.Name], "local", "lol"))
+	if err != nil || fi == nil {
+		t.Fatalf("task local dir was not moved")
+	}
+
 }

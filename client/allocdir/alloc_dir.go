@@ -190,6 +190,34 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	return nil
 }
 
+// Move moves the shared data and task local dirs
+func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
+	// Move the data directory
+	otherDataDir := filepath.Join(other.SharedDir, "data")
+	dataDir := filepath.Join(d.SharedDir, "data")
+	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
+		if err := os.Rename(otherDataDir, dataDir); err != nil {
+			return fmt.Errorf("error moving data dir: %v", err)
+		}
+	}
+
+	// Move the task directories
+	for _, task := range tasks {
+		taskDir := filepath.Join(other.AllocDir, task.Name)
+		otherTaskLocal := filepath.Join(taskDir, TaskLocal)
+
+		if fileInfo, err := os.Stat(otherTaskLocal); fileInfo != nil && err == nil {
+			if taskDir, ok := d.TaskDirs[task.Name]; ok {
+				if err := os.Rename(otherTaskLocal, filepath.Join(taskDir, TaskLocal)); err != nil {
+					return fmt.Errorf("error moving task local dir: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
 
