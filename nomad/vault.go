@@ -331,7 +331,7 @@ OUTER:
 	v.client.SetWrappingLookupFunc(v.getWrappingFn())
 
 	// If we are given a non-root token, start renewing it
-	if v.tokenData.Root {
+	if v.tokenData.Root && v.tokenData.CreationTTL == 0 {
 		v.logger.Printf("[DEBUG] vault: not renewing token as it is root")
 	} else {
 		v.logger.Printf("[DEBUG] vault: token lease duration is %v",
