@@ -139,7 +139,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	peers := s.agent.client.RPCProxy().ServerRPCAddrs()
+	peers := s.agent.client.GetServers()
 	return peers, nil
 }
 
@@ -156,12 +156,11 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	for _, server := range servers {
-		s.agent.logger.Printf("[TRACE] Adding server %s to the client's primary server list", server)
-		se := client.AddPrimaryServerToRPCProxy(server)
-		if se == nil {
-			s.agent.logger.Printf("[ERR] Attempt to add server %q to client failed", server)
-		}
+	s.agent.logger.Printf("[TRACE] Adding servers %+q to the client's primary server list", servers)
+	if err := client.SetServers(servers); err != nil {
+		s.agent.logger.Printf("[ERR] Attempt to add servers %q to client failed: %v", servers, err)
+		//TODO is this the right error to return?
+		return nil, CodedError(400, err.Error())
 	}
 	return nil, nil
 }

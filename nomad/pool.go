@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/client/rpcproxy"
 	"github.com/hashicorp/yamux"
 )
 
@@ -376,9 +375,9 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 
 // PingNomadServer sends a Status.Ping message to the specified server and
 // returns true if healthy, false if an error occurred
-func (p *ConnPool) PingNomadServer(region string, apiMajorVersion int, s *rpcproxy.ServerEndpoint) (bool, error) {
+func (p *ConnPool) PingNomadServer(region string, apiMajorVersion int, s net.Addr) (bool, error) {
 	// Get a usable client
-	conn, sc, err := p.getClient(region, s.Addr, apiMajorVersion)
+	conn, sc, err := p.getClient(region, s, apiMajorVersion)
 	if err != nil {
 		return false, err
 	}
