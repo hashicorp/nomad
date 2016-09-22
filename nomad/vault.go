@@ -485,20 +485,34 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 	}
 
-	if !data.Renewable && !root {
-		return fmt.Errorf("Vault token is not renewable or root")
-	}
+	if !root {
+		// All non-root tokens must be renewable
+		if !data.Renewable {
+			return fmt.Errorf("Vault token is not renewable or root")
+		}
 
-	if data.CreationTTL == 0 && !root {
-		return fmt.Errorf("invalid lease duration of zero")
-	}
+		// All non-root tokens must have a lease duration
+		if data.CreationTTL == 0 {
+			return fmt.Errorf("invalid lease duration of zero")
+		}
 
-	if data.TTL == 0 && !root {
-		return fmt.Errorf("token TTL is zero")
-	}
+		// The lease duration can not be expired
+		if data.TTL == 0 {
+			return fmt.Errorf("token TTL is zero")
+		}
 
-	if !root && data.Role == "" {
-		return fmt.Errorf("token role name must be set when not using a root token")
+		// There must be a valid role
+		if data.Role == "" {
+			return fmt.Errorf("token role name must be set when not using a root token")
+		}
+	} else if data.CreationTTL != 0 {
+		// If the root token has a TTL it must be renewable
+		if !data.Renewable {
+			return fmt.Errorf("Vault token has a TTL but is not renewable")
+		} else if data.TTL == 0 {
+			// If the token has a TTL make sure it has not expired
+			return fmt.Errorf("token TTL is zero")
+		}
 	}
 
 	data.Root = root
