@@ -439,9 +439,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 		if driverConfig.Logging[0].Type == "" {
 			driverConfig.Logging[0].Type = "syslog"
-		}
-
-		if driverConfig.Logging[0].Config["syslog-address"] == "" {
 			driverConfig.Logging[0].Config["syslog-address"] = syslogAddr
 		}
 	}
