@@ -1,6 +1,7 @@
 package allocdir
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -108,6 +109,7 @@ type AllocDirFS interface {
 	List(path string) ([]*AllocFileInfo, error)
 	Stat(path string) (*AllocFileInfo, error)
 	ReadAt(path string, offset int64) (io.ReadCloser, error)
+	Snapshot(w io.Writer) error
 	BlockUntilExists(path string, t *tomb.Tomb) chan error
 	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
 }
@@ -125,6 +127,67 @@ func NewAllocDir(allocDir string, maxSize int) *AllocDir {
 	}
 	d.SharedDir = filepath.Join(d.AllocDir, SharedAllocName)
 	return d
+}
+
+// Snapshot creates an archive of the files and directories in the data dir of
+// the allocation and the task local directories
+func (d *AllocDir) Snapshot(w io.Writer) error {
+	allocDataDir := filepath.Join(d.SharedDir, "data")
+	rootPaths := []string{allocDataDir}
+	for _, path := range d.TaskDirs {
+		taskLocaPath := filepath.Join(path, "local")
+		rootPaths = append(rootPaths, taskLocaPath)
+	}
+
+	tw := tar.NewWriter(w)
+	defer tw.Close()
+
+	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		// Ignore if the file is a symlink
+		if fileInfo.Mode() == os.ModeSymlink {
+			return nil
+		}
+
+		// Include the path of the file name relative to the alloc dir
+		// so that we can put the files in the right directories
+		relPath, err := filepath.Rel(d.AllocDir, path)
+		if err != nil {
+			return err
+		}
+		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		if err != nil {
+			return fmt.Errorf("error creating file header: %v", err)
+		}
+		hdr.Name = relPath
+		tw.WriteHeader(hdr)
+
+		// If it's a directory we just write the header into the tar
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		// Write the file into the archive
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		if _, err := io.Copy(tw, file); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Walk through all the top level directories and add the files and
+	// directories in the archive
+	for _, path := range rootPaths {
+		if err := filepath.Walk(path, walkFn); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Tears down previously build directory structure.

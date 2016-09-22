@@ -1,6 +1,9 @@
 package allocdir
 
 import (
+	"archive/tar"
+	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -224,5 +227,64 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 		if !reflect.DeepEqual(act, exp) {
 			t.Fatalf("Incorrect data read from task dir: want %v; got %v", exp, act)
 		}
+	}
+}
+
+func TestAllocDir_Snapshot(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
+	defer d.Destroy()
+
+	tasks := []*structs.Task{t1, t2}
+	if err := d.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	dataDir := filepath.Join(d.SharedDir, "data")
+	taskDir := d.TaskDirs[t1.Name]
+	taskLocal := filepath.Join(taskDir, "local")
+
+	// Write a file to the shared dir.
+	exp := []byte{'f', 'o', 'o'}
+	file := "bar"
+	if err := ioutil.WriteFile(filepath.Join(dataDir, file), exp, 0777); err != nil {
+		t.Fatalf("Couldn't write file to shared directory: %v", err)
+	}
+
+	// Write a file to the task local
+	exp = []byte{'b', 'a', 'r'}
+	file1 := "lol"
+	if err := ioutil.WriteFile(filepath.Join(taskLocal, file1), exp, 0777); err != nil {
+		t.Fatalf("couldn't write to task local directory: %v", err)
+	}
+
+	var b bytes.Buffer
+	if err := d.Snapshot(&b); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	tr := tar.NewReader(&b)
+	var files []string
+	for {
+		hdr, err := tr.Next()
+		if err != nil && err != io.EOF {
+			t.Fatalf("err: %v", err)
+		}
+		if err == io.EOF {
+			break
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			files = append(files, hdr.FileInfo().Name())
+		}
+	}
+
+	if len(files) != 2 {
+		t.Fatalf("bad files: %#v", files)
 	}
 }
