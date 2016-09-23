@@ -1,4 +1,4 @@
-// Copyright 2015 go-dockerclient authors. All rights reserved.
+// Copyright 2013 go-dockerclient authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,6 +15,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // APIImages represent an image returned in the ListImages call.
@@ -95,10 +97,11 @@ var (
 //
 // See https://goo.gl/xBe1u3 for more details.
 type ListImagesOptions struct {
-	All     bool
 	Filters map[string][]string
+	All     bool
 	Digests bool
 	Filter  string
+	Context context.Context
 }
 
 // ListImages returns the list of available images in the server.
@@ -106,7 +109,7 @@ type ListImagesOptions struct {
 // See https://goo.gl/xBe1u3 for more details.
 func (c *Client) ListImages(opts ListImagesOptions) ([]APIImages, error) {
 	path := "/images/json?" + queryString(opts)
-	resp, err := c.do("GET", path, doOptions{})
+	resp, err := c.do("GET", path, doOptions{context: opts.Context})
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +172,7 @@ func (c *Client) RemoveImage(name string) error {
 type RemoveImageOptions struct {
 	Force   bool `qs:"force"`
 	NoPrune bool `qs:"noprune"`
+	Context context.Context
 }
 
 // RemoveImageExtended removes an image by its name or ID.
@@ -177,7 +181,7 @@ type RemoveImageOptions struct {
 // See https://goo.gl/V3ZWnK for more details.
 func (c *Client) RemoveImageExtended(name string, opts RemoveImageOptions) error {
 	uri := fmt.Sprintf("/images/%s?%s", name, queryString(&opts))
-	resp, err := c.do("DELETE", uri, doOptions{})
+	resp, err := c.do("DELETE", uri, doOptions{context: opts.Context})
 	if err != nil {
 		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
 			return ErrNoSuchImage
@@ -246,6 +250,8 @@ type PushImageOptions struct {
 	OutputStream      io.Writer     `qs:"-"`
 	RawJSONStream     bool          `qs:"-"`
 	InactivityTimeout time.Duration `qs:"-"`
+
+	Context context.Context
 }
 
 // PushImage pushes an image to a remote registry, logging progress to w.
@@ -271,6 +277,7 @@ func (c *Client) PushImage(opts PushImageOptions, auth AuthConfiguration) error 
 		headers:           headers,
 		stdout:            opts.OutputStream,
 		inactivityTimeout: opts.InactivityTimeout,
+		context:           opts.Context,
 	})
 }
 
@@ -280,12 +287,17 @@ func (c *Client) PushImage(opts PushImageOptions, auth AuthConfiguration) error 
 // See https://goo.gl/iJkZjD for more details.
 type PullImageOptions struct {
 	Repository string `qs:"fromImage"`
-	Registry   string
 	Tag        string
+
+	// Only required for Docker Engine 1.9 or 1.10 w/ Remote API < 1.21
+	// and Docker Engine < 1.9
+	// This parameter was removed in Docker Engine 1.11
+	Registry string
 
 	OutputStream      io.Writer     `qs:"-"`
 	RawJSONStream     bool          `qs:"-"`
 	InactivityTimeout time.Duration `qs:"-"`
+	Context           context.Context
 }
 
 // PullImage pulls an image from a remote registry, logging progress to
@@ -301,10 +313,10 @@ func (c *Client) PullImage(opts PullImageOptions, auth AuthConfiguration) error 
 	if err != nil {
 		return err
 	}
-	return c.createImage(queryString(&opts), headers, nil, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout)
+	return c.createImage(queryString(&opts), headers, nil, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
 }
 
-func (c *Client) createImage(qs string, headers map[string]string, in io.Reader, w io.Writer, rawJSONStream bool, timeout time.Duration) error {
+func (c *Client) createImage(qs string, headers map[string]string, in io.Reader, w io.Writer, rawJSONStream bool, timeout time.Duration, context context.Context) error {
 	path := "/images/create?" + qs
 	return c.stream("POST", path, streamOptions{
 		setRawTerminal:    true,
@@ -313,6 +325,7 @@ func (c *Client) createImage(qs string, headers map[string]string, in io.Reader,
 		stdout:            w,
 		rawJSONStream:     rawJSONStream,
 		inactivityTimeout: timeout,
+		context:           context,
 	})
 }
 
@@ -321,6 +334,7 @@ func (c *Client) createImage(qs string, headers map[string]string, in io.Reader,
 // See https://goo.gl/JyClMX for more details.
 type LoadImageOptions struct {
 	InputStream io.Reader
+	Context     context.Context
 }
 
 // LoadImage imports a tarball docker image
@@ -330,6 +344,7 @@ func (c *Client) LoadImage(opts LoadImageOptions) error {
 	return c.stream("POST", "/images/load", streamOptions{
 		setRawTerminal: true,
 		in:             opts.InputStream,
+		context:        opts.Context,
 	})
 }
 
@@ -339,7 +354,8 @@ func (c *Client) LoadImage(opts LoadImageOptions) error {
 type ExportImageOptions struct {
 	Name              string
 	OutputStream      io.Writer
-	InactivityTimeout time.Duration `qs:"-"`
+	InactivityTimeout time.Duration
+	Context           context.Context
 }
 
 // ExportImage exports an image (as a tar file) into the stream.
@@ -350,6 +366,7 @@ func (c *Client) ExportImage(opts ExportImageOptions) error {
 		setRawTerminal:    true,
 		stdout:            opts.OutputStream,
 		inactivityTimeout: opts.InactivityTimeout,
+		context:           opts.Context,
 	})
 }
 
@@ -360,6 +377,7 @@ type ExportImagesOptions struct {
 	Names             []string
 	OutputStream      io.Writer     `qs:"-"`
 	InactivityTimeout time.Duration `qs:"-"`
+	Context           context.Context
 }
 
 // ExportImages exports one or more images (as a tar file) into the stream
@@ -389,6 +407,7 @@ type ImportImageOptions struct {
 	OutputStream      io.Writer     `qs:"-"`
 	RawJSONStream     bool          `qs:"-"`
 	InactivityTimeout time.Duration `qs:"-"`
+	Context           context.Context
 }
 
 // ImportImage imports an image from a url, a file or stdin
@@ -409,7 +428,7 @@ func (c *Client) ImportImage(opts ImportImageOptions) error {
 		opts.InputStream = f
 		opts.Source = "-"
 	}
-	return c.createImage(queryString(&opts), nil, opts.InputStream, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout)
+	return c.createImage(queryString(&opts), nil, opts.InputStream, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
 }
 
 // BuildImageOptions present the set of informations available for building an
@@ -425,6 +444,7 @@ type BuildImageOptions struct {
 	Pull                bool               `qs:"pull"`
 	RmTmpContainer      bool               `qs:"rm"`
 	ForceRmTmpContainer bool               `qs:"forcerm"`
+	RawJSONStream       bool               `qs:"-"`
 	Memory              int64              `qs:"memory"`
 	Memswap             int64              `qs:"memswap"`
 	CPUShares           int64              `qs:"cpushares"`
@@ -433,7 +453,6 @@ type BuildImageOptions struct {
 	CPUSetCPUs          string             `qs:"cpusetcpus"`
 	InputStream         io.Reader          `qs:"-"`
 	OutputStream        io.Writer          `qs:"-"`
-	RawJSONStream       bool               `qs:"-"`
 	Remote              string             `qs:"remote"`
 	Auth                AuthConfiguration  `qs:"-"` // for older docker X-Registry-Auth header
 	AuthConfigs         AuthConfigurations `qs:"-"` // for newer docker X-Registry-Config header
@@ -441,6 +460,7 @@ type BuildImageOptions struct {
 	Ulimits             []ULimit           `qs:"-"`
 	BuildArgs           []BuildArg         `qs:"-"`
 	InactivityTimeout   time.Duration      `qs:"-"`
+	Context             context.Context
 }
 
 // BuildArg represents arguments that can be passed to the image when building
@@ -512,6 +532,7 @@ func (c *Client) BuildImage(opts BuildImageOptions) error {
 		in:                opts.InputStream,
 		stdout:            opts.OutputStream,
 		inactivityTimeout: opts.InactivityTimeout,
+		context:           opts.Context,
 	})
 }
 
@@ -529,9 +550,10 @@ func (c *Client) versionedAuthConfigs(authConfigs AuthConfigurations) interface{
 //
 // See https://goo.gl/98ZzkU for more details.
 type TagImageOptions struct {
-	Repo  string
-	Tag   string
-	Force bool
+	Repo    string
+	Tag     string
+	Force   bool
+	Context context.Context
 }
 
 // TagImage adds a tag to the image identified by the given name.
@@ -541,8 +563,9 @@ func (c *Client) TagImage(name string, opts TagImageOptions) error {
 	if name == "" {
 		return ErrNoSuchImage
 	}
-	resp, err := c.do("POST", fmt.Sprintf("/images/"+name+"/tag?%s",
-		queryString(&opts)), doOptions{})
+	resp, err := c.do("POST", "/images/"+name+"/tag?"+queryString(&opts), doOptions{
+		context: opts.Context,
+	})
 
 	if err != nil {
 		return err

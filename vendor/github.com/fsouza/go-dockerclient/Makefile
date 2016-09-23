@@ -24,9 +24,8 @@ fmt:
 	gofmt -s -w .
 
 fmtcheck:
-	@ export output="$$(gofmt -s -d .)"; \
-		[ -n "$${output}" ] && echo "$${output}" && export status=1; \
-		exit $${status:-0}
+	[ -z "$$(gofmt -s -d . | tee /dev/stderr)" ]
+
 testdeps:
 	go get -d -t ./...
 
