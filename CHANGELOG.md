@@ -20,7 +20,7 @@ BUG FIXES:
   * discovery: Fix HTTP timeout with Server HTTP health check when there is no
     leader [GH-1656]
 
-## 0.4.1
+## 0.4.1 (August 18, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * telemetry: Operators will have to explicitly opt-in for Nomad client to
@@ -88,7 +88,7 @@ BUG FIXES:
   * plan: Plan on system jobs discounts nodes that do not meet required
     constraints [GH-1568]
 
-## 0.4.0
+## 0.4.0 (June 28, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * api: Tasks are no longer allowed to have slashes in their name [GH-1210]
