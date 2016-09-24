@@ -1,7 +1,6 @@
 package rpcproxy
 
 import (
-	"fmt"
 	"net"
 	"testing"
 )
@@ -64,7 +63,6 @@ func TestServerEndpoint_String(t *testing.T) {
 
 	for _, test := range tests {
 		if test.s.Addr == nil && (test.s.Host != "" && test.s.Port != "") {
-			fmt.Printf("Setting addr\n")
 			addr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(test.s.Host, test.s.Port))
 			if err == nil {
 				test.s.Addr = addr

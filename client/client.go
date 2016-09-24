@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -109,12 +108,13 @@ type Client struct {
 
 	connPool *nomad.ConnPool
 
-	// lastHeartbeatFromQuorum is an atomic int32 acting as a bool.  When
-	// true, the last heartbeat message had a leader.  When false (0),
-	// the last heartbeat did not include the RPC address of the leader,
-	// indicating that the server is in the minority or middle of an
-	// election.
-	lastHeartbeatFromQuorum int32
+	// lastHeartbeatFromQuorum is true when the last heartbeat message had
+	// a leader.  When false the last heartbeat did not include the RPC
+	// address of the leader, indicating that the server is in the minority
+	// or middle of an election.
+	//
+	// Must acquire heartbeatLock to access.
+	lastHeartbeatFromQuorum bool
 
 	// consulPullHeartbeatDeadline is the deadline at which this Nomad
 	// Agent will begin polling Consul for a list of Nomad Servers.  When
@@ -201,10 +201,14 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 
 	// Create the RPC Proxy and bootstrap with the preconfigured list of
 	// static servers
+	//
+	// Treat all manually configured servers as being in the same DC
+	// initially. Post-registration/consul-bootstrapping they'll get moved
+	// to the backup server list if they're remote.
 	c.configLock.RLock()
 	c.rpcProxy = rpcproxy.NewRPCProxy(c.logger, c.shutdownCh, c, c.connPool)
 	for _, serverAddr := range c.configCopy.Servers {
-		c.rpcProxy.AddPrimaryServer(serverAddr)
+		c.rpcProxy.AddServer(c.Datacenter(), serverAddr)
 	}
 	c.configLock.RUnlock()
 
@@ -358,7 +362,8 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 	// Pick a server to request from
-	server := c.rpcProxy.FindServer()
+	//TODO What should this be? Who should set it?
+	server := c.rpcProxy.FindServer(5 * time.Second)
 	if server == nil {
 		return fmt.Errorf("no known servers")
 	}
@@ -441,7 +446,8 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 // AddPrimaryServerToRPCProxy adds serverAddr to the RPC Proxy's primary
 // server list.
 func (c *Client) AddPrimaryServerToRPCProxy(serverAddr string) *rpcproxy.ServerEndpoint {
-	return c.rpcProxy.AddPrimaryServer(serverAddr)
+	se, _ := c.rpcProxy.AddServer(c.Datacenter(), serverAddr)
+	return se
 }
 
 // restoreState is used to restore our state from the data dir
@@ -903,7 +909,7 @@ func (c *Client) registerNode() error {
 	node.Status = structs.NodeStatusReady
 	c.configLock.Unlock()
 
-	c.logger.Printf("[DEBUG] client: node registration complete")
+	c.logger.Printf("[INFO] client: node registration complete")
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node registration", len(resp.EvalIDs))
 	}
@@ -939,7 +945,7 @@ func (c *Client) updateNodeStatus() error {
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
 
-	if err := c.rpcProxy.RefreshServerLists(resp.Servers, resp.NumNodes, resp.LeaderRPCAddr); err != nil {
+	if err := c.rpcProxy.RefreshServerLists(resp.Servers, resp.NumNodes); err != nil {
 		return err
 	}
 
@@ -949,12 +955,12 @@ func (c *Client) updateNodeStatus() error {
 	// has connectivity to the existing majority of Nomad Servers, but
 	// only if it queries Consul.
 	if resp.LeaderRPCAddr == "" {
-		atomic.CompareAndSwapInt32(&c.lastHeartbeatFromQuorum, 1, 0)
+		c.lastHeartbeatFromQuorum = false
 		return nil
 	}
 
 	const heartbeatFallbackFactor = 3
-	atomic.CompareAndSwapInt32(&c.lastHeartbeatFromQuorum, 0, 1)
+	c.lastHeartbeatFromQuorum = true
 	c.consulPullHeartbeatDeadline = time.Now().Add(heartbeatFallbackFactor * resp.HeartbeatTTL)
 	return nil
 }
@@ -1414,7 +1420,7 @@ func (c *Client) setupConsulSyncer() error {
 		// If the last heartbeat didn't contain a leader, give the
 		// Nomad server this Agent is talking to one more attempt at
 		// providing a heartbeat that does contain a leader.
-		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
+		if c.lastHeartbeatFromQuorum && now.Before(c.consulPullHeartbeatDeadline) {
 			c.heartbeatLock.Unlock()
 			return nil
 		}
@@ -1449,7 +1455,8 @@ func (c *Client) setupConsulSyncer() error {
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
 		c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %+q", dcs)
-		for _, dc := range dcs {
+		var dc string
+		for _, dc = range dcs {
 			consulOpts := &consulapi.QueryOptions{
 				AllowStale: true,
 				Datacenter: dc,
@@ -1458,7 +1465,8 @@ func (c *Client) setupConsulSyncer() error {
 			}
 			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagRPC, consulOpts)
 			if err != nil {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %+q: %v", nomadServerServiceName, dc, err))
+				c.logger.Printf("[WARN] client.consul: unable to query service %+q from Consul dc %q: %v", nomadServerServiceName, dc, err)
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %q: %v", nomadServerServiceName, dc, err))
 				continue
 			}
 
@@ -1500,29 +1508,17 @@ func (c *Client) setupConsulSyncer() error {
 		}
 
 		// Log the servers we are adding
-		c.logger.Printf("[INFO] client.consul: bootstrap adding following Servers: %q", nomadServerServices)
-
-		c.heartbeatLock.Lock()
-		if atomic.LoadInt32(&c.lastHeartbeatFromQuorum) == 1 && now.Before(c.consulPullHeartbeatDeadline) {
-			c.heartbeatLock.Unlock()
-			// Common, healthy path
-			if err := c.rpcProxy.SetBackupServers(nomadServerServices); err != nil {
-				return fmt.Errorf("client.consul: unable to set backup servers: %v", err)
+		added := make([]string, 0, len(nomadServerServices))
+		for _, s := range nomadServerServices {
+			// The DC of the consul server contacted is probably
+			// not the DC of each nomad server, but the first
+			// heartbeat will fix that.
+			if _, ok := c.rpcProxy.AddServer(dc, s); ok {
+				added = append(added, s)
 			}
-		} else {
-			c.heartbeatLock.Unlock()
-			// If this Client is talking with a Server that
-			// doesn't have a leader, and we have exceeded the
-			// consulPullHeartbeatDeadline, change the call from
-			// SetBackupServers() to calling AddPrimaryServer()
-			// in order to allow the Clients to randomly begin
-			// considering all known Nomad servers and
-			// eventually, hopefully, find their way to a Nomad
-			// Server that has quorum (assuming Consul has a
-			// server list that is in the majority).
-			for _, s := range nomadServerServices {
-				c.rpcProxy.AddPrimaryServer(s)
-			}
+		}
+		if len(added) > 0 {
+			c.logger.Printf("[INFO] client.consul: bootstrap added following Servers: %q", added)
 		}
 
 		return nil

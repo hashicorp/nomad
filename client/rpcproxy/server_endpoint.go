@@ -22,9 +22,6 @@ func (k *EndpointKey) Equal(x *EndpointKey) bool {
 
 // ServerEndpoint contains the address information for to connect to a Nomad
 // server.
-//
-// TODO(sean@): Server is stubbed out so that in the future it can hold a
-// reference to Node (and ultimately Node.ID).
 type ServerEndpoint struct {
 	// Name is the unique lookup key for a Server instance
 	Name string

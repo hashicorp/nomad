@@ -388,7 +388,7 @@ func (a *Agent) setupServer() error {
 				&structs.ServiceCheck{
 					Name:     "Nomad Server HTTP Check",
 					Type:     "http",
-					Path:     "/v1/status/peers",
+					Path:     "/v1/regions",
 					Protocol: "http", // TODO TLS
 					Interval: serverHttpCheckInterval,
 					Timeout:  serverHttpCheckTimeout,
