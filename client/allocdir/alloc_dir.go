@@ -514,11 +514,13 @@ func fileCopy(src, dst string, perm os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't open src file %v: %v", src, err)
 	}
+	defer srcFile.Close()
 
 	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, perm)
 	if err != nil {
 		return fmt.Errorf("Couldn't create destination file %v: %v", dst, err)
 	}
+	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return fmt.Errorf("Couldn't copy %v to %v: %v", src, dst, err)
