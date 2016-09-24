@@ -700,6 +700,11 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// Ready returns if the node is ready for running allocations
+func (n *Node) Ready() bool {
+	return n.Status == NodeStatusReady && !n.Drain
+}
+
 func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil

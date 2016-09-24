@@ -2294,3 +2294,59 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", 2, len(newAllocs))
 	}
 }
+
+func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register a draining node
+	node := mock.Node()
+	node.Drain = true
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create an alloc on the draining node
+	alloc := mock.Alloc()
+	alloc.Name = "my-job.web[0]"
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc.NodeID = node.ID
+	alloc.Job.TaskGroups[0].Count = 1
+	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+	noErr(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       alloc.Job.ID,
+		NodeID:      node.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all allocs
+	if len(plan.NodeUpdate[node.ID]) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Ensure the plan didn't create any new allocations
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 0 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
