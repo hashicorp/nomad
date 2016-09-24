@@ -295,6 +295,7 @@ func TestAllocDir_Move(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
+	// Create two alloc dirs
 	d1 := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
 	defer d1.Destroy()
 
@@ -343,5 +344,4 @@ func TestAllocDir_Move(t *testing.T) {
 	if err != nil || fi == nil {
 		t.Fatalf("task local dir was not moved")
 	}
-
 }

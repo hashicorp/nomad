@@ -71,6 +71,8 @@ type AllocRunner struct {
 	vaultClient vaultclient.VaultClient
 	vaultTokens map[string]vaultToken
 
+	otherAllocDir *allocdir.AllocDir
+
 	destroy     bool
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
@@ -436,6 +438,11 @@ func (r *AllocRunner) Run() {
 			return
 		}
 		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
+		if r.otherAllocDir != nil {
+			if err := allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
+				r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
+			}
+		}
 	}
 	r.ctxLock.Unlock()
 
@@ -531,6 +538,12 @@ OUTER:
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+}
+
+// SetPreviousAllocDir sets the previous allocation directory of the current
+// allocation
+func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
+	r.otherAllocDir = allocDir
 }
 
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
