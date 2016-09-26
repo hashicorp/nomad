@@ -114,13 +114,6 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 		respW := httptest.NewRecorder()
 
-		// Make the request and check the result
-		out, err := s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
-		numServers := len(out.([]string))
-
 		// Create the request
 		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
 		if err != nil {
@@ -135,7 +128,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 
 		// Create a valid request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647", nil)
+		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -158,14 +151,15 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		expected := map[string]bool{
 			"127.0.0.1:4647": true,
 			"127.0.0.2:4647": true,
+			"127.0.0.3:4647": true,
 		}
-		out, err = s.Server.AgentServersRequest(respW, req)
+		out, err := s.Server.AgentServersRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		servers := out.([]string)
-		if n := len(servers); n != numServers+2 {
-			t.Fatalf("expected %d servers, got: %d: %v", numServers+2, n, servers)
+		if n := len(servers); n != len(expected) {
+			t.Fatalf("expected %d servers, got: %d: %v", len(expected), n, servers)
 		}
 		received := make(map[string]bool, len(servers))
 		for _, server := range servers {
