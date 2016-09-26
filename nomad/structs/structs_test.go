@@ -512,6 +512,104 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Template(t *testing.T) {
+
+	bad := &Template{}
+	task := &Task{
+		Templates: []*Template{bad},
+	}
+	ephemeralDisk := &EphemeralDisk{
+		SizeMB: 1,
+	}
+
+	err := task.Validate(ephemeralDisk)
+	if !strings.Contains(err.Error(), "Template 1 validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTemplate_Validate(t *testing.T) {
+	cases := []struct {
+		Tmpl         *Template
+		Fail         bool
+		ContainsErrs []string
+	}{
+		{
+			Tmpl: &Template{},
+			Fail: true,
+			ContainsErrs: []string{
+				"specify a source path",
+				"specify a destination",
+				TemplateChangeModeInvalidError.Error(),
+			},
+		},
+		{
+			Tmpl: &Template{
+				Splay: -100,
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"positive splay",
+			},
+		},
+		{
+			Tmpl: &Template{
+				ChangeMode: "foo",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				TemplateChangeModeInvalidError.Error(),
+			},
+		},
+		{
+			Tmpl: &Template{
+				ChangeMode: "signal",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"specify signal value",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "../../root",
+				ChangeMode: "noop",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"destination escapes",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+			},
+			Fail: false,
+		},
+	}
+
+	for i, c := range cases {
+		err := c.Tmpl.Validate()
+		if err != nil {
+			if !c.Fail {
+				t.Fatalf("Case %d: shouldn't have failed: %v", i+1, err)
+			}
+
+			e := err.Error()
+			for _, exp := range c.ContainsErrs {
+				if !strings.Contains(e, exp) {
+					t.Fatalf("Cased %d: should have contained error %q: %q", i+1, exp, e)
+				}
+			}
+		} else if c.Fail {
+			t.Fatalf("Case %d: should have failed: %v", i+1, err)
+		}
+	}
+}
+
 func TestConstraint_Validate(t *testing.T) {
 	c := &Constraint{}
 	err := c.Validate()

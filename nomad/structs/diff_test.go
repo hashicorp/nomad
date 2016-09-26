@@ -3203,6 +3203,154 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Template edited
+			Old: &Task{
+				Templates: []*Template{
+					{
+						SourcePath:    "foo",
+						DestPath:      "bar",
+						EmbededTmpl:   "baz",
+						ChangeMode:    "bam",
+						RestartSignal: "SIGHUP",
+						Splay:         1,
+						Once:          true,
+					},
+					{
+						SourcePath:    "foo2",
+						DestPath:      "bar2",
+						EmbededTmpl:   "baz2",
+						ChangeMode:    "bam2",
+						RestartSignal: "SIGHUP2",
+						Splay:         2,
+						Once:          false,
+					},
+				},
+			},
+			New: &Task{
+				Templates: []*Template{
+					{
+						SourcePath:    "foo",
+						DestPath:      "bar",
+						EmbededTmpl:   "baz",
+						ChangeMode:    "bam",
+						RestartSignal: "SIGHUP",
+						Splay:         1,
+						Once:          true,
+					},
+					{
+						SourcePath:    "foo3",
+						DestPath:      "bar3",
+						EmbededTmpl:   "baz3",
+						ChangeMode:    "bam3",
+						RestartSignal: "SIGHUP3",
+						Splay:         3,
+						Once:          true,
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeMode",
+								Old:  "",
+								New:  "bam3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DestPath",
+								Old:  "",
+								New:  "bar3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "EmbededTmpl",
+								Old:  "",
+								New:  "baz3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Once",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RestartSignal",
+								Old:  "",
+								New:  "SIGHUP3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SourcePath",
+								Old:  "",
+								New:  "foo3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Splay",
+								Old:  "",
+								New:  "3",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeMode",
+								Old:  "bam2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DestPath",
+								Old:  "bar2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "EmbededTmpl",
+								Old:  "baz2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Once",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RestartSignal",
+								Old:  "SIGHUP2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "SourcePath",
+								Old:  "foo2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Splay",
+								Old:  "2",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {

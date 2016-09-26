@@ -392,6 +392,17 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, vDiff)
 	}
 
+	// Artifacts diff
+	tmplDiffs := primitiveObjectSetDiff(
+		interfaceSlice(t.Templates),
+		interfaceSlice(other.Templates),
+		nil,
+		"Template",
+		contextual)
+	if tmplDiffs != nil {
+		diff.Objects = append(diff.Objects, tmplDiffs...)
+	}
+
 	return diff, nil
 }
 

@@ -155,6 +155,7 @@ type Task struct {
 	LogConfig   *LogConfig
 	Artifacts   []*TaskArtifact
 	Vault       *Vault
+	Templates   []*Template
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -162,6 +163,16 @@ type TaskArtifact struct {
 	GetterSource  string
 	GetterOptions map[string]string
 	RelativeDest  string
+}
+
+type Template struct {
+	SourcePath    string
+	DestPath      string
+	EmbededTmpl   string
+	ChangeMode    string
+	RestartSignal string
+	Splay         time.Duration
+	Once          bool
 }
 
 type Vault struct {

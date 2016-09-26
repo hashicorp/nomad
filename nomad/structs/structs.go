@@ -1943,6 +1943,9 @@ type Task struct {
 	// have access to.
 	Vault *Vault
 
+	// Templates are the set of templates to be rendered for the task.
+	Templates []*Template
+
 	// Constraints can be specified at a task level and apply only to
 	// the particular task.
 	Constraints []*Constraint
@@ -1998,6 +2001,14 @@ func (t *Task) Copy() *Task {
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		nt.Config = i.(map[string]interface{})
+	}
+
+	if t.Templates != nil {
+		templates := make([]*Template, len(t.Templates))
+		for i, tmpl := range nt.Templates {
+			templates[i] = tmpl.Copy()
+		}
+		nt.Templates = templates
 	}
 
 	return nt
@@ -2117,6 +2128,13 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
+	for idx, tmpl := range t.Templates {
+		if err := tmpl.Validate(); err != nil {
+			outer := fmt.Errorf("Template %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2173,6 +2191,112 @@ func validateServices(t *Task) error {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
+	return mErr.ErrorOrNil()
+}
+
+const (
+	// TemplateChangeModeNoop marks that no action should be taken if the
+	// template is re-rendered
+	TemplateChangeModeNoop = "noop"
+
+	// TemplateChangeModeSignal marks that the task should be signaled if the
+	// template is re-rendered
+	TemplateChangeModeSignal = "signal"
+
+	// TemplateChangeModeRestart marks that the task should be restarted if the
+	// template is re-rendered
+	TemplateChangeModeRestart = "restart"
+)
+
+var (
+	// TemplateChangeModeInvalidError is the error for when an invalid change
+	// mode is given
+	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, restart")
+)
+
+// Template represents a template configuration to be rendered for a given task
+type Template struct {
+	// SourcePath is the the path to the template to be rendered
+	SourcePath string `mapstructure:"source"`
+
+	// DestPath is the path to where the template should be rendered
+	DestPath string `mapstructure:"destination"`
+
+	// EmbededTmpl store the raw template. This is useful for smaller templates
+	// where they are embeded in the job file rather than sent as an artificat
+	EmbededTmpl string `mapstructure:"data"`
+
+	// ChangeMode indicates what should be done if the template is re-rendered
+	ChangeMode string `mapstructure:"change_mode"`
+
+	// RestartSignal is the signal that should be sent if the change mode
+	// requires it.
+	RestartSignal string `mapstructure:"restart_signal"`
+
+	// Splay is used to avoid coordinated restarts of processes by applying a
+	// random wait between 0 and the given splay value before signalling the
+	// application of a change
+	Splay time.Duration `mapstructure:"splay"`
+
+	// Once mode is used to indicate that template should be rendered only once
+	Once bool `mapstructure:"once"`
+}
+
+// DefaultTemplate returns a default template.
+func DefaultTemplate() *Template {
+	return &Template{
+		ChangeMode: TemplateChangeModeRestart,
+		Splay:      5 * time.Second,
+		Once:       false,
+	}
+}
+
+func (t *Template) Copy() *Template {
+	if t == nil {
+		return nil
+	}
+	copy := new(Template)
+	*copy = *t
+	return copy
+}
+
+func (t *Template) Validate() error {
+	var mErr multierror.Error
+
+	// Verify we have something to render
+	if t.SourcePath == "" && t.EmbededTmpl == "" {
+		multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embeded template"))
+	}
+
+	// Verify we can render somewhere
+	if t.DestPath == "" {
+		multierror.Append(&mErr, fmt.Errorf("Must specify a destination for the template"))
+	}
+
+	// Verify the destination doesn't escape
+	escaped, err := pathEscapesAllocDir(t.DestPath)
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
+	} else if escaped {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
+	}
+
+	// Verify a proper change mode
+	switch t.ChangeMode {
+	case TemplateChangeModeNoop, TemplateChangeModeRestart:
+	case TemplateChangeModeSignal:
+		if t.RestartSignal == "" {
+			multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
+		}
+	default:
+		multierror.Append(&mErr, TemplateChangeModeInvalidError)
+	}
+
+	// Verify the splay is positive
+	if t.Splay < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Must specify positive splay value"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2469,6 +2593,26 @@ func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
 }
 
+// pathEscapesAllocDir returns if the given path escapes the allocation
+// directory
+func pathEscapesAllocDir(path string) (bool, error) {
+	// Verify the destination doesn't escape the tasks directory
+	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
+	if err != nil {
+		return false, err
+	}
+	abs, err := filepath.Abs(filepath.Join(alloc, path))
+	if err != nil {
+		return false, err
+	}
+	rel, err := filepath.Rel(alloc, abs)
+	if err != nil {
+		return false, err
+	}
+
+	return strings.HasPrefix(rel, ".."), nil
+}
+
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
 	var mErr multierror.Error
@@ -2476,23 +2620,10 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
 	}
 
-	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
+	escaped, err := pathEscapesAllocDir(ta.RelativeDest)
 	if err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-		return mErr.ErrorOrNil()
-	}
-	abs, err := filepath.Abs(filepath.Join(alloc, ta.RelativeDest))
-	if err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-		return mErr.ErrorOrNil()
-	}
-	rel, err := filepath.Rel(alloc, abs)
-	if err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-		return mErr.ErrorOrNil()
-	}
-	if strings.HasPrefix(rel, "..") {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
+	} else if escaped {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes task's directory"))
 	}
 

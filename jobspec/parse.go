@@ -550,6 +550,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			"meta",
 			"resources",
 			"service",
+			"template",
 			"user",
 			"vault",
 		}
@@ -569,6 +570,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		delete(m, "meta")
 		delete(m, "resources")
 		delete(m, "service")
+		delete(m, "template")
 		delete(m, "vault")
 
 		// Build the task
@@ -705,6 +707,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			}
 		}
 
+		// Parse templates
+		if o := listVal.Filter("template"); len(o.Items) > 0 {
+			if err := parseTemplates(&t.Templates, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', template ->", n))
+			}
+		}
+
 		// If we have a vault block, then parse that
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
 			var v structs.Vault
@@ -787,6 +796,46 @@ func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 
 	if err := mapstructure.WeakDecode(m, &result); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func parseTemplates(result *[]*structs.Template, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"source",
+			"destination",
+			"data",
+			"change_mode",
+			"restart_signal",
+			"splay",
+			"once",
+		}
+		if err := checkHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		templ := structs.DefaultTemplate()
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           templ,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
+			return err
+		}
+
+		*result = append(*result, templ)
 	}
 
 	return nil
