@@ -227,7 +227,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		go c.consulDiscovery()
 		if len(c.servers.all()) == 0 {
 			// No configured servers; trigger discovery manually
-			<-c.triggerDiscoveryCh
+			c.triggerDiscoveryCh <- struct{}{}
 		}
 	}
 
@@ -1486,18 +1486,21 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't alread)
 func (c *Client) triggerDiscovery() {
 	select {
-	case <-c.triggerDiscoveryCh:
+	case c.triggerDiscoveryCh <- struct{}{}:
 		// Discovery goroutine was released to execute
 	default:
 		// Discovery goroutine was already running
 	}
 }
 
+// consulDiscovery waits for the signal to attempt server discovery via Consul.
+// It's intended to be started in a goroutine. See triggerDiscovery() for
+// causing consul discovery from other code locations.
 func (c *Client) consulDiscovery() {
 	for {
 		select {
-		case c.triggerDiscoveryCh <- struct{}{}:
-			if err := c.doConsulDisco(); err != nil {
+		case <-c.triggerDiscoveryCh:
+			if err := c.consulDiscoveryImpl(); err != nil {
 				c.logger.Printf("[ERR] client.consul: error discovering nomad servers: %v", err)
 			}
 		case <-c.shutdownCh:
@@ -1506,7 +1509,7 @@ func (c *Client) consulDiscovery() {
 	}
 }
 
-func (c *Client) doConsulDisco() error {
+func (c *Client) consulDiscoveryImpl() error {
 	// Acquire heartbeat lock to prevent heartbeat from running
 	// concurrently with discovery. Concurrent execution is safe, however
 	// discovery is usually triggered when heartbeating has failed so
