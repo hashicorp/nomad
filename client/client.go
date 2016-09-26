@@ -403,7 +403,7 @@ func (c *Client) Stats() map[string]map[string]string {
 	stats := map[string]map[string]string{
 		"client": map[string]string{
 			"node_id":         c.Node().ID,
-			"known_servers":   strconv.Itoa(len(c.servers.all())),
+			"known_servers":   c.servers.all().String(),
 			"num_allocations": strconv.Itoa(numAllocs),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
