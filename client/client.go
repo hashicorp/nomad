@@ -208,8 +208,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
-	// Create the RPC Proxy and bootstrap with the preconfigured list of
-	// static servers
+	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
 		if err := c.SetServers(c.configCopy.Servers); err != nil {
@@ -383,7 +382,6 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 		return nil
 	}
 
-	// Force Consul discovery ASAP since we have no healthy servers
 	return mErr.ErrorOrNil()
 }
 
