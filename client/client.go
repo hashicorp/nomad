@@ -43,7 +43,7 @@ const (
 	// datacenters looking for the Nomad server service.
 	datacenterQueryLimit = 9
 
-	// consulReaperIntv is the interval at which the consul reaper will
+	// consulReaperIntv is the interval at which the Consul reaper will
 	// run.
 	consulReaperIntv = 5 * time.Second
 
@@ -118,10 +118,10 @@ type Client struct {
 	heartbeatTTL  time.Duration
 	heartbeatLock sync.Mutex
 
-	// doDisco triggers consul discovery; see triggerDiscovery
+	// doDisco triggers Consul discovery; see triggerDiscovery
 	doDisco chan struct{}
 
-	// discovered will be ticked whenever consul discovery completes
+	// discovered will be ticked whenever Consul discovery completes
 	// succesfully
 	discovered chan struct{}
 
@@ -382,7 +382,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 		return nil
 	}
 
-	// Force consul discovery ASAP since we have no healthy servers
+	// Force Consul discovery ASAP since we have no healthy servers
 	return mErr.ErrorOrNil()
 }
 
@@ -845,7 +845,7 @@ func (c *Client) registerAndHeartbeat() {
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
-				// if heartbeating fails, trigger consul discovery
+				// if heartbeating fails, trigger Consul discovery
 				c.triggerDiscovery()
 			}
 		} else {
@@ -1478,7 +1478,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	return unwrappedTokens, nil
 }
 
-// triggerDiscovery causes a consul discovery to begin (if one hasn't alread)
+// triggerDiscovery causes a Consul discovery to begin (if one hasn't alread)
 func (c *Client) triggerDiscovery() {
 	select {
 	case <-c.doDisco:
