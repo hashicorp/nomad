@@ -62,7 +62,7 @@ task "memcached" {
 
 In the above example, we see how easy it is to pass configuration options using
 the `args` section and even see how
-[interpolation](docs/jobspec/interpreted.html) allows us to pass arguments
+[interpolation](/docs/jobspec/interpreted.html) allows us to pass arguments
 based on the dynamic port and address Nomad chose for this task.
 
 ## Config Files
