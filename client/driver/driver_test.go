@@ -84,7 +84,7 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc)
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
 	if err != nil {
 		return nil, nil
 	}
@@ -119,7 +119,7 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Name = "Bar"
-	env, err := GetTaskEnv(nil, nil, task, alloc)
+	env, err := GetTaskEnv(nil, nil, task, alloc, "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
