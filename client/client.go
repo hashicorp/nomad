@@ -156,7 +156,12 @@ type Client struct {
 	vaultClient vaultclient.VaultClient
 }
 
-var noServers = errors.New("no servers")
+var (
+	// noServersErr is returned by the RPC method when the client has no
+	// configured servers. This is used to trigger Consul discovery if
+	// enabled.
+	noServersErr = errors.New("no servers")
+)
 
 // NewClient is used to create a new client from the given configuration
 func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
@@ -365,7 +370,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 
 	servers := c.servers.all()
 	if len(servers) == 0 {
-		return noServers
+		return noServersErr
 	}
 
 	var mErr multierror.Error
@@ -483,7 +488,7 @@ func (c *Client) SetServers(servers []string) error {
 		if len(merr.Errors) > 0 {
 			return merr.ErrorOrNil()
 		}
-		return noServers
+		return noServersErr
 	}
 
 	c.servers.set(endpoints)
@@ -925,7 +930,7 @@ func (c *Client) retryRegisterNode() {
 			return
 		}
 
-		if err == noServers {
+		if err == noServersErr {
 			c.logger.Print("[DEBUG] client: registration waiting on servers")
 			c.triggerDiscovery()
 		} else {
@@ -1155,7 +1160,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			default:
 			}
 
-			if err != noServers {
+			if err != noServersErr {
 				c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
 			}
 			retry := c.retryIntv(getAllocRetryIntv)

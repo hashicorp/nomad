@@ -96,7 +96,7 @@ func TestClient_ServerList(t *testing.T) {
 	if s := client.GetServers(); len(s) != 0 {
 		t.Fatalf("expected server lit to be empty but found: %+q", s)
 	}
-	if err := client.SetServers(nil); err != noServers {
+	if err := client.SetServers(nil); err != noServersErr {
 		t.Fatalf("expected setting an empty list to return a 'no servers' error but received %v", err)
 	}
 	if err := client.SetServers([]string{"not-a-real-domain.fake"}); err == nil {
