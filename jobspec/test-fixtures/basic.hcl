@@ -133,6 +133,20 @@ job "binstore-storagelocker" {
       vault {
         policies = ["foo", "bar"]
       }
+
+      template {
+        source = "foo"
+        destination = "foo"
+        change_mode = "foo"
+        restart_signal = "foo"
+        splay = "10s"
+        once = true
+      }
+
+      template {
+        source = "bar"
+        destination = "bar"
+      }
     }
 
     task "storagelocker" {

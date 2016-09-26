@@ -162,6 +162,24 @@ func TestParse(t *testing.T) {
 									Policies: []string{"foo", "bar"},
 									Env:      true,
 								},
+								Templates: []*structs.Template{
+									{
+										SourcePath:    "foo",
+										DestPath:      "foo",
+										ChangeMode:    "foo",
+										RestartSignal: "foo",
+										Splay:         10 * time.Second,
+										Once:          true,
+									},
+									{
+										SourcePath:    "bar",
+										DestPath:      "bar",
+										ChangeMode:    structs.TemplateChangeModeRestart,
+										RestartSignal: "",
+										Splay:         5 * time.Second,
+										Once:          false,
+									},
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -451,9 +469,9 @@ func TestParse(t *testing.T) {
 				Region:   "global",
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:      "cache",
-						Count:     1,
-						LocalDisk: structs.DefaultLocalDisk(),
+						Name:          "cache",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:      "redis",
@@ -474,9 +492,9 @@ func TestParse(t *testing.T) {
 						},
 					},
 					&structs.TaskGroup{
-						Name:      "cache2",
-						Count:     1,
-						LocalDisk: structs.DefaultLocalDisk(),
+						Name:          "cache2",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:      "redis",

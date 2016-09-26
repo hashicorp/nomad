@@ -2242,6 +2242,15 @@ type Template struct {
 	Once bool `mapstructure:"once"`
 }
 
+// DefaultTemplate returns a default template.
+func DefaultTemplate() *Template {
+	return &Template{
+		ChangeMode: TemplateChangeModeRestart,
+		Splay:      5 * time.Second,
+		Once:       false,
+	}
+}
+
 func (t *Template) Copy() *Template {
 	if t == nil {
 		return nil
