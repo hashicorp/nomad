@@ -2738,6 +2738,10 @@ type EphemeralDisk struct {
 
 	// SizeMB is the size of the local disk
 	SizeMB int `mapstructure:"size"`
+
+	// Migrate determines if Nomad client should migrate the allocation dir for
+	// sticky allocations
+	Migrate bool
 }
 
 // DefaultEphemeralDisk returns a EphemeralDisk with default configurations

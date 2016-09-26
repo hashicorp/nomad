@@ -1365,7 +1365,11 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 
 	var prevAllocDir *allocdir.AllocDir
 	if prevAlloc != nil {
-		if tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup); tg != nil && tg.EphemeralDisk.Sticky {
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+		// Migrate the data from remote node if the disk is sticky and migrate
+		// is turned on
+		if tg != nil && tg.EphemeralDisk.Sticky && tg.EphemeralDisk.Migrate {
 			// Create new alloc dir
 			if node, err := c.getNode(prevAlloc.NodeID); err == nil && node.Status != structs.NodeStatusDown {
 				// Create the previous alloc dir
@@ -1451,7 +1455,6 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 	if err := c.addAlloc(alloc, prevAllocDir); err != nil {
 		c.logger.Printf("[ERR] client: error adding alloc: %v", err)
 	}
-
 }
 
 // getAllocation gets an allocation with a given ID

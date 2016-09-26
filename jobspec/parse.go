@@ -477,6 +477,7 @@ func parseEphemeralDisk(result **structs.EphemeralDisk, list *ast.ObjectList) er
 	valid := []string{
 		"sticky",
 		"size",
+		"migrate",
 	}
 	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
