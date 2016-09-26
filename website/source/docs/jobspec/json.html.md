@@ -58,7 +58,7 @@ Below is an example of a JSON object that submits a `Periodic` job to Nomad:
                         "Env": {
                             "foo": "bar",
                             "baz": "pipe"
-                        }
+                        },
                         "Services": [
                             {
                                 "Name": "cache-redis",
@@ -97,7 +97,7 @@ Below is an example of a JSON object that submits a `Periodic` job to Nomad:
                                     ],
                                     "DynamicPorts": [
                                         {
-                                            "Label": "db",
+                                            "Label": "db"
                                         }
                                     ],
                                     "MBits": 10
