@@ -83,10 +83,10 @@ job "example" {
 
 	# Restrict our job to only linux. We can specify multiple
 	# constraints as needed.
-	constraint {
-		attribute = "${attr.kernel.name}"
-		value = "linux"
-	}
+	# constraint {
+	#	attribute = "${attr.kernel.name}"
+	#	value = "linux"
+	# }
 
 	# Configure the job to do rolling updates
 	update {
