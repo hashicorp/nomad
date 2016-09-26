@@ -1601,19 +1601,13 @@ DISCOLOOP:
 	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", servers)
 	c.servers.set(servers)
 
-	// Notify waiting rpc calls. Wait briefly in case initial rpc
-	// just failed but the calling goroutine isn't selecting on
-	// discovered yet.
-	const dur = 50 * time.Millisecond
-	timeout := time.NewTimer(dur)
+	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
+	// isn't receiving on this chan yet they'll still retry eventually.
+	// This is a shortcircuit for the longer retry intervals.
 	for {
 		select {
 		case c.serversDiscoveredCh <- struct{}{}:
-			if !timeout.Stop() {
-				<-timeout.C
-			}
-			timeout.Reset(dur)
-		case <-timeout.C:
+		default:
 			return nil
 		}
 	}
