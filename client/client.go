@@ -140,9 +140,6 @@ type Client struct {
 	// consulSyncer advertises this Nomad Agent with Consul
 	consulSyncer *consul.Syncer
 
-	// consulReaperTicker ticks when the reaper should run
-	consulReaperTicker *time.Ticker
-
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
 	resourceUsage      *stats.HostStats
@@ -169,7 +166,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	c := &Client{
 		config:              cfg,
 		consulSyncer:        consulSyncer,
-		consulReaperTicker:  time.NewTicker(consulReaperIntv),
 		start:               time.Now(),
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
 		servers:             newServerList(),
@@ -1613,12 +1609,15 @@ DISCOLOOP:
 	}
 }
 
+// consulReaper periodically reaps unmatched domains from Consul. Intended to
+// be called in its own goroutine. See consulReaperIntv for interval.
 func (c *Client) consulReaper() {
-	defer c.consulReaperTicker.Stop()
+	ticker := time.NewTicker(consulReaperIntv)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-c.consulReaperTicker.C:
-			if err := c.doConsulReap(); err != nil {
+		case <-ticker.C:
+			if err := c.consulReaperImpl(); err != nil {
 				c.logger.Printf("[ERR] consul.client: error reaping services in consul: %v", err)
 			}
 		case <-c.shutdownCh:
@@ -1627,7 +1626,8 @@ func (c *Client) consulReaper() {
 	}
 }
 
-func (c *Client) doConsulReap() error {
+// consulReaperImpl reaps unmatched domains from Consul.
+func (c *Client) consulReaperImpl() error {
 	const estInitialExecutorDomains = 8
 
 	// Create the domains to keep and add the server and client
