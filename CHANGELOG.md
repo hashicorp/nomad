@@ -4,6 +4,7 @@ IMPROVEMENTS:
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
+  * client: Failed RPCs are retried on all servers [GH-1735]
   * client: Enforce shared allocation directory disk usage [GH-1580]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
@@ -19,6 +20,8 @@ BUG FIXES:
     [GH-1668]
   * discovery: Fix HTTP timeout with Server HTTP health check when there is no
     leader [GH-1656]
+  * discovery: Fix client flapping when server is in a different datacenter as
+    the client [GH-1641]
 
 ## 0.4.1 (August 18, 2016)
 
