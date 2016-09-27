@@ -12,6 +12,9 @@ The `server-members` command displays a list of the known servers in the cluster
 and their current status. Member information is provided by the gossip protocol,
 which is only run on server nodes.
 
+~> **Only runs on servers!** This command can only be run from the server nodes.
+Running <tt>nomad server-members</tt> from a client will result in an error.
+
 ## Usage
 
 ```

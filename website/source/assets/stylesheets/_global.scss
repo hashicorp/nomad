@@ -81,6 +81,10 @@ pre {
   text-align: center;
 }
 
+.alert p:last-child {
+  margin-bottom: 0;
+}
+
 //fixed grid below 992 to prevent smaller responsive sizes
 @media (max-width: 992px) {
   .container{
