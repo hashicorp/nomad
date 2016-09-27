@@ -773,25 +773,26 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) (map[i
 	processFamily := make(map[int]struct{})
 	processFamily[parentPid] = struct{}{}
 
-	// A buffer for holding pids which haven't matched with any parent pid
-	var pidsRemaining []ps.Process
+	// A mapping of pids to their parent pids. It is used to build the process
+	// tree of the executing task
+	pidsRemaining := make(map[int]int, len(allPids))
+	for _, pid := range allPids {
+		pidsRemaining[pid.Pid()] = pid.PPid()
+	}
+
 	for {
 		// flag to indicate if we have found a match
 		foundNewPid := false
 
-		for _, pid := range allPids {
-			_, childPid := processFamily[pid.PPid()]
+		for pid, ppid := range pidsRemaining {
+			_, childPid := processFamily[ppid]
 
 			// checking if the pid is a child of any of the parents
 			if childPid {
-				processFamily[pid.Pid()] = struct{}{}
+				processFamily[pid] = struct{}{}
+				delete(pidsRemaining, pid)
 				foundNewPid = true
-			} else {
-				// if it is not, then we add the pid to the buffer
-				pidsRemaining = append(pidsRemaining, pid)
 			}
-			// scan only the pids which are left in the buffer
-			allPids = pidsRemaining
 		}
 
 		// not scanning anymore if we couldn't find a single match
@@ -799,6 +800,7 @@ func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) (map[i
 			break
 		}
 	}
+
 	res := make(map[int]*nomadPid)
 	for pid := range processFamily {
 		np := nomadPid{
