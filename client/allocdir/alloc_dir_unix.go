@@ -28,6 +28,12 @@ var (
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
+	// Avoid link/copy if the file already exists in the chroot
+	// TODO 0.6 clean this up. This was needed because chroot creation fails
+	// when a process restarts.
+	if fileInfo, _ := os.Stat(dst); fileInfo != nil {
+		return nil
+	}
 	// Attempt to hardlink.
 	if err := os.Link(src, dst); err == nil {
 		return nil
