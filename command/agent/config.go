@@ -432,6 +432,9 @@ func DevConfig() *Config {
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
 	}
+	conf.Client.Options = map[string]string{
+		"driver.docker.volumes": "true",
+	}
 
 	return conf
 }

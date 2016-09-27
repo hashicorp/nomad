@@ -137,6 +137,14 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+  host paths to container paths. Can only be run on clients with the
+  `docker.volumes.enabled` option set to true.
+
+* `volumes_from` - (Optional) A list of volumes to inherit from another
+  container. Can only be run on clients with the `docker.volumes.enabled`
+  option set to true.
+
 * `work_dir` - (Optional) The working directory inside the container.
 
 ### Container Name
@@ -329,8 +337,14 @@ options](/docs/agent/config.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
+* `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host
+  paths (`volumes`) or other containers (`volums_from`) inside their container.
+  Disabled by default as it removes the isolation between containers' data.
+
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
-  label to the allocation and task local bind-mounts to containers.
+  label to the allocation and task local bind-mounts to containers. If used
+  with `docker.volumes.enabled` set to false, the labels will still be applied
+  to the standard binds in the container. 
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full

@@ -58,6 +58,10 @@ const (
 	// driver
 	dockerDriverAttr = "driver.docker"
 
+	dockerSELinuxLabelConfigOption = "docker.volumes.selinuxlabel"
+	dockerVolumesConfigOption      = "docker.volumes.enabled"
+	dockerPrivilegedConfigOption   = "docker.privileged.enabled"
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 1 * time.Minute
@@ -116,27 +120,9 @@ func (c *DockerDriverConfig) Validate() error {
 
 	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
-
-	//if no logging is present, set default values. Otherwise, convert the raw logging data into a logging object
-	if len(c.Logging) != 0 {
+	if len(c.Logging) > 0 {
 		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
-	} else {
-		c.Logging = []DockerLoggingOpts{
-			{
-				Type:   "syslog",
-				Config: make(map[string]string),
-			},
-		}
 	}
-
-	if c.Volumes == nil {
-		c.Volumes = make([]string, 0)
-	}
-
-	if c.VolumesFrom == nil {
-		c.VolumesFrom = make([]string, 0)
-	}
-
 	return nil
 }
 
@@ -358,9 +344,9 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		return false, nil
 	}
 
-	privileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
+	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if privileged {
-		node.Attributes["docker.privileged.enabled"] = "1"
+		node.Attributes[dockerPrivilegedConfigOption] = "1"
 	}
 
 	// This is the first operation taken on the client so we'll try to
@@ -377,10 +363,17 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 
 	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
+
+	if d.config.ReadBoolDefault(dockerVolumesConfigOption, false) {
+		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
+	}
+
 	return true, nil
 }
 
-func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Task) ([]string, error) {
+func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *allocdir.AllocDir,
+	task *structs.Task) ([]string, error) {
+
 	shared := alloc.SharedDir
 	local, ok := alloc.TaskDirs[task.Name]
 	if !ok {
@@ -394,17 +387,34 @@ func (d *DockerDriver) containerBinds(alloc *allocdir.AllocDir, task *structs.Ta
 	allocDirBind := fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocContainerPath)
 	taskLocalBind := fmt.Sprintf("%s:%s", local, allocdir.TaskLocalContainerPath)
 	secretDirBind := fmt.Sprintf("%s:%s", secret, allocdir.TaskSecretsContainerPath)
+	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	if selinuxLabel := d.config.Read("docker.volumes.selinuxlabel"); selinuxLabel != "" {
-		allocDirBind = fmt.Sprintf("%s:%s", allocDirBind, selinuxLabel)
-		taskLocalBind = fmt.Sprintf("%s:%s", taskLocalBind, selinuxLabel)
-		secretDirBind = fmt.Sprintf("%s:%s", secretDirBind, selinuxLabel)
+	var merr multierror.Error
+	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, false)
+	if len(driverConfig.Volumes) > 0 && !volumesEnabled {
+		merr.Errors = append(merr.Errors, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker Volumes: %+q", driverConfig.Volumes))
 	}
-	return []string{
-		allocDirBind,
-		taskLocalBind,
-		secretDirBind,
-	}, nil
+
+	if len(driverConfig.VolumesFrom) > 0 && !volumesEnabled {
+		merr.Errors = append(merr.Errors, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker VolumesFrom: %+q", driverConfig.VolumesFrom))
+	}
+
+	if err := merr.ErrorOrNil(); err != nil {
+		return nil, err
+	}
+
+	if len(driverConfig.Volumes) > 0 {
+		binds = append(binds, driverConfig.Volumes...)
+	}
+
+	if selinuxLabel := d.config.Read(dockerSELinuxLabelConfigOption); selinuxLabel != "" {
+		// Apply SELinux Label to each volume
+		for i := range binds {
+			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
+		}
+	}
+
+	return binds, nil
 }
 
 // createContainer initializes a struct needed to call docker.client.CreateContainer()
@@ -418,7 +428,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		return c, fmt.Errorf("task.Resources is empty")
 	}
 
-	binds, err := d.containerBinds(ctx.AllocDir, task)
+	binds, err := d.containerBinds(driverConfig, ctx.AllocDir, task)
 	if err != nil {
 		return c, err
 	}
@@ -442,19 +452,14 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
-	if len(driverConfig.Logging) != 0 {
+	if len(driverConfig.Logging) == 0 {
 		d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
-		if driverConfig.Logging[0].Type == "" {
-			driverConfig.Logging[0].Type = "syslog"
-			driverConfig.Logging[0].Config["syslog-address"] = syslogAddr
+		driverConfig.Logging = []DockerLoggingOpts{
+			{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
 		}
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
-
-	//Merge nomad container binds and user specified binds
-	d.logger.Printf("[DEBUG] Unmodified binds from nomad: %+v\n", binds)
-	binds = append(binds, driverConfig.Volumes...)
 
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
@@ -477,10 +482,12 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
-	d.logger.Printf("[DEBUG] driver.docker: binding Volumes-From: %#v for %s", hostConfig.VolumesFrom, task.Name)
+	if d.config.ReadBoolDefault(dockerVolumesConfigOption, false) {
+		d.logger.Printf("[DEBUG] driver.docker: binding Volumes-From: %#v for %s", hostConfig.VolumesFrom, task.Name)
+	}
 
 	//  set privileged mode
-	hostPrivileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
+	hostPrivileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if driverConfig.Privileged && !hostPrivileged {
 		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
