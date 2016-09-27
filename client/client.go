@@ -61,11 +61,6 @@ const (
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
 
-	// registerErrGrace is the grace period where we don't log about
-	// register errors after start. This is to improve the user experience
-	// in dev mode where the leader isn't elected for a few seconds.
-	registerErrGrace = 10 * time.Second
-
 	// initialHeartbeatStagger is used to stagger the interval between
 	// starting and the intial heartbeat. After the intial heartbeat,
 	// we switch to using the TTL specified by the servers.
