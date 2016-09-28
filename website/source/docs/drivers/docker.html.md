@@ -44,13 +44,18 @@ The following options are available for use in the job specification.
 * `command` - (Optional) The command to run when starting the container.
 
 * `args` - (Optional) A list of arguments to the optional `command`. If no
-  `command` is present, `args` are ignored. References to environment variables
-  or any [interpretable Nomad variables](/docs/jobspec/interpreted.html) will be
-  interpreted before launching the task. For example:
+  `command` is specified, the args are passed directly to the container.
+  References to environment variables or any [interpretable Nomad
+  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  launching the task. For example:
 
-  ```
-  args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-  ```
+    ```hcl
+    args = [
+      "${nomad.datacenter}",
+      "${MY_ENV}",
+      "${meta.foo}",
+    ]
+    ```
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on
   start.
@@ -105,7 +110,7 @@ The following options are available for use in the job specification.
 
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
-  
+
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
 * `work_dir` - (Optional) The working directory inside the container.
@@ -313,7 +318,7 @@ Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `docker.endpoint` is set Nomad will **only** read client configuration from the
 config file.
 
-An example is given below: 
+An example is given below:
 
 ```
     client {
