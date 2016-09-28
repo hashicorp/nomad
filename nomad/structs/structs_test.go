@@ -345,7 +345,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "should have a local disk object") {
+	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
