@@ -15,6 +15,8 @@ BUG FIXES:
     [GH-1558]
   * client: Fix a crash related to stats publishing when driver hasn't started
     yet [GH-1723]
+  * client: Fix a memory leak in the executor that caused failed allocations
+    [GH-1762]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
   * discovery: Fix old services not getting removed from consul on update
     [GH-1668]
