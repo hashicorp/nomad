@@ -2980,6 +2980,19 @@ func (a *Allocation) Stub() *AllocListStub {
 	}
 }
 
+// StopMigration returns if the allocation needs data migration
+func (a *Allocation) StopMigration() bool {
+	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
+		return true
+	}
+
+	if tg := a.Job.LookupTaskGroup(a.TaskGroup); tg != nil && !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
+		return true
+	}
+
+	return false
+}
+
 var (
 	// AllocationIndexRegex is a regular expression to find the allocation index.
 	AllocationIndexRegex = regexp.MustCompile(".+\\[(\\d+)\\]$")

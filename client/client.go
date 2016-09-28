@@ -149,6 +149,10 @@ type Client struct {
 
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
+
+	// migratingAllocs is the set of allocs whose data migration is in flight
+	migratingAllocs     map[string]chan struct{}
+	migratingAllocsLock sync.Mutex
 }
 
 var (
@@ -162,19 +166,17 @@ var (
 func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
 	// Create the client
 	c := &Client{
-		config:              cfg,
-		consulSyncer:        consulSyncer,
-		start:               time.Now(),
-		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		servers:             newServerList(),
-		triggerDiscoveryCh:  make(chan struct{}),
-		serversDiscoveredCh: make(chan struct{}),
-		logger:              logger,
-		hostStatsCollector:  stats.NewHostStatsCollector(),
-		allocs:              make(map[string]*AllocRunner),
-		blockedAllocations:  make(map[string]*structs.Allocation),
-		allocUpdates:        make(chan *structs.Allocation, 64),
-		shutdownCh:          make(chan struct{}),
+		config:             cfg,
+		consulSyncer:       consulSyncer,
+		start:              time.Now(),
+		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:             logger,
+		hostStatsCollector: stats.NewHostStatsCollector(),
+		allocs:             make(map[string]*AllocRunner),
+		blockedAllocations: make(map[string]*structs.Allocation),
+		allocUpdates:       make(chan *structs.Allocation, 64),
+		shutdownCh:         make(chan struct{}),
+		migratingAllocs:    make(map[string]chan struct{}),
 	}
 
 	// Initialize the client
@@ -1304,6 +1306,18 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			c.logger.Printf("[ERR] client: failed to update alloc '%s': %v",
 				update.exist.ID, err)
 		}
+
+		// See if the updated alloc is getting migrated
+		c.migratingAllocsLock.Lock()
+		ch, ok := c.migratingAllocs[update.updated.ID]
+		c.migratingAllocsLock.Unlock()
+		if ok {
+			// Stopping the migration if the allocation doesn't need any
+			// migration
+			if update.updated.StopMigration() {
+				close(ch)
+			}
+		}
 	}
 
 	// Start the new allocations
@@ -1322,6 +1336,9 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		// This means the allocation has a previous allocation on another node
 		// so we will block for the previous allocation to complete
 		if add.PreviousAllocation != "" && !ok {
+			c.migratingAllocsLock.Lock()
+			c.migratingAllocs[add.ID] = make(chan struct{})
+			c.migratingAllocsLock.Unlock()
 			go c.blockForRemoteAlloc(add)
 			continue
 		}
@@ -1345,18 +1362,37 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	}
 }
 
+// blockForRemoteAlloc blocks until the previous allocation of an allocation has
+// been terminated and migrates the snapshot data
 func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 	c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
+
+	// Removing the allocation from the set of allocs which are currently
+	// undergoing migration
+	defer func() {
+		c.migratingAllocsLock.Lock()
+		delete(c.migratingAllocs, alloc.ID)
+		c.migratingAllocsLock.Unlock()
+	}()
+
 	var err error
 	var prevAlloc *structs.Allocation
 	var index uint64
 	for {
+		// Stopping if the client is shutting down.
+		if c.shutdown {
+			return
+		}
+
+		// get the remote allocation.
 		prevAlloc, index, err = c.getAllocation(alloc.PreviousAllocation, index)
 		if err != nil {
 			c.logger.Printf("[ERROR] client: error getting previous allocation %q for alloc %q: %v",
 				alloc.PreviousAllocation, alloc.ID, err)
 			return
 		}
+
+		// If the previous allocation has been terminated then we stop.
 		if prevAlloc == nil || prevAlloc.Terminated() {
 			break
 		}
@@ -1393,7 +1429,18 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 					if c.shutdown {
 						return
 					}
-					// Get the header
+
+					// See if the alloc still needs migration
+					if ch, ok := c.migratingAllocs[alloc.ID]; ok {
+						select {
+						case <-ch:
+							c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", alloc.ID)
+							return
+						default:
+						}
+					}
+
+					// Get the next header
 					hdr, err := tr.Next()
 
 					// If the snapshot has ended then we create the previous
