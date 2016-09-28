@@ -74,6 +74,12 @@ type DockerDriverAuth struct {
 	ServerAddress string `mapstructure:"server_address"` // server address of the registry
 }
 
+type DockerLoggingOpts struct {
+	Type      string              `mapstructure:"type"`
+	ConfigRaw []map[string]string `mapstructure:"config"`
+	Config    map[string]string   `mapstructure:"-"`
+}
+
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImages       []string            `mapstructure:"load"`               // LoadImage is array of paths to image archive files
@@ -97,6 +103,9 @@ type DockerDriverConfig struct {
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
+	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
+	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	VolumesFrom      []string            `mapstructure:"volumes_from"`       // List of volumes-from
 }
 
 // Validate validates a docker driver config
@@ -107,6 +116,26 @@ func (c *DockerDriverConfig) Validate() error {
 
 	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
+
+	//if no logging is present, set default values. Otherwise, convert the raw logging data into a logging object
+	if len(c.Logging) != 0 {
+		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
+	} else {
+		c.Logging = []DockerLoggingOpts{
+			{
+				Type:   "syslog",
+				Config: make(map[string]string),
+			},
+		}
+	}
+
+	if c.Volumes == nil {
+		c.Volumes = make([]string, 0)
+	}
+
+	if c.VolumesFrom == nil {
+		c.VolumesFrom = make([]string, 0)
+	}
 
 	return nil
 }
@@ -226,6 +255,15 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"work_dir": &fields.FieldSchema{
 				Type: fields.TypeString,
+			},
+			"logging": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"volumes": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"volumes_from": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 		},
 	}
@@ -403,6 +441,21 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	}
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
+
+	if len(driverConfig.Logging) != 0 {
+		d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
+		if driverConfig.Logging[0].Type == "" {
+			driverConfig.Logging[0].Type = "syslog"
+			driverConfig.Logging[0].Config["syslog-address"] = syslogAddr
+		}
+	}
+
+	d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
+
+	//Merge nomad container binds and user specified binds
+	d.logger.Printf("[DEBUG] Unmodified binds from nomad: %+v\n", binds)
+	binds = append(binds, driverConfig.Volumes...)
+
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
 		Memory:     memLimit,
@@ -413,18 +466,18 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
-		Binds: binds,
+		Binds:       binds,
+		VolumesFrom: driverConfig.VolumesFrom,
 		LogConfig: docker.LogConfig{
-			Type: "syslog",
-			Config: map[string]string{
-				"syslog-address": syslogAddr,
-			},
+			Type:   driverConfig.Logging[0].Type,
+			Config: driverConfig.Logging[0].Config,
 		},
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
+	d.logger.Printf("[DEBUG] driver.docker: binding Volumes-From: %#v for %s", hostConfig.VolumesFrom, task.Name)
 
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault("docker.privileged.enabled", false)
