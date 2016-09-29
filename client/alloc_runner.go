@@ -194,6 +194,14 @@ func (r *AllocRunner) RestoreState() error {
 	return mErr.ErrorOrNil()
 }
 
+// GetAllocDir returns the alloc dir for the alloc runner
+func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
+	if r.ctx == nil {
+		return nil
+	}
+	return r.ctx.AllocDir
+}
+
 // SaveState is used to snapshot the state of the alloc runner
 // if the fullSync is marked as false only the state of the Alloc Runner
 // is snapshotted. If fullSync is marked as true, we snapshot

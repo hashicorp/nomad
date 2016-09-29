@@ -446,7 +446,7 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	if !ok {
 		return nil, fmt.Errorf("alloc not found")
 	}
-	return ar.ctx.AllocDir, nil
+	return ar.GetAllocDir(), nil
 }
 
 // GetServers returns the list of nomad servers this client is aware of.
@@ -1063,7 +1063,7 @@ func (c *Client) allocSync() {
 			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
 				var prevAllocDir *allocdir.AllocDir
 				if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-					prevAllocDir = ar.ctx.AllocDir
+					prevAllocDir = ar.GetAllocDir()
 				}
 				if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
 					c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
@@ -1347,7 +1347,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		// parent allocation
 		var prevAllocDir *allocdir.AllocDir
 		if tg := add.Job.LookupTaskGroup(add.TaskGroup); tg != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
-			prevAllocDir = ar.ctx.AllocDir
+			prevAllocDir = ar.GetAllocDir()
 		}
 
 		if err := c.addAlloc(add, prevAllocDir); err != nil {
