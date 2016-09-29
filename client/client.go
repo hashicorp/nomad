@@ -1344,9 +1344,10 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		}
 
 		// Setting the previous allocdir if the allocation had a terminal
-		// parent allocation
+		// previous allocation
 		var prevAllocDir *allocdir.AllocDir
-		if tg := add.Job.LookupTaskGroup(add.TaskGroup); tg != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
+		tg := add.Job.LookupTaskGroup(add.TaskGroup)
+		if tg != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
 			prevAllocDir = ar.GetAllocDir()
 		}
 
@@ -1375,143 +1376,32 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 		c.migratingAllocsLock.Unlock()
 	}()
 
-	var err error
-	var prevAlloc *structs.Allocation
-	var index uint64
-	for {
-		// Stopping if the client is shutting down.
-		if c.shutdown {
-			return
-		}
-
-		// get the remote allocation.
-		prevAlloc, index, err = c.getAllocation(alloc.PreviousAllocation, index)
-		if err != nil {
-			c.logger.Printf("[ERROR] client: error getting previous allocation %q for alloc %q: %v",
-				alloc.PreviousAllocation, alloc.ID, err)
-			return
-		}
-
-		// If the previous allocation has been terminated then we stop.
-		if prevAlloc == nil || prevAlloc.Terminated() {
-			break
-		}
-		continue
+	// Block until the previous allocation migrates to terminal state
+	prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
+	if err != nil {
+		c.logger.Printf("[ERR] client: error waiting for allocation %q: %v", alloc.PreviousAllocation, err)
 	}
 
-	var prevAllocDir *allocdir.AllocDir
-	if prevAlloc != nil {
-		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-
-		// Migrate the data from remote node if the disk is sticky and migrate
-		// is turned on
-		if tg != nil && tg.EphemeralDisk.Sticky && tg.EphemeralDisk.Migrate {
-			// Create new alloc dir
-			if node, err := c.getNode(prevAlloc.NodeID); err == nil && node.Status != structs.NodeStatusDown {
-				// Create the previous alloc dir
-				pathToAllocDir := filepath.Join(c.config.AllocDir, prevAlloc.ID)
-				if err := os.MkdirAll(pathToAllocDir, 0777); err != nil {
-					c.logger.Printf("[ERR] client: error creating previous allocation dir: %v", err)
-				}
-
-				// Get the snapshot
-				url := fmt.Sprintf("http://%v/v1/client/allocation/%v/snapshot", node.HTTPAddr, prevAlloc.ID)
-				resp, err := http.Get(url)
-				if err != nil {
-					c.logger.Printf("[ERR] client: error getting snapshot: %v", err)
-				}
-				tr := tar.NewReader(resp.Body)
-				defer resp.Body.Close()
-
-				buf := make([]byte, 32)
-				for {
-					// If the client is shutting down then we return
-					if c.shutdown {
-						return
-					}
-
-					// See if the alloc still needs migration
-					if ch, ok := c.migratingAllocs[alloc.ID]; ok {
-						select {
-						case <-ch:
-							c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", alloc.ID)
-							return
-						default:
-						}
-					}
-
-					// Get the next header
-					hdr, err := tr.Next()
-
-					// If the snapshot has ended then we create the previous
-					// allocdir
-					if err == io.EOF {
-						prevAllocDir = allocdir.NewAllocDir(pathToAllocDir, 0)
-						break
-					}
-					// If there is an error then we avoid creating the alloc dir
-					if err != nil {
-						c.logger.Printf("[ERR] client: error getting snapshot of alloc %q: %v", prevAlloc.ID, err)
-						break
-					}
-
-					// If the header is for a directory we create the directory
-					if hdr.Typeflag == tar.TypeDir {
-						os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), 0777)
-						continue
-					}
-					// If the header is a file, we write to a file
-					if hdr.Typeflag == tar.TypeReg {
-						f, err := os.Create(filepath.Join(pathToAllocDir, hdr.Name))
-						if err != nil {
-							c.logger.Printf("[ERR] client: error creating file: %v", err)
-							continue
-						}
-
-						// We write in chunks of 32 bytes so that we can test if
-						// the client is still alive
-						for {
-							n, err := tr.Read(buf)
-							if err == io.EOF {
-								f.Close()
-								c.logger.Printf("[DEBUG] client: finished migrating file")
-								break
-							}
-							if c.shutdown {
-								f.Close()
-								c.logger.Printf("[DEBUG] client: stopping migrate because client is shutting down")
-								return
-							}
-							if err != nil {
-								f.Close()
-								c.logger.Printf("[ERR] client: err in reading file: %v", err)
-								break
-							}
-							if _, err := f.Write(buf[:n]); err != nil {
-								c.logger.Printf("[ERR] client: err in writing to file: %v", err)
-								continue
-							}
-						}
-					}
-				}
-
-			}
-		}
+	// Migrate the data from the remote node
+	prevAllocDir, err := c.migrateRemoteAllocDir(prevAlloc)
+	if err != nil {
+		c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v", alloc.PreviousAllocation, err)
 	}
 
+	// Add the allocation
 	if err := c.addAlloc(alloc, prevAllocDir); err != nil {
 		c.logger.Printf("[ERR] client: error adding alloc: %v", err)
 	}
 }
 
-// getAllocation gets an allocation with a given ID
-func (c *Client) getAllocation(allocID string, queryIndex uint64) (*structs.Allocation, uint64, error) {
+// waitForAllocTerminal waits for an allocation with the given alloc id to
+// transition to terminal state and blocks the caller until then.
+func (c *Client) waitForAllocTerminal(allocID string) (*structs.Allocation, error) {
 	req := structs.AllocSpecificRequest{
 		AllocID: allocID,
 		QueryOptions: structs.QueryOptions{
-			Region:        c.Region(),
-			AllowStale:    true,
-			MinQueryIndex: queryIndex,
+			Region:     c.Region(),
+			AllowStale: true,
 		},
 	}
 
@@ -1519,19 +1409,149 @@ func (c *Client) getAllocation(allocID string, queryIndex uint64) (*structs.Allo
 	for {
 		err := c.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
-			c.logger.Printf("[ERR] client: failed to query for allocation %q: %v", allocID, err)
+			c.logger.Printf("[ERR] client: failed to query allocation %q: %v", allocID, err)
 			retry := c.retryIntv(getAllocRetryIntv)
 			select {
 			case <-time.After(retry):
 				continue
 			case <-c.shutdownCh:
-				return nil, 0, fmt.Errorf("aborting because client is shutting down")
+				return nil, fmt.Errorf("aborting because client is shutting down")
 			}
 		}
-		break
+		if resp.Alloc == nil {
+			return nil, nil
+		}
+		if resp.Alloc.Terminated() {
+			return resp.Alloc, nil
+		}
+
+		// Update the query index.
+		if resp.Index > req.MinQueryIndex {
+			req.MinQueryIndex = resp.Index
+		}
+
+	}
+}
+
+// migrateRemoteAllocDir migrates the allocation directory from a remote node to
+// the current node
+func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation) (*allocdir.AllocDir, error) {
+	if alloc == nil {
+		return nil, nil
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	if tg == nil {
+		return nil, fmt.Errorf("Task Group %q not found in job %q", tg.Name, alloc.Job.ID)
 	}
 
-	return resp.Alloc, resp.Index, nil
+	// Skip migration of data if the ephemeral disk is not sticky or
+	// migration is turned off.
+	if !tg.EphemeralDisk.Sticky || !tg.EphemeralDisk.Migrate {
+		return nil, nil
+	}
+
+	node, err := c.getNode(alloc.NodeID)
+
+	// If the node is down then skip migrating the data
+	if err != nil {
+		return nil, fmt.Errorf("error retreiving node %v: %v", alloc.NodeID, err)
+	}
+
+	// skip migration if the remote node is down
+	if node.Status == structs.NodeStatusDown {
+		return nil, fmt.Errorf("node %q is down", alloc.NodeID)
+	}
+
+	// Create the previous alloc dir
+	pathToAllocDir := filepath.Join(c.config.AllocDir, alloc.ID)
+	if err := os.MkdirAll(pathToAllocDir, 0777); err != nil {
+		c.logger.Printf("[ERR] client: error creating previous allocation dir: %v", err)
+	}
+
+	// Get the snapshot
+	url := fmt.Sprintf("http://%v/v1/client/allocation/%v/snapshot", node.HTTPAddr, alloc.ID)
+	resp, err := http.Get(url)
+	if err != nil {
+		os.RemoveAll(pathToAllocDir)
+		c.logger.Printf("[ERR] client: error getting snapshot: %v", err)
+		return nil, fmt.Errorf("error getting snapshot for alloc %v: %v", alloc.ID, err)
+	}
+	tr := tar.NewReader(resp.Body)
+	defer resp.Body.Close()
+
+	buf := make([]byte, 1024)
+
+	stopMigrating, ok := c.migratingAllocs[alloc.ID]
+	if !ok {
+		os.RemoveAll(pathToAllocDir)
+		return nil, fmt.Errorf("couldn't find a migration validity notifier for alloc: %v", alloc.ID)
+	}
+	for {
+		// See if the alloc still needs migration
+		select {
+		case <-stopMigrating:
+			os.RemoveAll(pathToAllocDir)
+			return nil, fmt.Errorf("stopping migration of allocdir for alloc: %v", alloc.ID)
+		case <-c.shutdownCh:
+			os.RemoveAll(pathToAllocDir)
+			return nil, fmt.Errorf("stopping migration of alloc %q since client is shutting down", alloc.ID)
+		}
+
+		// Get the next header
+		hdr, err := tr.Next()
+
+		// If the snapshot has ended then we create the previous
+		// allocdir
+		if err == io.EOF {
+			prevAllocDir := allocdir.NewAllocDir(pathToAllocDir, 0)
+			return prevAllocDir, nil
+		}
+		// If there is an error then we avoid creating the alloc dir
+		if err != nil {
+			os.RemoveAll(pathToAllocDir)
+			return nil, fmt.Errorf("error creating alloc dir for alloc %q: %v", alloc.ID, err)
+		}
+
+		// If the header is for a directory we create the directory
+		if hdr.Typeflag == tar.TypeDir {
+			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), 0777)
+			continue
+		}
+		// If the header is a file, we write to a file
+		if hdr.Typeflag == tar.TypeReg {
+			f, err := os.Create(filepath.Join(pathToAllocDir, hdr.Name))
+			if err != nil {
+				c.logger.Printf("[ERR] client: error creating file: %v", err)
+				continue
+			}
+
+			// We write in chunks of 32 bytes so that we can test if
+			// the client is still alive
+			for {
+				if c.shutdown {
+					f.Close()
+					os.RemoveAll(pathToAllocDir)
+					return nil, fmt.Errorf("stopping migration of alloc %q because client is shutting down", alloc.ID)
+				}
+
+				n, err := tr.Read(buf)
+				if err != nil {
+					f.Close()
+					if err != io.EOF {
+						return nil, fmt.Errorf("error reading snapshot: %v", err)
+					}
+					break
+				}
+				if _, err := f.Write(buf[:n]); err != nil {
+					f.Close()
+					os.RemoveAll(pathToAllocDir)
+					return nil, fmt.Errorf("error writing to file %q: %v", f.Name(), err)
+				}
+			}
+
+		}
+	}
 }
 
 // getNode gets the node from the server with the given Node ID
