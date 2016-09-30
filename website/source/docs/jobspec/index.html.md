@@ -175,6 +175,8 @@ The `job` object supports the following keys:
     }
     ```
 
+<a id="periodic"></a>
+
 *   `periodic` - `periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The periodic expression is always evaluated in the UTC
     timezone to ensure consistent evaluation when Nomad Servers span multiple
