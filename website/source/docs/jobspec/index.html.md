@@ -426,7 +426,8 @@ logs {
 
 In the above example we have asked Nomad to retain 3 rotated files for each of
 `stderr` and `stdout`, each a maximum size of 10MB per file. The minimum disk
-space this would require is 60MB (3 stderr files * 3 stdout files * 10MB = 60MB).
+space this would require is 60MB
+(3 `stderr` files * 3 `stdout` files * 10MB = 60MB).
 
 <a id="artifact_doc"></a>
 
