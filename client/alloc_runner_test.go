@@ -861,3 +861,71 @@ func TestAllocRunner_SaveRestoreState_VaultTokens_Invalid(t *testing.T) {
 		t.Fatalf("took too long to terminate")
 	}
 }
+
+func TestAllocRunner_MoveAllocDir(t *testing.T) {
+	// Create an alloc runner
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	go ar.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Write some data in data dir and task dir of the alloc
+	dataFile := filepath.Join(ar.ctx.AllocDir.SharedDir, "data", "data_file")
+	ioutil.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
+	taskDir := ar.ctx.AllocDir.TaskDirs[task.Name]
+	taskLocalFile := filepath.Join(taskDir, "local", "local_file")
+	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
+
+	// Create another alloc runner
+	alloc1 := mock.Alloc()
+	task = alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
+	ar1.SetPreviousAllocDir(ar.ctx.AllocDir)
+	go ar1.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd1.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd1.Allocs[upd1.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure that data from ar1 was moved to ar
+	taskDir = ar1.ctx.AllocDir.TaskDirs[task.Name]
+	taskLocalFile = filepath.Join(taskDir, "local", "local_file")
+	if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
+		t.Fatalf("file %v not found", taskLocalFile)
+	}
+
+	dataFile = filepath.Join(ar1.ctx.AllocDir.SharedDir, "data", "data_file")
+	if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
+		t.Fatalf("file %v not found", dataFile)
+	}
+}

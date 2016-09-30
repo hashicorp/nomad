@@ -2980,17 +2980,17 @@ func (a *Allocation) Stub() *AllocListStub {
 	}
 }
 
-// StopMigration returns if the allocation needs data migration
-func (a *Allocation) StopMigration() bool {
+// ShouldMigrate returns if the allocation needs data migration
+func (a *Allocation) ShouldMigrate() bool {
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
-		return true
+		return false
 	}
 
 	if tg := a.Job.LookupTaskGroup(a.TaskGroup); tg != nil && !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 var (

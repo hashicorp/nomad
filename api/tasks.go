@@ -84,8 +84,9 @@ type Service struct {
 
 // EphemeralDisk is an ephemeral disk object
 type EphemeralDisk struct {
-	Sticky bool
-	SizeMB int `mapstructure:"size"`
+	Sticky  bool
+	Migrate bool
+	SizeMB  int `mapstructure:"size"`
 }
 
 // TaskGroup is the unit of scheduling.

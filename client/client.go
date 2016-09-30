@@ -177,6 +177,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		allocUpdates:       make(chan *structs.Allocation, 64),
 		shutdownCh:         make(chan struct{}),
 		migratingAllocs:    make(map[string]chan struct{}),
+		servers:            newServerList(),
 	}
 
 	// Initialize the client
@@ -1314,7 +1315,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		if ok {
 			// Stopping the migration if the allocation doesn't need any
 			// migration
-			if update.updated.StopMigration() {
+			if !update.updated.ShouldMigrate() {
 				close(ch)
 			}
 		}
@@ -1383,7 +1384,7 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 	}
 
 	// Migrate the data from the remote node
-	prevAllocDir, err := c.migrateRemoteAllocDir(prevAlloc)
+	prevAllocDir, err := c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
 	if err != nil {
 		c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v", alloc.PreviousAllocation, err)
 	}
@@ -1405,8 +1406,8 @@ func (c *Client) waitForAllocTerminal(allocID string) (*structs.Allocation, erro
 		},
 	}
 
-	resp := structs.SingleAllocResponse{}
 	for {
+		resp := structs.SingleAllocResponse{}
 		err := c.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
 			c.logger.Printf("[ERR] client: failed to query allocation %q: %v", allocID, err)
@@ -1435,12 +1436,12 @@ func (c *Client) waitForAllocTerminal(allocID string) (*structs.Allocation, erro
 
 // migrateRemoteAllocDir migrates the allocation directory from a remote node to
 // the current node
-func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation) (*allocdir.AllocDir, error) {
+func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string) (*allocdir.AllocDir, error) {
 	if alloc == nil {
 		return nil, nil
 	}
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		return nil, fmt.Errorf("Task Group %q not found in job %q", tg.Name, alloc.Job.ID)
 	}
@@ -1456,6 +1457,11 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation) (*allocdir.All
 	// If the node is down then skip migrating the data
 	if err != nil {
 		return nil, fmt.Errorf("error retreiving node %v: %v", alloc.NodeID, err)
+	}
+
+	// Check if node is nil
+	if node == nil {
+		return nil, fmt.Errorf("node %q doesn't exist", alloc.NodeID)
 	}
 
 	// skip migration if the remote node is down
@@ -1482,7 +1488,7 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation) (*allocdir.All
 
 	buf := make([]byte, 1024)
 
-	stopMigrating, ok := c.migratingAllocs[alloc.ID]
+	stopMigrating, ok := c.migratingAllocs[allocID]
 	if !ok {
 		os.RemoveAll(pathToAllocDir)
 		return nil, fmt.Errorf("couldn't find a migration validity notifier for alloc: %v", alloc.ID)
@@ -1496,6 +1502,7 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation) (*allocdir.All
 		case <-c.shutdownCh:
 			os.RemoveAll(pathToAllocDir)
 			return nil, fmt.Errorf("stopping migration of alloc %q since client is shutting down", alloc.ID)
+		default:
 		}
 
 		// Get the next header
