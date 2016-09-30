@@ -1607,11 +1607,17 @@ DISCOLOOP:
 func (c *Client) consulReaper() {
 	ticker := time.NewTicker(consulReaperIntv)
 	defer ticker.Stop()
+	lastok := true
 	for {
 		select {
 		case <-ticker.C:
 			if err := c.consulReaperImpl(); err != nil {
-				c.logger.Printf("[ERR] consul.client: error reaping services in consul: %v", err)
+				if lastok {
+					c.logger.Printf("[ERR] consul.client: error reaping services in consul: %v", err)
+					lastok = false
+				}
+			} else {
+				lastok = true
 			}
 		case <-c.shutdownCh:
 			return
