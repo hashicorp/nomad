@@ -17,7 +17,7 @@ The syntax for interpreting variables is `${variable}`. An example and a
 comprehensive list of interpretable fields can be seen below:
 
 ```hcl
-task "demo" {
+task "docs" {
   driver = "docker"
 
   # Drivers support interpreting node attributes and runtime environment
@@ -61,99 +61,125 @@ task "demo" {
 ## Node Variables <a id="interpreted_node_vars"></a>
 
 Below is a full listing of node attributes that are interpretable. These
-attributes are Interpreted by __both__ constraints and within the task and
+attributes are interpreted by __both__ constraints and within the task and
 driver.
 
 <table class="table table-bordered table-striped">
   <tr>
     <th>Variable</th>
     <th>Description</th>
-    <th>Example</th>
+    <th>Example Value</th>
   </tr>
   <tr>
-    <td>${node.unique.id}</td>
-    <td>The 36 character unique client node identifier</td>
-    <td>9afa5da1-8f39-25a2-48dc-ba31fd7c0023</td>
+    <td><tt>${node.unique.id}</tt></td>
+    <td>36 character unique client identifier</td>
+    <td><tt>9afa5da1-8f39-25a2-48dc-ba31fd7c0023</tt></td>
   </tr>
   <tr>
-    <td>${node.datacenter}</td>
-    <td>The client node's datacenter</td>
-    <td>dc1</td>
+    <td><tt>${node.datacenter}</tt></td>
+    <td>Client's datacenter</td>
+    <td><tt>dc1</tt></td>
   </tr>
   <tr>
-    <td>${node.unique.name}</td>
-    <td>The client node's name</td>
-    <td>nomad-client-10-1-2-4</td>
+    <td><tt>${node.unique.name}</tt></td>
+    <td>Client's name</td>
+    <td><tt>nomad-client-10-1-2-4</tt></td>
   </tr>
   <tr>
-    <td>${node.class}</td>
-    <td>The client node's class</td>
-    <td>linux-64bit</td>
+    <td><tt>${node.class}</tt></td>
+    <td>Client's class</td>
+    <td><tt>linux-64bit</tt></td>
   </tr>
   <tr>
-    <td>${attr."key"}</td>
-    <td>The attribute given by `key` on the client node.</td>
-    <td>platform.aws.instance-type:r3.large</td>
+    <td><tt>${attr.&lt;property&gt;}</tt></td>
+    <td>Property given by <tt>property</tt> on the client</td>
+    <td><tt>${attr.arch} => amd64</tt></td>
   </tr>
   <tr>
-    <td>${meta."key"}</td>
-    <td>The metadata value given by `key` on the client node.</td>
-    <td></td>
+    <td><tt>${meta.&lt;key&gt;}</tt></td>
+    <td>Metadata value given by <tt>key</tt> on the client</td>
+    <td><tt>${meta.foo} => bar</tt></td>
   </tr>
 </table>
 
-Below is a table documenting common node attributes:
+Below is a table documenting common node properties:
 
 <table class="table table-bordered table-striped">
   <tr>
-    <th>Attribute</th>
+    <th>Property</th>
     <th>Description</th>
   </tr>
   <tr>
-    <td>arch</td>
-    <td>CPU architecture of the client. Examples: `amd64`, `386`</td>
+    <td><tt>arch</tt></td>
+    <td>CPU architecture of the client (e.g. <tt>amd64</tt>, <tt>386</tt>)</td>
   </tr>
   <tr>
-    <td>consul.datacenter</td>
-    <td>The Consul datacenter of the client node if Consul found</td>
+    <td><tt>consul.datacenter</tt></td>
+    <td>The Consul datacenter of the client (if Consul is found)</td>
   </tr>
   <tr>
-    <td>cpu.numcores</td>
+    <td><tt>cpu.numcores</tt></td>
     <td>Number of CPU cores on the client</td>
   </tr>
   <tr>
-    <td>driver."key"</td>
-    <td>See the [task drivers](/docs/drivers/index.html) for attribute documentation</td>
+    <td><tt>driver.&lt;property&gt;</tt></td>
+    <td>See the [task drivers](/docs/drivers/index.html) for property documentation</td>
   </tr>
   <tr>
-    <td>unique.hostname</td>
+    <td><tt>unique.hostname</tt></td>
     <td>Hostname of the client</td>
   </tr>
   <tr>
-    <td>kernel.name</td>
-    <td>Kernel of the client. Examples: `linux`, `darwin`</td>
+    <td><tt>kernel.name</tt></td>
+    <td>Kernel of the client (e.g. <tt>linux</tt>, <tt>darwin</tt>)</td>
   </tr>
   <tr>
-    <td>kernel.version</td>
-    <td>Version of the client kernel. Examples: `3.19.0-25-generic`, `15.0.0`</td>
+    <td><tt>kernel.version</tt></td>
+    <td>Version of the client kernel (e.g. <tt>3.19.0-25-generic</tt>, <tt>15.0.0</tt>)</td>
   </tr>
   <tr>
-    <td>platform.aws.ami-id</td>
-    <td>On EC2, the AMI ID of the client node</td>
+    <td><tt>platform.aws.ami-id</tt></td>
+    <td>AMI ID of the client (if on AWS EC2)</td>
   </tr>
   <tr>
-    <td>platform.aws.instance-type</td>
-    <td>On EC2, the instance type of the client node</td>
+    <td><tt>platform.aws.instance-type</tt></td>
+    <td>Instance type of the client (if on AWS EC2)</td>
   </tr>
   <tr>
-    <td>os.name</td>
-    <td>Operating system of the client. Examples: `ubuntu`, `windows`, `darwin`</td>
+    <td><tt>os.name</tt></td>
+    <td>Operating system of the client (e.g. <tt>ubuntu</tt>, <tt>windows</tt>, <tt>darwin</tt>)</td>
   </tr>
   <tr>
-    <td>os.version</td>
+    <td><tt>os.version</tt></td>
     <td>Version of the client OS</td>
   </tr>
 </table>
+
+Here are some examples of using node attributes and properties in a job file:
+
+```hcl
+job "docs" {
+  # This will constrain this job to only run on 64-bit clients.
+  constraint {
+    attribute = "${attr.arch}"
+    value     = "amd64"
+  }
+
+  # This will restrict the job to only run on clients with 4 or more cores.
+  # Note: you may also declare a resource requirement for CPU for a task.
+  constraint {
+    attribute = "${cpu.numcores}"
+    operator  = ">="
+    value     = "4"
+  }
+
+  # Only run this job on a memory-optimized AWS EC2 instance.
+  constraint {
+    attribute = "${attr.platform.aws.instance-type}"
+    value     = "m4.xlarge"
+  }
+}
+```
 
 ## Environment Variables <a id="interpreted_env_vars"></a>
 
@@ -167,68 +193,63 @@ a particular node and as such can not be used in constraints.
     <th>Description</th>
   </tr>
   <tr>
-    <td>${NOMAD_ALLOC_DIR}</td>
-    <td>The path to the shared `alloc/` directory. See
-    [here](/docs/jobspec/environment.html#task_dir) for more
-    information.</td>
+    <td><tt>${NOMAD_ALLOC_DIR}</tt></td>
+    <td>The path to the shared <tt>alloc/</tt> directory. See [here](/docs/jobspec/environment.html#task_dir) for more information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_TASK_DIR}</td>
-    <td>The path to the task `local/` directory. See
-    [here](/docs/jobspec/environment.html#task_dir) for more
-    information.</td>
+    <td><tt>${NOMAD_TASK_DIR}</tt></td>
+    <td>The path to the task <tt>local/</tt> directory. See [here](/docs/jobspec/environment.html#task_dir) for more information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_MEMORY_LIMIT}</td>
+    <td><tt>${NOMAD_MEMORY_LIMIT}</tt></td>
     <td>The memory limit in MBytes for the task</td>
   </tr>
   <tr>
-    <td>${NOMAD_CPU_LIMIT}</td>
+    <td><tt>${NOMAD_CPU_LIMIT}</tt></td>
     <td>The CPU limit in MHz for the task</td>
   </tr>
   <tr>
-    <td>${NOMAD_ALLOC_ID}</td>
+    <td><tt>${NOMAD_ALLOC_ID}</tt></td>
     <td>The allocation ID of the task</td>
   </tr>
   <tr>
-    <td>${NOMAD_ALLOC_NAME}</td>
+    <td><tt>${NOMAD_ALLOC_NAME}</tt></td>
     <td>The allocation name of the task</td>
   </tr>
   <tr>
-    <td>${NOMAD_ALLOC_INDEX}</td>
+    <td><tt>${NOMAD_ALLOC_INDEX}</tt></td>
     <td>The allocation index; useful to distinguish instances of task groups</td>
   </tr>
   <tr>
-    <td>${NOMAD_TASK_NAME}</td>
+    <td><tt>${NOMAD_TASK_NAME}</tt></td>
     <td>The task's name</td>
   </tr>
   <tr>
-    <td>${NOMAD_IP_"label"}</td>
-    <td>The IP for the given port `label`. See
+    <td><tt>${NOMAD_IP_&lt;label&gt;}</tt></td>
+    <td>The IP for the given port <tt>label</tt>. See
     [here](/docs/jobspec/networking.html) for more information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_PORT_"label"}</td>
-    <td>The port for the port `label`. See [here](/docs/jobspec/networking.html)
-    for more information.</td>
+    <td><tt>${NOMAD_PORT_&lt;label&gt;}</tt></td>
+    <td>The port for the port <tt>label</tt>. See [here](/docs/jobspec/networking.html) for more information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_ADDR_"label"}</td>
-    <td>The `ip:port` pair for the given port `label`. See
+    <td><tt>${NOMAD_ADDR_&lt;label&gt;}</tt></td>
+    <td>The <tt>ip:port</tt> pair for the given port <tt>label</tt>. See
     [here](/docs/jobspec/networking.html) for more information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_HOST_PORT_"label"}</td>
+    <td><tt>${NOMAD_HOST_PORT_&lt;label&gt;}</tt></td>
     <td>The port on the host if port forwarding is being used for the port
-    `label`. See [here](/docs/jobspec/networking.html#mapped_ports) for more
+    <tt>label</tt>. See [here](/docs/jobspec/networking.html#mapped_ports) for more
     information.</td>
   </tr>
   <tr>
-    <td>${NOMAD_META_"key"}</td>
-    <td>The metadata value given by `key` on the task's metadata</td>
+    <td><tt>${NOMAD_META_&lt;key&gt;}</tt></td>
+    <td>The metadata value given by <tt>key</tt> on the task's metadata</td>
   </tr>
   <tr>
-    <td>${"env_key"}</td>
-    <td>Interpret an environment variable with key `env_key` set on the task.</td>
+    <td><tt>${"env_key"}</tt></td>
+    <td>Interpret an environment variable with key <tt>env_key</tt> set on the task.</td>
   </tr>
 </table>
