@@ -83,6 +83,16 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	return server
 }
 
+func configureTLS(config *Config) {
+	config.VerifyIncoming = true
+	config.VerifyOutgoing = true
+	config.CAFile = "../test/ca/root.cer"
+	config.CertFile = "../test/key/server.cer"
+	config.KeyFile = "../test/key/server.key"
+	config.Domain = "internal"
+	config.Region = "test"
+}
+
 func testJoin(t *testing.T, s1 *Server, other ...*Server) {
 	addr := fmt.Sprintf("127.0.0.1:%d",
 		s1.config.SerfConfig.MemberlistConfig.BindPort)
@@ -97,6 +107,16 @@ func testJoin(t *testing.T, s1 *Server, other ...*Server) {
 
 func TestServer_RPC(t *testing.T) {
 	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+
+	var out struct{}
+	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestServer_RPC_TLS(t *testing.T) {
+	s1 := testServer(t, configureTLS)
 	defer s1.Shutdown()
 
 	var out struct{}

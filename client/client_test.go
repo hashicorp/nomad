@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
@@ -83,7 +84,7 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	return server, config.RPCAddr.String()
 }
 
-func testClient(t *testing.T, cb func(c *config.Config)) *Client {
+func testClient(t *testing.T, cb func(c *config.Config), tlsWrap tlsutil.DCWrapper) *Client {
 	conf := config.DefaultConfig()
 	conf.VaultConfig.Enabled = false
 	conf.DevMode = true
@@ -98,15 +99,25 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	}
 
 	logger := log.New(conf.LogOutput, "", log.LstdFlags)
-	client, err := NewClient(conf, consulSyncer, logger)
+	client, err := NewClient(conf, consulSyncer, logger, tlsWrap)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	return client
 }
 
+func configureTLS(config *nomad.Config, mode string) {
+	config.VerifyIncoming = true
+	config.VerifyOutgoing = true
+	config.CAFile = "../test/ca/root.cer"
+	config.CertFile = fmt.Sprintf("../test/key/%s.cer", mode)
+	config.KeyFile = fmt.Sprintf("../test/key/%s.key", mode)
+	config.Domain = "internal"
+	config.Region = "test"
+}
+
 func TestClient_StartStop(t *testing.T) {
-	client := testClient(t, nil)
+	client := testClient(t, nil, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -118,7 +129,36 @@ func TestClient_RPC(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
+	}, nil)
+	defer c1.Shutdown()
+
+	// RPC should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		var out struct{}
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestClient_RPC_TLS(t *testing.T) {
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		configureTLS(c, "server")
+	})
+	defer s1.Shutdown()
+
+	conf := nomad.DefaultConfig()
+	configureTLS(conf, "client")
+	tlsWrap, err := conf.TlsConfig().OutgoingTLSWrapper()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.Region = "test"
+	}, tlsWrap)
 	defer c1.Shutdown()
 
 	// RPC should succeed
@@ -137,7 +177,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// RPC should succeed
@@ -151,7 +191,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 }
 
 func TestClient_Fingerprint(t *testing.T) {
-	c := testClient(t, nil)
+	c := testClient(t, nil, nil)
 	defer c.Shutdown()
 
 	// Ensure kernel and arch are always present
@@ -165,7 +205,7 @@ func TestClient_Fingerprint(t *testing.T) {
 }
 
 func TestClient_HasNodeChanged(t *testing.T) {
-	c := testClient(t, nil)
+	c := testClient(t, nil, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -203,7 +243,7 @@ func TestClient_Fingerprint_InWhitelist(t *testing.T) {
 
 		// Weird spacing to test trimming. Whitelist all modules expect cpu.
 		c.Options["fingerprint.whitelist"] = "  arch, consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar	"
-	})
+	}, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -219,7 +259,7 @@ func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
 		}
 
 		c.Options["fingerprint.whitelist"] = "arch,consul,env_aws,env_gce,host,memory,network,storage,foo,bar"
-	})
+	}, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -229,7 +269,7 @@ func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
 }
 
 func TestClient_Drivers(t *testing.T) {
-	c := testClient(t, nil)
+	c := testClient(t, nil, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -250,7 +290,7 @@ func TestClient_Drivers_InWhitelist(t *testing.T) {
 
 		// Weird spacing to test trimming
 		c.Options["driver.whitelist"] = "   exec ,  foo	"
-	})
+	}, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -270,7 +310,7 @@ func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
 		}
 
 		c.Options["driver.whitelist"] = "foo,bar,baz"
-	})
+	}, nil)
 	defer c.Shutdown()
 
 	node := c.Node()
@@ -286,7 +326,7 @@ func TestClient_Register(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	req := structs.NodeSpecificRequest{
@@ -319,7 +359,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	req := structs.NodeSpecificRequest{
@@ -350,7 +390,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// Wait til the node is ready
@@ -399,7 +439,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// Wait til the node is ready
@@ -498,7 +538,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c1 := testClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// Wait til the node is ready
@@ -554,7 +594,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	c2, err := NewClient(c1.config, consulSyncer, logger)
+	c2, err := NewClient(c1.config, consulSyncer, logger, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -615,7 +655,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
-	})
+	}, nil)
 	defer c1.Shutdown()
 
 	// Wait for the node to be ready

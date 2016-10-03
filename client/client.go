@@ -19,6 +19,7 @@ import (
 	"github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -163,13 +164,14 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
+func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger,
+	tlsWrap tlsutil.DCWrapper) (*Client, error) {
 	// Create the client
 	c := &Client{
 		config:             cfg,
 		consulSyncer:       consulSyncer,
 		start:              time.Now(),
-		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:             logger,
 		hostStatsCollector: stats.NewHostStatsCollector(),
 		allocs:             make(map[string]*AllocRunner),

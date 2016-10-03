@@ -41,6 +41,34 @@ type Config struct {
 	// EnableDebug is used to enable debugging HTTP endpoints
 	EnableDebug bool `mapstructure:"enable_debug"`
 
+	// VerifyIncoming is used to verify the authenticity of incoming connections.
+	// This means that TCP requests are forbidden, only allowing for TLS. TLS connections
+	// must match a provided certificate authority. This can be used to force client auth.
+	VerifyIncoming bool `mapstructure:"verify_incoming"`
+
+	// VerifyOutgoing is used to verify the authenticity of outgoing connections.
+	// This means that TLS requests are used. TLS connections must match a provided
+	// certificate authority. This is used to verify authenticity of server nodes.
+	// This also ensures that the certificate presented is valid for server.<region>.<domain>
+	// in order to prevent a compromised client from being restarted as a server, and then
+	// intercepting request traffic as well as being added as a raft peer.
+	VerifyOutgoing bool `mapstructure:"verify_outgoing"`
+
+	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
+	// or VerifyOutgoing to verify the TLS connection.
+	CAFile string `mapstructure:"ca_file"`
+
+	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	CertFile string `mapstructure:"cert_file"`
+
+	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	KeyFile string `mapstructure:"key_file"`
+
+	// This is used during CAFile verification if VerifyOutgoing is set to true
+	Domain string `mapstructure:"domain"`
+
 	// Ports is used to control the network ports we bind to.
 	Ports *Ports `mapstructure:"ports"`
 
@@ -442,6 +470,7 @@ func DefaultConfig() *Config {
 		LogLevel:   "INFO",
 		Region:     "global",
 		Datacenter: "dc1",
+		Domain:     "nomad",
 		BindAddr:   "127.0.0.1",
 		Ports: &Ports{
 			HTTP: 4646,
@@ -543,6 +572,26 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
+	}
+
+	// Apply TLS config
+	if b.VerifyIncoming {
+		result.VerifyIncoming = true
+	}
+	if b.VerifyOutgoing {
+		result.VerifyOutgoing = true
+	}
+	if b.CAFile != "" {
+		result.CAFile = b.CAFile
+	}
+	if b.CertFile != "" {
+		result.CertFile = b.CertFile
+	}
+	if b.KeyFile != "" {
+		result.KeyFile = b.KeyFile
+	}
+	if b.Domain != "" {
+		result.Domain = b.Domain
 	}
 
 	// Apply the telemetry config
