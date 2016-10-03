@@ -182,6 +182,12 @@
 			"revision": "c6ba97b89e0454fec9aa92e1d33a4e2c5fc1f631"
 		},
 		{
+			"checksumSHA1": "InIrfOI7Ys1QqZpCgTB4yW1G32M=",
+			"path": "github.com/burntsushi/toml",
+			"revision": "99064174e013895bbd9b025c31100bd1d9b590ca",
+			"revisionTime": "2016-07-17T15:07:09Z"
+		},
+		{
 			"checksumSHA1": "qNHg4l2+bg50XQUR094857jPOoQ=",
 			"path": "github.com/circonus-labs/circonus-gometrics",
 			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
@@ -309,7 +315,7 @@
 			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
 			"revisionTime": "2016-05-28T10:48:36Z"
 		},
-        {
+		{
 			"checksumSHA1": "BwY1agr5vzusgMT4bM7UeD3YVpw=",
 			"path": "github.com/docker/engine-api/types/mount",
 			"revision": "4290f40c056686fcaa5c9caf02eac1dde9315adf",
@@ -475,6 +481,48 @@
 			"comment": "1.0.0",
 			"path": "github.com/gorhill/cronexpr/cronexpr",
 			"revision": "a557574d6c024ed6e36acc8b610f5f211c91568a"
+		},
+		{
+			"checksumSHA1": "+JUQvWp1JUVeRT5weWL9hi6Fu4Y=",
+			"path": "github.com/hashicorp/consul-template/child",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "tSuVPDoqSzoWmo2oEF5NGkIJHxQ=",
+			"path": "github.com/hashicorp/consul-template/config",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "3xeTTZejqagwfwaYT8M3rq1Ixko=",
+			"path": "github.com/hashicorp/consul-template/dependency",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "Z1QKRRJ/6/FjRIw1LJXTtOUxxX8=",
+			"path": "github.com/hashicorp/consul-template/manager",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "ByMIKPf7bXpyhhy80IjKLKYrjpo=",
+			"path": "github.com/hashicorp/consul-template/signals",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "pvmWk53vtXCCL6p+c3XU2aQfkx4=",
+			"path": "github.com/hashicorp/consul-template/template",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
+		},
+		{
+			"checksumSHA1": "sR2e74n4zQEUDR6ssjvMr9lP7sI=",
+			"path": "github.com/hashicorp/consul-template/watch",
+			"revision": "a8f654d612969519c9fde20bc8eb21418d763f73",
+			"revisionTime": "2016-10-03T19:46:06Z"
 		},
 		{
 			"comment": "v0.6.3-363-gae32a3c",
@@ -696,6 +744,12 @@
 			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639"
 		},
 		{
+			"checksumSHA1": "ajImwVZHzsI+aNwsgzCSFSbmJqs=",
+			"path": "github.com/mattn/go-shellwords",
+			"revision": "f4e566c536cf69158e808ec28ef4182a37fdc981",
+			"revisionTime": "2015-03-21T17:42:21Z"
+		},
+		{
 			"path": "github.com/miekg/dns",
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
@@ -896,6 +950,12 @@
 			"path": "gopkg.in/tomb.v2",
 			"revision": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8",
 			"revisionTime": "2014-06-26T14:46:23Z"
+		},
+		{
+			"checksumSHA1": "12GqsW8PiRPnezDDy0v4brZrndM=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "a5b47d31c556af34a302ce5d659e6fea44d90de0",
+			"revisionTime": "2016-09-28T15:37:09Z"
 		}
 	],
 	"rootPath": "github.com/hashicorp/nomad"
