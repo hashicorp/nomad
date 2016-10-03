@@ -2222,24 +2222,21 @@ type Template struct {
 	// DestPath is the path to where the template should be rendered
 	DestPath string `mapstructure:"destination"`
 
-	// EmbededTmpl store the raw template. This is useful for smaller templates
+	// EmbeddedTmpl store the raw template. This is useful for smaller templates
 	// where they are embeded in the job file rather than sent as an artificat
-	EmbededTmpl string `mapstructure:"data"`
+	EmbeddedTmpl string `mapstructure:"data"`
 
 	// ChangeMode indicates what should be done if the template is re-rendered
 	ChangeMode string `mapstructure:"change_mode"`
 
-	// RestartSignal is the signal that should be sent if the change mode
+	// ChangeSignal is the signal that should be sent if the change mode
 	// requires it.
-	RestartSignal string `mapstructure:"restart_signal"`
+	ChangeSignal string `mapstructure:"change_signal"`
 
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
 	Splay time.Duration `mapstructure:"splay"`
-
-	// Once mode is used to indicate that template should be rendered only once
-	Once bool `mapstructure:"once"`
 }
 
 // DefaultTemplate returns a default template.
@@ -2247,7 +2244,6 @@ func DefaultTemplate() *Template {
 	return &Template{
 		ChangeMode: TemplateChangeModeRestart,
 		Splay:      5 * time.Second,
-		Once:       false,
 	}
 }
 
@@ -2264,7 +2260,7 @@ func (t *Template) Validate() error {
 	var mErr multierror.Error
 
 	// Verify we have something to render
-	if t.SourcePath == "" && t.EmbededTmpl == "" {
+	if t.SourcePath == "" && t.EmbeddedTmpl == "" {
 		multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embeded template"))
 	}
 
@@ -2285,7 +2281,7 @@ func (t *Template) Validate() error {
 	switch t.ChangeMode {
 	case TemplateChangeModeNoop, TemplateChangeModeRestart:
 	case TemplateChangeModeSignal:
-		if t.RestartSignal == "" {
+		if t.ChangeSignal == "" {
 			multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
 		}
 	default:
