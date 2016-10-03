@@ -166,18 +166,20 @@ var (
 func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
 	// Create the client
 	c := &Client{
-		config:             cfg,
-		consulSyncer:       consulSyncer,
-		start:              time.Now(),
-		connPool:           nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
-		logger:             logger,
-		hostStatsCollector: stats.NewHostStatsCollector(),
-		allocs:             make(map[string]*AllocRunner),
-		blockedAllocations: make(map[string]*structs.Allocation),
-		allocUpdates:       make(chan *structs.Allocation, 64),
-		shutdownCh:         make(chan struct{}),
-		migratingAllocs:    make(map[string]chan struct{}),
-		servers:            newServerList(),
+		config:              cfg,
+		consulSyncer:        consulSyncer,
+		start:               time.Now(),
+		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		logger:              logger,
+		hostStatsCollector:  stats.NewHostStatsCollector(),
+		allocs:              make(map[string]*AllocRunner),
+		blockedAllocations:  make(map[string]*structs.Allocation),
+		allocUpdates:        make(chan *structs.Allocation, 64),
+		shutdownCh:          make(chan struct{}),
+		migratingAllocs:     make(map[string]chan struct{}),
+		servers:             newServerList(),
+		triggerDiscoveryCh:  make(chan struct{}),
+		serversDiscoveredCh: make(chan struct{}),
 	}
 
 	// Initialize the client
