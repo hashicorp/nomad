@@ -791,12 +791,18 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
 	}
-	ss, err := exec.LaunchSyslogServer(executorCtx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+
+	// Only launch syslog server if we're going to use it!
+	syslogAddr := ""
+	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
+		ss, err := exec.LaunchSyslogServer(executorCtx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+		}
+		syslogAddr = ss.Addr
 	}
 
-	config, err := d.createContainer(ctx, task, driverConfig, ss.Addr)
+	config, err := d.createContainer(ctx, task, driverConfig, syslogAddr)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", image, err)
 		pluginClient.Kill()
