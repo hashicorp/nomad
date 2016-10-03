@@ -1156,7 +1156,7 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	}
 }
 
-func TestAllocation_StopMigration(t *testing.T) {
+func TestAllocation_ShouldMigrate(t *testing.T) {
 	alloc := Allocation{
 		TaskGroup: "foo",
 		Job: &Job{
@@ -1172,7 +1172,7 @@ func TestAllocation_StopMigration(t *testing.T) {
 		},
 	}
 
-	if alloc.StopMigration() {
+	if !alloc.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
 	}
 
@@ -1188,7 +1188,7 @@ func TestAllocation_StopMigration(t *testing.T) {
 		},
 	}
 
-	if !alloc1.StopMigration() {
+	if alloc1.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
 	}
 
@@ -1207,7 +1207,7 @@ func TestAllocation_StopMigration(t *testing.T) {
 		},
 	}
 
-	if !alloc2.StopMigration() {
+	if alloc2.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
 	}
 }

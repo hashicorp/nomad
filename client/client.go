@@ -1323,7 +1323,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Start the new allocations
 	for _, add := range diff.added {
-		// If the allocation is chanined and the previous allocation hasn't
+		// If the allocation is chained and the previous allocation hasn't
 		// terminated yet, then add the alloc to the blocked queue.
 		ar, ok := c.getAllocRunners()[add.PreviousAllocation]
 		if ok && !ar.Alloc().Terminated() {
@@ -1466,7 +1466,8 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 
 	// skip migration if the remote node is down
 	if node.Status == structs.NodeStatusDown {
-		return nil, fmt.Errorf("node %q is down", alloc.NodeID)
+		c.logger.Printf("[INFO] client: not migrating data from alloc %q since node %q is down", alloc.ID, alloc.NodeID)
+		return nil, nil
 	}
 
 	// Create the previous alloc dir
@@ -1498,10 +1499,12 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 		select {
 		case <-stopMigrating:
 			os.RemoveAll(pathToAllocDir)
-			return nil, fmt.Errorf("stopping migration of allocdir for alloc: %v", alloc.ID)
+			c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", alloc.ID)
+			return nil, nil
 		case <-c.shutdownCh:
 			os.RemoveAll(pathToAllocDir)
-			return nil, fmt.Errorf("stopping migration of alloc %q since client is shutting down", alloc.ID)
+			c.logger.Printf("[INFO] client: stopping migration of alloc %q since client is shutting down", alloc.ID)
+			return nil, nil
 		default:
 		}
 
@@ -1539,7 +1542,8 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 				if c.shutdown {
 					f.Close()
 					os.RemoveAll(pathToAllocDir)
-					return nil, fmt.Errorf("stopping migration of alloc %q because client is shutting down", alloc.ID)
+					c.logger.Printf("[INFO] client: stopping migration of alloc %q because client is shutting down", alloc.ID)
+					return nil, nil
 				}
 
 				n, err := tr.Read(buf)
