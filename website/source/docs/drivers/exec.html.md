@@ -87,19 +87,6 @@ The `exec` driver will set the following client attributes:
 
 * `driver.exec` - This will be set to "1", indicating the driver is available.
 
-Here is an example of using these properties in a job file:
-
-```hcl
-job "docs" {
-  # Only run this job where exec is enabled. (Note: this constraint is applied
-  # automatically if you specify a task that uses the exec driver).
-  constraint {
-    attribute = "${driver.exec}"
-    value     = "1"
-  }
-}
-```
-
 ## Resource Isolation
 
 The resource isolation provided varies by the operating system of
