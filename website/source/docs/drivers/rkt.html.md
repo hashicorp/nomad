@@ -6,31 +6,62 @@ description: |-
   The rkt task driver is used to run application containers using rkt.
 ---
 
-# Rkt Driver - Experimental
+# Rkt Driver
 
 Name: `rkt`
 
 The `rkt` driver provides an interface for using CoreOS rkt for running
-application containers. Currently, the driver supports launching containers but
+application containers.
+
+~> **Experimental!** Currently, the rkt driver supports launching containers but
 does not support dynamic ports. This can lead to port conflicts and as such,
 this driver is being marked as experimental and should be used with care.
 
 ## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "rkt"
+
+  config {
+    image = "redis:3.2"
+  }
+}    
+```
 
 The `rkt` driver supports the following configuration in the job spec:
 
 * `image` - The image to run. May be specified by name, hash, ACI address
   or docker registry.
 
+    ```hcl
+    config {
+      image = "https://hub.docker.internal/redis:3.2"
+    }
+    ```
+
 * `command` - (Optional) A command to execute on the ACI.
 
-*   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
-
+    ```hcl
+    config {
+      command = "my-command"
+    }
     ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", ${meta.foo}"]
+
+* `args` - (Optional) A list of arguments to the optional `command`. References
+  to environment variables or any [interpretable Nomad
+  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  launching the task.
+
+    ```hcl
+    config {
+      args = [
+        "-bind", "${NOMAD_PORT_http}",
+        "${nomad.datacenter}",
+        "${MY_ENV}",
+        "${meta.foo}",
+      ]
+    }
     ```
 
 * `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be
@@ -81,5 +112,5 @@ job "docs" {
 
 ## Resource Isolation
 
-This driver supports CPU and memory isolation by delegating to `rkt`. Network isolation
-is not supported as of now.
+This driver supports CPU and memory isolation by delegating to `rkt`. Network
+isolation is not supported as of now.

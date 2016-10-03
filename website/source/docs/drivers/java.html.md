@@ -10,11 +10,22 @@ description: |-
 
 Name: `java`
 
-The `Java` driver is used to execute Java applications packaged into a Java Jar
+The `java` driver is used to execute Java applications packaged into a Java Jar
 file. The driver requires the Jar file to be accessible from the Nomad
 client via the [`artifact` downloader](/docs/jobspec/index.html#artifact_doc).
 
 ## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "java"
+
+  config {
+    jar_path    = "local/exaple.jar"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+}  
+```
 
 The `java` driver supports the following configuration in the job spec:
 
@@ -23,14 +34,10 @@ The `java` driver supports the following configuration in the job spec:
   contains the Jar in a subfolder, the path will need to be the relative path
   (`subdir/from_archive/my.jar`).
 
-*   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
-
-    ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-    ```
+* `args` - (Optional) A list of arguments to the optional `command`. References
+  to environment variables or any [interpretable Nomad
+  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  launching the task.
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking
   java. These options are passed without being validated in any way by Nomad.
@@ -39,24 +46,25 @@ The `java` driver supports the following configuration in the job spec:
 
 A simple config block to run a Java Jar:
 
-```
+```hcl
 task "web" {
   driver = "java"
 
   config {
-    jar_path = "local/hello.jar"
+    jar_path    = "local/hello.jar"
     jvm_options = ["-Xmx2048m", "-Xms256m"]
   }
 
-  # Specifying an artifact is required with the "java"
-  # driver. This is the # mechanism to ship the Jar to be run.
+  # Specifying an artifact is required with the "java" driver. This is the
+  # mechanism to ship the Jar to be run.
   artifact {
-    source = "https://dl.dropboxusercontent.com/u/1234/hello.jar"
+    source = "https://internal.file.server/hello.jar"
 
     options {
       checksum = "md5:123445555555555"
     }
   }
+}
 ```
 
 ## Client Requirements
