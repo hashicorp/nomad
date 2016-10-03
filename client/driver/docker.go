@@ -117,7 +117,6 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
-	VolumesFrom      []string            `mapstructure:"volumes_from"`       // List of volumes-from
 }
 
 // Validate validates a docker driver config
@@ -254,9 +253,6 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"volumes": &fields.FieldSchema{
-				Type: fields.TypeArray,
-			},
-			"volumes_from": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 		},
@@ -397,18 +393,9 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	secretDirBind := fmt.Sprintf("%s:%s", secret, allocdir.TaskSecretsContainerPath)
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	var merr multierror.Error
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, false)
 	if len(driverConfig.Volumes) > 0 && !volumesEnabled {
-		merr.Errors = append(merr.Errors, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker Volumes: %+q", driverConfig.Volumes))
-	}
-
-	if len(driverConfig.VolumesFrom) > 0 && !volumesEnabled {
-		merr.Errors = append(merr.Errors, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker VolumesFrom: %+q", driverConfig.VolumesFrom))
-	}
-
-	if err := merr.ErrorOrNil(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker Volumes: %+q", driverConfig.Volumes)
 	}
 
 	if len(driverConfig.Volumes) > 0 {
@@ -479,8 +466,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
-		Binds:       binds,
-		VolumesFrom: driverConfig.VolumesFrom,
+		Binds: binds,
 		LogConfig: docker.LogConfig{
 			Type:   driverConfig.Logging[0].Type,
 			Config: driverConfig.Logging[0].Config,
@@ -490,9 +476,6 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
-	if d.config.ReadBoolDefault(dockerVolumesConfigOption, false) {
-		d.logger.Printf("[DEBUG] driver.docker: binding Volumes-From: %#v for %s", hostConfig.VolumesFrom, task.Name)
-	}
 
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
