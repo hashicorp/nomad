@@ -58,9 +58,17 @@ const (
 	// driver
 	dockerDriverAttr = "driver.docker"
 
+	// dockerSELinuxLabelConfigOption is the key for configuring the
+	// SELinux label for binds.
 	dockerSELinuxLabelConfigOption = "docker.volumes.selinuxlabel"
-	dockerVolumesConfigOption      = "docker.volumes.enabled"
-	dockerPrivilegedConfigOption   = "docker.privileged.enabled"
+
+	// dockerVolumesConfigOption is the key for enabling the use of custom
+	// bind volumes.
+	dockerVolumesConfigOption = "docker.volumes.enabled"
+
+	// dockerPrivilegedConfigOption is the key for running containers in
+	// Docker's privileged mode.
+	dockerPrivilegedConfigOption = "docker.privileged.enabled"
 
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
