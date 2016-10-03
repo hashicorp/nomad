@@ -16,24 +16,30 @@ and cleaning up after containers.
 
 ## Task Configuration
 
-The `docker` driver is configured via a `config` block:
-
-```
+```hcl
 task "webservice" {
-    driver = "docker"
-    config = {
-        image = "redis"
-        labels = {
-            group = "webservice-cache"
-        }
+  driver = "docker"
+
+  config {
+    image = "redis:3.2"
+    labels {
+      group = "webservice-cache"
     }
-}
+  }
+}    
 ```
 
-The following options are available for use in the job specification.
+The `docker` driver supports the following configuration in the job spec:
 
-* `image` - The Docker image to run. The image may include a tag or custom URL and should include `https://` if required.
-  By default it will be fetched from Docker Hub.
+* `image` - The Docker image to run. The image may include a tag or custom URL
+  and should include `https://` if required. By default it will be fetched from
+  Docker Hub.
+
+    ```hcl
+    config {
+      image = "https://hub.docker.internal/redis:3.2"
+    }
+    ````
 
 * `load` - (Optional) A list of paths to image archive files. If
   this key is not specified, Nomad assumes the `image` is hosted on a repository
@@ -43,6 +49,12 @@ The following options are available for use in the job specification.
 
 * `command` - (Optional) The command to run when starting the container.
 
+    ```hcl
+    config {
+      command = "my-command"
+    }
+    ```
+
 * `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the args are passed directly to the container.
   References to environment variables or any [interpretable Nomad
@@ -50,15 +62,27 @@ The following options are available for use in the job specification.
   launching the task. For example:
 
     ```hcl
-    args = [
-      "${nomad.datacenter}",
-      "${MY_ENV}",
-      "${meta.foo}",
-    ]
+    config {
+      args = [
+        "-bind", "${NOMAD_PORT_http}",
+        "${nomad.datacenter}",
+        "${MY_ENV}",
+        "${meta.foo}",
+      ]
+    }
     ```
 
 * `labels` - (Optional) A key/value map of labels to set to the containers on
   start.
+
+    ```hcl
+    config {
+      labels {
+        foo = "bar"
+        zip = "zap"
+      }
+    }
+    ```
 
 * `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
   the container access to devices on the host. Note that this also requires the
@@ -142,23 +166,23 @@ The `auth` object supports the following keys:
 
 Example:
 
-```
-task "secretservice" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    config {
-        image = "secret/service"
+  config {
+    image = "secret/service"
 
-        auth {
-            username = "dockerhub_user"
-            password = "dockerhub_password"
-        }
+    auth {
+      username = "dockerhub_user"
+      password = "dockerhub_password"
     }
+  }
 }
 ```
 
-**Please note that these credentials are stored in Nomad in plain text.**
-Secrets management will be added in a later release.
+!> **Be Careful!** At this time these credentials are stored in Nomad in plain
+text. Secrets management will be added in a later release.
 
 ## Networking
 
@@ -175,16 +199,16 @@ scope of Nomad.
 You can allocate ports to your task using the port syntax described on the
 [networking page](/docs/jobspec/networking.html). Here is a recap:
 
-```
-task "webservice" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    resources {
-        network {
-            port "http" {}
-            port "https" {}
-        }
+  resources {
+    network {
+      port "http" {}
+      port "https" {}
     }
+  }
 }
 ```
 
@@ -216,24 +240,24 @@ performance.
 If you prefer to use the traditional port-mapping method, you can specify the
 `port_map` option in your job specification. It looks like this:
 
-```
-task "redis" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    resources {
-        network {
-            mbits = 20
-            port "redis" {}
-        }
+  config {
+    image = "redis"
+
+    port_map {
+      redis = 6379
     }
+  }
 
-    config {
-      image = "redis"
-
-      port_map {
-        redis = 6379
-      }
+  resources {
+    network {
+      mbits = 20
+      port "redis" {}
     }
+  }
 }
 ```
 
@@ -320,12 +344,12 @@ config file.
 
 An example is given below:
 
-```
-    client {
-        options = {
-            "docker.cleanup.image" = "false"
-        }
-    }
+```hcl
+client {
+  options = {
+    "docker.cleanup.image" = "false"
+  }
+}
 ```
 
 ## Agent Attributes

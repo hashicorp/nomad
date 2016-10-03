@@ -18,6 +18,17 @@ scripts or other wrappers which provide higher level features.
 
 ## Task Configuration
 
+```hcl
+task "webservice" {
+  driver = "exec"
+
+  config {
+    command = "my-binary"
+    args    = ["-flag", "1"]
+  }
+}  
+```
+
 The `exec` driver supports the following configuration in the job spec:
 
 * `command` - The command to execute. Must be provided. If executing a binary
@@ -25,48 +36,45 @@ The `exec` driver supports the following configuration in the job spec:
   is downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc), the
   path can be relative from the allocations's root directory.
 
-*   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
-
-    ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-    ```
+* `args` - (Optional) A list of arguments to the optional `command`. References
+  to environment variables or any [interpretable Nomad
+  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  launching the task.
 
 ## Examples
 
 To run a binary present on the Node:
 
-```
-  task "example" {
-    driver = "exec"
+```hcl
+task "example" {
+  driver = "exec"
 
-    config {
-      # When running a binary that exists on the host, the path must be absolute
-      command = "/bin/sleep"
-      args = ["1"]
+  config {
+    # When running a binary that exists on the host, the path must be absolute.
+    command = "/bin/sleep"
+    args    = ["1"]
+  }
+}
+```
+
+To execute a binary downloaded from an
+[`artifact`](/docs/jobspec/index.html#artifact_doc):
+
+```hcl
+task "example" {
+  driver = "exec"
+
+  config {
+    command = "name-of-my-binary"
+  }
+
+  artifact {
+    source = "https://internal.file.server/name-of-my-binary"
+    options {
+      checksum = "sha256:abd123445ds4555555555"
     }
   }
-```
-
-To execute a binary downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc):
-
-```
-  task "example" {
-    driver = "exec"
-
-    config {
-      command = "binary.bin"
-    }
-
-    artifact {
-      source = "https://dl.dropboxusercontent.com/u/1234/binary.bin"
-      options {
-        checksum = "sha256:abd123445ds4555555555"
-      }
-    }
-  }
+}
 ```
 
 ## Client Requirements
@@ -76,9 +84,14 @@ The `exec` driver can only be run when on Linux and running Nomad as root.
 is only guaranteed on Linux. Further, the host must have cgroups mounted properly
 in order for the driver to work.
 
-If you are receiving the error `* Constraint "missing drivers" filtered <> nodes`
-and using the exec driver, check to ensure that you are running Nomad as root. This
-also applies for running Nomad in -dev mode.
+If you are receiving the error:
+
+```
+* Constraint "missing drivers" filtered <> nodes
+```
+
+and using the exec driver, check to ensure that you are running Nomad as root.
+This also applies for running Nomad in -dev mode.
 
 
 ## Client Attributes
@@ -99,8 +112,18 @@ resources of a process and as such the Nomad agent must be run as root.
 The chroot is populated with data in the following directories from the host
 machine:
 
-`["/bin", "/etc", "/lib", "/lib32", "/lib64", "/run/resolvconf", "/sbin",
-"/usr"]`
+```
+[
+  "/bin",
+  "/etc",
+  "/lib",
+  "/lib32",
+  "/lib64",
+  "/run/resolvconf",
+  "/sbin",
+  "/usr",
+]
+```
 
 This list is configurable through the agent client
 [configuration file](/docs/agent/config.html#chroot_env).
