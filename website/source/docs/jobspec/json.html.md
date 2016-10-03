@@ -15,142 +15,142 @@ which will emit a JSON version of the job.
 
 ## JSON Syntax
 
-Below is an example of a JSON object that submits a `Periodic` job to Nomad:
+Below is an example of a JSON object that submits a `periodic` job to Nomad:
 
-```
+```json
 {
-    "Job": {
-        "Region": "global",
-        "ID": "example",
-        "Name": "example",
-        "Type": "batch",
-        "Priority": 50,
-        "AllAtOnce": false,
-        "Datacenters": [
-            "dc1"
-        ],
-        "Constraints": [
-            {
-                "LTarget": "${attr.kernel.name}",
-                "RTarget": "linux",
-                "Operand": "="
-            }
-        ],
-        "TaskGroups": [
-            {
-                "Name": "cache",
-                "Count": 1,
-                "Constraints": null,
-                "Tasks": [
-                    {
-                        "Name": "redis",
-                        "Driver": "docker",
-                        "User": "foo-user",
-                        "Config": {
-                            "image": "redis:latest",
-                            "port_map": [
-                                {
-                                    "db": 6379
-                                }
-                            ]
-                        },
-                        "Constraints": null,
-                        "Env": {
-                            "foo": "bar",
-                            "baz": "pipe"
-                        },
-                        "Services": [
-                            {
-                                "Name": "cache-redis",
-                                "Tags": [
-                                    "global",
-                                    "cache"
-                                ],
-                                "PortLabel": "db",
-                                "Checks": [
-                                    {
-                                        "Id": "",
-                                        "Name": "alive",
-                                        "Type": "tcp",
-                                        "Command": "",
-                                        "Args": null,
-                                        "Path": "",
-                                        "Protocol": "",
-                                        "Interval": 10000000000,
-                                        "Timeout": 2000000000
-                                    }
-                                ]
-                            }
-                        ],
-                        "Resources": {
-                            "CPU": 500,
-                            "MemoryMB": 256,
-                            "DiskMB": 300,
-                            "IOPS": 0,
-                            "Networks": [
-                                {
-                                    "ReservedPorts": [
-                                        {
-                                            "Label": "rpc",
-                                            "Value": 25566
-                                        }
-                                    ],
-                                    "DynamicPorts": [
-                                        {
-                                            "Label": "db"
-                                        }
-                                    ],
-                                    "MBits": 10
-                                }
-                            ]
-                        },
-                        "Meta": {
-                            "foo": "bar",
-                            "baz": "pipe"
-                        },
-                        "KillTimeout": 5000000000,
-                        "LogConfig": {
-                            "MaxFiles": 10,
-                            "MaxFileSizeMB": 10
-                        },
-                        "Artifacts": [
-                            {
-                                "GetterSource": "http://foo.com/artifact.tar.gz",
-                                "GetterOptions": {
-                                    "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
-                                },
-                                "RelativeDest": "local/"
-                            }
-                        ]
-                    }
-                ],
-                "RestartPolicy": {
-                    "Interval": 300000000000,
-                    "Attempts": 10,
-                    "Delay": 25000000000,
-                    "Mode": "delay"
-                },
-                "Meta": {
-                    "foo": "bar",
-                    "baz": "pipe"
+  "Job":{
+    "Region":"global",
+    "ID":"example",
+    "Name":"example",
+    "Type":"batch",
+    "Priority":50,
+    "AllAtOnce":false,
+    "Datacenters":[
+      "dc1"
+    ],
+    "Constraints":[
+      {
+        "LTarget":"${attr.kernel.name}",
+        "RTarget":"linux",
+        "Operand":"="
+      }
+    ],
+    "TaskGroups":[
+      {
+        "Name":"cache",
+        "Count":1,
+        "Constraints":null,
+        "Tasks":[
+          {
+            "Name":"redis",
+            "Driver":"docker",
+            "User":"foo-user",
+            "Config":{
+              "image":"redis:latest",
+              "port_map":[
+                {
+                  "db":6379
                 }
-            }
+              ]
+            },
+            "Constraints":null,
+            "Env":{
+              "foo":"bar",
+              "baz":"pipe"
+            },
+            "Services":[
+              {
+                "Name":"cache-redis",
+                "Tags":[
+                  "global",
+                  "cache"
+                ],
+                "PortLabel":"db",
+                "Checks":[
+                  {
+                    "Id":"",
+                    "Name":"alive",
+                    "Type":"tcp",
+                    "Command":"",
+                    "Args":null,
+                    "Path":"",
+                    "Protocol":"",
+                    "Interval":10000000000,
+                    "Timeout":2000000000
+                  }
+                ]
+              }
+            ],
+            "Resources":{
+              "CPU":500,
+              "MemoryMB":256,
+              "DiskMB":300,
+              "IOPS":0,
+              "Networks":[
+                {
+                  "ReservedPorts":[
+                    {
+                      "Label":"rpc",
+                      "Value":25566
+                    }
+                  ],
+                  "DynamicPorts":[
+                    {
+                      "Label":"db"
+                    }
+                  ],
+                  "MBits":10
+                }
+              ]
+            },
+            "Meta":{
+              "foo":"bar",
+              "baz":"pipe"
+            },
+            "KillTimeout":5000000000,
+            "LogConfig":{
+              "MaxFiles":10,
+              "MaxFileSizeMB":10
+            },
+            "Artifacts":[
+              {
+                "GetterSource":"http://foo.com/artifact.tar.gz",
+                "GetterOptions":{
+                  "checksum":"md5:c4aa853ad2215426eb7d70a21922e794"
+                },
+                "RelativeDest":"local/"
+              }
+            ]
+          }
         ],
-        "Update": {
-            "Stagger": 10000000000,
-            "MaxParallel": 1
+        "RestartPolicy":{
+          "Interval":300000000000,
+          "Attempts":10,
+          "Delay":25000000000,
+          "Mode":"delay"
         },
-        "Periodic": {
-            "Enabled": true,
-            "Spec": "* * * * *",
-            "SpecType": "cron",
-            "ProhibitOverlap": true
-        },
-        "Meta": {
-            "foo": "bar",
-            "baz": "pipe"
+        "Meta":{
+          "foo":"bar",
+          "baz":"pipe"
         }
+      }
+    ],
+    "Update":{
+      "Stagger":10000000000,
+      "MaxParallel":1
+    },
+    "Periodic":{
+      "Enabled":true,
+      "Spec":"* * * * *",
+      "SpecType":"cron",
+      "ProhibitOverlap":true
+    },
+    "Meta":{
+      "foo":"bar",
+      "baz":"pipe"
     }
+  }
 }
 ```
 
@@ -189,21 +189,23 @@ The `Job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/jobspec/schedulers.html)
 
-*   `Update` - Specifies the task's update strategy. When omitted, rolling
-    updates are disabled. The `Update` object supports the following attributes:
+* `Update` - Specifies the task's update strategy. When omitted, rolling
+  updates are disabled. The `Update` object supports the following attributes:
 
-    * `MaxParallel` - `MaxParallel` is given as an integer value and specifies
-      the number of tasks that can be updated at the same time.
+  * `MaxParallel` - `MaxParallel` is given as an integer value and specifies
+  the number of tasks that can be updated at the same time.
 
-    * `Stagger` - `Stagger` introduces a delay between sets of task updates and
-      is given in nanoseconds.
+  * `Stagger` - `Stagger` introduces a delay between sets of task updates and
+  is given in nanoseconds.
 
     An example `Update` block:
 
-    ```
-    "Update": {
+    ```json
+    {
+      "Update": {
         "MaxParallel" : 3,
         "Stagger" : 10000000000
+      }
     }
     ```
 
@@ -230,13 +232,15 @@ The `Job` object supports the following keys:
 
     An example `periodic` block:
 
-    ```
-        "Periodic": {
-            "Spec": "*/15 * * * * *"
-            "SpecType": "cron",
-            "Enabled": true,
-            "ProhibitOverlap": true
-        }
+    ```json
+    {
+      "Periodic": {
+          "Spec": "*/15 * * * * *"
+          "SpecType": "cron",
+          "Enabled": true,
+          "ProhibitOverlap": true
+      }
+    }
     ```
 
 ### Task Group
@@ -286,10 +290,12 @@ The `Task` object supports the following keys:
 
     For example the below environment map will be reinterpreted:
 
-    ```
-        "Env": {
-            "NODE_CLASS" : "${nomad.class}"
-        }
+    ```json
+    {
+      "Env": {
+        "NODE_CLASS" : "${nomad.class}"
+      }
+    }
     ```
 
 * `KillTimeout` - `KillTimeout` is a time duration in nanoseconds. It can be
@@ -437,7 +443,7 @@ The `Constraint` object supports the following keys:
 
 * `Operand` - Specifies the test to be performed on the two targets. It takes on the
   following values:
-  
+
   * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
   * `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
@@ -468,10 +474,12 @@ If the amount of disk resource requested for the task is less than the total
 amount of disk space needed to retain the rotated set of files, Nomad will return
 a validation error when a job is submitted.
 
-```
-"LogConfig: {
+```json
+{
+  "LogConfig": {
     "MaxFiles": 3,
     "MaxFileSizeMB": 10
+  }
 }
 ```
 
@@ -506,30 +514,31 @@ The `Artifact` object supports the following keys:
   [here](https://github.com/hashicorp/go-getter/tree/ef5edd3d8f6f482b775199be2f3734fd20e04d4a#protocol-specific-options-1).
   An example is given below:
 
-```
-"GetterOptions": {
+```json
+{
+  "GetterOptions": {
     "checksum": "md5:c4aa853ad2215426eb7d70a21922e794",
 
     "aws_access_key_id": "<id>",
     "aws_access_key_secret": "<secret>",
     "aws_access_token": "<token>"
+  }
 }
 ```
 
 An example of downloading and unzipping an archive is as simple as:
 
-```
-"Artifacts": [
-  {
-    # The archive will be extracted before the task is run, making
-    # it easy to ship configurations with your binary.
-    "GetterSource": "https://example.com/my.zip",
-
-    "GetterOptions": {
-      "checksum": "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
+```json
+{
+  "Artifacts": [
+    {
+      "GetterSource": "https://example.com/my.zip",
+      "GetterOptions": {
+        "checksum": "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
+      }
     }
-  }
-]
+  ]
+}
 ```
 
 #### S3 examples
@@ -541,28 +550,37 @@ S3 region specific endpoints can be found
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
 
 Path based style:
-```
-"Artifacts": [
-  {
-    "GetterSource": "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz",
-  }
-]
+
+```json
+{
+  "Artifacts": [
+    {
+      "GetterSource": "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz",
+    }
+  ]
+}
 ```
 
 or to override automatic detection in the URL, use the S3-specific syntax
-```
-"Artifacts": [
-  {
-    "GetterSource": "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz",
-  }
-]
+
+```json
+{
+  "Artifacts": [
+    {
+      "GetterSource": "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz",
+    }
+  ]
+}
 ```
 
 Virtual hosted based style
-```
-"Artifacts": [
-  {
-    "GetterSource": "my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz",
-  }
-]
+
+```json
+{
+  "Artifacts": [
+    {
+      "GetterSource": "my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz",
+    }
+  ]
+}
 ```
