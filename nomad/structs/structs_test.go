@@ -1156,6 +1156,62 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	}
 }
 
+func TestAllocation_ShouldMigrate(t *testing.T) {
+	alloc := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if !alloc.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc1 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name:          "foo",
+					EphemeralDisk: &EphemeralDisk{},
+				},
+			},
+		},
+	}
+
+	if alloc1.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc2 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Sticky:  false,
+						Migrate: true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc2.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+}
+
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	cases := []struct {
 		Input *TaskArtifact

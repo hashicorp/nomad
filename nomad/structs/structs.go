@@ -2738,6 +2738,10 @@ type EphemeralDisk struct {
 
 	// SizeMB is the size of the local disk
 	SizeMB int `mapstructure:"size"`
+
+	// Migrate determines if Nomad client should migrate the allocation dir for
+	// sticky allocations
+	Migrate bool
 }
 
 // DefaultEphemeralDisk returns a EphemeralDisk with default configurations
@@ -2974,6 +2978,19 @@ func (a *Allocation) Stub() *AllocListStub {
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
 	}
+}
+
+// ShouldMigrate returns if the allocation needs data migration
+func (a *Allocation) ShouldMigrate() bool {
+	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
+		return false
+	}
+
+	if tg := a.Job.LookupTaskGroup(a.TaskGroup); tg != nil && !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
+		return false
+	}
+
+	return true
 }
 
 var (
