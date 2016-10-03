@@ -856,7 +856,13 @@ func blockUntilNextLog(fs allocdir.AllocDirFS, t *tomb.Tomb, logPath, task, logT
 	next := make(chan error, 1)
 
 	go func() {
-		eofCancelCh := fs.BlockUntilExists(nextPath, t)
+		eofCancelCh, err := fs.BlockUntilExists(nextPath, t)
+		if err != nil {
+			next <- err
+			close(next)
+			return
+		}
+
 		scanCh := time.Tick(nextLogCheckRate)
 		for {
 			select {
