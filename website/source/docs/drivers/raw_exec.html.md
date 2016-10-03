@@ -86,8 +86,20 @@ explicitly enable the `raw_exec` driver in the client's
 
 The `raw_exec` driver will set the following client attributes:
 
-* `driver.raw_exec` - This will be set to "1", indicating the
-  driver is available.
+* `driver.raw_exec` - This will be set to "1", indicating the driver is available.
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where raw-exec is enabled. (Note: this constraint is
+  # applied automatically if you specify a task that uses the raw-exec driver).
+  constraint {
+    attribute = "${driver.raw_exec}"
+    value     = "1"
+  }
+}
+```
 
 ## Resource Isolation
 

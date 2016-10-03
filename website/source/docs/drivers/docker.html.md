@@ -334,7 +334,20 @@ The `docker` driver will set the following client attributes:
 
 * `driver.docker` - This will be set to "1", indicating the driver is
   available.
-* `driver.docker.version` - This will be set to version of the docker server
+* `driver.docker.version` - This will be set to version of the docker server.
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Require docker version higher than 1.2.
+  constraint {
+    attribute = "${driver.docker.version}"
+    operator  = ">"
+    version   = "1.2"
+  }
+}
+```
 
 ## Resource Isolation
 

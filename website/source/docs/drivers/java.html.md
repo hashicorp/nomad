@@ -12,7 +12,7 @@ Name: `java`
 
 The `Java` driver is used to execute Java applications packaged into a Java Jar
 file. The driver requires the Jar file to be accessible from the Nomad
-client via the [`artifact` downloader](/docs/jobspec/index.html#artifact_doc). 
+client via the [`artifact` downloader](/docs/jobspec/index.html#artifact_doc).
 
 ## Task Configuration
 
@@ -61,7 +61,7 @@ task "web" {
 
 ## Client Requirements
 
-The `java` driver requires Java to be installed and in your system's `$PATH`. On 
+The `java` driver requires Java to be installed and in your system's `$PATH`. On
 Linux, Nomad must run as root since it will use `chroot` and `cgroups` which
 require root privileges. The task must also specify at least one artifact to
 download, as this is the only way to retrieve the Jar being run.
@@ -76,6 +76,19 @@ this by executing `java -version` on the host and parsing the output
 * `driver.java.runtime` - Runtime version, ex: `Java(TM) SE Runtime Environment (build 1.6.0_65-b14-466.1-11M4716)`
 * `driver.java.vm` - Virtual Machine information, ex: `Java HotSpot(TM) 64-Bit Server VM (build 20.65-b04-466.1, mixed mode)`
 
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where the JVM is higher than version 1.6.0.
+  constraint {
+    attribute = "${driver.java.version}"
+    operator  = ">"
+    value     = "1.6.0"
+  }
+}
+```
+
 ## Resource Isolation
 
 The resource isolation provided varies by the operating system of
@@ -87,4 +100,3 @@ running as root, many of these mechanisms cannot be used.
 
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
-

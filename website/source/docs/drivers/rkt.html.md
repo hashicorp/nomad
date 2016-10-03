@@ -47,7 +47,7 @@ The `rkt` driver supports the following configuration in the job spec:
 ## Task Directories
 
 The `rkt` driver currently does not support mounting of the `alloc/` and `local/` directories.
-Once support is added, version `v0.10.0` or above of `rkt` will be required. 
+Once support is added, version `v0.10.0` or above of `rkt` will be required.
 
 ## Client Requirements
 
@@ -65,6 +65,19 @@ this by executing `rkt version` on the host and parsing the output
 * `driver.rkt.version` - Version of `rkt` eg: `0.8.1`. Note that the minimum required
 version is `0.14.0`
 * `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `0.8.1`
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where the rkt version is higher than 0.8.
+  constraint {
+    attribute = "${driver.rkt.version}"
+    operator  = ">"
+    value     = "0.8"
+  }
+}
+```
 
 ## Resource Isolation
 
