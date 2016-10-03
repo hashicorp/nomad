@@ -368,6 +368,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
+	// Advertise if this node supports Docker volumes (by default we do not)
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, false) {
 		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
 	}
@@ -395,7 +396,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, false)
 	if len(driverConfig.Volumes) > 0 && !volumesEnabled {
-		return nil, fmt.Errorf(dockerVolumesConfigOption+" is false; cannot use Docker Volumes: %+q", driverConfig.Volumes)
+		return nil, fmt.Errorf("%s is false; cannot use Docker Volumes: %+q", dockerVolumesConfigOption, driverConfig.Volumes)
 	}
 
 	if len(driverConfig.Volumes) > 0 {
