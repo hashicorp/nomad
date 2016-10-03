@@ -32,16 +32,14 @@ port will be allocated dynamically by the scheduler, and your service will have
 to read an environment variable (see below) to know which port to bind to at
 startup.
 
-```
-task "webservice" {
-    ...
-    resources {
-        ...
-        network {
-            port "http" {}
-            port "https" {}
-        }
+```hcl
+task "example" {
+  resources {
+    network {
+      port "http" {}
+      port "https" {}
     }
+  }
 }
 ```
 
@@ -51,17 +49,15 @@ Static ports bind your job to a specific port on the host they're placed on.
 Since multiple services cannot share a port, the port must be open in order to
 place your task.
 
-```
-task "dnsservice" {
-    ...
-    resources {
-        ...
-        network {
-            port "dns" {
-                static = 53
-            }
-        }
+```hcl
+task "example" {
+  resources {
+    network {
+      port "dns" {
+        static = 53
+      }
     }
+  }
 }
 ```
 
@@ -75,7 +71,7 @@ discovery, and used for the name of the environment variable that indicates
 which port your application should bind to. For example, we've labeled this
 port `http`:
 
-```
+```hcl
 port "http" {}
 ```
 
@@ -94,15 +90,17 @@ means that your application can listen on a fixed port (it does not need to
 read the environment variable) and the dynamic port will be mapped to the port
 in your container or VM.
 
-```
-driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-port "http" {}
+  port "http" {}
 
-config {
+  config {
     port_map = {
-        http = 8080
+      http = 8080
     }
+  }
 }
 ```
 

@@ -9,83 +9,116 @@ description: |-
 # Job Specification
 
 Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
-HCL is meant to strike a balance between human readable and editable, and machine-friendly.
+HCL is meant to strike a balance between human readable and editable, and
+machine-friendly.
 
-For machine-friendliness, Nomad can also read JSON configurations. In general, we recommend
-using the HCL syntax.
+For machine-friendliness, Nomad can also read JSON configurations. In general,
+we recommend using the HCL syntax.
 
 ## HCL Syntax
 
-For a detailed description of HCL general syntax, [see this guide](https://github.com/hashicorp/hcl#syntax).
-Here we cover the details of the Job specification for Nomad:
+For a detailed description of HCL general syntax, [see this
+guide](https://github.com/hashicorp/hcl#syntax). Here we cover the details of
+the Job specification for Nomad:
 
-```
-# Define a job called my-service
-job "my-service" {
-    # Job should run in the US region
-    region = "us"
+```hcl
+# This declares a job named "docs". There can be exactly one
+# job declaration per job file.
+job "docs" {
+  # Specify this job should run in the region named "us". Regions
+  # are defined by the Nomad servers' configuration.
+  region = "us"
 
-    # Spread tasks between us-west-1 and us-east-1
-    datacenters = ["us-west-1", "us-east-1"]
+  # Spread the tasks in this job between us-west-1 and us-east-1.
+  datacenters = ["us-west-1", "us-east-1"]
 
-    # run this with service scheduler
-    type = "service"
+  # Run this job as a "service" type. Each job type has different
+  # properties. See the documentation below for more examples.
+  type = "service"
 
-    # Rolling updates should be sequential
-    update {
-        stagger = "30s"
-        max_parallel = 1
-    }
+  # Specify this job to have rolling updates, two-at-a-time, with
+  # 30 second intervals.
+  update {
+    stagger      = "30s"
+    max_parallel = 1
+  }
 
-    group "webs" {
-        # We want 5 web servers
-        count = 5
+  # A group defines a series of tasks that should be co-located
+  # on the same client (host). All tasks within a group will be
+  # placed on the same host.
+  group "webs" {
+    # Specify the number of these tasks we want.
+    count = 5
 
-        # Create a web front end using a docker image
-        task "frontend" {
-            driver = "docker"
-            config {
-                image = "hashicorp/web-frontend"
-            }
-            service {
-                port = "http"
-                check {
-                    type = "http"
-                    path = "/health"
-                    interval = "10s"
-                    timeout = "2s"
-                }
-            }
-            env {
-                DB_HOST = "db01.example.com"
-                DB_USER = "web"
-                DB_PASSWORD = "loremipsum"
-            }
-            resources {
-                cpu = 500
-                memory = 128
-                network {
-                    mbits = 100
-                    # Request for a dynamic port
-                    port "http" {
-                    }
-                    # Request for a static port
-                    port "https" {
-                        static = 443
-                    }
-                }
-            }
+    # Create an individual task (unit of work). This particular
+    # task utilizes a Docker container to front a web application.
+    task "frontend" {
+      # Specify the driver to be "docker". Nomad supports
+      # multiple drivers.
+      driver = "docker"
+
+      # Configuration is specific to each driver.
+      config {
+        image = "hashicorp/web-frontend"
+      }
+
+      # The service block tells Nomad how to register this service
+      # with Consul for service discovery and monitoring.
+      service {
+        # This tells Consul to monitor the service on the port
+        # labled "http". Since Nomad allocates high dynamic port
+        # numbers, we use labels to refer to them.
+        port = "http"
+
+        check {
+          type     = "http"
+          path     = "/health"
+          interval = "10s"
+          timeout  = "2s"
         }
+      }
+
+      # It is possible to set environment variables which will be
+      # available to the job when it runs.
+      env {
+        DB_HOST = "db01.example.com"
+        DB_USER = "web"
+        DB_PASS = "loremipsum"
+      }
+
+      # Specify the maximum resources required to run the job,
+      # include CPU, memory, and bandwidth.
+      resources {
+        cpu    = 500 # MHz
+        memory = 128 # MB
+
+        network {
+          mbits = 100
+
+          # This requests a dynamic port named "http". This will
+          # be something like "46283", but we refer to it via the
+          # label "http".
+          port "http" {}
+
+          # This requests a static port on 443 on the host. This
+          # will restrict this task to running once per host, since
+          # there is only one port 443 on each host.
+          port "https" {
+            static = 443
+          }
+        }
+      }
     }
+  }
 }
 ```
 
-This is a fairly simple example job, but demonstrates many of the features and syntax
-of the job specification. The primary "objects" are the job, task group, and task.
-Each job file has only a single job, however a job may have multiple task groups,
-and each task group may have multiple tasks. Task groups are a set of tasks that
-must be co-located on a machine. Groups with a single task and count of one
-can be declared outside of a group which is created implicitly.
+This is a fairly simple example job, but demonstrates many of the features and
+syntax of the job specification. The primary "objects" are the job, task group,
+and task. Each job file has only a single job, however a job may have multiple
+task groups, and each task group may have multiple tasks. Task groups are a set
+of tasks that must be co-located on a machine. Groups with a single task and
+count of one can be declared outside of a group which is created implicitly.
 
 Constraints can be specified at the job, task group, or task level to restrict
 where a task is eligible for running. An example constraint looks like:
@@ -93,8 +126,8 @@ where a task is eligible for running. An example constraint looks like:
 ```
 # Restrict to only nodes running linux
 constraint {
-    attribute = "${attr.kernel.name}"
-    value = "linux"
+  attribute = "${attr.kernel.name}"
+  value     = "linux"
 }
 ```
 
@@ -103,11 +136,9 @@ This metadata is opaque to Nomad and can be used for any purpose, including
 defining constraints on the metadata. Metadata can be specified by:
 
 ```
-# Setup ELB via metadata and setup foo
 meta {
-    foo = "bar"
-    elb_mode = "tcp"
-    elb_check_interval = "10s"
+  elb_mode           = "tcp"
+  elb_check_interval = "10s"
 }
 ```
 
@@ -152,26 +183,25 @@ The `job` object supports the following keys:
 
 <a id="update"></a>
 
-*   `update` - Specifies the task's update strategy. When omitted, rolling
-    updates are disabled. The `update` block supports the following keys:
+* `update` - Specifies the task's update strategy. When omitted, rolling
+  updates are disabled. The `update` block supports the following keys:
 
-    * `max_parallel` - `max_parallel` is given as an integer value and specifies
-      the number of tasks that can be updated at the same time.
+  * `max_parallel` - integer that specifies the number of tasks that can be
+    updated at the same time.
 
-    * `stagger` - `stagger` introduces a delay between sets of task updates and
-      is given as an as a time duration. If stagger is provided as an integer,
-      seconds are assumed. Otherwise the "s", "m", and "h" suffix can be used,
-      such as "30s".
+  * `stagger` - introduces a delay between sets of task updates and is given as
+    an as a time duration. If stagger is provided as an integer, seconds are
+    assumed. Otherwise the "s", "m", and "h" suffix can be used, such as "30s".
 
-    An example `update` block:
+    Here is an example `update` block:
 
-    ```
+    ```hcl
     update {
-        // Update 3 tasks at a time.
-        max_parallel = 3
+      # Update 3 tasks at a time.
+      max_parallel = 3
 
-        // Wait 30 seconds between updates.
-        stagger = "30s"
+      # Wait 30 seconds between updates.
+      stagger = "30s"
     }
     ```
 
@@ -182,7 +212,7 @@ The `job` object supports the following keys:
     timezone to ensure consistent evaluation when Nomad Servers span multiple
     time zones. The `periodic` block is optional and supports the following keys:
 
-    * `enabled` - `enabled` determines whether the periodic job will spawn child
+    * `enabled` - determines whether the periodic job will spawn child
     jobs. `enabled` is defaulted to true if the block is included.
 
     * `cron` - A cron expression configuring the interval the job is launched
@@ -190,21 +220,21 @@ The `job` object supports the following keys:
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
 
-    * <a id="prohibit_overlap">`prohibit_overlap`</a> - `prohibit_overlap` can
+    * <a id="prohibit_overlap">`prohibit_overlap`</a> - this can
       be set to true to enforce that the periodic job doesn't spawn a new
       instance of the job if any of the previous jobs are still running. It is
       defaulted to false.
 
-    An example `periodic` block:
+    Here is an example `periodic` block:
 
-    ```
-        periodic {
-            // Launch every 15 minutes
-            cron = "*/15 * * * * *"
+    ```hcl
+    periodic {
+      # Launch every 15 minutes
+      cron = "*/15 * * * * *"
 
-            // Do not allow overlapping runs.
-            prohibit_overlap = true
-        }
+      # Do not allow overlapping runs.
+      prohibit_overlap = true
+    }
     ```
 
 ### Task Group
@@ -250,19 +280,19 @@ The `task` object supports the following keys:
   task transitions to the dead state. [Click
   here](/docs/jobspec/servicediscovery.html) to learn more about services.
 
-*   `env` - A map of key/value representing environment variables that
-    will be passed along to the running process. Nomad variables are
-    interpreted when set in the environment variable values. See the table of
-    interpreted variables [here](/docs/jobspec/interpreted.html).
+* `env` - A map of key/value representing environment variables that will be
+  passed along to the running process. Nomad variables are interpreted when set
+  in the environment variable values. See the table of interpreted variables
+  [here](/docs/jobspec/interpreted.html).
 
     For example the below environment map will be reinterpreted:
 
-    ```
-        env {
-            // The value will be interpreted by the client and set to the
-            // correct value.
-            NODE_CLASS = "${nomad.class}"
-        }
+    ```hcl
+    env {
+      # The value will be interpreted by the client and set to the
+      # correct value.
+      NODE_CLASS = "${nomad.class}"
+    }
     ```
 
 * `resources` - Provides the resource requirements of the task.
@@ -304,13 +334,13 @@ The `network` object supports the following keys:
 
 * `mbits` (required) - The number of MBits in bandwidth required.
 
-*   `port` - `port` is a repeatable object that can be used to specify both
-    dynamic ports and reserved ports. It has the following format:
+* `port` - a repeatable object that can be used to specify both
+  dynamic ports and reserved ports. It has the following format:
 
-    ```
+    ```hcl
     port "label" {
-        // If the `static` field is omitted, a dynamic port will be assigned.
-        static = 6539
+      # If the `static` field is omitted, a dynamic port is assigned.
+      static = 6539
     }
     ```
 
@@ -332,35 +362,34 @@ The `restart` object supports the following keys:
   time duration using the `s`, `m`, and `h` suffixes, such as `30s`. A random
   jitter of up to 25% is added to the delay.
 
-*   `mode` - Controls the behavior when the task fails more than `attempts`
-    times in an interval. Possible values are listed below:
+* `mode` - Controls the behavior when the task fails more than `attempts` times
+ in an interval. Possible values are listed below:
 
-    * `delay` - `delay` will delay the next restart until the next `interval` is
-      reached.
+  * `delay` - delay the next restart until the next `interval` is reached.
 
-    * `fail` - `fail` will not restart the task again.
+  * `fail` - do not restart the task again on failure.
 
-The default `batch` restart policy is:
+    The default `batch` restart policy is:
 
-```
-restart {
-    attempts = 15
-    delay = "15s"
-    interval = "168h" # 7 days
-    mode = "delay"
-}
-```
+    ```hcl
+    restart {
+      attempts = 15
+      delay    = "15s"
+      interval = "168h" # 7 days
+      mode     = "delay"
+    }
+    ```
 
-The default non-batch restart policy is:
+    The default non-batch restart policy is:
 
-```
-restart {
-    interval = "1m"
-    attempts = 2
-    delay = "15s"
-    mode = "delay"
-}
-```
+    ```hcl
+    restart {
+      interval = "1m"
+      attempts = 2
+      delay    = "15s"
+      mode     = "delay"
+    }
+    ```
 
 ### Constraint
 
@@ -369,9 +398,9 @@ The `constraint` object supports the following keys:
 * `attribute` - Specifies the attribute to examine for the
   constraint. See the table of attributes [here](/docs/jobspec/interpreted.html#interpreted_node_vars).
 
-*   `operator` - Specifies the comparison operator. Defaults to equality,
-    and can be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
-    ordering is compared lexically. The following are equivalent:
+* `operator` - Specifies the comparison operator. Defaults to equality, and can
+  be `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The ordering is
+  compared lexically. The following are equivalent:
 
       * `=`, `==` and `is`
       * `!=` and `not`
@@ -390,11 +419,11 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
-*   `distinct_hosts` - `distinct_hosts` accepts a boolean value and defaults to
-    `false`. If set, the scheduler will not co-locate any task groups on the same
-    machine. This can be specified as a job constraint which applies the
-    constraint to all task groups in the job, or as a task group constraint which
-    scopes the effect to just that group.
+* `distinct_hosts` - `distinct_hosts` accepts a boolean value and defaults to
+  `false`. If set, the scheduler will not co-locate any task groups on the same
+  machine. This can be specified as a job constraint which applies the
+  constraint to all task groups in the job, or as a task group constraint which
+  scopes the effect to just that group.
 
     Placing the constraint at both the job level and at the task group level is
     redundant since when placed at the job level, the constraint will be applied
@@ -414,10 +443,10 @@ The `logs` object configures the log rotation policy for a task's `stdout` and
   `MB`.
 
 If the amount of disk resource requested for the task is less than the total
-amount of disk space needed to retain the rotated set of files, Nomad will return
-a validation error when a job is submitted.
+amount of disk space needed to retain the rotated set of files, Nomad will
+return a validation error when a job is submitted.
 
-```
+```hcl
 logs {
   max_files     = 3   
   max_file_size = 10 # Size is in MB
@@ -459,31 +488,31 @@ The `artifact` object supports the following keys:
   [here](https://github.com/hashicorp/go-getter/tree/ef5edd3d8f6f482b775199be2f3734fd20e04d4a#protocol-specific-options-1).
   An example is given below:
 
-```
-options {
-    # Validate the downloaded artifact
-    checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
+    ```hcl
+    options {
+      # Validate the downloaded artifact
+      checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
 
-    # S3 options for downloading artifacts from S3
-    aws_access_key_id     = "<id>"
-    aws_access_key_secret = "<secret>"
-    aws_access_token      = "<token>"
-}
-```
+      # S3 options for downloading artifacts from S3
+      aws_access_key_id     = "<id>"
+      aws_access_key_secret = "<secret>"
+      aws_access_token      = "<token>"
+    }
+    ```
 
-An example of downloading and unzipping an archive is as simple as:
+    An example of downloading and unzipping an archive is as simple as:
 
-```
-artifact {
-  # The archive will be extracted before the task is run, making
-  # it easy to ship configurations with your binary.
-  source = "https://example.com/my.zip"
+    ```hcl
+    artifact {
+      # The archive will be extracted before the task is run,
+      # making it easy to ship configurations with your binary.
+      source = "https://example.com/my.zip"
 
-  options {
-    checksum = "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
-  }
-}
-```
+      options {
+        checksum = "md5:7f4b3e3b4dd5150d4e5aaaa5efada4c3"
+      }
+    }
+    ```
 
 #### S3 examples
 
@@ -491,24 +520,27 @@ S3 has several different types of addressing and more detail can be found
 [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
 
 S3 region specific endpoints can be found
-[here](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+[here](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region).
 
 Path based style:
-```
+
+```hcl
 artifact {
   source = "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz"
 }
 ```
 
 or to override automatic detection in the URL, use the S3-specific syntax
-```
+
+```hcl
 artifact {
   source = "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz"
 }
 ```
 
 Virtual hosted based style
-```
+
+```hcl
 artifact {
   source = "my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
 }

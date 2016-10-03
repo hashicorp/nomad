@@ -11,8 +11,8 @@ description: |-
 Nomad schedules workloads of various types across a cluster of generic hosts.
 Because of this, placement is not known in advance and you will need to use
 service discovery to connect tasks to other services deployed across your
-cluster. Nomad integrates with [Consul](https://www.consul.io) to provide service
-discovery and monitoring.
+cluster. Nomad integrates with [Consul](https://www.consul.io) to provide
+service discovery and monitoring.
 
 Note that in order to use Consul with Nomad, you will need to configure and
 install Consul on your nodes alongside Nomad, or schedule it as a system job.
@@ -34,37 +34,42 @@ ports.
 
 A brief example of a service definition in a Task
 
-```
+```hcl
 group "database" {
-    task "mysql" {
-        driver = "docker"
-        service {
-            tags = ["master", "mysql"]
-            port = "db"
-            check {
-                type = "tcp"
-                interval = "10s"
-                timeout = "2s"
-            }
-            check {
-                type = "script"
-                name = "check_table"
-                command = "/usr/local/bin/check_mysql_table_status"
-                args = ["--verbose"]
-                interval = "60s"
-                timeout = "5s"
-            }
-        }
-        resources {
-            cpu = 500
-            memory = 1024
-            network {
-                mbits = 10
-                port "db" {
-                }
-            }
-        }
+  task "mysql" {
+    driver = "docker"
+
+    service {
+      tags = ["master", "mysql"]
+
+      port = "db"
+
+      check {
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
+
+      check {
+        type     = "script"
+        name     = "check_table"
+        command  = "/usr/local/bin/check_mysql_table_status"
+        args     = ["--verbose"]
+        interval = "60s"
+        timeout  = "5s"
+      }
     }
+
+    resources {
+      cpu    = 500
+      memory = 1024
+
+      network {
+        mbits = 10
+        port "db" {}
+      }
+    }
+  }
 }
 ```
 
