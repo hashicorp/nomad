@@ -86,8 +86,7 @@ explicitly enable the `raw_exec` driver in the client's
 
 The `raw_exec` driver will set the following client attributes:
 
-* `driver.raw_exec` - This will be set to "1", indicating the
-  driver is available.
+* `driver.raw_exec` - This will be set to "1", indicating the driver is available.
 
 ## Resource Isolation
 

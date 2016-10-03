@@ -85,8 +85,7 @@ also applies for running Nomad in -dev mode.
 
 The `exec` driver will set the following client attributes:
 
-* `driver.exec` - This will be set to "1", indicating the
-  driver is available.
+* `driver.exec` - This will be set to "1", indicating the driver is available.
 
 ## Resource Isolation
 

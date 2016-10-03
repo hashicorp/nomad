@@ -20,7 +20,7 @@ The `Qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 `iso`), and is currently invoked with `qemu-system-x86_64`.
 
 The driver requires the image to be accessible from the Nomad client via the
-[`artifact` downloader](/docs/jobspec/index.html#artifact_doc). 
+[`artifact` downloader](/docs/jobspec/index.html#artifact_doc).
 
 ## Task Configuration
 
@@ -81,6 +81,19 @@ The `Qemu` driver will set the following client attributes:
 * `driver.qemu` - Set to `1` if Qemu is found on the host node. Nomad determines
 this by executing `qemu-system-x86_64 -version` on the host and parsing the output
 * `driver.qemu.version` - Version of `qemu-system-x86_64`, ex: `2.4.0`
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where the qemu version is higher than 1.2.3.
+  constraint {
+    attribute = "${driver.qemu.version}"
+    operator  = ">"
+    value     = "1.2.3"
+  }
+}
+```
 
 ## Resource Isolation
 
