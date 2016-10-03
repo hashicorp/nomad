@@ -419,14 +419,15 @@ a validation error when a job is submitted.
 
 ```
 logs {
-    max_files = 3
-    max_file_size = 10
+  max_files     = 3   
+  max_file_size = 10 # Size is in MB
 }
 ```
 
-In the above example we have asked Nomad to retain 3 rotated files for both
-`stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
-would be required for the task would be 60MB.
+In the above example we have asked Nomad to retain 3 rotated files for each of
+`stderr` and `stdout`, each a maximum size of 10MB per file. The minimum disk
+space this would require is 60MB
+(3 `stderr` files * 3 `stdout` files * 10MB = 60MB).
 
 <a id="artifact_doc"></a>
 
