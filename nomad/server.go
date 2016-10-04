@@ -162,6 +162,7 @@ type endpoints struct {
 	Region   *Region
 	Periodic *Periodic
 	System   *System
+	Keyring  *Keyring
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -587,6 +588,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.endpoints.Region = &Region{s}
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.System = &System{s}
+	s.endpoints.Keyring = &Keyring{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Status)
@@ -598,6 +600,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 	s.rpcServer.Register(s.endpoints.Region)
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.System)
+	s.rpcServer.Register(s.endpoints.Keyring)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {

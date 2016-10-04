@@ -83,6 +83,7 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
+	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -806,6 +807,9 @@ Server Options:
     Configures the expected number of servers nodes to wait for before
     bootstrapping the cluster. Once <num> servers have joined eachother,
     Nomad initiates the bootstrap process.
+
+  -encrypt=<key>
+    Provides the gossip encryption key
 
   -join=<address>
     Address of an agent to join at start time. Can be specified

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -359,6 +360,33 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	return conf, nil
 }
 
+// setupKeyring is used to initialize and load keyring during server startup
+func (a *Agent) setupKeyring(config *nomad.Config) error {
+	file := filepath.Join(a.config.DataDir, serfWANKeyring)
+
+	if a.config.Server.EncryptKey != "" {
+		if _, err := a.config.EncryptBytes(); err != nil {
+			return err
+		}
+
+		if _, err := os.Stat(file); err != nil {
+			if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := os.Stat(file); err == nil {
+		config.SerfConfig.KeyringFile = file
+	}
+	if err := loadKeyringFile(config.SerfConfig); err != nil {
+		return err
+	}
+
+	// Success!
+	return nil
+}
+
 // setupServer is used to setup the server if enabled
 func (a *Agent) setupServer() error {
 	if !a.config.Server.Enabled {
@@ -369,6 +397,10 @@ func (a *Agent) setupServer() error {
 	conf, err := a.serverConfig()
 	if err != nil {
 		return fmt.Errorf("server config setup failed: %s", err)
+	}
+
+	if err := a.setupKeyring(conf); err != nil {
+		return fmt.Errorf("Failed to configure keyring: %v", err)
 	}
 
 	// Create the server

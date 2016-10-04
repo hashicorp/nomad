@@ -474,6 +474,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"enabled",
 		"bootstrap_expect",
 		"data_dir",
+		"encrypt",
 		"protocol_version",
 		"num_schedulers",
 		"enabled_schedulers",
