@@ -175,7 +175,7 @@ func (a *Agent) SetServers(addrs []string) error {
 // ListKeys returns the list of installed keys
 func (a *Agent) ListKeys() (*KeyringResponse, error) {
 	var resp KeyringResponse
-	_, err := a.client.query("/v1/agent/keys/list", &resp, nil)
+	_, err := a.client.query("/v1/agent/keyring/list", &resp, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keys/install", &args, &resp, nil)
+	_, err := a.client.write("/v1/agent/keyring/install", &args, &resp, nil)
 	return &resp, err
 }
 
@@ -198,7 +198,7 @@ func (a *Agent) UseKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keys/use", &args, &resp, nil)
+	_, err := a.client.write("/v1/agent/keyring/use", &args, &resp, nil)
 	return &resp, err
 }
 
@@ -208,7 +208,7 @@ func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keys/remove", &args, &resp, nil)
+	_, err := a.client.write("/v1/agent/keyring/remove", &args, &resp, nil)
 	return &resp, err
 }
 

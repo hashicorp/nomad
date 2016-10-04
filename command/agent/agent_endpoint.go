@@ -169,7 +169,6 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 
 // KeyringOperationRequest allows an operator to install/delete/use keys
 func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	s.logger.Printf("DIPTANU HERE")
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
@@ -183,7 +182,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	var args structs.KeyringRequest
 
 	//Get the op
-	op := strings.TrimPrefix(req.URL.Path, "/v1/agent/keys/")
+	op := strings.TrimPrefix(req.URL.Path, "/v1/agent/keyring/")
 
 	switch op {
 	case "list":

@@ -83,6 +83,7 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
+	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -187,6 +188,17 @@ func (c *Command) readConfig() *Config {
 	if dev {
 		// Skip validation for dev mode
 		return config
+	}
+
+	if config.Server.EncryptKey != "" {
+		if _, err := config.Server.EncryptBytes(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
+			return nil
+		}
+		keyfile := filepath.Join(config.DataDir, serfKeyring)
+		if _, err := os.Stat(keyfile); err == nil {
+			c.Ui.Error("WARNING: keyring exists but -encrypt given, using keyring")
+		}
 	}
 
 	// Parse the RetryInterval.
