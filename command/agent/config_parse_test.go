@@ -85,6 +85,7 @@ func TestConfig_Parse(t *testing.T) {
 					RetryInterval:     "15s",
 					RejoinAfterLeave:  true,
 					RetryMaxAttempts:  3,
+					EncryptKey:        "abc",
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",

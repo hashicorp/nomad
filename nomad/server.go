@@ -936,10 +936,17 @@ func (s *Server) Stats() map[string]map[string]string {
 	return stats
 }
 
+// Region retuns the region of the server
 func (s *Server) Region() string {
 	return s.config.Region
 }
 
+// Datacenter returns the data center of the server
 func (s *Server) Datacenter() string {
 	return s.config.Datacenter
+}
+
+// GetConfig returns the config of the server for testing purposes only
+func (s *Server) GetConfig() *Config {
+	return s.config
 }

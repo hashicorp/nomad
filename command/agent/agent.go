@@ -372,6 +372,7 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
+	// Sets up the keyring for gossip encryption
 	if err := a.setupKeyrings(conf); err != nil {
 		return fmt.Errorf("failed to configure keyring: %v", err)
 	}

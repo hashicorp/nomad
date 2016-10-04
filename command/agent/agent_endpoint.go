@@ -188,17 +188,17 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	case "list":
 		sresp, err = kmgr.ListKeys()
 	case "install":
-		if err := s.getKey(req, &args); err != nil {
+		if err := decodeBody(req, &args); err != nil {
 			return nil, CodedError(500, err.Error())
 		}
 		sresp, err = kmgr.InstallKey(args.Key)
 	case "use":
-		if err := s.getKey(req, &args); err != nil {
+		if err := decodeBody(req, &args); err != nil {
 			return nil, CodedError(500, err.Error())
 		}
 		sresp, err = kmgr.UseKey(args.Key)
 	case "remove":
-		if err := s.getKey(req, &args); err != nil {
+		if err := decodeBody(req, &args); err != nil {
 			return nil, CodedError(500, err.Error())
 		}
 		sresp, err = kmgr.RemoveKey(args.Key)
@@ -215,10 +215,6 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 		NumNodes: sresp.NumNodes,
 	}
 	return kresp, nil
-}
-
-func (s *HTTPServer) getKey(req *http.Request, args *structs.KeyringRequest) error {
-	return decodeBody(req, args)
 }
 
 type agentSelf struct {

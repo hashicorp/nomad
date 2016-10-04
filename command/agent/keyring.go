@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	serfKeyring = "serf.keyring"
+	serfKeyring = "server/serf.keyring"
 )
 
 // initKeyring will create a keyring file at a given path.
