@@ -935,3 +935,11 @@ func (s *Server) Stats() map[string]map[string]string {
 	}
 	return stats
 }
+
+func (s *Server) Region() string {
+	return s.config.Region
+}
+
+func (s *Server) Datacenter() string {
+	return s.config.Datacenter
+}

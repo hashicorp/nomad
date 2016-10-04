@@ -484,6 +484,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"retry_max",
 		"retry_interval",
 		"rejoin_after_leave",
+		"encrypt",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err

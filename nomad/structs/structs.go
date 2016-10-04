@@ -3577,3 +3577,16 @@ func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)
 	return buf.Bytes(), err
 }
+
+// KeyringResponse is a unified key response and can be used for install,
+// remove, use, as well as listing key queries.
+type KeyringResponse struct {
+	Messages map[string]string
+	Keys     map[string]int
+	NumNodes int
+}
+
+// KeyringRequest is request objects for serf key operations.
+type KeyringRequest struct {
+	Key string
+}
