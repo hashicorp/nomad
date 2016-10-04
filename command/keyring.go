@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -68,7 +69,7 @@ func (c *KeyringCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
 			return 1
 		}
-		fmt.Printf("List %#v", r)
+		c.handleKeyResponse(r)
 		return 0
 	}
 
@@ -79,7 +80,7 @@ func (c *KeyringCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
 			return 1
 		}
-		fmt.Printf("Install %#v", r)
+		c.handleKeyResponse(r)
 		return 0
 	}
 
@@ -90,7 +91,7 @@ func (c *KeyringCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
 			return 1
 		}
-		fmt.Printf("Use %#v", r)
+		c.handleKeyResponse(r)
 		return 0
 	}
 
@@ -101,12 +102,23 @@ func (c *KeyringCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
 			return 1
 		}
-		fmt.Printf("Remove %#v", r)
+		c.handleKeyResponse(r)
 		return 0
 	}
 
 	// Should never make it here
 	return 0
+}
+
+func (c *KeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
+	out := make([]string, len(resp.Keys)+1)
+	out[0] = "Key"
+	i := 1
+	for k := range resp.Keys {
+		out[i] = fmt.Sprintf("%s", k)
+		i = i + 1
+	}
+	c.Ui.Output(formatList(out))
 }
 
 func (c *KeyringCommand) Help() string {
@@ -133,12 +145,9 @@ Options:
   -remove=<key>             Remove the given key from the cluster. This
                             operation may only be performed on keys which are
                             not currently the primary key.
-  -token=""                 ACL token to use during requests. Defaults to that
-                            of the agent.
   -use=<key>                Change the primary encryption key, which is used to
                             encrypt messages. The key must already be installed
                             before this operation can succeed.
-  -rpc-addr=127.0.0.1:8400  RPC address of the Consul agent.
 `
 	return strings.TrimSpace(helpText)
 }
