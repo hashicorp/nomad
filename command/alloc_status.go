@@ -325,7 +325,11 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 		case api.TaskRestarting:
 			in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
 			if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
-				desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+				if event.StartDelay == 0 {
+					desc = event.RestartReason
+				} else {
+					desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+				}
 			} else {
 				desc = in
 			}
@@ -352,6 +356,19 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
 			} else {
 				desc = "Task's sibling failed"
+			}
+		case api.TaskSignaling:
+			sig := event.TaskSignal
+			reason := event.TaskSignalReason
+
+			if sig == "" && reason == "" {
+				desc = "Task being sent a signal"
+			} else if sig == "" {
+				desc = reason
+			} else if reason == "" {
+				desc = fmt.Sprintf("Task being sent signal %v", sig)
+			} else {
+				desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
 			}
 		}
 

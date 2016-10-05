@@ -167,13 +167,13 @@ type TaskArtifact struct {
 }
 
 type Template struct {
-	SourcePath    string
-	DestPath      string
-	EmbededTmpl   string
-	ChangeMode    string
-	RestartSignal string
-	Splay         time.Duration
-	Once          bool
+	SourcePath   string
+	DestPath     string
+	EmbeddedTmpl string
+	ChangeMode   string
+	ChangeSignal string
+	Splay        time.Duration
+	Once         bool
 }
 
 type Vault struct {
@@ -248,25 +248,29 @@ const (
 	TaskDiskExceeded           = "Disk Exceeded"
 	TaskVaultRenewalFailed     = "Vault token renewal failed"
 	TaskSiblingFailed          = "Sibling task failed"
+	TaskSignaling              = "Signaling"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
 // appropriate to the events type.
 type TaskEvent struct {
-	Type            string
-	Time            int64
-	RestartReason   string
-	DriverError     string
-	ExitCode        int
-	Signal          int
-	Message         string
-	KillTimeout     time.Duration
-	KillError       string
-	StartDelay      int64
-	DownloadError   string
-	ValidationError string
-	DiskLimit       int64
-	DiskSize        int64
-	FailedSibling   string
-	VaultError      string
+	Type             string
+	Time             int64
+	RestartReason    string
+	DriverError      string
+	ExitCode         int
+	Signal           int
+	Message          string
+	KillReason       string
+	KillTimeout      time.Duration
+	KillError        string
+	StartDelay       int64
+	DownloadError    string
+	ValidationError  string
+	DiskLimit        int64
+	DiskSize         int64
+	FailedSibling    string
+	VaultError       string
+	TaskSignalReason string
+	TaskSignal       string
 }

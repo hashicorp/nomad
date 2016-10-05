@@ -26,17 +26,17 @@ var (
 // TaskHooks is an interface which provides hooks into the tasks life-cycle
 type TaskHooks interface {
 	// Restart is used to restart the task
-	Restart()
+	Restart(source, reason string)
 
 	// Signal is used to signal the task
-	Signal(os.Signal)
+	Signal(source, reason string, s os.Signal)
 
 	// UnblockStart is used to unblock the starting of the task. This should be
 	// called after prestart work is completed
-	UnblockStart()
+	UnblockStart(source string)
 
 	// Kill is used to kill the task because of the passed error.
-	Kill(error)
+	Kill(source, reason string)
 }
 
 // TaskTemplateManager is used to run a set of templates for a given task
@@ -141,6 +141,11 @@ func (tm *TaskTemplateManager) Stop() {
 // run is the long lived loop that handles errors and templates being rendered
 func (tm *TaskTemplateManager) run() {
 	if tm.runner == nil {
+		// Unblock the start if there is nothing to do
+		if !tm.allRendered {
+			tm.hook.UnblockStart("consul-template")
+		}
+
 		return
 	}
 
@@ -164,7 +169,7 @@ func (tm *TaskTemplateManager) run() {
 					continue
 				}
 
-				tm.hook.Kill(err)
+				tm.hook.Kill("consul-template", err.Error())
 			case <-tm.runner.TemplateRenderedCh():
 				// A template has been rendered, figure out what to do
 				events := tm.runner.RenderEvents()
@@ -186,7 +191,7 @@ func (tm *TaskTemplateManager) run() {
 		}
 
 		allRenderedTime = time.Now()
-		tm.hook.UnblockStart()
+		tm.hook.UnblockStart("consul-template")
 	}
 
 	// If all our templates are change mode no-op, then we can exit here
@@ -207,7 +212,7 @@ func (tm *TaskTemplateManager) run() {
 				continue
 			}
 
-			tm.hook.Kill(err)
+			tm.hook.Kill("consul-template", err.Error())
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			var handling []string
@@ -232,7 +237,7 @@ func (tm *TaskTemplateManager) run() {
 				// Lookup the template and determine what to do
 				tmpls, ok := tm.lookup[id]
 				if !ok {
-					tm.hook.Kill(fmt.Errorf("consul-template runner returned unknown template id %q", id))
+					tm.hook.Kill("consul-template", fmt.Sprintf("consul-template runner returned unknown template id %q", id))
 					return
 				}
 
@@ -270,10 +275,10 @@ func (tm *TaskTemplateManager) run() {
 				}
 
 				if restart {
-					tm.hook.Restart()
+					tm.hook.Restart("consul-template", "template with change_mode restart re-rendered")
 				} else if len(signals) != 0 {
 					for signal := range signals {
-						tm.hook.Signal(tm.signals[signal])
+						tm.hook.Signal("consul-template", "template re-rendered", tm.signals[signal])
 					}
 				}
 			}
