@@ -35,7 +35,7 @@ func (c *KeygenCommand) Synopsis() string {
 
 func (c *KeygenCommand) Help() string {
 	helpText := `
-Usage: consul keygen
+Usage: nomad keygen
 
   Generates a new encryption key that can be used to configure the
   agent to encrypt traffic. The output of this command is already
