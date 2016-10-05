@@ -516,13 +516,18 @@ func (r *TaskRunner) run() {
 			case event := <-r.restartCh:
 				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
 				r.setState(structs.TaskStateRunning, event)
+				r.killTask(event.RestartReason, stopCollection)
 
-				// TODO do a kill and then goto restart
+				// Since the restart isn't from a failure, restart immediately
+				// and don't count against the restart policy
+				r.restartTracker.SetRestartTriggered()
+				break WAIT
 
 			case event := <-r.killCh:
 				r.logger.Printf("[ERR] client: task being killed: %s", event.KillReason)
 				r.setState(structs.TaskStateRunning, event)
-				// TODO
+				r.killTask(event.KillReason, stopCollection)
+				return
 
 			case <-r.destroyCh:
 				// Store the task event that provides context on the task destroy.
@@ -530,28 +535,7 @@ func (r *TaskRunner) run() {
 					r.setState(structs.TaskStateRunning, r.destroyEvent)
 				}
 
-				// Mark that we received the kill event
-				timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
-				r.setState(structs.TaskStateRunning,
-					structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout))
-
-				// Kill the task using an exponential backoff in-case of failures.
-				destroySuccess, err := r.handleDestroy()
-				if !destroySuccess {
-					// We couldn't successfully destroy the resource created.
-					r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
-				}
-
-				// Stop collection of the task's resource usage
-				close(stopCollection)
-
-				// Store that the task has been destroyed and any associated error.
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
-
-				r.runningLock.Lock()
-				r.running = false
-				r.runningLock.Unlock()
-
+				r.killTask("", stopCollection)
 				return
 			}
 		}
@@ -611,6 +595,37 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	return true
+}
+
+func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+	if !running {
+		return
+	}
+
+	// Mark that we received the kill event
+	timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
+	r.setState(structs.TaskStateRunning,
+		structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout).SetKillReason(reason))
+
+	// Kill the task using an exponential backoff in-case of failures.
+	destroySuccess, err := r.handleDestroy()
+	if !destroySuccess {
+		// We couldn't successfully destroy the resource created.
+		r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
+	}
+
+	// Stop collection of the task's resource usage
+	close(statsCh)
+
+	// Store that the task has been destroyed and any associated error.
+	r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+
+	r.runningLock.Lock()
+	r.running = false
+	r.runningLock.Unlock()
 }
 
 // startTask creates the driver and starts the task.
@@ -761,7 +776,7 @@ func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
 func (r *TaskRunner) Restart(source, reason string) {
 
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
-	event := structs.NewTaskEvent(structs.TaskRestarting).SetRestartReason(reasonStr)
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
 
 	r.logger.Printf("[DEBUG] client: restarting task %v for alloc %q: %v",
 		r.task.Name, r.alloc.ID, reasonStr)

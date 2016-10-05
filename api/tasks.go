@@ -249,6 +249,7 @@ const (
 	TaskVaultRenewalFailed     = "Vault token renewal failed"
 	TaskSiblingFailed          = "Sibling task failed"
 	TaskSignaling              = "Signaling"
+	TaskRestartSignal          = "Restart Signaled"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

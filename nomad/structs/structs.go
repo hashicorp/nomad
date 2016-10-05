@@ -2387,16 +2387,19 @@ const (
 	// TaskKilled indicates a user has killed the task.
 	TaskKilled = "Killed"
 
-	// TaskRestarting indicates that task terminated and is being restarted or
-	// that it is being forced to be restarted.
+	// TaskRestarting indicates that task terminated and is being restarted.
 	TaskRestarting = "Restarting"
-
-	// TaskSignaling indicates that the task is being signalled.
-	TaskSignaling = "Signaling"
 
 	// TaskNotRestarting indicates that the task has failed and is not being
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Not Restarting"
+
+	// TaskRestartSignal indicates that the task has been signalled to be
+	// restarted
+	TaskRestartSignal = "Restart Signaled"
+
+	// TaskSignaling indicates that the task is being signalled.
+	TaskSignaling = "Signaling"
 
 	// TaskDownloadingArtifacts means the task is downloading the artifacts
 	// specified in the task.
