@@ -1314,8 +1314,9 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{},
 			New: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: true,
-					SizeMB: 100,
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  100,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1325,6 +1326,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "EphemeralDisk",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Migrate",
+								Old:  "",
+								New:  "true",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "SizeMB",
@@ -1346,8 +1353,9 @@ func TestTaskGroupDiff(t *testing.T) {
 			// EphemeralDisk deleted
 			Old: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: true,
-					SizeMB: 100,
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  100,
 				},
 			},
 			New: &TaskGroup{},
@@ -1358,6 +1366,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "EphemeralDisk",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Migrate",
+								Old:  "true",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "SizeMB",
@@ -1379,14 +1393,16 @@ func TestTaskGroupDiff(t *testing.T) {
 			// EphemeralDisk edited
 			Old: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: true,
-					SizeMB: 150,
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  150,
 				},
 			},
 			New: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: false,
-					SizeMB: 90,
+					Migrate: false,
+					Sticky:  false,
+					SizeMB:  90,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1396,6 +1412,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "EphemeralDisk",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Migrate",
+								Old:  "true",
+								New:  "false",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "SizeMB",
@@ -1419,14 +1441,16 @@ func TestTaskGroupDiff(t *testing.T) {
 			Contextual: true,
 			Old: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: false,
-					SizeMB: 100,
+					Migrate: false,
+					Sticky:  false,
+					SizeMB:  100,
 				},
 			},
 			New: &TaskGroup{
 				EphemeralDisk: &EphemeralDisk{
-					Sticky: true,
-					SizeMB: 90,
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  90,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1438,11 +1462,16 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
+								Name: "Migrate",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
 								Name: "SizeMB",
 								Old:  "100",
 								New:  "90",
 							},
-
 							{
 								Type: DiffTypeEdited,
 								Name: "Sticky",
