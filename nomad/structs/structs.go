@@ -2274,7 +2274,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := pathEscapesAllocDir(t.DestPath)
+	escaped, err := PathEscapesAllocDir(t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -2593,9 +2593,9 @@ func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
 }
 
-// pathEscapesAllocDir returns if the given path escapes the allocation
+// PathEscapesAllocDir returns if the given path escapes the allocation
 // directory
-func pathEscapesAllocDir(path string) (bool, error) {
+func PathEscapesAllocDir(path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
 	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
 	if err != nil {
@@ -2620,7 +2620,7 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
 	}
 
-	escaped, err := pathEscapesAllocDir(ta.RelativeDest)
+	escaped, err := PathEscapesAllocDir(ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {

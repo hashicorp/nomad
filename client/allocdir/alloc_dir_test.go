@@ -9,7 +9,10 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
+
+	tomb "gopkg.in/tomb.v1"
 
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -343,5 +346,47 @@ func TestAllocDir_Move(t *testing.T) {
 	fi, err = os.Stat(filepath.Join(d2.TaskDirs[t1.Name], "local", "lol"))
 	if err != nil || fi == nil {
 		t.Fatalf("task local dir was not moved")
+	}
+}
+
+func TestAllocDir_EscapeChecking(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(tmp, structs.DefaultResources().DiskMB)
+	defer d.Destroy()
+	tasks := []*structs.Task{t1, t2}
+	if err := d.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	// Check that issuing calls that escape the alloc dir returns errors
+	// List
+	if _, err := d.List(".."); err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("List of escaping path didn't error: %v", err)
+	}
+
+	// Stat
+	if _, err := d.Stat("../foo"); err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("Stat of escaping path didn't error: %v", err)
+	}
+
+	// ReadAt
+	if _, err := d.ReadAt("../foo", 0); err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("ReadAt of escaping path didn't error: %v", err)
+	}
+
+	// BlockUntilExists
+	tomb := tomb.Tomb{}
+	if _, err := d.BlockUntilExists("../foo", &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("BlockUntilExists of escaping path didn't error: %v", err)
+	}
+
+	// ChangeEvents
+	if _, err := d.ChangeEvents("../foo", 0, &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("ChangeEvents of escaping path didn't error: %v", err)
 	}
 }
