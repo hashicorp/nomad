@@ -810,7 +810,7 @@ func parseTemplates(result *[]*structs.Template, list *ast.ObjectList) error {
 			"destination",
 			"data",
 			"change_mode",
-			"restart_signal",
+			"change_signal",
 			"splay",
 			"once",
 		}

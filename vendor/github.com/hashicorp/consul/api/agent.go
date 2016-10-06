@@ -62,8 +62,7 @@ type AgentCheckRegistration struct {
 	AgentServiceCheck
 }
 
-// AgentServiceCheck is used to create an associated
-// check for a service
+// AgentServiceCheck is used to define a node or service level check
 type AgentServiceCheck struct {
 	Script            string `json:",omitempty"`
 	DockerContainerID string `json:",omitempty"`
@@ -74,6 +73,14 @@ type AgentServiceCheck struct {
 	HTTP              string `json:",omitempty"`
 	TCP               string `json:",omitempty"`
 	Status            string `json:",omitempty"`
+
+	// In Consul 0.7 and later, checks that are associated with a service
+	// may also contain this optional DeregisterCriticalServiceAfter field,
+	// which is a timeout in the same Go time format as Interval and TTL. If
+	// a check is in the critical state for more than this configured value,
+	// then its associated service (and all of its associated checks) will
+	// automatically be deregistered.
+	DeregisterCriticalServiceAfter string `json:",omitempty"`
 }
 type AgentServiceChecks []*AgentServiceCheck
 
@@ -198,27 +205,42 @@ func (a *Agent) ServiceDeregister(serviceID string) error {
 	return nil
 }
 
-// PassTTL is used to set a TTL check to the passing state
+// PassTTL is used to set a TTL check to the passing state.
+//
+// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
+// The client interface will be removed in 0.8 or changed to use
+// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
 func (a *Agent) PassTTL(checkID, note string) error {
 	return a.updateTTL(checkID, note, "pass")
 }
 
-// WarnTTL is used to set a TTL check to the warning state
+// WarnTTL is used to set a TTL check to the warning state.
+//
+// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
+// The client interface will be removed in 0.8 or changed to use
+// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
 func (a *Agent) WarnTTL(checkID, note string) error {
 	return a.updateTTL(checkID, note, "warn")
 }
 
-// FailTTL is used to set a TTL check to the failing state
+// FailTTL is used to set a TTL check to the failing state.
+//
+// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
+// The client interface will be removed in 0.8 or changed to use
+// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
 func (a *Agent) FailTTL(checkID, note string) error {
 	return a.updateTTL(checkID, note, "fail")
 }
 
 // updateTTL is used to update the TTL of a check. This is the internal
-// method that uses the old API that's present in Consul versions prior
-// to 0.6.4. Since Consul didn't have an analogous "update" API before it
-// seemed ok to break this (former) UpdateTTL in favor of the new UpdateTTL
-// below, but keep the old Pass/Warn/Fail methods using the old API under the
-// hood.
+// method that uses the old API that's present in Consul versions prior to
+// 0.6.4. Since Consul didn't have an analogous "update" API before it seemed
+// ok to break this (former) UpdateTTL in favor of the new UpdateTTL below,
+// but keep the old Pass/Warn/Fail methods using the old API under the hood.
+//
+// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
+// The client interface will be removed in 0.8 and the server endpoints will
+// be removed in 0.9.
 func (a *Agent) updateTTL(checkID, note, status string) error {
 	switch status {
 	case "pass":
@@ -240,8 +262,9 @@ func (a *Agent) updateTTL(checkID, note, status string) error {
 
 // checkUpdate is the payload for a PUT for a check update.
 type checkUpdate struct {
-	// Status us one of the structs.Health* states, "passing", "warning", or
-	// "critical".
+	// Status is one of the api.Health* states: HealthPassing
+	// ("passing"), HealthWarning ("warning"), or HealthCritical
+	// ("critical").
 	Status string
 
 	// Output is the information to post to the UI for operators as the

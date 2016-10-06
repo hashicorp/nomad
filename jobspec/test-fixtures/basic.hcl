@@ -138,9 +138,8 @@ job "binstore-storagelocker" {
         source = "foo"
         destination = "foo"
         change_mode = "foo"
-        restart_signal = "foo"
+        change_signal = "foo"
         splay = "10s"
-        once = true
       }
 
       template {
