@@ -355,7 +355,7 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string, taskEnv *en
 			dest = filepath.Join(taskDir, taskEnv.ReplaceEnv(tmpl.DestPath))
 		}
 
-		ct := &ctconf.ConfigTemplate{
+		ct := ctconf.ConfigTemplate{
 			Source:           src,
 			Destination:      dest,
 			EmbeddedTemplate: tmpl.EmbeddedTmpl,
@@ -363,7 +363,7 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string, taskEnv *en
 			Wait:             &watch.Wait{},
 		}
 
-		ctmpls[*ct] = tmpl
+		ctmpls[ct] = tmpl
 	}
 
 	return ctmpls

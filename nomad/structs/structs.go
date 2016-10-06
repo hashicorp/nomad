@@ -1753,12 +1753,12 @@ func (sc *ServiceCheck) validate() error {
 
 	switch sc.InitialStatus {
 	case "":
-	case api.HealthUnknown:
+		// case api.HealthUnknown: TODO: Add when Consul releases 0.7.1
 	case api.HealthPassing:
 	case api.HealthWarning:
 	case api.HealthCritical:
 	default:
-		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q, %q or empty`, sc.InitialStatus, api.HealthUnknown, api.HealthPassing, api.HealthWarning, api.HealthCritical)
+		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q, %q or empty`, sc.InitialStatus, api.HealthPassing, api.HealthWarning, api.HealthCritical)
 
 	}
 

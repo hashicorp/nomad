@@ -525,14 +525,47 @@
 			"revisionTime": "2016-10-03T19:46:06Z"
 		},
 		{
+			"checksumSHA1": "kWbL0V4o8vJL75mzeQzhF6p5jiQ=",
+			"path": "github.com/hashicorp/consul/acl",
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
+		},
+		{
+			"checksumSHA1": "BMEJLBjl91k5k3vMMzzT7G2SO1U=",
 			"comment": "v0.6.3-363-gae32a3c",
 			"path": "github.com/hashicorp/consul/api",
-			"revision": "ae32a3ceae9fddb431b933ed7b2a82110e41e1bf"
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
+		},
+		{
+			"checksumSHA1": "NrK9uDGSZ2WKMNLYicxDYmpRS3I=",
+			"path": "github.com/hashicorp/consul/consul/structs",
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
+		},
+		{
+			"checksumSHA1": "0DPAA2cTBjrCGgXaxXil0vILcFs=",
+			"path": "github.com/hashicorp/consul/lib",
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
+		},
+		{
+			"checksumSHA1": "BuOGVqQNO+iuqoGKAGGxCxC51ro=",
+			"path": "github.com/hashicorp/consul/testutil",
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
 		},
 		{
 			"comment": "v0.6.3-363-gae32a3c",
 			"path": "github.com/hashicorp/consul/tlsutil",
-			"revision": "ae32a3ceae9fddb431b933ed7b2a82110e41e1bf"
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
+		},
+		{
+			"checksumSHA1": "oQBVnohHMtF/4HuDCYKkhy+ijZ4=",
+			"path": "github.com/hashicorp/consul/types",
+			"revision": "a189091a3530051285c12c726ca28ea55e015336",
+			"revisionTime": "2016-09-14T16:11:34Z"
 		},
 		{
 			"path": "github.com/hashicorp/errwrap",
@@ -599,6 +632,12 @@
 		{
 			"path": "github.com/hashicorp/go-version",
 			"revision": "2e7f5ea8e27bb3fdf9baa0881d16757ac4637332"
+		},
+		{
+			"checksumSHA1": "d9PxF1XQGLMJZRct2R8qVM/eYlE=",
+			"path": "github.com/hashicorp/golang-lru",
+			"revision": "a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4",
+			"revisionTime": "2016-02-07T21:47:19Z"
 		},
 		{
 			"path": "github.com/hashicorp/golang-lru/simplelru",
