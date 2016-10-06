@@ -350,6 +350,7 @@ func (r *TaskRunner) validateTask() error {
 	return mErr.ErrorOrNil()
 }
 
+// prestart handles life-cycle tasks that occur before the task has started.
 func (r *TaskRunner) prestart(taskDir string) (success bool) {
 	// Build the template manager
 	var err error
@@ -553,6 +554,9 @@ func (r *TaskRunner) run() {
 	}
 }
 
+// shouldRestart returns if the task should restart. If the return value is
+// true, the task's restart policy has already been considered and any wait time
+// between restarts has been applied.
 func (r *TaskRunner) shouldRestart() bool {
 	state, when := r.restartTracker.GetState()
 	reason := r.restartTracker.GetReason()
@@ -595,6 +599,9 @@ func (r *TaskRunner) shouldRestart() bool {
 	return true
 }
 
+// killTask kills the running task, storing the reason in the Killing TaskEvent.
+// The associated stats collection channel is also closed once the task is
+// successfully killed.
 func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
 	r.runningLock.Lock()
 	running := r.running
@@ -615,15 +622,15 @@ func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
 		r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
 	}
 
+	r.runningLock.Lock()
+	r.running = false
+	r.runningLock.Unlock()
+
 	// Stop collection of the task's resource usage
 	close(statsCh)
 
 	// Store that the task has been destroyed and any associated error.
 	r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
-
-	r.runningLock.Lock()
-	r.running = false
-	r.runningLock.Unlock()
 }
 
 // startTask creates the driver and starts the task.
