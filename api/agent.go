@@ -3,8 +3,6 @@ package api
 import (
 	"fmt"
 	"net/url"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Agent encapsulates an API client which talks to Nomad's
@@ -184,7 +182,7 @@ func (a *Agent) ListKeys() (*KeyringResponse, error) {
 
 // InstallKey installs a key in the keyrings of all the serf members
 func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
-	args := structs.KeyringRequest{
+	args := KeyringRequest{
 		Key: key,
 	}
 	var resp KeyringResponse
@@ -194,7 +192,7 @@ func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
 
 // UseKey uses a key from the keyring of serf members
 func (a *Agent) UseKey(key string) (*KeyringResponse, error) {
-	args := structs.KeyringRequest{
+	args := KeyringRequest{
 		Key: key,
 	}
 	var resp KeyringResponse
@@ -204,7 +202,7 @@ func (a *Agent) UseKey(key string) (*KeyringResponse, error) {
 
 // RemoveKey removes a particular key from keyrings of serf members
 func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
-	args := structs.KeyringRequest{
+	args := KeyringRequest{
 		Key: key,
 	}
 	var resp KeyringResponse

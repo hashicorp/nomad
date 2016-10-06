@@ -122,7 +122,7 @@ func (c *KeyringCommand) Help() string {
 	helpText := `
 Usage: nomad keyring [options]
 
-  Manages encryption keys used for gossip messages between nomad servers. Gossip
+  Manages encryption keys used for gossip messages between Nomad servers. Gossip
   encryption is optional. When enabled, this command may be used to examine
   active encryption keys in the cluster, add new keys, and remove old ones. When
   combined, this functionality provides the ability to perform key rotation
