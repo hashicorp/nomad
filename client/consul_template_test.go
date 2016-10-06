@@ -21,16 +21,48 @@ import (
 // MockTaskHooks is a mock of the TaskHooks interface useful for testing
 type MockTaskHooks struct {
 	Restarts  int
-	Signals   []os.Signal
+	RestartCh chan struct{}
+
+	Signals  []os.Signal
+	SignalCh chan struct{}
+
+	UnblockCh chan struct{}
 	Unblocked bool
+
 	KillError error
 }
 
-func NewMockTaskHooks() *MockTaskHooks      { return &MockTaskHooks{} }
-func (m *MockTaskHooks) Restart()           { m.Restarts++ }
-func (m *MockTaskHooks) Signal(s os.Signal) { m.Signals = append(m.Signals, s) }
-func (m *MockTaskHooks) UnblockStart()      { m.Unblocked = true }
-func (m *MockTaskHooks) Kill(e error)       { m.KillError = e }
+func NewMockTaskHooks() *MockTaskHooks {
+	return &MockTaskHooks{
+		UnblockCh: make(chan struct{}, 1),
+		RestartCh: make(chan struct{}, 1),
+		SignalCh:  make(chan struct{}, 1),
+	}
+}
+func (m *MockTaskHooks) Restart() {
+	m.Restarts++
+	select {
+	case m.RestartCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *MockTaskHooks) Signal(s os.Signal) {
+	m.Signals = append(m.Signals, s)
+	select {
+	case m.SignalCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *MockTaskHooks) Kill(e error) { m.KillError = e }
+func (m *MockTaskHooks) UnblockStart() {
+	if !m.Unblocked {
+		close(m.UnblockCh)
+	}
+
+	m.Unblocked = true
+}
 
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
@@ -174,11 +206,10 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, false, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -212,22 +243,20 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
-		t.Fatalf("Task unblock should not have been called")
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the key to Consul
 	harness.consul.SetKV(key, []byte(content))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -262,23 +291,21 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, false, true)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
 		t.Fatalf("Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
 	logical.Write(vaultPath, map[string]interface{}{key: content})
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -321,12 +348,11 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template, template2}, false, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
-		t.Fatalf("Task unblock should not have been called")
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Check that the static file has been rendered
@@ -343,11 +369,10 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	// Write the key to Consul
 	harness.consul.SetKV(consulKey, []byte(consulContent))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -382,22 +407,20 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
-		t.Fatalf("Task unblock should not have been called")
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the key to Consul
 	harness.consul.SetKV(key, []byte(content1))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -415,12 +438,12 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	// Update the key in Consul
 	harness.consul.SetKV(key, []byte(content2))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we haven't been signaled/restarted
-	if harness.mockHooks.Restarts != 0 || len(harness.mockHooks.Signals) != 0 {
+	select {
+	case <-harness.mockHooks.RestartCh:
 		t.Fatalf("Noop ignored: %+v", harness.mockHooks)
+	case <-harness.mockHooks.SignalCh:
+		t.Fatalf("Noop ignored: %+v", harness.mockHooks)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Check the file has been updated
@@ -468,23 +491,21 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template, template2}, false, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
-		t.Fatalf("Task unblock should not have been called")
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the key to Consul
 	harness.consul.SetKV(key1, []byte(content1_1))
 	harness.consul.SetKV(key2, []byte(content2_1))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -492,16 +513,21 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	harness.consul.SetKV(key1, []byte(content1_2))
 	harness.consul.SetKV(key2, []byte(content2_2))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been signaled and notrestarted
-	if harness.mockHooks.Restarts != 0 {
-		t.Fatalf("Should not have been restarted: %+v", harness.mockHooks)
-	}
-
-	if len(harness.mockHooks.Signals) != 2 {
-		t.Fatalf("Should have received two signals: %+v", harness.mockHooks)
+	// Wait for signals
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
+		case <-harness.mockHooks.SignalCh:
+			if len(harness.mockHooks.Signals) != 2 {
+				continue
+			}
+			break OUTER
+		case <-timeout:
+			t.Fatalf("Should have received two signals: %+v", harness.mockHooks)
+		}
 	}
 
 	// Check the files have  been updated
@@ -545,33 +571,38 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have not been unblocked
-	if harness.mockHooks.Unblocked {
-		t.Fatalf("Task unblock should not have been called")
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the key to Consul
 	harness.consul.SetKV(key1, []byte(content1_1))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
 	harness.consul.SetKV(key1, []byte(content1_2))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	if harness.mockHooks.Restarts != 1 {
-		t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+	// Wait for restart
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			break OUTER
+		case <-harness.mockHooks.SignalCh:
+			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+		case <-timeout:
+			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+		}
 	}
 
 	// Check the files have  been updated
@@ -599,11 +630,10 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, false, false, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
-	// Ensure we have been unblocked
-	if !harness.mockHooks.Unblocked {
+	// Ensure unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Task unblock should have been called")
 	}
 
@@ -639,17 +669,21 @@ func TestTaskTemplateManager_AllRendered_Signal(t *testing.T) {
 	harness := newTestHarness(t, []*structs.Template{template}, true, true, false)
 	defer harness.stop()
 
-	// Wait a little while
-	time.Sleep(time.Duration(testutil.TestMultiplier()*100) * time.Millisecond)
-
 	// Write the key to Consul
 	harness.consul.SetKV(key1, []byte(content1_1))
 
-	// Wait a little while
-	time.Sleep(time.Duration(200*testutil.TestMultiplier()) * time.Millisecond)
-
-	if len(harness.mockHooks.Signals) != 1 {
-		t.Fatalf("Should have received two signals: %+v", harness.mockHooks)
+	// Wait for restart
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
+		case <-harness.mockHooks.SignalCh:
+			break OUTER
+		case <-timeout:
+			t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
+		}
 	}
 
 	// Check the files have  been updated
