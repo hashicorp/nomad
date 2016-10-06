@@ -525,7 +525,6 @@ func (r *TaskRunner) run() {
 
 			case event := <-r.killCh:
 				r.logger.Printf("[ERR] client: task being killed: %s", event.KillReason)
-				r.setState(structs.TaskStateRunning, event)
 				r.killTask(event.KillReason, stopCollection)
 				return
 
@@ -556,7 +555,6 @@ func (r *TaskRunner) run() {
 
 func (r *TaskRunner) shouldRestart() bool {
 	state, when := r.restartTracker.GetState()
-	r.restartTracker.SetStartError(nil).SetWaitResult(nil)
 	reason := r.restartTracker.GetReason()
 	switch state {
 	case structs.TaskNotRestarting, structs.TaskTerminated:
@@ -850,7 +848,7 @@ func (r *TaskRunner) UnblockStart(source string) {
 		return
 	}
 
-	r.logger.Printf("[DEBUG] client: unblocking task %v for alloc %q: %v", r.task.Name, r.alloc.ID)
+	r.logger.Printf("[DEBUG] client: unblocking task %v for alloc %q: %v", r.task.Name, r.alloc.ID, source)
 	close(r.unblockCh)
 }
 

@@ -29,7 +29,7 @@ type MockTaskHooks struct {
 	UnblockCh chan struct{}
 	Unblocked bool
 
-	KillError error
+	KillReason string
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
@@ -39,7 +39,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		SignalCh:  make(chan struct{}, 1),
 	}
 }
-func (m *MockTaskHooks) Restart() {
+func (m *MockTaskHooks) Restart(source, reason string) {
 	m.Restarts++
 	select {
 	case m.RestartCh <- struct{}{}:
@@ -47,7 +47,7 @@ func (m *MockTaskHooks) Restart() {
 	}
 }
 
-func (m *MockTaskHooks) Signal(s os.Signal) {
+func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) {
 	m.Signals = append(m.Signals, s)
 	select {
 	case m.SignalCh <- struct{}{}:
@@ -55,8 +55,8 @@ func (m *MockTaskHooks) Signal(s os.Signal) {
 	}
 }
 
-func (m *MockTaskHooks) Kill(e error) { m.KillError = e }
-func (m *MockTaskHooks) UnblockStart() {
+func (m *MockTaskHooks) Kill(source, reason string) { m.KillReason = reason }
+func (m *MockTaskHooks) UnblockStart(source string) {
 	if !m.Unblocked {
 		close(m.UnblockCh)
 	}

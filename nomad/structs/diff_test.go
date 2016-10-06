@@ -3289,27 +3289,21 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "ChangeSignal",
+								Old:  "",
+								New:  "SIGHUP3",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "DestPath",
 								Old:  "",
 								New:  "bar3",
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "EmbededTmpl",
+								Name: "EmbeddedTmpl",
 								Old:  "",
 								New:  "baz3",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "Once",
-								Old:  "",
-								New:  "true",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "RestartSignal",
-								Old:  "",
-								New:  "SIGHUP3",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -3337,26 +3331,20 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
+								Name: "ChangeSignal",
+								Old:  "SIGHUP2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "DestPath",
 								Old:  "bar2",
 								New:  "",
 							},
 							{
 								Type: DiffTypeDeleted,
-								Name: "EmbededTmpl",
+								Name: "EmbeddedTmpl",
 								Old:  "baz2",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "Once",
-								Old:  "false",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "RestartSignal",
-								Old:  "SIGHUP2",
 								New:  "",
 							},
 							{
