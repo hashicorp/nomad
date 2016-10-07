@@ -8,6 +8,8 @@ IMPROVEMENTS:
   * client: Enforce shared allocation directory disk usage [GH-1580]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
+  * driver/docker: Support Docker volumes [GH-1767]
+  * driver/docker: Allow Docker logging to be configured [GH-1767]
 
 BUG FIXES:
   * client: Prevent race when persisting state file [GH-1682]

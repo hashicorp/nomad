@@ -137,13 +137,23 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `logging` - (Optional) A key/value map of Docker logging options. The default
+  value is `syslog`.
+
+    ```hcl
+    config {
+      logging {
+        type = "fluentd"
+        config {
+          fluentd-address = "localhost:24224"
+        }
+      }
+    }
+    ```
+
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
   host paths to container paths. Can only be run on clients with the
   `docker.volumes.enabled` option set to true.
-
-* `volumes_from` - (Optional) A list of volumes to inherit from another
-  container. Can only be run on clients with the `docker.volumes.enabled`
-  option set to true.
 
 * `work_dir` - (Optional) The working directory inside the container.
 
