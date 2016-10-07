@@ -47,6 +47,16 @@ The `docker` driver supports the following configuration in the job spec:
   download each of the archive files. The equivalent of `docker load -i path`
   would be run on each of the archive files.
 
+    ```hcl
+    artifact {
+      source = "http://path.to/redis.tar"
+    }
+    config {
+      load = ["redis.tar"]
+      image = "redis"
+    }
+    ````
+
 * `command` - (Optional) The command to run when starting the container.
 
     ```hcl
