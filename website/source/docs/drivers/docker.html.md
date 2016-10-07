@@ -39,7 +39,7 @@ The `docker` driver supports the following configuration in the job spec:
     config {
       image = "https://hub.docker.internal/redis:3.2"
     }
-    ````
+    ```
 
 * `load` - (Optional) A list of paths to image archive files. If
   this key is not specified, Nomad assumes the `image` is hosted on a repository
@@ -55,7 +55,7 @@ The `docker` driver supports the following configuration in the job spec:
       load = ["redis.tar"]
       image = "redis"
     }
-    ````
+    ```
 
 * `command` - (Optional) The command to run when starting the container.
 
