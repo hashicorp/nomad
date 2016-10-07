@@ -165,6 +165,12 @@ The `docker` driver supports the following configuration in the job spec:
   host paths to container paths. Can only be run on clients with the
   `docker.volumes.enabled` option set to true.
 
+    ```hcl
+    config {
+      volumes = ["/path/on/host:/path/in/container"]
+    }
+    ```
+
 * `work_dir` - (Optional) The working directory inside the container.
 
 ### Container Name
