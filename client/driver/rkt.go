@@ -397,7 +397,7 @@ func (h *rktHandle) Update(task *structs.Task) error {
 }
 
 func (h *rktHandle) Signal(s os.Signal) error {
-	return nil
+	return fmt.Errorf("Rkt does not support signals")
 }
 
 // Kill is used to terminate the task. We send an Interrupt

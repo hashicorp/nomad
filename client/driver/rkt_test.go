@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -157,6 +158,11 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	// Update should be a no-op
 	err = handle.Update(task)
 	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Signal should be an error
+	if err = handle.Signal(syscall.SIGTERM); err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
