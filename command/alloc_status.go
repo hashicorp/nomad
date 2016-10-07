@@ -353,6 +353,25 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Task's sibling failed"
 			}
+		case api.TaskSignaling:
+			sig := event.TaskSignal
+			reason := event.TaskSignalReason
+
+			if sig == "" && reason == "" {
+				desc = "Task being sent a signal"
+			} else if sig == "" {
+				desc = reason
+			} else if reason == "" {
+				desc = fmt.Sprintf("Task being sent signal %v", sig)
+			} else {
+				desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+			}
+		case api.TaskRestartSignal:
+			if event.RestartReason != "" {
+				desc = event.RestartReason
+			} else {
+				desc = "Task signaled to restart"
+			}
 		}
 
 		// Reverse order so we are sorted by time

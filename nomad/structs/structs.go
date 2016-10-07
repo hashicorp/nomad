@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -2223,7 +2224,7 @@ type Template struct {
 	DestPath string `mapstructure:"destination"`
 
 	// EmbeddedTmpl store the raw template. This is useful for smaller templates
-	// where they are embeded in the job file rather than sent as an artificat
+	// where they are embedded in the job file rather than sent as an artificat
 	EmbeddedTmpl string `mapstructure:"data"`
 
 	// ChangeMode indicates what should be done if the template is re-rendered
@@ -2261,7 +2262,7 @@ func (t *Template) Validate() error {
 
 	// Verify we have something to render
 	if t.SourcePath == "" && t.EmbeddedTmpl == "" {
-		multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embeded template"))
+		multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embedded template"))
 	}
 
 	// Verify we can render somewhere
@@ -2393,6 +2394,13 @@ const (
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Not Restarting"
 
+	// TaskRestartSignal indicates that the task has been signalled to be
+	// restarted
+	TaskRestartSignal = "Restart Signaled"
+
+	// TaskSignaling indicates that the task is being signalled.
+	TaskSignaling = "Signaling"
+
 	// TaskDownloadingArtifacts means the task is downloading the artifacts
 	// specified in the task.
 	TaskDownloadingArtifacts = "Downloading Artifacts"
@@ -2436,6 +2444,9 @@ type TaskEvent struct {
 	// Task Killed Fields.
 	KillError string // Error killing the task.
 
+	// KillReason is the reason the task was killed
+	KillReason string
+
 	// TaskRestarting fields.
 	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
 
@@ -2457,6 +2468,12 @@ type TaskEvent struct {
 
 	// VaultError is the error from token renewal
 	VaultError string
+
+	// TaskSignalReason indicates the reason the task is being signalled.
+	TaskSignalReason string
+
+	// TaskSignal is the signal that was sent to the task
+	TaskSignal string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2510,6 +2527,11 @@ func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 	return e
 }
 
+func (e *TaskEvent) SetKillReason(r string) *TaskEvent {
+	e.KillReason = r
+	return e
+}
+
 func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	e.StartDelay = int64(delay)
 	return e
@@ -2517,6 +2539,16 @@ func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 
 func (e *TaskEvent) SetRestartReason(reason string) *TaskEvent {
 	e.RestartReason = reason
+	return e
+}
+
+func (e *TaskEvent) SetTaskSignalReason(r string) *TaskEvent {
+	e.TaskSignalReason = r
+	return e
+}
+
+func (e *TaskEvent) SetTaskSignal(s os.Signal) *TaskEvent {
+	e.TaskSignal = s.String()
 	return e
 }
 

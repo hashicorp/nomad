@@ -69,6 +69,28 @@ type TaskRunner struct {
 	vaultToken     string
 	vaultRenewalCh <-chan error
 
+	// templateManager is used to manage any consul-templates this task may have
+	templateManager *TaskTemplateManager
+
+	// templatesRendered mark whether the templates have been rendered
+	templatesRendered bool
+
+	// unblockCh is used to unblock the starting of the task
+	unblockCh   chan struct{}
+	unblocked   bool
+	unblockLock sync.Mutex
+
+	// restartCh is used to restart a task
+	restartCh chan *structs.TaskEvent
+
+	// signalCh is used to send a signal to a task
+	signalCh chan SignalEvent
+
+	// killCh is used to kill a task
+	killCh   chan *structs.TaskEvent
+	killed   bool
+	killLock sync.Mutex
+
 	destroy      bool
 	destroyCh    chan struct{}
 	destroyLock  sync.Mutex
@@ -85,10 +107,17 @@ type taskRunnerState struct {
 	Task               *structs.Task
 	HandleID           string
 	ArtifactDownloaded bool
+	TemplatesRendered  bool
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
 type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
+
+// SignalEvent is a tuple of the signal and the event generating it
+type SignalEvent struct {
+	s os.Signal
+	e *structs.TaskEvent
+}
 
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
@@ -117,6 +146,10 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		updateCh:       make(chan *structs.Allocation, 64),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
+		unblockCh:      make(chan struct{}),
+		restartCh:      make(chan *structs.TaskEvent),
+		signalCh:       make(chan SignalEvent),
+		killCh:         make(chan *structs.TaskEvent),
 	}
 
 	return tc
@@ -167,6 +200,7 @@ func (r *TaskRunner) RestoreState() error {
 		r.task = snap.Task
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
+	r.templatesRendered = snap.TemplatesRendered
 
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
@@ -208,6 +242,7 @@ func (r *TaskRunner) SaveState() error {
 		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
+		TemplatesRendered:  r.templatesRendered,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -315,24 +350,23 @@ func (r *TaskRunner) validateTask() error {
 	return mErr.ErrorOrNil()
 }
 
-func (r *TaskRunner) run() {
-	// Predeclare things so we can jump to the RESTART
-	var handleEmpty bool
-	var stopCollection chan struct{}
+// prestart handles life-cycle tasks that occur before the task has started.
+func (r *TaskRunner) prestart(taskDir string) (success bool) {
+	// Build the template manager
+	var err error
+	r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
+		r.config, r.vaultToken, taskDir, r.taskEnv)
+	if err != nil {
+		err := fmt.Errorf("failed to build task's template manager: %v", err)
+		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+		r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+		return
+	}
 
 	for {
 		// Download the task's artifacts
 		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
-			taskDir, ok := r.ctx.AllocDir.TaskDirs[r.task.Name]
-			if !ok {
-				err := fmt.Errorf("task directory couldn't be found")
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
-				r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
-				r.restartTracker.SetStartError(err)
-				goto RESTART
-			}
-
 			for _, artifact := range r.task.Artifacts {
 				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir); err != nil {
 					r.setState(structs.TaskStatePending,
@@ -345,6 +379,67 @@ func (r *TaskRunner) run() {
 			r.artifactsDownloaded = true
 		}
 
+		// We don't have to wait
+		if r.templatesRendered {
+			return true
+		}
+
+		// Block for consul-template
+		select {
+		case <-r.unblockCh:
+			r.templatesRendered = true
+			return true
+		case event := <-r.killCh:
+			r.setState(structs.TaskStateDead, event)
+			r.logger.Printf("[ERR] client: task killed: %v", event)
+			return false
+		case update := <-r.updateCh:
+			if err := r.handleUpdate(update); err != nil {
+				r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
+			}
+		case err := <-r.vaultRenewalCh:
+			if err == nil {
+				continue // Only handle once.
+			}
+
+			// This is a fatal error as the task is not valid if it requested a
+			// Vault token and the token has now expired.
+			r.logger.Printf("[WARN] client: vault token for task %q not renewed: %v", r.task.Name, err)
+			r.Destroy(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(err))
+
+		case <-r.destroyCh:
+			r.setState(structs.TaskStateDead, r.destroyEvent)
+			return false
+		}
+
+	RESTART:
+		restart := r.shouldRestart()
+		if !restart {
+			return false
+		}
+	}
+}
+
+func (r *TaskRunner) run() {
+	// Predeclare things so we can jump to the RESTART
+	var handleEmpty bool
+	var stopCollection chan struct{}
+
+	// Get the task directory
+	taskDir, ok := r.ctx.AllocDir.TaskDirs[r.task.Name]
+	if !ok {
+		err := fmt.Errorf("task directory couldn't be found")
+		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+		r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
+		return
+	}
+
+	// Do all prestart events first
+	if success := r.prestart(taskDir); !success {
+		return
+	}
+
+	for {
 		// Start the task if not yet started or it is being forced. This logic
 		// is necessary because in the case of a restore the handle already
 		// exists.
@@ -413,75 +508,41 @@ func (r *TaskRunner) run() {
 				r.logger.Printf("[WARN] client: vault token for task %q not renewed: %v", r.task.Name, err)
 				r.Destroy(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(err))
 
+			case se := <-r.signalCh:
+				r.logger.Printf("[DEBUG] client: task being signalled with %v: %s", se.s, se.e.TaskSignalReason)
+				r.setState(structs.TaskStateRunning, se.e)
+
+				// TODO need an interface on the driver
+
+			case event := <-r.restartCh:
+				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
+				r.setState(structs.TaskStateRunning, event)
+				r.killTask(event.RestartReason, stopCollection)
+
+				// Since the restart isn't from a failure, restart immediately
+				// and don't count against the restart policy
+				r.restartTracker.SetRestartTriggered()
+				break WAIT
+
+			case event := <-r.killCh:
+				r.logger.Printf("[ERR] client: task being killed: %s", event.KillReason)
+				r.killTask(event.KillReason, stopCollection)
+				return
+
 			case <-r.destroyCh:
 				// Store the task event that provides context on the task destroy.
 				if r.destroyEvent.Type != structs.TaskKilled {
 					r.setState(structs.TaskStateRunning, r.destroyEvent)
 				}
 
-				// Mark that we received the kill event
-				timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
-				r.setState(structs.TaskStateRunning,
-					structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout))
-
-				// Kill the task using an exponential backoff in-case of failures.
-				destroySuccess, err := r.handleDestroy()
-				if !destroySuccess {
-					// We couldn't successfully destroy the resource created.
-					r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
-				}
-
-				// Stop collection of the task's resource usage
-				close(stopCollection)
-
-				// Store that the task has been destroyed and any associated error.
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
-
-				r.runningLock.Lock()
-				r.running = false
-				r.runningLock.Unlock()
-
+				r.killTask("", stopCollection)
 				return
 			}
 		}
 
 	RESTART:
-		state, when := r.restartTracker.GetState()
-		r.restartTracker.SetStartError(nil).SetWaitResult(nil)
-		reason := r.restartTracker.GetReason()
-		switch state {
-		case structs.TaskNotRestarting, structs.TaskTerminated:
-			r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
-			if state == structs.TaskNotRestarting {
-				r.setState(structs.TaskStateDead,
-					structs.NewTaskEvent(structs.TaskNotRestarting).
-						SetRestartReason(reason))
-			}
-			return
-		case structs.TaskRestarting:
-			r.logger.Printf("[INFO] client: Restarting task %q for alloc %q in %v", r.task.Name, r.alloc.ID, when)
-			r.setState(structs.TaskStatePending,
-				structs.NewTaskEvent(structs.TaskRestarting).
-					SetRestartDelay(when).
-					SetRestartReason(reason))
-		default:
-			r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
-			return
-		}
-
-		// Sleep but watch for destroy events.
-		select {
-		case <-time.After(when):
-		case <-r.destroyCh:
-		}
-
-		// Destroyed while we were waiting to restart, so abort.
-		r.destroyLock.Lock()
-		destroyed := r.destroy
-		r.destroyLock.Unlock()
-		if destroyed {
-			r.logger.Printf("[DEBUG] client: Not restarting task: %v because it has been destroyed due to: %s", r.task.Name, r.destroyEvent.Message)
-			r.setState(structs.TaskStateDead, r.destroyEvent)
+		restart := r.shouldRestart()
+		if !restart {
 			return
 		}
 
@@ -491,6 +552,85 @@ func (r *TaskRunner) run() {
 		stopCollection = nil
 		r.handleLock.Unlock()
 	}
+}
+
+// shouldRestart returns if the task should restart. If the return value is
+// true, the task's restart policy has already been considered and any wait time
+// between restarts has been applied.
+func (r *TaskRunner) shouldRestart() bool {
+	state, when := r.restartTracker.GetState()
+	reason := r.restartTracker.GetReason()
+	switch state {
+	case structs.TaskNotRestarting, structs.TaskTerminated:
+		r.logger.Printf("[INFO] client: Not restarting task: %v for alloc: %v ", r.task.Name, r.alloc.ID)
+		if state == structs.TaskNotRestarting {
+			r.setState(structs.TaskStateDead,
+				structs.NewTaskEvent(structs.TaskNotRestarting).
+					SetRestartReason(reason))
+		}
+		return false
+	case structs.TaskRestarting:
+		r.logger.Printf("[INFO] client: Restarting task %q for alloc %q in %v", r.task.Name, r.alloc.ID, when)
+		r.setState(structs.TaskStatePending,
+			structs.NewTaskEvent(structs.TaskRestarting).
+				SetRestartDelay(when).
+				SetRestartReason(reason))
+	default:
+		r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
+		return false
+	}
+
+	// Sleep but watch for destroy events.
+	select {
+	case <-time.After(when):
+	case <-r.destroyCh:
+	}
+
+	// Destroyed while we were waiting to restart, so abort.
+	r.destroyLock.Lock()
+	destroyed := r.destroy
+	r.destroyLock.Unlock()
+	if destroyed {
+		r.logger.Printf("[DEBUG] client: Not restarting task: %v because it has been destroyed due to: %s", r.task.Name, r.destroyEvent.Message)
+		r.setState(structs.TaskStateDead, r.destroyEvent)
+		return false
+	}
+
+	return true
+}
+
+// killTask kills the running task, storing the reason in the Killing TaskEvent.
+// The associated stats collection channel is also closed once the task is
+// successfully killed.
+func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+	if !running {
+		return
+	}
+
+	// Mark that we received the kill event
+	timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
+	r.setState(structs.TaskStateRunning,
+		structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout).SetKillReason(reason))
+
+	// Kill the task using an exponential backoff in-case of failures.
+	destroySuccess, err := r.handleDestroy()
+	if !destroySuccess {
+		// We couldn't successfully destroy the resource created.
+		r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
+	}
+
+	r.runningLock.Lock()
+	r.running = false
+	r.runningLock.Unlock()
+
+	// Stop collection of the task's resource usage
+	close(statsCh)
+
+	// Store that the task has been destroyed and any associated error.
+	r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
 }
 
 // startTask creates the driver and starts the task.
@@ -635,6 +775,88 @@ func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
 		}
 	}
 	return
+}
+
+// Restart will restart the task
+func (r *TaskRunner) Restart(source, reason string) {
+
+	reasonStr := fmt.Sprintf("%s: %s", source, reason)
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
+
+	r.logger.Printf("[DEBUG] client: restarting task %v for alloc %q: %v",
+		r.task.Name, r.alloc.ID, reasonStr)
+
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+
+	// Drop the restart event
+	if !running {
+		r.logger.Printf("[DEBUG] client: skipping restart since task isn't running")
+		return
+	}
+
+	select {
+	case r.restartCh <- event:
+	case <-r.waitCh:
+	}
+}
+
+// Signal will send a signal to the task
+func (r *TaskRunner) Signal(source, reason string, s os.Signal) {
+
+	reasonStr := fmt.Sprintf("%s: %s", source, reason)
+	event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetTaskSignalReason(reasonStr)
+
+	r.logger.Printf("[DEBUG] client: sending signal %v to task %v for alloc %q", s, r.task.Name, r.alloc.ID)
+
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+
+	// Drop the restart event
+	if !running {
+		r.logger.Printf("[DEBUG] client: skipping signal since task isn't running")
+		return
+	}
+
+	select {
+	case r.signalCh <- SignalEvent{s: s, e: event}:
+	case <-r.waitCh:
+	}
+}
+
+// Kill will kill a task and store the error, no longer restarting the task
+func (r *TaskRunner) Kill(source, reason string) {
+	r.killLock.Lock()
+	defer r.killLock.Unlock()
+	if r.killed {
+		return
+	}
+
+	reasonStr := fmt.Sprintf("%s: %s", source, reason)
+	event := structs.NewTaskEvent(structs.TaskKilling).SetKillReason(reasonStr)
+
+	r.logger.Printf("[DEBUG] client: killing task %v for alloc %q: %v", r.task.Name, r.alloc.ID, reasonStr)
+
+	select {
+	case r.killCh <- event:
+		close(r.killCh)
+	case <-r.waitCh:
+	}
+}
+
+// UnblockStart unblocks the starting of the task. It currently assumes only
+// consul-template will unblock
+func (r *TaskRunner) UnblockStart(source string) {
+	r.unblockLock.Lock()
+	defer r.unblockLock.Unlock()
+	if r.unblocked {
+		return
+	}
+
+	r.logger.Printf("[DEBUG] client: unblocking task %v for alloc %q: %v", r.task.Name, r.alloc.ID, source)
+	close(r.unblockCh)
 }
 
 // Helper function for converting a WaitResult into a TaskTerminated event.

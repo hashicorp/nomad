@@ -34,15 +34,16 @@ func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 }
 
 type RestartTracker struct {
-	waitRes   *cstructs.WaitResult
-	startErr  error
-	count     int       // Current number of attempts.
-	onSuccess bool      // Whether to restart on successful exit code.
-	startTime time.Time // When the interval began
-	reason    string    // The reason for the last state
-	policy    *structs.RestartPolicy
-	rand      *rand.Rand
-	lock      sync.Mutex
+	waitRes          *cstructs.WaitResult
+	startErr         error
+	restartTriggered bool      // Whether the task has been signalled to be restarted
+	count            int       // Current number of attempts.
+	onSuccess        bool      // Whether to restart on successful exit code.
+	startTime        time.Time // When the interval began
+	reason           string    // The reason for the last state
+	policy           *structs.RestartPolicy
+	rand             *rand.Rand
+	lock             sync.Mutex
 }
 
 // SetPolicy updates the policy used to determine restarts.
@@ -66,6 +67,15 @@ func (r *RestartTracker) SetWaitResult(res *cstructs.WaitResult) *RestartTracker
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.waitRes = res
+	return r
+}
+
+// SetRestartTriggered is used to mark that the task has been signalled to be
+// restarted
+func (r *RestartTracker) SetRestartTriggered() *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.restartTriggered = true
 	return r
 }
 
@@ -111,13 +121,25 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.startTime = now
 	}
 
+	var state string
+	var dur time.Duration
 	if r.startErr != nil {
-		return r.handleStartError()
+		state, dur = r.handleStartError()
 	} else if r.waitRes != nil {
-		return r.handleWaitResult()
+		state, dur = r.handleWaitResult()
+	} else if r.restartTriggered {
+		state, dur = structs.TaskRestarting, 0
+		r.reason = ""
 	} else {
-		return "", 0
+		state, dur = "", 0
 	}
+
+	// Clear out the existing state
+	r.startErr = nil
+	r.waitRes = nil
+	r.restartTriggered = false
+
+	return state, dur
 }
 
 // handleStartError returns the new state and potential wait duration for
