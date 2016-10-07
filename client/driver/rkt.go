@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -392,6 +393,10 @@ func (h *rktHandle) Update(task *structs.Task) error {
 	h.executor.UpdateTask(task)
 
 	// Update is not possible
+	return nil
+}
+
+func (h *rktHandle) Signal(s os.Signal) error {
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -252,6 +253,10 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 	h.executor.UpdateTask(task)
 
 	// Update is not possible
+	return nil
+}
+
+func (h *rawExecHandle) Signal(s os.Signal) error {
 	return nil
 }
 

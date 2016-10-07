@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -175,6 +176,11 @@ func (h *mockDriverHandle) WaitCh() chan *dstructs.WaitResult {
 
 // TODO Implement when we need it.
 func (h *mockDriverHandle) Update(task *structs.Task) error {
+	return nil
+}
+
+// TODO Implement when we need it.
+func (h *mockDriverHandle) Signal(s os.Signal) error {
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -82,6 +83,11 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 	if handle == nil {
 		t.Fatalf("missing handle")
+	}
+
+	// Ensure that sending a Signal returns an error
+	if err := handle.Signal(syscall.SIGINT); err == nil {
+		t.Fatalf("Expect an error when signalling")
 	}
 
 	// Attempt to open

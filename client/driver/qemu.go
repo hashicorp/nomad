@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -358,6 +359,10 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *qemuHandle) Signal(s os.Signal) error {
+	return fmt.Errorf("Qemu driver can't send signals")
 }
 
 // TODO: allow a 'shutdown_command' that can be executed over a ssh connection

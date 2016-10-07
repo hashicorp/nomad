@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -355,6 +356,10 @@ func (h *javaHandle) Update(task *structs.Task) error {
 	h.executor.UpdateTask(task)
 
 	// Update is not possible
+	return nil
+}
+
+func (h *javaHandle) Signal(s os.Signal) error {
 	return nil
 }
 
