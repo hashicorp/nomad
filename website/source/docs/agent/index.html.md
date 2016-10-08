@@ -14,12 +14,12 @@ running in client or server mode. Clients are responsible for running tasks,
 while servers are responsible for managing the cluster.
 
 Client mode agents are relatively simple. They make use of fingerprinting
-to determine the capabilities and resources of the host machine, as well as 
+to determine the capabilities and resources of the host machine, as well as
 determining what [drivers](/docs/drivers/index.html) are available. Clients
 register with servers to provide the node information, heartbeat to provide
 liveness, and run any tasks assigned to them.
 
-Servers take on the responsibility of being part of the 
+Servers take on the responsibility of being part of the
 [consensus protocol](/docs/internals/consensus.html) and [gossip protocol](/docs/internals/gossip.html).
 The consensus protocol, powered by Raft, allows the servers to perform
 leader election and state replication. The gossip protocol allows for simple
@@ -44,15 +44,15 @@ $ nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: (Infrastructure: 'armon/test' Join: false)
+                 Atlas: (Infrastructure: 'hashicorp/example' Join: false)
                 Client: true
-             Log Level: DEBUG
+             Log Level: INFO
                 Region: global (DC: dc1)
                 Server: true
 
 ==> Nomad agent started! Log data will stream in below:
 
-    [INFO] serf: EventMemberJoin: Armons-MacBook-Air.local.global 127.0.0.1
+    [INFO] serf: EventMemberJoin: server-1.node.global 127.0.0.1
     [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
 ...
 ```
