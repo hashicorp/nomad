@@ -1,9 +1,11 @@
 ---
 layout: "docs"
-page_title: "Operating a Job: Resource Utilization"
-sidebar_current: "docs-jobops-resource-utilization"
+page_title: "Resource Utilization - Operating a Job"
+sidebar_current: "docs-operating-a-job-resource-utilization"
 description: |-
-  Learn how to see resource utilization of a Nomad Job.
+  Nomad supports reporting detailed job statistics and resource utilization
+  metrics for most task drivers. This section describes the ways to inspect a
+  job's resource consumption and utilization.
 ---
 
 # Determining Resource Utilization
@@ -16,7 +18,7 @@ command](/docs/commands/alloc-status.html) by specifying the `-stats` flag.
 In the below example we are running `redis` and can see its resource utilization
 below:
 
-```
+```text
 $ nomad alloc-status c3e0
 ID            = c3e0e3e0
 Eval ID       = 617e5e39
@@ -49,10 +51,10 @@ Here we can see that we are near the limit of our configured CPU but we have
 plenty of memory headroom. We can use this information to alter our job's
 resources to better reflect is actually needs:
 
-```
+```hcl
 resource {
-    cpu = 2000
-    memory = 100
+  cpu    = 2000
+  memory = 100
 }
 ```
 

@@ -6,7 +6,7 @@ description: |-
   Learn how to do safely update Nomad Jobs.
 ---
 
-# Updating a Job
+# Update Strategies
 
 When operating a service, updating the version of the job will be a common task.
 Under a cluster scheduler the same best practices apply for reliably deploying
@@ -34,10 +34,9 @@ job "example" {
 }
 ```
 
-We can use the [`nomad plan` command](/docs/commands/plan.html) while updating
-jobs to ensure the scheduler will do as we expect. In this example, we have 3
-web server instances that we want to update their version. After the job file
-was modified we can run `plan`:
+We can use the "nomad plan" command while updating jobs to ensure the scheduler
+will do as we expect. In this example, we have 3 web server instances that we
+want to update their version. After the job file was modified we can run `plan`:
 
 ```text
 $ nomad plan my-web.nomad
