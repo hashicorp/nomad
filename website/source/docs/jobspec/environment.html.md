@@ -8,9 +8,9 @@ description: |-
 
 # Runtime Environment
 
-Some settings you specify in your [job specification](/docs/jobspec/) are passed to tasks
-when they start. Other settings are dynamically allocated when your job is
-scheduled. Both types of values are made available to your job through
+Some settings you specify in your [job specification](/docs/jobspec/) are passed
+to tasks when they start. Other settings are dynamically allocated when your job
+is scheduled. Both types of values are made available to your job through
 environment variables.
 
 ## Summary
@@ -21,55 +21,55 @@ environment variables.
     <th>Description</th>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_DIR</tt></td>
+    <td>`NOMAD_ALLOC_DIR`</td>
     <td>Path to the shared alloc directory</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_TASK_DIR</tt></td>
+    <td>`NOMAD_TASK_DIR`</td>
     <td>Path to the local task directory</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_MEMORY_LIMIT</tt></td>
+    <td>`NOMAD_MEMORY_LIMIT`</td>
     <td>The task's memory limit in MB</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_CPU_LIMIT</tt></td>
+    <td>`NOMAD_CPU_LIMIT`</td>
     <td>The task's CPU limit in MHz</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_ID</tt></td>
+    <td>`NOMAD_ALLOC_ID`</td>
     <td>The allocation ID of the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_NAME</tt></td>
+    <td>`NOMAD_ALLOC_NAME`</td>
     <td>The allocation name of the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_INDEX</tt></td>
+    <td>`NOMAD_ALLOC_INDEX`</td>
     <td>The allocation index; useful to distinguish instances of task groups</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_TASK_NAME</tt></td>
+    <td>`NOMAD_TASK_NAME`</td>
     <td>The task's name</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_IP_&lt;label&gt;</tt></td>
+    <td>`NOMAD_IP_<label>`</td>
     <td>The IP of the the port with the given label</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_PORT_&lt;label&gt;</tt></td>
+    <td>`NOMAD_PORT_<label>`</td>
     <td>The port value with the given label</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ADDR_&lt;label&gt;</tt></td>
+    <td>`NOMAD_ADDR_<label>`</td>
     <td>The IP:Port pair of the the port with the given label</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_HOST_PORT_&lt;label&gt;</tt></td>
+    <td>`NOMAD_HOST_PORT_<label>`</td>
     <td>The host port for the given label if the port is port mapped</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_META_&lt;key&gt;</tt></td>
+    <td>`NOMAD_META_<key>`</td>
     <td>The metadata of the task</td>
   </tr>
 </table>

@@ -1,6 +1,6 @@
 ---
 layout: "docs"
-page_title: "Nomad Schedulers"
+page_title: "Scheduler Types"
 sidebar_current: "docs-jobspec-schedulers"
 description: |-
   Learn about Nomad's various schedulers.
