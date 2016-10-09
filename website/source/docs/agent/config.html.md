@@ -19,7 +19,9 @@ the Nomad agent.
 When specifying multiple config file options on the command-line, the files are
 loaded in the order they are specified. For example:
 
-    nomad agent -config server.conf -config /etc/nomad -config extra.json
+```shell
+$ nomad agent -config=server.conf -config=/etc/nomad -config=extra.json
+```
 
 Will load configuration from `server.conf`, from `.hcl` and `.json` files under
 `/etc/nomad`, and finally from `extra.json`.
@@ -44,9 +46,9 @@ refer to the sections below for the details of each option.
 The preferred configuration syntax is HCL, which supports comments, but you can
 also use JSON. Below is an example configuration file in HCL syntax.
 
-```
+```hcl
 bind_addr = "0.0.0.0"
-data_dir = "/var/lib/nomad"
+data_dir  = "/var/lib/nomad"
 
 advertise {
   # We need to specify our host's IP because we can't
@@ -55,12 +57,12 @@ advertise {
 }
 
 server {
-  enabled = true
+  enabled          = true
   bootstrap_expect = 3
 }
 
 client {
-  enabled = true
+  enabled       = true
   network_speed = 10
   options {
     "driver.raw_exec.enable" = "1"
@@ -68,13 +70,12 @@ client {
 }
 
 consul {
-    # Consul's HTTP Address
-    address = "1.2.3.4:8500"
+  address = "1.2.3.4:8500"
 }
 
 atlas {
   infrastructure = "hashicorp/mars"
-  token = "atlas.v1.AFE84330943"
+  token          = "atlas.v1.AFE84330943"
 }
 ```
 

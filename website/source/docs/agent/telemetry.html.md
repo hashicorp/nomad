@@ -325,7 +325,7 @@ page for more details.
   </tr>
 </table>
 
-## Allocation Metrics 
+## Allocation Metrics
 
 <table class="table table-bordered table-striped">
   <tr>

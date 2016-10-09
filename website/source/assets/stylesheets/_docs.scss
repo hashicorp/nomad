@@ -22,6 +22,12 @@ body.layout-intro{
       }
     }
   }
+
+  table code,
+  .alert code {
+    background-color: transparent;
+    color: inherit;
+  }
 }
 
 .docs-sidebar{
