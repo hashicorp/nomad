@@ -39,13 +39,23 @@ The `docker` driver supports the following configuration in the job spec:
     config {
       image = "https://hub.docker.internal/redis:3.2"
     }
-    ````
+    ```
 
 * `load` - (Optional) A list of paths to image archive files. If
   this key is not specified, Nomad assumes the `image` is hosted on a repository
   and attempts to pull the image. The `artifact` blocks can be specified to
   download each of the archive files. The equivalent of `docker load -i path`
   would be run on each of the archive files.
+
+    ```hcl
+    artifact {
+      source = "http://path.to/redis.tar"
+    }
+    config {
+      load = ["redis.tar"]
+      image = "redis"
+    }
+    ```
 
 * `command` - (Optional) The command to run when starting the container.
 
@@ -137,13 +147,29 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `logging` - (Optional) A key/value map of Docker logging options. The default
+  value is `syslog`.
+
+    ```hcl
+    config {
+      logging {
+        type = "fluentd"
+        config {
+          fluentd-address = "localhost:24224"
+        }
+      }
+    }
+    ```
+
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
   host paths to container paths. Can only be run on clients with the
   `docker.volumes.enabled` option set to true.
 
-* `volumes_from` - (Optional) A list of volumes to inherit from another
-  container. Can only be run on clients with the `docker.volumes.enabled`
-  option set to true.
+    ```hcl
+    config {
+      volumes = ["/path/on/host:/path/in/container"]
+    }
+    ```
 
 * `work_dir` - (Optional) The working directory inside the container.
 
