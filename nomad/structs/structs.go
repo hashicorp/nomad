@@ -2339,7 +2339,7 @@ func (ts *TaskState) Failed() bool {
 
 	switch ts.Events[l-1].Type {
 	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed,
-		TaskFailedValidation, TaskVaultRenewalFailed:
+		TaskFailedValidation, TaskVaultRenewalFailed, TaskSetupFailure:
 		return true
 	default:
 		return false
@@ -2362,6 +2362,10 @@ func (ts *TaskState) Successful() bool {
 }
 
 const (
+	// TaskSetupFailure indicates that the task could not be started due to a
+	// a setup failure.
+	TaskSetupFailure = "Setup Failure"
+
 	// TaskDriveFailure indicates that the task could not be started due to a
 	// failure in the driver.
 	TaskDriverFailure = "Driver Failure"
@@ -2430,6 +2434,9 @@ type TaskEvent struct {
 	// Restart fields.
 	RestartReason string
 
+	// Setup Failure fields.
+	SetupError string
+
 	// Driver Failure fields.
 	DriverError string // A driver error occurred while starting the task.
 
@@ -2494,6 +2501,13 @@ func NewTaskEvent(event string) *TaskEvent {
 		Type: event,
 		Time: time.Now().UnixNano(),
 	}
+}
+
+func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
+	if err != nil {
+		e.SetupError = err.Error()
+	}
+	return e
 }
 
 func (e *TaskEvent) SetDriverError(err error) *TaskEvent {

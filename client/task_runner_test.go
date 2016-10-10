@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -593,5 +594,27 @@ func TestTaskRunner_KillTask(t *testing.T) {
 
 	if upd.events[3].Type != structs.TaskKilled {
 		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilled)
+	}
+}
+
+func TestTaskRunner_SignalFailure(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code":    "0",
+		"run_for":      "10s",
+		"signal_error": "test forcing failure",
+	}
+
+	_, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	time.Sleep(100 * time.Millisecond)
+	if err := tr.Signal("test", "test", syscall.SIGINT); err == nil {
+		t.Fatalf("Didn't receive error")
 	}
 }

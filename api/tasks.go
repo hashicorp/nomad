@@ -234,6 +234,7 @@ type TaskState struct {
 }
 
 const (
+	TaskSetupFailure           = "Setup Failure"
 	TaskDriverFailure          = "Driver Failure"
 	TaskReceived               = "Received"
 	TaskFailedValidation       = "Failed Validation"
@@ -258,6 +259,7 @@ type TaskEvent struct {
 	Type             string
 	Time             int64
 	RestartReason    string
+	SetupError       string
 	DriverError      string
 	ExitCode         int
 	Signal           int

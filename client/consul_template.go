@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/consul-template/watch"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,7 +30,7 @@ type TaskHooks interface {
 	Restart(source, reason string)
 
 	// Signal is used to signal the task
-	Signal(source, reason string, s os.Signal)
+	Signal(source, reason string, s os.Signal) error
 
 	// UnblockStart is used to unblock the starting of the task. This should be
 	// called after prestart work is completed
@@ -277,8 +278,20 @@ func (tm *TaskTemplateManager) run() {
 				if restart {
 					tm.hook.Restart("consul-template", "template with change_mode restart re-rendered")
 				} else if len(signals) != 0 {
+					var mErr multierror.Error
 					for signal := range signals {
-						tm.hook.Signal("consul-template", "template re-rendered", tm.signals[signal])
+						err := tm.hook.Signal("consul-template", "template re-rendered", tm.signals[signal])
+						if err != nil {
+							multierror.Append(&mErr, err)
+						}
+					}
+
+					if err := mErr.ErrorOrNil(); err != nil {
+						flat := make([]os.Signal, 0, len(signals))
+						for signal := range signals {
+							flat = append(flat, tm.signals[signal])
+						}
+						tm.hook.Kill("consul-template", fmt.Sprintf("Sending signals %v failed: %v", flat, err))
 					}
 				}
 			}

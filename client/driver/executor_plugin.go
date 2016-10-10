@@ -20,7 +20,6 @@ func init() {
 	gob.Register(map[string]interface{}{})
 	gob.Register([]map[string]string{})
 	gob.Register([]map[string]int{})
-	gob.Register(new(os.Signal))
 	gob.Register(syscall.Signal(0x1))
 }
 
