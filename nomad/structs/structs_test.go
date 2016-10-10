@@ -526,6 +526,19 @@ func TestTask_Validate_Template(t *testing.T) {
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Have two templates that share the same destination
+	good := &Template{
+		SourcePath: "foo",
+		DestPath:   "local/foo",
+		ChangeMode: "noop",
+	}
+
+	task.Templates = []*Template{good, good}
+	err = task.Validate(ephemeralDisk)
+	if !strings.Contains(err.Error(), "same destination as") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestTemplate_Validate(t *testing.T) {

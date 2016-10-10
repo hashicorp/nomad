@@ -2129,10 +2129,18 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
+	destinations := make(map[string]int, len(t.Templates))
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Validate(); err != nil {
 			outer := fmt.Errorf("Template %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if other, ok := destinations[tmpl.DestPath]; ok {
+			outer := fmt.Errorf("Template %d has same destination as %d", idx+1, other)
+			mErr.Errors = append(mErr.Errors, outer)
+		} else {
+			destinations[tmpl.DestPath] = idx + 1
 		}
 	}
 
