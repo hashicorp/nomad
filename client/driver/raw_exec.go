@@ -257,7 +257,7 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 }
 
 func (h *rawExecHandle) Signal(s os.Signal) error {
-	return nil
+	return h.executor.Signal(s)
 }
 
 func (h *rawExecHandle) Kill() error {

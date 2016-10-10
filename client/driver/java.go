@@ -360,7 +360,7 @@ func (h *javaHandle) Update(task *structs.Task) error {
 }
 
 func (h *javaHandle) Signal(s os.Signal) error {
-	return nil
+	return h.executor.Signal(s)
 }
 
 func (h *javaHandle) Kill() error {

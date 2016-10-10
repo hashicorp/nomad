@@ -260,7 +260,7 @@ func (h *execHandle) Update(task *structs.Task) error {
 }
 
 func (h *execHandle) Signal(s os.Signal) error {
-	return nil
+	return h.executor.Signal(s)
 }
 
 func (h *execHandle) Kill() error {

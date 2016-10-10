@@ -4,6 +4,8 @@ import (
 	"encoding/gob"
 	"log"
 	"net/rpc"
+	"os"
+	"syscall"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -18,6 +20,8 @@ func init() {
 	gob.Register(map[string]interface{}{})
 	gob.Register([]map[string]string{})
 	gob.Register([]map[string]int{})
+	gob.Register(new(os.Signal))
+	gob.Register(syscall.Signal(0x1))
 }
 
 type ExecutorRPC struct {
@@ -95,6 +99,10 @@ func (e *ExecutorRPC) Stats() (*cstructs.TaskResourceUsage, error) {
 	return &resourceUsage, err
 }
 
+func (e *ExecutorRPC) Signal(s os.Signal) error {
+	return e.client.Call("Plugin.Signal", &s, new(interface{}))
+}
+
 type ExecutorRPCServer struct {
 	Impl   executor.Executor
 	logger *log.Logger
@@ -162,6 +170,10 @@ func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.Task
 		*resourceUsage = *ru
 	}
 	return err
+}
+
+func (e *ExecutorRPCServer) Signal(args os.Signal, resp *interface{}) error {
+	return e.Impl.Signal(args)
 }
 
 type ExecutorPlugin struct {
