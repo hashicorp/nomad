@@ -36,4 +36,4 @@ Plus, you get TLS-level security out-of-the-box in Docker Swarm.
 When replication is enabled, Swarm uses an active/standby model,
 meaning the other servers cannot be used to make scheduling decisions.
 Swarm also did not support multiple failure isolation regions or federation,
-untile the new filtering ability with labels.
+until the new filtering ability with labels.
