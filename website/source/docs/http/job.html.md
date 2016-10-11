@@ -532,9 +532,9 @@ region is used; another region can be specified using the `?region=` query param
       <li>
         <span class="param">Diff</span>
         A diff structure between the submitted job and the server side version.
-        The top-level object is a Job Diff which contains, Task Group Diffs
+        The top-level object is a Job Diff which contains Task Group Diffs,
         which in turn contain Task Diffs. Each of these objects then has Object
-        and Field Diff structures in-bedded.
+        and Field Diff structures embedded.
       </li>
       <li>
         <span class="param">NextPeriodicLaunch</span>

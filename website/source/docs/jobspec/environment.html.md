@@ -96,7 +96,7 @@ the memory limit to inform how large your in-process cache should be, or to
 decide when to flush buffers to disk.
 
 Both CPU and memory are presented as integers. The unit for CPU limit is
-`1024 = 1Ghz`. The unit for memory is `1 = 1 megabytes`.
+`1024 = 1GHz`. The unit for memory is `1 = 1 megabyte`.
 
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
@@ -128,17 +128,17 @@ Depending on the driver and operating system being targeted, the directories are
 made available in various ways. For example, on `docker` the directories are
 bound to the container, while on `exec` on Linux the directories are mounted into the
 chroot. Regardless of how the directories are made available, the path to the
-directories can be read through the following environment variables:
-`NOMAD_ALLOC_DIR` and `NOMAD_TASK_DIR`.
+directories can be read through the `NOMAD_ALLOC_DIR` and `NOMAD_TASK_DIR`
+environment variables.
 
 ## Meta
 
 The job specification also allows you to specify a `meta` block to supply arbitrary
 configuration to a task. This allows you to easily provide job-specific
 configuration even if you use the same executable unit in multiple jobs. These
-key-value pairs are passed through to the job as `NOMAD_META_<key>=<value>`,
-where `key` is UPPERCASED from the job specification.
+key-value pairs are passed through to the job as `NOMAD_META_<key>=<value>`
+environment variables, where `key` is UPPERCASED from the job specification.
 
-Currently there is no enforcement that the meta values be lowercase, but using
+Currently there is no enforcement that the meta keys be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
 behavior.

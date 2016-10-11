@@ -263,10 +263,10 @@ integration and are entirely optional.
     `host:port`. Defaults to `127.0.0.1:8500`, which is the same as the Consul
     default HTTP address.
 
-  * `token`: Token is used to provide a per-request ACL token. This options
+  * `token`: Token is used to provide a per-request ACL token. This option
     overrides the Consul Agent's default token.
 
-  * `auth`: The auth information to use for http access to the Consul Agent
+  * `auth`: The auth information to use for HTTP access to the Consul Agent
     given as `username:password`.
 
   * `ssl`: This boolean option sets the transport scheme to talk to the Consul
@@ -440,9 +440,9 @@ configured on server nodes.
     `max_kill_timeout` is used. This is to prevent a user being able to set an
     unreasonable timeout. If unset, a default is used.
 <a id="reserved"></a>
-  * `reserved`: `reserved` is used to reserve a portion of the nodes resources
+  * `reserved`: `reserved` is used to reserve a portion of the node's resources
     from being used by Nomad when placing tasks.  It can be used to target
-    a certain capacity usage for the node. For example, 20% of the nodes CPU
+    a certain capacity usage for the node. For example, 20% of the node's CPU
     could be reserved to target a CPU utilization of 80%. The block has the
     following format:
 
@@ -458,7 +458,7 @@ configured on server nodes.
     * `cpu`: `cpu` is given as MHz to reserve.
     * `memory`: `memory` is given as MB to reserve.
     * `disk`: `disk` is given as MB to reserve.
-    * `reserved_ports`: `reserved_ports` is a comma separated list of ports
+    * `reserved_ports`: `reserved_ports` is a comma-separated list of ports
       to reserve on all fingerprinted network devices. Ranges can be
       specified by using a hyphen separated the two inclusive ends.
 
@@ -469,13 +469,13 @@ Client, but rather the set of options that configure the Client and not the
 drivers. To find the options supported by an individual driver, see the drivers
 documentation [here](/docs/drivers/index.html)
 
-* `driver.whitelist`: A comma separated list of whitelisted drivers (e.g.
+* `driver.whitelist`: A comma-separated list of whitelisted drivers (e.g.
   "docker,qemu"). If specified, drivers not in the whitelist will be disabled.
   If the whitelist is empty, all drivers are fingerprinted and enabled where
   applicable.
 
 *   `env.blacklist`: Nomad passes the host environment variables to `exec`,
-    `raw_exec` and `java` tasks. `env.blacklist` is a comma separated list of
+    `raw_exec` and `java` tasks. `env.blacklist` is a comma-separated list of
     environment variable keys not to pass to these tasks. If specified, the
     defaults are overridden. The following are the default:
 
@@ -500,14 +500,14 @@ documentation [here](/docs/drivers/index.html)
     * `qemu`
     * `java`
 
-* `fingerprint.whitelist`: A comma separated list of whitelisted fingerprinters.
+* `fingerprint.whitelist`: A comma-separated list of whitelisted fingerprinters.
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
 
 ### <a id="chroot_env_map"></a>Client ChrootEnv Map
 
 Drivers based on [Isolated Fork/Exec](/docs/drivers/exec.html) implement file
-system isolation using chroot on Linux.  The `chroot_env` map allows the chroot
+system isolation using chroot on Linux. The `chroot_env` map allows the chroot
 environment to be configured using source paths on the host operating system.
 The mapping format is: `source_path -> dest_path`.
 
@@ -534,7 +534,7 @@ environment with the most commonly used parts of the operating system. See
 A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:
 
-* `alloc-dir=<path>`: Equivalent to the Client [alloc_dir](#alloc_dir) config
+* `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir](#alloc_dir) config
    option.
 * `-atlas=<infrastructure>`: Equivalent to the Atlas
   [infrastructure](#infrastructure) config option.
@@ -555,9 +555,9 @@ via CLI arguments. The `agent` command accepts the following arguments:
   be specified multiple times to specify multiple agents to join.
 * `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
 * `-meta=<key=value>`: Equivalent to the Client [meta](#meta) config option.
-* `-network-interface<interface>`: Equivalent to the Client
+* `-network-interface=<interface>`: Equivalent to the Client
    [network_interface](#network_interface) config option.
-* `-network-speed<MBits>`: Equivalent to the Client
+* `-network-speed=<MBits>`: Equivalent to the Client
   [network_speed](#network_speed) config option.
 * `-node=<name>`: Equivalent to the [name](#name) config option.
 * `-node-class=<class>`: Equivalent to the Client [node_class](#node_class)

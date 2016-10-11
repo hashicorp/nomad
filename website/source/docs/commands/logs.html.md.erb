@@ -16,7 +16,7 @@ The `logs` command displays the log of a given task.
 nomad logs [options] <alloc-id> <task>
 ```
 
-This commands streams the logs of the given task in the allocation. If the
+This command streams the logs of the given task in the allocation. If the
 allocation is only running a single task, the task name can be omitted.
 Optionally, the `-job` option may be used in which case a random allocation from
 the given job will be chosen.
@@ -35,7 +35,7 @@ the given job will be chosen.
 allocation.
 
 * `-f`: Causes the output to not stop when the end of the logs are reached, but
-rather to wait for additional output. 
+rather to wait for additional output.
 
 * `-tail`: Show the logs contents with offsets relative to the end of the logs.
 If no offset is given, -n is defaulted to 10.

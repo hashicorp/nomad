@@ -24,7 +24,7 @@ and [`disable_update_check`](/docs/agent/config.html#disable_update_check).
 Nomad makes use of a HashiCorp service called [SCADA](http://scada.hashicorp.com)
 (Supervisory Control And Data Acquisition). The SCADA system allows clients to maintain
 long-running connections to Atlas. Atlas can in turn provide auto-join facilities for
-Nomad agents (supervisory control) and an dashboard showing the state of the system (data acquisition).
+Nomad agents (supervisory control) and a dashboard showing the state of the system (data acquisition).
 
 Using the SCADA service is optional. SCADA is only enabled by opt-in.
 

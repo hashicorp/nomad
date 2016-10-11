@@ -23,8 +23,8 @@ containing a valid [job specification](/docs/jobspec/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling. If the
 supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
 from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
-and support `go-getter` syntax.
+Nomad downloads the jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
+and supports `go-getter` syntax.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling

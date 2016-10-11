@@ -25,8 +25,8 @@ Nomad is currently packaged as a zip file. We do not have any near term
 plans to provide system packages.
 
 Once the zip is downloaded, unzip it into any directory. The
-`nomad` binary inside is all that is necessary to run Nomad (or
-`nomad.exe` for Windows). Any additional files, if any, are not
+`nomad` (or `nomad.exe` for Windows) binary inside is all that is
+necessary to run Nomad. Any additional files, if any, are not
 required to run Nomad.
 
 Copy the binary to anywhere on your system. If you intend to access it
