@@ -278,7 +278,7 @@ func (c *Client) init() error {
 
 		p, err = filepath.EvalSymlinks(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to find temporary directory for the StateDir: %v", err)
 		}
 
 		c.config.StateDir = p
@@ -299,7 +299,7 @@ func (c *Client) init() error {
 
 		p, err = filepath.EvalSymlinks(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to find temporary directory for the AllocDir: %v", err)
 		}
 
 		c.config.AllocDir = p
