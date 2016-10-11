@@ -133,4 +133,4 @@ job "docs" {
 }
 ```
 
-For more information on the artifact resource, please see the [artifact documentation](/docs/jobspec/index.html#artifact_doc).Zz
+For more information on the artifact resource, please see the [artifact documentation](/docs/jobspec/index.html#artifact_doc).
