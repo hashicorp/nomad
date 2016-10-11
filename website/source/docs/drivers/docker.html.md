@@ -454,3 +454,18 @@ Containers essentially have a virtual file system all to themselves. If you
 need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
 [QEMU](/docs/drivers/qemu.html).
+
+## Docker For Mac Caveats
+
+Docker For Mac runs docker inside a small VM and then allows access to parts of
+the host filesystem into that VM. At present, nomad uses a syslog server bound to
+a unix socket within a path that both the host and the VM can access to forward
+log messages back to nomad. But at present, Docker For Mac does not work for
+unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
+these shared paths.
+
+As a result, using nomad with the docker driver on OS X/macOS will work, but no
+logs will be available to nomad. Users must use the native docker facilities to
+examine the logs of any jobs running under docker.
+
+In the future, we will resolve this issue, one way or another.
