@@ -12,6 +12,8 @@ IMPROVEMENTS:
   * driver/docker: Allow Docker logging to be configured [GH-1767]
 
 BUG FIXES:
+  * agent: Handle the SIGPIPE signal preventing panics on journalctl restarts
+    [GH-1802]
   * client: Prevent race when persisting state file [GH-1682]
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
