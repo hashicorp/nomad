@@ -474,7 +474,7 @@ func (c *Command) Run(args []string) int {
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals(config *Config) int {
 	signalCh := make(chan os.Signal, 4)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
 	// Wait for a signal
 WAIT:
@@ -488,6 +488,11 @@ WAIT:
 		return 1
 	}
 	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
+	// Skip any SIGPIPE signal (See issue #1798)
+	if sig == syscall.SIGPIPE {
+		goto WAIT
+	}
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
