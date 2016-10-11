@@ -102,7 +102,7 @@ The `docker` driver supports the following configuration in the job spec:
 * `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
   is `none` for a private IPC namespace. Other values are `host` for sharing
   the host IPC namespace or the name or id of an existing container. Note that
-  it is not possible to refer to Nomad started Docker containers since their
+  it is not possible to refer to Docker containers started by Nomad since their
   names are not known in advance. Note that setting this option also requires the
   Nomad agent to be configured to allow privileged containers.
 
@@ -339,11 +339,11 @@ The `docker` driver has the following [client configuration
 options](/docs/agent/config.html#options):
 
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (http or another
+  to customize this if you use a non-standard socket (HTTP or another
   location).
 
-* `docker.auth.config` - Allows an operator to specify a json file which is in
-  the dockercfg format containing authentication information for private registry.
+* `docker.auth.config` - Allows an operator to specify a JSON file which is in
+  the dockercfg format containing authentication information for a private registry.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
@@ -439,6 +439,7 @@ container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
 limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
 usage. Memory limit is expressed in megabytes so 1024 = 1Gb.
+HIO!!!
 
 ### IO
 

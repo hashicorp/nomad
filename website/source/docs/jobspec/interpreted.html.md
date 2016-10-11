@@ -7,7 +7,7 @@ description: |-
 ---
 # Interpreted Variables
 
-Nomad support interpreting two classes of variables, node attributes and runtime
+Nomad supports interpreting two classes of variables, node attributes and runtime
 environment variables. Node attributes are interpretable in constraints, task
 environment variables and certain driver fields. Runtime environment variables
 are not interpretable in constraints because they are only defined once the

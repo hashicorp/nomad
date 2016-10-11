@@ -50,7 +50,7 @@ Usage: nomad run [options] <path>
   issues or internal errors, are indicated by exit code 1.
 
   If the job has specified the region, the -region flag and NOMAD_REGION
-  environment variable are overridden and the the job's region is used.
+  environment variable are overridden and the job's region is used.
 
   The run command will set the vault_token of the job based on the following
   precedence, going from highest to lowest: the -vault-token flag, the
@@ -63,7 +63,7 @@ General Options:
 Run Options:
 
   -check-index
-    If set, the job is only registered or updated if the the passed
+    If set, the job is only registered or updated if the passed
     job modify index matches the server side version. If a check-index value of
     zero is passed, the job is only registered if it does not yet exist. If a
     non-zero value is passed, it ensures that the job is being updated from a

@@ -58,7 +58,7 @@ To submit the job with version verification run:
 nomad run -check-index 7 my-web.nomad
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the the job modify index returned. If the index has
+server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```

@@ -92,13 +92,13 @@ respective signals.
 When gracefully exiting, clients will update their status to terminal on
 the servers so that tasks can be migrated to healthy agents. Servers
 will notify their intention to leave the cluster which allows them to
-leave the [consensus quorum](/docs/internals/consensus.html).
+leave the [consensus](/docs/internals/consensus.html) peer set.
 
 It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
-the consensus quorum. If a server does not gracefully leave, and will not
+the consensus peer set. If a server does not gracefully leave, and will not
 return into service, the [`server-force-leave` command](/docs/commands/server-force-leave.html)
-should be used to eject it from the consensus quorum.
+should be used to eject it from the consensus peer set.
 
 ## Lifecycle
 
@@ -135,5 +135,5 @@ to the entire cluster, meaning all nodes will eventually be aware of each other.
 
 When a server _leaves_, it specifies its intent to do so, and the cluster marks that
 node as having _left_. If the server has _left_, replication to it will stop and it
-is removed as a member of the consensus quorum. If the server has _failed_, replication
+is removed from the consensus peer set. If the server has _failed_, replication
 will attempt to make progress to recover from a software or network failure.

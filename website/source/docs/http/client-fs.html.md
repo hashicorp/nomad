@@ -192,7 +192,7 @@ allocation was placed.
 <dl>
   <dt>Description</dt>
   <dd>
-     Stream a tasks stdout/stderr logs.
+     Stream a task's stdout/stderr logs.
   </dd>
 
   <dt>Method</dt>

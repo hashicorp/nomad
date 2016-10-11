@@ -104,7 +104,7 @@ func DefaultConfig() *Config {
 	return config
 }
 
-// ConfigureTLS takes a set of TLS configurations and applies those to the the HTTP client.
+// ConfigureTLS takes a set of TLS configurations and applies those to the HTTP client.
 func (c *Config) ConfigureTLS(t *TLSConfig) error {
 
 	if c.HttpClient == nil {

@@ -321,15 +321,13 @@ The `Task` object supports the following keys:
   [Click here](/docs/jobspec/servicediscovery.html) to learn more about
   services. Below is the fields in the `Service` object:
 
-     * `Name`: Nomad automatically determines the name of a Task. By default the
-       name of a service is `$(job-name)-$(task-group)-$(task-name)`. Users can
-       explicitly name the service by specifying this option. If multiple
-       services are defined for a Task then only one task can have the default
-       name, all the services have to be explicitly named.  Users can add the
-       following to the service names: `${JOB}`, `${TASKGROUP}`, `${TASK}`,
-       `${BASE}`.  Nomad will replace them with the appropriate value of the
-       Job, Task Group, and Task names while registering the Job. `${BASE}`
-       expands to `${JOB}-${TASKGROUP}-${TASK}`.  Names must be adhere to
+     * `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
+       `${TASKGROUP}` and `${TASK}` by the name of the job, task group or task,
+       respectively. `${BASE}` expands to the equivalent of
+       `${JOB}-${TASKGROUP}-${TASK}`, and is the default name for a Service.
+       Each service defined for a given task must have a distinct name, so if
+       a task has multiple services only one of them can use the default name
+       and the others must be explicitly named. Names must adhere to
        [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are
        limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
        less than 64 characters in length.
@@ -338,16 +336,15 @@ The `Task` object supports the following keys:
        interpolation is supported in tags.
 
      * `PortLabel`: `PortLabel` is an optional string and is used to associate
-       the port with the service.  If specified, the port label must match one
-       defined in the resources block.  This could be a label to either a
-       dynamic or a static port. If an incorrect port label is specified, Nomad
-       doesn't register the IP:Port with Consul.
+       a port with the service.  If specified, the port label must match one
+       defined in the resources block.  This could be a label of either a
+       dynamic or a static port.
 
      * `Checks`: `Checks` is an array of check objects. A check object defines a
        health check associated with the service. Nomad supports the `script`,
        `http` and `tcp` Consul Checks. Script checks are not supported for the
        qemu driver since the Nomad client doesn't have access to the file system
-       of a tasks using the Qemu driver.
+       of a task using the Qemu driver.
 
          * `Type`:  This indicates the check types supported by Nomad. Valid
            options are currently `script`, `http` and `tcp`.
@@ -366,7 +363,7 @@ The `Task` object supports the following keys:
            to add the relative URL of the health check endpoint.
 
          * `Protocol`: This indicates the protocol for the http checks. Valid
-           options are `http` and `https`. We default it to `http`
+           options are `http` and `https`. We default it to `http`.
 
          * `Command`: This is the command that the Nomad client runs for doing
            script based health check.

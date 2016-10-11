@@ -410,7 +410,7 @@ The `constraint` object supports the following keys:
 
 * `version` - Specifies a version constraint against the attribute.
   This sets the operator to `version` and the `value` to what is
-  specified. This supports a comma separated list of constraints,
+  specified. This supports a comma-separated list of constraints,
   including the pessimistic operator. See the
   [go-version](https://github.com/hashicorp/go-version) repository
   for examples.

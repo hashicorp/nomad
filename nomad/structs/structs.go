@@ -2225,7 +2225,7 @@ var (
 
 // Template represents a template configuration to be rendered for a given task
 type Template struct {
-	// SourcePath is the the path to the template to be rendered
+	// SourcePath is the path to the template to be rendered
 	SourcePath string `mapstructure:"source"`
 
 	// DestPath is the path to where the template should be rendered

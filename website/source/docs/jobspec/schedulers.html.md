@@ -16,7 +16,7 @@ the differences between each of these schedulers.
 
 The `service` scheduler is designed for scheduling long lived services that
 should never go down. As such, the `service` scheduler ranks a large portion
-of the nodes that meet the jobs constraints and selects the optimal node to
+of the nodes that meet the job's constraints and selects the optimal node to
 place a task group on. The `service` scheduler uses a best fit scoring algorithm
 influenced by Google work on Borg. Ranking this larger set of candidate nodes
 increases scheduling time but provides greater guarantees about the optimality
@@ -28,7 +28,7 @@ Batch jobs are much less sensitive to short term performance fluctuations and
 are short lived, finishing in a few minutes to a few days. Although the `batch`
 scheduler is very similar to the `service` scheduler, it makes certain
 optimizations for the batch workload. The main distinction is that after finding
-the set of nodes that meet the jobs constraints it uses the power of two choices
+the set of nodes that meet the job's constraints it uses the power of two choices
 described in Berkeley's Sparrow scheduler to limit the number of nodes that are
 ranked.
 
@@ -41,6 +41,6 @@ that all registered `system` jobs will be re-evaluated and their tasks will be
 placed on the newly available nodes if the constraints are met.
 
 This scheduler type is extremely useful for deploying and managing tasks that
-should be present on every node in the cluster. Since these tasks are being
+should be present on every node in the cluster. Since these tasks are
 managed by Nomad, they can take advantage of job updating, rolling deploys,
 service discovery and more.

@@ -28,7 +28,7 @@ const (
 	// killing a task.
 	killBackoffBaseline = 5 * time.Second
 
-	// killBackoffLimit is the the limit of the exponential backoff for killing
+	// killBackoffLimit is the limit of the exponential backoff for killing
 	// the task.
 	killBackoffLimit = 2 * time.Minute
 

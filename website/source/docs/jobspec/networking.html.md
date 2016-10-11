@@ -10,7 +10,7 @@ description: |-
 
 When scheduling jobs in Nomad they are provisioned across your fleet of
 machines along with other jobs and services. Because you don't know in advance
-what host your job will be provisioned on, Nomad will provide your task with
+what host your job will be provisioned on, Nomad will provide your tasks with
 network configuration when they start up.
 
 Note that this document only applies to services that want to _listen_
@@ -109,7 +109,7 @@ The above example is for the Docker driver. The service is listening on port
 to this service.
 
 When the task is started, it is passed an additional environment variable named
-`NOMAD_HOST_PORT_http` which indicates the host port that the http service is
+`NOMAD_HOST_PORT_http` which indicates the host port that the HTTP service is
 bound to.
 
 Please refer to the [Docker](/docs/drivers/docker.html) and [QEMU](/docs/drivers/qemu.html) drivers for additional information.
