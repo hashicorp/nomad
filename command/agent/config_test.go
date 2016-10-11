@@ -12,6 +12,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+var (
+	// trueValue/falseValue are used to get a pointer to a boolean
+	trueValue  = true
+	falseValue = false
+)
+
 func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
 		Region:                    "global",
@@ -97,14 +103,14 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Vault: &config.VaultConfig{
 			Token:                "1",
-			AllowUnauthenticated: false,
+			AllowUnauthenticated: &falseValue,
 			TaskTokenTTL:         "1",
 			Addr:                 "1",
 			TLSCaFile:            "1",
 			TLSCaPath:            "1",
 			TLSCertFile:          "1",
 			TLSKeyFile:           "1",
-			TLSSkipVerify:        false,
+			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
 		},
 		Consul: &config.ConsulConfig{
@@ -225,14 +231,14 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Vault: &config.VaultConfig{
 			Token:                "2",
-			AllowUnauthenticated: true,
+			AllowUnauthenticated: &trueValue,
 			TaskTokenTTL:         "2",
 			Addr:                 "2",
 			TLSCaFile:            "2",
 			TLSCaPath:            "2",
 			TLSCertFile:          "2",
 			TLSKeyFile:           "2",
-			TLSSkipVerify:        true,
+			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
 		},
 		Consul: &config.ConsulConfig{

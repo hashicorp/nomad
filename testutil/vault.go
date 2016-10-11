@@ -61,6 +61,7 @@ func NewTestVault(t *testing.T) *TestVault {
 	}
 	client.SetToken(token)
 
+	enable := true
 	tv := &TestVault{
 		cmd:       cmd,
 		t:         t,
@@ -69,7 +70,7 @@ func NewTestVault(t *testing.T) *TestVault {
 		RootToken: token,
 		Client:    client,
 		Config: &config.VaultConfig{
-			Enabled: true,
+			Enabled: &enable,
 			Token:   token,
 			Addr:    http,
 		},

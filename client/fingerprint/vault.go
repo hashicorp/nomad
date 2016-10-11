@@ -30,7 +30,7 @@ func NewVaultFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
-	if config.VaultConfig == nil || !config.VaultConfig.Enabled {
+	if config.VaultConfig == nil || !config.VaultConfig.IsEnabled() {
 		return false, nil
 	}
 

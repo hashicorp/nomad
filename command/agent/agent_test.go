@@ -52,7 +52,7 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 	}
 	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
 	conf.Consul = sconfig.DefaultConsulConfig()
-	conf.Vault.Enabled = false
+	conf.Vault.Enabled = new(bool)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2

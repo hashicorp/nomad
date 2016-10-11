@@ -84,12 +84,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
 		vconf := j.srv.config.VaultConfig
-		if !vconf.Enabled {
+		if !vconf.IsEnabled() {
 			return fmt.Errorf("Vault not enabled and Vault policies requested")
 		}
 
 		// Have to check if the user has permissions
-		if !vconf.AllowUnauthenticated {
+		if !vconf.AllowsUnauthenticated() {
 			if args.Job.VaultToken == "" {
 				return fmt.Errorf("Vault policies requested but missing Vault Token")
 			}
