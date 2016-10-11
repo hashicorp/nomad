@@ -275,6 +275,12 @@ func (c *Client) init() error {
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
 		}
+
+		p, err = filepath.EvalSymlinks(p)
+		if err != nil {
+			return err
+		}
+
 		c.config.StateDir = p
 	}
 	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
@@ -290,6 +296,12 @@ func (c *Client) init() error {
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
 		}
+
+		p, err = filepath.EvalSymlinks(p)
+		if err != nil {
+			return err
+		}
+
 		c.config.AllocDir = p
 	}
 
