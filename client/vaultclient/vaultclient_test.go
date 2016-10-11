@@ -90,8 +90,9 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 }
 
 func TestVaultClient_Heap(t *testing.T) {
+	tr := true
 	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = true
+	conf.VaultConfig.Enabled = &tr
 	conf.VaultConfig.Token = "testvaulttoken"
 	conf.VaultConfig.TaskTokenTTL = "10s"
 
