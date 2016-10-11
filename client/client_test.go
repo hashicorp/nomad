@@ -36,9 +36,11 @@ func getPort() int {
 }
 
 func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
+	f := false
+
 	// Setup the default settings
 	config := nomad.DefaultConfig()
-	config.VaultConfig.Enabled = false
+	config.VaultConfig.Enabled = &f
 	config.Build = "unittest"
 	config.DevMode = true
 	config.RPCAddr = &net.TCPAddr{
@@ -84,8 +86,10 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 }
 
 func testClient(t *testing.T, cb func(c *config.Config)) *Client {
+	f := false
+
 	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = false
+	conf.VaultConfig.Enabled = &f
 	conf.DevMode = true
 	if cb != nil {
 		cb(conf)

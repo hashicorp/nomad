@@ -364,7 +364,8 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
-		c.VaultConfig.Enabled = false
+		f := false
+		c.VaultConfig.Enabled = &f
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -395,8 +396,9 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Enable vault and allow authenticated
-	s1.config.VaultConfig.Enabled = true
-	s1.config.VaultConfig.AllowUnauthenticated = true
+	tr := true
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -439,8 +441,9 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Enable vault
-	s1.config.VaultConfig.Enabled = true
-	s1.config.VaultConfig.AllowUnauthenticated = false
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -471,8 +474,9 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Enable vault
-	s1.config.VaultConfig.Enabled = true
-	s1.config.VaultConfig.AllowUnauthenticated = false
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}

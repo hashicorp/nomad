@@ -23,7 +23,7 @@ const (
 type VaultConfig struct {
 
 	// Enabled enables or disables Vault support.
-	Enabled bool `mapstructure:"enabled"`
+	Enabled *bool `mapstructure:"enabled"`
 
 	// Token is the Vault token given to Nomad such that it can
 	// derive child tokens. Nomad will renew this token at half its lease
@@ -33,7 +33,7 @@ type VaultConfig struct {
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
-	AllowUnauthenticated bool `mapstructure:"allow_unauthenticated"`
+	AllowUnauthenticated *bool `mapstructure:"allow_unauthenticated"`
 
 	// TaskTokenTTL is the TTL of the tokens created by Nomad Servers and used
 	// by the client.  There should be a minimum time value such that the client
@@ -63,7 +63,7 @@ type VaultConfig struct {
 	TLSKeyFile string `mapstructure:"tls_key_file"`
 
 	// TLSSkipVerify enables or disables SSL verification
-	TLSSkipVerify bool `mapstructure:"tls_skip_verify"`
+	TLSSkipVerify *bool `mapstructure:"tls_skip_verify"`
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
 	TLSServerName string `mapstructure:"tls_server_name"`
@@ -73,10 +73,20 @@ type VaultConfig struct {
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
-		AllowUnauthenticated: false,
-		Addr:                 "https://vault.service.consul:8200",
-		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
+		Addr:                "https://vault.service.consul:8200",
+		ConnectionRetryIntv: DefaultVaultConnectRetryIntv,
 	}
+}
+
+// IsEnabled returns whether the config enables Vault integration
+func (a *VaultConfig) IsEnabled() bool {
+	return a.Enabled != nil && *a.Enabled
+}
+
+// AllowsUnauthenticated returns whether the config allows unauthenticated
+// access to Vault
+func (a *VaultConfig) AllowsUnauthenticated() bool {
+	return a.AllowUnauthenticated != nil && *a.AllowUnauthenticated
 }
 
 // Merge merges two Vault configurations together.
@@ -110,10 +120,16 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
 	}
+	if b.AllowUnauthenticated != nil {
+		result.AllowUnauthenticated = b.AllowUnauthenticated
+	}
+	if b.TLSSkipVerify != nil {
+		result.TLSSkipVerify = b.TLSSkipVerify
+	}
+	if b.Enabled != nil {
+		result.Enabled = b.Enabled
+	}
 
-	result.AllowUnauthenticated = b.AllowUnauthenticated
-	result.TLSSkipVerify = b.TLSSkipVerify
-	result.Enabled = b.Enabled
 	return &result
 }
 
@@ -127,8 +143,13 @@ func (c *VaultConfig) ApiConfig() (*vault.Config, error) {
 		ClientCert:    c.TLSCertFile,
 		ClientKey:     c.TLSKeyFile,
 		TLSServerName: c.TLSServerName,
-		Insecure:      c.TLSSkipVerify,
 	}
+	if c.TLSSkipVerify != nil {
+		tlsConf.Insecure = *c.TLSSkipVerify
+	} else {
+		tlsConf.Insecure = false
+	}
+
 	if err := conf.ConfigureTLS(tlsConf); err != nil {
 		return nil, err
 	}

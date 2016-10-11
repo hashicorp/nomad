@@ -159,7 +159,7 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaul
 		tomb:     &tomb.Tomb{},
 	}
 
-	if v.config.Enabled {
+	if v.config.IsEnabled() {
 		if err := v.buildClient(); err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	// Store the new config
 	v.config = config
 
-	if v.config.Enabled {
+	if v.config.IsEnabled() {
 		// Stop accepting any new request
 		atomic.StoreInt32(&v.connEstablished, 0)
 
@@ -529,7 +529,7 @@ func (v *vaultClient) ConnectionEstablished() bool {
 func (v *vaultClient) Enabled() bool {
 	v.l.Lock()
 	defer v.l.Unlock()
-	return v.config.Enabled
+	return v.config.IsEnabled()
 }
 
 //

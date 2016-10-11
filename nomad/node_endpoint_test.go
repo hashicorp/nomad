@@ -1869,8 +1869,9 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Enable vault and allow authenticated
-	s1.config.VaultConfig.Enabled = true
-	s1.config.VaultConfig.AllowUnauthenticated = true
+	tr := true
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}

@@ -155,7 +155,7 @@ func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver
 		tokenDeriver: tokenDeriver,
 	}
 
-	if !config.Enabled {
+	if !config.IsEnabled() {
 		return c, nil
 	}
 
@@ -200,7 +200,7 @@ func (c *vaultClient) isTracked(id string) bool {
 
 // Starts the renewal loop of vault client
 func (c *vaultClient) Start() {
-	if !c.config.Enabled || c.running {
+	if !c.config.IsEnabled() || c.running {
 		return
 	}
 
@@ -213,7 +213,7 @@ func (c *vaultClient) Start() {
 
 // Stops the renewal loop of vault client
 func (c *vaultClient) Stop() {
-	if !c.config.Enabled || !c.running {
+	if !c.config.IsEnabled() || !c.running {
 		return
 	}
 
@@ -229,7 +229,7 @@ func (c *vaultClient) Stop() {
 // The return value is a map containing all the unwrapped tokens indexed by the
 // task name.
 func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
-	if !c.config.Enabled {
+	if !c.config.IsEnabled() {
 		return nil, fmt.Errorf("vault client not enabled")
 	}
 	if !c.running {
@@ -242,7 +242,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
 // token used by the task.
 func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
-	if !c.config.Enabled {
+	if !c.config.IsEnabled() {
 		return nil, fmt.Errorf("vault client not enabled")
 	}
 	if token == "" {
@@ -350,7 +350,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if !c.config.Enabled {
+	if !c.config.IsEnabled() {
 		return fmt.Errorf("vault client not enabled")
 	}
 	if !c.running {
@@ -495,12 +495,12 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 // run is the renewal loop which performs the periodic renewals of both the
 // tokens and the secret leases.
 func (c *vaultClient) run() {
-	if !c.config.Enabled {
+	if !c.config.IsEnabled() {
 		return
 	}
 
 	var renewalCh <-chan time.Time
-	for c.config.Enabled && c.running {
+	for c.config.IsEnabled() && c.running {
 		// Fetches the candidate for next renewal
 		renewalReq, renewalTime := c.nextRenewal()
 		if renewalTime.IsZero() {

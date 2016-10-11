@@ -36,7 +36,8 @@ func TestVaultClient_BadConfig(t *testing.T) {
 		t.Fatalf("expected config error: %v", err)
 	}
 
-	conf.Enabled = true
+	tr := true
+	conf.Enabled = &tr
 	_, err = NewVaultClient(conf, logger, nil)
 	if err == nil || !strings.Contains(err.Error(), "token must be set") {
 		t.Fatalf("Expected token unset error: %v", err)
@@ -229,8 +230,9 @@ func parseTTLFromLookup(s *vapi.Secret, t *testing.T) int64 {
 }
 
 func TestVaultClient_LookupToken_Invalid(t *testing.T) {
+	tr := true
 	conf := &config.VaultConfig{
-		Enabled: true,
+		Enabled: &tr,
 		Addr:    "http://foobar:12345",
 		Token:   structs.GenerateUUID(),
 	}

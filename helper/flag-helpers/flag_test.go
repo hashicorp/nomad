@@ -1,4 +1,4 @@
-package sliceflag
+package flaghelper
 
 import (
 	"flag"
