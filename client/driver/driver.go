@@ -142,6 +142,7 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 		SetTaskMeta(task.Meta).
 		SetTaskGroupMeta(tg.Meta).
 		SetJobMeta(alloc.Job.Meta).
+		SetJobName(alloc.Job.Name).
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 

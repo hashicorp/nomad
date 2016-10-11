@@ -40,6 +40,9 @@ const (
 	// TaskName is the environment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
 
+	// JobName is the environment variable for passing the job name.
+	JobName = "NOMAD_JOB_NAME"
+
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 
@@ -98,6 +101,7 @@ type TaskEnvironment struct {
 	PortMap          map[string]int
 	VaultToken       string
 	InjectVaultToken bool
+	JobName          string
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -187,6 +191,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.TaskName != "" {
 		t.TaskEnv[TaskName] = t.TaskName
+	}
+	if t.JobName != "" {
+		t.TaskEnv[JobName] = t.JobName
 	}
 
 	// Build the node
@@ -452,8 +459,18 @@ func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
 	return t
 }
 
+func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
+	t.JobName = name
+	return t
+}
+
 func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
 	t.TaskName = ""
+	return t
+}
+
+func (t *TaskEnvironment) ClearJobName() *TaskEnvironment {
+	t.JobName = ""
 	return t
 }
 

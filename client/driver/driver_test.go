@@ -153,6 +153,7 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		"NOMAD_ALLOC_ID":                alloc.ID,
 		"NOMAD_ALLOC_NAME":              alloc.Name,
 		"NOMAD_TASK_NAME":               task.Name,
+		"NOMAD_JOB_NAME":                alloc.Job.Name,
 	}
 
 	act := env.EnvMap()
