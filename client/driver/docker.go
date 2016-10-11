@@ -790,7 +790,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	// Only launch syslog server if we're going to use it!
 	syslogAddr := ""
-	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
+	if runtime.GOOS == "darwin" && len(driverConfig.Logging) == 0 {
+		d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
+	} else if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
 		ss, err := exec.LaunchSyslogServer()
 		if err != nil {
 			pluginClient.Kill()
