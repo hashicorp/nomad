@@ -53,6 +53,10 @@ environment variables.
     <td>The task's name</td>
   </tr>
   <tr>
+    <td>`NOMAD_JOB_NAME`</td>
+    <td>The job's name</td>
+  </tr>
+  <tr>
     <td>`NOMAD_IP_<label>`</td>
     <td>The IP of the port with the given label</td>
   </tr>
@@ -76,10 +80,11 @@ environment variables.
 
 ## Task Identifiers
 
-Nomad will pass both the allocation ID and name as well as the task's name.
-These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`, `NOMAD_ALLOC_INDEX` and
-`NOMAD_TASK_NAME`. The allocation ID and index can be useful when the task being
-run needs a unique identifier or to know its instance count.
+Nomad will pass both the allocation ID and name as well as the task and job's
+names.  These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
+`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, and `NOMAD_TASK_NAME`. The allocation ID
+and index can be useful when the task being run needs a unique identifier or to
+know its instance count.
 
 ## Resources
 

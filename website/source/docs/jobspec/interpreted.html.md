@@ -225,6 +225,10 @@ a particular node and as such can not be used in constraints.
     <td>The task's name</td>
   </tr>
   <tr>
+    <td><tt>${NOMAD_JOB_NAME}</tt></td>
+    <td>The job's name</td>
+  </tr>
+  <tr>
     <td><tt>${NOMAD_IP_&lt;label&gt;}</tt></td>
     <td>The IP for the given port <tt>label</tt>. See
     [here](/docs/jobspec/networking.html) for more information.</td>
