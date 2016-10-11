@@ -159,8 +159,9 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &structs.Vault{
-									Policies: []string{"foo", "bar"},
-									Env:      true,
+									Policies:   []string{"foo", "bar"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 								Templates: []*structs.Template{
 									{
@@ -199,6 +200,12 @@ func TestParse(t *testing.T) {
 									},
 								},
 								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:     []string{"foo", "bar"},
+									Env:          false,
+									ChangeMode:   structs.VaultChangeModeSignal,
+									ChangeSignal: "SIGUSR1",
+								},
 							},
 						},
 					},
@@ -475,16 +482,18 @@ func TestParse(t *testing.T) {
 								Name:      "redis",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"group"},
-									Env:      true,
+									Policies:   []string{"group"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 							&structs.Task{
 								Name:      "redis2",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"task"},
-									Env:      false,
+									Policies:   []string{"task"},
+									Env:        false,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 						},
@@ -498,8 +507,9 @@ func TestParse(t *testing.T) {
 								Name:      "redis",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"job"},
-									Env:      true,
+									Policies:   []string{"job"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 						},

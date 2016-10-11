@@ -177,8 +177,10 @@ type Template struct {
 }
 
 type Vault struct {
-	Policies []string
-	Env      bool
+	Policies          []string
+	Env               bool
+	TokenChangeMode   string
+	TokenChangeSignal string
 }
 
 // NewTask creates and initializes a new Task.

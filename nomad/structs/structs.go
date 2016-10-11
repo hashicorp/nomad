@@ -2818,6 +2818,17 @@ func (d *EphemeralDisk) Copy() *EphemeralDisk {
 	return ld
 }
 
+const (
+	// VaultChangeModeNoop takes no action when a new token is retrieved.
+	VaultChangeModeNoop = "noop"
+
+	// VaultChangeModeSignal signals the task when a new token is retrieved.
+	VaultChangeModeSignal = "signal"
+
+	// VaultChangeModeRestart restarts the task when a new token is retrieved.
+	VaultChangeModeRestart = "restart"
+)
+
 // Vault stores the set of premissions a task needs access to from Vault.
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
@@ -2826,6 +2837,14 @@ type Vault struct {
 	// Env marks whether the Vault Token should be exposed as an environment
 	// variable
 	Env bool
+
+	// ChangeMode is used to configure the task's behavior when the Vault
+	// token changes because the original token could not be renewed in time.
+	ChangeMode string `mapstructure:"change_mode"`
+
+	// ChangeSignal is the signal sent to the task when a new token is
+	// retrieved. This is only valid when using the signal change mode.
+	ChangeSignal string `mapstructure:"change_signal"`
 }
 
 // Copy returns a copy of this Vault block.
@@ -2847,6 +2866,16 @@ func (v *Vault) Validate() error {
 
 	if len(v.Policies) == 0 {
 		return fmt.Errorf("Policy list can not be empty")
+	}
+
+	switch v.ChangeMode {
+	case VaultChangeModeSignal:
+		if v.ChangeSignal == "" {
+			return fmt.Errorf("Signal must be specified when using change mode %q", VaultChangeModeSignal)
+		}
+	case VaultChangeModeNoop, VaultChangeModeRestart:
+	default:
+		return fmt.Errorf("Unknown change mode %q", v.ChangeMode)
 	}
 
 	return nil

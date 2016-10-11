@@ -1177,6 +1177,8 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 	valid := []string{
 		"policies",
 		"env",
+		"change_mode",
+		"change_signal",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "vault ->")
@@ -1190,6 +1192,10 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 	// Default the env bool
 	if _, ok := m["env"]; !ok {
 		m["env"] = true
+	}
+
+	if _, ok := m["change_mode"]; !ok {
+		m["change_mode"] = structs.VaultChangeModeRestart
 	}
 
 	if err := mapstructure.WeakDecode(m, result); err != nil {
