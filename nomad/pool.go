@@ -179,7 +179,7 @@ func (p *ConnPool) Shutdown() error {
 // pooled or to return a new connection
 func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, error) {
 	// Check to see if there's a pooled connection available. This is up
-	// here since it should the the vastly more common case than the rest
+	// here since it should the vastly more common case than the rest
 	// of the code here.
 	p.Lock()
 	c := p.pool[addr.String()]

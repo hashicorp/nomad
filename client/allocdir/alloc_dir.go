@@ -47,7 +47,7 @@ var (
 	// regardless of driver.
 	TaskLocal = "local"
 
-	// TaskSecrets is the the name of the secret directory inside each task
+	// TaskSecrets is the name of the secret directory inside each task
 	// directory
 	TaskSecrets = "secrets"
 

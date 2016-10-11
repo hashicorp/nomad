@@ -68,7 +68,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 }
 
 // TestAllocRuner_RetryArtifact ensures that if one task in a task group is
-// retrying fetching an artifact, other tasks in the the group should be able
+// retrying fetching an artifact, other tasks in the group should be able
 // to proceed.
 func TestAllocRunner_RetryArtifact(t *testing.T) {
 	ctestutil.ExecCompatible(t)

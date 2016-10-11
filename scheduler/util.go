@@ -520,7 +520,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies both the the diffResult and the
+// placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
 func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
 	n := len(allocs)
@@ -538,7 +538,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 }
 
 // markLostAndPlace is used to mark allocations as lost and add them to the
-// placement queue. evictAndPlace modifies both the the diffResult and the
+// placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
 func markLostAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
 	n := len(allocs)

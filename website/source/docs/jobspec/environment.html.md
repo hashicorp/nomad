@@ -54,7 +54,7 @@ environment variables.
   </tr>
   <tr>
     <td>`NOMAD_IP_<label>`</td>
-    <td>The IP of the the port with the given label</td>
+    <td>The IP of the port with the given label</td>
   </tr>
   <tr>
     <td>`NOMAD_PORT_<label>`</td>
@@ -62,7 +62,7 @@ environment variables.
   </tr>
   <tr>
     <td>`NOMAD_ADDR_<label>`</td>
-    <td>The IP:Port pair of the the port with the given label</td>
+    <td>The IP:Port pair of the port with the given label</td>
   </tr>
   <tr>
     <td>`NOMAD_HOST_PORT_<label>`</td>

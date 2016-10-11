@@ -88,7 +88,7 @@ func CompareDomainName(s1, s2 string) (n int) {
 	return
 }
 
-// CountLabel counts the the number of labels in the string s.
+// CountLabel counts the number of labels in the string s.
 // s must be a syntactically valid domain name.
 func CountLabel(s string) (labels int) {
 	if s == "." {
@@ -107,7 +107,7 @@ func CountLabel(s string) (labels int) {
 
 // Split splits a name s into its label indexes.
 // www.miek.nl. returns []int{0, 4, 9}, www.miek.nl also returns []int{0, 4, 9}.
-// The root name (.) returns nil. Also see SplitDomainName. 
+// The root name (.) returns nil. Also see SplitDomainName.
 // s must be a syntactically valid domain name.
 func Split(s string) []int {
 	if s == "." {

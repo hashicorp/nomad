@@ -18,7 +18,7 @@ const (
 nomad run -check-index %d %s
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the the job modify index returned. If the index has
+server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.`
 )
@@ -51,7 +51,7 @@ Usage: nomad plan [options] <file>
   give insight into what the scheduler will attempt to do and why.
 
   If the job has specified the region, the -region flag and NOMAD_REGION
-  environment variable are overridden and the the job's region is used.
+  environment variable are overridden and the job's region is used.
 
   Plan will return one of the following exit codes:
     * 0: No allocations created or destroyed.
@@ -226,7 +226,7 @@ func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
 	return out
 }
 
-// formatJobDiff produces an annoted diff of the the job. If verbose mode is
+// formatJobDiff produces an annoted diff of the job. If verbose mode is
 // set, added or deleted task groups and tasks are expanded.
 func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	marker, _ := getDiffString(job.Type)

@@ -112,7 +112,7 @@ func (w *Worker) run() {
 			return
 		}
 
-		// Wait for the the raft log to catchup to the evaluation
+		// Wait for the raft log to catchup to the evaluation
 		if err := w.waitForIndex(eval.ModifyIndex, raftSyncLimit); err != nil {
 			w.sendAck(eval.ID, token, false)
 			continue
@@ -327,7 +327,7 @@ SUBMIT:
 	// allocations.
 	var state scheduler.State
 	if result.RefreshIndex != 0 {
-		// Wait for the the raft log to catchup to the evaluation
+		// Wait for the raft log to catchup to the evaluation
 		w.logger.Printf("[DEBUG] worker: refreshing state to index %d for %q", result.RefreshIndex, plan.EvalID)
 		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
 			return nil, nil, err
