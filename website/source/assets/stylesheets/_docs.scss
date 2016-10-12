@@ -65,7 +65,7 @@ body.layout-intro{
     $child-default-state: -4px;
 
     //first teir li
-    > li {
+    li {
       margin: 0 0 0 10px;
 
       > a {
@@ -102,7 +102,7 @@ body.layout-intro{
           }
         }
 
-        .nav {
+        > .nav {
           display: block;
         }
       }
@@ -113,7 +113,6 @@ body.layout-intro{
       display: none;
       padding-top: 10px;
       padding-bottom: 10px;
-      margin-bottom: 15px;
 
       > li{
         margin-left: 10px;
@@ -207,6 +206,11 @@ body.layout-intro{
     &:hover{
       text-decoration: underline;
     }
+
+    code {
+      background: inherit;
+      color: $green-dark;
+    }
   }
 
   img{
@@ -231,7 +235,6 @@ body.layout-intro{
   }
 }
 
-
 @media (max-width: 992px) {
 
   .bs-docs-section{
@@ -247,9 +250,6 @@ body.layout-intro{
     }
   }
 }
-
-
-
 
 @media (max-width: 480px) {
   .bs-docs-section{
