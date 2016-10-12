@@ -142,12 +142,17 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		AllocID:  ctx.AllocID,
 		Task:     task,
 	}
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:  command,
 		Args: driverConfig.Args,
 		User: task.User,
-	}, executorCtx)
+	}
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

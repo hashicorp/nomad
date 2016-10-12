@@ -128,18 +128,25 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		ChrootEnv: d.config.ChrootEnv,
 		Task:      task,
 	}
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-	}, executorCtx)
+	}
+
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
 	}
+
 	d.logger.Printf("[DEBUG] driver.exec: started process via plugin with pid: %v", ps.Pid)
 
 	// Return a driver handle

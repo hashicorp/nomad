@@ -202,6 +202,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the context
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:   d.taskEnv,
 		Driver:    "java",
@@ -210,19 +212,24 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		ChrootEnv: d.config.ChrootEnv,
 		Task:      task,
 	}
+	if err := execIntf.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
 	absPath, err := GetAbsolutePath("java")
 	if err != nil {
 		return nil, err
 	}
 
-	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-	}, executorCtx)
+	}
+	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

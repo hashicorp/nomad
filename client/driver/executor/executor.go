@@ -48,8 +48,9 @@ var (
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
-	LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error)
-	LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error)
+	SetContext(ctx *ExecutorContext) error
+	LaunchCmd(command *ExecCommand) (*ProcessState, error)
+	LaunchSyslogServer() (*SyslogServerState, error)
 	Wait() (*ProcessState, error)
 	ShutDown() error
 	Exit() error
@@ -229,12 +230,23 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 	return &ExecutorVersion{Version: "1.0.0"}, nil
 }
 
+// SetContext is used to set the executors context and should be the first call
+// after launching the executor.
+func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
+	e.ctx = ctx
+	return nil
+}
+
 // LaunchCmd launches a process and returns it's state. It also configures an
 // applies isolation on certain platforms.
-func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext) (*ProcessState, error) {
+func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
-	e.ctx = ctx
+	// Ensure the context has been set first
+	if e.ctx == nil {
+		return nil, fmt.Errorf("SetContext must be called before launching a command")
+	}
+
 	e.command = command
 
 	// setting the user of the process
@@ -272,7 +284,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 	e.cmd.Stderr = e.lre
 
 	// Look up the binary path and make it executable
-	absPath, err := e.lookupBin(ctx.TaskEnv.ReplaceEnv(command.Cmd))
+	absPath, err := e.lookupBin(e.ctx.TaskEnv.ReplaceEnv(command.Cmd))
 	if err != nil {
 		return nil, err
 	}
@@ -294,8 +306,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand, ctx *ExecutorContext
 
 	// Set the commands arguments
 	e.cmd.Path = path
-	e.cmd.Args = append([]string{e.cmd.Path}, ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	e.cmd.Env = ctx.TaskEnv.EnvList()
+	e.cmd.Args = append([]string{e.cmd.Path}, e.ctx.TaskEnv.ParseAndReplace(command.Args)...)
+	e.cmd.Env = e.ctx.TaskEnv.EnvList()
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
