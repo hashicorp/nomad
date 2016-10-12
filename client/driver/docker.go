@@ -783,12 +783,17 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
 	}
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
 	// Only launch syslog server if we're going to use it!
 	syslogAddr := ""
 	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
-		ss, err := exec.LaunchSyslogServer(executorCtx)
+		ss, err := exec.LaunchSyslogServer()
 		if err != nil {
+			pluginClient.Kill()
 			return nil, fmt.Errorf("failed to start syslog collector: %v", err)
 		}
 		syslogAddr = ss.Addr

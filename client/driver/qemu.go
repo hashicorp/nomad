@@ -247,11 +247,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocID:  ctx.AllocID,
 		Task:     task,
 	}
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
+
+	execCmd := &executor.ExecCommand{
 		Cmd:  args[0],
 		Args: args[1:],
 		User: task.User,
-	}, executorCtx)
+	}
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err

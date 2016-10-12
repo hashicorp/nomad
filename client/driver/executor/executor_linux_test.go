@@ -48,7 +48,12 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.User = cstructs.DefaultUnpriviledgedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("error in launching command: %v", err)
 	}
