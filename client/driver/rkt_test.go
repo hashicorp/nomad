@@ -171,7 +171,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -223,7 +223,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -276,7 +276,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
