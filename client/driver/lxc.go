@@ -26,7 +26,6 @@ import (
 )
 
 const (
-
 	// containerMonitorIntv is the interval at which the driver checks if the
 	// container is still alive
 	containerMonitorIntv = 2 * time.Second
@@ -229,20 +228,17 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("faild getting secret path for task: %v", err)
 	}
 	mounts := []string{
-		// local
 		fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir),
-		// alloc
 		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir),
-		// secret
 		fmt.Sprintf("%s secret none rw,bind,create=dir", secretdir),
 	}
-
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
 			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
 		}
 	}
 
+	// Start the container
 	if err := c.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start container: %v", err)
 	}
