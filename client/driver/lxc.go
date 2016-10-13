@@ -26,6 +26,9 @@ import (
 )
 
 const (
+	// The option that enables this driver in the Config.Options map.
+	lxcConfigOption = "driver.lxc.enable"
+
 	// containerMonitorIntv is the interval at which the driver checks if the
 	// container is still alive
 	containerMonitorIntv = 2 * time.Second
@@ -143,6 +146,10 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 
 // Fingerprint fingerprints the lxc driver configuration
 func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	enabled := cfg.ReadBoolDefault(lxcConfigOption, false)
+	if !enabled {
+		return false, nil
+	}
 	version := lxc.Version()
 	if version == "" {
 		return false, nil

@@ -33,8 +33,16 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	if apply {
+		t.Fatalf("should not apply by default")
+	}
+
+	apply, err = d.Fingerprint(&config.Config{Options: map[string]string{lxcConfigOption: "1"}}, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	if !apply {
-		t.Fatalf("should apply")
+		t.Fatalf("should apply with config")
 	}
 	if node.Attributes["driver.lxc"] == "" {
 		t.Fatalf("missing driver")
