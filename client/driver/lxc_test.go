@@ -2,6 +2,8 @@ package driver
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -82,6 +84,19 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Look for mounted directories in their proper location
+	containerName := fmt.Sprintf("%s-%s", task.Name, execCtx.AllocID)
+	for _, mnt := range []string{"alloc", "local", "secret"} {
+		fullpath := filepath.Join(lxcHandle.lxcPath, containerName, "rootfs", mnt)
+		stat, err := os.Stat(fullpath)
+		if err != nil {
+			t.Fatalf("err %v", err)
+		}
+		if !stat.IsDir() {
+			t.Fatalf("expected %q to be a dir", fullpath)
+		}
+	}
 
 	// Desroy the container
 	if err := handle.Kill(); err != nil {

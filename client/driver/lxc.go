@@ -224,14 +224,23 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if !ok {
 		return nil, fmt.Errorf("failed to find task local directory: %v", task.Name)
 	}
-	taskDirMount := fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir)
-	allocDirMount := fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir)
-
-	if err := c.SetConfigItem("lxc.mount.entry", allocDirMount); err != nil {
-		return nil, fmt.Errorf("error setting alloc dir bind mounts configuration: %v", err)
+	secretdir, err := ctx.AllocDir.GetSecretDir(task.Name)
+	if err != nil {
+		return nil, fmt.Errorf("faild getting secret path for task: %v", err)
 	}
-	if err := c.SetConfigItem("lxc.mount.entry", taskDirMount); err != nil {
-		return nil, fmt.Errorf("error setting task dir bind mounts configuration: %v", err)
+	mounts := []string{
+		// local
+		fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir),
+		// alloc
+		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir),
+		// secret
+		fmt.Sprintf("%s secret none rw,bind,create=dir", secretdir),
+	}
+
+	for _, mnt := range mounts {
+		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
+			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+		}
 	}
 
 	if err := c.Start(); err != nil {
