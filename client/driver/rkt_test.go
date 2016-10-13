@@ -236,7 +236,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	tmpvol, err := ioutil.TempDir("", "nomadtest_dockerdriver_volumes")
+	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
 	if err != nil {
 		t.Fatalf("error creating temporary dir: %v", err)
 	}
