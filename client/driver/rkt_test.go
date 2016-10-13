@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -237,6 +236,12 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
+	tmpvol, err := ioutil.TempDir("", "nomadtest_dockerdriver_volumes")
+	if err != nil {
+		t.Fatalf("error creating temporary dir: %v", err)
+	}
+	defer os.RemoveAll(tmpvol)
+	hostpath := filepath.Join(tmpvol, file)
 
 	task := &structs.Task{
 		Name: "alpine",
@@ -245,8 +250,9 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 			"command": "/bin/sh",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`echo -n %s > ${%s}/%s`, string(exp), env.AllocDir, file),
+				fmt.Sprintf(`echo -n %s > foo/%s`, string(exp), file),
 			},
+			"volumes": []string{fmt.Sprintf("%s:/foo", tmpvol)},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -259,6 +265,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
+	driverCtx.config.Options = map[string]string{rktVolumesConfigOption: "1"}
 	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
 
@@ -281,8 +288,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
-	act, err := ioutil.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(hostpath)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
 	}

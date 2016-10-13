@@ -65,6 +65,7 @@ type RktDriverConfig struct {
 	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	Debug            bool     `mapstructure:"debug"`              // Enable debug option for rkt command
+	Volumes          []string `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -226,7 +227,23 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Mount /secrets
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%ssecrets,kind=host,source=%s", task.Name, filepath.Join(taskDir, allocdir.TaskSecrets)))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%ssecrets,target=/%s", task.Name, allocdir.TaskSecretsContainerPath))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%ssecrets,target=%s", task.Name, allocdir.TaskSecretsContainerPath))
+
+	// Mount arbitrary volumes if enabled
+	if len(driverConfig.Volumes) > 0 {
+		if enabled := d.config.ReadBoolDefault(rktVolumesConfigOption, false); !enabled {
+			return nil, fmt.Errorf("%s is false; cannot use rkt volumes: %+q", rktVolumesConfigOption, driverConfig.Volumes)
+		}
+
+		for i, rawvol := range driverConfig.Volumes {
+			parts := strings.Split(rawvol, ":")
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
+			}
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s%d,kind=host,source=%s", task.Name, i, parts[0]))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s%d,target=%s", task.Name, i, parts[1]))
+		}
+	}
 
 	cmdArgs = append(cmdArgs, img)
 	if insecure {
