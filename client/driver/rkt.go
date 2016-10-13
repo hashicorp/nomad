@@ -42,6 +42,10 @@ const (
 	// The key populated in the Node Attributes to indicate the presence of the
 	// Rkt driver
 	rktDriverAttr = "driver.rkt"
+
+	// rktVolumesConfigOption is the key for enabling the use of custom
+	// bind volumes.
+	rktVolumesConfigOption = "rkt.volumes.enabled"
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -210,15 +214,30 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		insecure = true
 	}
 	cmdArgs = append(cmdArgs, "run")
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", task.Name, ctx.AllocDir.SharedDir))
+
+	// Mount /alloc
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%salloc,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%salloc,target=%s", task.Name, allocdir.SharedAllocContainerPath))
+
+	// Mount /local
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%slocal,kind=host,source=%s", task.Name, filepath.Join(taskDir, allocdir.TaskLocal)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%slocal,target=%s", task.Name, allocdir.TaskLocalContainerPath))
+
+	// Mount /secrets
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%ssecrets,kind=host,source=%s", task.Name, filepath.Join(taskDir, allocdir.TaskSecrets)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%ssecrets,target=/%s", task.Name, allocdir.TaskSecretsContainerPath))
+
 	cmdArgs = append(cmdArgs, img)
-	if insecure == true {
+	if insecure {
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
+	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskSecretsContainerPath)
+	d.taskEnv.Build()
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}
