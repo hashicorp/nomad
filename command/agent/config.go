@@ -250,6 +250,7 @@ type ServerConfig struct {
 type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
+	DataDogAddr              string        `mapstructure:"datadog_address"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	CollectionInterval       string        `mapstructure:"collection_interval"`
 	collectionInterval       time.Duration `mapstructure:"-"`
@@ -760,6 +761,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.StatsdAddr != "" {
 		result.StatsdAddr = b.StatsdAddr
+	}
+	if b.DataDogAddr != "" {
+		result.DataDogAddr = b.DataDogAddr
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true

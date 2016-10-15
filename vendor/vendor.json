@@ -7,6 +7,12 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "CMcHvqld6XBCDYA+9jCy6gT1O0Q=",
+			"path": "github.com/DataDog/datadog-go/statsd",
+			"revision": "909c02b65dd8a52e8fa6072db9752a112227cf21",
+			"revisionTime": "2016-08-22T16:14:30Z"
+		},
+		{
 			"checksumSHA1": "VAQq2NnE8Qhzdf1BL00XgZNFwyY=",
 			"path": "github.com/Microsoft/go-winio",
 			"revision": "ce2922f643c8fd76b46cadc7f404a06282678b34",
@@ -44,6 +50,12 @@
 		{
 			"checksumSHA1": "OmqT9Y1mAHvlAKeJh0jBHC9SH78=",
 			"path": "github.com/armon/go-metrics/circonus",
+			"revision": "3df31a1ada83e310c2e24b267c8e8b68836547b4",
+			"revisionTime": "2016-07-17T04:34:58Z"
+		},
+		{
+			"checksumSHA1": "mAzNU3zeZGEwqjDT4ZkspFvx3TI=",
+			"path": "github.com/armon/go-metrics/datadog",
 			"revision": "3df31a1ada83e310c2e24b267c8e8b68836547b4",
 			"revisionTime": "2016-07-17T04:34:58Z"
 		},
@@ -246,14 +258,14 @@
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
-			"revisionTime": "2016-05-28T10:48:36Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
 		},
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
