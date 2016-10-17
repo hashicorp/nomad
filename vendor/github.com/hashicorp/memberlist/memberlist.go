@@ -129,7 +129,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		leaveBroadcast: make(chan struct{}, 1),
 		udpListener:    udpLn,
 		tcpListener:    tcpLn,
-		handoff:        make(chan msgHandoff, 1024),
+		handoff:        make(chan msgHandoff, conf.HandoffQueueDepth),
 		nodeMap:        make(map[string]*nodeState),
 		nodeTimers:     make(map[string]*suspicion),
 		awareness:      newAwareness(conf.AwarenessMaxMultiplier),

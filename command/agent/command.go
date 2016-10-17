@@ -83,6 +83,7 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
+	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -193,6 +194,17 @@ func (c *Command) readConfig() *Config {
 	if dev {
 		// Skip validation for dev mode
 		return config
+	}
+
+	if config.Server.EncryptKey != "" {
+		if _, err := config.Server.EncryptBytes(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
+			return nil
+		}
+		keyfile := filepath.Join(config.DataDir, serfKeyring)
+		if _, err := os.Stat(keyfile); err == nil {
+			c.Ui.Error("WARNING: keyring exists but -encrypt given, using keyring")
+		}
 	}
 
 	// Parse the RetryInterval.
@@ -817,6 +829,9 @@ Server Options:
     Configures the expected number of servers nodes to wait for before
     bootstrapping the cluster. Once <num> servers have joined eachother,
     Nomad initiates the bootstrap process.
+
+  -encrypt=<key>
+    Provides the gossip encryption key
 
   -join=<address>
     Address of an agent to join at start time. Can be specified

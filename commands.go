@@ -79,6 +79,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"keygen": func() (cli.Command, error) {
+			return &command.KeygenCommand{
+				Meta: meta,
+			}, nil
+		},
+		"keyring": func() (cli.Command, error) {
+			return &command.KeyringCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &command.LogsCommand{
 				Meta: meta,

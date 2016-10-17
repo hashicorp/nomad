@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -244,6 +245,14 @@ type ServerConfig struct {
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+
+	// Encryption key to use for the Serf communication
+	EncryptKey string `mapstructure:"encrypt" json:"-"`
+}
+
+// EncryptBytes returns the encryption key configured.
+func (s *ServerConfig) EncryptBytes() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s.EncryptKey)
 }
 
 // Telemetry is the telemetry configuration for the server
@@ -668,6 +677,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
+	}
+	if b.EncryptKey != "" {
+		result.EncryptKey = b.EncryptKey
 	}
 
 	// Add the schedulers

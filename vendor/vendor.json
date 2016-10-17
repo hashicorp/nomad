@@ -686,10 +686,10 @@
 			"revision": "0dc08b1671f34c4250ce212759ebd880f743d883"
 		},
 		{
-			"checksumSHA1": "8ytOx52G+38QMK4G194Kl6g6YGY=",
+			"checksumSHA1": "Ozk/S4U1x/OllNP2SsMYJjCl/gs=",
 			"path": "github.com/hashicorp/memberlist",
-			"revision": "b2053e314b4a87e5f0d2d47aeafd3e03be13da90",
-			"revisionTime": "2016-06-21T23:59:43Z"
+			"revision": "7ad712f5f34ec40aebe6ca47756d07898486a8d2",
+			"revisionTime": "2016-09-15T13:02:55Z"
 		},
 		{
 			"path": "github.com/hashicorp/net-rpc-msgpackrpc",

@@ -68,6 +68,7 @@ server {
 	retry_max = 3
 	retry_interval = "15s"
 	rejoin_after_leave = true
+    encrypt = "abc"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"

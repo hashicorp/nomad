@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -371,6 +372,11 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
+	// Sets up the keyring for gossip encryption
+	if err := a.setupKeyrings(conf); err != nil {
+		return fmt.Errorf("failed to configure keyring: %v", err)
+	}
+
 	// Create the server
 	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
 	if err != nil {
@@ -428,6 +434,30 @@ func (a *Agent) setupServer() error {
 		})
 	}
 
+	return nil
+}
+
+// setupKeyrings is used to initialize and load keyrings during agent startup
+func (a *Agent) setupKeyrings(config *nomad.Config) error {
+	file := filepath.Join(a.config.DataDir, serfKeyring)
+
+	if a.config.Server.EncryptKey == "" {
+		goto LOAD
+	}
+	if _, err := os.Stat(file); err != nil {
+		if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+			return err
+		}
+	}
+
+LOAD:
+	if _, err := os.Stat(file); err == nil {
+		config.SerfConfig.KeyringFile = file
+	}
+	if err := loadKeyringFile(config.SerfConfig); err != nil {
+		return err
+	}
+	// Success!
 	return nil
 }
 

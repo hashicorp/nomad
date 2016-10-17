@@ -3,7 +3,9 @@ package agent
 import (
 	"net"
 	"net/http"
+	"strings"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -163,6 +165,56 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 		return nil, CodedError(400, err.Error())
 	}
 	return nil, nil
+}
+
+// KeyringOperationRequest allows an operator to install/delete/use keys
+func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	kmgr := srv.KeyManager()
+	var sresp *serf.KeyResponse
+	var err error
+
+	// Get the key from the req body
+	var args structs.KeyringRequest
+
+	//Get the op
+	op := strings.TrimPrefix(req.URL.Path, "/v1/agent/keyring/")
+
+	switch op {
+	case "list":
+		sresp, err = kmgr.ListKeys()
+	case "install":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.InstallKey(args.Key)
+	case "use":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.UseKey(args.Key)
+	case "remove":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.RemoveKey(args.Key)
+	default:
+		return nil, CodedError(404, "resource not found")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	kresp := structs.KeyringResponse{
+		Messages: sresp.Messages,
+		Keys:     sresp.Keys,
+		NumNodes: sresp.NumNodes,
+	}
+	return kresp, nil
 }
 
 type agentSelf struct {

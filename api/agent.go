@@ -16,6 +16,19 @@ type Agent struct {
 	region     string
 }
 
+// KeyringResponse is a unified key response and can be used for install,
+// remove, use, as well as listing key queries.
+type KeyringResponse struct {
+	Messages map[string]string
+	Keys     map[string]int
+	NumNodes int
+}
+
+// KeyringRequest is request objects for serf key operations.
+type KeyringRequest struct {
+	Key string
+}
+
 // Agent returns a new agent which can be used to query
 // the agent-specific endpoints.
 func (c *Client) Agent() *Agent {
@@ -155,6 +168,46 @@ func (a *Agent) SetServers(addrs []string) error {
 
 	_, err := a.client.write("/v1/agent/servers?"+v.Encode(), nil, nil, nil)
 	return err
+}
+
+// ListKeys returns the list of installed keys
+func (a *Agent) ListKeys() (*KeyringResponse, error) {
+	var resp KeyringResponse
+	_, err := a.client.query("/v1/agent/keyring/list", &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// InstallKey installs a key in the keyrings of all the serf members
+func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
+	args := KeyringRequest{
+		Key: key,
+	}
+	var resp KeyringResponse
+	_, err := a.client.write("/v1/agent/keyring/install", &args, &resp, nil)
+	return &resp, err
+}
+
+// UseKey uses a key from the keyring of serf members
+func (a *Agent) UseKey(key string) (*KeyringResponse, error) {
+	args := KeyringRequest{
+		Key: key,
+	}
+	var resp KeyringResponse
+	_, err := a.client.write("/v1/agent/keyring/use", &args, &resp, nil)
+	return &resp, err
+}
+
+// RemoveKey removes a particular key from keyrings of serf members
+func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
+	args := KeyringRequest{
+		Key: key,
+	}
+	var resp KeyringResponse
+	_, err := a.client.write("/v1/agent/keyring/remove", &args, &resp, nil)
+	return &resp, err
 }
 
 // joinResponse is used to decode the response we get while

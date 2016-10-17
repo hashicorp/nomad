@@ -1,11 +1,15 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
@@ -174,6 +178,114 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 		if foundCount != len(expected) {
 			t.Fatalf("bad servers result")
+		}
+	})
+}
+
+func TestHTTP_AgentListKeys(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 1 {
+			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentInstallKey(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+
+		_, err = s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 2 {
+			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentRemoveKey(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+		_, err = s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/remove", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+		if _, err = s.Server.KeyringOperationRequest(respW, req); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 1 {
+			t.Fatalf("bad: %v", kresp)
 		}
 	})
 }

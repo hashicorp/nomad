@@ -392,6 +392,16 @@ configured on client nodes.
     join any nodes when it starts up. Addresses can be given as an IP, a domain
     name, or an IP:Port pair. If the port isn't specified the default Serf port,
     4648, is used.  DNS names may also be used.
+  * <a id="encrypt">`encrypt`</a> Specifies the secret key to use for encryption
+    of Nomad server's gossip network traffic. This key must be 16-bytes that are
+    Base64-encoded. The easiest way to create an encryption key is to use nomad
+    keygen. All the servers within a cluster must share the same encryption key
+    to communicate. The provided key is automatically persisted to the data
+    directory and loaded automatically whenever the agent is restarted. This
+    means that to encrypt Nomad server's gossip protocol, this option only needs
+    to be provided once on each agent's initial startup sequence. If it is
+    provided after Nomad has been initialized with an encryption key, then the
+    provided key is ignored and a warning will be displayed.
 
 ## Client-specific Options
 
