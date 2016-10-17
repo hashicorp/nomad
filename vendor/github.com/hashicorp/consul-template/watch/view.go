@@ -197,6 +197,13 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 			v.dataLock.Unlock()
 			continue
 		}
+
+		if data == nil {
+			log.Printf("[DEBUG](view) %s data was not present", v.display())
+			v.dataLock.Unlock()
+			continue
+		}
+
 		v.data = data
 		v.receivedData = true
 		v.dataLock.Unlock()

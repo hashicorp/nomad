@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -59,8 +60,9 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID), task.Resources.DiskMB)
 	allocDir.Build([]*structs.Task{task})
 
+	vclient := vaultclient.NewMockVaultClient()
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task, vclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -236,7 +238,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new task runner
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name})
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.vaultClient)
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -408,68 +410,6 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	tr.task.User = "root"
 	if err := tr.validateTask(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestTaskRunner_VaultTokenRenewal(t *testing.T) {
-	alloc := mock.Alloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
-		"exit_code": "0",
-		"run_for":   "10s",
-	}
-	task.Vault = &structs.Vault{
-		Policies: []string{"default"},
-	}
-
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	renewalCh := make(chan error, 1)
-	renewalErr := fmt.Errorf("test vault renewal error")
-	tr.SetVaultToken(structs.GenerateUUID(), renewalCh)
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		renewalCh <- renewalErr
-		close(renewalCh)
-	}()
-
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		t.Fatalf("timeout")
-	}
-
-	if len(upd.events) != 5 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
-	}
-
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
-	}
-
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
-	}
-
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
-	}
-
-	if upd.events[2].Type != structs.TaskVaultRenewalFailed {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskVaultRenewalFailed)
-	}
-
-	if upd.events[3].Type != structs.TaskKilling {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilling)
-	}
-
-	if upd.events[4].Type != structs.TaskKilled {
-		t.Fatalf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskKilled)
 	}
 }
 

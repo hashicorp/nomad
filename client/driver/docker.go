@@ -1021,7 +1021,6 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 		ID:     h.containerID,
 		Signal: dockerSignal,
 	}
-	h.logger.Printf("Sending: %v", dockerSignal)
 	return h.client.KillContainer(opts)
 
 }

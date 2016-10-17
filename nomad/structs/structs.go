@@ -2847,6 +2847,13 @@ type Vault struct {
 	ChangeSignal string `mapstructure:"change_signal"`
 }
 
+func DefaultVaultBlock() *Vault {
+	return &Vault{
+		Env:        true,
+		ChangeMode: VaultChangeModeRestart,
+	}
+}
+
 // Copy returns a copy of this Vault block.
 func (v *Vault) Copy() *Vault {
 	if v == nil {

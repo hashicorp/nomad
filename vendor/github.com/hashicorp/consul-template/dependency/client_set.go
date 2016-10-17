@@ -47,6 +47,7 @@ type CreateConsulClientInput struct {
 	SSLCert      string
 	SSLKey       string
 	SSLCACert    string
+	ServerName   string
 }
 
 // CreateVaultClientInput is used as input to the CreateVaultClient function.
@@ -59,6 +60,7 @@ type CreateVaultClientInput struct {
 	SSLCert     string
 	SSLKey      string
 	SSLCACert   string
+	ServerName  string
 }
 
 // NewClientSet creates a new client set that is ready to accept clients.
@@ -135,6 +137,11 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 		tlsConfig.BuildNameToCertificate()
 
 		// SSL verification
+		if i.ServerName != "" {
+			tlsConfig.ServerName = i.ServerName
+			tlsConfig.InsecureSkipVerify = false
+			log.Printf("[DEBUG] (clients) using explicit consul TLS server host name: %s", tlsConfig.ServerName)
+		}
 		if !i.SSLVerify {
 			log.Printf("[WARN] (clients) disabling consul SSL verification")
 			tlsConfig.InsecureSkipVerify = true
@@ -213,6 +220,11 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 		tlsConfig.BuildNameToCertificate()
 
 		// SSL verification
+		if i.ServerName != "" {
+			tlsConfig.ServerName = i.ServerName
+			tlsConfig.InsecureSkipVerify = false
+			log.Printf("[DEBUG] (clients) using explicit vault TLS server host name: %s", tlsConfig.ServerName)
+		}
 		if !i.SSLVerify {
 			log.Printf("[WARN] (clients) disabling vault SSL verification")
 			tlsConfig.InsecureSkipVerify = true

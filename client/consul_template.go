@@ -141,6 +141,7 @@ func (tm *TaskTemplateManager) Stop() {
 
 // run is the long lived loop that handles errors and templates being rendered
 func (tm *TaskTemplateManager) run() {
+	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
 		if !tm.allRendered {
@@ -189,6 +190,10 @@ func (tm *TaskTemplateManager) run() {
 
 				break WAIT
 			}
+
+			// TODO Thinking, I believe we could check every 30 seconds and if
+			// they are all would be rendered we should start anyways. That is
+			// the reattach mechanism when they have all been rendered
 		}
 
 		allRenderedTime = time.Now()

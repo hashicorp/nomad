@@ -717,12 +717,12 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 
 		// If we have a vault block, then parse that
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
-			var v structs.Vault
-			if err := parseVault(&v, o); err != nil {
+			v := structs.DefaultVaultBlock()
+			if err := parseVault(v, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', vault ->", n))
 			}
 
-			t.Vault = &v
+			t.Vault = v
 		}
 
 		*result = append(*result, &t)
@@ -1189,15 +1189,7 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 		return err
 	}
 
-	// Default the env bool
-	if _, ok := m["env"]; !ok {
-		m["env"] = true
-	}
-
-	if _, ok := m["change_mode"]; !ok {
-		m["change_mode"] = structs.VaultChangeModeRestart
-	}
-
+	// TODO use default
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
 	}

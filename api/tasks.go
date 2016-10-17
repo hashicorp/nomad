@@ -173,14 +173,13 @@ type Template struct {
 	ChangeMode   string
 	ChangeSignal string
 	Splay        time.Duration
-	Once         bool
 }
 
 type Vault struct {
-	Policies          []string
-	Env               bool
-	TokenChangeMode   string
-	TokenChangeSignal string
+	Policies     []string
+	Env          bool
+	ChangeMode   string
+	ChangeSignal string
 }
 
 // NewTask creates and initializes a new Task.

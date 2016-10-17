@@ -25,11 +25,12 @@ type NodeDetail struct {
 
 // NodeService is a service on a single node.
 type NodeService struct {
-	ID      string
-	Service string
-	Tags    ServiceTags
-	Port    int
-	Address string
+	ID                string
+	Service           string
+	Tags              ServiceTags
+	Port              int
+	Address           string
+	EnableTagOverride bool
 }
 
 // CatalogNode represents a single node from the Consul catalog.
@@ -108,19 +109,21 @@ func (d *CatalogNode) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}
 	services := make(NodeServiceList, 0, len(n.Services))
 	for _, v := range n.Services {
 		services = append(services, &NodeService{
-			ID:      v.ID,
-			Service: v.Service,
-			Tags:    ServiceTags(deepCopyAndSortTags(v.Tags)),
-			Port:    v.Port,
-			Address: v.Address,
+			ID:                v.ID,
+			Service:           v.Service,
+			Tags:              ServiceTags(deepCopyAndSortTags(v.Tags)),
+			Port:              v.Port,
+			Address:           v.Address,
+			EnableTagOverride: v.EnableTagOverride,
 		})
 	}
 	sort.Stable(services)
 
 	node := &NodeDetail{
 		Node: &Node{
-			Node:    n.Node.Node,
-			Address: n.Node.Address,
+			Node:            n.Node.Node,
+			Address:         n.Node.Address,
+			TaggedAddresses: n.Node.TaggedAddresses,
 		},
 		Services: services,
 	}
