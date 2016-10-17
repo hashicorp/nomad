@@ -819,6 +819,9 @@ Server Options:
     bootstrapping the cluster. Once <num> servers have joined eachother,
     Nomad initiates the bootstrap process.
 
+  -encrypt=<key>
+    Provides the gossip encryption key
+
   -join=<address>
     Address of an agent to join at start time. Can be specified
     multiple times.

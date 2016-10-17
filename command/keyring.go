@@ -1,7 +1,6 @@
 package command
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
@@ -19,16 +18,16 @@ func (c *KeyringCommand) Run(args []string) int {
 	var installKey, useKey, removeKey, token string
 	var listKeys bool
 
-	cmdFlags := flag.NewFlagSet("keys", flag.ContinueOnError)
-	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags := c.Meta.FlagSet("keys", FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	cmdFlags.StringVar(&installKey, "install", "", "install key")
-	cmdFlags.StringVar(&useKey, "use", "", "use key")
-	cmdFlags.StringVar(&removeKey, "remove", "", "remove key")
-	cmdFlags.BoolVar(&listKeys, "list", false, "list keys")
-	cmdFlags.StringVar(&token, "token", "", "acl token")
+	flags.StringVar(&installKey, "install", "", "install key")
+	flags.StringVar(&useKey, "use", "", "use key")
+	flags.StringVar(&removeKey, "remove", "", "remove key")
+	flags.BoolVar(&listKeys, "list", false, "list keys")
+	flags.StringVar(&token, "token", "", "acl token")
 
-	if err := cmdFlags.Parse(args); err != nil {
+	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
@@ -134,7 +133,11 @@ Usage: nomad keyring [options]
   are no errors. If any node fails to reply or reports failure, the exit code
   will be 1.
 
-Options:
+General Options:
+
+  ` + generalOptionsUsage() + `
+
+Keyring Options:
 
   -install=<key>            Install a new encryption key. This will broadcast
                             the new key to all members in the cluster.
