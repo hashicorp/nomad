@@ -3032,8 +3032,10 @@ func TestTaskDiff(t *testing.T) {
 			Old: &Task{},
 			New: &Task{
 				Vault: &Vault{
-					Policies: []string{"foo", "bar"},
-					Env:      true,
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3043,6 +3045,18 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeMode",
+								Old:  "",
+								New:  "signal",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeSignal",
+								Old:  "",
+								New:  "SIGUSR1",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "Env",
@@ -3078,8 +3092,10 @@ func TestTaskDiff(t *testing.T) {
 			// Vault deleted
 			Old: &Task{
 				Vault: &Vault{
-					Policies: []string{"foo", "bar"},
-					Env:      true,
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
 				},
 			},
 			New: &Task{},
@@ -3090,6 +3106,18 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "Env",
@@ -3125,14 +3153,18 @@ func TestTaskDiff(t *testing.T) {
 			// Vault edited
 			Old: &Task{
 				Vault: &Vault{
-					Policies: []string{"foo", "bar"},
-					Env:      true,
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
 				},
 			},
 			New: &Task{
 				Vault: &Vault{
-					Policies: []string{"bar", "baz"},
-					Env:      false,
+					Policies:     []string{"bar", "baz"},
+					Env:          false,
+					ChangeMode:   "restart",
+					ChangeSignal: "foo",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3142,6 +3174,18 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "restart",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "foo",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "Env",
@@ -3174,18 +3218,22 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// LogConfig edited with context
+			// Vault edited with context
 			Contextual: true,
 			Old: &Task{
 				Vault: &Vault{
-					Policies: []string{"foo", "bar"},
-					Env:      true,
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
 				},
 			},
 			New: &Task{
 				Vault: &Vault{
-					Policies: []string{"bar", "baz"},
-					Env:      true,
+					Policies:     []string{"bar", "baz"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3195,6 +3243,18 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "signal",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "SIGUSR1",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "Env",
