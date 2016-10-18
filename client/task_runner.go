@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,10 +13,12 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -35,6 +38,18 @@ const (
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
+
+	// vaultBackoffBaseline is the baseline time for exponential backoff when
+	// attempting to retrieve a Vault token
+	vaultBackoffBaseline = 5 * time.Second
+
+	// vaultBackoffLimit is the limit of the exponential backoff when attempting
+	// to retrieve a Vault token
+	vaultBackoffLimit = 3 * time.Minute
+
+	// vaultTokenFile is the name of the file holding the Vault token inside the
+	// task's secret directory
+	vaultTokenFile = "vault_token"
 )
 
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
@@ -53,8 +68,14 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.RWMutex
 
-	task     *structs.Task
-	taskEnv  *env.TaskEnvironment
+	task    *structs.Task
+	taskDir string
+
+	// taskEnv is the environment variables of the task
+	taskEnv     *env.TaskEnvironment
+	taskEnvLock sync.Mutex
+
+	// updateCh is used to receive updated versions of the allocation
 	updateCh chan *structs.Allocation
 
 	handle     driver.DriverHandle
@@ -64,16 +85,23 @@ type TaskRunner struct {
 	// downloaded
 	artifactsDownloaded bool
 
-	// vaultToken and vaultRenewalCh are optionally set if the task requires
-	// Vault tokens
-	vaultToken     string
-	vaultRenewalCh <-chan error
+	// vaultFuture is the means to wait for and get a Vault token
+	vaultFuture *tokenFuture
+
+	// recoveredVaultToken is the token that was recovered through a restore
+	recoveredVaultToken string
+
+	// vaultClient is used to retrieve and renew any needed Vault token
+	vaultClient vaultclient.VaultClient
 
 	// templateManager is used to manage any consul-templates this task may have
 	templateManager *TaskTemplateManager
 
 	// templatesRendered mark whether the templates have been rendered
 	templatesRendered bool
+
+	// startCh is used to trigger the start of the task
+	startCh chan struct{}
 
 	// unblockCh is used to unblock the starting of the task
 	unblockCh   chan struct{}
@@ -86,16 +114,13 @@ type TaskRunner struct {
 	// signalCh is used to send a signal to a task
 	signalCh chan SignalEvent
 
-	// killCh is used to kill a task
-	killCh   chan *structs.TaskEvent
-	killed   bool
-	killLock sync.Mutex
-
 	destroy      bool
 	destroyCh    chan struct{}
 	destroyLock  sync.Mutex
 	destroyEvent *structs.TaskEvent
-	waitCh       chan struct{}
+
+	// waitCh closing marks the run loop as having exited
+	waitCh chan struct{}
 
 	// serialize SaveState calls
 	persistLock sync.Mutex
@@ -128,7 +153,8 @@ type SignalEvent struct {
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, ctx *driver.ExecContext,
-	alloc *structs.Allocation, task *structs.Task) *TaskRunner {
+	alloc *structs.Allocation, task *structs.Task,
+	vaultClient vaultclient.VaultClient) *TaskRunner {
 
 	// Merge in the task resources
 	task.Resources = alloc.TaskResources[task.Name]
@@ -141,6 +167,13 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
+	// Get the task directory
+	taskDir, ok := ctx.AllocDir.TaskDirs[task.Name]
+	if !ok {
+		logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", alloc.ID, task.Name)
+		return nil
+	}
+
 	tc := &TaskRunner{
 		config:         config,
 		updater:        updater,
@@ -149,23 +182,19 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		ctx:            ctx,
 		alloc:          alloc,
 		task:           task,
+		taskDir:        taskDir,
+		vaultClient:    vaultClient,
+		vaultFuture:    NewTokenFuture().Set(""),
 		updateCh:       make(chan *structs.Allocation, 64),
 		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
+		startCh:        make(chan struct{}, 1),
 		unblockCh:      make(chan struct{}),
 		restartCh:      make(chan *structs.TaskEvent),
 		signalCh:       make(chan SignalEvent),
-		killCh:         make(chan *structs.TaskEvent),
 	}
 
 	return tc
-}
-
-// SetVaultToken is used to set the Vault token and renewal channel for the task
-// runner
-func (r *TaskRunner) SetVaultToken(token string, renewalCh <-chan error) {
-	r.vaultToken = token
-	r.vaultRenewalCh = renewalCh
 }
 
 // MarkReceived marks the task as received.
@@ -211,6 +240,27 @@ func (r *TaskRunner) RestoreState() error {
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
 			r.task.Name, r.alloc.ID, err)
+	}
+
+	if r.task.Vault != nil {
+		secretDir, err := r.ctx.AllocDir.GetSecretDir(r.task.Name)
+		if err != nil {
+			return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+		}
+
+		// Read the token from the secret directory
+		tokenPath := filepath.Join(secretDir, vaultTokenFile)
+		data, err := ioutil.ReadFile(tokenPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+			}
+
+			// Token file doesn't exist
+		} else {
+			// Store the recovered token
+			r.recoveredVaultToken = string(data)
+		}
 	}
 
 	// Restore the driver
@@ -277,7 +327,10 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 // setTaskEnv sets the task environment. It returns an error if it could not be
 // created.
 func (r *TaskRunner) setTaskEnv() error {
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc, r.vaultToken)
+	r.taskEnvLock.Lock()
+	defer r.taskEnvLock.Unlock()
+
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc, r.vaultFuture.Get())
 	if err != nil {
 		return err
 	}
@@ -285,13 +338,21 @@ func (r *TaskRunner) setTaskEnv() error {
 	return nil
 }
 
+// getTaskEnv returns the task environment
+func (r *TaskRunner) getTaskEnv() *env.TaskEnvironment {
+	r.taskEnvLock.Lock()
+	defer r.taskEnvLock.Unlock()
+	return r.taskEnv
+}
+
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	if r.taskEnv == nil {
+	env := r.getTaskEnv()
+	if env == nil {
 		return nil, fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, r.taskEnv)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -313,14 +374,20 @@ func (r *TaskRunner) Run() {
 		return
 	}
 
-	if err := r.setTaskEnv(); err != nil {
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
-		return
+	// If there is no Vault policy leave the static future created in
+	// NewTaskRunner
+	if r.task.Vault != nil {
+		// Start the go-routine to get a Vault token
+		r.vaultFuture.Clear()
+		go r.vaultManager(r.recoveredVaultToken)
 	}
 
+	// Start the run loop
 	r.run()
+
+	// Do any cleanup necessary
+	r.postrun()
+
 	return
 }
 
@@ -356,17 +423,279 @@ func (r *TaskRunner) validateTask() error {
 	return mErr.ErrorOrNil()
 }
 
-// prestart handles life-cycle tasks that occur before the task has started.
-func (r *TaskRunner) prestart(taskDir string) (success bool) {
-	// Build the template manager
-	var err error
-	r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
-		r.config, r.vaultToken, taskDir, r.taskEnv)
+// tokenFuture stores the Vault token and allows consumers to block till a valid
+// token exists
+type tokenFuture struct {
+	waiting []chan struct{}
+	token   string
+	set     bool
+	m       sync.Mutex
+}
+
+// NewTokenFuture returns a new token future without any token set
+func NewTokenFuture() *tokenFuture {
+	return &tokenFuture{}
+}
+
+// Wait returns a channel that can be waited on. When this channel unblocks, a
+// valid token will be available via the Get method
+func (f *tokenFuture) Wait() <-chan struct{} {
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	c := make(chan struct{})
+	if f.set {
+		close(c)
+		return c
+	}
+
+	f.waiting = append(f.waiting, c)
+	return c
+}
+
+// Set sets the token value and unblocks any caller of Wait
+func (f *tokenFuture) Set(token string) *tokenFuture {
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	f.set = true
+	f.token = token
+	for _, w := range f.waiting {
+		close(w)
+	}
+	f.waiting = nil
+	return f
+}
+
+// Clear clears the set vault token.
+func (f *tokenFuture) Clear() *tokenFuture {
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	f.token = ""
+	f.set = false
+	return f
+}
+
+// Get returns the set Vault token
+func (f *tokenFuture) Get() string {
+	f.m.Lock()
+	defer f.m.Unlock()
+	return f.token
+}
+
+// vaultManager should be called in a go-routine and manages the derivation,
+// renewal and handling of errors with the Vault token. The optional parameter
+// allows setting the initial Vault token. This is useful when the Vault token
+// is recovered off disk.
+func (r *TaskRunner) vaultManager(token string) {
+	// updatedToken lets us store state between loops. If true, a new token
+	// has been retrieved and we need to apply the Vault change mode
+	var updatedToken bool
+
+OUTER:
+	for {
+		// Check if we should exit
+		select {
+		case <-r.waitCh:
+			return
+		default:
+		}
+
+		// Clear the token
+		r.vaultFuture.Clear()
+
+		// Check if there already is a token which can be the case for
+		// restoring the TaskRunner
+		if token == "" {
+			// Get a token
+			var ok bool
+			token, ok = r.deriveVaultToken()
+			if !ok {
+				// We are shutting down
+				return
+			}
+
+			// Write the token to disk
+			if err := r.writeToken(token); err != nil {
+				e := fmt.Errorf("failed to write Vault token to disk")
+				r.logger.Printf("[ERR] client: %v for task %v on alloc %q: %v", e, r.task.Name, r.alloc.ID, err)
+				r.Kill("vault", e.Error())
+				return
+			}
+		}
+
+		// Start the renewal process
+		renewCh, err := r.vaultClient.RenewToken(token, 30)
+
+		// An error returned means the token is not being renewed
+		if err != nil {
+			r.logger.Printf("[ERR] client: failed to start renewal of Vault token for task %v on alloc %q: %v", r.task.Name, r.alloc.ID, err)
+			token = ""
+			goto OUTER
+		}
+
+		// The Vault token is valid now, so set it
+		r.vaultFuture.Set(token)
+
+		if updatedToken {
+			switch r.task.Vault.ChangeMode {
+			case structs.VaultChangeModeSignal:
+				s, err := signals.Parse(r.task.Vault.ChangeSignal)
+				if err != nil {
+					e := fmt.Errorf("failed to parse signal: %v", err)
+					r.logger.Printf("[ERR] client: %v", err)
+					r.Kill("vault", e.Error())
+					return
+				}
+
+				if err := r.Signal("vault", "new Vault token acquired", s); err != nil {
+					r.logger.Printf("[ERR] client: failed to send signal to task %v for alloc %q: %v", r.task.Name, r.alloc.ID, err)
+					r.Kill("vault", fmt.Sprintf("failed to send signal to task: %v", err))
+					return
+				}
+			case structs.VaultChangeModeRestart:
+				r.Restart("vault", "new Vault token acquired")
+			case structs.VaultChangeModeNoop:
+				fallthrough
+			default:
+				r.logger.Printf("[ERR] client: Invalid Vault change mode: %q", r.task.Vault.ChangeMode)
+			}
+
+			// We have handled it
+			updatedToken = false
+
+			// Call the handler
+			r.updatedTokenHandler()
+		}
+
+		// Start watching for renewal errors
+		select {
+		case err := <-renewCh:
+			// Clear the token
+			token = ""
+			r.logger.Printf("[ERR] client: failed to renew Vault token for task %v on alloc %q: %v", r.task.Name, r.alloc.ID, err)
+
+			// Check if we have to do anything
+			if r.task.Vault.ChangeMode != structs.VaultChangeModeNoop {
+				updatedToken = true
+			}
+		case <-r.waitCh:
+			return
+		}
+	}
+}
+
+// deriveVaultToken derives the Vault token using exponential backoffs. It
+// returns the Vault token and whether the token is valid. If it is not valid we
+// are shutting down
+func (r *TaskRunner) deriveVaultToken() (string, bool) {
+	attempts := 0
+	for {
+		tokens, err := r.vaultClient.DeriveToken(r.alloc, []string{r.task.Name})
+		if err == nil {
+			return tokens[r.task.Name], true
+		}
+
+		// Handle the retry case
+		backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
+		if backoff > vaultBackoffLimit {
+			backoff = vaultBackoffLimit
+		}
+		r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v", r.task.Name, r.alloc.ID, err, backoff)
+
+		attempts++
+
+		// Wait till retrying
+		select {
+		case <-r.waitCh:
+			return "", false
+		case <-time.After(backoff):
+		}
+	}
+}
+
+// writeToken writes the given token to disk
+func (r *TaskRunner) writeToken(token string) error {
+	// Write the token to disk
+	secretDir, err := r.ctx.AllocDir.GetSecretDir(r.task.Name)
 	if err != nil {
-		err := fmt.Errorf("failed to build task's template manager: %v", err)
-		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
-		r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+		return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+	}
+
+	// Write the token to the file system
+	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	if err := ioutil.WriteFile(tokenPath, []byte(token), 0777); err != nil {
+		return fmt.Errorf("failed to save Vault tokens to secret dir for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+	}
+
+	return nil
+}
+
+// updatedTokenHandler is called when a new Vault token is retrieved. Things
+// that rely on the token should be updated here.
+func (r *TaskRunner) updatedTokenHandler() {
+
+	// Update the tasks environment
+	if err := r.setTaskEnv(); err != nil {
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 		return
+	}
+
+	if r.templateManager != nil {
+		r.templateManager.Stop()
+
+		// Create a new templateManager
+		var err error
+		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
+			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
+		if err != nil {
+			err := fmt.Errorf("failed to build task's template manager: %v", err)
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
+			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+			return
+		}
+	}
+}
+
+// prestart handles life-cycle tasks that occur before the task has started.
+func (r *TaskRunner) prestart(resultCh chan bool) {
+
+	if r.task.Vault != nil {
+		// Wait for the token
+		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
+		tokenCh := r.vaultFuture.Wait()
+		select {
+		case <-tokenCh:
+		case <-r.waitCh:
+			resultCh <- false
+			return
+		}
+		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
+	}
+
+	if err := r.setTaskEnv(); err != nil {
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+		resultCh <- false
+		return
+	}
+
+	// Build the template manager
+	if r.templateManager == nil {
+		var err error
+		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
+			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
+		if err != nil {
+			err := fmt.Errorf("failed to build task's template manager: %v", err)
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
+			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+			resultCh <- false
+			return
+		}
 	}
 
 	for {
@@ -374,7 +703,7 @@ func (r *TaskRunner) prestart(taskDir string) (success bool) {
 		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 			for _, artifact := range r.task.Artifacts {
-				if err := getter.GetArtifact(r.taskEnv, artifact, taskDir); err != nil {
+				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir); err != nil {
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
 					r.restartTracker.SetStartError(dstructs.NewRecoverableError(err, true))
@@ -385,99 +714,106 @@ func (r *TaskRunner) prestart(taskDir string) (success bool) {
 			r.artifactsDownloaded = true
 		}
 
-		// We don't have to wait
-		if r.templatesRendered {
-			return true
+		// We don't have to wait for any template
+		if len(r.task.Templates) == 0 || r.templatesRendered {
+			// Send the start signal
+			select {
+			case r.startCh <- struct{}{}:
+			default:
+			}
+
+			resultCh <- true
+			return
 		}
 
 		// Block for consul-template
+		// TODO Hooks should register themselves as blocking and then we can
+		// perioidcally enumerate what we are still blocked on
 		select {
 		case <-r.unblockCh:
 			r.templatesRendered = true
-			return true
-		case event := <-r.killCh:
-			r.setState(structs.TaskStateDead, event)
-			r.logger.Printf("[ERR] client: task killed: %v", event)
-			return false
-		case update := <-r.updateCh:
-			if err := r.handleUpdate(update); err != nil {
-				r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
-			}
-		case err := <-r.vaultRenewalCh:
-			if err == nil {
-				continue // Only handle once.
+
+			// Send the start signal
+			select {
+			case r.startCh <- struct{}{}:
+			default:
 			}
 
-			// This is a fatal error as the task is not valid if it requested a
-			// Vault token and the token has now expired.
-			r.logger.Printf("[WARN] client: vault token for task %q not renewed: %v", r.task.Name, err)
-			r.Destroy(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(err))
-
-		case <-r.destroyCh:
-			r.setState(structs.TaskStateDead, r.destroyEvent)
-			return false
+			resultCh <- true
+			return
+		case <-r.waitCh:
+			// The run loop has exited so exit too
+			resultCh <- false
+			return
 		}
 
 	RESTART:
 		restart := r.shouldRestart()
 		if !restart {
-			return false
+			resultCh <- false
+			return
 		}
 	}
 }
 
+// postrun is used to do any cleanup that is necessary after exiting the runloop
+func (r *TaskRunner) postrun() {
+	// Stop the template manager
+	if r.templateManager != nil {
+		r.templateManager.Stop()
+	}
+}
+
+// run is the main run loop that handles starting the application, destroying
+// it, restarts and signals.
 func (r *TaskRunner) run() {
 	// Predeclare things so we can jump to the RESTART
-	var handleEmpty bool
 	var stopCollection chan struct{}
-
-	// Get the task directory
-	taskDir, ok := r.ctx.AllocDir.TaskDirs[r.task.Name]
-	if !ok {
-		err := fmt.Errorf("task directory couldn't be found")
-		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
-		r.logger.Printf("[ERR] client: task directory for alloc %q task %q couldn't be found", r.alloc.ID, r.task.Name)
-		return
-	}
-
-	// Do all prestart events first
-	if success := r.prestart(taskDir); !success {
-		return
-	}
+	var handleWaitCh chan *dstructs.WaitResult
 
 	for {
-		// Start the task if not yet started or it is being forced. This logic
-		// is necessary because in the case of a restore the handle already
-		// exists.
-		r.handleLock.Lock()
-		handleEmpty = r.handle == nil
-		r.handleLock.Unlock()
+		// Do the prestart activities
+		prestartResultCh := make(chan bool, 1)
+		go r.prestart(prestartResultCh)
 
-		if handleEmpty {
-			startErr := r.startTask()
-			r.restartTracker.SetStartError(startErr)
-			if startErr != nil {
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
-				goto RESTART
-			}
-
-			// Mark the task as started
-			r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
-			r.runningLock.Lock()
-			r.running = true
-			r.runningLock.Unlock()
-		}
-
-		if stopCollection == nil {
-			stopCollection = make(chan struct{})
-			go r.collectResourceUsageStats(stopCollection)
-		}
-
-		// Wait for updates
 	WAIT:
 		for {
 			select {
-			case waitRes := <-r.handle.WaitCh():
+			case success := <-prestartResultCh:
+				if !success {
+					return
+				}
+			case <-r.startCh:
+				// Start the task if not yet started or it is being forced. This logic
+				// is necessary because in the case of a restore the handle already
+				// exists.
+				r.handleLock.Lock()
+				handleEmpty := r.handle == nil
+				r.handleLock.Unlock()
+
+				if handleEmpty {
+					startErr := r.startTask()
+					r.restartTracker.SetStartError(startErr)
+					if startErr != nil {
+						r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
+						goto RESTART
+					}
+
+					// Mark the task as started
+					r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+					r.runningLock.Lock()
+					r.running = true
+					r.runningLock.Unlock()
+				}
+
+				if stopCollection == nil {
+					stopCollection = make(chan struct{})
+					go r.collectResourceUsageStats(stopCollection)
+				}
+
+				handleWaitCh = r.handle.WaitCh()
+
+			case waitRes := <-handleWaitCh:
 				if waitRes == nil {
 					panic("nil wait")
 				}
@@ -503,16 +839,6 @@ func (r *TaskRunner) run() {
 				if err := r.handleUpdate(update); err != nil {
 					r.logger.Printf("[ERR] client: update to task %q failed: %v", r.task.Name, err)
 				}
-			case err := <-r.vaultRenewalCh:
-				if err == nil {
-					// Only handle once.
-					continue
-				}
-
-				// This is a fatal error as the task is not valid if it
-				// requested a Vault token and the token has now expired.
-				r.logger.Printf("[WARN] client: vault token for task %q not renewed: %v", r.task.Name, err)
-				r.Destroy(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(err))
 
 			case se := <-r.signalCh:
 				r.logger.Printf("[DEBUG] client: task being signalled with %v: %s", se.s, se.e.TaskSignalReason)
@@ -524,25 +850,38 @@ func (r *TaskRunner) run() {
 			case event := <-r.restartCh:
 				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
 				r.setState(structs.TaskStateRunning, event)
-				r.killTask(event.RestartReason, stopCollection)
+				r.killTask(event.RestartReason)
+
+				close(stopCollection)
 
 				// Since the restart isn't from a failure, restart immediately
 				// and don't count against the restart policy
 				r.restartTracker.SetRestartTriggered()
 				break WAIT
 
-			case event := <-r.killCh:
-				r.logger.Printf("[ERR] client: task being killed: %s", event.KillReason)
-				r.killTask(event.KillReason, stopCollection)
-				return
-
 			case <-r.destroyCh:
-				// Store the task event that provides context on the task destroy.
-				if r.destroyEvent.Type != structs.TaskKilled {
-					r.setState(structs.TaskStateRunning, r.destroyEvent)
+				r.runningLock.Lock()
+				running := r.running
+				r.runningLock.Unlock()
+				if !running {
+					r.setState(structs.TaskStateDead, r.destroyEvent)
+					return
 				}
 
-				r.killTask("", stopCollection)
+				// Store the task event that provides context on the task
+				// destroy. The Killed event is set from the alloc_runner and
+				// doesn't add detail
+				reason := ""
+				if r.destroyEvent.Type != structs.TaskKilled {
+					if r.destroyEvent.Type == structs.TaskKilling {
+						reason = r.destroyEvent.KillReason
+					} else {
+						r.setState(structs.TaskStateRunning, r.destroyEvent)
+					}
+				}
+
+				r.killTask(reason)
+				close(stopCollection)
 				return
 			}
 		}
@@ -556,6 +895,7 @@ func (r *TaskRunner) run() {
 		// Clear the handle so a new driver will be created.
 		r.handleLock.Lock()
 		r.handle = nil
+		handleWaitCh = nil
 		stopCollection = nil
 		r.handleLock.Unlock()
 	}
@@ -607,9 +947,7 @@ func (r *TaskRunner) shouldRestart() bool {
 }
 
 // killTask kills the running task, storing the reason in the Killing TaskEvent.
-// The associated stats collection channel is also closed once the task is
-// successfully killed.
-func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
+func (r *TaskRunner) killTask(reason string) {
 	r.runningLock.Lock()
 	running := r.running
 	r.runningLock.Unlock()
@@ -632,9 +970,6 @@ func (r *TaskRunner) killTask(reason string, statsCh chan struct{}) {
 	r.runningLock.Lock()
 	r.running = false
 	r.runningLock.Unlock()
-
-	// Stop collection of the task's resource usage
-	close(statsCh)
 
 	// Store that the task has been destroyed and any associated error.
 	r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
@@ -842,23 +1177,13 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 }
 
 // Kill will kill a task and store the error, no longer restarting the task
+// TODO need to be able to fail the task
 func (r *TaskRunner) Kill(source, reason string) {
-	r.killLock.Lock()
-	defer r.killLock.Unlock()
-	if r.killed {
-		return
-	}
-
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskKilling).SetKillReason(reasonStr)
 
 	r.logger.Printf("[DEBUG] client: killing task %v for alloc %q: %v", r.task.Name, r.alloc.ID, reasonStr)
-
-	select {
-	case r.killCh <- event:
-		close(r.killCh)
-	case <-r.waitCh:
-	}
+	r.Destroy(event)
 }
 
 // UnblockStart unblocks the starting of the task. It currently assumes only
@@ -871,6 +1196,7 @@ func (r *TaskRunner) UnblockStart(source string) {
 	}
 
 	r.logger.Printf("[DEBUG] client: unblocking task %v for alloc %q: %v", r.task.Name, r.alloc.ID, source)
+	r.unblocked = true
 	close(r.unblockCh)
 }
 

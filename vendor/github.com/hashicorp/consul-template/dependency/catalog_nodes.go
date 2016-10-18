@@ -18,8 +18,9 @@ func init() {
 
 // Node is a node entry in Consul
 type Node struct {
-	Node    string
-	Address string
+	Node            string
+	Address         string
+	TaggedAddresses map[string]string
 }
 
 // CatalogNodes is the representation of all registered nodes in Consul.
@@ -80,8 +81,9 @@ func (d *CatalogNodes) Fetch(clients *ClientSet, opts *QueryOptions) (interface{
 	nodes := make([]*Node, 0, len(n))
 	for _, node := range n {
 		nodes = append(nodes, &Node{
-			Node:    node.Node,
-			Address: node.Address,
+			Node:            node.Node,
+			Address:         node.Address,
+			TaggedAddresses: node.TaggedAddresses,
 		})
 	}
 	sort.Stable(NodeList(nodes))

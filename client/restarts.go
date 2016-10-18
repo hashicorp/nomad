@@ -101,6 +101,19 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	// Clear out the existing state
+	defer func() {
+		r.startErr = nil
+		r.waitRes = nil
+		r.restartTriggered = false
+	}()
+
+	// Hot path if a restart was triggered
+	if r.restartTriggered {
+		r.reason = ""
+		return structs.TaskRestarting, 0
+	}
+
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
 		r.reason = ReasonNoRestartsAllowed
@@ -121,25 +134,13 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.startTime = now
 	}
 
-	var state string
-	var dur time.Duration
 	if r.startErr != nil {
-		state, dur = r.handleStartError()
+		return r.handleStartError()
 	} else if r.waitRes != nil {
-		state, dur = r.handleWaitResult()
-	} else if r.restartTriggered {
-		state, dur = structs.TaskRestarting, 0
-		r.reason = ""
-	} else {
-		state, dur = "", 0
+		return r.handleWaitResult()
 	}
 
-	// Clear out the existing state
-	r.startErr = nil
-	r.waitRes = nil
-	r.restartTriggered = false
-
-	return state, dur
+	return "", 0
 }
 
 // handleStartError returns the new state and potential wait duration for

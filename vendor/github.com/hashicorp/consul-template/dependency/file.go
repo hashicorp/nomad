@@ -48,7 +48,7 @@ func (d *File) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *Resp
 	}
 
 	if err != nil {
-		return "", nil, fmt.Errorf("file: error watching: %s", err)
+		return nil, nil, fmt.Errorf("file: error watching: %s", err)
 	}
 
 	d.mutex.Lock()

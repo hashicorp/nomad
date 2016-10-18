@@ -18,11 +18,19 @@ type StoreKey struct {
 	Path       string
 	DataCenter string
 
-	defaultValue string
-	defaultGiven bool
+	defaultValue   string
+	defaultGiven   bool
+	existenceCheck bool
 
 	stopped bool
 	stopCh  chan struct{}
+}
+
+// kvGetResponse is a wrapper around the Consul API response.
+type kvGetResponse struct {
+	pair *api.KVPair
+	meta *api.QueryMeta
+	err  error
 }
 
 // Fetch queries the Consul API defined by the given client and returns string
@@ -49,45 +57,55 @@ func (d *StoreKey) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *
 		return nil, nil, fmt.Errorf("store key: error getting client: %s", err)
 	}
 
-	var pair *api.KVPair
-	var qm *api.QueryMeta
-	dataCh := make(chan struct{})
+	dataCh := make(chan *kvGetResponse, 1)
+
 	go func() {
 		log.Printf("[DEBUG] (%s) querying consul with %+v", d.Display(), consulOpts)
-		pair, qm, err = consul.KV().Get(d.Path, consulOpts)
-		close(dataCh)
+		pair, meta, err := consul.KV().Get(d.Path, consulOpts)
+		resp := &kvGetResponse{pair: pair, meta: meta, err: err}
+
+		select {
+		case dataCh <- resp:
+		case <-d.stopCh:
+		}
 	}()
 
 	select {
 	case <-d.stopCh:
 		return nil, nil, ErrStopped
-	case <-dataCh:
-	}
-
-	if err != nil {
-		return "", nil, fmt.Errorf("store key: error fetching: %s", err)
-	}
-
-	rm := &ResponseMetadata{
-		LastIndex:   qm.LastIndex,
-		LastContact: qm.LastContact,
-	}
-
-	if pair == nil {
-		if d.defaultGiven {
-			log.Printf("[DEBUG] (%s) Consul returned no data (using default of %q)",
-				d.Display(), d.defaultValue)
-			return d.defaultValue, rm, nil
+	case resp := <-dataCh:
+		if resp.err != nil {
+			return "", nil, fmt.Errorf("store key: error fetching: %s", resp.err)
 		}
 
-		log.Printf("[WARN] (%s) Consul returned no data (does the path exist?)",
-			d.Display())
-		return "", rm, nil
+		rm := &ResponseMetadata{
+			LastIndex:   resp.meta.LastIndex,
+			LastContact: resp.meta.LastContact,
+		}
+
+		if d.existenceCheck {
+			return (resp.pair != nil), rm, nil
+		}
+
+		if resp.pair == nil {
+			if d.defaultGiven {
+				log.Printf("[DEBUG] (%s) Consul returned no data (using default of %q)",
+					d.Display(), d.defaultValue)
+				return d.defaultValue, rm, nil
+			}
+			return nil, rm, nil
+		}
+
+		log.Printf("[DEBUG] (%s) Consul returned %s", d.Display(), resp.pair.Value)
+
+		return string(resp.pair.Value), rm, nil
 	}
+}
 
-	log.Printf("[DEBUG] (%s) Consul returned %s", d.Display(), pair.Value)
-
-	return string(pair.Value), rm, nil
+// SetExistenceCheck sets this keys as an existence check instead of a value
+// check.
+func (d *StoreKey) SetExistenceCheck(b bool) {
+	d.existenceCheck = true
 }
 
 // SetDefault is used to set the default value.
@@ -103,17 +121,27 @@ func (d *StoreKey) CanShare() bool {
 
 // HashCode returns a unique identifier.
 func (d *StoreKey) HashCode() string {
+	if d.existenceCheck {
+		return fmt.Sprintf("StoreKeyExists|%s", d.rawKey)
+	}
+
 	if d.defaultGiven {
 		return fmt.Sprintf("StoreKey|%s|%s", d.rawKey, d.defaultValue)
 	}
+
 	return fmt.Sprintf("StoreKey|%s", d.rawKey)
 }
 
 // Display prints the human-friendly output.
 func (d *StoreKey) Display() string {
+	if d.existenceCheck {
+		return fmt.Sprintf(`"key_exists(%s)"`, d.rawKey)
+	}
+
 	if d.defaultGiven {
 		return fmt.Sprintf(`"key_or_default(%s, %q)"`, d.rawKey, d.defaultValue)
 	}
+
 	return fmt.Sprintf(`"key(%s)"`, d.rawKey)
 }
 

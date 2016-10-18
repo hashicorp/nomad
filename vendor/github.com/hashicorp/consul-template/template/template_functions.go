@@ -102,6 +102,32 @@ func keyFunc(brain *Brain,
 	}
 }
 
+// keyExistsFunc returns true if a key exists, false otherwise.
+func keyExistsFunc(brain *Brain,
+	used, missing map[string]dep.Dependency) func(string) (bool, error) {
+	return func(s string) (bool, error) {
+		if len(s) == 0 {
+			return false, nil
+		}
+
+		d, err := dep.ParseStoreKey(s)
+		if err != nil {
+			return false, err
+		}
+		d.SetExistenceCheck(true)
+
+		addDependency(used, d)
+
+		if value, ok := brain.Recall(d); ok {
+			return value.(bool), nil
+		}
+
+		addDependency(missing, d)
+
+		return false, nil
+	}
+}
+
 // keyWithDefaultFunc returns or accumulates key dependencies that have a
 // default value.
 func keyWithDefaultFunc(brain *Brain,

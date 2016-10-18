@@ -1307,3 +1307,21 @@ func TestAllocation_Terminated(t *testing.T) {
 		}
 	}
 }
+
+func TestVault_Validate(t *testing.T) {
+	v := &Vault{
+		Env:        true,
+		ChangeMode: VaultChangeModeNoop,
+	}
+
+	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Policy list") {
+		t.Fatalf("Expected policy list empty error")
+	}
+
+	v.Policies = []string{"foo"}
+	v.ChangeMode = VaultChangeModeSignal
+
+	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Signal must") {
+		t.Fatalf("Expected signal empty error")
+	}
+}

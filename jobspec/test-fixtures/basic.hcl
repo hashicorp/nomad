@@ -165,6 +165,13 @@ job "binstore-storagelocker" {
         attribute = "kernel.arch"
         value     = "amd64"
       }
+
+      vault {
+        policies = ["foo", "bar"]
+        env = false
+        change_mode = "signal"
+        change_signal = "SIGUSR1"
+      }
     }
 
     constraint {

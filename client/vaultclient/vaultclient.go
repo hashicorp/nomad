@@ -350,18 +350,20 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if !c.config.IsEnabled() {
-		return fmt.Errorf("vault client not enabled")
-	}
-	if !c.running {
-		return fmt.Errorf("vault client is not running")
-	}
-
 	if req == nil {
 		return fmt.Errorf("nil renewal request")
 	}
 	if req.errCh == nil {
 		return fmt.Errorf("renewal request error channel nil")
+	}
+
+	if !c.config.IsEnabled() {
+		close(req.errCh)
+		return fmt.Errorf("vault client not enabled")
+	}
+	if !c.running {
+		close(req.errCh)
+		return fmt.Errorf("vault client is not running")
 	}
 	if req.id == "" {
 		close(req.errCh)

@@ -373,7 +373,10 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 
 	// Create the register request with a job asking for a vault policy
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{"foo"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -405,7 +408,10 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 
 	// Create the register request with a job asking for a vault policy
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{"foo"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -451,7 +457,10 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 	// Create the register request with a job asking for a vault policy but
 	// don't send a Vault token
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{"foo"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -506,7 +515,10 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// send the bad Vault token
 	job := mock.Job()
 	job.VaultToken = badToken
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{policy}}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{policy},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -565,7 +577,10 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// send the root Vault token
 	job2 := mock.Job()
 	job2.VaultToken = rootToken
-	job2.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{policy}}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{policy},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
 	req = &structs.JobRegisterRequest{
 		Job:          job2,
 		WriteRequest: structs.WriteRequest{Region: "global"},

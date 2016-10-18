@@ -159,8 +159,9 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &structs.Vault{
-									Policies: []string{"foo", "bar"},
-									Env:      true,
+									Policies:   []string{"foo", "bar"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 								Templates: []*structs.Template{
 									{
@@ -199,6 +200,12 @@ func TestParse(t *testing.T) {
 									},
 								},
 								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:     []string{"foo", "bar"},
+									Env:          false,
+									ChangeMode:   structs.VaultChangeModeSignal,
+									ChangeSignal: "SIGUSR1",
+								},
 							},
 						},
 					},
@@ -475,16 +482,18 @@ func TestParse(t *testing.T) {
 								Name:      "redis",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"group"},
-									Env:      true,
+									Policies:   []string{"group"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 							&structs.Task{
 								Name:      "redis2",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"task"},
-									Env:      false,
+									Policies:   []string{"task"},
+									Env:        false,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 						},
@@ -498,8 +507,9 @@ func TestParse(t *testing.T) {
 								Name:      "redis",
 								LogConfig: structs.DefaultLogConfig(),
 								Vault: &structs.Vault{
-									Policies: []string{"job"},
-									Env:      true,
+									Policies:   []string{"job"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
 								},
 							},
 						},
@@ -526,6 +536,10 @@ func TestParse(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(actual, tc.Result) {
+			diff, err := actual.Diff(tc.Result, true)
+			if err == nil {
+				t.Logf("file %s diff:\n%#v\n", tc.File, diff)
+			}
 			t.Fatalf("file: %s\n\n%#v\n\n%#v", tc.File, actual, tc.Result)
 		}
 	}

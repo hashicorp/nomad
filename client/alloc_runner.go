@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -31,10 +30,6 @@ const (
 	// watchdogInterval is the interval at which resource constraints for the
 	// allocation are being checked and enforced.
 	watchdogInterval = 5 * time.Second
-
-	// vaultTokenFile is the name of the file holding the Vault token inside the
-	// task's secret directory
-	vaultTokenFile = "vault_token"
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -69,7 +64,6 @@ type AllocRunner struct {
 	updateCh chan *structs.Allocation
 
 	vaultClient vaultclient.VaultClient
-	vaultTokens map[string]vaultToken
 
 	otherAllocDir *allocdir.AllocDir
 
@@ -145,9 +139,6 @@ func (r *AllocRunner) RestoreState() error {
 		return e
 	}
 
-	// Recover the Vault tokens
-	vaultErr := r.recoverVaultTokens()
-
 	// Restore the task runners
 	var mErr multierror.Error
 	for name, state := range r.taskStates {
@@ -156,12 +147,8 @@ func (r *AllocRunner) RestoreState() error {
 
 		task := &structs.Task{Name: name}
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
-			task)
+			task, r.vaultClient)
 		r.tasks[name] = tr
-
-		if vt, ok := r.vaultTokens[name]; ok {
-			tr.SetVaultToken(vt.token, vt.renewalCh)
-		}
 
 		// Skip tasks in terminal states.
 		if state.State == structs.TaskStateDead {
@@ -175,20 +162,6 @@ func (r *AllocRunner) RestoreState() error {
 			// Only start if the alloc isn't in a terminal status.
 			go tr.Run()
 		}
-	}
-
-	// Since this is somewhat of an expected case we do not return an error but
-	// handle it gracefully.
-	if vaultErr != nil {
-		msg := fmt.Sprintf("failed to recover Vault tokens for allocation %q: %v", r.alloc.ID, vaultErr)
-		r.logger.Printf("[ERR] client: %s", msg)
-		r.setStatus(structs.AllocClientStatusFailed, msg)
-
-		// Destroy the task runners and set the error
-		r.destroyTaskRunners(structs.NewTaskEvent(structs.TaskVaultRenewalFailed).SetVaultRenewalError(vaultErr))
-
-		// Handle cleanup
-		go r.handleDestroy()
 	}
 
 	return mErr.ErrorOrNil()
@@ -376,13 +349,6 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	r.appendTaskEvent(taskState, event)
 
 	if state == structs.TaskStateDead {
-		// If the task has a Vault token, stop renewing it
-		if vt, ok := r.vaultTokens[taskName]; ok {
-			if err := r.vaultClient.StopRenewToken(vt.token); err != nil {
-				r.logger.Printf("[ERR] client: stopping token renewal for task %q failed: %v", taskName, err)
-			}
-		}
-
 		// If the task failed, we should kill all the other tasks in the task group.
 		if taskState.Failed() {
 			var destroyingTasks []string
@@ -467,15 +433,6 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
-	// Request Vault tokens for the tasks that require them
-	err := r.deriveVaultTokens()
-	if err != nil {
-		msg := fmt.Sprintf("failed to derive Vault token for allocation %q: %v", r.alloc.ID, err)
-		r.logger.Printf("[ERR] client: %s", msg)
-		r.setStatus(structs.AllocClientStatusFailed, msg)
-		return
-	}
-
 	// Start the task runners
 	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
 	r.taskLock.Lock()
@@ -484,14 +441,9 @@ func (r *AllocRunner) Run() {
 			continue
 		}
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(), task.Copy())
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(), task.Copy(), r.vaultClient)
 		r.tasks[task.Name] = tr
 		tr.MarkReceived()
-
-		// If the task has a vault token set it before running
-		if vt, ok := r.vaultTokens[task.Name]; ok {
-			tr.SetVaultToken(vt.token, vt.renewalCh)
-		}
 
 		go tr.Run()
 	}
@@ -573,149 +525,6 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 
 	// Final state sync
 	r.syncStatus()
-}
-
-// vaultToken acts as a tuple of the token and renewal channel
-type vaultToken struct {
-	token     string
-	renewalCh <-chan error
-}
-
-// deriveVaultTokens derives the required vault tokens and returns a map of the
-// tasks to their respective vault token and renewal channel. This must be
-// called after the allocation directory is created as the vault tokens are
-// written to disk.
-func (r *AllocRunner) deriveVaultTokens() error {
-	required, err := r.tasksRequiringVaultTokens()
-	if err != nil {
-		return err
-	}
-
-	if len(required) == 0 {
-		return nil
-	}
-
-	if r.vaultTokens == nil {
-		r.vaultTokens = make(map[string]vaultToken, len(required))
-	}
-
-	// Get the tokens
-	tokens, err := r.vaultClient.DeriveToken(r.Alloc(), required)
-	if err != nil {
-		return fmt.Errorf("failed to derive Vault tokens: %v", err)
-	}
-
-	// Persist the tokens to the appropriate secret directories
-	adir := r.ctx.AllocDir
-	for task, token := range tokens {
-		// Has been recovered
-		if _, ok := r.vaultTokens[task]; ok {
-			continue
-		}
-
-		secretDir, err := adir.GetSecretDir(task)
-		if err != nil {
-			return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", task, r.alloc.ID, err)
-		}
-
-		// Write the token to the file system
-		tokenPath := filepath.Join(secretDir, vaultTokenFile)
-		if err := ioutil.WriteFile(tokenPath, []byte(token), 0777); err != nil {
-			return fmt.Errorf("failed to save Vault tokens to secret dir for task %q in alloc %q: %v", task, r.alloc.ID, err)
-		}
-
-		// Start renewing the token
-		renewCh, err := r.vaultClient.RenewToken(token, 10)
-		if err != nil {
-			var mErr multierror.Error
-			errMsg := fmt.Errorf("failed to renew Vault token for task %q in alloc %q: %v", task, r.alloc.ID, err)
-			multierror.Append(&mErr, errMsg)
-
-			// Clean up any token that we have started renewing
-			for _, token := range r.vaultTokens {
-				if err := r.vaultClient.StopRenewToken(token.token); err != nil {
-					multierror.Append(&mErr, err)
-				}
-			}
-
-			return mErr.ErrorOrNil()
-		}
-		r.vaultTokens[task] = vaultToken{token: token, renewalCh: renewCh}
-	}
-
-	return nil
-}
-
-// tasksRequiringVaultTokens returns the set of tasks that require a Vault token
-func (r *AllocRunner) tasksRequiringVaultTokens() ([]string, error) {
-	// Get the tasks
-	tg := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
-	if tg == nil {
-		return nil, fmt.Errorf("Failed to lookup task group in alloc")
-	}
-
-	// Retrieve any required Vault tokens
-	var required []string
-	for _, task := range tg.Tasks {
-		if task.Vault != nil && len(task.Vault.Policies) != 0 {
-			required = append(required, task.Name)
-		}
-	}
-
-	return required, nil
-}
-
-// recoverVaultTokens reads the Vault tokens for the tasks that have Vault
-// tokens off disk. If there is an error, it is returned, otherwise token
-// renewal is started.
-func (r *AllocRunner) recoverVaultTokens() error {
-	required, err := r.tasksRequiringVaultTokens()
-	if err != nil {
-		return err
-	}
-
-	if len(required) == 0 {
-		return nil
-	}
-
-	// Read the tokens and start renewing them
-	adir := r.ctx.AllocDir
-	renewingTokens := make(map[string]vaultToken, len(required))
-	for _, task := range required {
-		secretDir, err := adir.GetSecretDir(task)
-		if err != nil {
-			return fmt.Errorf("failed to determine task %s secret dir in alloc %q: %v", task, r.alloc.ID, err)
-		}
-
-		// Read the token from the secret directory
-		tokenPath := filepath.Join(secretDir, vaultTokenFile)
-		data, err := ioutil.ReadFile(tokenPath)
-		if err != nil {
-			return fmt.Errorf("failed to read token for task %q in alloc %q: %v", task, r.alloc.ID, err)
-		}
-
-		token := string(data)
-		renewCh, err := r.vaultClient.RenewToken(token, 10)
-		if err != nil {
-			var mErr multierror.Error
-			errMsg := fmt.Errorf("failed to renew Vault token for task %q in alloc %q: %v", task, r.alloc.ID, err)
-			multierror.Append(&mErr, errMsg)
-
-			// Clean up any token that we have started renewing
-			for _, token := range renewingTokens {
-				if err := r.vaultClient.StopRenewToken(token.token); err != nil {
-					multierror.Append(&mErr, err)
-				}
-			}
-
-			return mErr.ErrorOrNil()
-		}
-
-		renewingTokens[task] = vaultToken{token: token, renewalCh: renewCh}
-	}
-
-	r.vaultTokens = renewingTokens
-	return nil
 }
 
 // checkResources monitors and enforces alloc resource usage. It returns an
