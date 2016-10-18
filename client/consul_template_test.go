@@ -26,10 +26,14 @@ type MockTaskHooks struct {
 	Signals  []os.Signal
 	SignalCh chan struct{}
 
+	// SignalError is returned when Signal is called on the mock hook
+	SignalError error
+
 	UnblockCh chan struct{}
 	Unblocked bool
 
 	KillReason string
+	KillCh     chan struct{}
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
@@ -37,6 +41,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		UnblockCh: make(chan struct{}, 1),
 		RestartCh: make(chan struct{}, 1),
 		SignalCh:  make(chan struct{}, 1),
+		KillCh:    make(chan struct{}, 1),
 	}
 }
 func (m *MockTaskHooks) Restart(source, reason string) {
@@ -47,15 +52,24 @@ func (m *MockTaskHooks) Restart(source, reason string) {
 	}
 }
 
-func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) {
+func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) error {
 	m.Signals = append(m.Signals, s)
 	select {
 	case m.SignalCh <- struct{}{}:
 	default:
 	}
+
+	return m.SignalError
 }
 
-func (m *MockTaskHooks) Kill(source, reason string) { m.KillReason = reason }
+func (m *MockTaskHooks) Kill(source, reason string) {
+	m.KillReason = reason
+	select {
+	case m.KillCh <- struct{}{}:
+	default:
+	}
+}
+
 func (m *MockTaskHooks) UnblockStart(source string) {
 	if !m.Unblocked {
 		close(m.UnblockCh)
@@ -673,17 +687,13 @@ func TestTaskTemplateManager_AllRendered_Signal(t *testing.T) {
 	harness.consul.SetKV(key1, []byte(content1_1))
 
 	// Wait for restart
-	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
-OUTER:
-	for {
-		select {
-		case <-harness.mockHooks.RestartCh:
-			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
-		case <-harness.mockHooks.SignalCh:
-			break OUTER
-		case <-timeout:
-			t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
-		}
+	select {
+	case <-harness.mockHooks.RestartCh:
+		t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
+	case <-harness.mockHooks.SignalCh:
+		break
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
 	}
 
 	// Check the files have  been updated
@@ -695,5 +705,42 @@ OUTER:
 
 	if s := string(raw); s != content1_1 {
 		t.Fatalf("Unexpected template data; got %q, want %q", s, content1_1)
+	}
+}
+
+func TestTaskTemplateManager_Signal_Error(t *testing.T) {
+	// Make a template that renders based on a key in Consul and sends SIGALRM
+	key1 := "foo"
+	content1_1 := "bar"
+	embedded1 := fmt.Sprintf(`{{key "%s"}}`, key1)
+	file1 := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded1,
+		DestPath:     file1,
+		ChangeMode:   structs.TemplateChangeModeSignal,
+		ChangeSignal: "SIGALRM",
+	}
+
+	// Drop the retry rate
+	testRetryRate = 10 * time.Millisecond
+
+	harness := newTestHarness(t, []*structs.Template{template}, true, true, false)
+	defer harness.stop()
+
+	harness.mockHooks.SignalError = fmt.Errorf("test error")
+
+	// Write the key to Consul
+	harness.consul.SetKV(key1, []byte(content1_1))
+
+	// Wait for kill channel
+	select {
+	case <-harness.mockHooks.KillCh:
+		break
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
+	}
+
+	if !strings.Contains(harness.mockHooks.KillReason, "Sending signals") {
+		t.Fatalf("Unexpected error", harness.mockHooks.KillReason)
 	}
 }

@@ -284,6 +284,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Validation of task failed"
 			}
+		case api.TaskSetupFailure:
+			if event.SetupError != "" {
+				desc = event.SetupError
+			} else {
+				desc = "Task setup failed"
+			}
 		case api.TaskDriverFailure:
 			if event.DriverError != "" {
 				desc = event.DriverError
@@ -299,7 +305,9 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 				desc = "Failed to download artifacts"
 			}
 		case api.TaskKilling:
-			if event.KillTimeout != 0 {
+			if event.KillReason != "" {
+				desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+			} else if event.KillTimeout != 0 {
 				desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
 			} else {
 				desc = "Sent interrupt"

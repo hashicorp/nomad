@@ -60,6 +60,7 @@ type Executor interface {
 	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
+	Signal(s os.Signal) error
 }
 
 // ConsulContext holds context to configure the Consul client and run checks
@@ -408,6 +409,10 @@ func (e *UniversalExecutor) wait() {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 		return
 	}
+
+	e.lre.Close()
+	e.lro.Close()
+
 	exitCode := 1
 	var signal int
 	if exitErr, ok := err.(*exec.ExitError); ok {
@@ -867,4 +872,20 @@ func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstruct
 		Timestamp:     ts,
 		Pids:          pidStats,
 	}
+}
+
+// Signal sends the passed signal to the task
+func (e *UniversalExecutor) Signal(s os.Signal) error {
+	if e.cmd.Process == nil {
+		return fmt.Errorf("Task not yet run")
+	}
+
+	e.logger.Printf("[DEBUG] executor: sending signal %s", s)
+	err := e.cmd.Process.Signal(s)
+	if err != nil {
+		e.logger.Printf("[ERR] executor: sending signal %s failed: %v", err)
+		return err
+	}
+
+	return nil
 }

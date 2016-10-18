@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -258,6 +259,10 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *rawExecHandle) Signal(s os.Signal) error {
+	return h.executor.Signal(s)
 }
 
 func (h *rawExecHandle) Kill() error {

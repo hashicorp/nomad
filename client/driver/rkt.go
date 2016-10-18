@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -398,6 +399,10 @@ func (h *rktHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *rktHandle) Signal(s os.Signal) error {
+	return fmt.Errorf("Rkt does not support signals")
 }
 
 // Kill is used to terminate the task. We send an Interrupt

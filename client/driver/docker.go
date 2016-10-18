@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -1006,6 +1007,23 @@ func (h *DockerHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *DockerHandle) Signal(s os.Signal) error {
+	// Convert types
+	sysSig, ok := s.(syscall.Signal)
+	if !ok {
+		return fmt.Errorf("Failed to determine signal number")
+	}
+
+	dockerSignal := docker.Signal(sysSig)
+	opts := docker.KillContainerOptions{
+		ID:     h.containerID,
+		Signal: dockerSignal,
+	}
+	h.logger.Printf("Sending: %v", dockerSignal)
+	return h.client.KillContainer(opts)
+
 }
 
 // Kill is used to terminate the task. This uses `docker stop -t killTimeout`

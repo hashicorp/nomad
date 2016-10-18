@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -116,6 +117,9 @@ type DriverHandle interface {
 
 	// Stats returns aggregated stats of the driver
 	Stats() (*cstructs.TaskResourceUsage, error)
+
+	// Signal is used to send a signal to the task
+	Signal(s os.Signal) error
 }
 
 // ExecContext is shared between drivers within an allocation

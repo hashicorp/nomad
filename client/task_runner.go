@@ -115,8 +115,14 @@ type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
 
 // SignalEvent is a tuple of the signal and the event generating it
 type SignalEvent struct {
+	// s is the signal to be sent
 	s os.Signal
+
+	// e is the task event generating the signal
 	e *structs.TaskEvent
+
+	// result should be used to send back the result of the signal
+	result chan<- error
 }
 
 // NewTaskRunner is used to create a new task context
@@ -358,7 +364,7 @@ func (r *TaskRunner) prestart(taskDir string) (success bool) {
 		r.config, r.vaultToken, taskDir, r.taskEnv)
 	if err != nil {
 		err := fmt.Errorf("failed to build task's template manager: %v", err)
-		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+		r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
 		r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
 		return
 	}
@@ -512,7 +518,8 @@ func (r *TaskRunner) run() {
 				r.logger.Printf("[DEBUG] client: task being signalled with %v: %s", se.s, se.e.TaskSignalReason)
 				r.setState(structs.TaskStateRunning, se.e)
 
-				// TODO need an interface on the driver
+				res := r.handle.Signal(se.s)
+				se.result <- res
 
 			case event := <-r.restartCh:
 				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
@@ -803,7 +810,7 @@ func (r *TaskRunner) Restart(source, reason string) {
 }
 
 // Signal will send a signal to the task
-func (r *TaskRunner) Signal(source, reason string, s os.Signal) {
+func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetTaskSignalReason(reasonStr)
@@ -817,13 +824,21 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) {
 	// Drop the restart event
 	if !running {
 		r.logger.Printf("[DEBUG] client: skipping signal since task isn't running")
-		return
+		return nil
 	}
 
+	resCh := make(chan error)
+	se := SignalEvent{
+		s:      s,
+		e:      event,
+		result: resCh,
+	}
 	select {
-	case r.signalCh <- SignalEvent{s: s, e: event}:
+	case r.signalCh <- se:
 	case <-r.waitCh:
 	}
+
+	return <-resCh
 }
 
 // Kill will kill a task and store the error, no longer restarting the task
