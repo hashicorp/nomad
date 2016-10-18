@@ -252,7 +252,7 @@ func (r *TaskRunner) RestoreState() error {
 		tokenPath := filepath.Join(secretDir, vaultTokenFile)
 		data, err := ioutil.ReadFile(tokenPath)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if !os.IsNotExist(err) {
 				return fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
 			}
 
@@ -593,23 +593,24 @@ func (r *TaskRunner) deriveVaultToken() (string, bool) {
 	attempts := 0
 	for {
 		tokens, err := r.vaultClient.DeriveToken(r.alloc, []string{r.task.Name})
-		if err != nil {
-			backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
-			if backoff > vaultBackoffLimit {
-				backoff = vaultBackoffLimit
-			}
-			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v", r.task.Name, r.alloc.ID, err, backoff)
-
-			attempts++
-
-			// Wait till retrying
-			select {
-			case <-r.waitCh:
-				return "", false
-			case <-time.After(backoff):
-			}
-		} else {
+		if err == nil {
 			return tokens[r.task.Name], true
+		}
+
+		// Handle the retry case
+		backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
+		if backoff > vaultBackoffLimit {
+			backoff = vaultBackoffLimit
+		}
+		r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v", r.task.Name, r.alloc.ID, err, backoff)
+
+		attempts++
+
+		// Wait till retrying
+		select {
+		case <-r.waitCh:
+			return "", false
+		case <-time.After(backoff):
 		}
 	}
 }
@@ -666,14 +667,13 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// Wait for the token
 		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
 		tokenCh := r.vaultFuture.Wait()
-		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
-
 		select {
 		case <-tokenCh:
 		case <-r.waitCh:
 			resultCh <- false
 			return
 		}
+		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
 	}
 
 	if err := r.setTaskEnv(); err != nil {
@@ -759,7 +759,9 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 // postrun is used to do any cleanup that is necessary after exiting the runloop
 func (r *TaskRunner) postrun() {
 	// Stop the template manager
-	r.templateManager.Stop()
+	if r.templateManager != nil {
+		r.templateManager.Stop()
+	}
 }
 
 // run is the main run loop that handles starting the application, destroying
