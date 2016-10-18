@@ -381,10 +381,12 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	task *structs.Task) ([]string, error) {
 
 	shared := alloc.SharedDir
-	local, ok := alloc.TaskDirs[task.Name]
+	taskDir, ok := alloc.TaskDirs[task.Name]
 	if !ok {
 		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
 	}
+	local := filepath.Join(taskDir, allocdir.TaskLocal)
+
 	secret, err := alloc.GetSecretDir(task.Name)
 	if err != nil {
 		return nil, err
