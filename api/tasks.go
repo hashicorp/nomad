@@ -139,6 +139,7 @@ func (g *TaskGroup) RequireDisk(disk *EphemeralDisk) *TaskGroup {
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
+	RemoteSyslog  string
 }
 
 // Task is a single process in a task group.

@@ -179,10 +179,10 @@ job "example" {
       # }
 
       # Specify configuration related to log rotation
-      # logs {
-      #   max_files     = 10
-      #   max_file_size = 15
-      # }
+      logs {
+        max_files     = 10
+        max_file_size = 15
+      }
 
       # Controls the timeout between signalling a task it will be killed
       # and killing the task. If not set a default is used.

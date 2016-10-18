@@ -686,6 +686,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			valid := []string{
 				"max_files",
 				"max_file_size",
+				"remote_syslog",
 			}
 			if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', logs ->", n))

@@ -194,8 +194,9 @@ type UniversalExecutor struct {
 
 	shutdownCh chan struct{}
 
-	syslogServer *logging.SyslogServer
-	syslogChan   chan *logging.SyslogMessage
+	syslogServer       *logging.SyslogServer
+	syslogChan         chan *logging.SyslogMessage
+	syslogRemoteClient *logging.SyslogClient
 
 	resConCtx resourceContainerContext
 
