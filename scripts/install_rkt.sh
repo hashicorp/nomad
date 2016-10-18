@@ -2,29 +2,27 @@
 
 set -ex
 
-RKT_VERSION="v1.5.1"
-RKT_SHA512="8163ca59fc8c44c9c2997431d16274d81d2e82ff2956c860607f4c111de744b78cdce716f8afbacf7173e0cdce25deac73ec95a30a8849bbf58d35faeb84e398"
-DEST_DIR="/usr/local/bin"
+RKT_VERSION="v1.17.0"
+RKT_SHA512="30fd15716e148afa34ed28e6d5d778226e5e9761e9df3eb98f397cb2a7f3e3fc78e3dad2b717eee4157afc58183778cb1872aa82f3d05cc2bc9fb41193e81a7f"
+CMD="cp"
 
-sudo mkdir -p /etc/rkt/net.d
-echo '{"name": "default", "type": "ptp", "ipMasq": false, "ipam": { "type": "host-local", "subnet": "172.16.28.0/24", "routes": [ { "dst": "0.0.0.0/0" } ] } }' | sudo tee -a /etc/rkt/net.d/99-network.conf
+if [ ! -v DEST_DIR ]; then
+	DEST_DIR="/usr/local/bin"
+	CMD="sudo cp"
+fi
 
 if [ ! -d "rkt-${RKT_VERSION}" ]; then
     printf "rkt-%s/ doesn't exist\n" "${RKT_VERSION}"
     if [ ! -f "rkt-${RKT_VERSION}.tar.gz" ]; then
         printf "Fetching rkt-%s.tar.gz\n" "${RKT_VERSION}"
+	echo "$RKT_SHA512  rkt-${RKT_VERSION}.tar.gz" > rkt-$RKT_VERSION.tar.gz.sha512sum
         wget https://github.com/coreos/rkt/releases/download/$RKT_VERSION/rkt-$RKT_VERSION.tar.gz
-        expected_version=$(printf 'SHA512(rkt-%s.tar.gz)= %s' "${RKT_VERSION}" "${RKT_SHA512}")
-        actual_version=$(openssl sha512 rkt-${RKT_VERSION}.tar.gz)
-        if [ "${expected_version}" != "${actual_version}" ]; then
-            printf "SHA512 of rkt-%s failed\n" "${RKT_VERSION}"
-            exit 1
-        fi
+	sha512sum --check rkt-$RKT_VERSION.tar.gz.sha512sum
         tar xzvf rkt-$RKT_VERSION.tar.gz
     fi
 fi
 
-sudo cp rkt-$RKT_VERSION/rkt $DEST_DIR
-sudo cp rkt-$RKT_VERSION/*.aci $DEST_DIR
+$CMD rkt-$RKT_VERSION/rkt $DEST_DIR
+$CMD rkt-$RKT_VERSION/*.aci $DEST_DIR
 
 rkt version

@@ -17,6 +17,7 @@ before_install:
     - sudo apt-get update
     - sudo apt-get install -y docker-engine
     - sudo apt-get install -y qemu
+    - ./scripts/install_rkt.sh
     - ./scripts/install_consul.sh
     - ./scripts/install_vault.sh
 
