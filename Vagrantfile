@@ -60,6 +60,7 @@ cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
 
 # Install rkt, consul and vault
 bash scripts/install_rkt.sh
+bash scripts/install_rkt_vagrant.sh
 bash scripts/install_consul.sh
 bash scripts/install_vault.sh
 
