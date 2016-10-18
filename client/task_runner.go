@@ -378,6 +378,7 @@ func (r *TaskRunner) Run() {
 	// NewTaskRunner
 	if r.task.Vault != nil {
 		// Start the go-routine to get a Vault token
+		r.vaultFuture.Clear()
 		go r.vaultManager(r.recoveredVaultToken)
 	}
 
@@ -578,12 +579,11 @@ func (r *TaskRunner) deriveVaultToken() (string, bool) {
 	for {
 		tokens, err := r.vaultClient.DeriveToken(r.alloc, []string{r.task.Name})
 		if err != nil {
-			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v", r.task.Name, r.alloc.ID, err)
-
 			backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
 			if backoff > vaultBackoffLimit {
 				backoff = vaultBackoffLimit
 			}
+			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v", r.task.Name, r.alloc.ID, err, backoff)
 
 			attempts++
 
@@ -591,11 +591,11 @@ func (r *TaskRunner) deriveVaultToken() (string, bool) {
 			select {
 			case <-r.waitCh:
 				return "", false
-			case <-time.After(backoff * time.Second):
+			case <-time.After(backoff):
 			}
+		} else {
+			return tokens[r.task.Name], true
 		}
-
-		return tokens[r.task.Name], true
 	}
 }
 
@@ -646,7 +646,9 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 
 	if r.task.Vault != nil {
 		// Wait for the token
+		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
 		tokenCh := r.vaultFuture.Wait()
+		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
 
 		select {
 		case <-tokenCh:
@@ -1174,6 +1176,7 @@ func (r *TaskRunner) UnblockStart(source string) {
 	}
 
 	r.logger.Printf("[DEBUG] client: unblocking task %v for alloc %q: %v", r.task.Name, r.alloc.ID, source)
+	r.unblocked = true
 	close(r.unblockCh)
 }
 

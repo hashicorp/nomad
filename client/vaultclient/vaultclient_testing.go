@@ -21,12 +21,18 @@ type MockVaultClient struct {
 	// DeriveTokenErrors maps an allocation ID and tasks to an error when the
 	// token is derived
 	DeriveTokenErrors map[string]map[string]error
+
+	DeriveTokenFn func(a *structs.Allocation, tasks []string) (map[string]string, error)
 }
 
 // NewMockVaultClient returns a MockVaultClient for testing
 func NewMockVaultClient() *MockVaultClient { return &MockVaultClient{} }
 
 func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
+	if vc.DeriveTokenFn != nil {
+		return vc.DeriveTokenFn(a, tasks)
+	}
+
 	tokens := make(map[string]string, len(tasks))
 	for _, task := range tasks {
 		if tasks, ok := vc.DeriveTokenErrors[a.ID]; ok {
