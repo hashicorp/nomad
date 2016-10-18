@@ -3,6 +3,7 @@
 IMPROVEMENTS:
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
+  * agent: Add DataDog telemetry sync [GH-1816]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * client: Failed RPCs are retried on all servers [GH-1735]
   * client: Enforce shared allocation directory disk usage [GH-1580]
