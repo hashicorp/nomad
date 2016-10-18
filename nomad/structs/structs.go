@@ -2503,6 +2503,8 @@ func NewTaskEvent(event string) *TaskEvent {
 	}
 }
 
+// SetSetupError is used to store an error that occured while setting up the
+// task
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
 		e.SetupError = err.Error()
