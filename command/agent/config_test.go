@@ -36,6 +36,7 @@ func TestConfig_Merge(t *testing.T) {
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.1:8125",
 			StatsdAddr:                         "127.0.0.1:8125",
+			DataDogAddr:                        "127.0.0.1:8125",
 			DisableHostname:                    false,
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
@@ -148,6 +149,7 @@ func TestConfig_Merge(t *testing.T) {
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
+			DataDogAddr:                        "127.0.0.1:8125",
 			DisableHostname:                    true,
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,

@@ -192,6 +192,8 @@ nodes, unless otherwise specified:
     to.
   * `statsd_address`: Address of a [statsd](https://github.com/etsy/statsd)
     server to forward metrics to.
+  * `datadog_address`: Address of a [DataDog statsd](https://github.com/DataDog/dd-agent)
+    server to forward metrics to.
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
   * `publish_allocation_metrics`: Enables publishing runtime metrics of
@@ -294,7 +296,7 @@ integration and are entirely optional.
     services are named according to `server_service_name` and
     `client_service_name`. Nomad Servers and Clients advertise their respective
     services, each tagged appropriately with either `http` or `rpc` tag. Nomad
-    Servers also advertise a `serf` tagged service.  Defaults to `true`.  
+    Servers also advertise a `serf` tagged service.  Defaults to `true`.
 
   * `server_auto_join`: Servers will automatically discover and join other
     Nomad Servers by searching for the Consul service name defined in the

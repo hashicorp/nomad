@@ -17,6 +17,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
+	"github.com/armon/go-metrics/datadog"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-checkpoint"
 	"github.com/hashicorp/go-syslog"
@@ -611,6 +612,15 @@ func (c *Command) setupTelemetry(config *Config) error {
 	// Configure the statsd sink
 	if telConfig.StatsdAddr != "" {
 		sink, err := metrics.NewStatsdSink(telConfig.StatsdAddr)
+		if err != nil {
+			return err
+		}
+		fanout = append(fanout, sink)
+	}
+
+	// Configure the datadog sink
+	if telConfig.DataDogAddr != "" {
+		sink, err := datadog.NewDogStatsdSink(telConfig.DataDogAddr, config.NodeName)
 		if err != nil {
 			return err
 		}
