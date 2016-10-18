@@ -1210,6 +1210,21 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	if alloc2.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
 	}
+
+	alloc3 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+				},
+			},
+		},
+	}
+
+	if alloc3.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
 }
 
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {

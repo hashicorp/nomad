@@ -2986,7 +2986,17 @@ func (a *Allocation) ShouldMigrate() bool {
 		return false
 	}
 
-	if tg := a.Job.LookupTaskGroup(a.TaskGroup); tg != nil && !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	// if the task group is nil or the ephemeral disk block isn't present then
+	// we won't migrate
+	if tg == nil || tg.EphemeralDisk == nil {
+		return false
+	}
+
+	// We won't migrate any data is the user hasn't enabled migration or the
+	// disk is not marked as sticky
+	if !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
 		return false
 	}
 
