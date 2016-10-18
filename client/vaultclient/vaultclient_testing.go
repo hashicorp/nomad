@@ -22,6 +22,9 @@ type MockVaultClient struct {
 	// token is derived
 	DeriveTokenErrors map[string]map[string]error
 
+	// DeriveTokenFn allows the caller to control the DeriveToken function. If
+	// not set an error is returned if found in DeriveTokenErrors and otherwise
+	// a token is generated and returned
 	DeriveTokenFn func(a *structs.Allocation, tasks []string) (map[string]string, error)
 }
 

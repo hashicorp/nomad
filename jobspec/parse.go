@@ -1189,7 +1189,6 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 		return err
 	}
 
-	// TODO use default
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
 	}
