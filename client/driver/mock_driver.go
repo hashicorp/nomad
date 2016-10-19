@@ -62,6 +62,12 @@ func NewMockDriver(ctx *DriverContext) Driver {
 	return &MockDriver{DriverContext: *ctx}
 }
 
+func (d *MockDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: false,
+	}
+}
+
 // Start starts the mock driver
 func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig MockDriverConfig

@@ -94,6 +94,12 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *JavaDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes

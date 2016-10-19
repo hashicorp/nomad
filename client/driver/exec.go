@@ -82,6 +82,12 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *ExecDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }

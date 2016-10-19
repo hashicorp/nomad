@@ -266,6 +266,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *DockerDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 // dockerClients creates two *docker.Client, one for long running operations and
 // the other for shorter operations. In test / dev mode we can use ENV vars to
 // connect to the docker daemon. In production mode we will read docker.endpoint
