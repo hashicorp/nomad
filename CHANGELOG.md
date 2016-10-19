@@ -13,6 +13,7 @@ IMPROVEMENTS:
   * driver: Export `NOMAD_JOB_NAME` environment variable [GH-1804]
   * driver/docker: Support Docker volumes [GH-1767]
   * driver/docker: Allow Docker logging to be configured [GH-1767]
+  * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]
 
 BUG FIXES:
   * agent: Handle the SIGPIPE signal preventing panics on journalctl restarts

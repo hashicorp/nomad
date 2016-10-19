@@ -315,7 +315,7 @@ Some networking modes like `container` or `none` will require coordination
 outside of Nomad. First-class support for these options may be improved later
 through Nomad plugins or dynamic job configuration.
 
-## Host Requirements
+## Client Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
 Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
@@ -333,7 +333,7 @@ user to the `docker` group so you can run Nomad without root:
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
-## Agent Configuration
+## Client Configuration
 
 The `docker` driver has the following [client configuration
 options](/docs/agent/config.html#options):
@@ -392,7 +392,7 @@ client {
 }
 ```
 
-## Agent Attributes
+## Client Attributes
 
 The `docker` driver will set the following client attributes:
 
