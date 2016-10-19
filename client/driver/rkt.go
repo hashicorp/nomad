@@ -38,7 +38,7 @@ const (
 	// minRktVersion is the earliest supported version of rkt. rkt added support
 	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
 	// version to maintain an uniform interface across all drivers
-	minRktVersion = "0.14.0"
+	minRktVersion = "1.0.0"
 
 	// The key populated in the Node Attributes to indicate the presence of the
 	// Rkt driver
@@ -47,6 +47,9 @@ const (
 	// rktVolumesConfigOption is the key for enabling the use of custom
 	// bind volumes.
 	rktVolumesConfigOption = "rkt.volumes.enabled"
+
+	// rktCmd is the command rkt is installed as.
+	rktCmd = "rkt"
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -147,7 +150,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		return false, nil
 	}
 
-	outBytes, err := exec.Command("rkt", "version").Output()
+	outBytes, err := exec.Command(rktCmd, "version").Output()
 	if err != nil {
 		delete(node.Attributes, rktDriverAttr)
 		return false, nil
@@ -168,7 +171,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	minVersion, _ := version.NewVersion(minRktVersion)
 	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
 	if currentVersion.LessThan(minVersion) {
-		// Do not allow rkt < 0.14.0
+		// Do not allow ancient rkt versions
 		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
 		node.Attributes[rktDriverAttr] = "0"
 	}
@@ -203,7 +206,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	insecure := false
 	if trustPrefix != "" {
 		var outBuf, errBuf bytes.Buffer
-		cmd := exec.Command("rkt", "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%t", debug))
+		cmd := exec.Command(rktCmd, "trust", "--skip-fingerprint-review=true", fmt.Sprintf("--prefix=%s", trustPrefix), fmt.Sprintf("--debug=%t", debug))
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
@@ -331,7 +334,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	absPath, err := GetAbsolutePath("rkt")
+	absPath, err := GetAbsolutePath(rktCmd)
 	if err != nil {
 		return nil, err
 	}
