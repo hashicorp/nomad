@@ -344,6 +344,8 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 		return checkVersionConstraint(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
 		return checkRegexpConstraint(ctx, lVal, rVal)
+	case structs.ConstraintSetContains:
+		return checkSetContainsConstraint(ctx, lVal, rVal)
 	default:
 		return false
 	}
@@ -449,6 +451,38 @@ func checkRegexpConstraint(ctx Context, lVal, rVal interface{}) bool {
 
 	// Look for a match
 	return re.MatchString(lStr)
+}
+
+// checkSetContainsConstraint is used to see if the left hand side contains the
+// string on the right hand side
+func checkSetContainsConstraint(ctx Context, lVal, rVal interface{}) bool {
+	// Ensure left-hand is string
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Regexp must be a string
+	rStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	input := strings.Split(lStr, ",")
+	lookup := make(map[string]struct{}, len(input))
+	for _, in := range input {
+		cleaned := strings.TrimSpace(in)
+		lookup[cleaned] = struct{}{}
+	}
+
+	for _, r := range strings.Split(rStr, ",") {
+		cleaned := strings.TrimSpace(r)
+		if _, ok := lookup[cleaned]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // FeasibilityWrapper is a FeasibleIterator which wraps both job and task group

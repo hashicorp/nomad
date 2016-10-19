@@ -283,6 +283,25 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"set-contains-constraint.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						LTarget: "$meta.data",
+						RTarget: "foo,bar,baz",
+						Operand: structs.ConstraintSetContains,
+					},
+				},
+			},
+			false,
+		},
+
+		{
 			"distinctHosts-constraint.hcl",
 			&structs.Job{
 				ID:       "foo",

@@ -2729,6 +2729,7 @@ const (
 	ConstraintDistinctHosts = "distinct_hosts"
 	ConstraintRegex         = "regexp"
 	ConstraintVersion       = "version"
+	ConstraintSetContains   = "set_contains"
 )
 
 // Constraints are used to restrict placement options.
