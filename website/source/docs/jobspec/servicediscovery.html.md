@@ -118,6 +118,9 @@ group "database" {
 * `protocol`: This indicates the protocol for the http checks. Valid options
   are `http` and `https`. We default it to `http`.
 
+* `port`: The label of the port on which the check will be performed. The label
+  specified here has to be defined in the resource block of the task.
+
 * `command`: This is the command that the Nomad client runs for doing script based
   health check.
 
