@@ -75,10 +75,15 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `debug` - (Optional) Enable rkt command debug option.
 
-## Task Directories
+* `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+  host paths to container paths. Can only be run on clients with the
+  `rkt.volumes.enabled` option set to true.
 
-The `rkt` driver currently does not support mounting of the `alloc/` and `local/` directories.
-Once support is added, version `v0.10.0` or above of `rkt` will be required.
+    ```hcl
+    config {
+      volumes = ["/path/on/host:/path/in/container"]
+    }
+    ```
 
 ## Client Requirements
 
@@ -87,15 +92,24 @@ The `trust_prefix` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client
 over HTTP.
 
+## Client Configuration
+
+The `rkt` driver has the following [client configuration
+options](/docs/agent/config.html#options):
+
+* `rkt.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
+  (`volumes`) inside their container.  Disabled by default as it removes the
+  isolation between containers' data.
+
 ## Client Attributes
 
 The `rkt` driver will set the following client attributes:
 
 * `driver.rkt` - Set to `1` if rkt is found on the host node. Nomad determines
-this by executing `rkt version` on the host and parsing the output
-* `driver.rkt.version` - Version of `rkt` eg: `0.8.1`. Note that the minimum required
-version is `0.14.0`
-* `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `0.8.1`
+  this by executing `rkt version` on the host and parsing the output
+* `driver.rkt.version` - Version of `rkt` eg: `1.1.0`. Note that the minimum required
+  version is `1.0.0`
+* `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `1.1.0`
 
 Here is an example of using these properties in a job file:
 
@@ -105,7 +119,7 @@ job "docs" {
   constraint {
     attribute = "${driver.rkt.version}"
     operator  = ">"
-    value     = "0.8"
+    value     = "1.2"
   }
 }
 ```
