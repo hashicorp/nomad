@@ -162,8 +162,8 @@ The `docker` driver supports the following configuration in the job spec:
     ```
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Can only be run on clients with the
-  `docker.volumes.enabled` option set to true.
+  host paths to container paths. Can be disabled on clients by setting the
+  `docker.volumes.enabled` option set to false.
 
     ```hcl
     config {
@@ -363,9 +363,8 @@ options](/docs/agent/config.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
-* `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host
-  paths (`volumes`) or other containers (`volums_from`) inside their container.
-  Disabled by default as it removes the isolation between containers' data.
+* `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+  (`volumes`) inside their container.
 
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
   label to the allocation and task local bind-mounts to containers. If used
