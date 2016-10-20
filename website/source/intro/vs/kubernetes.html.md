@@ -9,7 +9,7 @@ description: |-
 # Nomad vs. Kubernetes
 
 Kubernetes is an orchestration system for containers originally designed by Google, now governed by the Cloud Native
-Computing Foundation (CNCF) and devloped by Google, Red Hat, CoreOS and many others. Kubernetes aims to provide all the features needed to run docker or rkt-based applications including cluster management,
+Computing Foundation (CNCF) and developed by Google, Red Hat, CoreOS and many others. Kubernetes aims to provide all the features needed to run Docker or Rkt-based applications including cluster management,
 scheduling, service discovery, monitoring, secrets management and more.
 
 Nomad only aims to provide cluster management and scheduling and is designed
