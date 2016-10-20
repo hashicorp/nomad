@@ -34,23 +34,6 @@ func NewSyslogClient(address string, tag string, logger *log.Logger) *SyslogClie
 
 // Writes message to remote server
 func (c *SyslogClient) Write(m *SyslogMessage) error {
-	// Should be replaces with c.w.RawWrite(m.Severity, m.Message)
-	switch m.Severity {
-	case syslog.LOG_EMERG:
-		return c.w.Emerg(string(m.Message))
-	case syslog.LOG_ALERT:
-		return c.w.Alert(string(m.Message))
-	case syslog.LOG_CRIT:
-		return c.w.Crit(string(m.Message))
-	case syslog.LOG_ERR:
-		return c.w.Err(string(m.Message))
-	case syslog.LOG_WARNING:
-		return c.w.Warning(string(m.Message))
-	case syslog.LOG_NOTICE:
-		return c.w.Notice(string(m.Message))
-	case syslog.LOG_INFO:
-		return c.w.Info(string(m.Message))
-	default:
-		return c.w.Debug(string(m.Message))
-	}
+	_, err := c.w.WriteWithPriority(m.Severity, m.Message)
+	return err
 }
