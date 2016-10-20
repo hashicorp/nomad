@@ -998,6 +998,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver
 
 func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	cfg := testConfig()
+	cfg.Options = map[string]string{dockerVolumesConfigOption: "false"}
 
 	task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg)
 	defer cleanup()
@@ -1010,7 +1011,6 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	cfg := testConfig()
-	cfg.Options = map[string]string{dockerVolumesConfigOption: "true"}
 
 	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg)
 	defer cleanup()
