@@ -64,7 +64,8 @@ const (
 
 	// dockerVolumesConfigOption is the key for enabling the use of custom
 	// bind volumes.
-	dockerVolumesConfigOption = "docker.volumes.enabled"
+	dockerVolumesConfigOption  = "docker.volumes.enabled"
+	dockerVolumesConfigDefault = true
 
 	// dockerPrivilegedConfigOption is the key for running containers in
 	// Docker's privileged mode.
@@ -369,7 +370,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
 	// Advertise if this node supports Docker volumes (by default we do not)
-	if d.config.ReadBoolDefault(dockerVolumesConfigOption, false) {
+	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
 		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
 	}
 
@@ -394,7 +395,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	secretDirBind := fmt.Sprintf("%s:%s", secret, allocdir.TaskSecretsContainerPath)
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, false)
+	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
 	if len(driverConfig.Volumes) > 0 && !volumesEnabled {
 		return nil, fmt.Errorf("%s is false; cannot use Docker Volumes: %+q", dockerVolumesConfigOption, driverConfig.Volumes)
 	}

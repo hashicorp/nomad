@@ -259,7 +259,6 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
-	driverCtx.config.Options = map[string]string{rktVolumesConfigOption: "1"}
 	defer execCtx.AllocDir.Destroy()
 	d := NewRktDriver(driverCtx)
 

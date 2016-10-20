@@ -76,8 +76,8 @@ The `rkt` driver supports the following configuration in the job spec:
 * `debug` - (Optional) Enable rkt command debug option.
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Can only be run on clients with the
-  `rkt.volumes.enabled` option set to true.
+  host paths to container paths. Can be disabled on clients by setting the
+  `rkt.volumes.enabled` option set to false.
 
     ```hcl
     config {
@@ -97,9 +97,8 @@ over HTTP.
 The `rkt` driver has the following [client configuration
 options](/docs/agent/config.html#options):
 
-* `rkt.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
-  (`volumes`) inside their container.  Disabled by default as it removes the
-  isolation between containers' data.
+* `rkt.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+  (`volumes`) inside their container.
 
 ## Client Attributes
 

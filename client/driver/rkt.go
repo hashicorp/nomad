@@ -45,7 +45,8 @@ const (
 
 	// rktVolumesConfigOption is the key for enabling the use of custom
 	// bind volumes.
-	rktVolumesConfigOption = "rkt.volumes.enabled"
+	rktVolumesConfigOption  = "rkt.volumes.enabled"
+	rktVolumesConfigDefault = true
 
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
@@ -233,7 +234,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Mount arbitrary volumes if enabled
 	if len(driverConfig.Volumes) > 0 {
-		if enabled := d.config.ReadBoolDefault(rktVolumesConfigOption, false); !enabled {
+		if enabled := d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault); !enabled {
 			return nil, fmt.Errorf("%s is false; cannot use rkt volumes: %+q", rktVolumesConfigOption, driverConfig.Volumes)
 		}
 
