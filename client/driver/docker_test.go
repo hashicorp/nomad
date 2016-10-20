@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
@@ -864,19 +863,14 @@ func TestDockerDriver_Stats(t *testing.T) {
 
 }
 
-func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver, *ExecContext, string, func()) {
+func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
 	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
 
-	tmpvol, err := ioutil.TempDir("", "nomadtest_dockerdriver_volumes")
-	if err != nil {
-		t.Fatalf("error creating temporary dir: %v", err)
-	}
-
 	randfn := fmt.Sprintf("test-%d", rand.Int())
-	hostpath := path.Join(tmpvol, randfn)
-	contpath := path.Join("/mnt/vol", randfn)
+	hostfile := filepath.Join(hostpath, randfn)
+	containerFile := filepath.Join("/mnt/vol", randfn)
 
 	task := &structs.Task{
 		Name: "ls",
@@ -884,8 +878,8 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver
 			"image":   "busybox",
 			"load":    []string{"busybox.tar"},
 			"command": "touch",
-			"args":    []string{contpath},
-			"volumes": []string{fmt.Sprintf("%s:/mnt/vol", tmpvol)},
+			"args":    []string{containerFile},
+			"volumes": []string{fmt.Sprintf("%s:/mnt/vol", hostpath)},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -900,7 +894,9 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver
 	execCtx := NewExecContext(allocDir, alloc.ID)
 	cleanup := func() {
 		execCtx.AllocDir.Destroy()
-		os.RemoveAll(tmpvol)
+		if filepath.IsAbs(hostpath) {
+			os.RemoveAll(hostpath)
+		}
 	}
 
 	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
@@ -913,26 +909,63 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver
 	driver := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
-	return task, driver, execCtx, hostpath, cleanup
+	return task, driver, execCtx, hostfile, cleanup
 }
 
 func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	cfg := testConfig()
 	cfg.Options = map[string]string{dockerVolumesConfigOption: "false"}
 
-	task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg)
-	defer cleanup()
+	{
+		tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesdisabled")
+		if err != nil {
+			t.Fatalf("error creating temporary dir: %v", err)
+		}
 
-	_, err := driver.Start(execCtx, task)
-	if err == nil {
-		t.Fatalf("Started driver successfully when volumes should have been disabled.")
+		task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg, tmpvol)
+		defer cleanup()
+
+		if _, err := driver.Start(execCtx, task); err == nil {
+			t.Fatalf("Started driver successfully when volumes should have been disabled.")
+		}
 	}
+
+	// Relative paths should still be allowed
+	{
+		task, driver, execCtx, fn, cleanup := setupDockerVolumes(t, cfg, ".")
+		defer cleanup()
+
+		handle, err := driver.Start(execCtx, task)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		defer handle.Kill()
+
+		select {
+		case res := <-handle.WaitCh():
+			if !res.Successful() {
+				t.Fatalf("unexpected err: %v", res)
+			}
+		case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
+			t.Fatalf("timeout")
+		}
+
+		if _, err := ioutil.ReadFile(filepath.Join(execCtx.AllocDir.SharedDir, fn)); err != nil {
+			t.Fatalf("unexpected error reading %s: %v", fn, err)
+		}
+	}
+
 }
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	cfg := testConfig()
 
-	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg)
+	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
+	if err != nil {
+		t.Fatalf("error creating temporary dir: %v", err)
+	}
+
+	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 	defer cleanup()
 
 	handle, err := driver.Start(execCtx, task)
