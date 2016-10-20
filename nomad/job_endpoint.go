@@ -52,6 +52,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Initialize the job fields (sets defaults and any necessary init work).
 	args.Job.Canonicalize()
 
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
+
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {
 		return err
@@ -115,28 +118,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				}
 			}
 		}
-
-		// Add implicit constraints that the task groups are run on a Node with
-		// Vault
-		for _, tg := range args.Job.TaskGroups {
-			_, ok := policies[tg.Name]
-			if !ok {
-				// Not requesting Vault
-				continue
-			}
-
-			found := false
-			for _, c := range tg.Constraints {
-				if c.Equal(vaultConstraint) {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				tg.Constraints = append(tg.Constraints, vaultConstraint)
-			}
-		}
 	}
 
 	// Clear the Vault token
@@ -186,6 +167,77 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
 	return nil
+}
+
+// setImplicitConstraints adds implicit constraints to the job based on the
+// features it is requesting.
+func setImplicitConstraints(j *structs.Job) {
+	// Get the required Vault Policies
+	policies := j.VaultPolicies()
+
+	// Get the required signals
+	signals := j.RequiredSignals()
+
+	// Hot path
+	if len(signals) == 0 && len(policies) == 0 {
+		return
+	}
+
+	// Add Vault constraints
+	for _, tg := range j.TaskGroups {
+		_, ok := policies[tg.Name]
+		if !ok {
+			// Not requesting Vault
+			continue
+		}
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equal(vaultConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, vaultConstraint)
+		}
+	}
+
+	// Add signal constraints
+	for _, tg := range j.TaskGroups {
+		tgSignals, ok := signals[tg.Name]
+		if !ok {
+			// Not requesting Vault
+			continue
+		}
+
+		// Flatten the signals
+		required := structs.MapStringStringSliceValueSet(tgSignals)
+		sigConstraint := getSignalConstraint(required)
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equal(sigConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, sigConstraint)
+		}
+	}
+}
+
+// getSignalConstraint builds a suitable constraint based on the required
+// signals
+func getSignalConstraint(signals []string) *structs.Constraint {
+	return &structs.Constraint{
+		Operand: structs.ConstraintSetContains,
+		LTarget: "${attr.os.signals}",
+		RTarget: strings.Join(signals, ","),
+	}
 }
 
 // Summary retreives the summary of a job
@@ -556,6 +608,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Initialize the job fields (sets defaults and any necessary init work).
 	args.Job.Canonicalize()
 
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
+
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {
 		return err
@@ -656,8 +711,14 @@ func validateJob(job *structs.Job) error {
 		multierror.Append(validationErrors, err)
 	}
 
+	// Get the signals required
+	signals := job.RequiredSignals()
+
 	// Validate the driver configurations.
 	for _, tg := range job.TaskGroups {
+		// Get the signals for the task group
+		tgSignals, tgOk := signals[tg.Name]
+
 		for _, task := range tg.Tasks {
 			d, err := driver.NewDriver(
 				task.Driver,
@@ -672,6 +733,21 @@ func validateJob(job *structs.Job) error {
 			if err := d.Validate(task.Config); err != nil {
 				formatted := fmt.Errorf("group %q -> task %q -> config: %v", tg.Name, task.Name, err)
 				multierror.Append(validationErrors, formatted)
+			}
+
+			// The task group didn't have any task that required signals
+			if !tgOk {
+				continue
+			}
+
+			// This task requires signals. Ensure the driver is capable
+			if required, ok := tgSignals[task.Name]; ok {
+				abilities := d.Abilities()
+				if !abilities.SendSignals {
+					formatted := fmt.Errorf("group %q -> task %q: driver %q doesn't support sending signals. Requested signals are %v",
+						tg.Name, task.Name, task.Driver, strings.Join(required, ", "))
+					multierror.Append(validationErrors, formatted)
+				}
 			}
 		}
 	}

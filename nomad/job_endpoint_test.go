@@ -1524,3 +1524,151 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 		t.Fatalf("no failed task group alloc metrics")
 	}
 }
+
+func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	policy := "foo"
+	goodToken := structs.GenerateUUID()
+	goodPolicies := []string{"foo", "bar", "baz"}
+	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
+
+	// Create the register request with a job asking for a vault policy
+	job := mock.Job()
+	job.VaultToken = goodToken
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{policy},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	// Check that there is an implicit vault constraint
+	constraints := out.TaskGroups[0].Constraints
+	if len(constraints) != 1 {
+		t.Fatalf("Expected an implicit constraint")
+	}
+
+	if !constraints[0].Equal(vaultConstraint) {
+		t.Fatalf("Expected implicit vault constraint")
+	}
+}
+
+func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job asking for a template that sends a
+	// signal
+	job := mock.Job()
+	signal := "SIGUSR1"
+	job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		&structs.Template{
+			SourcePath:   "foo",
+			DestPath:     "bar",
+			ChangeMode:   structs.TemplateChangeModeSignal,
+			ChangeSignal: signal,
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	// Check that there is an implicit signal constraint
+	constraints := out.TaskGroups[0].Constraints
+	if len(constraints) != 1 {
+		t.Fatalf("Expected an implicit constraint")
+	}
+
+	sigConstraint := getSignalConstraint([]string{signal})
+
+	if !constraints[0].Equal(sigConstraint) {
+		t.Fatalf("Expected implicit vault constraint")
+	}
+}
+
+func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
+	// Create a mock job with an invalid config
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"foo": "bar",
+	}
+
+	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "-> config") {
+		t.Fatalf("Expected config error; got %v", err)
+	}
+}
+
+func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
+	// Create a mock job that wants to send a signal to a driver that can't
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Driver = "qemu"
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:     []string{"foo"},
+		ChangeMode:   structs.VaultChangeModeSignal,
+		ChangeSignal: "SIGUSR1",
+	}
+
+	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "support sending signals") {
+		t.Fatalf("Expected signal feasibility error; got %v", err)
+	}
+}

@@ -305,6 +305,93 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 }
 
+func TestJob_RequiredSignals(t *testing.T) {
+	j0 := &Job{}
+	e0 := make(map[string]map[string][]string, 0)
+
+	vj1 := &Vault{
+		Policies:   []string{"p1"},
+		ChangeMode: VaultChangeModeNoop,
+	}
+	vj2 := &Vault{
+		Policies:     []string{"p1"},
+		ChangeMode:   VaultChangeModeSignal,
+		ChangeSignal: "SIGUSR1",
+	}
+	tj1 := &Template{
+		SourcePath: "foo",
+		DestPath:   "bar",
+		ChangeMode: TemplateChangeModeNoop,
+	}
+	tj2 := &Template{
+		SourcePath:   "foo",
+		DestPath:     "bar",
+		ChangeMode:   TemplateChangeModeSignal,
+		ChangeSignal: "SIGUSR2",
+	}
+	j1 := &Job{
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "foo",
+				Tasks: []*Task{
+					&Task{
+						Name: "t1",
+					},
+					&Task{
+						Name:      "t2",
+						Vault:     vj2,
+						Templates: []*Template{tj2},
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "bar",
+				Tasks: []*Task{
+					&Task{
+						Name:      "t3",
+						Vault:     vj1,
+						Templates: []*Template{tj1},
+					},
+					&Task{
+						Name:  "t4",
+						Vault: vj2,
+					},
+				},
+			},
+		},
+	}
+
+	e1 := map[string]map[string][]string{
+		"foo": map[string][]string{
+			"t2": []string{"SIGUSR1", "SIGUSR2"},
+		},
+		"bar": map[string][]string{
+			"t4": []string{"SIGUSR1"},
+		},
+	}
+
+	cases := []struct {
+		Job      *Job
+		Expected map[string]map[string][]string
+	}{
+		{
+			Job:      j0,
+			Expected: e0,
+		},
+		{
+			Job:      j1,
+			Expected: e1,
+		},
+	}
+
+	for i, c := range cases {
+		got := c.Job.RequiredSignals()
+		if !reflect.DeepEqual(got, c.Expected) {
+			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
+		}
+	}
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		Count: -1,

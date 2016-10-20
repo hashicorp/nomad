@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1298,6 +1299,55 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	}
 
 	return policies
+}
+
+// RequiredSignals returns a mapping of task groups to tasks to their required
+// set of signals
+func (j *Job) RequiredSignals() map[string]map[string][]string {
+	signals := make(map[string]map[string][]string)
+
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			// Use this local one as a set
+			taskSignals := make(map[string]struct{})
+
+			// Check if the Vault change mode uses signals
+			if task.Vault != nil && task.Vault.ChangeMode == VaultChangeModeSignal {
+				taskSignals[task.Vault.ChangeSignal] = struct{}{}
+			}
+
+			// Check if any template change mode uses signals
+			for _, t := range task.Templates {
+				if t.ChangeMode != TemplateChangeModeSignal {
+					continue
+				}
+
+				taskSignals[t.ChangeSignal] = struct{}{}
+			}
+
+			// Flatten and sort the signals
+			l := len(taskSignals)
+			if l == 0 {
+				continue
+			}
+
+			flat := make([]string, 0, l)
+			for sig := range taskSignals {
+				flat = append(flat, sig)
+			}
+
+			sort.Strings(flat)
+			tgSignals, ok := signals[tg.Name]
+			if !ok {
+				tgSignals = make(map[string][]string)
+				signals[tg.Name] = tgSignals
+			}
+			tgSignals[task.Name] = flat
+		}
+
+	}
+
+	return signals
 }
 
 // JobListStub is used to return a subset of job information

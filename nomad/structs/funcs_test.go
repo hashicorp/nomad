@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 )
@@ -282,5 +283,19 @@ func TestSliceStringIsSubset(t *testing.T) {
 	sub, offending = SliceStringIsSubset(l, s)
 	if sub || len(offending) == 0 || offending[0] != "d" {
 		t.Fatalf("bad %v %v", sub, offending)
+	}
+}
+
+func TestMapStringStringSliceValueSet(t *testing.T) {
+	m := map[string][]string{
+		"foo": []string{"1", "2"},
+		"bar": []string{"3"},
+		"baz": nil,
+	}
+
+	act := MapStringStringSliceValueSet(m)
+	exp := []string{"1", "2", "3"}
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("Bad")
 	}
 }
