@@ -64,7 +64,7 @@ const (
 	dockerSELinuxLabelConfigOption = "docker.volumes.selinuxlabel"
 
 	// dockerVolumesConfigOption is the key for enabling the use of custom
-	// bind volumes.
+	// bind volumes to arbitrary host paths.
 	dockerVolumesConfigOption  = "docker.volumes.enabled"
 	dockerVolumesConfigDefault = true
 
@@ -399,12 +399,29 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
-	if len(driverConfig.Volumes) > 0 && !volumesEnabled {
-		return nil, fmt.Errorf("%s is false; cannot use Docker Volumes: %+q", dockerVolumesConfigOption, driverConfig.Volumes)
-	}
+	for _, userbind := range driverConfig.Volumes {
+		parts := strings.Split(userbind, ":")
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
+		}
 
-	if len(driverConfig.Volumes) > 0 {
-		binds = append(binds, driverConfig.Volumes...)
+		// Resolve dotted path segments
+		parts[0] = filepath.Clean(parts[0])
+
+		// Absolute paths aren't always supported
+		if filepath.IsAbs(parts[0]) {
+			if !volumesEnabled {
+				// Disallow mounting arbitrary absolute paths
+				return nil, fmt.Errorf("%s is false; cannot mount host paths: %+q", dockerVolumesConfigOption, userbind)
+			}
+			binds = append(binds, userbind)
+			continue
+		}
+
+		// Relative paths are always allowed as they mount within a container
+		// Expand path relative to alloc dir
+		parts[0] = filepath.Join(shared, parts[0])
+		binds = append(binds, strings.Join(parts, ":"))
 	}
 
 	if selinuxLabel := d.config.Read(dockerSELinuxLabelConfigOption); selinuxLabel != "" {
