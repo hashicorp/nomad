@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	// The option that enables this driver in the Config.Options map.
+	// lxcConfigOption is the key for enabling the LXC driver in the
+	// Config.Options map.
 	lxcConfigOption = "driver.lxc.enable"
 
 	// containerMonitorIntv is the interval at which the driver checks if the
