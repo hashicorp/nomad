@@ -221,16 +221,19 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, "run")
 
 	// Mount /alloc
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%salloc,kind=host,source=%s", task.Name, ctx.AllocDir.SharedDir))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%salloc,target=%s", task.Name, allocdir.SharedAllocContainerPath))
+	allocVolName := fmt.Sprintf("%s-%s-alloc", ctx.AllocID, task.Name)
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.AllocDir.SharedDir))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
 
 	// Mount /local
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%slocal,kind=host,source=%s", task.Name, filepath.Join(taskDir, allocdir.TaskLocal)))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%slocal,target=%s", task.Name, allocdir.TaskLocalContainerPath))
+	localVolName := fmt.Sprintf("%s-%s-local", ctx.AllocID, task.Name)
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, filepath.Join(taskDir, allocdir.TaskLocal)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
 
 	// Mount /secrets
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%ssecrets,kind=host,source=%s", task.Name, filepath.Join(taskDir, allocdir.TaskSecrets)))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%ssecrets,target=%s", task.Name, allocdir.TaskSecretsContainerPath))
+	secretsVolName := fmt.Sprintf("%s-%s-secrets", ctx.AllocID, task.Name)
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, filepath.Join(taskDir, allocdir.TaskSecrets)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
 
 	// Mount arbitrary volumes if enabled
 	if len(driverConfig.Volumes) > 0 {
@@ -243,8 +246,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s%d,kind=host,source=%s", task.Name, i, parts[0]))
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s%d,target=%s", task.Name, i, parts[1]))
+			volName := fmt.Sprintf("%s-%s-%d", ctx.AllocID, task.Name, i)
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, i, parts[0]))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, i, parts[1]))
 		}
 	}
 
