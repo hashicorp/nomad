@@ -26,10 +26,6 @@ const (
 	// update will transfer all past state information. If not other transition
 	// has occurred up to this limit, we will send to the server.
 	taskReceivedSyncLimit = 30 * time.Second
-
-	// watchdogInterval is the interval at which resource constraints for the
-	// allocation are being checked and enforced.
-	watchdogInterval = 5 * time.Second
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -404,7 +400,7 @@ func (r *AllocRunner) Run() {
 	// Create the execution context
 	r.ctxLock.Lock()
 	if r.ctx == nil {
-		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID), r.Alloc().Resources.DiskMB)
+		allocDir := allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
 		if err := allocDir.Build(tg.Tasks); err != nil {
 			r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
@@ -449,12 +445,6 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
-	// Start watching the shared allocation directory for disk usage
-	go r.ctx.AllocDir.StartDiskWatcher()
-
-	watchdog := time.NewTicker(watchdogInterval)
-	defer watchdog.Stop()
-
 	// taskDestroyEvent contains an event that caused the destroyment of a task
 	// in the allocation.
 	var taskDestroyEvent *structs.TaskEvent
@@ -480,12 +470,6 @@ OUTER:
 			for _, tr := range runners {
 				tr.Update(update)
 			}
-		case <-watchdog.C:
-			if event, desc := r.checkResources(); event != nil {
-				r.setStatus(structs.AllocClientStatusFailed, desc)
-				taskDestroyEvent = event
-				break OUTER
-			}
 		case <-r.destroyCh:
 			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 			break OUTER
@@ -494,9 +478,6 @@ OUTER:
 
 	// Kill the task runners
 	r.destroyTaskRunners(taskDestroyEvent)
-
-	// Stop watching the shared allocation directory
-	r.ctx.AllocDir.StopDiskWatcher()
 
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()
@@ -525,18 +506,6 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 
 	// Final state sync
 	r.syncStatus()
-}
-
-// checkResources monitors and enforces alloc resource usage. It returns an
-// appropriate task event describing why the allocation had to be killed.
-func (r *AllocRunner) checkResources() (*structs.TaskEvent, string) {
-	diskSize := r.ctx.AllocDir.GetSize()
-	diskLimit := r.Alloc().Resources.DiskInBytes()
-	if diskSize > diskLimit {
-		return structs.NewTaskEvent(structs.TaskDiskExceeded).SetDiskLimit(diskLimit).SetDiskSize(diskSize),
-			"shared allocation directory exceeded the allowed disk space"
-	}
-	return nil, ""
 }
 
 // handleDestroy blocks till the AllocRunner should be destroyed and does the

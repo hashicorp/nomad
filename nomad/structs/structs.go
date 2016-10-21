@@ -2474,9 +2474,6 @@ type TaskEvent struct {
 	// The maximum allowed task disk size.
 	DiskLimit int64
 
-	// The recorded task disk size.
-	DiskSize int64
-
 	// Name of the sibling task that caused termination of the task that
 	// the TaskEvent refers to.
 	FailedSibling string
@@ -2597,11 +2594,6 @@ func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
 
 func (e *TaskEvent) SetDiskLimit(limit int64) *TaskEvent {
 	e.DiskLimit = limit
-	return e
-}
-
-func (e *TaskEvent) SetDiskSize(size int64) *TaskEvent {
-	e.DiskSize = size
 	return e
 }
 

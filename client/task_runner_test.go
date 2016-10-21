@@ -58,7 +58,7 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID), task.Resources.DiskMB)
+	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
 	allocDir.Build([]*structs.Task{task})
 
 	vclient := vaultclient.NewMockVaultClient()

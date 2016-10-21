@@ -1516,7 +1516,7 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 		// If the snapshot has ended then we create the previous
 		// allocdir
 		if err == io.EOF {
-			prevAllocDir := allocdir.NewAllocDir(pathToAllocDir, 0)
+			prevAllocDir := allocdir.NewAllocDir(pathToAllocDir)
 			return prevAllocDir, nil
 		}
 		// If there is an error then we avoid creating the alloc dir

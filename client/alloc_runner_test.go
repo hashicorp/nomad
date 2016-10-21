@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -209,112 +208,6 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	})
 }
 
-func TestAllocRunner_DiskExceeded_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(false)
-
-	// Ensure task takes some time
-	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"60"}
-	go ar.Run()
-
-	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, fmt.Errorf("No updates")
-		}
-		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Create a 20mb file in the alloc directory, which should cause the
-	// allocation to terminate in a failed state.
-	name := ar.ctx.AllocDir.AllocDir + "/20mb.bin"
-	f, err := os.Create(name)
-	if err != nil {
-		t.Fatal("unable to create file: %v", err)
-	}
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			t.Fatal("unable to close file: %v", err)
-		}
-		os.Remove(name)
-	}()
-
-	// write 20 megabytes (1280 * 16384 bytes) of zeros to the file
-	w := bufio.NewWriter(f)
-	buf := make([]byte, 16384)
-	for i := 0; i < 1280; i++ {
-		if _, err := w.Write(buf); err != nil {
-			t.Fatal("unable to write to file: %v", err)
-		}
-	}
-
-	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
-		}
-
-		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusFailed {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusFailed)
-		}
-
-		// Check the state still exists
-		if _, err := os.Stat(ar.stateFilePath()); err != nil {
-			return false, fmt.Errorf("state file destroyed: %v", err)
-		}
-
-		// Check the alloc directory still exists
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err != nil {
-			return false, fmt.Errorf("alloc dir destroyed: %v", ar.ctx.AllocDir.AllocDir)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Send the destroy signal and ensure the AllocRunner cleans up.
-	ar.Destroy()
-
-	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
-		}
-
-		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
-		if last.ClientStatus != structs.AllocClientStatusFailed {
-			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusFailed)
-		}
-
-		// Check the state was cleaned
-		if _, err := os.Stat(ar.stateFilePath()); err == nil {
-			return false, fmt.Errorf("state file still exists: %v", ar.stateFilePath())
-		} else if !os.IsNotExist(err) {
-			return false, fmt.Errorf("stat err: %v", err)
-		}
-
-		// Check the alloc directory was cleaned
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err == nil {
-			return false, fmt.Errorf("alloc dir still exists: %v", ar.ctx.AllocDir.AllocDir)
-		} else if !os.IsNotExist(err) {
-			return false, fmt.Errorf("stat err: %v", err)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-}
 func TestAllocRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)

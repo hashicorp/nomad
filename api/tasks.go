@@ -247,7 +247,6 @@ const (
 	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
-	TaskDiskExceeded           = "Disk Exceeded"
 	TaskVaultRenewalFailed     = "Vault token renewal failed"
 	TaskSiblingFailed          = "Sibling task failed"
 	TaskSignaling              = "Signaling"

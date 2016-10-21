@@ -973,7 +973,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config) (*structs.Task, Driver
 		Resources: basicResources,
 	}
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()), task.Resources.DiskMB)
+	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
 	allocDir.Build([]*structs.Task{task})
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)
