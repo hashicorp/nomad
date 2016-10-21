@@ -446,6 +446,7 @@ func (c *Command) Run(args []string) int {
 
 	// Compile agent information for output later
 	info := make(map[string]string)
+	info["version"] = fmt.Sprintf("%s%s", config.Version, config.VersionPrerelease)
 	info["client"] = strconv.FormatBool(config.Client.Enabled)
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)

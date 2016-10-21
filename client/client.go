@@ -257,6 +257,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// Start collecting stats
 	go c.collectHostStats()
 
+	c.logger.Printf("[INFO] client: Node ID %q", c.Node().ID)
 	return c, nil
 }
 
