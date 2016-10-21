@@ -162,12 +162,19 @@ The `docker` driver supports the following configuration in the job spec:
     ```
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Can be disabled on clients by setting the
-  `docker.volumes.enabled` option set to false.
+  host paths to container paths. Mounting host paths outside of the alloc
+  directory tasks normally have access to can be disabled on clients by setting
+  the `docker.volumes.enabled` option set to false.
 
     ```hcl
     config {
-      volumes = ["/path/on/host:/path/in/container"]
+      volumes = [
+        # Use absolute paths to mount arbitrary paths on the host
+        "/path/on/host:/path/in/container",
+
+        # Use relative paths to rebind paths already in the allocation dir
+        "relative/to/alloc:/also/in/container"
+      ]
     }
     ```
 
@@ -364,7 +371,8 @@ options](/docs/agent/config.html#options):
   prevent Nomad from removing images from stopped tasks.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
-  (`volumes`) inside their container.
+  (`volumes`) inside their container. Binding relative paths is always allowed
+  and will be resolved relative to the allocation's directory.
 
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
   label to the allocation and task local bind-mounts to containers. If used
