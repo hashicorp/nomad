@@ -231,6 +231,7 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 // transitions.
 type TaskState struct {
 	State  string
+	Failed bool
 	Events []*TaskEvent
 }
 
@@ -259,6 +260,7 @@ const (
 type TaskEvent struct {
 	Type             string
 	Time             int64
+	FailsTask        bool
 	RestartReason    string
 	SetupError       string
 	DriverError      string

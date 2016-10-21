@@ -279,7 +279,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		case structs.TaskStatePending:
 			pending = true
 		case structs.TaskStateDead:
-			if state.Failed() {
+			if state.Failed {
 				failed = true
 			} else {
 				dead = true
@@ -346,11 +346,14 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 
 	// Set the tasks state.
 	taskState.State = state
+	if event.FailsTask {
+		taskState.Failed = true
+	}
 	r.appendTaskEvent(taskState, event)
 
 	if state == structs.TaskStateDead {
 		// If the task failed, we should kill all the other tasks in the task group.
-		if taskState.Failed() {
+		if taskState.Failed {
 			var destroyingTasks []string
 			for task, tr := range r.tasks {
 				if task != taskName {

@@ -2318,6 +2318,9 @@ type TaskState struct {
 	// The current state of the task.
 	State string
 
+	// Failed marks a task as having failed
+	Failed bool
+
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
 }
@@ -2328,6 +2331,7 @@ func (ts *TaskState) Copy() *TaskState {
 	}
 	copy := new(TaskState)
 	copy.State = ts.State
+	copy.Failed = ts.Failed
 
 	if ts.Events != nil {
 		copy.Events = make([]*TaskEvent, len(ts.Events))
@@ -2336,22 +2340,6 @@ func (ts *TaskState) Copy() *TaskState {
 		}
 	}
 	return copy
-}
-
-// Failed returns true if the task has has failed.
-func (ts *TaskState) Failed() bool {
-	l := len(ts.Events)
-	if ts.State != TaskStateDead || l == 0 {
-		return false
-	}
-
-	switch ts.Events[l-1].Type {
-	case TaskDiskExceeded, TaskNotRestarting, TaskArtifactDownloadFailed,
-		TaskFailedValidation, TaskVaultRenewalFailed, TaskSetupFailure:
-		return true
-	default:
-		return false
-	}
 }
 
 // Successful returns whether a task finished successfully.
@@ -2428,9 +2416,6 @@ const (
 	// TaskSiblingFailed indicates that a sibling task in the task group has
 	// failed.
 	TaskSiblingFailed = "Sibling task failed"
-
-	// TaskVaultRenewalFailed indicates that Vault token renewal failed
-	TaskVaultRenewalFailed = "Vault token renewal failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -2438,6 +2423,9 @@ const (
 type TaskEvent struct {
 	Type string
 	Time int64 // Unix Nanosecond timestamp
+
+	// FailsTask marks whether this event fails the task
+	FailsTask bool
 
 	// Restart fields.
 	RestartReason string
@@ -2517,6 +2505,11 @@ func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
 		e.SetupError = err.Error()
 	}
+	return e
+}
+
+func (e *TaskEvent) SetFailsTask() *TaskEvent {
+	e.FailsTask = true
 	return e
 }
 

@@ -62,7 +62,7 @@ func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) error {
 	return m.SignalError
 }
 
-func (m *MockTaskHooks) Kill(source, reason string) {
+func (m *MockTaskHooks) Kill(source, reason string, fail bool) {
 	m.KillReason = reason
 	select {
 	case m.KillCh <- struct{}{}:

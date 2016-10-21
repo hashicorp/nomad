@@ -36,8 +36,9 @@ type TaskHooks interface {
 	// called after prestart work is completed
 	UnblockStart(source string)
 
-	// Kill is used to kill the task because of the passed error.
-	Kill(source, reason string)
+	// Kill is used to kill the task because of the passed error. If fail is set
+	// to true, the task is marked as failed
+	Kill(source, reason string, fail bool)
 }
 
 // TaskTemplateManager is used to run a set of templates for a given task
@@ -171,7 +172,7 @@ func (tm *TaskTemplateManager) run() {
 					continue
 				}
 
-				tm.hook.Kill("consul-template", err.Error())
+				tm.hook.Kill("consul-template", err.Error(), true)
 			case <-tm.runner.TemplateRenderedCh():
 				// A template has been rendered, figure out what to do
 				events := tm.runner.RenderEvents()
@@ -218,7 +219,7 @@ func (tm *TaskTemplateManager) run() {
 				continue
 			}
 
-			tm.hook.Kill("consul-template", err.Error())
+			tm.hook.Kill("consul-template", err.Error(), true)
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			var handling []string
@@ -243,7 +244,7 @@ func (tm *TaskTemplateManager) run() {
 				// Lookup the template and determine what to do
 				tmpls, ok := tm.lookup[id]
 				if !ok {
-					tm.hook.Kill("consul-template", fmt.Sprintf("consul-template runner returned unknown template id %q", id))
+					tm.hook.Kill("consul-template", fmt.Sprintf("consul-template runner returned unknown template id %q", id), true)
 					return
 				}
 
@@ -296,7 +297,7 @@ func (tm *TaskTemplateManager) run() {
 						for signal := range signals {
 							flat = append(flat, tm.signals[signal])
 						}
-						tm.hook.Kill("consul-template", fmt.Sprintf("Sending signals %v failed: %v", flat, err))
+						tm.hook.Kill("consul-template", fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
 					}
 				}
 			}
