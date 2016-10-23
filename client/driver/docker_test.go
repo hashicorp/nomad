@@ -98,6 +98,7 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
+	driverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
@@ -884,13 +885,13 @@ func TestDockerDriver_Signal(t *testing.T) {
 	}
 
 	driverCtx, execCtx := testDriverContexts(task)
-	//defer execCtx.AllocDir.Destroy()
+	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
 	// Copy the image into the task's directory
 	copyImage(execCtx, task, "busybox.tar", t)
 
-	testFile := filepath.Join(execCtx.AllocDir.TaskDirs["redis-demo"], "test.sh")
+	testFile := filepath.Join(execCtx.AllocDir.TaskDirs["redis-demo"], allocdir.TaskLocal, "test.sh")
 	testData := []byte(`
 at_term() {
     echo 'Terminated.'
