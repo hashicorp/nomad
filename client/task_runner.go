@@ -509,10 +509,10 @@ OUTER:
 		// restoring the TaskRunner
 		if token == "" {
 			// Get a token
-			var ok bool
-			token, ok = r.deriveVaultToken()
-			if !ok {
-				// We are shutting down
+			var exit bool
+			token, exit = r.deriveVaultToken()
+			if exit {
+				// Exit the manager
 				return
 			}
 
@@ -589,12 +589,20 @@ OUTER:
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the token is valid. If it is not valid we
 // are shutting down
-func (r *TaskRunner) deriveVaultToken() (string, bool) {
+func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 	attempts := 0
 	for {
 		tokens, err := r.vaultClient.DeriveToken(r.alloc, []string{r.task.Name})
 		if err == nil {
-			return tokens[r.task.Name], true
+			return tokens[r.task.Name], false
+		}
+
+		// Check if we can't recover from the error
+		if rerr, ok := err.(*structs.RecoverableError); !ok || !rerr.Recoverable {
+			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
+				r.task.Name, r.alloc.ID, err)
+			r.Kill("vault", fmt.Sprintf("failed to derive token: %v", err))
+			return "", true
 		}
 
 		// Handle the retry case
@@ -602,14 +610,15 @@ func (r *TaskRunner) deriveVaultToken() (string, bool) {
 		if backoff > vaultBackoffLimit {
 			backoff = vaultBackoffLimit
 		}
-		r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v", r.task.Name, r.alloc.ID, err, backoff)
+		r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v; retrying in %v",
+			r.task.Name, r.alloc.ID, err, backoff)
 
 		attempts++
 
 		// Wait till retrying
 		select {
 		case <-r.waitCh:
-			return "", false
+			return "", true
 		case <-time.After(backoff):
 		}
 	}
@@ -706,7 +715,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir); err != nil {
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
-					r.restartTracker.SetStartError(dstructs.NewRecoverableError(err, true))
+					r.restartTracker.SetStartError(structs.NewRecoverableError(err, true))
 					goto RESTART
 				}
 			}

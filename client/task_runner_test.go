@@ -721,7 +721,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		}
 
 		count++
-		return nil, fmt.Errorf("Want a retry")
+		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
 	}
 	tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
 	go tr.Run()
@@ -768,6 +768,49 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	if act := string(data); act != token {
 		t.Fatalf("Token didn't get written to disk properly, got %q; want %q", act, token)
 	}
+}
+
+func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:   []string{"default"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	// Error the token derivation
+	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	vc.SetDeriveTokenError(alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
+	go tr.Run()
+
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskKilling)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestTaskRunner_Template_Block(t *testing.T) {

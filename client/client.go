@@ -1714,6 +1714,10 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", err)
 		return nil, fmt.Errorf("failed to derive vault tokens: %v", err)
 	}
+	if resp.Error != nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", resp.Error)
+		return nil, resp.Error
+	}
 	if resp.Tasks == nil {
 		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
 		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")

@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -67,7 +68,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	// Sleep a little while and check that no connection has been established.
 	time.Sleep(100 * time.Duration(testutil.TestMultiplier()) * time.Millisecond)
 
-	if client.ConnectionEstablished() {
+	if established, _ := client.ConnectionEstablished(); established {
 		t.Fatalf("ConnectionEstablished() returned true before Vault server started")
 	}
 
@@ -417,7 +418,7 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 
 	// Set the configs token in a new test role
 	v.Config.Token = testVaultRoleAndToken(v, t, 5)
-	//testVaultRoleAndToken(v, t, 5)
+
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	client, err := NewVaultClient(v.Config, logger, nil)
@@ -455,6 +456,74 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 		t.Fatalf("Bad token: %v", s.WrapInfo.WrappedAccessor)
 	} else if s.WrapInfo.TTL != int(d.Seconds()) {
 		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
+	}
+}
+
+func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	testVaultRoleAndToken(v, t, 5)
+	v.Config.Token = "foo-bar"
+
+	// Start the client
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	testutil.WaitForResult(func() (bool, error) {
+		established, err := client.ConnectionEstablished()
+		if established {
+			return false, fmt.Errorf("Shouldn't establish")
+		}
+
+		return err != nil, nil
+	}, func(err error) {
+		t.Fatalf("Connection not established")
+	})
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	_, err = client.CreateToken(context.Background(), a, task.Name)
+	if err == nil || !strings.Contains(err.Error(), "Connection to Vault failed") {
+		t.Fatalf("CreateToken should have failed: %v", err)
+	}
+}
+
+func TestVaultClient_CreateToken_Prestart(t *testing.T) {
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	_, err = client.CreateToken(context.Background(), a, task.Name)
+	if err == nil {
+		t.Fatalf("CreateToken should have failed: %v", err)
+	}
+
+	if rerr, ok := err.(*structs.RecoverableError); !ok {
+		t.Fatalf("Err should have been type recoverable error")
+	} else if ok && !rerr.Recoverable {
+		t.Fatalf("Err should have been recoverable")
 	}
 }
 
@@ -559,7 +628,7 @@ func TestVaultClient_RevokeTokens(t *testing.T) {
 
 func waitForConnection(v *vaultClient, t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
-		return v.ConnectionEstablished(), nil
+		return v.ConnectionEstablished()
 	}, func(err error) {
 		t.Fatalf("Connection not established")
 	})
