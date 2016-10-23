@@ -587,8 +587,7 @@ OUTER:
 }
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
-// returns the Vault token and whether the token is valid. If it is not valid we
-// are shutting down
+// returns the Vault token and whether the manager should exit.
 func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 	attempts := 0
 	for {

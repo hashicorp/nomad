@@ -215,6 +215,7 @@ func (v *vaultClient) flush() {
 	v.client = nil
 	v.auth = nil
 	v.connEstablished = false
+	v.connEstablishedErr = nil
 	v.token = ""
 	v.tokenData = nil
 	v.revoking = make(map[*structs.VaultAccessor]time.Time)
@@ -357,6 +358,7 @@ OUTER:
 
 	v.l.Lock()
 	v.connEstablished = true
+	v.connEstablishedErr = nil
 	v.l.Unlock()
 }
 
