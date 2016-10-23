@@ -37,7 +37,7 @@ func mockAllocDir(t *testing.T) (*structs.Task, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID), task.Resources.DiskMB)
+	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build([]*structs.Task{task}); err != nil {
 		log.Panicf("allocDir.Build() failed: %v", err)
 	}
