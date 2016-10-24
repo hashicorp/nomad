@@ -126,6 +126,9 @@ group "database" {
 
 * `args`: Additional arguments to the `command` for script based health checks.
 
+* `initial_status`: An optional parameter to set the initial status of the check
+   Valid options are the empty string, `passing`, `warning`, and `critical`.
+
 ## Assumptions
 
 * Consul 0.6.4 or later is needed for using the Script checks.
