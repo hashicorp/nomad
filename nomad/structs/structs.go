@@ -389,6 +389,11 @@ type VaultAccessor struct {
 type DeriveVaultTokenResponse struct {
 	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
+
+	// Error stores any error that occured. Errors are stored here so we can
+	// communicate whether it is retriable
+	Error *RecoverableError
+
 	QueryMeta
 }
 
@@ -3672,4 +3677,28 @@ type KeyringResponse struct {
 // KeyringRequest is request objects for serf key operations.
 type KeyringRequest struct {
 	Key string
+}
+
+// RecoverableError wraps an error and marks whether it is recoverable and could
+// be retried or it is fatal.
+type RecoverableError struct {
+	Err         string
+	Recoverable bool
+}
+
+// NewRecoverableError is used to wrap an error and mark it as recoverable or
+// not.
+func NewRecoverableError(e error, recoverable bool) *RecoverableError {
+	if e == nil {
+		return nil
+	}
+
+	return &RecoverableError{
+		Err:         e.Error(),
+		Recoverable: recoverable,
+	}
+}
+
+func (r *RecoverableError) Error() string {
+	return r.Err
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
+	"github.com/hashicorp/raft"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -940,22 +941,26 @@ func (b *batchFuture) Respond(index uint64, err error) {
 func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	reply *structs.DeriveVaultTokenResponse) error {
 	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
-		return err
+		reply.Error = structs.NewRecoverableError(err, err == structs.ErrNoLeader)
+		return nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
 
 	// Verify the arguments
 	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing node ID"), false)
 	}
 	if args.SecretID == "" {
-		return fmt.Errorf("missing node SecretID")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing node SecretID"), false)
+		return nil
 	}
 	if args.AllocID == "" {
-		return fmt.Errorf("missing allocation ID")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing allocation ID"), false)
+		return nil
 	}
 	if len(args.Tasks) == 0 {
-		return fmt.Errorf("no tasks specified")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("no tasks specified"), false)
+		return nil
 	}
 
 	// Verify the following:
@@ -965,41 +970,51 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	//   tokens
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
-		return err
+		reply.Error = structs.NewRecoverableError(err, false)
+		return nil
 	}
 	node, err := snap.NodeByID(args.NodeID)
 	if err != nil {
-		return err
+		reply.Error = structs.NewRecoverableError(err, false)
+		return nil
 	}
 	if node == nil {
-		return fmt.Errorf("Node %q does not exist", args.NodeID)
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
+		return nil
 	}
 	if node.SecretID != args.SecretID {
-		return fmt.Errorf("SecretID mismatch")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("SecretID mismatch"), false)
+		return nil
 	}
 
 	alloc, err := snap.AllocByID(args.AllocID)
 	if err != nil {
-		return err
+		reply.Error = structs.NewRecoverableError(err, false)
+		return nil
 	}
 	if alloc == nil {
-		return fmt.Errorf("Allocation %q does not exist", args.AllocID)
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
+		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		return fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID)
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
+		return nil
 	}
 	if alloc.TerminalStatus() {
-		return fmt.Errorf("Can't request Vault token for terminal allocation")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
+		return nil
 	}
 
 	// Check the policies
 	policies := alloc.Job.VaultPolicies()
 	if policies == nil {
-		return fmt.Errorf("Job doesn't require Vault policies")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Job doesn't require Vault policies"), false)
+		return nil
 	}
 	tg, ok := policies[alloc.TaskGroup]
 	if !ok {
-		return fmt.Errorf("Task group does not require Vault policies")
+		reply.Error = structs.NewRecoverableError(fmt.Errorf("Task group does not require Vault policies"), false)
+		return nil
 	}
 
 	var unneeded []string
@@ -1011,8 +1026,10 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	}
 
 	if len(unneeded) != 0 {
-		return fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
+		e := fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
 			strings.Join(unneeded, ", "))
+		reply.Error = structs.NewRecoverableError(e, false)
+		return nil
 	}
 
 	// At this point the request is valid and we should contact Vault for
@@ -1043,7 +1060,13 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
 					if err != nil {
-						return fmt.Errorf("failed to create token for task %q: %v", task, err)
+						wrapped := fmt.Errorf("failed to create token for task %q: %v", task, err)
+						if rerr, ok := err.(*structs.RecoverableError); ok && rerr.Recoverable {
+							// If the error is recoverable, propogate it
+							return structs.NewRecoverableError(wrapped, true)
+						}
+
+						return wrapped
 					}
 
 					results[task] = secret
@@ -1068,9 +1091,9 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	}()
 
 	// Wait for everything to complete or for an error
-	err = g.Wait()
+	createErr := g.Wait()
 
-	// Commit to Raft before returning any of the tokens
+	// Retrieve the results
 	accessors := make([]*structs.VaultAccessor, 0, len(results))
 	tokens := make(map[string]string, len(results))
 	for task, secret := range results {
@@ -1092,20 +1115,35 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	}
 
 	// If there was an error revoke the created tokens
-	if err != nil {
-		var mErr multierror.Error
-		mErr.Errors = append(mErr.Errors, err)
-		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, false); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+	if createErr != nil {
+		if revokeErr := n.srv.vault.RevokeTokens(context.Background(), accessors, false); revokeErr != nil {
+			n.srv.logger.Printf("[ERR] nomad.node: Vault token revocation failed: %v", revokeErr)
 		}
-		return mErr.ErrorOrNil()
+
+		if rerr, ok := createErr.(*structs.RecoverableError); ok {
+			reply.Error = rerr
+		} else {
+			reply.Error = structs.NewRecoverableError(createErr, false)
+		}
+
+		return nil
 	}
 
+	// Commit to Raft before returning any of the tokens
 	req := structs.VaultAccessorsRequest{Accessors: accessors}
 	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors failed: %v", err)
-		return err
+
+		// Determine if we can recover from the error
+		retry := false
+		switch err {
+		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
+			retry = true
+		}
+
+		reply.Error = structs.NewRecoverableError(err, retry)
+		return nil
 	}
 
 	reply.Index = index

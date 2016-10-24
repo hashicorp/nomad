@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -34,7 +34,7 @@ func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 }
 
 type RestartTracker struct {
-	waitRes          *cstructs.WaitResult
+	waitRes          *dstructs.WaitResult
 	startErr         error
 	restartTriggered bool      // Whether the task has been signalled to be restarted
 	count            int       // Current number of attempts.
@@ -63,7 +63,7 @@ func (r *RestartTracker) SetStartError(err error) *RestartTracker {
 }
 
 // SetWaitResult is used to mark the most recent wait result.
-func (r *RestartTracker) SetWaitResult(res *cstructs.WaitResult) *RestartTracker {
+func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.waitRes = res
@@ -149,7 +149,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 // infinitely try to start a task.
 func (r *RestartTracker) handleStartError() (string, time.Duration) {
 	// If the error is not recoverable, do not restart.
-	if rerr, ok := r.startErr.(*cstructs.RecoverableError); !(ok && rerr.Recoverable) {
+	if rerr, ok := r.startErr.(*structs.RecoverableError); !(ok && rerr.Recoverable) {
 		r.reason = ReasonUnrecoverableErrror
 		return structs.TaskNotRestarting, 0
 	}
