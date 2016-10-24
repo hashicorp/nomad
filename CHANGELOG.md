@@ -5,6 +5,7 @@ IMPROVEMENTS:
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * agent: Add DataDog telemetry sync [GH-1816]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
+  * cli: `nomad node-status` shows node metadata in verbose mode [GH-1841]
   * client: Failed RPCs are retried on all servers [GH-1735]
   * client: Enforce shared allocation directory disk usage [GH-1580]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
