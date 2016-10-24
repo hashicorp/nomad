@@ -76,19 +76,11 @@ The `rkt` driver supports the following configuration in the job spec:
 * `debug` - (Optional) Enable rkt command debug option.
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Mounting host paths outside of the alloc
-  directory tasks normally have access to can be disabled on clients by setting
-  the `rkt.volumes.enabled` option set to false.
+  host paths to container paths.
 
     ```hcl
     config {
-      volumes = [
-        # Use absolute paths to mount arbitrary paths on the host
-        "/path/on/host:/path/in/container",
-
-        # Use relative paths to rebind paths already in the allocation dir
-        "relative/to/alloc:/also/in/container"
-      ]
+      volumes = ["/path/on/host:/path/in/container"]
     }
     ```
 
