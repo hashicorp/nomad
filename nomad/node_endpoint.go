@@ -1140,7 +1140,6 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 		switch err {
 		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
 			retry = true
-		default:
 		}
 
 		reply.Error = structs.NewRecoverableError(err, retry)
