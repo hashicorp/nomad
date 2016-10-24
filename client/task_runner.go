@@ -370,7 +370,7 @@ func (r *TaskRunner) Run() {
 	if err := r.validateTask(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err))
+			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err).SetFailsTask())
 		return
 	}
 
@@ -520,7 +520,7 @@ OUTER:
 			if err := r.writeToken(token); err != nil {
 				e := fmt.Errorf("failed to write Vault token to disk")
 				r.logger.Printf("[ERR] client: %v for task %v on alloc %q: %v", e, r.task.Name, r.alloc.ID, err)
-				r.Kill("vault", e.Error())
+				r.Kill("vault", e.Error(), true)
 				return
 			}
 		}
@@ -545,13 +545,13 @@ OUTER:
 				if err != nil {
 					e := fmt.Errorf("failed to parse signal: %v", err)
 					r.logger.Printf("[ERR] client: %v", err)
-					r.Kill("vault", e.Error())
+					r.Kill("vault", e.Error(), true)
 					return
 				}
 
 				if err := r.Signal("vault", "new Vault token acquired", s); err != nil {
 					r.logger.Printf("[ERR] client: failed to send signal to task %v for alloc %q: %v", r.task.Name, r.alloc.ID, err)
-					r.Kill("vault", fmt.Sprintf("failed to send signal to task: %v", err))
+					r.Kill("vault", fmt.Sprintf("failed to send signal to task: %v", err), true)
 					return
 				}
 			case structs.VaultChangeModeRestart:
@@ -640,7 +640,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 	if err := r.setTaskEnv(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err).SetFailsTask())
 		return
 	}
 
@@ -653,7 +653,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
-			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
 			return
 		}
@@ -679,7 +679,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 	if err := r.setTaskEnv(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err).SetFailsTask())
 		resultCh <- false
 		return
 	}
@@ -691,7 +691,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
-			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
+			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
 			resultCh <- false
 			return
@@ -703,6 +703,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 			for _, artifact := range r.task.Artifacts {
+				// TODO wrap
 				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir); err != nil {
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
@@ -850,7 +851,7 @@ func (r *TaskRunner) run() {
 			case event := <-r.restartCh:
 				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
 				r.setState(structs.TaskStateRunning, event)
-				r.killTask(event.RestartReason)
+				r.killTask(nil)
 
 				close(stopCollection)
 
@@ -871,16 +872,16 @@ func (r *TaskRunner) run() {
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
 				// doesn't add detail
-				reason := ""
+				var killEvent *structs.TaskEvent
 				if r.destroyEvent.Type != structs.TaskKilled {
 					if r.destroyEvent.Type == structs.TaskKilling {
-						reason = r.destroyEvent.KillReason
+						killEvent = r.destroyEvent
 					} else {
 						r.setState(structs.TaskStateRunning, r.destroyEvent)
 					}
 				}
 
-				r.killTask(reason)
+				r.killTask(killEvent)
 				close(stopCollection)
 				return
 			}
@@ -913,7 +914,7 @@ func (r *TaskRunner) shouldRestart() bool {
 		if state == structs.TaskNotRestarting {
 			r.setState(structs.TaskStateDead,
 				structs.NewTaskEvent(structs.TaskNotRestarting).
-					SetRestartReason(reason))
+					SetRestartReason(reason).SetFailsTask())
 		}
 		return false
 	case structs.TaskRestarting:
@@ -938,7 +939,7 @@ func (r *TaskRunner) shouldRestart() bool {
 	destroyed := r.destroy
 	r.destroyLock.Unlock()
 	if destroyed {
-		r.logger.Printf("[DEBUG] client: Not restarting task: %v because it has been destroyed due to: %s", r.task.Name, r.destroyEvent.Message)
+		r.logger.Printf("[DEBUG] client: Not restarting task: %v because it has been destroyed", r.task.Name)
 		r.setState(structs.TaskStateDead, r.destroyEvent)
 		return false
 	}
@@ -946,8 +947,10 @@ func (r *TaskRunner) shouldRestart() bool {
 	return true
 }
 
-// killTask kills the running task, storing the reason in the Killing TaskEvent.
-func (r *TaskRunner) killTask(reason string) {
+// killTask kills the running task. A killing event can optionally be passed and
+// this event is used to mark the task as being killed. It provides a means to
+// store extra information.
+func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	r.runningLock.Lock()
 	running := r.running
 	r.runningLock.Unlock()
@@ -955,10 +958,21 @@ func (r *TaskRunner) killTask(reason string) {
 		return
 	}
 
-	// Mark that we received the kill event
+	// Get the kill timeout
 	timeout := driver.GetKillTimeout(r.task.KillTimeout, r.config.MaxKillTimeout)
-	r.setState(structs.TaskStateRunning,
-		structs.NewTaskEvent(structs.TaskKilling).SetKillTimeout(timeout).SetKillReason(reason))
+
+	// Build the event
+	var event *structs.TaskEvent
+	if killingEvent != nil {
+		event = killingEvent
+		event.Type = structs.TaskKilling
+	} else {
+		event = structs.NewTaskEvent(structs.TaskKilling)
+	}
+	event.SetKillTimeout(timeout)
+
+	// Mark that we received the kill event
+	r.setState(structs.TaskStateRunning, event)
 
 	// Kill the task using an exponential backoff in-case of failures.
 	destroySuccess, err := r.handleDestroy()
@@ -1176,11 +1190,14 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 	return <-resCh
 }
 
-// Kill will kill a task and store the error, no longer restarting the task
-// TODO need to be able to fail the task
-func (r *TaskRunner) Kill(source, reason string) {
+// Kill will kill a task and store the error, no longer restarting the task. If
+// fail is set, the task is marked as having failed.
+func (r *TaskRunner) Kill(source, reason string, fail bool) {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskKilling).SetKillReason(reasonStr)
+	if fail {
+		event.SetFailsTask()
+	}
 
 	r.logger.Printf("[DEBUG] client: killing task %v for alloc %q: %v", r.task.Name, r.alloc.ID, reasonStr)
 	r.Destroy(event)

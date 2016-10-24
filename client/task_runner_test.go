@@ -33,11 +33,15 @@ func prefixedTestLogger(prefix string) *log.Logger {
 
 type MockTaskStateUpdater struct {
 	state  string
+	failed bool
 	events []*structs.TaskEvent
 }
 
 func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
 	m.state = state
+	if event.FailsTask {
+		m.failed = true
+	}
 	m.events = append(m.events, event)
 }
 
@@ -479,7 +483,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		tr.Restart("test", "restart")
 		time.Sleep(100 * time.Millisecond)
-		tr.Kill("test", "restart")
+		tr.Kill("test", "restart", false)
 	}()
 
 	select {
@@ -550,7 +554,7 @@ func TestTaskRunner_KillTask(t *testing.T) {
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		tr.Kill("test", "kill")
+		tr.Kill("test", "kill", true)
 	}()
 
 	select {
@@ -565,6 +569,10 @@ func TestTaskRunner_KillTask(t *testing.T) {
 
 	if upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if !upd.failed {
+		t.Fatalf("TaskState should be failed: %+v", upd)
 	}
 
 	if upd.events[0].Type != structs.TaskReceived {

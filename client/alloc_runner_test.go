@@ -74,8 +74,16 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].RestartPolicy.Mode = structs.RestartPolicyModeFail
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 1
 	alloc.Job.TaskGroups[0].RestartPolicy.Delay = time.Duration(4*testutil.TestMultiplier()) * time.Second
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
 
 	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -108,10 +116,10 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 		// bad task should have failed
 		badstate := last.TaskStates["bad"]
 		if badstate.State != structs.TaskStateDead {
-			return false, fmt.Errorf("expected bad to be dead but found %q", last.TaskStates["web"].State)
+			return false, fmt.Errorf("expected bad to be dead but found %q", badstate.State)
 		}
-		if !badstate.Failed() {
-			return false, fmt.Errorf("expected bad to have failed")
+		if !badstate.Failed {
+			return false, fmt.Errorf("expected bad to have failed: %#v", badstate.Events)
 		}
 		return true, nil
 	}, func(err error) {
@@ -503,7 +511,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state2.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state2.State, structs.TaskStateDead)
 		}
-		if !state2.Failed() {
+		if !state2.Failed {
 			return false, fmt.Errorf("task2 should have failed")
 		}
 
