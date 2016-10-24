@@ -112,31 +112,9 @@ type Config struct {
 	// List of config files that have been loaded (in order)
 	Files []string `mapstructure:"-"`
 
-	// Don't verify callers identity
-	HttpTLS bool `mapstructure:"http_tls"`
-
-	// Verify inbound and outbound
-	RpcTLS bool `mapstructure:"rpc_tls"`
-
-	// VerifyServerHostname is used to enable hostname verification of servers. This
-	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
-	// This prevents a compromised client from being restarted as a server, and then
-	// intercepting request traffic as well as being added as a raft peer. This should be
-	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
-	// existing clients.
-	VerifyServerHostname bool `mapstructure:"verify_server_hostname"`
-
-	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
-	// or VerifyOutgoing to verify the TLS connection.
-	CAFile string `mapstructure:"ca_file"`
-
-	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
-	// Must be provided to serve TLS connections.
-	CertFile string `mapstructure:"cert_file"`
-
-	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
-	// Must be provided to serve TLS connections.
-	KeyFile string `mapstructure:"key_file"`
+	// TLSConfig provides TLS related configuration for the Nomad server and
+	// client
+	TLSConfig *TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
@@ -159,6 +137,36 @@ type AtlasConfig struct {
 	// Endpoint is the SCADA endpoint used for Atlas integration. If
 	// empty, the defaults from the provider are used.
 	Endpoint string `mapstructure:"endpoint"`
+}
+
+// TLSConfig provides TLS related configuration
+type TLSConfig struct {
+
+	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
+	EnableHTTP bool `mapstructure:"http_tls"`
+
+	// EnableRPC enables TLS for RPC and Raft traffic to the Nomad servers
+	EnableRPC bool `mapstructure:"rpc_tls"`
+
+	// VerifyServerHostname is used to enable hostname verification of servers. This
+	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
+	// This prevents a compromised client from being restarted as a server, and then
+	// intercepting request traffic as well as being added as a raft peer. This should be
+	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
+	// existing clients.
+	VerifyServerHostname bool `mapstructure:"verify_server_hostname"`
+
+	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
+	// or VerifyOutgoing to verify the TLS connection.
+	CAFile string `mapstructure:"ca_file"`
+
+	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	CertFile string `mapstructure:"cert_file"`
+
+	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	KeyFile string `mapstructure:"key_file"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -512,6 +520,7 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
+		TLSConfig: &TLSConfig{},
 	}
 }
 
@@ -583,24 +592,6 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
 	}
-	if b.HttpTLS {
-		result.HttpTLS = true
-	}
-	if b.RpcTLS {
-		result.RpcTLS = true
-	}
-	if b.VerifyServerHostname {
-		result.VerifyServerHostname = true
-	}
-	if b.CAFile != "" {
-		result.CAFile = b.CAFile
-	}
-	if b.CertFile != "" {
-		result.CertFile = b.CertFile
-	}
-	if b.KeyFile != "" {
-		result.KeyFile = b.KeyFile
-	}
 
 	// Apply the telemetry config
 	if result.Telemetry == nil && b.Telemetry != nil {
@@ -608,6 +599,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Telemetry = &telemetry
 	} else if b.Telemetry != nil {
 		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
+	}
+
+	// Apply the TLS Config
+	if result.TLSConfig == nil && b.TLSConfig != nil {
+		tlsConfig := *b.TLSConfig
+		result.TLSConfig = &tlsConfig
+	} else if b.TLSConfig != nil {
+		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
 
 	// Apply the client config
@@ -803,6 +802,32 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	for k, v := range b.ChrootEnv {
 		result.ChrootEnv[k] = v
+	}
+
+	return &result
+}
+
+// Merge is used to merge two TLS configs together
+func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
+	result := *t
+
+	if b.EnableHTTP {
+		result.EnableHTTP = true
+	}
+	if b.EnableRPC {
+		result.EnableRPC = true
+	}
+	if b.VerifyServerHostname {
+		result.VerifyServerHostname = true
+	}
+	if b.CAFile != "" {
+		result.CAFile = b.CAFile
+	}
+	if b.CertFile != "" {
+		result.CertFile = b.CertFile
+	}
+	if b.KeyFile != "" {
+		result.KeyFile = b.KeyFile
 	}
 
 	return &result

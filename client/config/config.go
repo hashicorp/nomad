@@ -134,10 +134,10 @@ type Config struct {
 	// allocation metrics to remote Telemetry sinks
 	PublishAllocationMetrics bool
 
-	// Don't verify callers identity
+	// HttpTLS enables TLS for the HTTP endpoints on the clients.
 	HttpTLS bool `mapstructure:"http_tls"`
 
-	// Verify inbound and outbound
+	// RpcTLS enables TLS for the outgoing TLS connections to the Nomad servers.
 	RpcTLS bool `mapstructure:"rpc_tls"`
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
@@ -254,6 +254,7 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
+// TLSConfig returns a TLSUtil Config based on the client configuration
 func (c *Config) TLSConfig() *tlsutil.Config {
 	tlsConf := &tlsutil.Config{
 		VerifyIncoming:       true,

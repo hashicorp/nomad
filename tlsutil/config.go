@@ -9,8 +9,7 @@ import (
 	"time"
 )
 
-// Wrapper is a variant of DCWrapper, where the DC is provided as
-// a constant value. This is usually done by currying DCWrapper.
+// Wrapper wraps a connection and enables TLS on it.
 type Wrapper func(conn net.Conn) (net.Conn, error)
 
 // Config used to create tls.Config
@@ -126,7 +125,7 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// OutgoingTLSWrapper returns a a DCWrapper based on the OutgoingTLS
+// OutgoingTLSWrapper returns a a Wrapper based on the OutgoingTLS
 // configuration. If hostname verification is on, the wrapper
 // will properly generate the dynamic server name for verification.
 func (c *Config) OutgoingTLSWrapper() (Wrapper, error) {

@@ -136,6 +136,14 @@ func TestConfig_Parse(t *testing.T) {
 					TaskTokenTTL:         "1s",
 					Token:                "12345",
 				},
+				TLSConfig: &TLSConfig{
+					EnableHTTP:           true,
+					EnableRPC:            true,
+					VerifyServerHostname: true,
+					CAFile:               "foo",
+					CertFile:             "bar",
+					KeyFile:              "pipe",
+				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",
 				},

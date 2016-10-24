@@ -256,6 +256,7 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 }
 
 func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
+	// TODO this test is currently hanging, need to investigate more.
 	t.SkipNow()
 	config := &Config{
 		CAFile:               "../test/ca/root.cer",

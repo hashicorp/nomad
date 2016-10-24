@@ -54,14 +54,14 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}
 
-	if config.HttpTLS {
+	if config.TLSConfig.EnableHTTP {
 		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       true,
+			VerifyIncoming:       false,
 			VerifyOutgoing:       true,
-			VerifyServerHostname: config.VerifyServerHostname,
-			CAFile:               config.CAFile,
-			CertFile:             config.CertFile,
-			KeyFile:              config.KeyFile,
+			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
+			CAFile:               config.TLSConfig.CAFile,
+			CertFile:             config.TLSConfig.CertFile,
+			KeyFile:              config.TLSConfig.KeyFile,
 			ServerName:           config.NodeName,
 		}
 		tlsConfig, err := tlsConf.IncomingTLSConfig()

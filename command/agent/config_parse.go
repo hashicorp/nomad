@@ -94,12 +94,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"atlas",
 		"consul",
 		"vault",
-		"http_tls",
-		"rpc_tls",
-		"verify_server_hostname",
-		"ca_file",
-		"cert_file",
-		"key_file",
+		"tls",
 		"http_api_response_headers",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
@@ -121,6 +116,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "atlas")
 	delete(m, "consul")
 	delete(m, "vault")
+	delete(m, "tls")
 	delete(m, "http_api_response_headers")
 
 	// Decode the rest
@@ -188,6 +184,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("vault"); len(o.Items) > 0 {
 		if err := parseVaultConfig(&result.Vault, o); err != nil {
 			return multierror.Prefix(err, "vault ->")
+		}
+	}
+
+	// Parse the TLS config
+	if o := list.Filter("tls"); len(o.Items) > 0 {
+		if err := parseTLSConfig(&result.TLSConfig, o); err != nil {
+			return multierror.Prefix(err, "tls ->")
 		}
 	}
 
@@ -646,6 +649,41 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	}
 
 	*result = consulConfig
+	return nil
+}
+
+func parseTLSConfig(result **TLSConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'tls' block allowed")
+	}
+
+	// Get the TLS object
+	listVal := list.Items[0].Val
+
+	valid := []string{
+		"http_tls",
+		"rpc_tls",
+		"verify_server_hostname",
+		"ca_file",
+		"cert_file",
+		"key_file",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var tlsConfig TLSConfig
+	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
+		return err
+	}
+	*result = &tlsConfig
 	return nil
 }
 

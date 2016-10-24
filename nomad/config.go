@@ -193,6 +193,7 @@ type Config struct {
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
 
+	// Enable TLS for incoming RPC calls from Nomad clients
 	RpcTLS bool
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
@@ -287,6 +288,7 @@ func DefaultConfig() *Config {
 	return c
 }
 
+// tlsConfig returns a TLSUtil Config based on the server configuration
 func (c *Config) tlsConfig() *tlsutil.Config {
 	tlsConf := &tlsutil.Config{
 		VerifyIncoming:       true,
