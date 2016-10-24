@@ -367,6 +367,15 @@ func (r *TaskRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.alloc.ID)
 
+	// Create the initial environment, this will be recreated if a Vault token
+	// is needed
+	if err := r.setTaskEnv(); err != nil {
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
+		return
+	}
+
 	if err := r.validateTask(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
@@ -414,6 +423,14 @@ func (r *TaskRunner) validateTask() error {
 			r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
 				r.alloc.ID, r.task.Name, artifact, i, err)
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("artifact (%d) failed validation: %v", i, err))
+		}
+	}
+
+	// Validate the Service names
+	for i, service := range r.task.Services {
+		name := r.taskEnv.ReplaceEnv(service.Name)
+		if err := service.ValidateName(name); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service (%d) failed validation: %v", i, err))
 		}
 	}
 
@@ -648,7 +665,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 	if err := r.setTaskEnv(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err).SetFailsTask())
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 		return
 	}
 
@@ -687,7 +704,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 	if err := r.setTaskEnv(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err).SetFailsTask())
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 		resultCh <- false
 		return
 	}
