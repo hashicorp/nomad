@@ -600,7 +600,7 @@ func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 		if rerr, ok := err.(*structs.RecoverableError); !ok || !rerr.Recoverable {
 			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
-			r.Kill("vault", fmt.Sprintf("failed to derive token: %v", err))
+			r.Kill("vault", fmt.Sprintf("failed to derive token: %v", err), true)
 			return "", true
 		}
 
