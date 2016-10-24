@@ -662,8 +662,8 @@ func parseTLSConfig(result **TLSConfig, list *ast.ObjectList) error {
 	listVal := list.Items[0].Val
 
 	valid := []string{
-		"http_tls",
-		"rpc_tls",
+		"enable_http",
+		"enable_rpc",
 		"verify_server_hostname",
 		"ca_file",
 		"cert_file",

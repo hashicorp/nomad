@@ -122,8 +122,8 @@ vault {
     tls_skip_verify = true
 }
 tls {
-    http_tls = true
-    rpc_tls  = true
+    enable_http = true
+    enable_rpc = true
     verify_server_hostname = true
     ca_file = "foo"
     cert_file = "bar"
