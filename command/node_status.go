@@ -359,6 +359,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.verbose {
 		c.formatAttributes(node)
+		c.formatMeta(node)
 	}
 	return 0
 
@@ -380,6 +381,24 @@ func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
 	c.Ui.Output(formatKV(attributes))
+}
+
+func (c *NodeStatusCommand) formatMeta(node *api.Node) {
+	// Print the meta
+	keys := make([]string, 0, len(node.Meta))
+	for k := range node.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var meta []string
+	for _, k := range keys {
+		if k != "" {
+			meta = append(meta, fmt.Sprintf("%s|%s", k, node.Meta[k]))
+		}
+	}
+	c.Ui.Output(c.Colorize().Color("\n[bold]Meta[reset]"))
+	c.Ui.Output(formatKV(meta))
 }
 
 func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {
