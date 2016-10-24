@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/tlsutil"
 )
 
 var (
@@ -132,6 +133,32 @@ type Config struct {
 	// PublishAllocationMetrics determines whether nomad is going to publish
 	// allocation metrics to remote Telemetry sinks
 	PublishAllocationMetrics bool
+
+	// Don't verify callers identity
+	HttpTLS bool `mapstructure:"http_tls"`
+
+	// Verify inbound and outbound
+	RpcTLS bool `mapstructure:"rpc_tls"`
+
+	// VerifyServerHostname is used to enable hostname verification of servers. This
+	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
+	// This prevents a compromised client from being restarted as a server, and then
+	// intercepting request traffic as well as being added as a raft peer. This should be
+	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
+	// existing clients.
+	VerifyServerHostname bool `mapstructure:"verify_server_hostname"`
+
+	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
+	// or VerifyOutgoing to verify the TLS connection.
+	CAFile string `mapstructure:"ca_file"`
+
+	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	CertFile string `mapstructure:"cert_file"`
+
+	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	KeyFile string `mapstructure:"key_file"`
 }
 
 func (c *Config) Copy() *Config {
@@ -225,4 +252,17 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 		}
 	}
 	return list
+}
+
+func (c *Config) TLSConfig() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: c.VerifyServerHostname,
+		CAFile:               c.CAFile,
+		CertFile:             c.CertFile,
+		KeyFile:              c.KeyFile,
+		ServerName:           c.Node.Name,
+	}
+	return tlsConf
 }

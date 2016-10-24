@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/nomad/tlsutil"
 )
 
 // RaftLayer implements the raft.StreamLayer interface,

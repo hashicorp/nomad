@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/tlsutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -191,6 +192,28 @@ type Config struct {
 	// This period is meant to be long enough for a leader election to take
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
+
+	RpcTLS bool
+
+	// VerifyServerHostname is used to enable hostname verification of servers. This
+	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
+	// This prevents a compromised client from being restarted as a server, and then
+	// intercepting request traffic as well as being added as a raft peer. This should be
+	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
+	// existing clients.
+	VerifyServerHostname bool
+
+	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
+	// or VerifyOutgoing to verify the TLS connection.
+	CAFile string
+
+	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	CertFile string
+
+	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
+	// Must be provided to serve TLS connections.
+	KeyFile string
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -262,4 +285,17 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 	return c
+}
+
+func (c *Config) tlsConfig() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: c.VerifyServerHostname,
+		CAFile:               c.CAFile,
+		CertFile:             c.CertFile,
+		KeyFile:              c.KeyFile,
+		ServerName:           c.NodeName,
+	}
+	return tlsConf
 }

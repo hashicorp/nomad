@@ -244,6 +244,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf.ConsulConfig = a.config.Consul
 	conf.VaultConfig = a.config.Vault
 
+	// Set the TLS related configs
+	conf.RpcTLS = a.config.RpcTLS
+	conf.VerifyServerHostname = a.config.VerifyServerHostname
+	conf.CAFile = a.config.CAFile
+	conf.CertFile = a.config.CertFile
+	conf.KeyFile = a.config.KeyFile
+
 	return conf, nil
 }
 
@@ -357,6 +364,15 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics
+
+	// Set the TLS related configs
+	conf.HttpTLS = a.config.HttpTLS
+	conf.RpcTLS = a.config.RpcTLS
+	conf.VerifyServerHostname = a.config.VerifyServerHostname
+	conf.CAFile = a.config.CAFile
+	conf.CertFile = a.config.CertFile
+	conf.KeyFile = a.config.KeyFile
+
 	return conf, nil
 }
 

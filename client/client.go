@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/tlsutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 )
@@ -164,12 +165,22 @@ var (
 
 // NewClient is used to create a new client from the given configuration
 func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
+	//Create the tls wrapper
+	var tlsWrap tlsutil.Wrapper
+	if cfg.RpcTLS {
+		tw, err := cfg.TLSConfig().OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
+		tlsWrap = tw
+	}
+
 	// Create the client
 	c := &Client{
 		config:              cfg,
 		consulSyncer:        consulSyncer,
 		start:               time.Now(),
-		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, nil),
+		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
 		hostStatsCollector:  stats.NewHostStatsCollector(),
 		allocs:              make(map[string]*AllocRunner),

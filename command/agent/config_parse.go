@@ -94,6 +94,12 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"atlas",
 		"consul",
 		"vault",
+		"http_tls",
+		"rpc_tls",
+		"verify_server_hostname",
+		"ca_file",
+		"cert_file",
+		"key_file",
 		"http_api_response_headers",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
