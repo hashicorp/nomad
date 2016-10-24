@@ -390,3 +390,24 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 		t.Fatalf("ChangeEvents of escaping path didn't error: %v", err)
 	}
 }
+
+func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(tmp)
+	defer d.Destroy()
+	tasks := []*structs.Task{t1, t2}
+	if err := d.Build(tasks); err != nil {
+		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	}
+
+	// ReadAt of secret dir should fail
+	secret := filepath.Join(t1.Name, TaskSecrets, "test_file")
+	if _, err := d.ReadAt(secret, 0); err == nil || !strings.Contains(err.Error(), "secret file prohibited") {
+		t.Fatalf("ReadAt of secret file didn't error: %v", err)
+	}
+}

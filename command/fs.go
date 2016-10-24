@@ -298,7 +298,9 @@ func (f *FSCommand) Run(args []string) int {
 		}
 	}
 
-	defer r.Close()
+	if r != nil {
+		defer r.Close()
+	}
 	if readErr != nil {
 		f.Ui.Error(readErr.Error())
 		return 1

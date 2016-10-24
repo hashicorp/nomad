@@ -467,6 +467,15 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	}
 
 	p := filepath.Join(d.AllocDir, path)
+
+	// Check if it is trying to read into a secret directory
+	for _, dir := range d.TaskDirs {
+		sdir := filepath.Join(dir, TaskSecrets)
+		if filepath.HasPrefix(p, sdir) {
+			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
+		}
+	}
+
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
