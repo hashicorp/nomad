@@ -370,7 +370,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
 
-	// Advertise if this node supports Docker volumes (by default we do not)
+	// Advertise if this node supports Docker volumes
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
 		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
 	}

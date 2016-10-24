@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
@@ -58,7 +57,6 @@ const (
 // planned in the future
 type RktDriver struct {
 	DriverContext
-	fingerprint.StaticFingerprinter
 }
 
 type RktDriverConfig struct {
@@ -176,7 +174,16 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
 		node.Attributes[rktDriverAttr] = "0"
 	}
+
+	// Advertise if this node supports rkt volumes
+	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
+		node.Attributes["driver."+rktVolumesConfigOption] = "1"
+	}
 	return true, nil
+}
+
+func (d *RktDriver) Periodic() (bool, time.Duration) {
+	return true, 15 * time.Second
 }
 
 // Run an existing Rkt image.
@@ -248,8 +255,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
 			volName := fmt.Sprintf("%s-%s-%d", ctx.AllocID, task.Name, i)
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, i, parts[0]))
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, i, parts[1]))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, parts[0]))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
 	}
 
