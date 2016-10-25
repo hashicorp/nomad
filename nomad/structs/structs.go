@@ -1909,13 +1909,14 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 func (s *Service) Validate() error {
 	var mErr multierror.Error
 
-	// Ensure the service name is valid per RFC-952 §1
-	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
+	// Ensure the service name is valid per the below RFCs but make an exception
+	// for our interpolation syntax
+	// RFC-952 §1 (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
 	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
 	// (https://tools.ietf.org/html/rfc2782).
-	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
+	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9\$][a-zA-Z0-9\-\$\{\}\_\.]*[a-z0-9\}])$`)
 	if !re.MatchString(s.Name) {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be less than 63 characters long: %q", s.Name))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
 	}
 
 	for _, c := range s.Checks {
@@ -1929,6 +1930,20 @@ func (s *Service) Validate() error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+// ValidateName checks if the services Name is valid and should be called after
+// the name has been interpolated
+func (s *Service) ValidateName(name string) error {
+	// Ensure the service name is valid per RFC-952 §1
+	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
+	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
+	// (https://tools.ietf.org/html/rfc2782).
+	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
+	if !re.MatchString(name) {
+		return fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be less than 63 characters long: %q", name)
+	}
+	return nil
 }
 
 // Hash calculates the hash of the check based on it's content and the service
