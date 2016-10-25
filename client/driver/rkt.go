@@ -339,12 +339,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		for _, port := range network.ReservedPorts {
 			var containerPort string
 
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPort = mapped
-			} else {
-				// If the user doesn't have mapped a port using port_map, driver stops running container.
+			mapped, ok := driverConfig.PortMap[port.Label]
+			if !ok {
+				// If the user doesn't have a mapped port using port_map, driver stops running container.
 				return nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
 			}
+			containerPort = mapped
 
 			hostPortStr := strconv.Itoa(port.Value)
 

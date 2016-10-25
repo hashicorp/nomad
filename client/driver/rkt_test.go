@@ -408,13 +408,26 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	task := &structs.Task{
 		Name: "etcd",
 		Config: map[string]interface{}{
-			"trust_prefix": "coreos.com/etcd",
-			"image":        "coreos.com/etcd:v2.0.4",
-			"command":      "/etcd",
-			"args":         []string{"--version"},
+			"image": "docker://redis:latest",
+			"args":  []string{"--version"},
 			"port_map": []map[string]string{
 				map[string]string{
-					"main": "8080-tcp",
+					"main": "6379-tcp",
+				},
+			},
+			"debug": "true",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{"main", 8080}},
 				},
 			},
 		},
@@ -434,12 +447,12 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	}
 	defer handle.Kill()
 
-	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if handle2 == nil {
-		t.Fatalf("missing handle")
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
 	}
 }
