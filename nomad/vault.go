@@ -597,6 +597,10 @@ func (v *vaultClient) validateRole(role string) error {
 		multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
 	}
 
+	if data.Period == 0 {
+		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
