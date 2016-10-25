@@ -35,6 +35,7 @@ BUG FIXES:
     leader [GH-1656]
   * discovery: Fix client flapping when server is in a different datacenter as
     the client [GH-1641]
+  * discovery/jobspec: Validate service name after interpolation [GH-1852]
   * driver/docker: Fix `local/` directory mount into container [GH-1830]
 
 ## 0.4.1 (August 18, 2016)
