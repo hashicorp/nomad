@@ -121,3 +121,11 @@ vault {
     tls_server_name = "foobar"
     tls_skip_verify = true
 }
+tls {
+    http = true
+    rpc = true
+    verify_server_hostname = true
+    ca_file = "foo"
+    cert_file = "bar"
+    key_file = "pipe"
+}
