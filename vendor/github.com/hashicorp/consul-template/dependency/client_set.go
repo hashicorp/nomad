@@ -2,15 +2,14 @@ package dependency
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-cleanhttp"
+	rootcerts "github.com/hashicorp/go-rootcerts"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
@@ -47,6 +46,7 @@ type CreateConsulClientInput struct {
 	SSLCert      string
 	SSLKey       string
 	SSLCACert    string
+	SSLCAPath    string
 	ServerName   string
 }
 
@@ -60,6 +60,7 @@ type CreateVaultClientInput struct {
 	SSLCert     string
 	SSLKey      string
 	SSLCACert   string
+	SSLCAPath   string
 	ServerName  string
 }
 
@@ -122,15 +123,14 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 		}
 
 		// Custom CA certificate
-		if i.SSLCACert != "" {
-			cacert, err := ioutil.ReadFile(i.SSLCACert)
-			if err != nil {
-				return fmt.Errorf("client set: consul: %s", err)
+		if i.SSLCACert != "" || i.SSLCAPath != "" {
+			rootConfig := &rootcerts.Config{
+				CAFile: i.SSLCACert,
+				CAPath: i.SSLCAPath,
 			}
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(cacert)
-
-			tlsConfig.RootCAs = caCertPool
+			if err := rootcerts.ConfigureTLS(&tlsConfig, rootConfig); err != nil {
+				return fmt.Errorf("client set: consul configuring TLS failed: %s", err)
+			}
 		}
 
 		// Construct all the certificates now
@@ -205,15 +205,14 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 		}
 
 		// Custom CA certificate
-		if i.SSLCACert != "" {
-			cacert, err := ioutil.ReadFile(i.SSLCACert)
-			if err != nil {
-				return fmt.Errorf("client set: vault: %s", err)
+		if i.SSLCACert != "" || i.SSLCAPath != "" {
+			rootConfig := &rootcerts.Config{
+				CAFile: i.SSLCACert,
+				CAPath: i.SSLCAPath,
 			}
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(cacert)
-
-			tlsConfig.RootCAs = caCertPool
+			if err := rootcerts.ConfigureTLS(&tlsConfig, rootConfig); err != nil {
+				return fmt.Errorf("client set: vault configuring TLS failed: %s", err)
+			}
 		}
 
 		// Construct all the certificates now

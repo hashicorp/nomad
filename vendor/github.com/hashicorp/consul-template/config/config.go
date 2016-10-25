@@ -144,6 +144,7 @@ func (c *Config) Copy() *Config {
 				Cert:       c.Vault.SSL.Cert,
 				Key:        c.Vault.SSL.Key,
 				CaCert:     c.Vault.SSL.CaCert,
+				CaPath:     c.Vault.SSL.CaPath,
 				ServerName: c.Vault.SSL.ServerName,
 			}
 		}
@@ -156,6 +157,7 @@ func (c *Config) Copy() *Config {
 			Cert:       c.SSL.Cert,
 			Key:        c.SSL.Key,
 			CaCert:     c.SSL.CaCert,
+			CaPath:     c.SSL.CaPath,
 			ServerName: c.SSL.ServerName,
 		}
 	}
@@ -283,6 +285,10 @@ func (c *Config) Merge(config *Config) {
 				c.Vault.SSL.CaCert = config.Vault.SSL.CaCert
 				c.Vault.SSL.Enabled = true
 			}
+			if config.WasSet("vault.ssl.ca_path") {
+				c.Vault.SSL.CaPath = config.Vault.SSL.CaPath
+				c.Vault.SSL.Enabled = true
+			}
 			if config.WasSet("vault.ssl.enabled") {
 				c.Vault.SSL.Enabled = config.Vault.SSL.Enabled
 			}
@@ -327,6 +333,10 @@ func (c *Config) Merge(config *Config) {
 		}
 		if config.WasSet("ssl.ca_cert") {
 			c.SSL.CaCert = config.SSL.CaCert
+			c.SSL.Enabled = true
+		}
+		if config.WasSet("ssl.ca_path") {
+			c.SSL.CaPath = config.SSL.CaPath
 			c.SSL.Enabled = true
 		}
 		if config.WasSet("ssl.enabled") {
@@ -801,6 +811,7 @@ type SSLConfig struct {
 	Cert       string `mapstructure:"cert"`
 	Key        string `mapstructure:"key"`
 	CaCert     string `mapstructure:"ca_cert"`
+	CaPath     string `mapstructure:"ca_path"`
 	ServerName string `mapstructure:"server_name"`
 }
 

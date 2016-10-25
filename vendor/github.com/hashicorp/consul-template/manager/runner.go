@@ -866,7 +866,15 @@ func (r *Runner) execute(command string, timeout time.Duration) error {
 	}
 
 	if r.config.Vault.SSL.Cert != "" {
-		customEnv["VAULT_CAPATH"] = r.config.Vault.SSL.Cert
+		customEnv["VAULT_CLIENT_CERT"] = r.config.Vault.SSL.Cert
+	}
+
+	if r.config.Vault.SSL.Key != "" {
+		customEnv["VAULT_CLIENT_KEY"] = r.config.Vault.SSL.Key
+	}
+
+	if r.config.Vault.SSL.CaPath != "" {
+		customEnv["VAULT_CAPATH"] = r.config.Vault.SSL.CaPath
 	}
 
 	if r.config.Vault.SSL.CaCert != "" {
@@ -1166,6 +1174,7 @@ func newClientSet(config *config.Config) (*dep.ClientSet, error) {
 		SSLCert:      config.SSL.Cert,
 		SSLKey:       config.SSL.Key,
 		SSLCACert:    config.SSL.CaCert,
+		SSLCAPath:    config.SSL.CaPath,
 		ServerName:   config.SSL.ServerName,
 	}); err != nil {
 		return nil, fmt.Errorf("runner: %s", err)
@@ -1180,6 +1189,7 @@ func newClientSet(config *config.Config) (*dep.ClientSet, error) {
 		SSLCert:     config.Vault.SSL.Cert,
 		SSLKey:      config.Vault.SSL.Key,
 		SSLCACert:   config.Vault.SSL.CaCert,
+		SSLCAPath:   config.Vault.SSL.CaPath,
 		ServerName:  config.Vault.SSL.ServerName,
 	}); err != nil {
 		return nil, fmt.Errorf("runner: %s", err)

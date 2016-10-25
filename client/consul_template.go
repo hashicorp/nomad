@@ -459,7 +459,7 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 				Cert:    config.VaultConfig.TLSCertFile,
 				Key:     config.VaultConfig.TLSKeyFile,
 				CaCert:  config.VaultConfig.TLSCaFile,
-				// TODO need to add this to consul-template: CaPath: config.VaultConfig.TLSCaPath,
+				CaPath:  config.VaultConfig.TLSCaPath,
 			}
 
 			set([]string{"vault.ssl", "vault.ssl.enabled", "vault.ssl.verify",
