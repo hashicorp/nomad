@@ -4,6 +4,7 @@ IMPROVEMENTS:
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * agent: Add DataDog telemetry sync [GH-1816]
+  * api: Support TLS for encrypting Raft, RPC and HTTP APIs [GH-1853]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * cli: `nomad node-status` shows node metadata in verbose mode [GH-1841]
   * client: Failed RPCs are retried on all servers [GH-1735]
@@ -13,7 +14,9 @@ IMPROVEMENTS:
   * driver: Export `NOMAD_JOB_NAME` environment variable [GH-1804]
   * driver/docker: Support Docker volumes [GH-1767]
   * driver/docker: Allow Docker logging to be configured [GH-1767]
+  * driver/lxc: Support for LXC containers [GH-1699]
   * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]
+  * server: Support for gossip encryption [GH-1791]
 
 BUG FIXES:
   * agent: Handle the SIGPIPE signal preventing panics on journalctl restarts
