@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -54,13 +55,17 @@ type RktDriver struct {
 }
 
 type RktDriverConfig struct {
-	ImageName        string   `mapstructure:"image"`
-	Command          string   `mapstructure:"command"`
-	Args             []string `mapstructure:"args"`
-	TrustPrefix      string   `mapstructure:"trust_prefix"`
-	DNSServers       []string `mapstructure:"dns_servers"`        // DNS Server for containers
-	DNSSearchDomains []string `mapstructure:"dns_search_domains"` // DNS Search domains for containers
-	Debug            bool     `mapstructure:"debug"`              // Enable debug option for rkt command
+	ImageName        string              `mapstructure:"image"`
+	Command          string              `mapstructure:"command"`
+	Args             []string            `mapstructure:"args"`
+	TrustPrefix      string              `mapstructure:"trust_prefix"`
+	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string            `mapstructure:"net"`                // Networks for the containers
+	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
+	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
+
+	Debug bool `mapstructure:"debug"` // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -113,6 +118,12 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"dns_search_domains": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"net": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"port_map": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 			"debug": &fields.FieldSchema{
@@ -176,6 +187,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+
+	driverConfig.PortMap = mapMergeStrStr(driverConfig.PortMapRaw...)
 
 	// ACI image
 	img := driverConfig.ImageName
@@ -249,6 +262,58 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// set DNS search domains
 	for _, domain := range driverConfig.DNSSearchDomains {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
+	}
+
+	// set network
+	network := strings.Join(driverConfig.Net, ",")
+	if network != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--net=%s", network))
+	}
+
+	// Setup port mapping and exposed ports
+	if len(task.Resources.Networks) == 0 {
+		d.logger.Println("[DEBUG] driver.rkt: No network interfaces are available")
+		if len(driverConfig.PortMap) > 0 {
+			return nil, fmt.Errorf("Trying to map ports but no network interface is available")
+		}
+	} else {
+		// TODO add support for more than one network
+		network := task.Resources.Networks[0]
+		for _, port := range network.ReservedPorts {
+			var containerPort string
+
+			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
+				containerPort = mapped
+			} else {
+				// If the user doesn't have mapped a port using port_map, driver stops running container.
+				return nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
+			}
+
+			hostPortStr := strconv.Itoa(port.Value)
+
+			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
+			// Add port option to rkt run arguments. rkt allows multiple port args
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+		}
+
+		for _, port := range network.DynamicPorts {
+			// By default we will map the allocated port 1:1 to the container
+			var containerPort string
+
+			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
+				containerPort = mapped
+			} else {
+				// If the user doesn't have mapped a port using port_map, driver stops running container.
+				return nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
+			}
+
+			hostPortStr := strconv.Itoa(port.Value)
+
+			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
+			// Add port option to rkt run arguments. rkt allows multiple port args
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+		}
+
 	}
 
 	// Add user passed arguments.
