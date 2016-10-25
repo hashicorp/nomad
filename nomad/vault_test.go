@@ -24,7 +24,12 @@ const (
 	// authPolicy is a policy that allows token creation operations
 	authPolicy = `path "auth/token/create/*" {
 	capabilities = ["create", "read", "update", "delete", "list"]
-}`
+}
+
+path "auth/token/roles/*" {
+	capabilities = ["create", "read", "update", "delete", "list"]
+}
+`
 )
 
 func TestVaultClient_BadConfig(t *testing.T) {
@@ -78,6 +83,54 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 	waitForConnection(client, t)
 }
 
+func TestVaultClient_ValidateRole(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	data := map[string]interface{}{
+		"allowed_policies": "default,root",
+		"orphan":           true,
+		"renewable":        true,
+		"explicit_max_ttl": 10,
+	}
+	v.Config.Token = testVaultRoleAndToken(v, t, data)
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	// Wait for an error
+	var conn bool
+	var connErr error
+	testutil.WaitForResult(func() (bool, error) {
+		conn, connErr = client.ConnectionEstablished()
+		if conn {
+			return false, fmt.Errorf("Should not connect")
+		}
+
+		if connErr == nil {
+			return false, fmt.Errorf("expect an error")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("bad: %v", err)
+	})
+
+	errStr := connErr.Error()
+	if !strings.Contains(errStr, "not allow orphans") {
+		t.Fatalf("Expect orphan error")
+	}
+	if !strings.Contains(errStr, "explicit max ttl") {
+		t.Fatalf("Expect explicit max ttl error")
+	}
+}
+
 func TestVaultClient_SetActive(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
@@ -115,7 +168,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	defer v2.Stop()
 
 	// Set the configs token in a new test role
-	v2.Config.Token = testVaultRoleAndToken(v2, t, 20)
+	v2.Config.Token = defaultTestVaultRoleAndToken(v2, t, 20)
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	client, err := NewVaultClient(v.Config, logger, nil)
@@ -142,9 +195,18 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	}
 }
 
-// testVaultRoleAndToken creates a test Vault role where children are created
-// with the passed period. A token created in that role is returned
-func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+// defaultTestVaultRoleAndToken creates a test Vault role and returns a token
+// created in that role
+func defaultTestVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+	d := make(map[string]interface{}, 2)
+	d["allowed_policies"] = "default,auth"
+	d["period"] = rolePeriod
+	return testVaultRoleAndToken(v, t, d)
+}
+
+// testVaultRoleAndToken creates a test Vault role with the specified data and
+// returns a token created in that role
+func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, data map[string]interface{}) string {
 	// Build the auth policy
 	sys := v.Client.Sys()
 	if err := sys.PutPolicy("auth", authPolicy); err != nil {
@@ -153,10 +215,7 @@ func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) 
 
 	// Build a role
 	l := v.Client.Logical()
-	d := make(map[string]interface{}, 2)
-	d["allowed_policies"] = "default,auth"
-	d["period"] = rolePeriod
-	l.Write("auth/token/roles/test", d)
+	l.Write("auth/token/roles/test", data)
 
 	// Create a new token with the role
 	a := v.Client.Auth().Token()
@@ -179,7 +238,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = testVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -417,7 +476,7 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = testVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -464,7 +523,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	testVaultRoleAndToken(v, t, 5)
+	defaultTestVaultRoleAndToken(v, t, 5)
 	v.Config.Token = "foo-bar"
 
 	// Start the client

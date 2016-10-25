@@ -13,6 +13,7 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
@@ -204,6 +205,12 @@ func (v *vaultClient) Stop() {
 // cancelled if set un-active as it is assumed another instances is taking over
 func (v *vaultClient) SetActive(active bool) {
 	atomic.StoreInt32(&v.active, 1)
+
+	// Clear out the revoking tokens
+	v.revLock.Lock()
+	v.revoking = make(map[*structs.VaultAccessor]time.Time)
+	v.revLock.Unlock()
+
 	return
 }
 
@@ -335,7 +342,7 @@ OUTER:
 
 	// Retrieve our token, validate it and parse the lease duration
 	if err := v.parseSelfToken(); err != nil {
-		v.logger.Printf("[ERR] vault: failed to lookup self token and not retrying: %v", err)
+		v.logger.Printf("[ERR] vault: failed to validate self token/role and not retrying: %v", err)
 		v.l.Lock()
 		v.connEstablished = false
 		v.connEstablishedErr = err
@@ -508,39 +515,93 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 	}
 
+	var mErr multierror.Error
 	if !root {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
-			return fmt.Errorf("Vault token is not renewable or root")
+			multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
 		}
 
 		// All non-root tokens must have a lease duration
 		if data.CreationTTL == 0 {
-			return fmt.Errorf("invalid lease duration of zero")
+			multierror.Append(&mErr, fmt.Errorf("invalid lease duration of zero"))
 		}
 
 		// The lease duration can not be expired
 		if data.TTL == 0 {
-			return fmt.Errorf("token TTL is zero")
+			multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
 		}
 
-		// There must be a valid role
+		// There must be a valid role since we aren't root
 		if data.Role == "" {
-			return fmt.Errorf("token role name must be set when not using a root token")
+			multierror.Append(&mErr, fmt.Errorf("token role name must be set when not using a root token"))
 		}
+
 	} else if data.CreationTTL != 0 {
 		// If the root token has a TTL it must be renewable
 		if !data.Renewable {
-			return fmt.Errorf("Vault token has a TTL but is not renewable")
+			multierror.Append(&mErr, fmt.Errorf("Vault token has a TTL but is not renewable"))
 		} else if data.TTL == 0 {
 			// If the token has a TTL make sure it has not expired
-			return fmt.Errorf("token TTL is zero")
+			multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
+		}
+	}
+
+	// If given a role validate it
+	if data.Role != "" {
+		if err := v.validateRole(data.Role); err != nil {
+			multierror.Append(&mErr, err)
 		}
 	}
 
 	data.Root = root
 	v.tokenData = &data
-	return nil
+	return mErr.ErrorOrNil()
+}
+
+// validateRole contacts Vault and checks that the given Vault role is valid for
+// the purposes of being used by Nomad
+func (v *vaultClient) validateRole(role string) error {
+	if role == "" {
+		return fmt.Errorf("Invalid empty role name")
+	}
+
+	// Validate the role
+	rsecret, err := v.client.Logical().Read(fmt.Sprintf("auth/token/roles/%s", role))
+	if err != nil {
+		return fmt.Errorf("failed to lookup role %q: %v", role, err)
+	}
+
+	// Read and parse the fields
+	var data struct {
+		ExplicitMaxTtl int `mapstructure:"explicit_max_ttl"`
+		Orphan         bool
+		Period         int
+		Renewable      bool
+	}
+	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
+		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
+	}
+
+	// Validate the role is acceptable
+	var mErr multierror.Error
+	if data.Orphan {
+		multierror.Append(&mErr, fmt.Errorf("Role must not allow orphans"))
+	}
+
+	if !data.Renewable {
+		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
+	}
+
+	if data.ExplicitMaxTtl != 0 {
+		multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
+	}
+
+	if data.Period == 0 {
+		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // ConnectionEstablished returns whether a connection to Vault has been
