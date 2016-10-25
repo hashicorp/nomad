@@ -190,7 +190,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	// Configure TLS
 	var tlsWrap tlsutil.Wrapper
 	var incomingTLS *tls.Config
-	if config.RpcTLS {
+	if config.TLSConfig.EnableRPC {
 		tlsConf := config.tlsConfig()
 		tw, err := tlsConf.OutgoingTLSWrapper()
 		if err != nil {

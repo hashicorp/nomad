@@ -167,8 +167,8 @@ var (
 func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
 	//Create the tls wrapper
 	var tlsWrap tlsutil.Wrapper
-	if cfg.RpcTLS {
-		tw, err := cfg.TLSConfig().OutgoingTLSWrapper()
+	if cfg.TLSConfig.EnableRPC {
+		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper()
 		if err != nil {
 			return nil, err
 		}

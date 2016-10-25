@@ -193,28 +193,8 @@ type Config struct {
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
 
-	// Enable TLS for incoming RPC calls from Nomad clients
-	RpcTLS bool
-
-	// VerifyServerHostname is used to enable hostname verification of servers. This
-	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
-	// This prevents a compromised client from being restarted as a server, and then
-	// intercepting request traffic as well as being added as a raft peer. This should be
-	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
-	// existing clients.
-	VerifyServerHostname bool
-
-	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
-	// or VerifyOutgoing to verify the TLS connection.
-	CAFile string
-
-	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
-	// Must be provided to serve TLS connections.
-	CertFile string
-
-	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
-	// Must be provided to serve TLS connections.
-	KeyFile string
+	// TLSConfig holds various TLS related configurations
+	TLSConfig *config.TLSConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -293,10 +273,10 @@ func (c *Config) tlsConfig() *tlsutil.Config {
 	tlsConf := &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
-		VerifyServerHostname: c.VerifyServerHostname,
-		CAFile:               c.CAFile,
-		CertFile:             c.CertFile,
-		KeyFile:              c.KeyFile,
+		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
+		CAFile:               c.TLSConfig.CAFile,
+		CertFile:             c.TLSConfig.CertFile,
+		KeyFile:              c.TLSConfig.KeyFile,
 		ServerName:           c.NodeName,
 	}
 	return tlsConf

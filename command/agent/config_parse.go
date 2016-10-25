@@ -652,7 +652,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	return nil
 }
 
-func parseTLSConfig(result **TLSConfig, list *ast.ObjectList) error {
+func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'tls' block allowed")
@@ -679,7 +679,7 @@ func parseTLSConfig(result **TLSConfig, list *ast.ObjectList) error {
 		return err
 	}
 
-	var tlsConfig TLSConfig
+	var tlsConfig config.TLSConfig
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
 		return err
 	}
