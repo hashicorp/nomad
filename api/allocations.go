@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	// NodeDownErr marks an operational as not able to complete since the node
-	// is down.
+	// NodeDownErr marks an operation as not able to complete since the node is
+	// down.
 	NodeDownErr = fmt.Errorf("node down")
 )
 

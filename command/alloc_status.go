@@ -233,9 +233,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		var stats *api.AllocResourceUsage
 		stats, statsErr = client.Allocations().Stats(alloc, nil)
 		if statsErr != nil {
+			c.Ui.Output("")
 			if statsErr != api.NodeDownErr {
-				c.Ui.Output("")
 				c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+			} else {
+				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
 		}
 		c.outputTaskDetails(alloc, stats, displayStats)
