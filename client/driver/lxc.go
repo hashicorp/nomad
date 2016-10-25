@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
@@ -37,6 +38,7 @@ const (
 
 var (
 	LXCMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
+
 	LXCMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
 )
 
@@ -148,7 +150,7 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 // Fingerprint fingerprints the lxc driver configuration
 func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	enabled := cfg.ReadBoolDefault(lxcConfigOption, false)
-	if !enabled {
+	if !enabled && !cfg.DevMode {
 		return false, nil
 	}
 	version := lxc.Version()
@@ -167,7 +169,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	lxcPath := lxc.DefaultConfigPath()
-	if path := d.config.Read("lxc.path"); path != "" {
+	if path := d.config.Read("driver.lxc.path"); path != "" {
 		lxcPath = path
 	}
 
@@ -227,7 +229,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Bind mount the shared alloc dir and task local dir in the container
-	taskLocalDir, ok := ctx.AllocDir.TaskDirs[task.Name]
+	taskDir, ok := ctx.AllocDir.TaskDirs[task.Name]
 	if !ok {
 		return nil, fmt.Errorf("failed to find task local directory: %v", task.Name)
 	}
@@ -235,6 +237,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err != nil {
 		return nil, fmt.Errorf("faild getting secret path for task: %v", err)
 	}
+	taskLocalDir := filepath.Join(taskDir, allocdir.TaskLocal)
 	mounts := []string{
 		fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir),
 		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir),
