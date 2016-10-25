@@ -25,7 +25,7 @@ func TestConfig_AppendCA_None(t *testing.T) {
 
 func TestConfig_CACertificate_Valid(t *testing.T) {
 	conf := &Config{
-		CAFile: "../test/ca/root.cer",
+		CAFile: "./test/ca/root.cer",
 	}
 	pool := x509.NewCertPool()
 	err := conf.AppendCA(pool)
@@ -50,8 +50,8 @@ func TestConfig_KeyPair_None(t *testing.T) {
 
 func TestConfig_KeyPair_Valid(t *testing.T) {
 	conf := &Config{
-		CertFile: "../test/key/ourdomain.cer",
-		KeyFile:  "../test/key/ourdomain.key",
+		CertFile: "./test/key/ourdomain.cer",
+		KeyFile:  "./test/key/ourdomain.key",
 	}
 	cert, err := conf.KeyPair()
 	if err != nil {
@@ -77,7 +77,7 @@ func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
 
 func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
 	conf := &Config{
-		CAFile: "../test/ca/root.cer",
+		CAFile: "./test/ca/root.cer",
 	}
 	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
@@ -91,7 +91,7 @@ func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
 func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 	conf := &Config{
 		VerifyOutgoing: true,
-		CAFile:         "../test/ca/root.cer",
+		CAFile:         "./test/ca/root.cer",
 	}
 	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
@@ -114,7 +114,7 @@ func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 func TestConfig_OutgoingTLS_ServerName(t *testing.T) {
 	conf := &Config{
 		VerifyOutgoing: true,
-		CAFile:         "../test/ca/root.cer",
+		CAFile:         "./test/ca/root.cer",
 		ServerName:     "consul.example.com",
 	}
 	tls, err := conf.OutgoingTLSConfig()
@@ -138,7 +138,7 @@ func TestConfig_OutgoingTLS_ServerName(t *testing.T) {
 func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 	conf := &Config{
 		VerifyServerHostname: true,
-		CAFile:               "../test/ca/root.cer",
+		CAFile:               "./test/ca/root.cer",
 		ServerName:           "foo",
 	}
 	tls, err := conf.OutgoingTLSConfig()
@@ -162,9 +162,9 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	conf := &Config{
 		VerifyOutgoing: true,
-		CAFile:         "../test/ca/root.cer",
-		CertFile:       "../test/key/ourdomain.cer",
-		KeyFile:        "../test/key/ourdomain.key",
+		CAFile:         "./test/ca/root.cer",
+		CertFile:       "./test/key/ourdomain.cer",
+		KeyFile:        "./test/key/ourdomain.key",
 	}
 	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
@@ -222,9 +222,9 @@ func startTLSServer(config *Config) (net.Conn, chan error) {
 
 func TestConfig_outgoingWrapper_OK(t *testing.T) {
 	config := &Config{
-		CAFile:               "../test/hostname/CertAuth.crt",
-		CertFile:             "../test/hostname/Alice.crt",
-		KeyFile:              "../test/hostname/Alice.key",
+		CAFile:               "./test/hostname/CertAuth.crt",
+		CertFile:             "./test/hostname/Alice.crt",
+		KeyFile:              "./test/hostname/Alice.key",
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
 		ServerName:           "server.dc1.consul",
@@ -259,9 +259,9 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 	// TODO this test is currently hanging, need to investigate more.
 	t.SkipNow()
 	config := &Config{
-		CAFile:               "../test/ca/root.cer",
-		CertFile:             "../test/key/ourdomain.cer",
-		KeyFile:              "../test/key/ourdomain.key",
+		CAFile:               "./test/ca/root.cer",
+		CertFile:             "./test/key/ourdomain.cer",
+		KeyFile:              "./test/key/ourdomain.key",
 		ServerName:           "foo",
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
@@ -293,9 +293,9 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 
 func TestConfig_wrapTLS_OK(t *testing.T) {
 	config := &Config{
-		CAFile:         "../test/ca/root.cer",
-		CertFile:       "../test/key/ourdomain.cer",
-		KeyFile:        "../test/key/ourdomain.key",
+		CAFile:         "./test/ca/root.cer",
+		CertFile:       "./test/key/ourdomain.cer",
+		KeyFile:        "./test/key/ourdomain.key",
 		VerifyOutgoing: true,
 	}
 
@@ -323,8 +323,8 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 
 func TestConfig_wrapTLS_BadCert(t *testing.T) {
 	serverConfig := &Config{
-		CertFile: "../test/key/ssl-cert-snakeoil.pem",
-		KeyFile:  "../test/key/ssl-cert-snakeoil.key",
+		CertFile: "./test/key/ssl-cert-snakeoil.pem",
+		KeyFile:  "./test/key/ssl-cert-snakeoil.key",
 	}
 
 	client, errc := startTLSServer(serverConfig)
@@ -333,7 +333,7 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 	}
 
 	clientConfig := &Config{
-		CAFile:         "../test/ca/root.cer",
+		CAFile:         "./test/ca/root.cer",
 		VerifyOutgoing: true,
 	}
 
@@ -359,9 +359,9 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 func TestConfig_IncomingTLS(t *testing.T) {
 	conf := &Config{
 		VerifyIncoming: true,
-		CAFile:         "../test/ca/root.cer",
-		CertFile:       "../test/key/ourdomain.cer",
-		KeyFile:        "../test/key/ourdomain.key",
+		CAFile:         "./test/ca/root.cer",
+		CertFile:       "./test/key/ourdomain.cer",
+		KeyFile:        "./test/key/ourdomain.key",
 	}
 	tlsC, err := conf.IncomingTLSConfig()
 	if err != nil {
@@ -384,8 +384,8 @@ func TestConfig_IncomingTLS(t *testing.T) {
 func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
 	conf := &Config{
 		VerifyIncoming: true,
-		CertFile:       "../test/key/ourdomain.cer",
-		KeyFile:        "../test/key/ourdomain.key",
+		CertFile:       "./test/key/ourdomain.cer",
+		KeyFile:        "./test/key/ourdomain.key",
 	}
 	_, err := conf.IncomingTLSConfig()
 	if err == nil {
@@ -396,7 +396,7 @@ func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
 func TestConfig_IncomingTLS_MissingKey(t *testing.T) {
 	conf := &Config{
 		VerifyIncoming: true,
-		CAFile:         "../test/ca/root.cer",
+		CAFile:         "./test/ca/root.cer",
 	}
 	_, err := conf.IncomingTLSConfig()
 	if err == nil {
