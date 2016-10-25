@@ -120,6 +120,15 @@ func (c *Command) readConfig() *Config {
 	}), "vault-allow-unauthenticated", "")
 	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSKeyFile, "vault-key-file", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Vault.TLSSkipVerify = &b
+		return nil
+	}), "vault-tls-skip-verify", "")
+	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -914,6 +923,26 @@ Vault Options:
   -vault-allow-unauthenticated
     Whether to allow jobs to be sumbitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
+
+  -vault-ca-file=<path>
+    The path to a PEM-encoded CA cert file to use to verify the Vault server SSL
+    certificate.
+
+  -vault-ca-path=<path>
+    The path to a directory of PEM-encoded CA cert files to verify the Vault server
+    certificate.
+
+  -vault-cert-file=<token>
+    The path to the certificate for Vault communication.
+
+  -vault-key-file=<addr>
+    The path to the private key for Vault communication.
+
+  -vault-tls-skip-verify=<token>
+    Enables or disables SSL certificate verification.
+
+  -vault-tls-server-name=<token>
+    Used to set the SNI host when connecting over TLS.
 
 Atlas Options:
 
