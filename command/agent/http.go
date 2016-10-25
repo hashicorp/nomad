@@ -54,6 +54,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}
 
+	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
 		tlsConf := &tlsutil.Config{
 			VerifyIncoming:       false,

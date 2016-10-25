@@ -143,10 +143,10 @@ type AtlasConfig struct {
 type TLSConfig struct {
 
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
-	EnableHTTP bool `mapstructure:"enable_http"`
+	EnableHTTP bool `mapstructure:"http"`
 
 	// EnableRPC enables TLS for RPC and Raft traffic to the Nomad servers
-	EnableRPC bool `mapstructure:"enable_rpc"`
+	EnableRPC bool `mapstructure:"rpc"`
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
 	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.

@@ -135,10 +135,10 @@ type Config struct {
 	PublishAllocationMetrics bool
 
 	// HttpTLS enables TLS for the HTTP endpoints on the clients.
-	HttpTLS bool `mapstructure:"http_tls"`
+	HttpTLS bool
 
 	// RpcTLS enables TLS for the outgoing TLS connections to the Nomad servers.
-	RpcTLS bool `mapstructure:"rpc_tls"`
+	RpcTLS bool
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
 	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
@@ -146,19 +146,19 @@ type Config struct {
 	// intercepting request traffic as well as being added as a raft peer. This should be
 	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
 	// existing clients.
-	VerifyServerHostname bool `mapstructure:"verify_server_hostname"`
+	VerifyServerHostname bool
 
 	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
 	// or VerifyOutgoing to verify the TLS connection.
-	CAFile string `mapstructure:"ca_file"`
+	CAFile string
 
 	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
-	CertFile string `mapstructure:"cert_file"`
+	CertFile string
 
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
-	KeyFile string `mapstructure:"key_file"`
+	KeyFile string
 }
 
 func (c *Config) Copy() *Config {
