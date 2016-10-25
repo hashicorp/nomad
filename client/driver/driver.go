@@ -59,6 +59,15 @@ type Driver interface {
 
 	// Drivers must validate their configuration
 	Validate(map[string]interface{}) error
+
+	// Abilities returns the abilities of the driver
+	Abilities() DriverAbilities
+}
+
+// DriverAbilities marks the abilities the driver has.
+type DriverAbilities struct {
+	// SendSignals marks the driver as being able to send signals
+	SendSignals bool
 }
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and

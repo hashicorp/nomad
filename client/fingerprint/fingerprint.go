@@ -25,6 +25,7 @@ func init() {
 	builtinFingerprintMap["memory"] = NewMemoryFingerprint
 	builtinFingerprintMap["network"] = NewNetworkFingerprint
 	builtinFingerprintMap["nomad"] = NewNomadFingerprint
+	builtinFingerprintMap["signal"] = NewSignalFingerprint
 	builtinFingerprintMap["storage"] = NewStorageFingerprint
 	builtinFingerprintMap["vault"] = NewVaultFingerprint
 

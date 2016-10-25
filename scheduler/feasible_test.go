@@ -304,6 +304,16 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "foo", rVal: "bar",
 			result: false,
 		},
+		{
+			op:   structs.ConstraintSetContains,
+			lVal: "foo,bar,baz", rVal: "foo,  bar  ",
+			result: true,
+		},
+		{
+			op:   structs.ConstraintSetContains,
+			lVal: "foo,bar,baz", rVal: "foo,bam",
+			result: false,
+		},
 	}
 
 	for _, tc := range cases {

@@ -443,6 +443,9 @@ The `Constraint` object supports the following keys:
 
   * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
+  * `set_contains` - Allows the `RTarget` to be a comma separated list of values
+    that should be contained in the LTarget's value.
+
   * `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which

@@ -407,6 +407,7 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 			"version",
 			"regexp",
 			"distinct_hosts",
+			"set_contains",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -432,6 +433,13 @@ func parseConstraints(result *[]*structs.Constraint, list *ast.ObjectList) error
 		// to "regexp" and the value to the "RTarget"
 		if constraint, ok := m[structs.ConstraintRegex]; ok {
 			m["Operand"] = structs.ConstraintRegex
+			m["RTarget"] = constraint
+		}
+
+		// If "set_contains" is provided, set the operand
+		// to "set_contains" and the value to the "RTarget"
+		if constraint, ok := m[structs.ConstraintSetContains]; ok {
+			m["Operand"] = structs.ConstraintSetContains
 			m["RTarget"] = constraint
 		}
 

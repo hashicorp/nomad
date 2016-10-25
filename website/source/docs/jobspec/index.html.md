@@ -419,6 +419,12 @@ The `constraint` object supports the following keys:
   the attribute. This sets the operator to "regexp" and the `value`
   to the regular expression.
 
+* `set_contains` - Specifies a set contains constraint against
+  the attribute. This sets the operator to "set_contains" and the `value`
+  to the what is specified. This will check that the given attribute contains
+  each of the specified elements. The attribute and the list being checked are
+  split using commas.
+
 * `distinct_hosts` - `distinct_hosts` accepts a boolean value and defaults to
   `false`. If set, the scheduler will not co-locate any task groups on the same
   machine. This can be specified as a job constraint which applies the

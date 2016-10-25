@@ -288,3 +288,19 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	}
 	return flattened
 }
+
+// MapStringStringSliceValueSet returns the set of values in a map[string][]string
+func MapStringStringSliceValueSet(m map[string][]string) []string {
+	set := make(map[string]struct{})
+	for _, slice := range m {
+		for _, v := range slice {
+			set[v] = struct{}{}
+		}
+	}
+
+	flat := make([]string, 0, len(set))
+	for k := range set {
+		flat = append(flat, k)
+	}
+	return flat
+}
