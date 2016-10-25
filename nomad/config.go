@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/nomad/tlsutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )

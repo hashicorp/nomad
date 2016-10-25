@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/tlsutil"
 	"github.com/ugorji/go/codec"
 )
 

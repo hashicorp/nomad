@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/tlsutil"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/yamux"
 )
 
