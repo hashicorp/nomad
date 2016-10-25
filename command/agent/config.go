@@ -112,6 +112,10 @@ type Config struct {
 	// List of config files that have been loaded (in order)
 	Files []string `mapstructure:"-"`
 
+	// TLSConfig provides TLS related configuration for the Nomad server and
+	// client
+	TLSConfig *config.TLSConfig `mapstructure:"tls"`
+
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
@@ -486,6 +490,7 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
+		TLSConfig: &config.TLSConfig{},
 	}
 }
 
@@ -564,6 +569,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Telemetry = &telemetry
 	} else if b.Telemetry != nil {
 		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
+	}
+
+	// Apply the TLS Config
+	if result.TLSConfig == nil && b.TLSConfig != nil {
+		tlsConfig := *b.TLSConfig
+		result.TLSConfig = &tlsConfig
+	} else if b.TLSConfig != nil {
+		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
 
 	// Apply the client config

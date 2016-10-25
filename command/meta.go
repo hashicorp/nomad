@@ -46,6 +46,12 @@ type Meta struct {
 
 	// The region to send API requests
 	region string
+
+	caCert     string
+	caPath     string
+	clientCert string
+	clientKey  string
+	insecure   bool
 }
 
 // FlagSet returns a FlagSet with the common flags that every
@@ -61,6 +67,13 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.flagAddress, "address", "", "")
 		f.StringVar(&m.region, "region", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
+		f.StringVar(&m.caCert, "ca-cert", "", "")
+		f.StringVar(&m.caPath, "ca-path", "", "")
+		f.StringVar(&m.clientCert, "client-cert", "", "")
+		f.StringVar(&m.clientKey, "client-key", "", "")
+		f.BoolVar(&m.insecure, "insecure", false, "")
+		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
+
 	}
 
 	// Create an io.Writer that writes to our UI properly for errors.
@@ -95,6 +108,18 @@ func (m *Meta) Client() (*api.Client, error) {
 	if m.region != "" {
 		config.Region = m.region
 	}
+	// If we need custom TLS configuration, then set it
+	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.insecure {
+		t := &api.TLSConfig{
+			CACert:     m.caCert,
+			CAPath:     m.caPath,
+			ClientCert: m.clientCert,
+			ClientKey:  m.clientKey,
+			Insecure:   m.insecure,
+		}
+		config.TLSConfig = t
+	}
+
 	return api.NewClient(config)
 }
 
@@ -121,6 +146,31 @@ func generalOptionsUsage() string {
   
   -no-color
     Disables colored command output.
+
+  -ca-cert=<path>           
+    Path to a PEM encoded CA cert file to use to verify the 
+    Nomad server SSL certificate.  Overrides the NOMAD_CACERT 
+    environment variable if set.
+
+  -ca-path=<path>           
+    Path to a directory of PEM encoded CA cert files to verify 
+    the Nomad server SSL certificate. If both -ca-cert and 
+    -ca-path are specified, -ca-cert is used. Overrides the 
+    NOMAD_CAPATH environment variable if set.
+
+  -client-cert=<path>       
+    Path to a PEM encoded client certificate for TLS authentication 
+    to the Nomad server. Must also specify -client-key. Overrides 
+    the NOMAD_CLIENT_CERT environment variable if set.
+
+  -client-key=<path>        
+    Path to an unencrypted PEM encoded private key matching the 
+    client certificate from -client-cert. Overrides the 
+    NOMAD_CLIENT_KEY environment variable if set.
+
+  -tls-skip-verify        
+    Do not verify TLS certificate. This is highly not recommended. Verification
+    will also be skipped if NOMAD_SKIP_VERIFY is set.
 `
 	return strings.TrimSpace(helpText)
 }

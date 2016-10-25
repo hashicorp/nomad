@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
@@ -52,6 +54,24 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}
 
+	// If TLS is enabled, wrap the listener with a TLS listener
+	if config.TLSConfig.EnableHTTP {
+		tlsConf := &tlsutil.Config{
+			VerifyIncoming:       false,
+			VerifyOutgoing:       true,
+			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
+			CAFile:               config.TLSConfig.CAFile,
+			CertFile:             config.TLSConfig.CertFile,
+			KeyFile:              config.TLSConfig.KeyFile,
+			ServerName:           config.NodeName,
+		}
+		tlsConfig, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
+	}
+
 	// Create the mux
 	mux := http.NewServeMux()
 
@@ -89,6 +109,23 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 	// Start the server
 	go http.Serve(list, gziphandler.GzipHandler(mux))
 	return srv
+}
+
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by NewHttpServer so
+// dead TCP connections eventually go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(30 * time.Second)
+	return tc, nil
 }
 
 // Shutdown is used to shutdown the HTTP server

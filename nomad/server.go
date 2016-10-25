@@ -18,9 +18,9 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -187,11 +187,29 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		return nil, err
 	}
 
+	// Configure TLS
+	var tlsWrap tlsutil.Wrapper
+	var incomingTLS *tls.Config
+	if config.TLSConfig.EnableRPC {
+		tlsConf := config.tlsConfig()
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		incomingTLS = itls
+	}
+
 	// Create the server
 	s := &Server{
 		config:       config,
 		consulSyncer: consulSyncer,
-		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
+		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:       logger,
 		rpcServer:    rpc.NewServer(),
 		peers:        make(map[string][]*serverParts),
@@ -201,6 +219,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		evalBroker:   evalBroker,
 		blockedEvals: blockedEvals,
 		planQueue:    planQueue,
+		rpcTLS:       incomingTLS,
 		shutdownCh:   make(chan struct{}),
 	}
 
@@ -215,8 +234,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	}
 
 	// Initialize the RPC layer
-	// TODO: TLS...
-	if err := s.setupRPC(nil); err != nil {
+	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
 		s.logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
@@ -576,7 +594,7 @@ func (s *Server) setupVaultClient() error {
 }
 
 // setupRPC is used to setup the RPC listener
-func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
+func (s *Server) setupRPC(tlsWrap tlsutil.Wrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
 	s.endpoints.Node = &Node{srv: s}
@@ -622,11 +640,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 
-	// Provide a DC specific wrapper. Raft replication is only
-	// ever done in the same datacenter, so we can provide it as a constant.
-	// wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
-	// TODO: TLS...
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, nil)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, tlsWrap)
 	return nil
 }
 
