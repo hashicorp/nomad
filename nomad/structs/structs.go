@@ -2091,6 +2091,14 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	if t.KillTimeout == 0 {
 		t.KillTimeout = DefaultKillTimeout
 	}
+
+	if t.Vault != nil {
+		t.Vault.Canonicalize()
+	}
+
+	for _, template := range t.Templates {
+		template.Canonicalize()
+	}
 }
 
 func (t *Task) GoString() string {
@@ -2313,6 +2321,12 @@ func (t *Template) Copy() *Template {
 	copy := new(Template)
 	*copy = *t
 	return copy
+}
+
+func (t *Template) Canonicalize() {
+	if t.ChangeSignal != "" {
+		t.ChangeSignal = strings.ToUpper(t.ChangeSignal)
+	}
 }
 
 func (t *Template) Validate() error {
@@ -2914,6 +2928,12 @@ func (v *Vault) Copy() *Vault {
 	nv := new(Vault)
 	*nv = *v
 	return nv
+}
+
+func (v *Vault) Canonicalize() {
+	if v.ChangeSignal != "" {
+		v.ChangeSignal = strings.ToUpper(v.ChangeSignal)
+	}
 }
 
 // Validate returns if the Vault block is valid.
