@@ -110,6 +110,24 @@ type Config struct {
 	TLSConfig *TLSConfig
 }
 
+// CopyConfig copies the configuration with a new address
+func (c *Config) CopyConfig(address string, tlsEnabled bool) *Config {
+	scheme := "http"
+	if tlsEnabled {
+		scheme = "https"
+	}
+	config := &Config{
+		Address:    fmt.Sprintf("%s://%s", scheme, address),
+		Region:     c.Region,
+		HttpClient: c.HttpClient,
+		HttpAuth:   c.HttpAuth,
+		WaitTime:   c.WaitTime,
+		TLSConfig:  c.TLSConfig,
+	}
+
+	return config
+}
+
 // TLSConfig contains the parameters needed to configure TLS on the HTTP client
 // used to communicate with Nomad.
 type TLSConfig struct {

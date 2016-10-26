@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/hashicorp/go-cleanhttp"
 )
 
 var (
@@ -60,10 +58,7 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceU
 	if node.HTTPAddr == "" {
 		return nil, fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
 	}
-	client, err := NewClient(&Config{
-		Address:    fmt.Sprintf("http://%s", node.HTTPAddr),
-		HttpClient: cleanhttp.DefaultClient(),
-	})
+	client, err := NewClient(a.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
 	if err != nil {
 		return nil, err
 	}
