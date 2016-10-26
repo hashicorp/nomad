@@ -449,13 +449,15 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
 	if len(driverConfig.Logging) == 0 {
-		d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
-		driverConfig.Logging = []DockerLoggingOpts{
-			{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
+		if runtime.GOOS != "darwin" {
+			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
+			driverConfig.Logging = []DockerLoggingOpts{
+				{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
+			}
 		}
-	}
 
-	d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
+		d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
+	}
 
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
@@ -468,10 +470,14 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
-		LogConfig: docker.LogConfig{
+	}
+
+	if len(driverConfig.Logging) != 0 {
+		d.logger.Printf("[DEBUG] driver.docker: Using config for logging: %+v", driverConfig.Logging[0])
+		hostConfig.LogConfig = docker.LogConfig{
 			Type:   driverConfig.Logging[0].Type,
 			Config: driverConfig.Logging[0].Config,
-		},
+		}
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
