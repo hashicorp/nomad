@@ -105,32 +105,31 @@ using `--net=host` or `--port=PORT` with your network.
 Example:
 
 ```
-		task "etcd" {
-			# Use Docker to run the task.
-			driver = "rkt"
+task "redis" {
+	# Use rkt to run the task.
+	driver = "rkt"
 
-			config {
-				image = "docker://my_image"
-				net = ["containers"]
-                                port_map {
-                                        app = "8080-tcp"
-                                }
-			}
+	config {
+		# Use docker image with port defined
+		image = "docker://redis:latest"
+		port_map {
+			app = "6379-tcp"
+		}
+	}
 
-			service {
-                                port = "app"
-			}
+	service {
+		port = "app"
+	}
 
-			resources {
-                                network {
-                                        mbits = 10
-                                        port "app" {
-					    static = 12345
-                                        }
-                                }
+	resources {
+		network {
+			mbits = 10
+			port "app" {
+			    static = 12345
 			}
 		}
-
+	}
+}
 ```
 
 ### Allocating Ports
