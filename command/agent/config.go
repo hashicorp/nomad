@@ -51,6 +51,9 @@ type Config struct {
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
 
+	// Specifies that consul checks should use Advertise address instead of bind
+	ChecksUseAdvertise bool `mapstructure:"checks_use_advertise"`
+
 	// Client has our client related settings
 	Client *ClientConfig `mapstructure:"client"`
 
@@ -465,11 +468,12 @@ func DefaultConfig() *Config {
 			RPC:  4647,
 			Serf: 4648,
 		},
-		Addresses:      &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
-		Consul:         config.DefaultConsulConfig(),
-		Vault:          config.DefaultVaultConfig(),
+		Addresses:          &Addresses{},
+		AdvertiseAddrs:     &AdvertiseAddrs{},
+		ChecksUseAdvertise: false,
+		Atlas:              &AtlasConfig{},
+		Consul:             config.DefaultConsulConfig(),
+		Vault:              config.DefaultVaultConfig(),
 		Client: &ClientConfig{
 			Enabled:        false,
 			NetworkSpeed:   100,
