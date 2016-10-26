@@ -292,17 +292,23 @@ func TestAllocDir_Snapshot(t *testing.T) {
 }
 
 func TestAllocDir_Move(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
+	tmp1, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp1)
+
+	tmp2, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(tmp)
+	d1 := NewAllocDir(tmp1)
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(tmp)
+	d2 := NewAllocDir(tmp2)
 	defer d2.Destroy()
 
 	tasks := []*structs.Task{t1, t2}

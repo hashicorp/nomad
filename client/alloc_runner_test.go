@@ -554,7 +554,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 
 	// Create another alloc runner
 	alloc1 := mock.Alloc()
-	task = alloc.Job.TaskGroups[0].Tasks[0]
+	task = alloc1.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"run_for": "1s",
