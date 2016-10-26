@@ -530,6 +530,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"collection_interval",
 		"publish_allocation_metrics",
 		"publish_node_metrics",
+		"datadog_address",
 		"circonus_api_token",
 		"circonus_api_app",
 		"circonus_api_url",
