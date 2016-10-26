@@ -158,6 +158,7 @@ func DefaultConfig() *Config {
 		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
+		TLSConfig:               &config.TLSConfig{},
 	}
 }
 

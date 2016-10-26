@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-
-	"github.com/hashicorp/go-cleanhttp"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -82,10 +80,7 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 	if node.HTTPAddr == "" {
 		return nil, fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
 	}
-	client, err := NewClient(&Config{
-		Address:    fmt.Sprintf("http://%s", node.HTTPAddr),
-		HttpClient: cleanhttp.DefaultClient(),
-	})
+	client, err := NewClient(n.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
 	if err != nil {
 		return nil, err
 	}

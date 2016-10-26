@@ -18,7 +18,18 @@ func TestMeta_FlagSet(t *testing.T) {
 		},
 		{
 			FlagSetClient,
-			[]string{"address", "no-color", "region"},
+			[]string{
+				"address",
+				"no-color",
+				"region",
+				"address",
+				"ca-cert",
+				"ca-path",
+				"client-cert",
+				"client-key",
+				"insecure",
+				"tls-skip-verify",
+			},
 		},
 	}
 
