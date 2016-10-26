@@ -134,8 +134,9 @@ func (w *Worker) run() {
 func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, string, bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
-		Schedulers: w.srv.config.EnabledSchedulers,
-		Timeout:    timeout,
+		Schedulers:       w.srv.config.EnabledSchedulers,
+		Timeout:          timeout,
+		SchedulerVersion: scheduler.SchedulerVersion,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
 		},

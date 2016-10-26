@@ -305,8 +305,9 @@ type EvalAckRequest struct {
 
 // EvalDequeueRequest is used when we want to dequeue an evaluation
 type EvalDequeueRequest struct {
-	Schedulers []string
-	Timeout    time.Duration
+	Schedulers       []string
+	Timeout          time.Duration
+	SchedulerVersion uint16
 	WriteRequest
 }
 
