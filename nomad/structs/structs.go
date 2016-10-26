@@ -2103,7 +2103,9 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 		service.Canonicalize(job.Name, tg.Name, t.Name)
 	}
 
-	if t.Resources != nil {
+	if t.Resources == nil {
+		t.Resources = DefaultResources()
+	} else {
 		t.Resources.Canonicalize()
 	}
 
@@ -2155,12 +2157,12 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	// Validate the resources.
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	} else if err := t.Resources.MeetsMinResources(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-	}
+	} else {
+		if err := t.Resources.MeetsMinResources(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 
-	// Ensure the task isn't asking for disk resources
-	if t.Resources != nil {
+		// Ensure the task isn't asking for disk resources
 		if t.Resources.DiskMB > 0 {
 			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
 		}
