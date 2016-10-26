@@ -363,6 +363,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	// Set the TLS related configs
 	conf.TLSConfig = a.config.TLSConfig
+	conf.Node.TLSEnabled = conf.TLSConfig.EnableHTTP
 
 	return conf, nil
 }

@@ -653,6 +653,9 @@ type Node struct {
 	// requests
 	HTTPAddr string
 
+	// TLSEnabled indicates if the Agent has TLS enabled for the HTTP API
+	TLSEnabled bool
+
 	// Attributes is an arbitrary set of key/value
 	// data that can be used for constraints. Examples
 	// include "kernel.name=linux", "arch=386", "driver.docker=1",
