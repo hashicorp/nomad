@@ -22,7 +22,6 @@ func TestMeta_FlagSet(t *testing.T) {
 				"address",
 				"no-color",
 				"region",
-				"address",
 				"ca-cert",
 				"ca-path",
 				"client-cert",
