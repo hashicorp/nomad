@@ -147,6 +147,12 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *LxcDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: false,
+	}
+}
+
 // Fingerprint fingerprints the lxc driver configuration
 func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	enabled := cfg.ReadBoolDefault(lxcConfigOption, false)
@@ -378,6 +384,10 @@ func (h *lxcDriverHandle) Kill() error {
 	}
 	close(h.doneCh)
 	return nil
+}
+
+func (h *lxcDriverHandle) Signal(s os.Signal) error {
+	return fmt.Errorf("LXC does not support signals")
 }
 
 func (h *lxcDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
