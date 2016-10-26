@@ -2103,6 +2103,7 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 		service.Canonicalize(job.Name, tg.Name, t.Name)
 	}
 
+	// If Resources are nil initialize them to defaults, otherwise canonicalize
 	if t.Resources == nil {
 		t.Resources = DefaultResources()
 	} else {

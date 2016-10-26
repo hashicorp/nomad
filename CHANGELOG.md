@@ -40,6 +40,7 @@ BUG FIXES:
     the client [GH-1641]
   * discovery/jobspec: Validate service name after interpolation [GH-1852]
   * driver/docker: Fix `local/` directory mount into container [GH-1830]
+  * jobspec: Tasks without a resource block no longer fail to validate [GH-1864]
 
 ## 0.4.1 (August 18, 2016)
 
