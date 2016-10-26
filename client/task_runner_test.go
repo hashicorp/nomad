@@ -442,6 +442,10 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
+	if err := tr.setTaskEnv(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
 	// Try to run as root with exec.
 	tr.task.Driver = "exec"
 	tr.task.User = "root"
