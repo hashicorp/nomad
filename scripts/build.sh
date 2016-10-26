@@ -46,6 +46,24 @@ gox \
     -output "pkg/{{.OS}}_{{.Arch}}/nomad" \
     .
 
+echo ""
+if pkg-config --exists lxc; then
+    echo "==> Building linux_amd64_lxc..."
+    go build \
+        -tags lxc \
+        -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
+        -o "pkg/linux_amd64_lxc/nomad"
+else
+    if [[ "${NOMAD_DEV}" ]]; then
+	 # No lxc in dev mode is no problem
+        echo "LXC not installed; skipping"
+    else
+	# Require LXC for release mode
+	echo "LXC not installed; install lxc-dev to build release binaries"
+	exit 1
+    fi
+fi
+
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}
 case $(uname) in
