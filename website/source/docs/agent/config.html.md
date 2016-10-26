@@ -176,10 +176,6 @@ nodes, unless otherwise specified:
     reachable from all server nodes. It is not required that clients can reach
     this address.
 
-* `checks_use_advertise`: By default, Nomad will use the configured bind address
-  as the target for its consul checks. This boolean option allows you to request
-  that the advertise address be used instead.
-
 * `consul`: The `consul` configuration block changes how Nomad interacts with
   Consul. Nomad can automatically advertise Nomad services via Consul, and can
   automatically bootstrap itself using Consul. For more details see the [`consul`
@@ -301,6 +297,10 @@ integration and are entirely optional.
     `client_service_name`. Nomad Servers and Clients advertise their respective
     services, each tagged appropriately with either `http` or `rpc` tag. Nomad
     Servers also advertise a `serf` tagged service.  Defaults to `true`.
+
+  * `checks_use_advertise`: By default, Nomad will use the configured bind
+    address as the target for its consul checks. This boolean option allows you
+    to request that the advertise address be used instead.
 
   * `server_auto_join`: Servers will automatically discover and join other
     Nomad Servers by searching for the Consul service name defined in the

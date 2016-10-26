@@ -331,15 +331,15 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Resolve consul check addresses. Always use advertise address for services
-	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.ChecksUseAdvertise)
+	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.Consul.ChecksUseAdvertise)
 	if err != nil {
 		return err
 	}
-	rpcCheckAddr, err := a.selectAddr(a.getRPCAddr, !a.config.ChecksUseAdvertise)
+	rpcCheckAddr, err := a.selectAddr(a.getRPCAddr, !a.config.Consul.ChecksUseAdvertise)
 	if err != nil {
 		return err
 	}
-	serfCheckAddr, err := a.selectAddr(a.getSerfAddr, !a.config.ChecksUseAdvertise)
+	serfCheckAddr, err := a.selectAddr(a.getSerfAddr, !a.config.Consul.ChecksUseAdvertise)
 	if err != nil {
 		return err
 	}
@@ -451,7 +451,7 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Resolve the http check address
-	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.ChecksUseAdvertise)
+	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.Consul.ChecksUseAdvertise)
 	if err != nil {
 		return err
 	}
@@ -485,7 +485,7 @@ func (a *Agent) setupClient() error {
 // Defines the selector interface
 type addrSelector func(bool) (*net.TCPAddr, error)
 
-// Choose the right address given a selector, and return it as a PortLabel
+// selectAddr returns the right address given a selector, and return it as a PortLabel
 // preferBind is a weak preference, and will skip 0.0.0.0
 func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, error) {
 	addr, err := selector(preferBind)
@@ -504,75 +504,60 @@ func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, erro
 	return address, nil
 }
 
-// Address selectors
-// Resolve Bind address and Advertise address. Skip 0.0.0.0 unless
-// we're looking for the Bind address, since that's the only time
-// it's useful
-func (a *Agent) getHTTPAddr(returnBind bool) (*net.TCPAddr, error) {
-	var serverAddr string
+// getHTTPAddr returns the HTTP address to use based on the clients
+// configuration. If bind is true, an address appropriate for binding is
+// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
+// unless returning a bind address, since that's the only time it's useful.
+func (a *Agent) getHTTPAddr(bind bool) (*net.TCPAddr, error) {
 	advertAddr := a.config.AdvertiseAddrs.HTTP
 	bindAddr := a.config.Addresses.HTTP
 	globalBindAddr := a.config.BindAddr
-
-	if advertAddr != "" && !returnBind {
-		serverAddr = advertAddr
-	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.HTTP))
-	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.HTTP))
-	} else {
-		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
-	}
-
-	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", serverAddr, err)
-	}
-	return addr, nil
+	port := a.config.Ports.HTTP
+	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "HTTP")
 }
 
-func (a *Agent) getRPCAddr(returnBind bool) (*net.TCPAddr, error) {
-	var serverAddr string
+// getRPCAddr returns the HTTP address to use based on the clients
+// configuration. If bind is true, an address appropriate for binding is
+// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
+// unless returning a bind address, since that's the only time it's useful.
+func (a *Agent) getRPCAddr(bind bool) (*net.TCPAddr, error) {
 	advertAddr := a.config.AdvertiseAddrs.RPC
 	bindAddr := a.config.Addresses.RPC
 	globalBindAddr := a.config.BindAddr
-
-	if advertAddr != "" && !returnBind {
-		serverAddr = advertAddr
-	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.RPC))
-	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.RPC))
-	} else {
-		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.RPC))
-	}
-
-	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", serverAddr, err)
-	}
-	return addr, nil
+	port := a.config.Ports.RPC
+	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "RPC")
 }
 
-func (a *Agent) getSerfAddr(returnBind bool) (*net.TCPAddr, error) {
-	var serverAddr string
+// getSerfAddr returns the Serf address to use based on the clients
+// configuration. If bind is true, an address appropriate for binding is
+// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
+// unless returning a bind address, since that's the only time it's useful.
+func (a *Agent) getSerfAddr(bind bool) (*net.TCPAddr, error) {
 	advertAddr := a.config.AdvertiseAddrs.Serf
 	bindAddr := a.config.Addresses.Serf
 	globalBindAddr := a.config.BindAddr
+	port := a.config.Ports.Serf
+	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "RPC")
+}
 
-	if advertAddr != "" && !returnBind {
-		serverAddr = advertAddr
-	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(bindAddr, strconv.Itoa(a.config.Ports.Serf))
-	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !returnBind) {
-		serverAddr = net.JoinHostPort(globalBindAddr, strconv.Itoa(a.config.Ports.Serf))
+// pickAddress is a shared helper to pick the address to either bind to or
+// advertise.
+func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port int, service string) (*net.TCPAddr, error) {
+	portConverted := strconv.Itoa(port)
+	var serverAddr string
+	if advertiseAddr != "" && !bind {
+		serverAddr = advertiseAddr
+	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !bind) {
+		serverAddr = net.JoinHostPort(bindAddr, portConverted)
+	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !bind) {
+		serverAddr = net.JoinHostPort(globalBindAddr, portConverted)
 	} else {
-		serverAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.Serf))
+		serverAddr = net.JoinHostPort("127.0.0.1", portConverted)
 	}
 
 	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving Serf addr %+q: %v", serverAddr, err)
+		return nil, fmt.Errorf("error resolving %s addr %+q: %v", service, serverAddr, err)
 	}
 	return addr, nil
 }

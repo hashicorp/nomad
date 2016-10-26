@@ -33,6 +33,10 @@ type ConsulConfig struct {
 	// services with Consul.
 	AutoAdvertise bool `mapstructure:"auto_advertise"`
 
+	// ChecksUseAdvertise specifies that Consul checks should use advertise
+	// address instead of bind address
+	ChecksUseAdvertise bool `mapstructure:"checks_use_advertise"`
+
 	// Addr is the address of the local Consul agent
 	Addr string `mapstructure:"address"`
 

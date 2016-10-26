@@ -51,9 +51,6 @@ type Config struct {
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
 
-	// Specifies that consul checks should use Advertise address instead of bind
-	ChecksUseAdvertise bool `mapstructure:"checks_use_advertise"`
-
 	// Client has our client related settings
 	Client *ClientConfig `mapstructure:"client"`
 
