@@ -243,6 +243,7 @@ func DefaultConfig() *Config {
 		ConsulConfig:           config.DefaultConsulConfig(),
 		VaultConfig:            config.DefaultVaultConfig(),
 		RPCHoldTimeout:         5 * time.Second,
+		TLSConfig:              &config.TLSConfig{},
 	}
 
 	// Enable all known schedulers by default

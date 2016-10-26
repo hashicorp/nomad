@@ -136,7 +136,7 @@ func TestConfig_Parse(t *testing.T) {
 					TaskTokenTTL:         "1s",
 					Token:                "12345",
 				},
-				TLSConfig: &TLSConfig{
+				TLSConfig: &config.TLSConfig{
 					EnableHTTP:           true,
 					EnableRPC:            true,
 					VerifyServerHostname: true,

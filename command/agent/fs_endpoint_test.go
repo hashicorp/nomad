@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/ugorji/go/codec"
 )
