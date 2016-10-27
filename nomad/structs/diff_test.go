@@ -1867,6 +1867,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					RemoteSyslog:  "localhost:601",
 				},
 			},
 			Expected: &TaskDiff{
@@ -1888,6 +1889,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "1",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RemoteSyslog",
+								Old:  "",
+								New:  "localhost:601",
+							},
 						},
 					},
 				},
@@ -1899,6 +1906,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					RemoteSyslog:  "localhost:601",
 				},
 			},
 			New: &Task{},
@@ -1921,6 +1929,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "1",
 								New:  "",
 							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RemoteSyslog",
+								Old:  "localhost:601",
+								New:  "",
+							},
 						},
 					},
 				},
@@ -1932,12 +1946,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					RemoteSyslog:  "localhost:601",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      2,
 					MaxFileSizeMB: 20,
+					RemoteSyslog:  "localhost:10601",
 				},
 			},
 			Expected: &TaskDiff{
@@ -1959,6 +1975,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "1",
 								New:  "2",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "RemoteSyslog",
+								Old:  "localhost:601",
+								New:  "localhost:10601",
+							},
 						},
 					},
 				},
@@ -1971,12 +1993,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					RemoteSyslog:  "localhost:601",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 20,
+					RemoteSyslog:  "localhost:601",
 				},
 			},
 			Expected: &TaskDiff{
@@ -1997,6 +2021,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MaxFiles",
 								Old:  "1",
 								New:  "1",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "RemoteSyslog",
+								Old:  "localhost:601",
+								New:  "localhost:601",
 							},
 						},
 					},

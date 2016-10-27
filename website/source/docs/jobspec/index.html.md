@@ -448,6 +448,9 @@ The `logs` object configures the log rotation policy for a task's `stdout` and
 * `max_file_size` - The size of each rotated file. The size is specified in
   `MB`.
 
+* `remote_syslog` - Optional syslog server to forward syslog messages.
+  Specified as `host:port` pair.
+
 If the amount of disk resource requested for the task is less than the total
 amount of disk space needed to retain the rotated set of files, Nomad will
 return a validation error when a job is submitted.

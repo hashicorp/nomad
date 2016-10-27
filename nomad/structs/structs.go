@@ -1965,10 +1965,11 @@ const (
 	DefaultKillTimeout = 5 * time.Second
 )
 
-// LogConfig provides configuration for log rotation
+// LogConfig provides configuration for log rotation and log forwarding
 type LogConfig struct {
-	MaxFiles      int `mapstructure:"max_files"`
-	MaxFileSizeMB int `mapstructure:"max_file_size"`
+	MaxFiles      int    `mapstructure:"max_files"`
+	MaxFileSizeMB int    `mapstructure:"max_file_size"`
+	RemoteSyslog  string `mapstructure:"remote_syslog"`
 }
 
 // DefaultLogConfig returns the default LogConfig values.
@@ -1976,6 +1977,7 @@ func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
+		RemoteSyslog:  "",
 	}
 }
 

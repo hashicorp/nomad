@@ -63,6 +63,7 @@ type SyslogCollector struct {
 	lro        *FileRotator
 	lre        *FileRotator
 	server     *SyslogServer
+	client     *SyslogClient
 	syslogChan chan *SyslogMessage
 	taskDir    string
 
@@ -85,8 +86,11 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	s.ctx = ctx
 	// configuring the task dir
 	if err := s.configureTaskDir(); err != nil {
+		s.logger.Printf("[DEBUG] universal_collector: error configuring task dir")
 		return nil, err
 	}
+
+	s.client = NewSyslogClient(s.ctx.LogConfig.RemoteSyslog, s.ctx.AllocDir.AllocDir, s.logger)
 
 	s.server = NewSyslogServer(l, s.syslogChan, s.logger)
 	go s.server.Start()
@@ -123,6 +127,10 @@ func (s *SyslogCollector) collectLogs(we io.Writer, wo io.Writer) {
 			s.lro.Write(logParts.Message)
 			s.lro.Write([]byte{'\n'})
 		}
+		// If possible, pipe logs to external server
+		if s.client != nil {
+			s.client.Write(logParts)
+		}
 	}
 }
 
@@ -148,6 +156,8 @@ func (s *SyslogCollector) UpdateLogConfig(logConfig *structs.LogConfig) error {
 	}
 	s.lre.MaxFiles = logConfig.MaxFiles
 	s.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+
+	s.client = NewSyslogClient(s.ctx.LogConfig.RemoteSyslog, s.ctx.AllocDir.AllocDir, s.logger)
 	return nil
 }
 
