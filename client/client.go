@@ -1393,8 +1393,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 // blockForRemoteAlloc blocks until the previous allocation of an allocation has
 // been terminated and migrates the snapshot data
 func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
-	c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
-
 	// Removing the allocation from the set of allocs which are currently
 	// undergoing migration
 	defer func() {
@@ -1403,18 +1401,36 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 		c.migratingAllocsLock.Unlock()
 	}()
 
-	// Block until the previous allocation migrates to terminal state
-	prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
-	if err != nil {
-		c.logger.Printf("[ERR] client: error waiting for allocation %q: %v", alloc.PreviousAllocation, err)
+	// prevAllocDir is the allocation directory of the previous allocation
+	var prevAllocDir *allocdir.AllocDir
+
+	// If the allocation is not sticky then we won't wait for the previous
+	// allocation to be terminal
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		c.logger.Printf("[ERR] client: task group %q not found in job %q", tg.Name, alloc.Job.ID)
+		goto ADDALLOC
 	}
 
-	// Migrate the data from the remote node
-	prevAllocDir, err := c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
-	if err != nil {
-		c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v", alloc.PreviousAllocation, err)
+	// Wait for the remote previous alloc to be terminal if the alloc is sticky
+	if tg.EphemeralDisk.Sticky {
+		c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
+		// Block until the previous allocation migrates to terminal state
+		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
+		if err != nil {
+			c.logger.Printf("[ERR] client: error waiting for allocation %q: %v",
+				alloc.PreviousAllocation, err)
+		}
+
+		// Migrate the data from the remote node
+		prevAllocDir, err = c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
+		if err != nil {
+			c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v",
+				alloc.PreviousAllocation, err)
+		}
 	}
 
+ADDALLOC:
 	// Add the allocation
 	if err := c.addAlloc(alloc, prevAllocDir); err != nil {
 		c.logger.Printf("[ERR] client: error adding alloc: %v", err)
