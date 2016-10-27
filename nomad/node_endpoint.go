@@ -110,7 +110,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Check if the SecretID has been tampered with
 	if !pre && originalNode != nil {
-		if args.Node.SecretID != originalNode.SecretID {
+		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
 	}

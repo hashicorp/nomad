@@ -77,7 +77,7 @@ func TestClientEndpoint_Register_NoSecret(t *testing.T) {
 	// Update the node to be pre-0.5
 	node.Attributes["nomad.version"] = "0.4.1"
 	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
-		t.Fatalf("Expecting error regarding missing secret id", err)
+		t.Fatalf("Not expecting err: %v", err)
 	}
 	if resp.Index == 0 {
 		t.Fatalf("bad index: %d", resp.Index)
