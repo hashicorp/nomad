@@ -1,6 +1,7 @@
 ## 0.5.0 (Unreleased)
 
 IMPROVEMENTS:
+  * core: Support for gossip encryption [GH-1791]
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * core: Scheduler version enforcement disallows different scheduler version
@@ -19,7 +20,6 @@ IMPROVEMENTS:
   * driver/docker: Allow Docker logging to be configured [GH-1767]
   * driver/lxc: Support for LXC containers [GH-1699]
   * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]
-  * server: Support for gossip encryption [GH-1791]
 
 BUG FIXES:
   * agent: Handle the SIGPIPE signal preventing panics on journalctl restarts
