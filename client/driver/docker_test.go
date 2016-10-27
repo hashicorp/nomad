@@ -950,16 +950,18 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 
 	randfn := fmt.Sprintf("test-%d", rand.Int())
 	hostfile := filepath.Join(hostpath, randfn)
-	containerFile := filepath.Join("/mnt/vol", randfn)
+	containerPath := "/mnt/vol"
+	containerFile := filepath.Join(containerPath, randfn)
 
 	task := &structs.Task{
 		Name: "ls",
+		Env:  map[string]string{"VOL_PATH": containerPath},
 		Config: map[string]interface{}{
 			"image":   "busybox",
 			"load":    []string{"busybox.tar"},
 			"command": "touch",
 			"args":    []string{containerFile},
-			"volumes": []string{fmt.Sprintf("%s:/mnt/vol", hostpath)},
+			"volumes": []string{fmt.Sprintf("%s:${VOL_PATH}", hostpath)},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,

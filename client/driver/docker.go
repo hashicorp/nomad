@@ -405,7 +405,10 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
-	for _, userbind := range driverConfig.Volumes {
+
+	// Expand environment variables in volume paths
+	expandedVols := d.taskEnv.ParseAndReplace(driverConfig.Volumes)
+	for _, userbind := range expandedVols {
 		parts := strings.Split(userbind, ":")
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
