@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"testing"
 )
 
@@ -295,7 +296,8 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 
 	act := MapStringStringSliceValueSet(m)
 	exp := []string{"1", "2", "3"}
+	sort.Strings(act)
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("Bad")
+		t.Fatalf("Bad; got %v; want %v", act, exp)
 	}
 }
