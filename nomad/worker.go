@@ -27,6 +27,10 @@ const (
 	// the slower backoff
 	backoffLimitSlow = 10 * time.Second
 
+	// backoffSchedulerVersionMismatch is the backoff between retries when the
+	// scheduler version mismatches that of the leader.
+	backoffSchedulerVersionMismatch = 30 * time.Second
+
 	// dequeueTimeout is used to timeout an evaluation dequeue so that
 	// we can check if there is a shutdown event
 	dequeueTimeout = 500 * time.Millisecond
@@ -155,7 +159,16 @@ REQ:
 		if time.Since(w.start) > dequeueErrGrace && !w.srv.IsShutdown() {
 			w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
 		}
-		if w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
+
+		// Adjust the backoff based on the error. If it is a scheduler version
+		// mismatch we increase the baseline.
+		base, limit := backoffBaselineFast, backoffLimitSlow
+		if strings.Contains(err.Error(), "calling scheduler version") {
+			base = backoffSchedulerVersionMismatch
+			limit = backoffSchedulerVersionMismatch
+		}
+
+		if w.backoffErr(base, limit) {
 			return nil, "", true
 		}
 		goto REQ
