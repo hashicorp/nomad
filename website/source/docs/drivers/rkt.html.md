@@ -73,6 +73,19 @@ The `rkt` driver supports the following configuration in the job spec:
 * `dns_search_domains` - (Optional) A list of DNS search domains to be used in
    the containers.
 
+* `net` - (Optional) A list of networks to be used by the containers
+
+* `port_map` - (Optional) A key/value map of port to be used by the container.
+   port name in the image manifest file needs to be specified for the value. For example:
+
+   ```
+    port_map {
+            app = "8080-tcp"
+    }
+   ```
+
+   See below for more details.
+
 * `debug` - (Optional) Enable rkt command debug option.
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
@@ -83,6 +96,49 @@ The `rkt` driver supports the following configuration in the job spec:
       volumes = ["/path/on/host:/path/in/container"]
     }
     ```
+
+## Networking
+
+The `rkt` can specify `--net` and `--port` for the rkt client. Hence, there are two ways to use host ports by
+using `--net=host` or `--port=PORT` with your network.
+
+Example:
+
+```
+task "redis" {
+	# Use rkt to run the task.
+	driver = "rkt"
+
+	config {
+		# Use docker image with port defined
+		image = "docker://redis:latest"
+		port_map {
+			app = "6379-tcp"
+		}
+	}
+
+	service {
+		port = "app"
+	}
+
+	resources {
+		network {
+			mbits = 10
+			port "app" {
+			    static = 12345
+			}
+		}
+	}
+}
+```
+
+### Allocating Ports
+
+You can allocate ports to your task using the port syntax described on the
+[networking page](/docs/jobspec/networking.html).
+
+When you use port allocation, the image manifest needs to declare public ports and host has configured network.
+For more information, please refer to [rkt Networking](https://coreos.com/rkt/docs/latest/networking/overview.html).
 
 ## Client Requirements
 

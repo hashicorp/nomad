@@ -397,3 +397,62 @@ func TestRktTaskValidate(t *testing.T) {
 		t.Fatalf("Validation error in TaskConfig : '%v'", err)
 	}
 }
+
+// TODO: Port Mapping test should be ran with proper ACI image and test the port access.
+func TestRktDriver_PortsMapping(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name: "etcd",
+		Config: map[string]interface{}{
+			"image": "docker://redis:latest",
+			"args":  []string{"--version"},
+			"port_map": []map[string]string{
+				map[string]string{
+					"main": "6379-tcp",
+				},
+			},
+			"debug": "true",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				&structs.NetworkResource{
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{"main", 8080}},
+				},
+			},
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+
+	d := NewRktDriver(driverCtx)
+
+	handle, err := d.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+	defer handle.Kill()
+
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+}
