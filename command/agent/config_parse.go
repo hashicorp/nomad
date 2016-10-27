@@ -616,6 +616,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"auto_advertise",
 		"ca_file",
 		"cert_file",
+		"checks_use_advertise",
 		"client_auto_join",
 		"client_service_name",
 		"key_file",
