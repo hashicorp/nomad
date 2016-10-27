@@ -484,9 +484,9 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 			driverConfig.Logging = []DockerLoggingOpts{
 				{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
 			}
+		} else {
+			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
 		}
-
-		d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
 	}
 
 	hostConfig := &docker.HostConfig{
