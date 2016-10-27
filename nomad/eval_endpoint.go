@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
+	"github.com/hashicorp/nomad/scheduler"
 )
 
 const (
@@ -75,6 +76,12 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	// Ensure there is at least one scheduler
 	if len(args.Schedulers) == 0 {
 		return fmt.Errorf("dequeue requires at least one scheduler type")
+	}
+
+	// Check that there isn't a scheduler version mismatch
+	if args.SchedulerVersion != scheduler.SchedulerVersion {
+		return fmt.Errorf("dequeue disallowed: calling scheduler version is %d; leader version is %d",
+			args.SchedulerVersion, scheduler.SchedulerVersion)
 	}
 
 	// Ensure there is a default timeout

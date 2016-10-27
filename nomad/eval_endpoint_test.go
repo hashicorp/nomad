@@ -2,12 +2,14 @@ package nomad
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -142,8 +144,9 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 
 	// Dequeue the eval
 	get := &structs.EvalDequeueRequest{
-		Schedulers:   defaultSched,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Schedulers:       defaultSched,
+		SchedulerVersion: scheduler.SchedulerVersion,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.EvalDequeueResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
@@ -161,6 +164,31 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	}
 	if token != resp.Token {
 		t.Fatalf("bad token: %#v %#v", token, resp.Token)
+	}
+}
+
+func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+
+	// Dequeue the eval
+	get := &structs.EvalDequeueRequest{
+		Schedulers:       defaultSched,
+		SchedulerVersion: 0,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.EvalDequeueResponse
+	err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp)
+	if err == nil || !strings.Contains(err.Error(), "scheduler version is 0") {
+		t.Fatalf("err: %v", err)
 	}
 }
 

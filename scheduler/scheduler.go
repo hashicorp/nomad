@@ -8,6 +8,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// SchedulerVersion is the version of the scheduler. Changes to the
+	// scheduler that are incompatible with prior schedulers will increment this
+	// version. It is used to disallow dequeueing when the versions do not match
+	// across the leader and the dequeueing scheduler.
+	SchedulerVersion uint16 = 1
+)
+
 // BuiltinSchedulers contains the built in registered schedulers
 // which are available
 var BuiltinSchedulers = map[string]Factory{
