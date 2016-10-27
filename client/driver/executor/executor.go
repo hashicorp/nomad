@@ -457,8 +457,14 @@ func (e *UniversalExecutor) Exit() error {
 	if e.syslogServer != nil {
 		e.syslogServer.Shutdown()
 	}
-	e.lre.Close()
-	e.lro.Close()
+
+	if e.lre != nil {
+		e.lre.Close()
+	}
+
+	if e.lro != nil {
+		e.lro.Close()
+	}
 
 	if e.consulSyncer != nil {
 		e.consulSyncer.Shutdown()
