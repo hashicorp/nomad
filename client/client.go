@@ -1403,16 +1403,32 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 		c.migratingAllocsLock.Unlock()
 	}()
 
-	// Block until the previous allocation migrates to terminal state
-	prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
-	if err != nil {
-		c.logger.Printf("[ERR] client: error waiting for allocation %q: %v", alloc.PreviousAllocation, err)
+	// If the allocation is not sticky then we won't wait for the previous
+	// allocation to be terminal
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		c.logger.Printf("[ERR] client: task group %q not found in job %q", tg.Name, alloc.Job.ID)
+		return
 	}
 
-	// Migrate the data from the remote node
-	prevAllocDir, err := c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
-	if err != nil {
-		c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v", alloc.PreviousAllocation, err)
+	// prevAllocDir is the allocation directory of the previous allocation
+	var prevAllocDir *allocdir.AllocDir
+
+	// Wait for the remote previous alloc to be terminal if the alloc is sticky
+	if tg.EphemeralDisk.Sticky {
+		// Block until the previous allocation migrates to terminal state
+		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
+		if err != nil {
+			c.logger.Printf("[ERR] client: error waiting for allocation %q: %v",
+				alloc.PreviousAllocation, err)
+		}
+
+		// Migrate the data from the remote node
+		prevAllocDir, err = c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
+		if err != nil {
+			c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v",
+				alloc.PreviousAllocation, err)
+		}
 	}
 
 	// Add the allocation
