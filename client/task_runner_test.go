@@ -484,9 +484,9 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	defer tr.ctx.AllocDir.Destroy()
 
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
 		tr.Restart("test", "restart")
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
 		tr.Kill("test", "restart", false)
 	}()
 
