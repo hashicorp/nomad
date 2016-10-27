@@ -98,7 +98,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	// Returns error on bad serf addr
 	conf.AdvertiseAddrs.Serf = "nope"
 	_, err := a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "serf advertise") {
+	if err == nil || !strings.Contains(err.Error(), "error resolving Serf addr") {
 		t.Fatalf("expected serf address error, got: %#v", err)
 	}
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -106,7 +106,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	// Returns error on bad rpc addr
 	conf.AdvertiseAddrs.RPC = "nope"
 	_, err = a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "rpc advertise") {
+	if err == nil || !strings.Contains(err.Error(), "error resolving RPC addr") {
 		t.Fatalf("expected rpc address error, got: %#v", err)
 	}
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
@@ -155,7 +155,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Addresses.RPC = "127.0.0.2"
 	conf.Addresses.Serf = "127.0.0.2"
 	conf.Addresses.HTTP = "127.0.0.2"
-	conf.AdvertiseAddrs.HTTP = ""
+	conf.AdvertiseAddrs.HTTP = "10.0.0.10:4646"
+	conf.AdvertiseAddrs.RPC = ""
+	conf.AdvertiseAddrs.Serf = "10.0.0.12:4004"
 
 	out, err = a.serverConfig()
 	if err != nil {
@@ -167,15 +169,57 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
 	}
-	if addr := a.serverHTTPAddr; addr != "127.0.0.2:4646" {
-		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
+	if addr := a.serverHTTPAddr; addr != "10.0.0.10:4646" {
+		t.Fatalf("expect 10.0.0.10:4646, got: %s", addr)
 	}
 	// NOTE: AdvertiseAddr > Addresses > BindAddr > Defaults
-	if addr := a.serverRPCAddr; addr != "127.0.0.1:4001" {
-		t.Fatalf("expect 127.0.0.1:4001, got: %s", addr)
+	if addr := a.serverRPCAddr; addr != "127.0.0.2:4003" {
+		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
 	}
-	if addr := a.serverSerfAddr; addr != "127.0.0.1:4000" {
-		t.Fatalf("expect 127.0.0.1:4000, got: %s", addr)
+	if addr := a.serverSerfAddr; addr != "10.0.0.12:4004" {
+		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
+	}
+
+	// It correctly identifies the bind and advertise address when requested
+	if addr, err := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.2:4646" || err != nil {
+		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
+	}
+
+	if addr, err := a.selectAddr(a.getHTTPAddr, false); addr != "10.0.0.10:4646" || err != nil {
+		t.Fatalf("expect 10.0.0.10:4646, got: %s", addr)
+	}
+
+	if addr, err := a.selectAddr(a.getRPCAddr, true); addr != "127.0.0.2:4003" || err != nil {
+		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
+	}
+
+	if addr, err := a.selectAddr(a.getRPCAddr, false); addr != "127.0.0.2:4003" || err != nil {
+		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
+	}
+
+	if addr, err := a.selectAddr(a.getSerfAddr, true); addr != "127.0.0.2:4004" || err != nil {
+		t.Fatalf("expect 127.0.0.2:4004, got: %s", addr)
+	}
+
+	if addr, err := a.selectAddr(a.getSerfAddr, false); addr != "10.0.0.12:4004" || err != nil {
+		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
+	}
+
+	// We don't resolve 0.0.0.0 unless we're asking for bind
+	conf.Addresses.HTTP = "0.0.0.0"
+	conf.AdvertiseAddrs.HTTP = ""
+	if addr, err := a.getHTTPAddr(false); addr.IP.String() != "127.0.0.3" || err != nil {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr.IP.String())
+	}
+
+	// We still get 0.0.0.0 when explicitly asking for bind
+	if addr, err := a.getHTTPAddr(true); addr.IP.String() != "0.0.0.0" || err != nil {
+		t.Fatalf("expect 0.0.0.0, got: %s", addr.IP.String())
+	}
+
+	// selectAddr does not return 0.0.0.0 with preferBind
+	if addr, err := a.selectAddr(a.getHTTPAddr, true); addr != "127.0.0.3:4646" || err != nil {
+		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
 
 	conf.Server.NodeGCThreshold = "42g"

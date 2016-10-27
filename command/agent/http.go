@@ -49,7 +49,11 @@ type HTTPServer struct {
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	ln, err := config.Listener("tcp", config.Addresses.HTTP, config.Ports.HTTP)
+	lnAddr, err := agent.getHTTPAddr(true)
+	if err != nil {
+		return nil, err
+	}
+	ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
 	}

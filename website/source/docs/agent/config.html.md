@@ -298,6 +298,10 @@ integration and are entirely optional.
     services, each tagged appropriately with either `http` or `rpc` tag. Nomad
     Servers also advertise a `serf` tagged service.  Defaults to `true`.
 
+  * `checks_use_advertise`: By default, Nomad will use the configured bind
+    address as the target for its consul checks. This boolean option allows you
+    to request that the advertise address be used instead.
+
   * `server_auto_join`: Servers will automatically discover and join other
     Nomad Servers by searching for the Consul service name defined in the
     `server_service_name` option. This search only happens if the Server does

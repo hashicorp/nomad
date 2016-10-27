@@ -100,13 +100,14 @@ consul {
     token = "token1"
     auth = "username:pass"
     ssl = true
-    verify_ssl = false
+    verify_ssl = true
     ca_file = "/path/to/ca/file"
     cert_file = "/path/to/cert/file"
     key_file = "/path/to/key/file"
-    server_auto_join = false
-    client_auto_join = false
-    auto_advertise = false
+    server_auto_join = true
+    client_auto_join = true
+    auto_advertise = true
+    checks_use_advertise = true
 }
 vault {
     address = "127.0.0.1:9500"
