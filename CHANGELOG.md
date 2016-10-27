@@ -3,6 +3,8 @@
 IMPROVEMENTS:
   * core: Introduce node SecretID which can be used to minimize the available
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
+  * core: Scheduler version enforcement disallows different scheduler version
+    from making decisions simultaneously [GH-1872]
   * agent: Add DataDog telemetry sync [GH-1816]
   * api: Support TLS for encrypting Raft, RPC and HTTP APIs [GH-1853]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
