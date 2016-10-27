@@ -393,6 +393,7 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Create the Nomad Server services for Consul
+	// TODO re-introduce HTTP/S checks when Consul 0.7.1 comes out
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
@@ -401,9 +402,7 @@ func (a *Agent) setupServer() error {
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
 					Name:     "Nomad Server HTTP Check",
-					Type:     "http",
-					Path:     "/v1/status/peers",
-					Protocol: "http", // TODO TLS
+					Type:     "tcp",
 					Interval: serverHttpCheckInterval,
 					Timeout:  serverHttpCheckTimeout,
 				},
@@ -496,6 +495,8 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Create the Nomad Client  services for Consul
+	// TODO think how we can re-introduce HTTP/S checks when Consul 0.7.1 comes
+	// out
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
@@ -504,9 +505,7 @@ func (a *Agent) setupClient() error {
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
 					Name:     "Nomad Client HTTP Check",
-					Type:     "http",
-					Path:     "/v1/agent/servers",
-					Protocol: "http", // TODO TLS
+					Type:     "tcp",
 					Interval: clientHttpCheckInterval,
 					Timeout:  clientHttpCheckTimeout,
 				},
