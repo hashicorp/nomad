@@ -12,6 +12,7 @@ IMPROVEMENTS:
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
   * driver: Export `NOMAD_JOB_NAME` environment variable [GH-1804]
+  * driver/docker: Docker For Mac support [GH-1806]
   * driver/docker: Support Docker volumes [GH-1767]
   * driver/docker: Allow Docker logging to be configured [GH-1767]
   * driver/lxc: Support for LXC containers [GH-1699]
