@@ -156,7 +156,9 @@ constraint {
 
 ## `constraint` Examples
 
-- Constrain to kernel data
+The following examples only show the `constraint` stanzas. Remember that the
+`constraint` Remember that the `constraint` stanza is only valid in the
+placements listed above.
 
 ### Kernel Data
 
