@@ -37,7 +37,7 @@ job "docs" {
     task "server" {
       resources {
         network {
-          mbits = 1000
+          mbits = 200
           port "http" {}
           port "https" {}
           port "lb" {

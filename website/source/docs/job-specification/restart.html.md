@@ -46,9 +46,9 @@ job "docs" {
   controlled by `mode`. This is specified using a label suffix like "30s" or
   "1h". Defaults vary by job type, see below for more information.
 
-- `mode` `(string: "delay")` - Controls the behavior when the task fails more than `attempts` times
- in an interval. For a detailed explanation of these values and their behavior, please see the [mode values section](#mode-values).
-
+- `mode` `(string: "delay")` - Controls the behavior when the task fails more
+  than `attempts` times in an interval. For a detailed explanation of these
+  values and their behavior, please see the [mode values section](#mode-values).
 
 ### `restart` Parameter Defaults
 

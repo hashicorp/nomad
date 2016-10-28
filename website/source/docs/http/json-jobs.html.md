@@ -3,15 +3,15 @@ layout: "http"
 page_title: "HTTP API: JSON Job Specification"
 sidebar_current: "docs-http-json-jobs"
 description: |-
-  The job specification is also accepted via JSON.
+  Jobs can also be specified via the HTTP API using a JSON format. This guide
+  discusses the job specification in JSON format.
 ---
 
 # Job Specification
 
-Jobs can be specified either in [HCL](https://github.com/hashicorp/hcl) or JSON.
 This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
-for generating valid JSON versions of HCL jobs is `nomad run -output <job.nomad>`
-which will emit a JSON version of the job.
+for generating valid JSON versions of HCL jobs is
+`nomad run -output <job.nomad>` which will emit a JSON version of the job.
 
 ## JSON Syntax
 

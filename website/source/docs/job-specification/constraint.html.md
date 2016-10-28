@@ -3,9 +3,9 @@ layout: "docs"
 page_title: "constraint Stanza - Job Specification"
 sidebar_current: "docs-job-specification-constraint"
 description: |-
-  The "constraint" stanza specifies non-resource requirements. Constraints may
-  filter on attributes or metadata. Additionally constraints may be specified
-  at the job, group, or task levels for ultimate flexibility.
+  The "constraint" stanza allows restricting the set of eligible nodes.
+  Constraints may filter on attributes or metadata. Additionally constraints may
+  be specified at the job, group, or task levels for ultimate flexibility.
 ---
 
 # `constraint` Stanza
@@ -23,7 +23,7 @@ description: |-
   </tr>
 </table>
 
-The `constraint` stanza specifies non-resource requirements. Constraints may
+The `constraint` allows restricting the set of eligible nodes. Constraints may
 filter on [attributes][interpolation] or [metadata][meta]. Additionally
 constraints may be specified at the [job][job], [group][group], or [task][task]
 levels for ultimate flexibility.

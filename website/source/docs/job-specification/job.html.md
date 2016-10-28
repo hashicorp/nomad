@@ -72,6 +72,9 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
+- `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
+  at fixed times, dates or intervals.
+
 - `priority` `(int: 50)` - Specifies the job priority which is used to
   prioritize scheduling and access to resources. Must be between 1 and 100
   inclusively, with a larger value corresponding to a higher priority.
@@ -83,9 +86,6 @@ job "docs" {
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, rolling updates are disabled.
-
-- `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
-  at fixed times, dates or intervals.
 
 ## `job` Examples
 

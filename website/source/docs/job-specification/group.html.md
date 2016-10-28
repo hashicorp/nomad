@@ -32,22 +32,22 @@ job "docs" {
 
 ## `group` Parameters
 
-- `count` `(int: 1)` - Specifies the number of the task groups that should
-  be running under this group. This value must be non-negative.
-
 - `constraint` <code>([Constraint][]: nil)</code> -
   This can be provided multiple times to define additional constraints.
 
+- `count` `(int: 1)` - Specifies the number of the task groups that should
+  be running under this group. This value must be non-negative.
+
+- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+  with user-defined metadata.
+
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
-  type.
+  type, which can be found in the [restart stanza documentation][restart].
 
 - `task` <code>([Task][]: required)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
-
-- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
-  with user-defined metadata.
 
 ## `group` Examples
 
@@ -65,17 +65,20 @@ group "example" {
 }
 ```
 
-### Task with Constraint
+### Tasks with Constraint
 
-This example shows an abbreviated task with a constraint in the group. This will
-restrict the task (and any other tasks in this group) to 64-bit operating
-systems.
+This example shows two abbreviated tasks with a constraint on the group. This
+will restrict the tasks to 64-bit operating systems.
 
 ```hcl
 group "example" {
   constraint {
     attribute = "${attr.arch}"
     value     = "amd64"
+  }
+
+  task "cache" {
+    # ...
   }
 
   task "server" {

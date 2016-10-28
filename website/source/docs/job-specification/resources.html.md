@@ -50,7 +50,7 @@ job "docs" {
 - `disk` `(int: 200)` - Specifies the disk space required in MB.
 
 - `iops` `(int: 0)` - Specifies the number of IOPS required given as a weight
-  between 10-1000.
+  between 0-1000.
 
 - `memory` `(int: 300)` - Specifies the memory required in MB
 

@@ -15,7 +15,7 @@ support a broad set of workloads across all major operating systems.
 The list of supported task drivers is provided on the left of this page.
 Each task driver documents the configuration available in a
 [job specification](/docs/job-specification/index.html), the environments it
-can  be used in, and the resource isolation mechanisms available.
+can be used in, and the resource isolation mechanisms available.
 
 Nomad strives to mask the details of running a task from users and instead
 provides a clean abstraction. It is possible for the same task to be executed

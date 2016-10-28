@@ -51,7 +51,6 @@ For information on how to interact with logs after they have been configured, pl
   the total amount of disk space needed to retain the rotated set of files,
   Nomad will return a validation error when a job is submitted.
 
-
 ## `logs` Examples
 
 The following examples only show the `logs` stanzas. Remember that the
