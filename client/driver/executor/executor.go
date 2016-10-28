@@ -374,11 +374,15 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.ctx.Task = task
 
 	// Updating Log Config
-	fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-	e.lro.MaxFiles = task.LogConfig.MaxFiles
-	e.lro.FileSize = fileSize
-	e.lre.MaxFiles = task.LogConfig.MaxFiles
-	e.lre.FileSize = fileSize
+	e.rotatorLock.Lock()
+	if e.lro != nil && e.lre != nil {
+		fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+		e.lro.MaxFiles = task.LogConfig.MaxFiles
+		e.lro.FileSize = fileSize
+		e.lre.MaxFiles = task.LogConfig.MaxFiles
+		e.lre.FileSize = fileSize
+	}
+	e.rotatorLock.Unlock()
 
 	// Re-syncing task with Consul agent
 	if e.consulSyncer != nil {
