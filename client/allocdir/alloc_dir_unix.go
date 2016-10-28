@@ -43,7 +43,11 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 }
 
 func (d *AllocDir) dropDirPermissions(path string) error {
-	// Can't do anything if not root.
+	if err := os.Chmod(path, 0777); err != nil {
+		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
+	}
+
+	// Can't change owner if not root.
 	if unix.Geteuid() != 0 {
 		return nil
 	}
@@ -65,10 +69,6 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 
 	if err := os.Chown(path, uid, gid); err != nil {
 		return fmt.Errorf("Couldn't change owner/group of %v to (uid: %v, gid: %v): %v", path, uid, gid, err)
-	}
-
-	if err := os.Chmod(path, 0777); err != nil {
-		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
 
 	return nil
