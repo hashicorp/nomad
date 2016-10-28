@@ -1931,7 +1931,7 @@ func (c *Client) consulReaper() {
 		case <-ticker.C:
 			if err := c.consulReaperImpl(); err != nil {
 				if lastok {
-					c.logger.Printf("[ERR] consul.client: error reaping services in consul: %v", err)
+					c.logger.Printf("[ERR] client.consul: error reaping services in consul: %v", err)
 					lastok = false
 				}
 			} else {
