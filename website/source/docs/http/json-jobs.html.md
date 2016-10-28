@@ -1,9 +1,9 @@
 ---
-layout: "docs"
-page_title: "JSON Job Specification"
-sidebar_current: "docs-jobspec-json-syntax"
+layout: "http"
+page_title: "HTTP API: JSON Job Specification"
+sidebar_current: "docs-http-json-jobs"
 description: |-
-  Learn about the Job specification used to submit jobs to Nomad in JSON.
+  The job specification is also accepted via JSON.
 ---
 
 # Job Specification
@@ -187,7 +187,7 @@ The `Job` object supports the following keys:
 * `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
-  [here](/docs/jobspec/schedulers.html)
+  [here](/docs/runtime/schedulers.html)
 
 * `Update` - Specifies the task's update strategy. When omitted, rolling
   updates are disabled. The `Update` object supports the following attributes:
@@ -254,7 +254,7 @@ attributes:
 * `Count` - Specifies the number of the task groups that should
   be running. Must be non-negative, defaults to one.
 
-* `Meta` - A key/value map that annotates the task group with opaque metadata.
+* `Meta` - A key-value map that annotates the task group with opaque metadata.
 
 * `Name` - The name of the task group. Must be specified.
 
@@ -272,7 +272,7 @@ The `Task` object supports the following keys:
   artifacts to be downloaded before the task is run. See the artifacts
   reference for more details.
 
-* `Config` - A map of key/value configuration passed into the driver
+* `Config` - A map of key-value configuration passed into the driver
   to start the task. The details of configurations are specific to
   each driver.
 
@@ -283,10 +283,10 @@ The `Task` object supports the following keys:
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
-*   `Env` - A map of key/value representing environment variables that
+*   `Env` - A map of key-value representing environment variables that
     will be passed along to the running process. Nomad variables are
     interpreted when set in the environment variable values. See the table of
-    interpreted variables [here](/docs/jobspec/interpreted.html).
+    interpreted variables [here](/docs/runtime/interpolation.html).
 
     For example the below environment map will be reinterpreted:
 
@@ -318,7 +318,7 @@ The `Task` object supports the following keys:
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
-  [Click here](/docs/jobspec/servicediscovery.html) to learn more about
+  [Click here](/docs/service-discovery/index.html) to learn more about
   services. Below is the fields in the `Service` object:
 
      * `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
@@ -432,7 +432,7 @@ The `RestartPolicy` object supports the following keys:
 The `Constraint` object supports the following keys:
 
 * `LTarget` - Specifies the attribute to examine for the
-  constraint. See the table of attributes [here](/docs/jobspec/interpreted.html#interpreted_node_vars).
+  constraint. See the table of attributes [here](/docs/runtime/interpolation.html#interpreted_node_vars).
 
 * `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
@@ -492,7 +492,7 @@ would be required for the task would be 60MB.
 Nomad downloads artifacts using
 [`go-getter`](https://github.com/hashicorp/go-getter). The `go-getter` library
 allows downloading of artifacts from various sources using a URL as the input
-source. The key/value pairs given in the `options` block map directly to
+source. The key-value pairs given in the `options` block map directly to
 parameters appended to the supplied `source` URL. These are then used by
 `go-getter` to appropriately download the artifact. `go-getter` also has a CLI
 tool to validate its URL and can be used to check if the Nomad `artifact` is

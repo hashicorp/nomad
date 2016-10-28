@@ -123,7 +123,7 @@ nodes, unless otherwise specified:
   environments. Defaults to `false`.
 
 * `ports`: Controls the network ports used for different services required by
-  the Nomad agent. The value is a key/value mapping of port numbers, and accepts
+  the Nomad agent. The value is a key-value mapping of port numbers, and accepts
   the following keys:
   <br>
   * `http`: The port used to run the HTTP server. Applies to both client and
@@ -184,7 +184,7 @@ nodes, unless otherwise specified:
 <a id="telemetry_config"></a>
 
 * `telemetry`: Used to control how the Nomad agent exposes telemetry data to
-  external metrics collection servers. This is a key/value mapping and supports
+  external metrics collection servers. This is a key-value mapping and supports
   the following keys:
   <br>
   * `statsite_address`: Address of a
@@ -258,7 +258,7 @@ The following options are used to configure [Consul](https://www.consul.io)
 integration and are entirely optional.
 
 * `consul`: The top-level config key used to contain all Consul-related
-  configuration options. The value is a key/value map which supports the
+  configuration options. The value is a key-value map which supports the
   following keys:
   <br>
   * `address`: The address to the local Consul agent given in the format of
@@ -329,7 +329,7 @@ The following options are used to configure [Atlas](https://atlas.hashicorp.com)
 integration and are entirely optional.
 
 * `atlas`: The top-level config key used to contain all Atlas-related
-  configuration options. The value is a key/value map which supports the
+  configuration options. The value is a key-value map which supports the
   following keys:
   <br>
   * <a id="infrastructure">`infrastructure`</a>: The Atlas infrastructure name to
@@ -351,7 +351,7 @@ The following options are applicable to server agents only and need not be
 configured on client nodes.
 
 * `server`: This is the top-level key used to define the Nomad server
-  configuration. It is a key/value mapping which supports the following keys:
+  configuration. It is a key-value mapping which supports the following keys:
   <br>
   * `enabled`: A boolean indicating if server mode should be enabled for the
     local agent. All other server options depend on this value being set.
@@ -415,7 +415,7 @@ The following options are applicable to client agents only and need not be
 configured on server nodes.
 
 * `client`: This is the top-level key used to define the Nomad client
-  configuration. Like the server configuration, it is a key/value mapping which
+  configuration. Like the server configuration, it is a key-value mapping which
   supports the following keys:
   <br>
   * `enabled`: A boolean indicating if client mode is enabled. All other client
@@ -437,12 +437,12 @@ configured on server nodes.
   * <a id="node_class">`node_class`</a>: A string used to logically group client
     nodes by class. This can be used during job placement as a filter. This
     option is not required and has no default.
-  * <a id="meta">`meta`</a>: This is a key/value mapping of metadata pairs. This
+  * <a id="meta">`meta`</a>: This is a key-value mapping of metadata pairs. This
     is a free-form map and can contain any string values.
-  * <a id="options">`options`</a>: This is a key/value mapping of internal
+  * <a id="options">`options`</a>: This is a key-value mapping of internal
     configuration for clients, such as for driver configuration. Please see
     [here](#options_map) for a description of available options.
-  * <a id="chroot_env">`chroot_env`</a>: This is a key/value mapping that
+  * <a id="chroot_env">`chroot_env`</a>: This is a key-value mapping that
     defines the chroot environment for jobs using the Exec and Java drivers.
     Please see [here](#chroot_env_map) for an example and further information.
   * <a id="network_interface">`network_interface`</a>: This is a string to force

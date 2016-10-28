@@ -50,7 +50,7 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `args` - (Optional) A list of arguments to the optional `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task.
 
     ```hcl

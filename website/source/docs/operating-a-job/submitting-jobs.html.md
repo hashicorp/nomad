@@ -24,9 +24,10 @@ The general flow for submitting a job in Nomad is:
 Here is a very basic example to get you started.
 
 ## Author a Job File
+
 Authoring a job file is very easy. For more detailed information, please see the
-[job specification](/docs/jobspec/index.html). Here is a sample job file which
-runs a small docker container web server to get us started.
+[job specification](/docs/job-specification/index.html). Here is a sample job
+file which runs a small docker container web server to get us started.
 
 ```hcl
 job "docs" {

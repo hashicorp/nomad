@@ -1,14 +1,14 @@
 ---
 layout: "docs"
-page_title: "Runtime Environment"
-sidebar_current: "docs-jobspec-environment"
+page_title: "Environment - Runtime"
+sidebar_current: "docs-runtime-environment"
 description: |-
   Learn how to configure the Nomad runtime environment.
 ---
 
 # Runtime Environment
 
-Some settings you specify in your [job specification](/docs/jobspec/) are passed
+Some settings you specify in your [job specification][jobspec] are passed
 to tasks when they start. Other settings are dynamically allocated when your job
 is scheduled. Both types of values are made available to your job through
 environment variables.
@@ -112,10 +112,10 @@ cluster gets more or less busy.
 ### Networking
 
 Nomad assigns IPs and ports to your jobs and exposes them via environment
-variables. See the [Networking](/docs/jobspec/networking.html) page for more
+variables. See the [Networking](/docs/job-specification/network.html) page for more
 details.
 
-### Task Directories <a id="task_dir"></a>
+### Task Directories
 
 Nomad makes the following two directories available to tasks:
 
@@ -147,3 +147,5 @@ environment variables, where `key` is UPPERCASED from the job specification.
 Currently there is no enforcement that the meta keys be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
 behavior.
+
+[jobspec]: /docs/job-specification/index.html "Nomad Job Specification"

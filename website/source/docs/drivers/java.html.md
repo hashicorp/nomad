@@ -12,7 +12,7 @@ Name: `java`
 
 The `java` driver is used to execute Java applications packaged into a Java Jar
 file. The driver requires the Jar file to be accessible from the Nomad
-client via the [`artifact` downloader](/docs/jobspec/index.html#artifact_doc).
+client via the [`artifact` downloader](/docs/job-specification/artifact.html).
 
 ## Task Configuration
 
@@ -36,7 +36,7 @@ The `java` driver supports the following configuration in the job spec:
 
 * `args` - (Optional) A list of arguments to the Jar's main method. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task.
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking

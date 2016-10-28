@@ -31,12 +31,12 @@ The `raw_exec` driver supports the following configuration in the job spec:
 
 * `command` - The command to execute. Must be provided. If executing a binary
   that exists on the host, the path must be absolute. If executing a binary that
-  is downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc), the
+  is downloaded from an [`artifact`](/docs/job-specification/artifact.html), the
   path can be relative from the allocations's root directory.
 
 * `args` - (Optional) A list of arguments to the `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task.
 
 ## Examples
@@ -55,7 +55,7 @@ task "example" {
 }
 ```
 
-To execute a binary downloaded from an [`artifact`](/docs/jobspec/index.html#artifact_doc):
+To execute a binary downloaded from an [`artifact`](/docs/job-specification/artifact.html):
 
 ```
 task "example" {

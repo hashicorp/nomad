@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Rolling Upgrades - Operating a Job"
 sidebar_current: "docs-operating-a-job-updating-rolling-upgrades"
 description: |-
-  In order to update a service while reducing downtime, Nomad provides a  
+  In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades allow for a subset
   of applications to be updated at a time, with a waiting period between to
   reduce downtime.
@@ -86,5 +86,5 @@ potentially invalid.
 Here we can see that Nomad will destroy the 3 existing tasks and create 3
 replacements but it will occur with a rolling update with a stagger of `30s`.
 
-For more details on the `update` block, see the [job specification
-documentation](/docs/jobspec/index.html#update).
+For more details on the `update` block, see the
+[job specification documentation](/docs/job-specification/update.html).

@@ -20,7 +20,7 @@ The `qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 `iso`), and is currently invoked with `qemu-system-x86_64`.
 
 The driver requires the image to be accessible from the Nomad client via the
-[`artifact` downloader](/docs/jobspec/index.html#artifact_doc).
+[`artifact` downloader](/docs/job-specification/artifact.html).
 
 ## Task Configuration
 
@@ -47,7 +47,7 @@ The `qemu` driver supports the following configuration in the job spec:
   If the host machine has `qemu` installed with KVM support, users can specify
   `kvm` for the `accelerator`. Default is `tcg`.
 
-* `port_map` - (Optional) A key/value map of port labels.
+* `port_map` - (Optional) A key-value map of port labels.
 
     ```hcl
     config {

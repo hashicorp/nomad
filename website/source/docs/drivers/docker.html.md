@@ -26,7 +26,7 @@ task "webservice" {
       group = "webservice-cache"
     }
   }
-}    
+}
 ```
 
 The `docker` driver supports the following configuration in the job spec:
@@ -68,7 +68,7 @@ The `docker` driver supports the following configuration in the job spec:
 * `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the args are passed directly to the container.
   References to environment variables or any [interpretable Nomad
-  variables](/docs/jobspec/interpreted.html) will be interpreted before
+  variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task. For example:
 
     ```hcl
@@ -82,7 +82,7 @@ The `docker` driver supports the following configuration in the job spec:
     }
     ```
 
-* `labels` - (Optional) A key/value map of labels to set to the containers on
+* `labels` - (Optional) A key-value map of labels to set to the containers on
   start.
 
     ```hcl
@@ -135,7 +135,7 @@ The `docker` driver supports the following configuration in the job spec:
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
   repository. The default value is `true`.
 
-* `port_map` - (Optional) A key/value map of port labels (see below).
+* `port_map` - (Optional) A key-value map of port labels (see below).
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
@@ -147,7 +147,7 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
-* `logging` - (Optional) A key/value map of Docker logging options. The default
+* `logging` - (Optional) A key-value map of Docker logging options. The default
   value is `syslog`.
 
     ```hcl
@@ -238,7 +238,7 @@ scope of Nomad.
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/jobspec/networking.html). Here is a recap:
+[networking page](/docs/job-specification/network.html). Here is a recap:
 
 ```hcl
 task "example" {
@@ -377,7 +377,7 @@ options](/docs/agent/config.html#options):
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
   label to the allocation and task local bind-mounts to containers. If used
   with `docker.volumes.enabled` set to false, the labels will still be applied
-  to the standard binds in the container. 
+  to the standard binds in the container.
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full

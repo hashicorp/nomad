@@ -8,10 +8,10 @@ description: >
 
 # Command: plan
 
-The `plan` command can be used to envoke the scheduler in a dry-run mode with new
-jobs or when updating existing jobs to determine what would happen if the job
-is submitted. Job files must conform to the [job specification](/docs/jobspec/index.html)
-format.
+The `plan` command can be used to envoke the scheduler in a dry-run mode with
+new jobs or when updating existing jobs to determine what would happen if the
+job is submitted. Job files must conform to the [job
+specification](/docs/job-specification/index.html) format.
 
 ## Usage
 
@@ -20,11 +20,12 @@ nomad plan [options] <file>
 ```
 
 The plan command requires a single argument, specifying the path to a file
-containing a [HCL job specification](/docs/jobspec/index.html). This file
-will be read and the job checked for any problems. If the
+containing a [HCL job specification](/docs/job-specification/index.html). This
+file will be read and the job checked for any problems. If the
 supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
 from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads the jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
+Nomad downloads the jobfile using
+[`go-getter`](https://github.com/hashicorp/go-getter)
 and supports `go-getter` syntax.
 
 Plan invokes a dry-run of the scheduler to determine the effects of submitting
