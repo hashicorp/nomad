@@ -183,10 +183,6 @@ WAIT:
 
 			break WAIT
 		}
-
-		// TODO Thinking, I believe we could check every 30 seconds and if
-		// they are all would be rendered we should start anyways. That is
-		// the reattach mechanism when they have all been rendered
 	}
 
 	allRenderedTime = time.Now()
