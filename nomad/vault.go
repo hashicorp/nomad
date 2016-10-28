@@ -204,7 +204,11 @@ func (v *vaultClient) Stop() {
 // creation/lookup/revocation operation are allowed. All queued revocations are
 // cancelled if set un-active as it is assumed another instances is taking over
 func (v *vaultClient) SetActive(active bool) {
-	atomic.StoreInt32(&v.active, 1)
+	if active {
+		atomic.StoreInt32(&v.active, 1)
+	} else {
+		atomic.StoreInt32(&v.active, 0)
+	}
 
 	// Clear out the revoking tokens
 	v.revLock.Lock()
@@ -839,7 +843,7 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 					}
 
 					if err := v.auth.RevokeAccessor(va.Accessor); err != nil {
-						return fmt.Errorf("failed to revoke token (alloc: %q, node: %q, task: %q)", va.AllocID, va.NodeID, va.Task)
+						return fmt.Errorf("failed to revoke token (alloc: %q, node: %q, task: %q): %v", va.AllocID, va.NodeID, va.Task, err)
 					}
 				case <-pCtx.Done():
 					return nil

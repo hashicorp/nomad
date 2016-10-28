@@ -85,6 +85,7 @@ type Allocation struct {
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
+	PreviousAllocation string
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64

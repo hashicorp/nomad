@@ -940,26 +940,35 @@ func (b *batchFuture) Respond(index uint64, err error) {
 // tasks
 func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	reply *structs.DeriveVaultTokenResponse) error {
+
+	// setErr is a helper for setting the recoverable error on the reply and
+	// logging it
+	setErr := func(e error, recoverable bool) {
+		reply.Error = structs.NewRecoverableError(e, recoverable)
+		n.srv.logger.Printf("[ERR] nomad.client: DeriveVaultToken failed (recoverable %v): %v", recoverable, e)
+	}
+
 	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
-		reply.Error = structs.NewRecoverableError(err, err == structs.ErrNoLeader)
+		setErr(err, err == structs.ErrNoLeader)
 		return nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
 
 	// Verify the arguments
 	if args.NodeID == "" {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing node ID"), false)
+		setErr(fmt.Errorf("missing node ID"), false)
+		return nil
 	}
 	if args.SecretID == "" {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing node SecretID"), false)
+		setErr(fmt.Errorf("missing node SecretID"), false)
 		return nil
 	}
 	if args.AllocID == "" {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("missing allocation ID"), false)
+		setErr(fmt.Errorf("missing allocation ID"), false)
 		return nil
 	}
 	if len(args.Tasks) == 0 {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("no tasks specified"), false)
+		setErr(fmt.Errorf("no tasks specified"), false)
 		return nil
 	}
 
@@ -970,50 +979,50 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	//   tokens
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
-		reply.Error = structs.NewRecoverableError(err, false)
+		setErr(err, false)
 		return nil
 	}
 	node, err := snap.NodeByID(args.NodeID)
 	if err != nil {
-		reply.Error = structs.NewRecoverableError(err, false)
+		setErr(err, false)
 		return nil
 	}
 	if node == nil {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
+		setErr(fmt.Errorf("Node %q does not exist", args.NodeID), false)
 		return nil
 	}
 	if node.SecretID != args.SecretID {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("SecretID mismatch"), false)
+		setErr(fmt.Errorf("SecretID mismatch"), false)
 		return nil
 	}
 
 	alloc, err := snap.AllocByID(args.AllocID)
 	if err != nil {
-		reply.Error = structs.NewRecoverableError(err, false)
+		setErr(err, false)
 		return nil
 	}
 	if alloc == nil {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
+		setErr(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
 		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
+		setErr(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
 	if alloc.TerminalStatus() {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
+		setErr(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
 		return nil
 	}
 
 	// Check the policies
 	policies := alloc.Job.VaultPolicies()
 	if policies == nil {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Job doesn't require Vault policies"), false)
+		setErr(fmt.Errorf("Job doesn't require Vault policies"), false)
 		return nil
 	}
 	tg, ok := policies[alloc.TaskGroup]
 	if !ok {
-		reply.Error = structs.NewRecoverableError(fmt.Errorf("Task group does not require Vault policies"), false)
+		setErr(fmt.Errorf("Task group does not require Vault policies"), false)
 		return nil
 	}
 
@@ -1028,7 +1037,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	if len(unneeded) != 0 {
 		e := fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
 			strings.Join(unneeded, ", "))
-		reply.Error = structs.NewRecoverableError(e, false)
+		setErr(e, false)
 		return nil
 	}
 
@@ -1116,6 +1125,8 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 	// If there was an error revoke the created tokens
 	if createErr != nil {
+		n.srv.logger.Printf("[ERR] nomad.node: Vault token creation failed: %v", createErr)
+
 		if revokeErr := n.srv.vault.RevokeTokens(context.Background(), accessors, false); revokeErr != nil {
 			n.srv.logger.Printf("[ERR] nomad.node: Vault token revocation failed: %v", revokeErr)
 		}
@@ -1142,7 +1153,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 			retry = true
 		}
 
-		reply.Error = structs.NewRecoverableError(err, retry)
+		setErr(err, retry)
 		return nil
 	}
 
