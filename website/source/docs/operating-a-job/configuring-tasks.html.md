@@ -68,7 +68,7 @@ job "docs" {
 
 Nomad has many [drivers](/docs/drivers/index.html), and most support passing
 arguments to their tasks via the `args` parameter. This option also optionally
-accepts [Nomad interpolation](/docs/jobspec/interpreted.html). For example, if
+accepts [Nomad interpolation](/docs/runtime/interpolation.html). For example, if
 you wanted Nomad to dynamically allocate a high port to bind the service on
 intead of relying on a static port for the previous job:
 
@@ -103,7 +103,7 @@ job "docs" {
 
 Not all applications accept their configuration via command-line flags.
 Sometimes applications accept their configurations using files instead. Nomad
-supports downloading [artifacts](/docs/jobspec/index.html#artifact_doc) prior to
+supports downloading [artifacts](/docs/job-specification/artifact.html) prior to
 launching tasks. This allows shipping of configuration files and other assets
 that the task needs to run properly.
 
@@ -133,4 +133,4 @@ job "docs" {
 }
 ```
 
-For more information on the artifact resource, please see the [artifact documentation](/docs/jobspec/index.html#artifact_doc).
+For more information on the artifact resource, please see the [artifact documentation](/docs/job-specification/artifact.html).

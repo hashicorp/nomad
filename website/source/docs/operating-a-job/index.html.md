@@ -10,7 +10,7 @@ description: |-
 
 The general flow for operating a job in Nomad is:
 
-1. Author the job file according to the [job specification](/docs/jobspec/index.html)
+1. Author the job file according to the [job specification](/docs/job-specification/index.html)
 1. Plan and review the changes with a Nomad server
 1. Submit the job file to a Nomad server
 1. (Optional) Review job status and logs

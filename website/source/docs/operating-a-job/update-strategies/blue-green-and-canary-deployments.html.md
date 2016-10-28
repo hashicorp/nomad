@@ -148,5 +148,5 @@ job "docs" {
 
 Here you can see there is exactly one canary version of our application (v1.4)
 and ten regular versions. Typically canary versions are also tagged
-appropriately in the [service discovery](/docs/jobspec/servicediscovery.html)
+appropriately in the [service discovery](/docs/service-discovery/index.html)
 layer to prevent unnecessary routing.

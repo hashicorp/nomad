@@ -9,21 +9,21 @@ description: >
 # Command: run
 
 The `run` command is used to submit new jobs to Nomad or to update existing
-jobs. Job files must conform to the [job specification](/docs/jobspec/index.html)
+jobs. Job files must conform to the [job specification](/docs/job-specification/index.html)
 format.
 
 ## Usage
 
 ```
-nomad run [options] <jobfile>
+nomad run [options] <job file>
 ```
 
 The run command requires a single argument, specifying the path to a file
-containing a valid [job specification](/docs/jobspec/index.html). This file
+containing a valid [job specification](/docs/job-specification/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling. If the
-supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
+supplied path is "-", the job file is read from STDIN. Otherwise it is read
 from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads the jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
+Nomad downloads the job file using [`go-getter`](https://github.com/hashicorp/go-getter)
 and supports `go-getter` syntax.
 
 By default, on successful job submission the run command will enter an
@@ -45,7 +45,7 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 
 ## General Options
 
-<%= general_options_usage %>
+<%= partial "docs/commands/_general_options" %>
 
 ## Run Options
 

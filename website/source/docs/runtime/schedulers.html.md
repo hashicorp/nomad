@@ -1,16 +1,16 @@
 ---
 layout: "docs"
-page_title: "Scheduler Types"
-sidebar_current: "docs-jobspec-schedulers"
+page_title: "Scheduler Types - Runtime"
+sidebar_current: "docs-runtime-schedulers"
 description: |-
   Learn about Nomad's various schedulers.
 ---
 
 # Scheduler Types
 
-Nomad has three scheduler types that can be used when creating your
-[job](/docs/jobspec/): `service`, `batch` and `system`. Here we will describe
-the differences between each of these schedulers.
+Nomad has three scheduler types that can be used when creating your job:
+`service`, `batch` and `system`. Here we will describe the differences between
+each of these schedulers.
 
 ## Service
 

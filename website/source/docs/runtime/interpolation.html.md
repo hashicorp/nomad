@@ -1,17 +1,18 @@
 ---
 layout: "docs"
-page_title: "Interpreted Variables"
-sidebar_current: "docs-jobspec-interpreted"
+page_title: "Interpolation - Runtime"
+sidebar_current: "docs-runtime-interpolation"
 description: |-
-  Learn about the Nomad's interpreted variables.
+  Learn about the Nomad's interpolation and interpreted variables.
 ---
-# Interpreted Variables
 
-Nomad supports interpreting two classes of variables, node attributes and runtime
-environment variables. Node attributes are interpretable in constraints, task
-environment variables and certain driver fields. Runtime environment variables
-are not interpretable in constraints because they are only defined once the
-scheduler has placed them on a particular node.
+# Interpolation
+
+Nomad supports interpreting two classes of variables, node attributes and
+runtime environment variables. Node attributes are interpretable in constraints,
+task environment variables and certain driver fields. Runtime environment
+variables are not interpretable in constraints because they are only defined
+once the scheduler has placed them on a particular node.
 
 The syntax for interpreting variables is `${variable}`. An example and a
 comprehensive list of interpretable fields can be seen below:
@@ -194,11 +195,11 @@ a particular node and as such can not be used in constraints.
   </tr>
   <tr>
     <td><tt>${NOMAD_ALLOC_DIR}</tt></td>
-    <td>The path to the shared <tt>alloc/</tt> directory. See [here](/docs/jobspec/environment.html#task_dir) for more information.</td>
+    <td>The path to the shared <tt>alloc/</tt> directory. See [here](/docs/runtime/environment.html#task-directories) for more information.</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_TASK_DIR}</tt></td>
-    <td>The path to the task <tt>local/</tt> directory. See [here](/docs/jobspec/environment.html#task_dir) for more information.</td>
+    <td>The path to the task <tt>local/</tt> directory. See [here](/docs/runtime/environment.html#task-directories) for more information.</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_MEMORY_LIMIT}</tt></td>
@@ -231,21 +232,21 @@ a particular node and as such can not be used in constraints.
   <tr>
     <td><tt>${NOMAD_IP_&lt;label&gt;}</tt></td>
     <td>The IP for the given port <tt>label</tt>. See
-    [here](/docs/jobspec/networking.html) for more information.</td>
+    [here](/docs/job-specification/network.html) for more information.</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_PORT_&lt;label&gt;}</tt></td>
-    <td>The port for the port <tt>label</tt>. See [here](/docs/jobspec/networking.html) for more information.</td>
+    <td>The port for the port <tt>label</tt>. See [here](/docs/job-specification/network.html) for more information.</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_ADDR_&lt;label&gt;}</tt></td>
     <td>The <tt>ip:port</tt> pair for the given port <tt>label</tt>. See
-    [here](/docs/jobspec/networking.html) for more information.</td>
+    [here](/docs/job-specification/network.html) for more information.</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_HOST_PORT_&lt;label&gt;}</tt></td>
     <td>The port on the host if port forwarding is being used for the port
-    <tt>label</tt>. See [here](/docs/jobspec/networking.html#mapped_ports) for more
+    <tt>label</tt>. See [here](/docs/job-specification/network.html#mapped_ports) for more
     information.</td>
   </tr>
   <tr>

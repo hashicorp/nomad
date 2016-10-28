@@ -33,5 +33,5 @@ job "docs" {
 }
 ```
 
-For more detail on the `kill_timeout` option, please see the [job specification
-documentation](/docs/jobspec/index.html#kill_timeout).
+For more detail on the `kill_timeout` option, please see the
+[job specification documentation](/docs/job-specification/task.html#kill_timeout).

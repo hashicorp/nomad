@@ -14,7 +14,7 @@ Viewing application logs is critical for debugging issues, examining performance
 problems, or even just verifying the application started correctly. To make this
 as simple as possible, Nomad provides:
 
-- Job specification for [log rotation](/docs/jobspec/index.html#log_rotation)
+- Job specification for [log rotation](/docs/job-specification/logs.html)
 - CLI command for [log viewing](/docs/commands/logs.html)
 - API for programatic [log access](/docs/http/client-fs.html#logs)
 
