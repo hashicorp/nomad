@@ -50,7 +50,8 @@ before the starting the task.
   artifact, relative to the root of the task's directory. If omitted, the
   default value is to place the binary in `local/`.
 
-- `source` `(string: required)` - Specifies the URL of the artifact to download. The can be any URL as defined by the [`go-getter`][go-getter] library.
+- `source` `(string: required)` - Specifies the URL of the artifact to download.
+ The can be any URL as defined by the [`go-getter`][go-getter] library.
 
 - `options` `(map<string|string>: nil)` - Specifies configuration parameters to
   fetch the artifact. The key-value pairs map directly to parameters appended to
