@@ -205,7 +205,7 @@ constraint {
 
 This example restricts the task to running on nodes where the binaries for
 redis, cypress, and nginx are all cached locally. This particular example is
-utilizing node [metadata](meta).
+utilizing node [metadata][meta].
 
 ```hcl
 constraint {

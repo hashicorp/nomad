@@ -80,4 +80,4 @@ logs {
 }
 ```
 
-[logs-command]: "/docs/commands/logs.html" "nomad logs command"
+[logs-command]: /docs/commands/logs.html "nomad logs command"

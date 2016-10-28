@@ -26,7 +26,7 @@ task "webservice" {
   config {
     image = "redis:3.2"
   }
-}    
+}
 ```
 
 The `rkt` driver supports the following configuration in the job spec:
@@ -135,7 +135,7 @@ task "redis" {
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/jobspec/networking.html).
+[networking page](/docs/job-specification/network.html).
 
 When you use port allocation, the image manifest needs to declare public ports and host has configured network.
 For more information, please refer to [rkt Networking](https://coreos.com/rkt/docs/latest/networking/overview.html).
