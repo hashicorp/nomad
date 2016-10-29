@@ -26,6 +26,7 @@ BUG FIXES:
     [GH-1802]
   * cli: `alloc-status` does not query for allocation statistics if node is down
     [GH-1844]
+  * client: Folder permissions are dropped even when not running as root [GH-1888]
   * client: Prevent race when persisting state file [GH-1682]
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
