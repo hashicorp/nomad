@@ -11,4 +11,4 @@ website:
 		--volume "$(shell pwd):/website" \
 		hashicorp/middleman-hashicorp:${VERSION}
 
-.PHONY :website
+.PHONY: website
