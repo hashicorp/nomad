@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,6 +19,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
+	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -1519,15 +1519,33 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 	}
 
 	// Get the snapshot
-	url := fmt.Sprintf("http://%v/v1/client/allocation/%v/snapshot", node.HTTPAddr, alloc.ID)
-	resp, err := http.Get(url)
+	scheme := "http"
+	if node.TLSEnabled {
+		scheme = "https"
+	}
+	// Create an API client
+	apiConfig := nomadapi.DefaultConfig()
+	apiConfig.Address = fmt.Sprintf("%s://%s", scheme, node.HTTPAddr)
+	apiConfig.TLSConfig = &nomadapi.TLSConfig{
+		CACert:     c.config.TLSConfig.CAFile,
+		ClientCert: c.config.TLSConfig.CertFile,
+		ClientKey:  c.config.TLSConfig.KeyFile,
+	}
+	apiClient, err := nomadapi.NewClient(apiConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", alloc.ID)
+	resp, err := apiClient.Raw().Response(url, nil)
 	if err != nil {
 		os.RemoveAll(pathToAllocDir)
 		c.logger.Printf("[ERR] client: error getting snapshot: %v", err)
 		return nil, fmt.Errorf("error getting snapshot for alloc %v: %v", alloc.ID, err)
 	}
-	tr := tar.NewReader(resp.Body)
-	defer resp.Body.Close()
+
+	tr := tar.NewReader(resp)
+	defer resp.Close()
 
 	buf := make([]byte, 1024)
 
