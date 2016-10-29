@@ -49,9 +49,6 @@ type TaskTemplateManager struct {
 	// lookup allows looking up the set of Nomad templates by their consul-template ID
 	lookup map[string][]*structs.Template
 
-	// allRendered marks whether all the templates have been rendered
-	allRendered bool
-
 	// hooks is used to signal/restart the task as templates are rendered
 	hook TaskHooks
 
@@ -71,7 +68,7 @@ type TaskTemplateManager struct {
 }
 
 func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
-	allRendered bool, config *config.Config, vaultToken, taskDir string,
+	config *config.Config, vaultToken, taskDir string,
 	taskEnv *env.TaskEnvironment) (*TaskTemplateManager, error) {
 
 	// Check pre-conditions
@@ -86,10 +83,9 @@ func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	}
 
 	tm := &TaskTemplateManager{
-		templates:   tmpls,
-		allRendered: allRendered,
-		hook:        hook,
-		shutdownCh:  make(chan struct{}),
+		templates:  tmpls,
+		hook:       hook,
+		shutdownCh: make(chan struct{}),
 	}
 
 	// Parse the signals that we need
@@ -145,10 +141,7 @@ func (tm *TaskTemplateManager) run() {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
-		if !tm.allRendered {
-			tm.hook.UnblockStart("consul-template")
-		}
-
+		tm.hook.UnblockStart("consul-template")
 		return
 	}
 
@@ -160,46 +153,40 @@ func (tm *TaskTemplateManager) run() {
 	var allRenderedTime time.Time
 
 	// Handle the first rendering
-	if !tm.allRendered {
-		// Wait till all the templates have been rendered
-	WAIT:
-		for {
-			select {
-			case <-tm.shutdownCh:
-				return
-			case err, ok := <-tm.runner.ErrCh:
-				if !ok {
-					continue
-				}
-
-				tm.hook.Kill("consul-template", err.Error(), true)
-			case <-tm.runner.TemplateRenderedCh():
-				// A template has been rendered, figure out what to do
-				events := tm.runner.RenderEvents()
-
-				// Not all templates have been rendered yet
-				if len(events) < len(tm.lookup) {
-					continue
-				}
-
-				for _, event := range events {
-					// This template hasn't been rendered
-					if event.LastDidRender.IsZero() {
-						continue WAIT
-					}
-				}
-
-				break WAIT
+	// Wait till all the templates have been rendered
+WAIT:
+	for {
+		select {
+		case <-tm.shutdownCh:
+			return
+		case err, ok := <-tm.runner.ErrCh:
+			if !ok {
+				continue
 			}
 
-			// TODO Thinking, I believe we could check every 30 seconds and if
-			// they are all would be rendered we should start anyways. That is
-			// the reattach mechanism when they have all been rendered
-		}
+			tm.hook.Kill("consul-template", err.Error(), true)
+		case <-tm.runner.TemplateRenderedCh():
+			// A template has been rendered, figure out what to do
+			events := tm.runner.RenderEvents()
 
-		allRenderedTime = time.Now()
-		tm.hook.UnblockStart("consul-template")
+			// Not all templates have been rendered yet
+			if len(events) < len(tm.lookup) {
+				continue
+			}
+
+			for _, event := range events {
+				// This template hasn't been rendered
+				if event.LastWouldRender.IsZero() {
+					continue WAIT
+				}
+			}
+
+			break WAIT
+		}
 	}
+
+	allRenderedTime = time.Now()
+	tm.hook.UnblockStart("consul-template")
 
 	// If all our templates are change mode no-op, then we can exit here
 	if tm.allTemplatesNoop() {
@@ -227,17 +214,17 @@ func (tm *TaskTemplateManager) run() {
 			restart := false
 			var splay time.Duration
 
-			now := time.Now()
-			for id, event := range tm.runner.RenderEvents() {
+			events := tm.runner.RenderEvents()
+			for id, event := range events {
 
 				// First time through
-				if allRenderedTime.After(event.LastDidRender) {
-					handledRenders[id] = now
+				if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
+					handledRenders[id] = allRenderedTime
 					continue
 				}
 
 				// We have already handled this one
-				if htime := handledRenders[id]; htime.After(event.LastDidRender) {
+				if htime := handledRenders[id]; htime.After(event.LastDidRender) || htime.Equal(event.LastDidRender) {
 					continue
 				}
 
@@ -276,9 +263,8 @@ func (tm *TaskTemplateManager) run() {
 				}
 
 				// Update handle time
-				now = time.Now()
 				for _, id := range handling {
-					handledRenders[id] = now
+					handledRenders[id] = events[id].LastDidRender
 				}
 
 				if restart {

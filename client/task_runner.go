@@ -97,9 +97,6 @@ type TaskRunner struct {
 	// templateManager is used to manage any consul-templates this task may have
 	templateManager *TaskTemplateManager
 
-	// templatesRendered mark whether the templates have been rendered
-	templatesRendered bool
-
 	// startCh is used to trigger the start of the task
 	startCh chan struct{}
 
@@ -132,7 +129,6 @@ type taskRunnerState struct {
 	Task               *structs.Task
 	HandleID           string
 	ArtifactDownloaded bool
-	TemplatesRendered  bool
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
@@ -235,7 +231,6 @@ func (r *TaskRunner) RestoreState() error {
 		r.task = snap.Task
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
-	r.templatesRendered = snap.TemplatesRendered
 
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
@@ -298,7 +293,6 @@ func (r *TaskRunner) SaveState() error {
 		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
-		TemplatesRendered:  r.templatesRendered,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -674,7 +668,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 		// Create a new templateManager
 		var err error
-		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
+		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
 			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
@@ -712,7 +706,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 	// Build the template manager
 	if r.templateManager == nil {
 		var err error
-		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates, r.templatesRendered,
+		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
 			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
@@ -741,7 +735,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		}
 
 		// We don't have to wait for any template
-		if len(r.task.Templates) == 0 || r.templatesRendered {
+		if len(r.task.Templates) == 0 {
 			// Send the start signal
 			select {
 			case r.startCh <- struct{}{}:
@@ -757,8 +751,6 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// perioidcally enumerate what we are still blocked on
 		select {
 		case <-r.unblockCh:
-			r.templatesRendered = true
-
 			// Send the start signal
 			select {
 			case r.startCh <- struct{}{}:
