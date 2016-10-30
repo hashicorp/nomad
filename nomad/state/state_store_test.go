@@ -1227,7 +1227,8 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	notify := setupNotifyTest(
 		state,
 		watch.Item{Table: "evals"},
-		watch.Item{Eval: eval.ID})
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
 
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
@@ -1266,10 +1267,12 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	notify := setupNotifyTest(
 		state,
 		watch.Item{Table: "evals"},
-		watch.Item{Eval: eval.ID})
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
 
 	eval2 := mock.Eval()
 	eval2.ID = eval.ID
+	eval2.JobID = eval.JobID
 	err = state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1315,6 +1318,8 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 		watch.Item{Table: "allocs"},
 		watch.Item{Eval: eval1.ID},
 		watch.Item{Eval: eval2.ID},
+		watch.Item{EvalJob: eval1.JobID},
+		watch.Item{EvalJob: eval2.JobID},
 		watch.Item{Alloc: alloc1.ID},
 		watch.Item{Alloc: alloc2.ID},
 		watch.Item{AllocEval: alloc1.EvalID},
