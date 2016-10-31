@@ -47,7 +47,7 @@ with Vault as well.
   if the Vault token changes. The possible values are:
 
   - `"noop"` - take no action (continue running the task)
-  - `"restart"` - restart the task as per the task's [restart policy][restart]
+  - `"restart"` - restart the task
   - `"signal"` - send a configurable signal to the task
 
 - `change_signal` `(string: "")` - Specifies the signal to send to the task as a
