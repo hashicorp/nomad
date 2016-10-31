@@ -158,7 +158,7 @@ job "docs" {
 }
 ```
 
-### Secrets Job
+### Consuming Secrets
 
 This example shows a job which retrieves secrets from Vault and writes those
 secrets to a file on disk, which the application then consumes. Nomad handles
