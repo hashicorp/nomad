@@ -157,8 +157,16 @@ job "example" {
         }
       }
 
-      # We must specify the resources required for this task to ensure
-      # it runs on a machine with enough capacity.
+      # The "resources" stanza describes the requirements a task needs to
+      # execute. Resource requirements include memory, disk space, network,
+      # cpu, and more. This ensures the task will execute on a machine that
+      # contains enough resource capacity.
+      #
+      # For more information and examples on the "resources" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/resources.html
+      #
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
