@@ -172,7 +172,8 @@ job "docs" {
       driver = "exec"
 
       config {
-        command = "cat local/secrets.txt"
+        command = "cat"
+        args    = ["local/secrets.txt"]
       }
 
       template {
