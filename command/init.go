@@ -157,25 +157,6 @@ job "example" {
         }
       }
 
-      # The "resources" stanza describes the requirements a task needs to
-      # execute. Resource requirements include memory, disk space, network,
-      # cpu, and more. This ensures the task will execute on a machine that
-      # contains enough resource capacity.
-      #
-      # For more information and examples on the "resources" stanza, please see
-      # the online documentation at:
-      #
-      #     https://www.nomadproject.io/docs/job-specification/resources.html
-      #
-      resources {
-        cpu    = 500 # 500 MHz
-        memory = 256 # 256MB
-        network {
-          mbits = 10
-          port "db" {}
-        }
-      }
-
       # The "artifact" stanza instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
@@ -208,6 +189,25 @@ job "example" {
       #   max_files     = 10
       #   max_file_size = 15
       # }
+
+      # The "resources" stanza describes the requirements a task needs to
+      # execute. Resource requirements include memory, disk space, network,
+      # cpu, and more. This ensures the task will execute on a machine that
+      # contains enough resource capacity.
+      #
+      # For more information and examples on the "resources" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/resources.html
+      #
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
 
       # The "template" stanza instructs Nomad to manage a template, such as
       # a configuration file or script. This template can optionally pull data
