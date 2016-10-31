@@ -36,6 +36,7 @@ BUG FIXES:
   * client: Fix a memory leak in the executor that caused failed allocations
     [GH-1762]
   * client: Fix old services not getting removed from consul on update [GH-1668]
+  * client: Retry recoverable errors when starting a driver [GH-1891]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
   * discovery: Fix old services not getting removed from Consul on update
     [GH-1668]
