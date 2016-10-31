@@ -144,6 +144,8 @@ job "example" {
         }
       }
 
+      # Define a service and its associated health check to automatically
+      # register with Consul.
       service {
         # ${TASKGROUP} is filled in automatically by Nomad
         name = "${TASKGROUP}-redis"
@@ -167,6 +169,62 @@ job "example" {
           port "db" {}
         }
       }
+
+      # The template block instantiates an instance of consul-template. This
+      # creates a convenient way to ship configuration files that are populated
+      # from Consul data, retrieve secrets from Vault and even ship static
+      # configurations to Nomad tasks.
+      # template {
+        # The data field allows a template to be embedded in the job file.
+        # This is convenient when the template is simple. The example template
+        # creates a redis config file setting the maxclients field by querying a
+        # key in Consul.
+        # data = "maxclients {{key \"service/redis/maxconns@east-aws\"}}"
+
+        # The destination sets where the rendered template will be outputted.
+        # destination = "local/redis.conf"
+
+        # The change mode determines the behavior when the template is updated.
+        # The possible options are:
+        #   - "noop":    Take no action
+        #   - "restart": Restart the task
+        #   - "signal":  Signal the task
+        # change_mode = "signal"
+
+        # Change signal specifies the signal to send the task when the change_mode
+        # is "signal".
+        # change_signal = "SIGUSR1"
+      # }
+
+      # The Vault block allows the task to specify that it requires a Vault token.
+      # The Nomad client will retrieve a Vault token for the task and handle token
+      # renewal for the task. If a vault block is specified, the template block may
+      # be used to interact with Vault as well.
+      # vault {
+        # Policies is the set of Vault policies that the task needs access to. A
+        # Vault token will be generated that is limited to those policies and
+        # given to the task when it starts.
+        # policies = ["my-policy", "geo_db"]
+
+        # When set to false, the VAULT_TOKEN environment variable will not be
+        # set when starting a task.
+        # env = true
+
+        # The change mode determines the behavior when the Vault token changes.
+        # The token may change if Vault was down for a period of time, making it
+        # impossible for the token to be renewed, and then recovers. The Nomad
+        # client will generate a new token for the task and take action based on
+        # the change_mode
+        # The possible options are:
+        #   - "noop":    Take no action
+        #   - "restart": Restart the task
+        #   - "signal":  Signal the task
+        # change_mode = "signal"
+
+        # Change signal specifies the signal to send the task when the change_mode
+        # is "signal".
+        # change_signal = "SIGUSR1"
+      # }
 
       # The artifact block can be specified one or more times to download
       # artifacts prior to the task being started. This is convenient for
