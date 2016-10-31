@@ -48,8 +48,7 @@ consistent evaluation when Nomad spans multiple time zones.
 ## `periodic` Examples
 
 The following examples only show the `periodic` stanzas. Remember that the
-`periodic` Remember that the `periodic` stanza is only valid in the placements
-listed above.
+`periodic` stanza is only valid in the placements listed above.
 
 ### Run Daily
 

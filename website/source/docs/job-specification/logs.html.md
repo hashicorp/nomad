@@ -54,8 +54,7 @@ For information on how to interact with logs after they have been configured, pl
 ## `logs` Examples
 
 The following examples only show the `logs` stanzas. Remember that the
-`logs` Remember that the `logs` stanza is only valid in the placements
-listed above.
+`logs` stanza is only valid in the placements listed above.
 
 ### Configure Defaults
 

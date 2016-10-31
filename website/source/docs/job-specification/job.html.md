@@ -96,6 +96,9 @@ job "docs" {
 
 ## `job` Examples
 
+The following examples only show the `job` stanzas. Remember that the
+`job` stanza is only valid in the placements listed above.
+
 ### Docker Container
 
 This example job starts a Docker container which runs as a service. Even though

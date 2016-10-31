@@ -60,8 +60,7 @@ job "docs" {
 ## `resources` Examples
 
 The following examples only show the `resources` stanzas. Remember that the
-`resources` Remember that the `resources` stanza is only valid in the placements
-listed above.
+`resources` stanza is only valid in the placements listed above.
 
 ### Disk Space
 

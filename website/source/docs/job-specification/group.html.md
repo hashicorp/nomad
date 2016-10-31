@@ -51,8 +51,8 @@ job "docs" {
 
 ## `group` Examples
 
-The following examples only show the `group` stanzas. Remember that the `group`
-Remember that the `group` stanza is only valid in the placements listed above.
+The following examples only show the `group` stanzas. Remember that the
+`group` stanza is only valid in the placements listed above.
 
 ### Specifying Count
 
