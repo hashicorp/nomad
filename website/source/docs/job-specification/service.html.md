@@ -120,7 +120,7 @@ does not automatically enable service discovery.
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
   check.
 
-- `path` `(string: <varies>)` - Specifies the path of the http endpoint which
+- `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   Consul will query to query the health of a service. Nomad will automatically
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
