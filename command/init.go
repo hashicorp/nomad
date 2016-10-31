@@ -144,28 +144,6 @@ job "example" {
         }
       }
 
-      # The "service" stanza instructs Nomad to register this task as a service
-      # in the service discovery engine, which is currently Consul. This will
-      # make the service addressable after Nomad has placed it on a host and
-      # port.
-      #
-      # For more information and examples on the "service" stanza, please see
-      # the online documentation at:
-      #
-      #     https://www.nomadproject.io/docs/job-specification/service.html
-      #
-      service {
-        name = "global-redis-check"
-        tags = ["global", "cache"]
-        port = "db"
-        check {
-          name     = "alive"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
-
       # The "artifact" stanza instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
@@ -215,6 +193,28 @@ job "example" {
         network {
           mbits = 10
           port "db" {}
+        }
+      }
+
+      # The "service" stanza instructs Nomad to register this task as a service
+      # in the service discovery engine, which is currently Consul. This will
+      # make the service addressable after Nomad has placed it on a host and
+      # port.
+      #
+      # For more information and examples on the "service" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/service.html
+      #
+      service {
+        name = "global-redis-check"
+        tags = ["global", "cache"]
+        port = "db"
+        check {
+          name     = "alive"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
         }
       }
 
