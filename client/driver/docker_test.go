@@ -288,6 +288,46 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 
 }
 
+func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
+	if !testutil.DockerIsConnected(t) {
+		t.SkipNow()
+	}
+	task := &structs.Task{
+		Name: "busybox-demo",
+		Config: map[string]interface{}{
+			"image":   "127.0.1.1:32121/foo", // bad path
+			"command": "/bin/echo",
+			"args": []string{
+				"hello",
+			},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	driverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
+	defer execCtx.AllocDir.Destroy()
+	d := NewDockerDriver(driverCtx)
+
+	_, err := d.Start(execCtx, task)
+	if err == nil {
+		t.Fatalf("want err: %v", err)
+	}
+
+	if rerr, ok := err.(*structs.RecoverableError); !ok {
+		t.Fatalf("want recoverable error: %+v", err)
+	} else if !rerr.Recoverable {
+		t.Fatalf("error not recoverable: %+v", err)
+	}
+}
+
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running

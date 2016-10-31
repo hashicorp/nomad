@@ -785,7 +785,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	if err := d.createImage(driverConfig, client, taskDir); err != nil {
-		return nil, fmt.Errorf("failed to create image: %v", err)
+		return nil, err
 	}
 
 	image := driverConfig.ImageName

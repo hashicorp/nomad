@@ -1018,8 +1018,17 @@ func (r *TaskRunner) startTask() error {
 	// Start the job
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
-		return fmt.Errorf("failed to start task '%s' for alloc '%s': %v",
+		wrapped := fmt.Errorf("failed to start task '%s' for alloc '%s': %v",
 			r.task.Name, r.alloc.ID, err)
+
+		r.logger.Printf("[INFO] client: %v", wrapped)
+
+		if rerr, ok := err.(*structs.RecoverableError); ok {
+			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
+		}
+
+		return wrapped
+
 	}
 
 	r.handleLock.Lock()

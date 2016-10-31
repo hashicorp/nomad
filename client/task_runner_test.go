@@ -109,6 +109,45 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	}
 }
 
+func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code":               0,
+		"start_error":             "driver failure",
+		"start_error_recoverable": true,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(true, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l < 3 {
+			return false, fmt.Errorf("Expect at least three  events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskDriverFailure {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDriverFailure)
+		}
+
+		if upd.events[2].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[2].Type, structs.TaskRestarting)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	upd, tr := testTaskRunner(true)
