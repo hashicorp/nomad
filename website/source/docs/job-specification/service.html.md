@@ -3,8 +3,8 @@ layout: "docs"
 page_title: "service Stanza - Job Specification"
 sidebar_current: "docs-job-specification-service"
 description: |-
-  The "service" stanza instructs Nomad to register the task as a service in the
-  service discovery integration.
+  The "service" stanza instructs Nomad to register the task as a service using
+  the service discovery integration.
 ---
 
 # `service` Stanza
@@ -18,7 +18,7 @@ description: |-
   </tr>
 </table>
 
-The `service` stanza instructs Nomad to register the task as a service in the
+The `service` stanza instructs Nomad to register the task as a service using the
 service discovery integration. This section of the documentation will discus the
 configuration, but please also read the
 [Nomad service discovery documentation][service-discovery] for more detailed
