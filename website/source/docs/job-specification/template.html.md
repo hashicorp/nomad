@@ -81,12 +81,25 @@ The following examples only show the `template` stanzas. Remember that the
 
 ### Inline Template
 
-This example uses an inline template to render a controlled file to disk. This
-file watches various keys in Consul for changes:
+This example uses an inline template to render a file to disk. This file watches
+various keys in Consul for changes:
 
 ```hcl
 template {
   data        = "---\nkey: {{ key \"service/my-key\" }}"
+  destination = "local/file.yml"
+}
+```
+
+It is also possible to use heredocs for multi-line templates, like:
+
+```hcl
+template {
+  data = <<EOH
+  ---
+    key: {{ key "service/my-key" }}
+  EOH
+
   destination = "local/file.yml"
 }
 ```
