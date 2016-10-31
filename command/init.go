@@ -186,6 +186,21 @@ job "example" {
       #   }
       # }
 
+      # The "logs" stana instructs the Nomad client on how many log files and
+      # the maximum size of those logs files to retain. Logging is enabled by
+      # default, but the "logs" stanza allows for finer-grained control over
+      # the log rotation and storage configuration.
+      #
+      # For more information and examples on the "logs" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/logs.html
+      #
+      # logs {
+      #   max_files     = 10
+      #   max_file_size = 15
+      # }
+
       # The "template" stanza instructs Nomad to manage a template, such as
       # a configuration file or script. This template can optionally pull data
       # from Consul or Vault to populate runtime configuration data.
@@ -218,21 +233,6 @@ job "example" {
       #   policies      = ["cdn", "frontend"]
       #   change_mode   = "signal"
       #   change_signal = "SIGHUP"
-      # }
-
-      # The "logs" stana instructs the Nomad client on how many log files and
-      # the maximum size of those logs files to retain. Logging is enabled by
-      # default, but the "logs" stanza allows for finer-grained control over
-      # the log rotation and storage configuration.
-      #
-      # For more information and examples on the "logs" stanza, please see
-      # the online documentation at:
-      #
-      #     https://www.nomadproject.io/docs/job-specification/logs.html
-      #
-      # logs {
-      #   max_files     = 10
-      #   max_file_size = 15
       # }
 
       # Controls the timeout between signalling a task it will be killed
