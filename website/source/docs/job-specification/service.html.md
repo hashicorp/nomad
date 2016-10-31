@@ -3,7 +3,8 @@ layout: "docs"
 page_title: "service Stanza - Job Specification"
 sidebar_current: "docs-job-specification-service"
 description: |-
-  TODO
+  The "service" stanza instructs Nomad to register the task as a service in the
+  service discovery integration.
 ---
 
 # `service` Stanza
