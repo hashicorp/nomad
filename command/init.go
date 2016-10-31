@@ -66,60 +66,115 @@ func (c *InitCommand) Run(args []string) int {
 var defaultJob = strings.TrimSpace(`
 # There can only be a single job definition per file. This job is named
 # "example" so it will create a job with the ID and Name "example".
+
+# The "job" stanza is the top-most configuration option in the job
+# specification. A job is a declarative specification of tasks that Nomad
+# should run. Jobs have a globally unique name, one or many task groups, which
+# are themselves collections of one or many tasks.
+#
+# For more information and examples on the "job" stanza, please see
+# the online documentation at:
+#
+#     https://www.nomadproject.io/docs/job-specification/job.html
+#
 job "example" {
-  # Run the job in the global region, which is the default.
+  # The "region" parameter specifies the region in which to execute the job. If
+  # omitted, this inherits the default region name of "global".
   # region = "global"
 
-  # Specify the datacenters within the region this job can run in.
+  # The "datacenters" parameter specifies the list of datacenters which should
+  # be considered when placing this task. This must be provided.
   datacenters = ["dc1"]
 
-  # Service type jobs optimize for long-lived services. This is
-  # the default but we can change to batch for short-lived tasks.
-  # type = "service"
+  # The "type" parameter controls the type of job, which impacts the scheduler's
+  # decision on placement. This configuration is optional and defaults to
+  # "service". For a full list of job types and their differences, please see
+  # the online documentation.
+  type = "service"
 
-  # Priority controls our access to resources and scheduling priority.
-  # This can be 1 to 100, inclusively, and defaults to 50.
-  # priority = 50
-
-  # Restrict our job to only linux. We can specify multiple constraints
-  # as needed.
+  # The "constraint" stanza defines additional constraints for placing this job,
+  # in addition to any resource or driver constraints. This stanza may be placed
+  # at the "job", "group", or "task" level, and supports variable interpolation.
+  #
+  # For more information and examples on the "constraint" stanza, please see
+  # the online documentation at:
+  #
+  #     https://www.nomadproject.io/docs/job-specification/constraint.html
+  #
   # constraint {
   #   attribute = "${attr.kernel.name}"
   #   value     = "linux"
   # }
 
-  # Configure the job to do rolling updates
+  # The "update" stanza specifies the job update strategy. The update strategy
+  # is used to control things like rolling upgrades. If omitted, rolling
+  # updates are disabled.
+  #
+  # For more information and examples on the "update" stanza, please see
+  # the online documentation at:
+  #
+  #     https://www.nomadproject.io/docs/job-specification/update.html
+  #
   update {
-    # Stagger updates every 10 seconds
+    # The "stagger" parameter specifies to do rolling updates of this job every
+    # 10 seconds
     stagger = "10s"
 
-    # Update a single task at a time
+    # The "max_parallel" parameter specifies the maximum number of updates to
+    # perform in paralle. In this case, this specifies to update a single task
+    # at a time.
     max_parallel = 1
   }
 
-  # Create a 'cache' group. Each task in the group will be scheduled
-  # onto the same machine.
+  # The "group" stanza defines a series of tasks that should be co-located on
+  # the same Nomad client. Any task within a group will be placed on the same
+  # client.
+  #
+  # For more information and examples on the "group" stanza, please see
+  # the online documentation at:
+  #
+  #     https://www.nomadproject.io/docs/job-specification/group.html
+  #
   group "cache" {
-    # Control the number of instances of this group. Defaults to 1.
-    # count = 1
+    # The "count" parameter specifies the number of the task groups that should
+    # be running under this group. This value must be non-negative and defaults
+    # to 1.
+    count = 1
 
-    # Configure the restart policy for the task group. If not provided, a
-    # default is used based on the job type.
+    # The "restart" stanza configures a group's behavior on task failure. If
+    # left unspecified, a default restart policy is used based on the job type.
+    #
+    # For more information and examples on the "restart" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/restart.html
+    #
     restart {
       # The number of attempts to run the job within the specified interval.
       attempts = 10
       interval = "5m"
 
-      # A delay between a task failing and a restart occurring.
+      # The "delay" parameter specifies the duration to wait before restarting
+      # a task after it has failed.
       delay = "25s"
 
-      # Mode controls what happens when a task has restarted "attempts"
-      # times within the interval. "delay" mode delays the next restart
-      # till the next interval. "fail" mode does not restart the task if
-      # "attempts" has been hit within the interval.
+     # The "mode" parameter controls what happens when a task has restarted
+     # "attempts" times within the interval. "delay" mode delays the next
+     # restart until the next interval. "fail" mode does not restart the task
+     # if "attempts" has been hit within the interval.
       mode = "delay"
     }
 
+    # The "ephemeral_disk" stanza instructs Nomad to utilize an ephemeral disk
+    # instead of a hard disk requirement. Clients using this stanza should
+    # not specify disk requirements in the resources stanza of the task. All
+    # tasks in this group will share the same ephemeral disk.
+    #
+    # For more information and examples on the "ephemeral_disk" stanza, please
+    # see the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html
+    #
     ephemeral_disk {
       # When sticky is true and the task group is updated, the scheduler
       # will prefer to place the updated allocation on the same node and
@@ -127,16 +182,28 @@ job "example" {
       # that should persist across allocation updates.
       # sticky = true
 
-      # Size of the shared ephemeral disk between tasks in the task group.
+      # The "size" parameter specifies the size in MB of shared ephemeral disk
+      # between tasks in the group.
       size = 300
     }
 
-    # Define a task to run
+    # The "task" stanza creates an individual unit of work, such as a Docker
+    # container, web application, or batch processing.
+    #
+    # For more information and examples on the "task" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/task.html
+    #
     task "redis" {
-      # Use Docker to run the task.
+      # The "driver" parameter specifies the task driver that should be used to
+      # run the task.
       driver = "docker"
 
-      # Configure Docker driver with the image
+      # The "config" stanza specifies the driver configuration, which is passed
+      # directly to the driver to start the task. The details of configurations
+      # are specific to each driver, so please see specific driver
+      # documentation for more information.
       config {
         image = "redis:3.2"
         port_map {
