@@ -168,9 +168,17 @@ job "example" {
         }
       }
 
-      # The artifact stanza can be specified one or more times to download
-      # artifacts prior to the task being started. This is convenient for
-      # shipping configs or data needed by the task.
+      # The "artifact" stanza instructs Nomad to download an artifact from a
+      # remote source prior to starting the task. This provides a convenient
+      # mechanism for downloading configuration files or data needed to run the
+      # task. It is possible to specify the "artifact" stanza multiple times to
+      # download multiple artifacts.
+      #
+      # For more information and examples on the "artifact" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/artifact.html
+      #
       # artifact {
       #   source = "http://foo.com/artifact.tar.gz"
       #   options {
