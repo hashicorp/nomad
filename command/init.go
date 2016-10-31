@@ -234,7 +234,7 @@ job "example" {
       #   change_signal = "SIGHUP"
       # }
 
-      # The "vault" stnaza instructs the Nomad client to acquire a token from
+      # The "vault" stanza instructs the Nomad client to acquire a token from
       # a HashiCorp Vault server. The Nomad servers must be configured and
       # authorized to communicate with Vault. By default, Nomad will inject
       # The token into the job via an environment variable and make the token
