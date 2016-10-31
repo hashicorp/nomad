@@ -41,8 +41,8 @@ automatically be converted to strings.
 
 ## `env` Examples
 
-The following examples only show the `env` stanzas. Remember that the `env`
-Remember that the `env` stanza is only valid in the placements listed above.
+The following examples only show the `env` stanzas. Remember that the
+`env` stanza is only valid in the placements listed above.
 
 ### Coercion
 

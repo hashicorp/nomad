@@ -61,8 +61,7 @@ before the starting the task.
 ## `artifact` Examples
 
 The following examples only show the `artifact` stanzas. Remember that the
-`artifact` Remember that the `artifact` stanza is only valid in the placements
-listed above.
+`artifact` stanza is only valid in the placements listed above.
 
 ### Download File
 

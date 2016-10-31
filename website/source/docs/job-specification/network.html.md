@@ -81,8 +81,7 @@ The label of the port is just text - it has no special meaning to Nomad.
 ## `network` Examples
 
 The following examples only show the `network` stanzas. Remember that the
-`network` Remember that the `network` stanza is only valid in the placements
-listed above.
+`network` stanza is only valid in the placements listed above.
 
 ### Bandwidth
 
