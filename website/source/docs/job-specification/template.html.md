@@ -50,13 +50,15 @@ API template functions, please see the [Consul Template README][ct].
   must exist on the machine prior to starting the task; it is not possible to
   reference a template inside of a Docker container, for example.
 
-- `destination` `(string: required)` - Specifies the location where the resulting template should be rendered, relative to the task directory.
+- `destination` `(string: required)` - Specifies the location where the
+  resulting template should be rendered, relative to the task directory.
 
 - `data` `(string: "")` - Specifies the raw template to execute. One of `source`
   or `data` must be specified, but not both. This is useful for smaller
   templates, but we recommend using `source` for larger templates.
 
-- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take if the Vault token changes. The possible values are:
+- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
+  if the Vault token changes. The possible values are:
 
   - `"noop"` - take no action (continue running the task)
   - `"restart"` - restart the task as per the task's [restart policy][restart]
