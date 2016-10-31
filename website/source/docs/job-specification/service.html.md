@@ -203,7 +203,7 @@ service {
   check {
     type    = "script"
     command = "/bin/bash"
-    args    = ["test", "-f", "/tmp/file.txt"]
+    args    = ["-c", "test -f /tmp/file.txt"]
   }
 }
 ```
