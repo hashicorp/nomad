@@ -33,6 +33,10 @@ job "docs" {
     "my-key" = "my-value"
   }
 
+  periodic {
+    # ...
+  }
+
   priority = 100
 
   region = "north-america"
@@ -45,9 +49,7 @@ job "docs" {
     # ...
   }
 
-  periodic {
-    # ...
-  }
+  vault_token = "a3594cbc-dee6-40cb-a9e9-59dd5abf8985"
 }
 ```
 
@@ -86,6 +88,11 @@ job "docs" {
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, rolling updates are disabled.
+
+- `vault_token` `(string: "")` - Specifies the Vault token that proves the
+  submitter of the job has access to the specified policies in the
+  [`vault`][vault] stanza. This field is only used to transfer the token and is
+  not stored after Job submission.
 
 ## `job` Examples
 
@@ -138,7 +145,44 @@ job "docs" {
       }
 
       resources {
-        cpu = 10
+        cpu = 20
+      }
+    }
+  }
+}
+```
+
+### Secrets Job
+
+This example shows a job which retrieves secrets from Vault and writes those
+secrets to a file on disk, which the application then consumes. Nomad handles
+all interactions with Vault.
+
+```hcl
+job "docs" {
+  datacenters = ["default"]
+
+  vault_token = "a3594cbc-dee6-40cb-a9e9-59dd5abf8985"
+
+  group "example" {
+    task "uptime" {
+      driver = "exec"
+
+      config {
+        command = "cat local/secrets.txt"
+      }
+
+      template {
+        data        = "{{ secret \"secret/data\" }}"
+        destination = "local/secrets.txt"
+      }
+
+      vault {
+        policies = ["secret-readonly"]
+      }
+
+      resources {
+        cpu = 20
       }
     }
   }
@@ -151,5 +195,6 @@ job "docs" {
 [periodic]: /docs/job-specification/periodic.html "Nomad periodic Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [scheduler]: /docs/runtime/schedulers.html "Nomad Scheduler Types"

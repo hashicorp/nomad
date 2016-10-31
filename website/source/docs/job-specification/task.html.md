@@ -111,7 +111,7 @@ task "server" {
   }
 
   resources {
-    cpu = 10
+    cpu = 20
   }
 }
 ```
@@ -140,7 +140,7 @@ task "server" {
   }
 
   resources {
-    cpu = 10
+    cpu = 20
   }
 }
 ```
