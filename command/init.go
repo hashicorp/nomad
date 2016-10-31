@@ -168,7 +168,7 @@ job "example" {
         }
       }
 
-      # The artifact block can be specified one or more times to download
+      # The artifact stanza can be specified one or more times to download
       # artifacts prior to the task being started. This is convenient for
       # shipping configs or data needed by the task.
       # artifact {
@@ -176,6 +176,22 @@ job "example" {
       #   options {
       #     checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
       #   }
+      # }
+
+      # The "template" stanza instructs Nomad to manage a template, such as
+      # a configuration file or script. This template can optionally pull data
+      # from Consul or Vault to populate runtime configuration data.
+      #
+      # For more information and examples on the "template" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/template.html
+      #
+      # template {
+      #   data          = "---\nkey: {{ key \"service/my-key\" }}"
+      #   destination   = "local/file.yml"
+      #   change_mode   = "signal"
+      #   change_signal = "SIGHUP"
       # }
 
       # Specify configuration related to log rotation
