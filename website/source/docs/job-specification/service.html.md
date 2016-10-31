@@ -63,10 +63,10 @@ does not automatically enable service discovery.
 
 ## `service` Parameters
 
-- `check` <code>([Check](#check-parameters): nil)</code> - Specifies a health check associated with the service. This can be
-  specified multiple times to define multiple checks for the service. At this
-  time, Nomad supports the `script`<sup><small>1</small></sup>, `http` and `tcp`
-  checks.
+- `check` <code>([Check](#check-parameters): nil)</code> - Specifies a health
+  check associated with the service. This can be specified multiple times to
+  define multiple checks for the service. At this time, Nomad supports the
+  `script`<sup><small>1</small></sup>, `http` and `tcp` checks.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name of this
   service. If not supplied, this will default to the name of the job, group, and
