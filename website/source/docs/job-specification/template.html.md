@@ -46,7 +46,9 @@ API template functions, please see the [Consul Template README][ct].
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
   One of `source` or `data` must be specified, but not both. This source can
-  optionally be fetched using an [`artifact`][artifact] resource.
+  optionally be fetched using an [`artifact`][artifact] resource. This template
+  must exist on the machine prior to starting the task; it is not possible to
+  reference a template inside of a Docker container, for example.
 
 - `destination` `(string: required)` - Specifies the location where the resulting template should be rendered, relative to the task directory.
 
