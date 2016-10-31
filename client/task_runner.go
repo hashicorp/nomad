@@ -703,20 +703,6 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		return
 	}
 
-	// Build the template manager
-	if r.templateManager == nil {
-		var err error
-		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-			r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
-		if err != nil {
-			err := fmt.Errorf("failed to build task's template manager: %v", err)
-			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
-			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
-			resultCh <- false
-			return
-		}
-	}
-
 	for {
 		// Download the task's artifacts
 		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
@@ -744,6 +730,20 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 
 			resultCh <- true
 			return
+		}
+
+		// Build the template manager
+		if r.templateManager == nil {
+			var err error
+			r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
+				r.config, r.vaultFuture.Get(), r.taskDir, r.getTaskEnv())
+			if err != nil {
+				err := fmt.Errorf("failed to build task's template manager: %v", err)
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+				r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+				resultCh <- false
+				return
+			}
 		}
 
 		// Block for consul-template
