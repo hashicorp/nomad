@@ -168,10 +168,8 @@ all interactions with Vault.
 job "docs" {
   datacenters = ["default"]
 
-  vault_token = "a3594cbc-dee6-40cb-a9e9-59dd5abf8985"
-
   group "example" {
-    task "uptime" {
+    task "cat" {
       driver = "exec"
 
       config {
@@ -194,6 +192,12 @@ job "docs" {
     }
   }
 }
+```
+
+When submitting this job, you would run:
+
+```
+$ VAULT_TOKEN="..." nomad run example.nomad
 ```
 
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
