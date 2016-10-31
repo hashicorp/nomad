@@ -194,6 +194,24 @@ job "example" {
       #   change_signal = "SIGHUP"
       # }
 
+      # The "vault" stnaza instructs the Nomad client to acquire a token from
+      # a HashiCorp Vault server. The Nomad servers must be configured and
+      # authorized to communicate with Vault. By default, Nomad will inject
+      # The token into the job via an environment variable and make the token
+      # available to the "template" stanza. The Nomad client handles the renewal
+      # and revocation of the Vault token.
+      #
+      # For more information and examples on the "vault" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/vault.html
+      #
+      # vault {
+      #   policies      = ["cdn", "frontend"]
+      #   change_mode   = "signal"
+      #   change_signal = "SIGHUP"
+      # }
+
       # Specify configuration related to log rotation
       # logs {
       #   max_files     = 10
