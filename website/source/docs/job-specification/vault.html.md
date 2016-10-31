@@ -43,7 +43,8 @@ with Vault as well.
 
 ## `vault` Parameters
 
-- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take if the Vault token changes. The possible values are:
+- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
+  if the Vault token changes. The possible values are:
 
   - `"noop"` - take no action (continue running the task)
   - `"restart"` - restart the task as per the task's [restart policy][restart]
