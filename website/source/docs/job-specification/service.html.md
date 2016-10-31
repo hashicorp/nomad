@@ -31,6 +31,8 @@ job "docs" {
       service {
         tags = ["leader", "mysql"]
 
+        port = "db"
+
         check {
           type     = "tcp"
           port     = "db"
