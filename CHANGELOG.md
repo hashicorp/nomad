@@ -8,6 +8,7 @@ IMPROVEMENTS:
     from making decisions simultaneously [GH-1872]
   * agent: Add DataDog telemetry sync [GH-1816]
   * api: Support TLS for encrypting Raft, RPC and HTTP APIs [GH-1853]
+  * api: Implement blocking queries for querying a job's evaluations [GH-1892]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * cli: `nomad node-status` shows node metadata in verbose mode [GH-1841]
   * client: Failed RPCs are retried on all servers [GH-1735]
