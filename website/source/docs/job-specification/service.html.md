@@ -19,7 +19,7 @@ description: |-
 </table>
 
 The `service` stanza instructs Nomad to register the task as a service using the
-service discovery integration. This section of the documentation will discus the
+service discovery integration. This section of the documentation will discuss the
 configuration, but please also read the
 [Nomad service discovery documentation][service-discovery] for more detailed
 information about the integration.
