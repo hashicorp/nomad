@@ -48,8 +48,6 @@ job "docs" {
   update {
     # ...
   }
-
-  vault_token = "a3594cbc-dee6-40cb-a9e9-59dd5abf8985"
 }
 ```
 
@@ -92,7 +90,12 @@ job "docs" {
 - `vault_token` `(string: "")` - Specifies the Vault token that proves the
   submitter of the job has access to the specified policies in the
   [`vault`][vault] stanza. This field is only used to transfer the token and is
-  not stored after Job submission.
+  not stored after job submission.
+
+    !> It is **strongly discouraged** to place the token as a configuration
+    parameter like this, since the token could be checked into source control
+    accidentally. Users should set the `VAULT_TOKEN` environment variable when
+    running the job instead.
 
 ## `job` Examples
 
