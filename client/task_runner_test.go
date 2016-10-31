@@ -935,6 +935,84 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 	}
 }
 
+func TestTaskRunner_Template_Artifact(t *testing.T) {
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal("bad: %v", err)
+	}
+
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, ".."))))
+	defer ts.Close()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	// Create an allocation that has a task that renders a template from an
+	// artifact
+	f1 := "CHANGELOG.md"
+	artifact := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1),
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact}
+	task.Templates = []*structs.Template{
+		{
+			SourcePath: "CHANGELOG.md",
+			DestPath:   "local/test",
+			ChangeMode: structs.TemplateChangeModeNoop,
+		},
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	}
+
+	if upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskTerminated)
+	}
+
+	// Check that both files exist.
+	taskDir := tr.ctx.AllocDir.TaskDirs[task.Name]
+	if _, err := os.Stat(filepath.Join(taskDir, f1)); err != nil {
+		t.Fatalf("%v not downloaded", f1)
+	}
+	if _, err := os.Stat(filepath.Join(taskDir, allocdir.TaskLocal, "test")); err != nil {
+		t.Fatalf("template not rendered")
+	}
+}
+
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
