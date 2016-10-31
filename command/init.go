@@ -144,9 +144,18 @@ job "example" {
         }
       }
 
+      # The "service" stanza instructs Nomad to register this task as a service
+      # in the service discovery engine, which is currently Consul. This will
+      # make the service addressable after Nomad has placed it on a host and
+      # port.
+      #
+      # For more information and examples on the "service" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/service.html
+      #
       service {
-        # ${TASKGROUP} is filled in automatically by Nomad
-        name = "${TASKGROUP}-redis"
+        name = "global-redis-check"
         tags = ["global", "cache"]
         port = "db"
         check {
