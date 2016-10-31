@@ -570,26 +570,36 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluations"}, time.Now())
 
-	// Capture the evaluations
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	reply.Evaluations, err = snap.EvalsByJob(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{EvalJob: args.JobID}),
+		run: func() error {
+			// Capture the evals
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
 
-	// Use the last index that affected the evals table
-	index, err := snap.Index("evals")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			reply.Evaluations, err = snap.EvalsByJob(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Use the last index that affected the evals table
+			index, err := snap.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+
+	return j.srv.blockingRPC(&opts)
 }
 
 // Plan is used to cause a dry-run evaluation of the Job and return the results

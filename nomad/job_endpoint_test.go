@@ -1421,6 +1421,59 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = "job1"
+	state := s1.fsm.State()
+
+	// First upsert an unrelated eval
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertEvals(100, []*structs.Evaluation{eval1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert an eval for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		err := state.UpsertEvals(200, []*structs.Evaluation{eval2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: "job1",
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 50,
+		},
+	}
+	var resp structs.JobEvaluationsResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Evaluations) != 1 || resp.Evaluations[0].JobID != "job1" {
+		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+}
+
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
