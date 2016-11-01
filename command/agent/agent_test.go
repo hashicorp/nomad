@@ -155,7 +155,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Addresses.RPC = "127.0.0.2"
 	conf.Addresses.Serf = "127.0.0.2"
 	conf.Addresses.HTTP = "127.0.0.2"
-	conf.AdvertiseAddrs.HTTP = "10.0.0.10:4646"
+	conf.AdvertiseAddrs.HTTP = "10.0.0.10"
 	conf.AdvertiseAddrs.RPC = ""
 	conf.AdvertiseAddrs.Serf = "10.0.0.12:4004"
 
