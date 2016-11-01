@@ -500,6 +500,11 @@ func TestTask_Validate_Services(t *testing.T) {
 				Type:    ServiceCheckTCP,
 				Timeout: 2 * time.Second,
 			},
+			{
+				Name:     "check-name",
+				Type:     ServiceCheckTCP,
+				Interval: 1 * time.Second,
+			},
 		},
 	}
 
@@ -536,7 +541,11 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "interval (0s) can not be lower") {
+	if !strings.Contains(err.Error(), "missing required value interval") {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "can not be less than") {
 		t.Fatalf("err: %v", err)
 	}
 }

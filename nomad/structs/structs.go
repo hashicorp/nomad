@@ -1785,7 +1785,9 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
-		if sc.Timeout < minCheckTimeout {
+		if sc.Timeout == 0 {
+			return fmt.Errorf("missing required value timeout. Timeout can not be less than %v", minCheckInterval)
+		} else if sc.Timeout < minCheckTimeout {
 			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckHTTP:
@@ -1793,7 +1795,9 @@ func (sc *ServiceCheck) validate() error {
 			return fmt.Errorf("http type must have a valid http path")
 		}
 
-		if sc.Timeout < minCheckTimeout {
+		if sc.Timeout == 0 {
+			return fmt.Errorf("missing required value timeout. Timeout can not be less than %v", minCheckInterval)
+		} else if sc.Timeout < minCheckTimeout {
 			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
 	case ServiceCheckScript:
@@ -1807,7 +1811,9 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
-	if sc.Interval < minCheckInterval {
+	if sc.Interval == 0 {
+		return fmt.Errorf("missing required value interval. Interval can not be less than %v", minCheckInterval)
+	} else if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
 	}
 
