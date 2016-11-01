@@ -131,10 +131,10 @@ Nomad makes the following directories available to tasks:
   used to store data that needs to be used by multiple tasks, such as a log
   shipper.
 * `local/`: This directory is private to each task. It can be used to store
-  arbitrary data that shouldn't be shared by tasks in the task group.
+  arbitrary data that should not be shared by tasks in the task group.
 * `secrets/`: This directory is private to each task, not accessible via the
   `nomad fs` command or filesystem APIs and where possible backed by an
-  in-memory filesystem. It can be used to store secret data that shouldn't be
+  in-memory filesystem. It can be used to store secret data that should not be
   visible outside the task.
 
 These directories are persisted until the allocation is removed, which occurs
@@ -145,7 +145,7 @@ Depending on the driver and operating system being targeted, the directories are
 made available in various ways. For example, on `docker` the directories are
 bound to the container, while on `exec` on Linux the directories are mounted into the
 chroot. Regardless of how the directories are made available, the path to the
-directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR` and
+directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` environment variables.
 
 ## Meta

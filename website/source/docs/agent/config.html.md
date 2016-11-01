@@ -318,7 +318,7 @@ When `server_auto_join`, `client_auto_join` and `auto_advertise` are all
 enabled, which is by default, and Consul is available, the Nomad cluster will
 self-bootstrap.
 
-## <a id="vault_options"></a>Vault Options
+## Vault Options
 
 The following options are used to configure [Vault](https://www.vaultproject.io)
 integration and are entirely optional.

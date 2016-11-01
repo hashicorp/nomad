@@ -38,21 +38,22 @@ job "docs" {
 }
 ```
 
-## Side Effects
+The Nomad client will make the Vault token available to the task by writing it
+to the secret directory at `secret/vault_token` and by injecting an VAULT_TOKEN
+environment variable. 
 
-- The Vault token will be written to the task's secret directory as follows,
-  `secret/vault_token`.
+If Vault token renewal fails due to a Vault outage, the Nomad client will
+attempt to retrieve a new Vault token. When the new Vault token is retrieved,
+the contents of the file will be replaced and action will be taken based on the
+`change_mode`.
 
-- If `env = true`, a `VAULT_TOKEN=<token>` environment variable will be added
-  for the task.
-  
-- If Vault token renewal fails due to a Vault outage, the Nomad client will
-  attempt to retrieve a new Vault token. When the new Vault token is retrieved,
-  the contents of the file will be replaced and action will be taken based on
-  the `change_mode`.
+If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
+network error), the client will retrieve a new Vault token. If successful, the
+contents of the secrets file are updated on disk, and action will be taken
+according to the value set in the `change_mode` parameter.
 
-- If a `vault` stanza is specified, the [`template`][template] stanza can
-  interact with Vault as well.
+If a `vault` stanza is specified, the [`template`][template] stanza can interact
+with Vault as well.
 
 ## `vault` Parameters
 
