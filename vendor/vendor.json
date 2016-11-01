@@ -200,22 +200,22 @@
 			"revisionTime": "2016-07-17T15:07:09Z"
 		},
 		{
-			"checksumSHA1": "qNHg4l2+bg50XQUR094857jPOoQ=",
+			"checksumSHA1": "szvY4u7TlXkrQ3PW8wmyJaIFy0U=",
 			"path": "github.com/circonus-labs/circonus-gometrics",
-			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
-			"revisionTime": "2016-07-21T19:08:58Z"
+			"revision": "f8e2e2ff37c349aed537b70c9430ded0ea473248",
+			"revisionTime": "2016-11-01T19:28:51Z"
 		},
 		{
-			"checksumSHA1": "IFiYTxu8jshL4A8BCttUaDhp1m4=",
+			"checksumSHA1": "dCnZd/wjQjTnUBTBEDpe0Y2pvTA=",
 			"path": "github.com/circonus-labs/circonus-gometrics/api",
-			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
-			"revisionTime": "2016-07-21T19:08:58Z"
+			"revision": "f8e2e2ff37c349aed537b70c9430ded0ea473248",
+			"revisionTime": "2016-11-01T19:28:51Z"
 		},
 		{
-			"checksumSHA1": "+9vcRzlTdvEjH/Uf8fKC5MXdjNw=",
+			"checksumSHA1": "B0hN7c1dJ8n3MoZLktuWJoaYxRs=",
 			"path": "github.com/circonus-labs/circonus-gometrics/checkmgr",
-			"revision": "4d03e5666abdf78da571fcb930201f06b0c46662",
-			"revisionTime": "2016-07-21T19:08:58Z"
+			"revision": "f8e2e2ff37c349aed537b70c9430ded0ea473248",
+			"revisionTime": "2016-11-01T19:28:51Z"
 		},
 		{
 			"checksumSHA1": "C4Z7+l5GOpOCW5DcvNYzheGvQRE=",
@@ -626,10 +626,10 @@
 			"revisionTime": "2016-06-08T02:21:58Z"
 		},
 		{
-			"checksumSHA1": "bfVGm7xZ2VFpddJp3KEPUZ8Y9Po=",
+			"checksumSHA1": "ErJHGU6AVPZM9yoY/xV11TwSjQs=",
 			"path": "github.com/hashicorp/go-retryablehttp",
-			"revision": "886ce0458bc81ccca0fb7044c1be0e9ab590bed7",
-			"revisionTime": "2016-07-18T23:34:41Z"
+			"revision": "6e85be8fee1dcaa02c0eaaac2df5a8fbecf94145",
+			"revisionTime": "2016-09-30T03:51:02Z"
 		},
 		{
 			"checksumSHA1": "A1PcINvF3UiwHRKn8UcgARgvGRs=",

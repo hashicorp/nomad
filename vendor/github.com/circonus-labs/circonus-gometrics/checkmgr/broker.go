@@ -1,3 +1,7 @@
+// Copyright 2016 Circonus, Inc. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package checkmgr
 
 import (
@@ -75,7 +79,7 @@ func (cm *CheckManager) selectBroker() (*api.Broker, error) {
 	var brokerList []api.Broker
 	var err error
 
-	if cm.brokerSelectTag != "" {
+	if len(cm.brokerSelectTag) > 0 {
 		brokerList, err = cm.apih.FetchBrokerListByTag(cm.brokerSelectTag)
 		if err != nil {
 			return nil, err

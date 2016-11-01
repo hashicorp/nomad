@@ -1,3 +1,7 @@
+// Copyright 2016 Circonus, Inc. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package circonusgometrics
 
 import (
@@ -29,7 +33,7 @@ func (m *CirconusMetrics) Reset() {
 
 	m.counters = make(map[string]uint64)
 	m.counterFuncs = make(map[string]func() uint64)
-	m.gauges = make(map[string]int64)
+	m.gauges = make(map[string]string)
 	m.gaugeFuncs = make(map[string]func() int64)
 	m.histograms = make(map[string]*Histogram)
 	m.text = make(map[string]string)
@@ -37,7 +41,7 @@ func (m *CirconusMetrics) Reset() {
 }
 
 // snapshot returns a copy of the values of all registered counters and gauges.
-func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]int64, h map[string]*circonusllhist.Histogram, t map[string]string) {
+func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]string, h map[string]*circonusllhist.Histogram, t map[string]string) {
 	m.cm.Lock()
 	defer m.cm.Unlock()
 
@@ -68,18 +72,21 @@ func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]int64, h
 		c[n] = f()
 	}
 
-	g = make(map[string]int64, len(m.gauges)+len(m.gaugeFuncs))
+	//g = make(map[string]int64, len(m.gauges)+len(m.gaugeFuncs))
+	g = make(map[string]string, len(m.gauges)+len(m.gaugeFuncs))
 	for n, v := range m.gauges {
 		g[n] = v
 	}
 
 	for n, f := range m.gaugeFuncs {
-		g[n] = f()
+		g[n] = m.gaugeValString(f())
 	}
 
 	h = make(map[string]*circonusllhist.Histogram, len(m.histograms))
 	for n, hist := range m.histograms {
+		hist.rw.Lock()
 		h[n] = hist.hist.CopyAndReset()
+		hist.rw.Unlock()
 	}
 
 	t = make(map[string]string, len(m.text)+len(m.textFuncs))
@@ -89,6 +96,25 @@ func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]int64, h
 
 	for n, f := range m.textFuncs {
 		t[n] = f()
+	}
+
+	if m.resetCounters {
+		m.counters = make(map[string]uint64)
+		m.counterFuncs = make(map[string]func() uint64)
+	}
+
+	if m.resetGauges {
+		m.gauges = make(map[string]string)
+		m.gaugeFuncs = make(map[string]func() int64)
+	}
+
+	if m.resetHistograms {
+		m.histograms = make(map[string]*Histogram)
+	}
+
+	if m.resetText {
+		m.text = make(map[string]string)
+		m.textFuncs = make(map[string]func() string)
 	}
 
 	return
