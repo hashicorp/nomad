@@ -24,6 +24,7 @@ IMPROVEMENTS:
   * agent: Add DataDog telemetry sync [GH-1816]
   * agent: Allow Consul health checks to use bind address rather than advertise
     [GH-1866]
+  * agent/config: Advertise addresses do not need to specify a port [GH-1902]
   * api: Support TLS for encrypting Raft, RPC and HTTP APIs [GH-1853]
   * api: Implement blocking queries for querying a job's evaluations [GH-1892]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
