@@ -333,7 +333,9 @@ integration and are entirely optional.
   * `token`: Token is used by Servers to derive child token's for jobs
     requesting tokens. As such it does not need to be specified by the Client.
     Visit the [Vault Integration](/docs/vault-integration/index.html)
-    documentation to see how to generate an appropriate token.
+    documentation to see how to generate an appropriate token. The VAULT_TOKEN
+    environment variable is used when starting the agent. If a flag or
+    configuration specifies a value they take precedence.
 
   * `allow_unauthenticated`: allows users to submit jobs requiring Vault tokens
     without providing a Vault token proving they have access to these policies.
@@ -662,7 +664,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-vault-enabled`: Whether to enable or disabled Vault integration.
 * `-vault-address=<addr>`: The address to communicate with Vault.
 * `-vault-token=<token>`: The Vault token used to derive tokens. Only needs to
-  be set on Servers.
+  be set on Servers. Overrides the Vault token read from the VAULT_TOKEN
+  environment variable.
 * `-vault-ca-file=<path>`: Path to a PEM-encoded CA cert file used to verify the
   Vault server SSL certificate.
 * `-vault-ca-path=<path>`: Path to a directory of PEM-encoded CA cert files used
