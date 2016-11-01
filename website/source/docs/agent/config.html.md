@@ -327,6 +327,9 @@ integration and are entirely optional.
   configuration options. The value is a key-value map which supports the
   following keys:
   <br>
+  * `enabled`: A boolean option that enables or disables Vault integration.
+    Defaults to `false`.
+
   * `address`: The address to the Vault server given in the format of
     `protocol://host:port`. Defaults to `https://vault.service.consul:8200`.
 
