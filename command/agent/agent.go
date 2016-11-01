@@ -564,7 +564,13 @@ func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port
 
 	ip := net.ParseIP(serverAddr)
 	if ip == nil {
-		return nil, fmt.Errorf("Failed to parse %s address: %q", service, serverAddr)
+		joined := net.JoinHostPort(serverAddr, strconv.Itoa(port))
+		addr, err := net.ResolveTCPAddr("tcp", joined)
+		if err == nil {
+			return addr, nil
+		}
+
+		return nil, fmt.Errorf("Failed to parse %s %q as IP and failed to resolve address: %v", service, serverAddr, err)
 	}
 
 	return &net.TCPAddr{
