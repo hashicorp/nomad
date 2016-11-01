@@ -39,8 +39,8 @@ job "docs" {
 }
 ```
 
-Nomad is utilizes a tool called [Consul Template][ct]. For a full list of the
-API template functions, please see the [Consul Template README][ct].
+Nomad utilizes a tool called [Consul Template][ct]. For a full list of the
+API template functions, please refer to the [Consul Template README][ct].
 
 ## `template` Parameters
 
