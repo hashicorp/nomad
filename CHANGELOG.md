@@ -81,6 +81,7 @@ BUG FIXES:
   * discovery/jobspec: Validate service name after interpolation [GH-1852]
   * driver/docker: Fix `local/` directory mount into container [GH-1830]
   * jobspec: Tasks without a resource block no longer fail to validate [GH-1864]
+  * jobspec: Update HCL to fix panic in JSON parsing [GH-1754]
 
 ## 0.4.1 (August 18, 2016)
 
