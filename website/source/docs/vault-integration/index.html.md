@@ -142,7 +142,7 @@ After the role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
 
 ```
-$ vault token-create -role <role_name>
+$ vault token-create -role nomad-server
 Key             Value
 ---             -----
 token           f02f01c2-c0d1-7cb7-6b88-8a14fada58c0
