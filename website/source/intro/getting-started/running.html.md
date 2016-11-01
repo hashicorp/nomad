@@ -111,8 +111,8 @@ Additional metadata can be viewed by providing the `-detailed` flag.
 
 You can use `Ctrl-C` (the interrupt signal) to halt the agent.
 By default, all signals will cause the agent to forcefully shutdown.
-The agent [can be configured](/docs/agent/config.html) to gracefully
-leave on either the interrupt or terminate signals.
+The agent [can be configured](/docs/agent/configuration/index.html) to
+gracefully leave on either the interrupt or terminate signals.
 
 After interrupting the agent, you should see it leave the cluster
 and shut down:

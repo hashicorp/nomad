@@ -112,5 +112,5 @@ consul {
 ```
 
 Please refer to the [Consul
-documentation](/docs/agent/config.html#consul_options) for the complete set of
+documentation](/docs/agent/configuration/consul.html) for the complete set of
 configuration options.

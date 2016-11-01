@@ -1,9 +1,10 @@
 ---
 layout: "docs"
 page_title: "Nomad Agent"
-sidebar_current: "docs-agent-basics"
+sidebar_current: "docs-agent"
 description: |-
-  The Nomad agent is a long running process which can be used either in a client or server mode.
+  The Nomad agent is a long running process which can be used either in
+  a client or server mode.
 ---
 
 # Nomad Agent
@@ -27,9 +28,10 @@ clustering of servers and multi-region federation. The higher burden on the
 server nodes means that usually they should be run on dedicated instances --
 they are more resource intensive than a client node.
 
-Client nodes make up the majority of the cluster, and are very lightweight
-as they interface with the server nodes and maintain very little state of their own.
-Each cluster has usually 3 or 5 server mode agents and potentially thousands of clients.
+Client nodes make up the majority of the cluster, and are very lightweight as
+they interface with the server nodes and maintain very little state of their
+own. Each cluster has usually 3 or 5 server mode agents and potentially
+thousands of clients.
 
 ## Running an Agent
 
@@ -59,25 +61,25 @@ $ nomad agent -dev
 
 There are several important messages that `nomad agent` outputs:
 
-* **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
-  with which the node is registered, if any. It also indicates if auto-join is enabled.
-  The Atlas infrastructure is set using [`-atlas`](/docs/agent/config.html#_atlas)
-  and auto-join is enabled by setting [`-atlas-join`](/docs/agent/config.html#_atlas_join).
+- **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
+  with which the node is registered, if any. It also indicates if auto-join is
+  enabled. The Atlas infrastructure is set using `-atlas` and auto-join is
+  enabled by setting `-atlas-join`.
 
-* **Client**: This indicates whether the agent has enabled client mode.
+- **Client**: This indicates whether the agent has enabled client mode.
   Client nodes fingerprint their host environment, register with servers,
   and run tasks.
 
-* **Log Level**: This indicates the configured log level. Only messages with
+- **Log Level**: This indicates the configured log level. Only messages with
   an equal or higher severity will be logged. This can be tuned to increase
   verbosity for debugging, or reduced to avoid noisy logging.
 
-* **Region**: This is the region and datacenter in which the agent is configured to run.
- Nomad has first-class support for multi-datacenter and multi-region configurations.
- The [`-region` and `-dc`](/docs/agent/config.html#_region) flag can be used to set
- the region and datacenter. The default is the `global` region in `dc1`.
+- **Region**: This is the region and datacenter in which the agent is configured
+  to run. Nomad has first-class support for multi-datacenter and multi-region
+  configurations. The `-region` and `-dc` flags can be used to set the region
+  and datacenter. The default is the `global` region in `dc1`.
 
-* **Server**: This indicates whether the agent has enabled server mode.
+- **Server**: This indicates whether the agent has enabled server mode.
   Server nodes have the extra burden of participating in the consensus protocol,
   storing cluster state, and making scheduling decisions.
 

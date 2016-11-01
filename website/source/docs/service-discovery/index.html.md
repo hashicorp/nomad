@@ -21,7 +21,7 @@ Nomad does not currently run Consul for you.
 ## Configuration
 
 To enable Consul integration, please see the
-[Nomad agent Consul integration](/docs/agent/config.html#consul_options)
+[Nomad agent Consul integration](/docs/agent/configuration/consul.html)
 configuration.
 
 

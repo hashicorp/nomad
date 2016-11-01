@@ -84,7 +84,7 @@ does not automatically enable service discovery.
     - `${TASK}` - the name of the task
     - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
 
-- `port` `(string: required)` - Specifies the label of the port on which this
+- `port` `(string: <required>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
   number. The port label must match one defined in the [`network`][network]
   stanza.

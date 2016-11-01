@@ -23,7 +23,7 @@ Telemetry information can be streamed to both [statsite](https://github.com/armo
 as well as statsd based on providing the appropriate configuration options.
 
 To configure the telemetry output please see the [agent
-configuration](/docs/agent/config.html#telemetry_config).
+configuration](/docs/agent/configuration/telemetry.html).
 
 Below is sample output of a telemetry dump:
 
@@ -224,9 +224,9 @@ metrics can be turned on by setting the value of `publish_allocation_metrics`
 
 By default the collection interval is 1 second but it can be changed by the
 changing the value of the `collection_interval` key in the `telemetry`
-configuration block.  
+configuration block.
 
-Please see the [agent configuration](/docs/agent/config.html#telemetry_config)
+Please see the [agent configuration](/docs/agent/configuration/telemetry.html)
 page for more details.
 
 ## Host Metrics

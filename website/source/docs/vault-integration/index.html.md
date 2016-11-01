@@ -16,7 +16,7 @@ coordinate with Vault to derive a Vault token that has access to only the Vault
 policies the tasks needs. Nomad clients make the token avaliable to the task and
 handle the tokens renewal. Further, Nomad's [`template` block][template] can
 retrieve secrets from Vault making it easier than ever to secure your
-infrastructure. 
+infrastructure.
 
 Note that in order to use Vault with Nomad, you will need to configure and
 install Vault separately from Nomad. Nomad does not run Vault for you.
@@ -59,7 +59,7 @@ when creating the role with the Vault endpoint `/auth/token/roles/<role_name>`:
 }
 ```
 
-#### Parameters: 
+#### Parameters:
 
 * `allowed_policies` - Specifies the list of allowed policies as a
   comma-seperated string This list should contain all policies that jobs running
@@ -174,7 +174,7 @@ integration][config] configuration.
 To configure a job to retrieve Vault tokens, please see the [`vault` job
 specification documentation][vault-spec].
 
-## Troubleshooting 
+## Troubleshooting
 
 Upon startup, Nomad will attempt to connect to the specified Vault server. Nomad
 will lookup the passed token and if the token is from a role, the role will be
@@ -188,7 +188,7 @@ the reasons the token is invalid and disable Vault integration.
 - Nomad is given either a root token or a token created from an approriate role.
 
 [auth]: https://www.vaultproject.io/docs/auth/token.html "Vault Authentication Backend"
-[config]: /docs/agent/config.html#vault-options "Nomad Vault configuration block"
+[config]: /docs/agent/configuration/vault.html "Nomad Vault configuration block"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
 [vault-spec]: /docs/job-specification/vault.html "Nomad Vault Job Specification"

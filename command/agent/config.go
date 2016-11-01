@@ -288,7 +288,7 @@ type Telemetry struct {
 	// Default: none
 	CirconusAPIToken string `mapstructure:"circonus_api_token"`
 	// CirconusAPIApp is an app name associated with API token.
-	// Default: "consul"
+	// Default: "nomad"
 	CirconusAPIApp string `mapstructure:"circonus_api_app"`
 	// CirconusAPIURL is the base URL to use for contacting the Circonus API.
 	// Default: "https://api.circonus.com/v2"
@@ -317,7 +317,7 @@ type Telemetry struct {
 	CirconusCheckInstanceID string `mapstructure:"circonus_check_instance_id"`
 	// CirconusCheckSearchTag is a special tag which, when coupled with the instance id, helps to
 	// narrow down the search results when neither a Submission URL or Check ID is provided.
-	// Default: service:app (e.g. service:consul)
+	// Default: service:app (e.g. service:nomad)
 	CirconusCheckSearchTag string `mapstructure:"circonus_check_search_tag"`
 	// CirconusBrokerID is an explicit broker to use when creating a new check. The numeric portion
 	// of broker._cid. If metric management is enabled and neither a Submission URL nor Check ID

@@ -55,7 +55,7 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
-- `resources` <code>([Resources][]: required)</code> - Specifies the minimum
+- `resources` <code>([Resources][]: <required>)</code> - Specifies the minimum
   resource requirements such as RAM, CPU, disk, and network.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
