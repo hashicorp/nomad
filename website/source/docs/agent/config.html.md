@@ -344,6 +344,36 @@ integration and are entirely optional.
     public Atlas endpoint and is only used if both
     [infrastructure](#infrastructure) and [token](#token) are provided.
 
+## <a id="tls_options"></a>TLS Options
+
+The following options are used to configure TLS for the RPC, Raft and HTTP
+traffic for Nomad
+
+* `tls`: The top-level config key used to contain all TLS-related
+  configuration options. The value is a key-value map which supports the
+  following keys:
+  <br>
+  * `http`: Setting this to `true` enables TLS for the HTTP endpoints on the
+    Nomad Agent. Default is `false`.
+
+  * `rpc`: Setting this to `true` enables TLS for the RPC endpoints and the Raft
+    traffic in Nomad Servers. Setting this to `true` on Nomad client makes the
+    client use TLS for making RPC requests to the Nomad servers. Default is
+    `false`.
+
+  * `verify_server_hostname`: Setting this to true causes the outgoing TLS
+    connections to verify the server's hostname. Default is `false`. 
+    **NOTE**: Users should not mark it as `true` if they are using the Nomad
+    0.5-rc1 release and not using wildcard certificates for servers and clients. 
+
+  * `ca_file`: Path to the CA certificate used for Nomad's TLS configuration.
+
+  * `cert_file`: Path to the Cert file used for Nomad's TLS configuration.
+
+  * `key_file`: Path to the Key file used for Nomad's TLS configuration.
+
+  Incorrect configuration of the TLS related configuration will result to
+  startup errors of the Nomad agent.
 
 ## Server-specific Options
 
