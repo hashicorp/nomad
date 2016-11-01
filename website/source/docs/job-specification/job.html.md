@@ -33,6 +33,10 @@ job "docs" {
     "my-key" = "my-value"
   }
 
+  periodic {
+    # ...
+  }
+
   priority = 100
 
   region = "north-america"
@@ -42,10 +46,6 @@ job "docs" {
   }
 
   update {
-    # ...
-  }
-
-  periodic {
     # ...
   }
 }
@@ -87,7 +87,20 @@ job "docs" {
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, rolling updates are disabled.
 
+- `vault_token` `(string: "")` - Specifies the Vault token that proves the
+  submitter of the job has access to the specified policies in the
+  [`vault`][vault] stanza. This field is only used to transfer the token and is
+  not stored after job submission.
+
+    !> It is **strongly discouraged** to place the token as a configuration
+    parameter like this, since the token could be checked into source control
+    accidentally. Users should set the `VAULT_TOKEN` environment variable when
+    running the job instead.
+
 ## `job` Examples
+
+The following examples only show the `job` stanzas. Remember that the
+`job` stanza is only valid in the placements listed above.
 
 ### Docker Container
 
@@ -138,11 +151,53 @@ job "docs" {
       }
 
       resources {
-        cpu = 10
+        cpu = 20
       }
     }
   }
 }
+```
+
+### Consuming Secrets
+
+This example shows a job which retrieves secrets from Vault and writes those
+secrets to a file on disk, which the application then consumes. Nomad handles
+all interactions with Vault.
+
+```hcl
+job "docs" {
+  datacenters = ["default"]
+
+  group "example" {
+    task "cat" {
+      driver = "exec"
+
+      config {
+        command = "cat"
+        args    = ["local/secrets.txt"]
+      }
+
+      template {
+        data        = "{{ secret \"secret/data\" }}"
+        destination = "local/secrets.txt"
+      }
+
+      vault {
+        policies = ["secret-readonly"]
+      }
+
+      resources {
+        cpu = 20
+      }
+    }
+  }
+}
+```
+
+When submitting this job, you would run:
+
+```
+$ VAULT_TOKEN="..." nomad run example.nomad
 ```
 
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
@@ -151,5 +206,6 @@ job "docs" {
 [periodic]: /docs/job-specification/periodic.html "Nomad periodic Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [scheduler]: /docs/runtime/schedulers.html "Nomad Scheduler Types"

@@ -68,6 +68,9 @@ job "docs" {
 
 ## `task` Examples
 
+The following examples only show the `task` stanzas. Remember that the
+`task` stanza is only valid in the placements listed above.
+
 ### Docker Container
 
 This example defines a task that starts a Docker container as a service. Docker
@@ -111,7 +114,7 @@ task "server" {
   }
 
   resources {
-    cpu = 10
+    cpu = 20
   }
 }
 ```
@@ -140,7 +143,7 @@ task "server" {
   }
 
   resources {
-    cpu = 10
+    cpu = 20
   }
 }
 ```

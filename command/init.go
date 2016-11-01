@@ -148,9 +148,70 @@ job "example" {
         }
       }
 
+      # The "artifact" stanza instructs Nomad to download an artifact from a
+      # remote source prior to starting the task. This provides a convenient
+      # mechanism for downloading configuration files or data needed to run the
+      # task. It is possible to specify the "artifact" stanza multiple times to
+      # download multiple artifacts.
+      #
+      # For more information and examples on the "artifact" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/artifact.html
+      #
+      # artifact {
+      #   source = "http://foo.com/artifact.tar.gz"
+      #   options {
+      #     checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
+      #   }
+      # }
+
+      # The "logs" stana instructs the Nomad client on how many log files and
+      # the maximum size of those logs files to retain. Logging is enabled by
+      # default, but the "logs" stanza allows for finer-grained control over
+      # the log rotation and storage configuration.
+      #
+      # For more information and examples on the "logs" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/logs.html
+      #
+      # logs {
+      #   max_files     = 10
+      #   max_file_size = 15
+      # }
+
+      # The "resources" stanza describes the requirements a task needs to
+      # execute. Resource requirements include memory, disk space, network,
+      # cpu, and more. This ensures the task will execute on a machine that
+      # contains enough resource capacity.
+      #
+      # For more information and examples on the "resources" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/resources.html
+      #
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      # The "service" stanza instructs Nomad to register this task as a service
+      # in the service discovery engine, which is currently Consul. This will
+      # make the service addressable after Nomad has placed it on a host and
+      # port.
+      #
+      # For more information and examples on the "service" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/service.html
+      #
       service {
-        # ${TASKGROUP} is filled in automatically by Nomad
-        name = "${TASKGROUP}-redis"
+        name = "global-redis-check"
         tags = ["global", "cache"]
         port = "db"
         check {
@@ -161,31 +222,38 @@ job "example" {
         }
       }
 
-      # We must specify the resources required for this task to ensure
-      # it runs on a machine with enough capacity.
-      resources {
-        cpu    = 500 # 500 MHz
-        memory = 256 # 256MB
-        network {
-          mbits = 10
-          port "db" {}
-        }
-      }
-
-      # The artifact block can be specified one or more times to download
-      # artifacts prior to the task being started. This is convenient for
-      # shipping configs or data needed by the task.
-      # artifact {
-      #   source = "http://foo.com/artifact.tar.gz"
-      #   options {
-      #     checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
-      #   }
+      # The "template" stanza instructs Nomad to manage a template, such as
+      # a configuration file or script. This template can optionally pull data
+      # from Consul or Vault to populate runtime configuration data.
+      #
+      # For more information and examples on the "template" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/template.html
+      #
+      # template {
+      #   data          = "---\nkey: {{ key \"service/my-key\" }}"
+      #   destination   = "local/file.yml"
+      #   change_mode   = "signal"
+      #   change_signal = "SIGHUP"
       # }
 
-      # Specify configuration related to log rotation
-      # logs {
-      #   max_files     = 10
-      #   max_file_size = 15
+      # The "vault" stanza instructs the Nomad client to acquire a token from
+      # a HashiCorp Vault server. The Nomad servers must be configured and
+      # authorized to communicate with Vault. By default, Nomad will inject
+      # The token into the job via an environment variable and make the token
+      # available to the "template" stanza. The Nomad client handles the renewal
+      # and revocation of the Vault token.
+      #
+      # For more information and examples on the "vault" stanza, please see
+      # the online documentation at:
+      #
+      #     https://www.nomadproject.io/docs/job-specification/vault.html
+      #
+      # vault {
+      #   policies      = ["cdn", "frontend"]
+      #   change_mode   = "signal"
+      #   change_signal = "SIGHUP"
       # }
 
       # Controls the timeout between signalling a task it will be killed

@@ -51,8 +51,8 @@ job "docs" {
 
 ## `group` Examples
 
-The following examples only show the `group` stanzas. Remember that the `group`
-Remember that the `group` stanza is only valid in the placements listed above.
+The following examples only show the `group` stanzas. Remember that the
+`group` stanza is only valid in the placements listed above.
 
 ### Specifying Count
 
@@ -99,8 +99,8 @@ group "example" {
 }
 ```
 
-[task]: /docs/job-specification/task.html "Nomad task Specification"
-[job]: /docs/job-specification/job.html "Nomad job Specification"
-[constraint]: /docs/job-specification/constraint.html "Nomad constraint Specification"
-[meta]: /docs/job-specification/meta.html "Nomad meta Specification"
-[restart]: /docs/job-specification/restart.html "Nomad restart Specification"
+[task]: /docs/job-specification/task.html "Nomad task Job Specification"
+[job]: /docs/job-specification/job.html "Nomad job Job Specification"
+[constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"

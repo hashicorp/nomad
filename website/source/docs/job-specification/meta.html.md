@@ -56,8 +56,8 @@ automatically be converted to strings.
 
 ## `meta` Examples
 
-The following examples only show the `meta` stanzas. Remember that the `meta`
-Remember that the `meta` stanza is only valid in the placements listed above.
+The following examples only show the `meta` stanzas. Remember that the
+`meta` stanza is only valid in the placements listed above.
 
 ### Coercion
 

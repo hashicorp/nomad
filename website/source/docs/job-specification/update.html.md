@@ -43,8 +43,7 @@ job "docs" {
 ## `update` Examples
 
 The following examples only show the `update` stanzas. Remember that the
-`update` Remember that the `update` stanza is only valid in the placements
-listed above.
+`update` stanza is only valid in the placements listed above.
 
 ### Serial Upgrades
 
