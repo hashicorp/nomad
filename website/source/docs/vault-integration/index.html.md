@@ -90,7 +90,8 @@ when creating the role with the Vault endpoint `/auth/token/roles/<role_name>`:
 
 * `explicit_max_ttl`: Must be set to `0` to allow periodic tokens.
 
-* `name`: Any name is acceptable.
+* `name`: Any name is acceptable. Replace `<role_name>` above with the chosen
+  name.
 
 * `orphan`: Must be set to `false`. This ensures that the token can be revoked
   when the task is no longer needed or a node dies. This prohibits a leaked

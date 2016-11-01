@@ -167,7 +167,7 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 		}
 
 		env.SetTaskLocalDir(filepath.Join(taskdir, allocdir.TaskLocal))
-		env.SetSecretDir(filepath.Join(taskdir, allocdir.TaskSecrets))
+		env.SetSecretsDir(filepath.Join(taskdir, allocdir.TaskSecrets))
 	}
 
 	if task.Resources != nil {
