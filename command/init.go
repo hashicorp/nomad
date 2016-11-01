@@ -126,6 +126,10 @@ job "example" {
       # will migrate the data. This is useful for tasks that store data
       # that should persist across allocation updates.
       # sticky = true
+	  # 
+	  # Setting migrate to true results in the allocation directory of a
+	  # sticky allocation directory to be migrated.
+	  # migrate = true
 
       # Size of the shared ephemeral disk between tasks in the task group.
       size = 300
