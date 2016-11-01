@@ -537,29 +537,40 @@ func (a *Agent) getSerfAddr(bind bool) (*net.TCPAddr, error) {
 	bindAddr := a.config.Addresses.Serf
 	globalBindAddr := a.config.BindAddr
 	port := a.config.Ports.Serf
-	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "RPC")
+	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "Serf")
 }
 
 // pickAddress is a shared helper to pick the address to either bind to or
 // advertise.
 func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port int, service string) (*net.TCPAddr, error) {
-	portConverted := strconv.Itoa(port)
 	var serverAddr string
 	if advertiseAddr != "" && !bind {
 		serverAddr = advertiseAddr
+
+		// Check if the advertise has a port
+		if host, pport, err := net.SplitHostPort(advertiseAddr); err == nil {
+			if parsed, err := strconv.Atoi(pport); err == nil {
+				serverAddr = host
+				port = parsed
+			}
+		}
 	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !bind) {
-		serverAddr = net.JoinHostPort(bindAddr, portConverted)
+		serverAddr = bindAddr
 	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !bind) {
-		serverAddr = net.JoinHostPort(globalBindAddr, portConverted)
+		serverAddr = globalBindAddr
 	} else {
-		serverAddr = net.JoinHostPort("127.0.0.1", portConverted)
+		serverAddr = "127.0.0.1"
 	}
 
-	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving %s addr %+q: %v", service, serverAddr, err)
+	ip := net.ParseIP(serverAddr)
+	if ip == nil {
+		return nil, fmt.Errorf("Failed to parse %s address: %q", service, serverAddr)
 	}
-	return addr, nil
+
+	return &net.TCPAddr{
+		IP:   ip,
+		Port: port,
+	}, nil
 }
 
 // reservePortsForClient reserves a range of ports for the client to use when

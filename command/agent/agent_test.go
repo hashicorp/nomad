@@ -98,7 +98,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	// Returns error on bad serf addr
 	conf.AdvertiseAddrs.Serf = "nope"
 	_, err := a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "error resolving Serf addr") {
+	if err == nil || !strings.Contains(err.Error(), "Failed to parse Serf address") {
 		t.Fatalf("expected serf address error, got: %#v", err)
 	}
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -106,7 +106,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	// Returns error on bad rpc addr
 	conf.AdvertiseAddrs.RPC = "nope"
 	_, err = a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "error resolving RPC addr") {
+	if err == nil || !strings.Contains(err.Error(), "Failed to parse RPC address") {
 		t.Fatalf("expected rpc address error, got: %#v", err)
 	}
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
