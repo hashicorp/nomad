@@ -115,7 +115,8 @@ fields and more complete documentation.
 
 To make getting started easy, the basic [`nomad-server`
 policy](/data/vault/nomad-server-policy.hcl) and
-[role](/data/vault/nomad-server-role.json) described above are available.
+[role](/data/vault/nomad-server-role.json) described above are available for
+download.
 
 The below example assumes Vault is accessible, unsealed and the the operator has
 appropriate permissions.
