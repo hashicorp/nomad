@@ -12,10 +12,10 @@ IMPROVEMENTS:
     GH-1713]
   * core: New `set_contains` constraint to determine if a set contains all
     specified values [GH-1839]
-  * core: Introduce node SecretID which can be used to minimize the available
-    surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * core: Scheduler version enforcement disallows different scheduler version
     from making decisions simultaneously [GH-1872]
+  * core: Introduce node SecretID which can be used to minimize the available
+    surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * core: Add `sticky` volumes which inform the scheduler to prefer placing
     updated allocations on the same node and to reuse the `local/` and
     `alloc/data` directory from previous allocation allowing semi-persistent
@@ -39,8 +39,8 @@ IMPROVEMENTS:
   * driver/docker: Support Docker volumes [GH-1767]
   * driver/docker: Allow Docker logging to be configured [GH-1767]
   * driver/lxc: Support for LXC containers [GH-1699]
-  * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]
   * driver/rkt: Support network configurations [GH-1862]
+  * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]
 
 BUG FIXES:
   * core: Fix case where dead nodes were not properly handled by System
