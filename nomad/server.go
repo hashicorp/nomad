@@ -188,7 +188,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	}
 
 	// Configure TLS
-	var tlsWrap tlsutil.Wrapper
+	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
 	if config.TLSConfig.EnableRPC {
 		tlsConf := config.tlsConfig()
@@ -594,7 +594,7 @@ func (s *Server) setupVaultClient() error {
 }
 
 // setupRPC is used to setup the RPC listener
-func (s *Server) setupRPC(tlsWrap tlsutil.Wrapper) error {
+func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
 	s.endpoints.Node = &Node{srv: s}
@@ -640,7 +640,8 @@ func (s *Server) setupRPC(tlsWrap tlsutil.Wrapper) error {
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, tlsWrap)
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 	return nil
 }
 

@@ -67,7 +67,6 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 			CAFile:               config.TLSConfig.CAFile,
 			CertFile:             config.TLSConfig.CertFile,
 			KeyFile:              config.TLSConfig.KeyFile,
-			ServerName:           config.NodeName,
 		}
 		tlsConfig, err := tlsConf.IncomingTLSConfig()
 		if err != nil {

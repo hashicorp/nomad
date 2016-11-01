@@ -43,7 +43,7 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
+	if apply {
 		t.Fatalf("should not apply with config")
 	}
 	if node.Attributes["driver.lxc"] == "" {

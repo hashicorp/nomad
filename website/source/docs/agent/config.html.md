@@ -197,8 +197,8 @@ nodes, unless otherwise specified:
   * `disable_hostname`: A boolean indicating if gauge values should not be
     prefixed with the local hostname.
   * `publish_allocation_metrics`: Enables publishing runtime metrics of
-    allocations. Default is `false`.
-  * `publish_node_metrics`: Enables publishing runtime metrics of nodes. Default
+    individual allocations. Default is `false`.
+  * `publish_node_metrics`: Enables publishing client-specific runtime metrics. Default
     is `false`.
   * `circonus_api_token`
     A valid [Circonus](http://circonus.com/) API Token used to create/manage check. If provided, metric management is enabled.
