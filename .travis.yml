@@ -7,7 +7,7 @@ services:
 language: go
 
 go:
-  - tip
+  - 1.7
 
 branches:
   only:
