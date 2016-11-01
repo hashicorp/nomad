@@ -60,10 +60,6 @@ type Config struct {
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string
-
-	// ServerName is used with the TLS certificate to ensure the name we
-	// provide matches the certificate
-	ServerName string
 }
 
 // AppendCA opens and parses the CA file and adds the certificates to
@@ -114,13 +110,8 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 		RootCAs:            x509.NewCertPool(),
 		InsecureSkipVerify: true,
 	}
-	if c.ServerName != "" {
-		tlsConfig.ServerName = c.ServerName
-		tlsConfig.InsecureSkipVerify = false
-	}
 	if c.VerifyServerHostname {
 		// ServerName is filled in dynamically based on the target DC
-		tlsConfig.ServerName = "VerifyServerHostname"
 		tlsConfig.InsecureSkipVerify = false
 	}
 
@@ -235,9 +226,9 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		ServerName: c.ServerName,
 		ClientCAs:  x509.NewCertPool(),
 		ClientAuth: tls.NoClientCert,
+		ServerName: "*." + region + ".nomad",
 	}
 
 	// Parse the CA cert if any

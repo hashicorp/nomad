@@ -278,7 +278,6 @@ func (c *Config) tlsConfig() *tlsutil.Config {
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
-		ServerName:           c.NodeName,
 	}
 	return tlsConf
 }
