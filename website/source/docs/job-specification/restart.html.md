@@ -93,5 +93,5 @@ restart {
   `interval` is reached. This is the default behavior.
 
 - `"fail"` - Instructs the scheduler to not attempt to restart the task on
-  failure. This mode is useful for non-idempotent jobs which are not safe to
-  simply restart.
+  failure. This mode is useful for non-idempotent jobs which are unlikely to
+  succeed after a few failures.
