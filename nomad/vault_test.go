@@ -22,12 +22,20 @@ import (
 
 const (
 	// authPolicy is a policy that allows token creation operations
-	authPolicy = `path "auth/token/create/*" {
-	capabilities = ["create", "read", "update", "delete", "list"]
+	authPolicy = `path "auth/token/create/test" {
+	capabilities = ["create", "update"]
 }
 
-path "auth/token/roles/*" {
-	capabilities = ["create", "read", "update", "delete", "list"]
+path "auth/token/lookup/*" {
+	capabilities = ["read"]
+}
+
+path "auth/token/roles/test" {
+	capabilities = ["read"]
+}
+
+path "/auth/token/revoke-accessor/*" {
+	capabilities = ["update"]
 }
 `
 )
@@ -199,7 +207,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 // created in that role
 func defaultTestVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
 	d := make(map[string]interface{}, 2)
-	d["allowed_policies"] = "default,auth"
+	d["allowed_policies"] = "auth"
 	d["period"] = rolePeriod
 	return testVaultRoleAndToken(v, t, d)
 }
@@ -312,7 +320,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_LookupToken(t *testing.T) {
+func TestVaultClient_LookupToken_Root(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -338,6 +346,70 @@ func TestVaultClient_LookupToken(t *testing.T) {
 	}
 
 	expected := []string{"root"}
+	if !reflect.DeepEqual(policies, expected) {
+		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
+
+	// Create a token with a different set of policies
+	expected = []string{"default"}
+	req := vapi.TokenCreateRequest{
+		Policies: expected,
+	}
+	s, err = v.Client.Auth().Token().Create(&req)
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	// Get the client token
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	// Lookup new child
+	s, err = client.LookupToken(context.Background(), s.Auth.ClientToken)
+	if err != nil {
+		t.Fatalf("self lookup failed: %v", err)
+	}
+
+	policies, err = PoliciesFrom(s)
+	if err != nil {
+		t.Fatalf("failed to parse policies: %v", err)
+	}
+
+	if !reflect.DeepEqual(policies, expected) {
+		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
+	}
+}
+
+func TestVaultClient_LookupToken_Role(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Lookup ourselves
+	s, err := client.LookupToken(context.Background(), v.Config.Token)
+	if err != nil {
+		t.Fatalf("self lookup failed: %v", err)
+	}
+
+	policies, err := PoliciesFrom(s)
+	if err != nil {
+		t.Fatalf("failed to parse policies: %v", err)
+	}
+
+	expected := []string{"auth", "default"}
 	if !reflect.DeepEqual(policies, expected) {
 		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
 	}
@@ -621,9 +693,76 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
-func TestVaultClient_RevokeTokens(t *testing.T) {
+func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
+
+	purged := 0
+	purge := func(accessors []*structs.VaultAccessor) error {
+		purged += len(accessors)
+		return nil
+	}
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, purge)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create some vault tokens
+	auth := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: []string{"default"},
+	}
+	t1, err := auth.Create(&req)
+	if err != nil {
+		t.Fatalf("Failed to create vault token: %v", err)
+	}
+	if t1 == nil || t1.Auth == nil {
+		t.Fatalf("bad secret response: %+v", t1)
+	}
+	t2, err := auth.Create(&req)
+	if err != nil {
+		t.Fatalf("Failed to create vault token: %v", err)
+	}
+	if t2 == nil || t2.Auth == nil {
+		t.Fatalf("bad secret response: %+v", t2)
+	}
+
+	// Create two VaultAccessors
+	vas := []*structs.VaultAccessor{
+		&structs.VaultAccessor{Accessor: t1.Auth.Accessor},
+		&structs.VaultAccessor{Accessor: t2.Auth.Accessor},
+	}
+
+	// Issue a token revocation
+	if err := client.RevokeTokens(context.Background(), vas, true); err != nil {
+		t.Fatalf("RevokeTokens failed: %v", err)
+	}
+
+	// Lookup the token and make sure we get an error
+	if s, err := auth.Lookup(t1.Auth.ClientToken); err == nil {
+		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
+	}
+	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
+		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
+	}
+
+	if purged != 2 {
+		t.Fatalf("Expected purged 2; got %d", purged)
+	}
+}
+
+func TestVaultClient_RevokeTokens_Role(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
 
 	purged := 0
 	purge := func(accessors []*structs.VaultAccessor) error {

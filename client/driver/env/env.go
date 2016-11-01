@@ -21,9 +21,9 @@ const (
 	// removed.
 	TaskLocalDir = "NOMAD_TASK_DIR"
 
-	// SecretDir is the environment variable with the path to the tasks secret
+	// SecretsDir is the environment variable with the path to the tasks secret
 	// directory where it can store sensitive data.
-	SecretDir = "NOMAD_SECRET_DIR"
+	SecretsDir = "NOMAD_SECRETS_DIR"
 
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
@@ -89,7 +89,7 @@ type TaskEnvironment struct {
 	JobMeta          map[string]string
 	AllocDir         string
 	TaskDir          string
-	SecretDir        string
+	SecretsDir       string
 	CpuLimit         int
 	MemLimit         int
 	TaskName         string
@@ -167,8 +167,8 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	if t.TaskDir != "" {
 		t.TaskEnv[TaskLocalDir] = t.TaskDir
 	}
-	if t.SecretDir != "" {
-		t.TaskEnv[SecretDir] = t.SecretDir
+	if t.SecretsDir != "" {
+		t.TaskEnv[SecretsDir] = t.SecretsDir
 	}
 
 	// Build the resource limits
@@ -274,13 +274,13 @@ func (t *TaskEnvironment) ClearTaskLocalDir() *TaskEnvironment {
 	return t
 }
 
-func (t *TaskEnvironment) SetSecretDir(dir string) *TaskEnvironment {
-	t.SecretDir = dir
+func (t *TaskEnvironment) SetSecretsDir(dir string) *TaskEnvironment {
+	t.SecretsDir = dir
 	return t
 }
 
-func (t *TaskEnvironment) ClearSecretDir() *TaskEnvironment {
-	t.SecretDir = ""
+func (t *TaskEnvironment) ClearSecretsDir() *TaskEnvironment {
+	t.SecretsDir = ""
 	return t
 }
 

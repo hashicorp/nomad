@@ -272,6 +272,13 @@ func (c *Command) readConfig() *Config {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
+	// Check to see if we should read the Vault token from the environment
+	if config.Vault.Token == "" {
+		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
+			config.Vault.Token = token
+		}
+	}
+
 	return config
 }
 
@@ -918,7 +925,8 @@ Vault Options:
 
   -vault-token=<token>
     The Vault token used to derive tokens from Vault on behalf of clients.
-    This only needs to be set on Servers.
+    This only needs to be set on Servers. Overrides the Vault token read from
+    the VAULT_TOKEN environment variable.
 
   -vault-allow-unauthenticated
     Whether to allow jobs to be sumbitted that request Vault Tokens but do not
