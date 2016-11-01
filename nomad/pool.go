@@ -129,7 +129,7 @@ type ConnPool struct {
 	limiter map[string]chan struct{}
 
 	// TLS wrapper
-	tlsWrap tlsutil.Wrapper
+	tlsWrap tlsutil.RegionWrapper
 
 	// Used to indicate the pool is shutdown
 	shutdown   bool
@@ -141,7 +141,7 @@ type ConnPool struct {
 // Set maxTime to 0 to disable reaping. maxStreams is used to control
 // the number of idle streams allowed.
 // If TLS settings are provided outgoing connections use TLS.
-func NewPool(logOutput io.Writer, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.Wrapper) *ConnPool {
+func NewPool(logOutput io.Writer, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper) *ConnPool {
 	pool := &ConnPool{
 		logOutput:  logOutput,
 		maxTime:    maxTime,
@@ -261,7 +261,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 		}
 
 		// Wrap the connection in a TLS client
-		tlsConn, err := p.tlsWrap(conn)
+		tlsConn, err := p.tlsWrap(region, conn)
 		if err != nil {
 			conn.Close()
 			return nil, err
