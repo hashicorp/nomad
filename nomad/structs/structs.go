@@ -1786,7 +1786,7 @@ func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
 		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout can not be less than %v", minCheckInterval)
+			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
 		} else if sc.Timeout < minCheckTimeout {
 			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
@@ -1796,7 +1796,7 @@ func (sc *ServiceCheck) validate() error {
 		}
 
 		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout can not be less than %v", minCheckInterval)
+			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
 		} else if sc.Timeout < minCheckTimeout {
 			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 		}
@@ -1812,9 +1812,9 @@ func (sc *ServiceCheck) validate() error {
 	}
 
 	if sc.Interval == 0 {
-		return fmt.Errorf("missing required value interval. Interval can not be less than %v", minCheckInterval)
+		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
-		return fmt.Errorf("interval (%v) can not be lower than %v", sc.Interval, minCheckInterval)
+		return fmt.Errorf("interval (%v) cannot be lower than %v", sc.Interval, minCheckInterval)
 	}
 
 	switch sc.InitialStatus {
@@ -2156,7 +2156,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	if strings.ContainsAny(t.Name, `/\`) {
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
-		mErr.Errors = append(mErr.Errors, errors.New("Task name can not include slashes"))
+		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include slashes"))
 	}
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
@@ -2765,7 +2765,7 @@ func (ta *TaskArtifact) Validate() error {
 	if check, ok := ta.GetterOptions["checksum"]; ok {
 		check = strings.TrimSpace(check)
 		if check == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value can not be empty"))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value cannot be empty"))
 			return mErr.ErrorOrNil()
 		}
 
@@ -2961,7 +2961,7 @@ func (v *Vault) Validate() error {
 	}
 
 	if len(v.Policies) == 0 {
-		return fmt.Errorf("Policy list can not be empty")
+		return fmt.Errorf("Policy list cannot be empty")
 	}
 
 	switch v.ChangeMode {

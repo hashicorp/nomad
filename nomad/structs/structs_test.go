@@ -545,7 +545,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "can not be less than") {
+	if !strings.Contains(err.Error(), "cannot be less than") {
 		t.Fatalf("err: %v", err)
 	}
 }
