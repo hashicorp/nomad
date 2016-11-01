@@ -39,9 +39,6 @@ To configure a job to register with service discovery, please see the
 - The service discovery feature in Nomad depends on operators making sure that
   the Nomad client can reach the Consul agent.
 
-- Nomad assumes that it controls the life cycle of all the externally
-  discoverable services running on a host.
-
 - Tasks running inside Nomad also need to reach out to the Consul agent if
   they want to use any of the Consul APIs. Ex: A task running inside a docker
   container in the bridge mode won't be able to talk to a Consul Agent running
