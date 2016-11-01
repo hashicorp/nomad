@@ -90,6 +90,11 @@ job "example" {
   # decision on placement. This configuration is optional and defaults to
   # "service". For a full list of job types and their differences, please see
   # the online documentation.
+  #
+  # For more information, please see the online documentation at:
+  #
+  #     https://www.nomadproject.io/docs/jobspec/schedulers.html
+  #
   type = "service"
 
   # The "constraint" stanza defines additional constraints for placing this job,
@@ -117,11 +122,11 @@ job "example" {
   #
   update {
     # The "stagger" parameter specifies to do rolling updates of this job every
-    # 10 seconds
+    # 10 seconds.
     stagger = "10s"
 
     # The "max_parallel" parameter specifies the maximum number of updates to
-    # perform in paralle. In this case, this specifies to update a single task
+    # perform in parallel. In this case, this specifies to update a single task
     # at a time.
     max_parallel = 1
   }

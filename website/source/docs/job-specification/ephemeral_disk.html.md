@@ -3,9 +3,9 @@ layout: "docs"
 page_title: "ephemeral_disk Stanza - Job Specification"
 sidebar_current: "docs-job-specification-ephemeral_disk"
 description: |-
-  The "ephemeral_disk" stanza instructs Nomad to utilize an ephemeral disk
-  instead of a hard disk requirement, and can also enable sticky volumes and
-  live data migrations.
+  The "ephemeral_disk" stanza describes the ephemeral disk requirements of the
+  task group. Ephemeral disks can be marked as sticky and support live data
+  migrations.
 ---
 
 # `ephemeral_disk` Stanza
@@ -19,10 +19,10 @@ description: |-
   </tr>
 </table>
 
-The `ephemeral_disk` stanza instructs Nomad to utilize an ephemeral disk instead
-of a hard disk requirement. Clients using this stanza should not specify disk
-requirements in the [resources stanza][resources] of the task. All tasks in this
-group will share the same ephemeral disk.
+
+The `ephemeral_disk` stanza describes the ephemeral disk requirements of the
+task group. Ephemeral disks can be marked as sticky and support live data
+migrations. All tasks in this group will share the same ephemeral disk.
 
 ```hcl
 job "docs" {
@@ -40,8 +40,8 @@ job "docs" {
 
 - `migrate` `(bool: false)` - Specifies that the Nomad client should make a
   best-effort attempt to migrate the data from a remote machine if placement
-  should fail. During data migration, the task will block starting until the
-  data migration has completed.
+  cannot be made on the original node. During data migration, the task will
+  block starting until the data migration has completed.
 
 - `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB.
 
