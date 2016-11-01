@@ -38,6 +38,20 @@ job "docs" {
 }
 ```
 
+The Nomad client will make the Vault token available to the task by writing it
+to the secret directory at `secret/vault_token` and by injecting an VAULT_TOKEN
+environment variable. 
+
+If Vault token renewal fails due to a Vault outage, the Nomad client will
+attempt to retrieve a new Vault token. When the new Vault token is retrieved,
+the contents of the file will be replaced and action will be taken based on the
+`change_mode`.
+
+If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
+network error), the client will retrieve a new Vault token. If successful, the
+contents of the secrets file are updated on disk, and action will be taken
+according to the value set in the `change_mode` parameter.
+
 If a `vault` stanza is specified, the [`template`][template] stanza can interact
 with Vault as well.
 
@@ -69,8 +83,9 @@ The following examples only show the `vault` stanzas. Remember that the
 ### Retrieve Token
 
 This example tells the Nomad client to retrieve a Vault token. The token is
-available to the task via the canonical environment variable `VAULT_TOKEN`. The
-resulting token will have the "frontend" Vault policy attached.
+available to the task via the canonical environment variable `VAULT_TOKEN` and
+written to disk at `secrets/vault_token`. The resulting token will have the
+"frontend" Vault policy attached.
 
 ```hcl
 vault {

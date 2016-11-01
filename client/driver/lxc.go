@@ -155,7 +155,7 @@ func (d *LxcDriver) Abilities() DriverAbilities {
 
 // Fingerprint fingerprints the lxc driver configuration
 func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	enabled := cfg.ReadBoolDefault(lxcConfigOption, false)
+	enabled := cfg.ReadBoolDefault(lxcConfigOption, true)
 	if !enabled && !cfg.DevMode {
 		return false, nil
 	}

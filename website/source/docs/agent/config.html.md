@@ -318,6 +318,49 @@ When `server_auto_join`, `client_auto_join` and `auto_advertise` are all
 enabled, which is by default, and Consul is available, the Nomad cluster will
 self-bootstrap.
 
+## Vault Options
+
+The following options are used to configure [Vault](https://www.vaultproject.io)
+integration and are entirely optional.
+
+* `vault`: The top-level config key used to contain all Vault-related
+  configuration options. The value is a key-value map which supports the
+  following keys:
+  <br>
+  * `address`: The address to the Vault server given in the format of
+    `protocol://host:port`. Defaults to `https://vault.service.consul:8200`.
+
+  * `token`: Token is used by Servers to derive child token's for jobs
+    requesting tokens. As such it does not need to be specified by the Client.
+    Visit the [Vault Integration](/docs/vault-integration/index.html)
+    documentation to see how to generate an appropriate token. The VAULT_TOKEN
+    environment variable is used when starting the agent. If a flag or
+    configuration specifies a value they take precedence.
+
+  * `allow_unauthenticated`: allows users to submit jobs requiring Vault tokens
+    without providing a Vault token proving they have access to these policies.
+
+  * `task_token_ttl`: Sets the TTL of created tokens when using a root token.
+
+  * `tls_ca_file`: Optional path to the CA certificate used for Vault
+    communication, defaults to the system bundle if not specified.
+
+  * `tls_ca_path`: Optional path to a folder containing CA certificate to be
+    used for Vault communication, defaults to the system bundle if not
+    specified.
+
+  * `tls_cert_file`: The path to the certificate used for Vault communication. If
+    this is set then you need to also set `tls_key_file`.
+
+  * `tls_key_file`: The path to the private key used for Consul communication. If
+    this is set then you need to also set `tls_cert_file`.
+
+  * `tls_skip_verify`: Enables or disables SSL verifaction. Defaults to `false`.
+
+  * `tls_server_name`: Optional parameter used to set the SNI host when
+    connecting to Vault via TLS.
+
+
 ## <a id="atlas_options"></a>Atlas Options
 
 **NOTE**: Nomad integration with Atlas is awaiting release of Atlas features
@@ -550,7 +593,7 @@ documentation [here](/docs/drivers/index.html)
   If specified, fingerprinters not in the whitelist will be disabled. If the
   whitelist is empty, all fingerprinters are used.
 
-### <a id="chroot_env_map"></a>Client ChrootEnv Map
+### <a id="chroot_env_map"></a>Client Chroot Map
 
 Drivers based on [Isolated Fork/Exec](/docs/drivers/exec.html) implement file
 system isolation using chroot on Linux. The `chroot_env` map allows the chroot
@@ -618,3 +661,19 @@ via CLI arguments. The `agent` command accepts the following arguments:
   option.
 * `-state-dir=<path>`: Equivalent to the Client [state_dir](#state_dir) config
   option.
+* `-vault-enabled`: Whether to enable or disabled Vault integration.
+* `-vault-address=<addr>`: The address to communicate with Vault.
+* `-vault-token=<token>`: The Vault token used to derive tokens. Only needs to
+  be set on Servers. Overrides the Vault token read from the VAULT_TOKEN
+  environment variable.
+* `-vault-ca-file=<path>`: Path to a PEM-encoded CA cert file used to verify the
+  Vault server SSL certificate.
+* `-vault-ca-path=<path>`: Path to a directory of PEM-encoded CA cert files used
+  to verify the Vault server SSL certificate.Whether to enable or disabled Vault
+  integration.
+* `vault-cert-file=<path>`: The path to the certificate for Vault communication.
+* `vault-key-file=<path>`: The path to the private key for Vault communication.
+* `vault-tls-skip-verify`: A boolean that determines whether to skip SSL
+  certificate verification.
+* `vault-tls-server-name=<name>`: Used to set the SNI host when connecting to
+  Vault over TLS.
