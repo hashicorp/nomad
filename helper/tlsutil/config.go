@@ -111,7 +111,6 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 		InsecureSkipVerify: true,
 	}
 	if c.VerifyServerHostname {
-		// ServerName is filled in dynamically based on the target DC
 		tlsConfig.InsecureSkipVerify = false
 	}
 
@@ -228,7 +227,6 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		ClientCAs:  x509.NewCertPool(),
 		ClientAuth: tls.NoClientCert,
-		ServerName: "*." + region + ".nomad",
 	}
 
 	// Parse the CA cert if any
