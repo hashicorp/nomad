@@ -16,6 +16,11 @@ IMPROVEMENTS:
     surface area of RPCs to malicious Nomad Clients [GH-1597] 
   * core: Scheduler version enforcement disallows different scheduler version
     from making decisions simultaneously [GH-1872]
+  * core: Add `sticky` volumes which inform the scheduler to prefer placing
+    updated allocations on the same node and to reuse the `local/` and
+    `alloc/data` directory from previous allocation allowing semi-persistent
+    data and allow those folders to be synced from a remote node [GH-1654,
+    GH-1741]
   * agent: Add DataDog telemetry sync [GH-1816]
   * agent: Allow Consul health checks to use bind address rather than advertise
     [GH-1866]
