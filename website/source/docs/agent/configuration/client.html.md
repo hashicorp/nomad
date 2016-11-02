@@ -31,13 +31,13 @@ client {
 ## `client` Parameters
 
 - `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
- to allocation data. By default, this is - the top-level
- [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with
- "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path
+  for allocation data. By default, this is the top-level
+  [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with
+  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path
 
-- `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> - Specififes
-  a key-value mapping that defines the chroot environment for jobs using the
-  Exec and Java drivers.
+- `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
+  Specifies a key-value mapping that defines the chroot environment for jobs
+  using the Exec and Java drivers.
 
 - `enabled` `(bool: false)` - Specifies if client mode is enabled. All other
   client configuration options depend on this value.
@@ -116,7 +116,7 @@ the full list.
 
 ### `options` Parameters
 
-The following is not an exhaustive list of options for **only** the Nomad
+The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
 see the [drivers documentation](/docs/drivers/index.html).
 

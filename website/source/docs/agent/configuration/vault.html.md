@@ -4,7 +4,7 @@ page_title: "vault Stanza - Agent Configuration"
 sidebar_current: "docs-agent-configuration-vault"
 description: |-
   The "vault" stanza configures Nomad's integration with HashiCorp's Vault.
-  When configured, Nomad can create and distribute secrets to tasks
+  When configured, Nomad can create and distribute Vault tokens to tasks
   automatically.
 ---
 
@@ -20,10 +20,10 @@ description: |-
 </table>
 
 
-The `vault` stanza configures Nomad's integration with
-[HashiCorp's Vault][vault]. When configured, Nomad can create and distribute
-secrets to tasks automatically. For more information on the architecture and
-setup, please see the [Nomad and Vault integration documentation][nomad-vault].
+The `vault` stanza configures Nomad's integration with [HashiCorp's
+Vault][vault]. When configured, Nomad can create and distribute Vault tokens to
+tasks automatically. For more information on the architecture and setup, please
+see the [Nomad and Vault integration documentation][nomad-vault].
 
 ```hcl
 vault {
@@ -41,8 +41,9 @@ vault {
 
 - `allow_unauthenticated` `(bool: false)` - Specifies if users submitting jobs
   to the Nomad server should be required to provide their own Vault token,
-  proving they have access to the policies listed in the job. If enabled, users
-  could easily escalate privilege in a job.
+  proving they have access to the policies listed in the job. This option should
+  only ever be enabled in a trusted environment, because, if enabled, users
+  could escalate privilege in a job.
 
 - `enabled` `(bool: false)` - Specifies if the Vault integration should be
   activated.
@@ -91,17 +92,6 @@ vault {
 
 The following examples only show the `vault` stanzas. Remember that the
 `vault` stanza is only valid in the placements listed above.
-
-### Default Configuration
-
-This example shows the most basic Vault integration configuration. If all
-defaults are correct, simply include the Vault stanza to enable the integration:
-
-```hcl
-vault {
-  enabled = true
-}
-```
 
 ### Custom Address
 

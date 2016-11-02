@@ -77,8 +77,7 @@ testing.
 
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
-  precedence over the default [bind_addr](#bind_addr). If provided, **all
-  network addresses must be defined** (you cannot override just one address).
+  precedence over the default [bind_addr](#bind_addr).
 
   - `http` - The address the HTTP server is bound to. This is the most common
     bind address to change.
@@ -87,26 +86,16 @@ testing.
     exposed only to other cluster members if possible.
 
   - `serf` - The address used to bind the gossip layer to. Both a TCP and UDP
-    listener will be exposed on this address. Should be restricted to only
-    server nodes from the same datacenter if possible.
-
-    The default values are:
-
-    ```hcl
-    ports {
-      http = "127.0.0.1"
-      rpc  = "127.0.0.1"
-      serf = "127.0.0.1"
-    }
-    ```
+    listener will be exposed on this address. Should be exposed only to other
+    cluster members if possible.
 
 - `advertise` `(Advertise: see below)` - Specifies the advertise address for
   individual network services. This can be used to advertise a different address
   to the peers of a server or a client node to support more complex network
   configurations such as NAT. This configuration is optional, and defaults to
-  the bind address of the specific network service if it is not provided.  If
-  provided, **all advertise addresses must be defined** (you cannot override
-  just one property).
+  the bind address of the specific network service if it is not provided. Any
+  values configured in this stanza take precedence over the default
+  [bind_addr](#bind_addr).
 
   - `http` - The address to advertise for the HTTP interface. This should be
     reachable by all the nodes from which end users are going to use the Nomad
@@ -118,16 +107,6 @@ testing.
   - `serf` - The address advertised for the gossip layer. This address must be
     reachable from all server nodes. It is not required that clients can reach
     this address.
-
-    The default values are:
-
-    ```hcl
-    advertise {
-      http = "127.0.0.1:4646"
-      rpc  = "127.0.0.1:4647"
-      serf = "127.0.0.1:4648"
-    }
-    ```
 
 - `atlas` <code>([Atlas][atlas]: nil)</code> - Specifies if Nomad should connect
   to Nomad Enterprise and Atlas.
@@ -186,8 +165,7 @@ testing.
   unique per-datacenter.
 
 - `ports` `(Port: see below)` - Specifies the network ports used for different
-  services required by the Nomad agent. If provided, **all network ports must
-  be defined** (you cannot override just one port).
+  services required by the Nomad agent.
 
   - `http` - The port used to run the HTTP server.
 

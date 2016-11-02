@@ -62,9 +62,9 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
 The following examples only show the `tls` stanzas. Remember that the
 `tls` stanza is only valid in the placements listed above.
 
-### Default Configuration
+### Enabling TLS
 
-This example shows the default TLS configuration. This enables TLS communication
+This example shows enabling TLS configuration. This enables TLS communication
 between all servers and clients using the default system CA bundle and
 certificates.
 

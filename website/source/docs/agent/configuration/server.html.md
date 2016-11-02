@@ -27,7 +27,7 @@ join failures, and more.
 ```hcl
 server {
   enabled          = true
-  bootstrap_expect = 5
+  bootstrap_expect = 3
   retry_join       = ["1.2.3.4", "5.6.7.8"]
 }
 ```
@@ -158,6 +158,16 @@ server {
   enabled          = true
   bootstrap_expect = 3
   retry_join       = ["1.2.3.4", "5.6.7.8"]
+}
+```
+
+### Configuring Data Directory
+
+This example shows configuring a custom data directory for the server data.
+
+```hcl
+server {
+  data_dir = "/opt/nomad/server"
 }
 ```
 
