@@ -409,8 +409,6 @@ traffic for Nomad
 
   * `verify_server_hostname`: Setting this to true causes the outgoing TLS
     connections to verify the server's hostname. Default is `false`. 
-    **NOTE**: Users should not mark it as `true` if they are using the Nomad
-    0.5-rc1 release and not using wildcard certificates for servers and clients. 
 
   * `ca_file`: Path to the CA certificate used for Nomad's TLS configuration.
 
@@ -420,6 +418,10 @@ traffic for Nomad
 
   Incorrect configuration of the TLS related configuration will result to
   startup errors of the Nomad agent.
+
+  Please see the [Agent's Gossip and RPC
+  Encryption](/docs/agent/encryption.html) documentation for how certificates
+  should be signed.
 
 ## Server-specific Options
 
