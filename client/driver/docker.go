@@ -894,7 +894,11 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			// We failed to create the container for some other reason.
 			d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s", image, err)
 			pluginClient.Kill()
-			return nil, fmt.Errorf("Failed to create container from image %s: %s", image, err)
+			e := fmt.Errorf("Failed to create container from image %s: %s", image, err)
+			if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") {
+				return nil, structs.NewRecoverableError(e, true)
+			}
+			return nil, e
 		}
 	}
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
