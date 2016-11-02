@@ -160,5 +160,5 @@ Currently there is no enforcement that the meta keys be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
 behavior.
 
-[jobspec]: /docs/job-specification/vault-integration/index.html "Nomad Job Specification"
+[jobspec]: /docs/job-specification/index.html "Nomad Job Specification"
 [vault]: /docs/vault-integration/index.html "Nomad Vault Integration"
