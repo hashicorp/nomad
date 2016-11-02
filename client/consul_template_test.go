@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -139,6 +140,13 @@ func (h *testHarness) start(t *testing.T) {
 	h.manager = manager
 }
 
+func (h *testHarness) startWithErr() error {
+	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
+		h.config, h.vaultToken, h.taskDir, h.taskEnv)
+	h.manager = manager
+	return err
+}
+
 // stop is used to stop any running Vault or Consul server plus the task manager
 func (h *testHarness) stop() {
 	if h.vault != nil {
@@ -207,6 +215,59 @@ func TestTaskTemplateManager_Invalid(t *testing.T) {
 	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, taskEnv)
 	if err == nil || !strings.Contains(err.Error(), "Failed to parse signal") {
 		t.Fatalf("Expected signal parsing error: %v", err)
+	}
+}
+
+func TestTaskTemplateManager_HostPath(t *testing.T) {
+	// Make a template that will render immediately and write it to a tmp file
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Bad: %v", err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	content := "hello, world!"
+	if _, err := io.WriteString(f, content); err != nil {
+		t.Fatalf("Bad: %v", err)
+	}
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		SourcePath: f.Name(),
+		DestPath:   file,
+		ChangeMode: structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
+	}
+
+	if s := string(raw); s != content {
+		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
+	}
+
+	// Change the config to disallow host sources
+	harness = newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.config.Options = map[string]string{
+		hostSrcOption: "false",
+	}
+	if err := harness.startWithErr(); err == nil || !strings.Contains(err.Error(), "absolute") {
+		t.Fatalf("Expected absolute template path disallowed: %v", err)
 	}
 }
 

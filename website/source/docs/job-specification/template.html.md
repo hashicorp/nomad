@@ -121,5 +121,13 @@ template {
 }
 ```
 
+### Client Configuration
+
+The `template` block has the following [client configuration
+options](/docs/agent/config.html#options):
+
+* `template.allow_host_source` - Allows templates to specify their source
+  template as an absolute path referencing host directories. Defaults to `true`.
+
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
