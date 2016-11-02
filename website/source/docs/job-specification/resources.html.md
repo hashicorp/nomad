@@ -54,7 +54,7 @@ job "docs" {
 
 - `memory` `(int: 300)` - Specifies the memory required in MB
 
-- `network` <code>([Network][]: required)</code> - Specifies the network
+- `network` <code>([Network][]: <required>)</code> - Specifies the network
   requirements, including static and dynamic port allocations.
 
 ## `resources` Examples

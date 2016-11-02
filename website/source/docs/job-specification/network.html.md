@@ -52,7 +52,7 @@ job "docs" {
 
 ## `network` Parameters
 
-- `mbits` `(int: required)` - Specifies the bandwidth required in MBits.
+- `mbits` `(int: <required>)` - Specifies the bandwidth required in MBits.
 
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a port
   allocation and can be used to specify both dynamic ports and reserved ports.

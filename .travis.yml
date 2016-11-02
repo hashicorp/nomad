@@ -13,7 +13,7 @@ branches:
   only:
     - master
 
-before_install:  
+before_install:
     - sudo apt-get update
     - sudo apt-get install -y docker-engine liblxc1 lxc-dev lxc
     - sudo apt-get install -y qemu

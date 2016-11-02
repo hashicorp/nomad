@@ -37,7 +37,7 @@ consistent evaluation when Nomad spans multiple time zones.
 
 ## `periodic` Parameters
 
-- `cron` `(string: required)` - Specifies a cron expression configuring the
+- `cron` `(string: <required>)` - Specifies a cron expression configuring the
   interval to launch the job. In addition to [cron-specific formats][cron], this
   option also includes predefined expressions such as `@daily` or `@weekly`.
 

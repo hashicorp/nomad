@@ -27,7 +27,7 @@ used by Nomad. This should be used to target a specific resource utilization per
 node and to reserve resources for applications running outside of Nomad's
 supervision such as Consul and the operating system itself.
 
-Please see the [reservation configuration](/docs/agent/config.html#reserved) for
+Please see the [reservation configuration](/docs/agent/configuration/client.html#reserved) for
 more detail.
 
 ## Network Topology

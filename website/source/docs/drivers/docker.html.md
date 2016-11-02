@@ -343,7 +343,7 @@ of the Linux Kernel and Docker daemon.
 ## Client Configuration
 
 The `docker` driver has the following [client configuration
-options](/docs/agent/config.html#options):
+options](/docs/agent/configuration/client.html#options):
 
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
   to customize this if you use a non-standard socket (HTTP or another

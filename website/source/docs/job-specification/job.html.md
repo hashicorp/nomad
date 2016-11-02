@@ -10,6 +10,15 @@ description: |-
 
 # `job` Stanza
 
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>**job**</code>
+    </td>
+  </tr>
+</table>
+
 The `job` stanza is the top-most configuration option in the job specification.
 A job is a declarative specification of tasks that Nomad should run. Jobs have a
 globally unique name, one or many task groups, which are themselves collections
@@ -62,10 +71,10 @@ job "docs" {
   [Nomad constraint reference](/docs/job-specification/constraint.html) for more
   details.
 
-- `datacenters` `(array<string>: required)` - A list of datacenters in the region which are eligible
+- `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
-- `group` <code>([Group][group]: required)</code> - Specifies the start of a
+- `group` <code>([Group][group]: <required>)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
   groups. Group names must be unique within the job file.
 

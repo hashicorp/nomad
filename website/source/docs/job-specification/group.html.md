@@ -49,7 +49,7 @@ job "docs" {
   all tasks in this group. If omitted, a default policy exists for each job
   type, which can be found in the [restart stanza documentation][restart].
 
-- `task` <code>([Task][]: required)</code> - Specifies one or more tasks to run
+- `task` <code>([Task][]: <required>)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 

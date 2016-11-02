@@ -177,7 +177,6 @@
           </ul>
         </li>
 
-
         <li<%= sidebar_current("docs-commands") %>>
           <a href="/docs/commands/index.html">Commands (CLI)</a>
           <ul class="nav">
@@ -254,18 +253,35 @@
           <a href="/docs/agent/index.html">Nomad Agent</a>
 
           <ul class="nav">
-            <li<%= sidebar_current("docs-agent-basics") %>>
-              <a href="/docs/agent/index.html">Basics</a>
+            <li<%= sidebar_current("docs-agent-configuration") %>>
+              <a href="/docs/agent/configuration/index.html">Configuration</a>
+              <ul class="nav">
+                <li <%= sidebar_current("docs-agent-configuration-atlas") %>>
+                  <a href="/docs/agent/configuration/atlas.html">atlas</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-client") %>>
+                  <a href="/docs/agent/configuration/client.html">client</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-consul") %>>
+                  <a href="/docs/agent/configuration/consul.html">consul</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-server") %>>
+                  <a href="/docs/agent/configuration/server.html">server</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-telemetry") %>>
+                  <a href="/docs/agent/configuration/telemetry.html">telemetry</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-tls") %>>
+                  <a href="/docs/agent/configuration/tls.html">tls</a>
+                </li>
+                <li <%= sidebar_current("docs-agent-configuration-vault") %>>
+                  <a href="/docs/agent/configuration/vault.html">vault</a>
+                </li>
+              </ul>
             </li>
-
-            <li<%= sidebar_current("docs-agent-config") %>>
-              <a href="/docs/agent/config.html">Configuration</a>
-            </li>
-
             <li<%= sidebar_current("docs-agent-encryption") %>>
               <a href="/docs/agent/encryption.html">Encryption</a>
             </li>
-
             <li<%= sidebar_current("docs-agent-telemetry") %>>
               <a href="/docs/agent/telemetry.html">Telemetry</a>
             </li>

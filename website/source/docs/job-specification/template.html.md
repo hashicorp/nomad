@@ -50,7 +50,7 @@ API template functions, please refer to the [Consul Template README][ct].
   must exist on the machine prior to starting the task; it is not possible to
   reference a template inside of a Docker container, for example.
 
-- `destination` `(string: required)` - Specifies the location where the
+- `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the task directory.
 
 - `data` `(string: "")` - Specifies the raw template to execute. One of `source`

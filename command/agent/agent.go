@@ -241,8 +241,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
-		a.logger.Printf(`Nomad client ignores consul related configuration in client options. 
-		Please refer to the guide https://www.nomadproject.io/docs/agent/config.html#consul_options 
+		a.logger.Printf(`Nomad client ignores consul related configuration in client options.
+		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
 	}
 

@@ -16,8 +16,8 @@ two separate encryption systems, one for gossip traffic, and one for RPC.
 
 Enabling gossip encryption only requires that you set an encryption key when
 starting the Nomad server. The key can be set via the
-[`encrypt`](/docs/agent/config.html#encrypt) parameter: the value of this
-setting is a server configuration file containing the encryption key.
+[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter: the value
+of this setting is a server configuration file containing the encryption key.
 
 The key must be 16-bytes, base64 encoded. As a convenience, Nomad provides the
 [`nomad keygen`](/docs/commands/keygen.html) command to generate a cryptographically suitable key:
@@ -51,4 +51,4 @@ TLS is used to secure the RPC calls between agents, but gossip between nodes is
 done over UDP and is secured using a symmetric key. See above for enabling
 gossip encryption.
 
-[tls]: http://127.0.0.1:4567/docs/agent/config.html#tls-options "Nomad TLS Configuration"
+[tls]: /docs/agent/configuration/tls.html "Nomad TLS Configuration"

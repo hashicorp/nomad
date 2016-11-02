@@ -16,3 +16,63 @@ and running jobs.
 Due to the power and flexibility of this command, the Nomad agent is documented
 in its own section. See the [Nomad Agent](/docs/agent/index.html) section for
 more information on how to use this command and the options it has.
+
+## Command-line Options
+
+A subset of the available Nomad agent configuration can optionally be passed in
+via CLI arguments. The `agent` command accepts the following arguments:
+
+* `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir](#alloc_dir) config
+   option.
+* `-atlas=<infrastructure>`: Equivalent to the Atlas
+  [infrastructure](#infrastructure) config option.
+* `-atlas-join`: Equivalent to the Atlas [join](#join) config option.
+* `-atlas-token=<token>`: Equivalent to the Atlas [token](#token) config option.
+* `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
+* `-bootstrap-expect=<num>`: Equivalent to the
+  [bootstrap_expect](#bootstrap_expect) config option.
+* `-client`: Enable client mode on the local agent.
+* `-config=<path>`: Specifies the path to a configuration file or a directory of
+  configuration files to load. Can be specified multiple times.
+* `-data-dir=<path>`: Equivalent to the [data_dir](#data_dir) config option.
+* `-dc=<datacenter>`: Equivalent to the [datacenter](#datacenter) config option.
+* `-dev`: Start the agent in development mode. This enables a pre-configured
+  dual-role agent (client + server) which is useful for developing or testing
+  Nomad. No other configuration is required to start the agent in this mode.
+* `-join=<address>`: Address of another agent to join upon starting up. This can
+  be specified multiple times to specify multiple agents to join.
+* `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
+* `-meta=<key=value>`: Equivalent to the Client [meta](#meta) config option.
+* `-network-interface=<interface>`: Equivalent to the Client
+   [network_interface](#network_interface) config option.
+* `-network-speed=<MBits>`: Equivalent to the Client
+  [network_speed](#network_speed) config option.
+* `-node=<name>`: Equivalent to the [name](#name) config option.
+* `-node-class=<class>`: Equivalent to the Client [node_class](#node_class)
+  config option.
+* `-region=<region>`: Equivalent to the [region](#region) config option.
+* `-rejoin`: Equivalent to the [rejoin_after_leave](#rejoin_after_leave) config option.
+* `-retry-interval`: Equivalent to the [retry_interval](#retry_interval) config option.
+* `-retry-join`: Similar to `-join` but allows retrying a join if the first attempt fails.
+* `-retry-max`: Similar to the [retry_max](#retry_max) config option.
+* `-server`: Enable server mode on the local agent.
+* `-servers=<host:port>`: Equivalent to the Client [servers](#servers) config
+  option.
+* `-state-dir=<path>`: Equivalent to the Client [state_dir](#state_dir) config
+  option.
+* `-vault-enabled`: Whether to enable or disabled Vault integration.
+* `-vault-address=<addr>`: The address to communicate with Vault.
+* `-vault-token=<token>`: The Vault token used to derive tokens. Only needs to
+  be set on Servers. Overrides the Vault token read from the VAULT_TOKEN
+  environment variable.
+* `-vault-ca-file=<path>`: Path to a PEM-encoded CA cert file used to verify the
+  Vault server SSL certificate.
+* `-vault-ca-path=<path>`: Path to a directory of PEM-encoded CA cert files used
+  to verify the Vault server SSL certificate.Whether to enable or disabled Vault
+  integration.
+* `vault-cert-file=<path>`: The path to the certificate for Vault communication.
+* `vault-key-file=<path>`: The path to the private key for Vault communication.
+* `vault-tls-skip-verify`: A boolean that determines whether to skip SSL
+  certificate verification.
+* `vault-tls-server-name=<name>`: Used to set the SNI host when connecting to
+  Vault over TLS.

@@ -20,17 +20,14 @@ body {
 h1, h2, h3, h4, h5 {
   -webkit-font-smoothing: antialiased;
 }
+
 h1{
-  font-size: 42px;
-  line-height: 42px;
   font-family: $font-family-open-sans;
   font-weight: $font-weight-reg;
   margin-bottom: 24px;
 }
 
 h3, h4{
-  font-size: 24px;
-  line-height: 24px;
   font-family: $font-family-open-sans;
   font-weight: $font-weight-reg;
 }
@@ -89,33 +86,5 @@ pre {
 @media (max-width: 992px) {
   .container{
     max-width: 970px;
-  }
-}
-
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
-
-  h1{
-    font-size: $font-size-m !important;
-    line-height: $font-size-m;
-    font-weight: $font-weight-reg;
-    margin-bottom: 24px;
-  }
-
-  h2{
-    font-size: $font-size-m !important;
-    font-weight: $font-weight-reg;
-  }
-
-  h3{
-    font-size: $font-size-m !important;
-    font-weight: $font-weight-reg;
-  }
-
-  h4{
-    font-size: $font-size-reg !important;
-    font-weight: $font-weight-reg;
   }
 }

@@ -126,4 +126,4 @@ machine:
 ```
 
 This list is configurable through the agent client
-[configuration file](/docs/agent/config.html#chroot_env).
+[configuration file](/docs/agent/configuration/client.html#chroot_env).
