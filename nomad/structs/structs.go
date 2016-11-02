@@ -1653,6 +1653,11 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.RestartPolicy = NewRestartPolicy(job.Type)
 	}
 
+	// Set a default ephemeral disk object if the user has not requested for one
+	if tg.EphemeralDisk == nil {
+		tg.EphemeralDisk = DefaultEphemeralDisk()
+	}
+
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
