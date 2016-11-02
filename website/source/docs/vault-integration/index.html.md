@@ -121,7 +121,7 @@ download.
 The below example assumes Vault is accessible, unsealed and the the operator has
 appropriate permissions.
 
-```
+```shell
 # Download the policy and role
 $ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s
 $ curl https://nomadproject.io/data/vault/nomad-server-role.json -O -s
