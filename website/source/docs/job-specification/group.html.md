@@ -53,8 +53,9 @@ job "docs" {
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 
-- `vault` <code>([Vault][]: nil)</code> - Specifies the configuration options
-  for connecting the tasks in this group to Vault.
+- `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
+  required by all tasks in this group. Overrides a `vault` block set at the
+  `job` level.
 
 ## `group` Examples
 

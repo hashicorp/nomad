@@ -87,8 +87,8 @@ job "docs" {
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, rolling updates are disabled.
 
-- `vault` <code>([Vault][]: nil)</code> - Specifies the configuration options
-  for connecting the tasks in this job to Vault.
+- `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
+  required by all tasks in this job.
 
 - `vault_token` `(string: "")` - Specifies the Vault token that proves the
   submitter of the job has access to the specified policies in the

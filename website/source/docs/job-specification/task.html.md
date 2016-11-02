@@ -66,8 +66,9 @@ job "docs" {
   defaults to the same user as the Nomad client. This can only be set on Linux
   platforms.
 
-- `vault` <code>([Vault][]: nil)</code> - Specifies the configuration options
-  for connecting this task to Vault.
+- `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
+  required by the task. This overrides any `vault` block set at the `group` or
+  `job` level.
 
 ## `task` Examples
 
