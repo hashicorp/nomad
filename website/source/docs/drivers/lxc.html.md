@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Drivers: LXC"
 sidebar_current: "docs-drivers-lxc"
 description: |-
-  The lxc task driver is used to run application containers using lxc.
+  The LXC task driver is used to run application containers using LXC.
 ---
 
 # LXC Driver
