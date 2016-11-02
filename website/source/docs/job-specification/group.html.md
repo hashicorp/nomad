@@ -38,6 +38,10 @@ job "docs" {
 - `count` `(int: 1)` - Specifies the number of the task groups that should
   be running under this group. This value must be non-negative.
 
+- `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
+  ephemeral disk requirements of the group. Ephemeral disks can be marked as
+  sticky and support live data migrations.
+
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
@@ -102,5 +106,6 @@ group "example" {
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"
