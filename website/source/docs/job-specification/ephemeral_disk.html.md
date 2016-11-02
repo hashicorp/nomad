@@ -4,7 +4,7 @@ page_title: "ephemeral_disk Stanza - Job Specification"
 sidebar_current: "docs-job-specification-ephemeral_disk"
 description: |-
   The "ephemeral_disk" stanza describes the ephemeral disk requirements of the
-  task group. Ephemeral disks can be marked as sticky and support live data
+  group. Ephemeral disks can be marked as sticky and support live data
   migrations.
 ---
 
@@ -21,8 +21,8 @@ description: |-
 
 
 The `ephemeral_disk` stanza describes the ephemeral disk requirements of the
-task group. Ephemeral disks can be marked as sticky and support live data
-migrations. All tasks in this group will share the same ephemeral disk.
+group. Ephemeral disks can be marked as sticky and support live data migrations.
+All tasks in this group will share the same ephemeral disk.
 
 ```hcl
 job "docs" {
