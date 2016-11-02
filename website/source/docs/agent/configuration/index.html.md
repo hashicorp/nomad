@@ -139,8 +139,7 @@ testing.
 
 - `enable_debug` `(bool: false)` - Specifies if the debugging HTTP endpoints
   should be enabled. These endpoints can be used with profiling tools to dump
-  diagnostic information about Nomad's internals. It is not recommended to leave
-  this enabled in production environments.
+  diagnostic information about Nomad's internals.
 
 - `enable_syslog` `(bool: false)` - Specifies if the agent should log to syslog.
   This option only works on Unix based systems.
