@@ -14,14 +14,22 @@ description: |-
   <tr>
     <th width="120">Placement</th>
     <td>
+      <code>job -> **vault**</code>
+      <br>
+      <code>job -> group -> **vault**</code>
+      <br>
       <code>job -> group -> task -> **vault**</code>
     </td>
   </tr>
 </table>
 
-The `vault` stanza allows the task to specify that it requires a token from a
-[HashiCorp Vault][vault] server. Nomad will automatically retrieve a
-Vault token for the task and handle token renewal for the task.
+The `vault` stanza allows a task to specify that it requires a token from a
+[HashiCorp Vault][vault] server. Nomad will automatically retrieve a Vault token
+for the task and handle token renewal for the task. If specified at the `group`
+level, the configuration will apply to all tasks within the group. If specified
+at the `job` level, the configuration will apply to all tasks within the job. If
+multiple `vault` stanzas are specified, they are merged with the `task` stanza
+taking the highest precedence, then the `group`, then the `job`.
 
 ```hcl
 job "docs" {
@@ -40,7 +48,7 @@ job "docs" {
 
 The Nomad client will make the Vault token available to the task by writing it
 to the secret directory at `secret/vault_token` and by injecting an VAULT_TOKEN
-environment variable. 
+environment variable.
 
 If Vault token renewal fails due to a Vault outage, the Nomad client will
 attempt to retrieve a new Vault token. When the new Vault token is retrieved,

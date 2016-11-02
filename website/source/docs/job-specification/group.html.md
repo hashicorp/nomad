@@ -53,6 +53,9 @@ job "docs" {
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 
+- `vault` <code>([Vault][]: nil)</code> - Specifies the configuration options
+  for connecting the tasks in this group to Vault.
+
 ## `group` Examples
 
 The following examples only show the `group` stanzas. Remember that the
