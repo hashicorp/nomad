@@ -75,6 +75,9 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Addr:                "https://vault.service.consul:8200",
 		ConnectionRetryIntv: DefaultVaultConnectRetryIntv,
+		AllowUnauthenticated: func(b bool) *bool {
+			return &b
+		}(true),
 	}
 }
 
