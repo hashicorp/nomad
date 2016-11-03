@@ -10,7 +10,7 @@ type TLSConfig struct {
 	EnableRPC bool `mapstructure:"rpc"`
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
-	// ensures that the certificate presented is valid for server.<datacenter>.<domain>.
+	// ensures that the certificate presented is valid for server.<region>.nomad
 	// This prevents a compromised client from being restarted as a server, and then
 	// intercepting request traffic as well as being added as a raft peer. This should be
 	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
