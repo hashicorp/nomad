@@ -50,17 +50,17 @@ type VaultConfig struct {
 
 	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
-	TLSCaFile string `mapstructure:"tls_ca_file"`
+	TLSCaFile string `mapstructure:"ca_file"`
 
 	// TLSCaFile is the path to a directory of PEM-encoded CA cert files to
 	// verify the Vault server SSL certificate.
-	TLSCaPath string `mapstructure:"tls_ca_path"`
+	TLSCaPath string `mapstructure:"ca_path"`
 
 	// TLSCertFile is the path to the certificate for Vault communication
-	TLSCertFile string `mapstructure:"tls_cert_file"`
+	TLSCertFile string `mapstructure:"cert_file"`
 
 	// TLSKeyFile is the path to the private key for Vault communication
-	TLSKeyFile string `mapstructure:"tls_key_file"`
+	TLSKeyFile string `mapstructure:"key_file"`
 
 	// TLSSkipVerify enables or disables SSL verification
 	TLSSkipVerify *bool `mapstructure:"tls_skip_verify"`

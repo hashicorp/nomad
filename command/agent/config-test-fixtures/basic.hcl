@@ -115,10 +115,10 @@ vault {
     task_token_ttl = "1s"
     enabled = false
     token = "12345"
-    tls_ca_file = "/path/to/ca/file"
-    tls_ca_path = "/path/to/ca"
-    tls_cert_file = "/path/to/cert/file"
-    tls_key_file = "/path/to/key/file"
+    ca_file = "/path/to/ca/file"
+    ca_path = "/path/to/ca"
+    cert_file = "/path/to/cert/file"
+    key_file = "/path/to/key/file"
     tls_server_name = "foobar"
     tls_skip_verify = true
 }
