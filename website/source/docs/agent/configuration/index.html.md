@@ -90,11 +90,12 @@ testing.
     cluster members if possible.
 
 - `advertise` `(Advertise: see below)` - Specifies the advertise address for
-  individual network services. This can be used to advertise a different address
-  to the peers of a server or a client node to support more complex network
-  configurations such as NAT. This configuration is optional, and defaults to
-  the bind address of the specific network service if it is not provided. Any
-  values configured in this stanza take precedence over the default
+  individual network services. This can be used to advertise a different
+  address to the peers of a server or a client node to support more complex
+  network configurations such as NAT. This configuration is optional, and
+  defaults to the bind address of the specific network service if it is not
+  provided. If the bind address is `0.0.0.0` then the hostname will be used.
+  Any values configured in this stanza take precedence over the default
   [bind_addr](#bind_addr).
 
   - `http` - The address to advertise for the HTTP interface. This should be
