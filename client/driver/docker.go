@@ -103,6 +103,7 @@ type DockerDriverConfig struct {
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
+	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
 	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
@@ -213,6 +214,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"uts_mode": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"userns_mode": &fields.FieldSchema{
 				Type: fields.TypeString,
 			},
 			"port_map": &fields.FieldSchema{
@@ -543,6 +547,7 @@ func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
 	hostConfig.IpcMode = driverConfig.IpcMode
 	hostConfig.PidMode = driverConfig.PidMode
 	hostConfig.UTSMode = driverConfig.UTSMode
+	hostConfig.UsernsMode = driverConfig.UsernsMode
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {

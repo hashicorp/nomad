@@ -39,6 +39,7 @@ IMPROVEMENTS:
   * driver/docker: Docker For Mac support [GH-1806]
   * driver/docker: Support Docker volumes [GH-1767]
   * driver/docker: Allow Docker logging to be configured [GH-1767]
+  * driver/docker: Add `userns_mode` (`--userns`) support [GH-]
   * driver/lxc: Support for LXC containers [GH-1699]
   * driver/rkt: Support network configurations [GH-1862]
   * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [GH-1812]

@@ -114,6 +114,10 @@ The `docker` driver supports the following configuration in the job spec:
   the UTS namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.
 
+* `userns_mode` - (Optional) `host` or not set (default). Set to `host` to use
+  the host's user namespace when user namespace remapping is enabled on the
+  docker daemon.
+
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
   value. The default is `bridge` for all operating systems but Windows, which
