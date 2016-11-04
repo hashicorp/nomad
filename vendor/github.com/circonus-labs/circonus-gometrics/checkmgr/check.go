@@ -55,8 +55,6 @@ func (cm *CheckManager) UpdateCheck(newMetrics map[string]*api.CheckBundleMetric
 		cm.checkBundle = newCheckBundle
 		cm.cbmu.Unlock()
 		cm.inventoryMetrics()
-
-		cm.cbmu.Unlock()
 	}
 
 }
