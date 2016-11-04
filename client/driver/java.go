@@ -404,9 +404,9 @@ func (h *javaHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *javaHandle) run() {
-	ps, err := h.executor.Wait()
+	ps, werr := h.executor.Wait()
 	close(h.doneCh)
-	if ps.ExitCode == 0 && err != nil {
+	if ps.ExitCode == 0 && werr != nil {
 		if h.isolationConfig != nil {
 			ePid := h.pluginClient.ReattachConfig().Pid
 			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
@@ -421,14 +421,17 @@ func (h *javaHandle) run() {
 			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
-	close(h.waitCh)
 
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.java: failed to kill the deregister services: %v", err)
 	}
 
+	// Exit the executor
 	h.executor.Exit()
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: werr}
+	close(h.waitCh)
 }

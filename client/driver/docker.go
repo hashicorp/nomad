@@ -1156,6 +1156,7 @@ func (h *DockerHandle) run() {
 		}
 	}
 
+	// Send the results
 	h.waitCh <- dstructs.NewWaitResult(exitCode, 0, werr)
 	close(h.waitCh)
 }
