@@ -330,7 +330,8 @@ func (r *AllocRunner) setStatus(status, desc string) {
 	}
 }
 
-// setTaskState is used to set the status of a task
+// setTaskState is used to set the status of a task. If state is empty then the
+// event is appended but not synced with the server. The event may be omitted
 func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEvent) {
 	r.taskStatusLock.Lock()
 	defer r.taskStatusLock.Unlock()
@@ -341,12 +342,18 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	}
 
 	// Set the tasks state.
-	taskState.State = state
-	if event.FailsTask {
-		taskState.Failed = true
+	if event != nil {
+		if event.FailsTask {
+			taskState.Failed = true
+		}
+		r.appendTaskEvent(taskState, event)
 	}
-	r.appendTaskEvent(taskState, event)
 
+	if state == "" {
+		return
+	}
+
+	taskState.State = state
 	if state == structs.TaskStateDead {
 		// If the task failed, we should kill all the other tasks in the task group.
 		if taskState.Failed {
