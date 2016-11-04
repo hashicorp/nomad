@@ -1105,7 +1105,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	var updatedTask *structs.Task
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
-			updatedTask = t
+			updatedTask = t.Copy()
 		}
 	}
 	if updatedTask == nil {
