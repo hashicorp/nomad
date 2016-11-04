@@ -43,7 +43,7 @@ a certificate is provided that is signed by the Certificate Authority from the
 
 If `verify_server_hostname` is set, then outgoing connections perform
 hostname verification. All servers must have a certificate valid for
-"server.<region>.nomad" or the client will reject the handshake. It is also
+`server.<region>.nomad` or the client will reject the handshake. It is also
 recommended for the certificate to sign `localhost` such that the CLI can
 validate the server name.
 
