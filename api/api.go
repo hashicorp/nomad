@@ -160,7 +160,6 @@ func DefaultConfig() *Config {
 		HttpClient: cleanhttp.DefaultClient(),
 		TLSConfig:  &TLSConfig{},
 	}
-	config.HttpClient.Timeout = time.Second * 60
 	transport := config.HttpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
