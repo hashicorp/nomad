@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -201,9 +202,71 @@ func (c *Command) readConfig() *Config {
 	config.Version = c.Version
 	config.VersionPrerelease = c.VersionPrerelease
 
-	if dev {
-		// Skip validation for dev mode
-		return config
+	// Normalize addresses
+	if config.Addresses.HTTP == "" {
+		config.Addresses.HTTP = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.HTTP)
+	}
+	if config.Addresses.RPC == "" {
+		config.Addresses.RPC = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.RPC)
+	}
+	if config.Addresses.Serf == "" {
+		config.Addresses.Serf = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.Serf)
+	}
+
+	// Use getAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
+	// retrieve a default address for advertising if one isn't set.
+	defaultAdvertise := ""
+	getAdvertise := func(addr *string, port int) bool {
+		if *addr != "" {
+			// Default to using manually configured address
+			return true
+		}
+
+		// Autoconfigure using previously set default
+		if defaultAdvertise != "" {
+			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
+			*addr = newaddr
+			return true
+		}
+
+		// Fallback to Bind address if it's not 0.0.0.0
+		if config.BindAddr != "0.0.0.0" {
+			defaultAdvertise = config.BindAddr
+			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
+			*addr = newaddr
+			return true
+		}
+
+		// As a last resort resolve the hostname and use it if it's not
+		// localhost (as localhost is never a sensible default)
+		host, err := os.Hostname()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Unable to get hostname to set advertise address: %v", err))
+			return false
+		}
+		ip, err := net.ResolveIPAddr("ip", host)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Unable to resolve hostname to set advertise address: %v", err))
+			return false
+		}
+		if ip.IP.IsLoopback() && !dev {
+			c.Ui.Error("Unable to select default advertise address as hostname resolves to localhost")
+			return false
+		}
+		defaultAdvertise = ip.IP.String()
+		newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
+		*addr = newaddr
+		return true
+	}
+
+	if ok := getAdvertise(&config.AdvertiseAddrs.HTTP, config.Ports.HTTP); !ok {
+		return nil
+	}
+	if ok := getAdvertise(&config.AdvertiseAddrs.RPC, config.Ports.RPC); !ok {
+		return nil
+	}
+	if ok := getAdvertise(&config.AdvertiseAddrs.Serf, config.Ports.Serf); !ok {
+		return nil
 	}
 
 	if config.Server.EncryptKey != "" {
@@ -215,6 +278,11 @@ func (c *Command) readConfig() *Config {
 		if _, err := os.Stat(keyfile); err == nil {
 			c.Ui.Error("WARNING: keyring exists but -encrypt given, using keyring")
 		}
+	}
+
+	if dev {
+		// Skip validation for dev mode
+		return config
 	}
 
 	// Parse the RetryInterval.

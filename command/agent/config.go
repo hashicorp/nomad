@@ -431,6 +431,7 @@ func (r *Resources) ParseReserved() error {
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
 	conf := DefaultConfig()
+	conf.BindAddr = "127.0.0.1"
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
@@ -459,7 +460,7 @@ func DefaultConfig() *Config {
 		LogLevel:   "INFO",
 		Region:     "global",
 		Datacenter: "dc1",
-		BindAddr:   "127.0.0.1",
+		BindAddr:   "0.0.0.0",
 		Ports: &Ports{
 			HTTP: 4646,
 			RPC:  4647,
