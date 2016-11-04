@@ -443,8 +443,8 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 	return binds, nil
 }
 
-// createContainer initializes a struct needed to call docker.client.CreateContainer()
-func (d *DockerDriver) createContainer(ctx *ExecContext, task *structs.Task,
+// createContainerConfig initializes a struct needed to call docker.client.CreateContainer()
+func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Task,
 	driverConfig *DockerDriverConfig, syslogAddr string) (docker.CreateContainerOptions, error) {
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {
@@ -837,70 +837,21 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		syslogAddr = ss.Addr
 	}
 
-	config, err := d.createContainer(ctx, task, driverConfig, syslogAddr)
+	config, err := d.createContainerConfig(ctx, task, driverConfig, syslogAddr)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", image, err)
 		pluginClient.Kill()
 		return nil, fmt.Errorf("Failed to create container configuration for image %s: %s", image, err)
 	}
-	// Create a container
-	container, err := client.CreateContainer(config)
-	if err != nil {
-		// If the container already exists because of a previous failure we'll
-		// try to purge it and re-create it.
-		if strings.Contains(err.Error(), "container already exists") {
-			// Get the ID of the existing container so we can delete it
-			containers, err := client.ListContainers(docker.ListContainersOptions{
-				// The image might be in use by a stopped container, so check everything
-				All: true,
-				Filters: map[string][]string{
-					"name": []string{config.Name},
-				},
-			})
-			if err != nil {
-				d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
-				pluginClient.Kill()
-				return nil, fmt.Errorf("Failed to query list of containers: %s", err)
-			}
 
-			// Couldn't find any matching containers
-			if len(containers) == 0 {
-				d.logger.Printf("[ERR] driver.docker: failed to get id for container %s: %#v", config.Name, containers)
-				pluginClient.Kill()
-				return nil, fmt.Errorf("Failed to get id for container %s", config.Name)
-			}
-
-			// Delete matching containers
-			d.logger.Printf("[INFO] driver.docker: a container with the name %s already exists; will attempt to purge and re-create", config.Name)
-			for _, container := range containers {
-				err = client.RemoveContainer(docker.RemoveContainerOptions{
-					ID: container.ID,
-				})
-				if err != nil {
-					d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
-					pluginClient.Kill()
-					return nil, fmt.Errorf("Failed to purge container %s: %s", container.ID, err)
-				}
-				d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
-			}
-
-			container, err = client.CreateContainer(config)
-			if err != nil {
-				d.logger.Printf("[ERR] driver.docker: failed to re-create container %s; aborting", config.Name)
-				pluginClient.Kill()
-				return nil, fmt.Errorf("Failed to re-create container %s; aborting", config.Name)
-			}
-		} else {
-			// We failed to create the container for some other reason.
-			d.logger.Printf("[ERR] driver.docker: failed to create container from image %s: %s", image, err)
-			pluginClient.Kill()
-			e := fmt.Errorf("Failed to create container from image %s: %s", image, err)
-			if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") {
-				return nil, structs.NewRecoverableError(e, true)
-			}
-			return nil, e
-		}
+	container, rerr := d.createContainer(config)
+	if rerr != nil {
+		d.logger.Printf("[ERR] driver.docker: failed to create container: %s", rerr)
+		pluginClient.Kill()
+		rerr.Err = fmt.Sprintf("Failed to create container: %s", rerr.Err)
+		return nil, rerr
 	}
+
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
 	// Start the container
@@ -935,6 +886,69 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	go h.collectStats()
 	go h.run()
 	return h, nil
+}
+
+// createContainer creates the container given the passed configuration. It
+// attempts to handle any transient Docker errors.
+func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, *structs.RecoverableError) {
+	attempted := 0
+
+	recoverable := func(err error) *structs.RecoverableError {
+		r := false
+		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
+			strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "container already exists") {
+			r = true
+		}
+		return structs.NewRecoverableError(err, r)
+	}
+
+	// Create a container
+CREATE:
+	container, err := client.CreateContainer(config)
+	if err == nil {
+		return container, nil
+	}
+
+	if strings.Contains(strings.ToLower(err.Error()), "container already exists") {
+		containers, err := client.ListContainers(docker.ListContainersOptions{})
+		if err != nil {
+			d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
+			return nil, recoverable(fmt.Errorf("Failed to query list of containers: %s", err))
+		}
+
+		// Delete matching containers
+		for _, container := range containers {
+			found := false
+			for _, name := range container.Names {
+				if name == config.Name {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
+
+			err = client.RemoveContainer(docker.RemoveContainerOptions{
+				ID: container.ID,
+			})
+			if err != nil {
+				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
+				return nil, recoverable(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+			} else if err == nil {
+				d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
+			}
+		}
+
+		if attempted < 5 {
+			attempted++
+			goto CREATE
+		}
+	}
+
+	return nil, recoverable(err)
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -1098,18 +1112,16 @@ func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 
 func (h *DockerHandle) run() {
 	// Wait for it...
-	exitCode, err := h.waitClient.WaitContainer(h.containerID)
-	if err != nil {
+	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
+	if werr != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to wait for %s; container already terminated", h.containerID)
 	}
 
 	if exitCode != 0 {
-		err = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
+		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
 	close(h.doneCh)
-	h.waitCh <- dstructs.NewWaitResult(exitCode, 0, err)
-	close(h.waitCh)
 
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
@@ -1143,6 +1155,9 @@ func (h *DockerHandle) run() {
 			h.logger.Printf("[DEBUG] driver.docker: error removing image: %v", err)
 		}
 	}
+
+	h.waitCh <- dstructs.NewWaitResult(exitCode, 0, werr)
+	close(h.waitCh)
 }
 
 // collectStats starts collecting resource usage stats of a docker container
