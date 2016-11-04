@@ -354,7 +354,9 @@ func (a *Agent) setupServer() error {
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
 					Name:      "Nomad Server HTTP Check",
-					Type:      "tcp",
+					Type:      "http",
+					Path:      "/v1/status/peers",
+					Protocol:  "http",
 					Interval:  serverHttpCheckInterval,
 					Timeout:   serverHttpCheckTimeout,
 					PortLabel: httpCheckAddr,
@@ -390,11 +392,16 @@ func (a *Agent) setupServer() error {
 			},
 		}
 
-		a.consulSyncer.SetServices(consul.ServerDomain, map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(httpServ): httpServ,
+		// Add the http port check if TLS isn't enabled
+		// TODO Add TLS check when Consul 0.7.1 comes out.
+		consulServices := map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(rpcServ):  rpcServ,
 			consul.GenerateServiceKey(serfServ): serfServ,
-		})
+		}
+		if !conf.TLSConfig.EnableHTTP {
+			consulServices[consul.GenerateServiceKey(httpServ)] = httpServ
+		}
+		a.consulSyncer.SetServices(consul.ServerDomain, consulServices)
 	}
 
 	return nil
@@ -467,16 +474,20 @@ func (a *Agent) setupClient() error {
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
 					Name:      "Nomad Client HTTP Check",
-					Type:      "tcp",
+					Type:      "http",
+					Path:      "/v1/agent/servers",
+					Protocol:  "http",
 					Interval:  clientHttpCheckInterval,
 					Timeout:   clientHttpCheckTimeout,
 					PortLabel: httpCheckAddr,
 				},
 			},
 		}
-		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(httpServ): httpServ,
-		})
+		if !conf.TLSConfig.EnableHTTP {
+			a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
+				consul.GenerateServiceKey(httpServ): httpServ,
+			})
+		}
 	}
 
 	return nil
