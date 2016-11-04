@@ -27,7 +27,6 @@ job "docs" {
     task "server" {
       resources {
         cpu    = 100
-        disk   = 50
         memory = 256
 
         network {
@@ -47,8 +46,6 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `disk` `(int: 200)` - Specifies the disk space required in MB.
-
 - `iops` `(int: 0)` - Specifies the number of IOPS required given as a weight
   between 0-1000.
 
@@ -61,16 +58,6 @@ job "docs" {
 
 The following examples only show the `resources` stanzas. Remember that the
 `resources` stanza is only valid in the placements listed above.
-
-### Disk Space
-
-This example specifies the task requires 100MB of disk space to operate:
-
-```hcl
-resources {
-  disk = 100
-}
-```
 
 ### Memory
 
