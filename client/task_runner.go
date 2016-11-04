@@ -872,7 +872,9 @@ func (r *TaskRunner) run() {
 
 				close(stopCollection)
 
-				<-handleWaitCh
+				if handleWaitCh != nil {
+					<-handleWaitCh
+				}
 
 				// Since the restart isn't from a failure, restart immediately
 				// and don't count against the restart policy

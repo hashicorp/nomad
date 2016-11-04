@@ -249,8 +249,11 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Wait for update to take place
 	testutil.WaitForResult(func() (bool, error) {
-		if tr.task != newTask {
-			return false, fmt.Errorf("task not updated")
+		if tr.task == newTask {
+			return false, fmt.Errorf("We copied the pointer! This would be very bad")
+		}
+		if tr.task.Driver != newTask.Driver {
+			return false, fmt.Errorf("Task not copied")
 		}
 		if tr.restartTracker.policy.Mode != newMode {
 			return false, fmt.Errorf("restart policy not updated")
