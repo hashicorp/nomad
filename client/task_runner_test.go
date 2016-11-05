@@ -38,11 +38,15 @@ type MockTaskStateUpdater struct {
 }
 
 func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
-	m.state = state
-	if event.FailsTask {
-		m.failed = true
+	if state != "" {
+		m.state = state
 	}
-	m.events = append(m.events, event)
+	if event != nil {
+		if event.FailsTask {
+			m.failed = true
+		}
+		m.events = append(m.events, event)
+	}
 }
 
 func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {

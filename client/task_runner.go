@@ -674,6 +674,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
 			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+			r.Kill("vault", err.Error(), true)
 			return
 		}
 	}
@@ -708,11 +709,11 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if !r.artifactsDownloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 			for _, artifact := range r.task.Artifacts {
-				// TODO wrap
 				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir); err != nil {
+					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 					r.setState(structs.TaskStatePending,
-						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(err))
-					r.restartTracker.SetStartError(structs.NewRecoverableError(err, true))
+						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, true))
 					goto RESTART
 				}
 			}
@@ -799,6 +800,7 @@ func (r *TaskRunner) run() {
 			select {
 			case success := <-prestartResultCh:
 				if !success {
+					r.setState(structs.TaskStateDead, nil)
 					return
 				}
 			case <-r.startCh:
@@ -813,7 +815,7 @@ func (r *TaskRunner) run() {
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
 					if startErr != nil {
-						r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
+						r.setState("", structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
 						goto RESTART
 					}
 
@@ -845,7 +847,7 @@ func (r *TaskRunner) run() {
 
 				// Log whether the task was successful or not.
 				r.restartTracker.SetWaitResult(waitRes)
-				r.setState(structs.TaskStateDead, r.waitErrorToEvent(waitRes))
+				r.setState("", r.waitErrorToEvent(waitRes))
 				if !waitRes.Successful() {
 					r.logger.Printf("[INFO] client: task %q for alloc %q failed: %v", r.task.Name, r.alloc.ID, waitRes)
 				} else {
@@ -904,6 +906,7 @@ func (r *TaskRunner) run() {
 
 				r.killTask(killEvent)
 				close(stopCollection)
+				r.setState(structs.TaskStateDead, nil)
 				return
 			}
 		}
@@ -911,6 +914,7 @@ func (r *TaskRunner) run() {
 	RESTART:
 		restart := r.shouldRestart()
 		if !restart {
+			r.setState(structs.TaskStateDead, nil)
 			return
 		}
 
@@ -1007,7 +1011,7 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	r.runningLock.Unlock()
 
 	// Store that the task has been destroyed and any associated error.
-	r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+	r.setState("", structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
 }
 
 // startTask creates the driver and starts the task.
