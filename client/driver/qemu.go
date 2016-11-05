@@ -407,8 +407,8 @@ func (h *qemuHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *qemuHandle) run() {
-	ps, err := h.executor.Wait()
-	if ps.ExitCode == 0 && err != nil {
+	ps, werr := h.executor.Wait()
+	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.qemu: error killing user process: %v", e)
 		}
@@ -417,13 +417,17 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
-	close(h.waitCh)
+
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.qemu: failed to deregister services: %v", err)
 	}
 
+	// Exit the executor
 	h.executor.Exit()
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: werr}
+	close(h.waitCh)
 }

@@ -872,6 +872,10 @@ func (r *TaskRunner) run() {
 
 				close(stopCollection)
 
+				if handleWaitCh != nil {
+					<-handleWaitCh
+				}
+
 				// Since the restart isn't from a failure, restart immediately
 				// and don't count against the restart policy
 				r.restartTracker.SetRestartTriggered()
@@ -1103,7 +1107,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	var updatedTask *structs.Task
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
-			updatedTask = t
+			updatedTask = t.Copy()
 		}
 	}
 	if updatedTask == nil {
