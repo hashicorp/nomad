@@ -39,11 +39,10 @@ vault {
   given in the format `protocol://host:port`. If your Vault installation is
   behind a load balancer, this should be the address of the load balancer.
 
-- `allow_unauthenticated` `(bool: false)` - Specifies if users submitting jobs
-  to the Nomad server should be required to provide their own Vault token,
-  proving they have access to the policies listed in the job. This option should
-  only ever be enabled in a trusted environment, because, if enabled, users
-  could escalate privilege in a job.
+- `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
+  the Nomad server should be required to provide their own Vault token, proving
+  they have access to the policies listed in the job. This option should be
+  disabled in an untrusted environment.
 
 - `enabled` `(bool: false)` - Specifies if the Vault integration should be
   activated.
