@@ -555,7 +555,11 @@ func (a *Agent) getSerfAddr(bind bool) (*net.TCPAddr, error) {
 // advertise.
 func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port int, service string) (*net.TCPAddr, error) {
 	var serverAddr string
-	if advertiseAddr != "" && !bind {
+
+	switch {
+
+	// Picking an advertise address and one is set; use it
+	case advertiseAddr != "" && !bind:
 		serverAddr = advertiseAddr
 
 		// Check if the advertise has a port
@@ -565,12 +569,25 @@ func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port
 				port = parsed
 			}
 		}
-	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !bind) {
+
+	// Bind address is set but it's not set to 0.0.0.0 when picking a bind address
+	case bindAddr != "" && !(bindAddr == "0.0.0.0" && !bind):
 		serverAddr = bindAddr
-	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !bind) {
+
+	// Global bind addres is set but it's not set to 0.0.0.0 when picking a bind address
+	case globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !bind):
 		serverAddr = globalBindAddr
-	} else {
-		serverAddr = "127.0.0.1"
+
+	// Fallback to 0.0.0.0 for bind
+	case bind:
+		serverAddr = "0.0.0.0"
+
+	// Fallback to hostname for advertisement
+	default:
+		var err error
+		if serverAddr, err = os.Hostname(); err != nil {
+			return nil, fmt.Errorf("Failed to determine hostname for advertisement: %v", err)
+		}
 	}
 
 	ip := net.ParseIP(serverAddr)
