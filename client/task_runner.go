@@ -786,8 +786,6 @@ func (r *TaskRunner) postrun() {
 // run is the main run loop that handles starting the application, destroying
 // it, restarts and signals.
 func (r *TaskRunner) run() {
-	defer r.setState(structs.TaskStateDead, nil)
-
 	// Predeclare things so we can jump to the RESTART
 	var stopCollection chan struct{}
 	var handleWaitCh chan *dstructs.WaitResult
@@ -802,6 +800,7 @@ func (r *TaskRunner) run() {
 			select {
 			case success := <-prestartResultCh:
 				if !success {
+					r.setState(structs.TaskStateDead, nil)
 					return
 				}
 			case <-r.startCh:
@@ -903,6 +902,7 @@ func (r *TaskRunner) run() {
 
 				r.killTask(killEvent)
 				close(stopCollection)
+				r.setState(structs.TaskStateDead, nil)
 				return
 			}
 		}
@@ -910,6 +910,7 @@ func (r *TaskRunner) run() {
 	RESTART:
 		restart := r.shouldRestart()
 		if !restart {
+			r.setState(structs.TaskStateDead, nil)
 			return
 		}
 
