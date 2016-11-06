@@ -94,7 +94,6 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 		return nil, err
 	}
 
-	s.logger.Printf("DIPTANU 111 %#v", out)
 	return out, nil
 }
 

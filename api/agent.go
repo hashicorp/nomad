@@ -131,8 +131,8 @@ func (a *Agent) Join(addrs ...string) (int, error) {
 }
 
 // Members is used to query all of the known server members
-func (a *Agent) Members() ([]*AgentMember, error) {
-	var resp []*AgentMember
+func (a *Agent) Members() (*ServerMembers, error) {
+	var resp *ServerMembers
 
 	// Query the known members
 	_, err := a.client.query("/v1/agent/members", &resp, nil)
@@ -215,6 +215,13 @@ func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
 type joinResponse struct {
 	NumJoined int    `json:"num_joined"`
 	Error     string `json:"error"`
+}
+
+type ServerMembers struct {
+	ServerName string
+	Region     string
+	DC         string
+	Members    []*AgentMember
 }
 
 // AgentMember represents a cluster member known to the agent

@@ -82,12 +82,11 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 			DelegateCur: mem.DelegateCur,
 		}
 	}
-	reply = &structs.ServerMembersResponse{
+	*reply = structs.ServerMembersResponse{
 		ServerName:   s.srv.config.NodeName,
 		ServerRegion: s.srv.config.Region,
 		ServerDC:     s.srv.config.Datacenter,
 		Members:      members,
 	}
-	s.srv.logger.Printf("DIPTANU %#v", reply)
 	return nil
 }

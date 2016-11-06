@@ -64,17 +64,22 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	}
 
 	// Query the members
-	mem, err := client.Agent().Members()
+	srvMembers, err := client.Agent().Members()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying servers: %s", err))
 		return 1
 	}
 
+	if srvMembers == nil {
+		c.Ui.Error("Agent doesn't know about server members")
+		return 0
+	}
+
 	// Sort the members
-	sort.Sort(api.AgentMembersNameSort(mem))
+	sort.Sort(api.AgentMembersNameSort(srvMembers.Members))
 
 	// Determine the leaders per region.
-	leaders, err := regionLeaders(client, mem)
+	leaders, err := regionLeaders(client, srvMembers.Members)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error determining leaders: %s", err))
 		return 1
@@ -83,9 +88,9 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Format the list
 	var out []string
 	if detailed {
-		out = detailedOutput(mem)
+		out = detailedOutput(srvMembers.Members)
 	} else {
-		out = standardOutput(mem, leaders)
+		out = standardOutput(srvMembers.Members, leaders)
 	}
 
 	// Dump the list

@@ -360,11 +360,6 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
-// ServerMembersRequest is used to query the list of peers for a given server
-type ServerMembersRequest struct {
-	QueryOptions
-}
-
 // ServerMembersResponse has the list of servers in a cluster
 type ServerMembersResponse struct {
 	ServerName   string
