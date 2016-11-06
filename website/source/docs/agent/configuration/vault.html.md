@@ -39,11 +39,10 @@ vault {
   given in the format `protocol://host:port`. If your Vault installation is
   behind a load balancer, this should be the address of the load balancer.
 
-- `allow_unauthenticated` `(bool: false)` - Specifies if users submitting jobs
-  to the Nomad server should be required to provide their own Vault token,
-  proving they have access to the policies listed in the job. This option should
-  only ever be enabled in a trusted environment, because, if enabled, users
-  could escalate privilege in a job.
+- `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
+  the Nomad server should be required to provide their own Vault token, proving
+  they have access to the policies listed in the job. This option should be
+  disabled in an untrusted environment.
 
 - `enabled` `(bool: false)` - Specifies if the Vault integration should be
   activated.
@@ -51,20 +50,20 @@ vault {
 - `task_token_ttl` `(string: "")` - Specifies the TTL of created tokens when
   using a root token. This is specified using a label suffix like "30s" or "1h".
 
-- `tls_ca_file` `(string: "")` - Specifies an optional path to the CA
+- `ca_file` `(string: "")` - Specifies an optional path to the CA
   certificate used for Vault communication. If unspecified, this will fallback
   to the default system CA bundle, which varies by OS and version.
 
-- `tls_ca_path` `(string: "")` - Specifies an optional path to a folder
+- `ca_path` `(string: "")` - Specifies an optional path to a folder
   containing CA certificates to be used for Vault communication. If unspecified,
   this will fallback to the default system CA bundle, which varies by OS and
   version.
 
-- `tls_cert_file` `(string: "")` - Specifies the path to the certificate used
+- `cert_file` `(string: "")` - Specifies the path to the certificate used
   for Vault communication. If this is set then you need to also set
   `tls_key_file`.
 
-- `tls_key_file` `(string: "")` - Specifies the path to the private key used for
+- `key_file` `(string: "")` - Specifies the path to the private key used for
   Vault communication. If this is set then you need to also set `tls_cert_file`.
 
 - `tls_server_name` `(string: "")` - Specifies an optional string used to set
@@ -112,9 +111,9 @@ Nomad and Vault:
 ```hcl
 vault {
   enabled         = true
-  tls_ca_path     = "/etc/certs/ca"
-  tls_cert_file   = "/var/certs/vault.crt"
-  tls_key_file    = "/var/certs/vault.key"
+  ca_path     = "/etc/certs/ca"
+  cert_file   = "/var/certs/vault.crt"
+  key_file    = "/var/certs/vault.key"
   tls_server_name = "nomad.service.consul"
 }
 ```
