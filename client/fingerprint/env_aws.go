@@ -160,12 +160,11 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		newNetwork.MBits = throughput
 	}
 
+	// populate Node Network Resources
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
-	node.Resources.Networks = append(node.Resources.Networks, newNetwork)
-
-	// populate Node Network Resources
+	node.Resources.Networks = []*structs.NetworkResource{newNetwork}
 
 	// populate Links
 	node.Links["aws.ec2"] = fmt.Sprintf("%s.%s",
