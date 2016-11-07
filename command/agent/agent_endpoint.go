@@ -88,17 +88,13 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	srv := s.agent.Server()
-	if srv == nil {
-		return nil, CodedError(501, ErrInvalidMethod)
+	args := &structs.GenericRequest{}
+	var out structs.ServerMembersResponse
+	if err := s.agent.RPC("Status.Members", args, &out); err != nil {
+		return nil, err
 	}
 
-	serfMembers := srv.Members()
-	members := make([]Member, len(serfMembers))
-	for i, mem := range serfMembers {
-		members[i] = nomadMember(mem)
-	}
-	return members, nil
+	return out, nil
 }
 
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
