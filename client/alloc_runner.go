@@ -122,7 +122,6 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 	r.allocClientStatus = snap.AllocClientStatus
 	r.allocClientDescription = snap.AllocClientDescription
-	r.taskStates = snap.Alloc.TaskStates
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -134,6 +133,8 @@ func (r *AllocRunner) RestoreState() error {
 	if e := snapshotErrors.ErrorOrNil(); e != nil {
 		return e
 	}
+
+	r.taskStates = snap.Alloc.TaskStates
 
 	// Restore the task runners
 	var mErr multierror.Error
