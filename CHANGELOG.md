@@ -74,6 +74,9 @@ BUG FIXES:
   * client/executor: Prevent race when updating a job configuration with the
     logger [GH-1886]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
+  * env/aws: Fix an issue with reserved ports causing placement failures
+    [GH-1617] 
+  * discovery: Interpolate all service and check fields [GH-1966]
   * discovery: Fix old services not getting removed from Consul on update
     [GH-1668]
   * discovery: Fix HTTP timeout with Server HTTP health check when there is no
@@ -82,6 +85,7 @@ BUG FIXES:
     the client [GH-1641]
   * discovery/jobspec: Validate service name after interpolation [GH-1852]
   * driver/docker: Fix `local/` directory mount into container [GH-1830]
+  * driver/docker: Interpolate all string configuration variables [GH-1965]
   * jobspec: Tasks without a resource block no longer fail to validate [GH-1864]
   * jobspec: Update HCL to fix panic in JSON parsing [GH-1754]
 
