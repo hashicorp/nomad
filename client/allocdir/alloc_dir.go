@@ -313,13 +313,12 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 
 		// Embedding a single file
 		if !s.IsDir() {
-			destDir := filepath.Join(taskdir, filepath.Dir(dest))
-			if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
-				return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+			if err := d.createDir(taskdir, filepath.Dir(dest)); err != nil {
+				return fmt.Errorf("Couldn't create destination directory 11 %v: %v", dest, err)
 			}
 
 			// Copy the file.
-			taskEntry := filepath.Join(destDir, filepath.Base(dest))
+			taskEntry := filepath.Join(taskdir, dest)
 			if err := d.linkOrCopy(source, taskEntry, s.Mode().Perm()); err != nil {
 				return err
 			}
@@ -327,10 +326,10 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 			continue
 		}
 
-		// Create destination directory.
 		destDir := filepath.Join(taskdir, dest)
-		if err := os.MkdirAll(destDir, s.Mode().Perm()); err != nil {
-			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+		// Create destination directory.
+		if err := d.createDir(taskdir, dest); err != nil {
+			return fmt.Errorf("Couldn't create destination directory 22 %v: %v", destDir, err)
 		}
 
 		// Enumerate the files in source.
@@ -564,4 +563,57 @@ func (d *AllocDir) GetSecretDir(task string) (string, error) {
 	} else {
 		return filepath.Join(t, TaskSecrets), nil
 	}
+}
+
+// createDir creates a directory structure inside the basepath. This functions
+// preserves the permissions of each of the subdirectories in the relative path
+// by looking up the permissions in the host.
+func (d *AllocDir) createDir(basePath, relPath string) error {
+	filePerms, err := d.splitPath(relPath)
+	if err != nil {
+		return err
+	}
+	for i := len(filePerms) - 1; i >= 0; i-- {
+		fi := filePerms[i]
+		destDir := filepath.Join(basePath, fi.Name)
+		if err := os.MkdirAll(destDir, fi.Perm); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fileInfo holds the path and the permissions of a file
+type fileInfo struct {
+	Name string
+	Perm os.FileMode
+}
+
+// splitPath stats each subdirectory of a path
+func (d *AllocDir) splitPath(path string) ([]fileInfo, error) {
+	var mode os.FileMode
+	i, err := os.Stat(path)
+	if err != nil {
+		mode = os.ModePerm
+	} else {
+		mode = i.Mode()
+	}
+	var dirs []fileInfo
+	dirs = append(dirs, fileInfo{Name: path, Perm: mode})
+	currentDir := path
+	for {
+		dir := filepath.Dir(filepath.Clean(currentDir))
+		if dir == currentDir {
+			break
+		}
+		i, err = os.Stat(dir)
+		if err != nil {
+			mode = os.ModePerm
+		} else {
+			mode = i.Mode()
+		}
+		dirs = append(dirs, fileInfo{Name: dir, Perm: mode})
+		currentDir = dir
+	}
+	return dirs, nil
 }
