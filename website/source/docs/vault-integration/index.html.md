@@ -123,8 +123,8 @@ appropriate permissions.
 
 ```shell
 # Download the policy and role
-$ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s
-$ curl https://nomadproject.io/data/vault/nomad-server-role.json -O -s
+$ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
+$ curl https://nomadproject.io/data/vault/nomad-server-role.json -O -s -L
 
 # Write the policy to Vault
 $ vault policy-write nomad-server nomad-server-policy.hcl
@@ -134,7 +134,7 @@ $ vault policy-write nomad-server nomad-server-policy.hcl
 $ editor nomad-server-role.json
 
 # Create the role with Vault
-$ vault write /auth/token/roles/nomad @nomad-server-role.json
+$ vault write /auth/token/roles/nomad-server @nomad-server-role.json
 ```
 
 #### Retrieving the Role based Token
