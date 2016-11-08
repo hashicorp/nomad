@@ -288,7 +288,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Inject environment variables
 	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
 	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-	d.taskEnv.SetTaskLocalDir(allocdir.TaskSecretsContainerPath)
+	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	d.taskEnv.Build()
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
