@@ -132,11 +132,11 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.RPC)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.Addresses.RPC, err)
 	}
 	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.Serf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.Addresses.Serf, err)
 	}
 	conf.RPCAddr.Port = rpcAddr.Port
 	conf.RPCAddr.IP = rpcAddr.IP
@@ -146,11 +146,11 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	// Set up the advertise addresses
 	rpcAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.RPC)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse RPC advertise address %q: %v", a.config.AdvertiseAddrs.RPC, err)
 	}
 	serfAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.Serf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", a.config.AdvertiseAddrs.Serf, err)
 	}
 	conf.RPCAdvertise = rpcAddr
 	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
