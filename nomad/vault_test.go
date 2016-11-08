@@ -629,6 +629,40 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	}
 }
 
+func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+
+	// Start the client
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"unknown_policy"}}
+
+	_, err = client.CreateToken(context.Background(), a, task.Name)
+	if err == nil {
+		t.Fatalf("CreateToken should have failed: %v", err)
+	}
+
+	_, ok := err.(*structs.RecoverableError)
+	if ok {
+		t.Fatalf("CreateToken should not be a recoverable error type: %v", err)
+	}
+}
+
 func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()

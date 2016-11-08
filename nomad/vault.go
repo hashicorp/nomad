@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"strings"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,14 +47,11 @@ const (
 	// vaultRevocationIntv is the interval at which Vault tokens that failed
 	// initial revocation are retried
 	vaultRevocationIntv = 5 * time.Minute
+)
 
-	// Errors returned by Vault
-
-	// vaultErrInvalidRequest is returned if the request is invalid
-	vaultErrInvalidRequest = "invalid request"
-
-	// vaultErrPermissionDenied is returned if the client is not authorized
-	vaultErrPermissionDenied = "permission denied"
+var (
+	// vaultUnrecoverableError matches unrecoverable errors
+	vaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
 )
 
 // VaultClient is the Servers interface for interfacing with Vault
@@ -692,9 +689,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 
 	// Determine whether it is unrecoverable
 	if err != nil {
-		eStr := err.Error()
-		if strings.Contains(eStr, vaultErrInvalidRequest) ||
-			strings.Contains(eStr, vaultErrPermissionDenied) {
+		if vaultUnrecoverableError.MatchString(err.Error()) {
 			return secret, err
 		}
 
