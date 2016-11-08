@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -197,48 +196,8 @@ func (c *Command) readConfig() *Config {
 	// Merge any CLI options over config file options
 	config = config.Merge(cmdConfig)
 
-	// Set the version info
-	config.Revision = c.Revision
-	config.Version = c.Version
-	config.VersionPrerelease = c.VersionPrerelease
-
-	// Normalize addresses
-	bind := config.BindAddr
-	if err := normalizeBind(&config.Addresses.HTTP, bind, &config.Ports.HTTP); err != nil {
-		c.Ui.Error(err.Error())
+	if ok := config.normalize(c.Ui.Error, dev); !ok {
 		return nil
-	}
-	if err := normalizeBind(&config.Addresses.RPC, bind, &config.Ports.RPC); err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
-	if err := normalizeBind(&config.Addresses.Serf, bind, &config.Ports.Serf); err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
-
-	if err := normalizeAdvertise(&config.AdvertiseAddrs.HTTP, bind, config.Ports.HTTP, dev); err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
-	if err := normalizeAdvertise(&config.AdvertiseAddrs.RPC, bind, config.Ports.RPC, dev); err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
-	if err := normalizeAdvertise(&config.AdvertiseAddrs.Serf, bind, config.Ports.Serf, dev); err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
-
-	if config.Server.EncryptKey != "" {
-		if _, err := config.Server.EncryptBytes(); err != nil {
-			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
-			return nil
-		}
-		keyfile := filepath.Join(config.DataDir, serfKeyring)
-		if _, err := os.Stat(keyfile); err == nil {
-			c.Ui.Error("WARNING: keyring exists but -encrypt given, using keyring")
-		}
 	}
 
 	if dev {
@@ -998,94 +957,4 @@ Atlas Options:
     eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
-}
-
-// Use normalizeAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
-// retrieve a default address for advertising if one isn't set.
-func normalizeAdvertise(addr *string, bind string, defport int, dev bool) error {
-	if *addr != "" {
-		// Default to using manually configured address
-		_, _, err := net.SplitHostPort(*addr)
-		if err != nil {
-			if !isMissingPort(err) {
-				return fmt.Errorf("Error parsing advertise address %q: %v", *addr, err)
-			}
-
-			// missing port, append the default
-			newaddr := fmt.Sprintf("%s:%d", *addr, defport)
-			*addr = newaddr
-			return nil
-		}
-		return nil
-	}
-
-	// Fallback to Bind address if it's not 0.0.0.0
-	if bind != "0.0.0.0" {
-		newaddr := fmt.Sprintf("%s:%d", bind, defport)
-		*addr = newaddr
-		return nil
-	}
-
-	// As a last resort resolve the hostname and use it if it's not
-	// localhost (as localhost is never a sensible default)
-	host, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
-	}
-	ip, err := net.ResolveIPAddr("ip", host)
-	if err != nil {
-		//TODO It'd be nice if we could advertise unresolvable
-		//     addresses for configurations where this process may have
-		//     different name resolution than the rest of the cluster.
-		//     Unfortunately both serf/memberlist and Nomad's raft layer
-		//     require resovlable advertise addresses.
-		return fmt.Errorf("Unable to resolve hostname to set advertise address: %v", err)
-	}
-	if ip.IP.IsLoopback() && !dev {
-		return fmt.Errorf("Unable to select default advertise address as hostname resolves to localhost")
-	}
-	newaddr := fmt.Sprintf("%s:%d", ip.IP.String(), defport)
-	*addr = newaddr
-	return nil
-}
-
-func normalizeBind(addr *string, bind string, defport *int) error {
-	if *addr == "" {
-		newaddr := fmt.Sprintf("%s:%d", bind, *defport)
-		*addr = newaddr
-		return nil
-	}
-
-	_, portstr, err := net.SplitHostPort(*addr)
-	if err != nil {
-		if !isMissingPort(err) {
-			return fmt.Errorf("Error parsing bind address %q: %v", err, *addr)
-		}
-
-		// missing port, add default
-		newaddr := fmt.Sprintf("%s:%d", *addr, defport)
-		*addr = newaddr
-		return nil
-	}
-
-	port, err := strconv.Atoi(portstr)
-	if err != nil {
-		return fmt.Errorf("Error parsing bind address's port: %q: %v", portstr, *addr)
-	}
-
-	// Set the default port for this service to the bound port to keep
-	// configuration consistent.
-	if port != *defport {
-		*defport = port
-	}
-
-	return nil
-}
-
-// isMissingPort returns true if an error is a "missing port" error from
-// net.SplitHostPort.
-func isMissingPort(err error) bool {
-	// matches error const in net/ipsock.go
-	const missingPort = "missing port in address"
-	return err != nil && strings.HasPrefix(err.Error(), missingPort)
 }

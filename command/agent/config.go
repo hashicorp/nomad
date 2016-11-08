@@ -658,6 +658,147 @@ func (c *Config) Merge(b *Config) *Config {
 	return &result
 }
 
+// normalize config to set defaults and prevent nil derefence panics.
+//
+// Returns true if config is ok and false on errors. Since some normalization
+// issues aren't fatal a logger must be provided to emit warnings.
+func (c *Config) normalize(logger func(string), dev bool) bool {
+	// Set the version info
+	c.Revision = c.Revision
+	c.Version = c.Version
+	c.VersionPrerelease = c.VersionPrerelease
+
+	// Normalize addresses
+	bind := c.BindAddr
+	if err := normalizeBind(&c.Addresses.HTTP, bind, &c.Ports.HTTP); err != nil {
+		logger(err.Error())
+		return false
+	}
+	if err := normalizeBind(&c.Addresses.RPC, bind, &c.Ports.RPC); err != nil {
+		logger(err.Error())
+		return false
+	}
+	if err := normalizeBind(&c.Addresses.Serf, bind, &c.Ports.Serf); err != nil {
+		logger(err.Error())
+		return false
+	}
+
+	if err := normalizeAdvertise(&c.AdvertiseAddrs.HTTP, bind, c.Ports.HTTP, dev); err != nil {
+		logger(err.Error())
+		return false
+	}
+	if err := normalizeAdvertise(&c.AdvertiseAddrs.RPC, bind, c.Ports.RPC, dev); err != nil {
+		logger(err.Error())
+		return false
+	}
+	if err := normalizeAdvertise(&c.AdvertiseAddrs.Serf, bind, c.Ports.Serf, dev); err != nil {
+		logger(err.Error())
+		return false
+	}
+
+	if c.Server.EncryptKey != "" {
+		if _, err := c.Server.EncryptBytes(); err != nil {
+			logger(fmt.Sprintf("Invalid encryption key: %s", err))
+			return false
+		}
+		keyfile := filepath.Join(c.DataDir, serfKeyring)
+		if _, err := os.Stat(keyfile); err == nil {
+			logger("WARNING: keyring exists but -encrypt given, using keyring")
+		}
+	}
+	return true
+}
+
+// Use normalizeAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
+// retrieve a default address for advertising if one isn't set.
+func normalizeAdvertise(addr *string, bind string, defport int, dev bool) error {
+	if *addr != "" {
+		// Default to using manually configured address
+		_, _, err := net.SplitHostPort(*addr)
+		if err != nil {
+			if !isMissingPort(err) {
+				return fmt.Errorf("Error parsing advertise address %q: %v", *addr, err)
+			}
+
+			// missing port, append the default
+			newaddr := fmt.Sprintf("%s:%d", *addr, defport)
+			*addr = newaddr
+			return nil
+		}
+		return nil
+	}
+
+	// Fallback to Bind address if it's not 0.0.0.0
+	if bind != "0.0.0.0" {
+		newaddr := fmt.Sprintf("%s:%d", bind, defport)
+		*addr = newaddr
+		return nil
+	}
+
+	// As a last resort resolve the hostname and use it if it's not
+	// localhost (as localhost is never a sensible default)
+	host, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
+	}
+	ip, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		//TODO It'd be nice if we could advertise unresolvable
+		//     addresses for configurations where this process may have
+		//     different name resolution than the rest of the cluster.
+		//     Unfortunately both serf/memberlist and Nomad's raft layer
+		//     require resovlable advertise addresses.
+		return fmt.Errorf("Unable to resolve hostname to set advertise address: %v", err)
+	}
+	if ip.IP.IsLoopback() && !dev {
+		return fmt.Errorf("Unable to select default advertise address as hostname resolves to localhost")
+	}
+	newaddr := fmt.Sprintf("%s:%d", ip.IP.String(), defport)
+	*addr = newaddr
+	return nil
+}
+
+func normalizeBind(addr *string, bind string, defport *int) error {
+	if *addr == "" {
+		newaddr := fmt.Sprintf("%s:%d", bind, *defport)
+		*addr = newaddr
+		return nil
+	}
+
+	_, portstr, err := net.SplitHostPort(*addr)
+	if err != nil {
+		if !isMissingPort(err) {
+			return fmt.Errorf("Error parsing bind address %q: %v", err, *addr)
+		}
+
+		// missing port, add default
+		newaddr := fmt.Sprintf("%s:%d", *addr, defport)
+		*addr = newaddr
+		return nil
+	}
+
+	port, err := strconv.Atoi(portstr)
+	if err != nil {
+		return fmt.Errorf("Error parsing bind address's port: %q: %v", portstr, *addr)
+	}
+
+	// Set the default port for this service to the bound port to keep
+	// configuration consistent.
+	if port != *defport {
+		*defport = port
+	}
+
+	return nil
+}
+
+// isMissingPort returns true if an error is a "missing port" error from
+// net.SplitHostPort.
+func isMissingPort(err error) bool {
+	// matches error const in net/ipsock.go
+	const missingPort = "missing port in address"
+	return err != nil && strings.HasPrefix(err.Error(), missingPort)
+}
+
 // Merge is used to merge two server configs together
 func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result := *a
