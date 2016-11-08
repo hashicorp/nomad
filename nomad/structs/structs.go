@@ -1686,6 +1686,19 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
+
+	// Add up the disk resources to EphemeralDisk. This is done so that users
+	// are not required to move their disk attribute from resources to
+	// EphemeralDisk section of the job spec in Nomad 0.5
+	// COMPAT 0.4.1 -> 0.5
+	// Remove in 0.6
+	var diskMB int
+	for _, task := range tg.Tasks {
+		diskMB += task.Resources.DiskMB
+	}
+	if diskMB > 0 {
+		tg.EphemeralDisk.SizeMB = diskMB
+	}
 }
 
 // Validate is used to sanity check a task group
