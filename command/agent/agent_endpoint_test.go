@@ -85,9 +85,9 @@ func TestHTTP_AgentMembers(t *testing.T) {
 		}
 
 		// Check the job
-		members := obj.([]Member)
-		if len(members) != 1 {
-			t.Fatalf("bad: %#v", members)
+		members := obj.(structs.ServerMembersResponse)
+		if len(members.Members) != 1 {
+			t.Fatalf("bad: %#v", members.Members)
 		}
 	})
 }
