@@ -786,9 +786,11 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
-	// Build the whitelist of drivers.
+	// Build the white/blacklists of drivers.
 	whitelist := c.config.ReadStringListToMap("driver.whitelist")
 	whitelistEnabled := len(whitelist) > 0
+	blacklist := c.config.ReadStringListToMap("driver.blacklist")
+	blacklistEnabled := len(blacklist) > 0
 
 	var avail []string
 	var skipped []string
@@ -797,6 +799,11 @@ func (c *Client) setupDrivers() error {
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.
 		if _, ok := whitelist[name]; whitelistEnabled && !ok {
+			skipped = append(skipped, name)
+			continue
+		}
+		// Skip fingerprinting drivers that are in the blacklist if it is enabled.
+		if _, ok := blacklist[name]; blacklistEnabled && ok {
 			skipped = append(skipped, name)
 			continue
 		}
@@ -825,7 +832,7 @@ func (c *Client) setupDrivers() error {
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
 
 	if len(skipped) != 0 {
-		c.logger.Printf("[DEBUG] client: drivers skipped due to whitelist: %v", skipped)
+		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skipped)
 	}
 
 	return nil

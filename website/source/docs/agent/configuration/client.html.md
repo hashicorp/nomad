@@ -133,6 +133,19 @@ see the [drivers documentation](/docs/drivers/index.html).
     }
     ```
 
+- `"driver.blacklist"` `(string: "")` - Specifies a comma-separated list of
+  blacklisted drivers . If specified, drivers in the blacklist will be
+  disabled. If the blacklist is empty, all drivers are fingerprinted and enabled
+  where applicable.
+
+    ```hcl
+    client {
+      options = {
+        "driver.blacklist" = "docker,qemu"
+      }
+    }
+    ```
+
 - `"env.blacklist"` `(string: see below)` - Specifies a comma-separated list of
   environment variable keys not to pass to these tasks. Nomad passes the host
   environment variables to `exec`, `raw_exec` and `java` tasks. If specified,
