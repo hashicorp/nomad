@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -415,5 +416,69 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	secret := filepath.Join(t1.Name, TaskSecrets, "test_file")
 	if _, err := d.ReadAt(secret, 0); err == nil || !strings.Contains(err.Error(), "secret file prohibited") {
 		t.Fatalf("ReadAt of secret file didn't error: %v", err)
+	}
+}
+
+func TestAllocDir_SplitPath(t *testing.T) {
+	dir, err := ioutil.TempDir("/tmp", "tmpdirtest")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	dest := filepath.Join(dir, "/foo/bar/baz")
+	if err := os.MkdirAll(dest, os.ModePerm); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	d := NewAllocDir(dir)
+	defer d.Destroy()
+
+	info, err := d.splitPath(dest)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(info) != 6 {
+		t.Fatalf("expected: %v, actual: %v", 6, len(info))
+	}
+}
+
+func TestAllocDir_CreateDir(t *testing.T) {
+	dir, err := ioutil.TempDir("/tmp", "tmpdirtest")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// create a subdir and a file
+	subdir := filepath.Join(dir, "subdir")
+	if err := os.MkdirAll(subdir, 0760); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	subdirMode, err := os.Stat(subdir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the above hierarchy under another destination
+	dir1, err := ioutil.TempDir("/tmp", "tempdirdest")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	d := NewAllocDir(dir)
+	defer d.Destroy()
+
+	if err := d.createDir(dir1, subdir); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure that the subdir had the right perm
+	fi, err := os.Stat(filepath.Join(dir1, dir, "subdir"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fi.Mode() != subdirMode.Mode() {
+		t.Fatalf("wrong file mode: %v, expected: %v", fi.Mode(), subdirMode.Mode())
 	}
 }
