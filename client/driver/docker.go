@@ -333,7 +333,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath).
 		SetTaskLocalDir(allocdir.TaskLocalContainerPath).SetSecretsDir(allocdir.TaskSecretsContainerPath).Build()
 
-	d.logger.Printf("%#v", d.taskEnv.EnvMap())
 	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
 	if err != nil {
 		return nil, err
