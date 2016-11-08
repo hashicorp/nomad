@@ -745,15 +745,17 @@ func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
 	e.ctx.TaskEnv.Build()
 	for _, service := range task.Services {
 		for _, check := range service.Checks {
-			if check.Type == structs.ServiceCheckScript {
-				check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
-				check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
-				check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
-				check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
-				check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
-			}
+			check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
+			check.Type = e.ctx.TaskEnv.ReplaceEnv(check.Type)
+			check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
+			check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
+			check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
+			check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
+			check.PortLabel = e.ctx.TaskEnv.ReplaceEnv(check.PortLabel)
+			check.InitialStatus = e.ctx.TaskEnv.ReplaceEnv(check.InitialStatus)
 		}
 		service.Name = e.ctx.TaskEnv.ReplaceEnv(service.Name)
+		service.PortLabel = e.ctx.TaskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = e.ctx.TaskEnv.ParseAndReplace(service.Tags)
 	}
 }
