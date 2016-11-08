@@ -720,6 +720,9 @@ func (c *Client) reservePorts() {
 func (c *Client) fingerprint() error {
 	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
 	whitelistEnabled := len(whitelist) > 0
+	blacklist := c.config.ReadStringListToMap("fingerprint.blacklist")
+	blacklistEnabled := len(blacklist) > 0
+
 	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
 
 	var applied []string
@@ -727,6 +730,11 @@ func (c *Client) fingerprint() error {
 	for _, name := range fingerprint.BuiltinFingerprints() {
 		// Skip modules that are not in the whitelist if it is enabled.
 		if _, ok := whitelist[name]; whitelistEnabled && !ok {
+			skipped = append(skipped, name)
+			continue
+		}
+		// Skip modules that are in the blacklist if it is enabled.
+		if _, ok := blacklist[name]; blacklistEnabled && ok {
 			skipped = append(skipped, name)
 			continue
 		}
@@ -754,7 +762,7 @@ func (c *Client) fingerprint() error {
 	}
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
 	if len(skipped) != 0 {
-		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to whitelist: %v", skipped)
+		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to white/blacklist: %v", skipped)
 	}
 	return nil
 }

@@ -213,6 +213,18 @@ see the [drivers documentation](/docs/drivers/index.html).
     }
     ```
 
+- `"fingerprint.blacklist"` `(string: "")` - Specifies a comma-separated list of
+  blacklisted fingerprinters. If specified, any fingerprinters in the blacklist
+  will be disabled. If the blacklist is empty, all fingerprinters are used.
+
+    ```hcl
+    client {
+      options = {
+        "fingerprint.blacklist" = "network"
+      }
+    }
+    ```
+
 ### `reserved` Parameters
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
