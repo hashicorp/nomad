@@ -204,25 +204,28 @@ func (c *Command) readConfig() *Config {
 
 	// Normalize addresses
 	bind := config.BindAddr
-	if config.Addresses.HTTP == "" {
-		config.Addresses.HTTP = fmt.Sprintf("%s:%d", bind, config.Ports.HTTP)
+	if err := normalizeBind(&config.Addresses.HTTP, bind, &config.Ports.HTTP); err != nil {
+		c.Ui.Error(err.Error())
+		return nil
 	}
-	if config.Addresses.RPC == "" {
-		config.Addresses.RPC = fmt.Sprintf("%s:%d", bind, config.Ports.RPC)
+	if err := normalizeBind(&config.Addresses.RPC, bind, &config.Ports.RPC); err != nil {
+		c.Ui.Error(err.Error())
+		return nil
 	}
-	if config.Addresses.Serf == "" {
-		config.Addresses.Serf = fmt.Sprintf("%s:%d", bind, config.Ports.Serf)
+	if err := normalizeBind(&config.Addresses.Serf, bind, &config.Ports.Serf); err != nil {
+		c.Ui.Error(err.Error())
+		return nil
 	}
 
-	if err := getAdvertise(&config.AdvertiseAddrs.HTTP, bind, config.Ports.HTTP, dev); err != nil {
+	if err := normalizeAdvertise(&config.AdvertiseAddrs.HTTP, bind, config.Ports.HTTP, dev); err != nil {
 		c.Ui.Error(err.Error())
 		return nil
 	}
-	if err := getAdvertise(&config.AdvertiseAddrs.RPC, bind, config.Ports.RPC, dev); err != nil {
+	if err := normalizeAdvertise(&config.AdvertiseAddrs.RPC, bind, config.Ports.RPC, dev); err != nil {
 		c.Ui.Error(err.Error())
 		return nil
 	}
-	if err := getAdvertise(&config.AdvertiseAddrs.Serf, bind, config.Ports.Serf, dev); err != nil {
+	if err := normalizeAdvertise(&config.AdvertiseAddrs.Serf, bind, config.Ports.Serf, dev); err != nil {
 		c.Ui.Error(err.Error())
 		return nil
 	}
@@ -997,11 +1000,22 @@ Atlas Options:
 	return strings.TrimSpace(helpText)
 }
 
-// Use getAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
+// Use normalizeAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
 // retrieve a default address for advertising if one isn't set.
-func getAdvertise(addr *string, bind string, defport int, dev bool) error {
+func normalizeAdvertise(addr *string, bind string, defport int, dev bool) error {
 	if *addr != "" {
 		// Default to using manually configured address
+		_, _, err := net.SplitHostPort(*addr)
+		if err != nil {
+			if !isMissingPort(err) {
+				return fmt.Errorf("Error parsing advertise address %q: %v", *addr, err)
+			}
+
+			// missing port, append the default
+			newaddr := fmt.Sprintf("%s:%d", *addr, defport)
+			*addr = newaddr
+			return nil
+		}
 		return nil
 	}
 
@@ -1033,4 +1047,45 @@ func getAdvertise(addr *string, bind string, defport int, dev bool) error {
 	newaddr := fmt.Sprintf("%s:%d", ip.IP.String(), defport)
 	*addr = newaddr
 	return nil
+}
+
+func normalizeBind(addr *string, bind string, defport *int) error {
+	if *addr == "" {
+		newaddr := fmt.Sprintf("%s:%d", bind, *defport)
+		*addr = newaddr
+		return nil
+	}
+
+	_, portstr, err := net.SplitHostPort(*addr)
+	if err != nil {
+		if !isMissingPort(err) {
+			return fmt.Errorf("Error parsing bind address %q: %v", err, *addr)
+		}
+
+		// missing port, add default
+		newaddr := fmt.Sprintf("%s:%d", *addr, defport)
+		*addr = newaddr
+		return nil
+	}
+
+	port, err := strconv.Atoi(portstr)
+	if err != nil {
+		return fmt.Errorf("Error parsing bind address's port: %q: %v", portstr, *addr)
+	}
+
+	// Set the default port for this service to the bound port to keep
+	// configuration consistent.
+	if port != *defport {
+		*defport = port
+	}
+
+	return nil
+}
+
+// isMissingPort returns true if an error is a "missing port" error from
+// net.SplitHostPort.
+func isMissingPort(err error) bool {
+	// matches error const in net/ipsock.go
+	const missingPort = "missing port in address"
+	return err != nil && strings.HasPrefix(err.Error(), missingPort)
 }
