@@ -246,8 +246,12 @@ func (c *Command) readConfig() *Config {
 		}
 		ip, err := net.ResolveIPAddr("ip", host)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Unable to resolve hostname to set advertise address: %v", err))
-			return false
+			// Just because this node can't resolve its advertise
+			// address doesn't mean it's a bad address; use it
+			defaultAdvertise = host
+			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
+			*addr = newaddr
+			return true
 		}
 		if ip.IP.IsLoopback() && !dev {
 			c.Ui.Error("Unable to select default advertise address as hostname resolves to localhost")
