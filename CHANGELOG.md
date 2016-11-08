@@ -60,6 +60,7 @@ BUG FIXES:
   * client: Prevent race when persisting state file [GH-1682]
   * client: Retry recoverable errors when starting a driver [GH-1891]
   * client: Fix old services not getting removed from consul on update [GH-1668]
+  * client: Preserve permissions of nested directories while chrooting [GH-1960]
   * client: Folder permissions are dropped even when not running as root [GH-1888]
   * client: Artifact download failures will be retried before failing tasks
     [GH-1558]
