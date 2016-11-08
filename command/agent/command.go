@@ -203,73 +203,27 @@ func (c *Command) readConfig() *Config {
 	config.VersionPrerelease = c.VersionPrerelease
 
 	// Normalize addresses
+	bind := config.BindAddr
 	if config.Addresses.HTTP == "" {
-		config.Addresses.HTTP = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.HTTP)
+		config.Addresses.HTTP = fmt.Sprintf("%s:%d", bind, config.Ports.HTTP)
 	}
 	if config.Addresses.RPC == "" {
-		config.Addresses.RPC = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.RPC)
+		config.Addresses.RPC = fmt.Sprintf("%s:%d", bind, config.Ports.RPC)
 	}
 	if config.Addresses.Serf == "" {
-		config.Addresses.Serf = fmt.Sprintf("%s:%d", config.BindAddr, config.Ports.Serf)
+		config.Addresses.Serf = fmt.Sprintf("%s:%d", bind, config.Ports.Serf)
 	}
 
-	// Use getAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
-	// retrieve a default address for advertising if one isn't set.
-	defaultAdvertise := ""
-	getAdvertise := func(addr *string, port int) bool {
-		if *addr != "" {
-			// Default to using manually configured address
-			return true
-		}
-
-		// Autoconfigure using previously set default
-		if defaultAdvertise != "" {
-			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
-			*addr = newaddr
-			return true
-		}
-
-		// Fallback to Bind address if it's not 0.0.0.0
-		if config.BindAddr != "0.0.0.0" {
-			defaultAdvertise = config.BindAddr
-			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
-			*addr = newaddr
-			return true
-		}
-
-		// As a last resort resolve the hostname and use it if it's not
-		// localhost (as localhost is never a sensible default)
-		host, err := os.Hostname()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Unable to get hostname to set advertise address: %v", err))
-			return false
-		}
-		ip, err := net.ResolveIPAddr("ip", host)
-		if err != nil {
-			// Just because this node can't resolve its advertise
-			// address doesn't mean it's a bad address; use it
-			defaultAdvertise = host
-			newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
-			*addr = newaddr
-			return true
-		}
-		if ip.IP.IsLoopback() && !dev {
-			c.Ui.Error("Unable to select default advertise address as hostname resolves to localhost")
-			return false
-		}
-		defaultAdvertise = ip.IP.String()
-		newaddr := fmt.Sprintf("%s:%d", defaultAdvertise, port)
-		*addr = newaddr
-		return true
-	}
-
-	if ok := getAdvertise(&config.AdvertiseAddrs.HTTP, config.Ports.HTTP); !ok {
+	if err := getAdvertise(&config.AdvertiseAddrs.HTTP, bind, config.Ports.HTTP, dev); err != nil {
+		c.Ui.Error(err.Error())
 		return nil
 	}
-	if ok := getAdvertise(&config.AdvertiseAddrs.RPC, config.Ports.RPC); !ok {
+	if err := getAdvertise(&config.AdvertiseAddrs.RPC, bind, config.Ports.RPC, dev); err != nil {
+		c.Ui.Error(err.Error())
 		return nil
 	}
-	if ok := getAdvertise(&config.AdvertiseAddrs.Serf, config.Ports.Serf); !ok {
+	if err := getAdvertise(&config.AdvertiseAddrs.Serf, bind, config.Ports.Serf, dev); err != nil {
+		c.Ui.Error(err.Error())
 		return nil
 	}
 
@@ -1041,4 +995,42 @@ Atlas Options:
     eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
+}
+
+// Use getAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
+// retrieve a default address for advertising if one isn't set.
+func getAdvertise(addr *string, bind string, defport int, dev bool) error {
+	if *addr != "" {
+		// Default to using manually configured address
+		return nil
+	}
+
+	// Fallback to Bind address if it's not 0.0.0.0
+	if bind != "0.0.0.0" {
+		newaddr := fmt.Sprintf("%s:%d", bind, defport)
+		*addr = newaddr
+		return nil
+	}
+
+	// As a last resort resolve the hostname and use it if it's not
+	// localhost (as localhost is never a sensible default)
+	host, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
+	}
+	ip, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		//TODO It'd be nice if we could advertise unresolvable
+		//     addresses for configurations where this process may have
+		//     different name resolution than the rest of the cluster.
+		//     Unfortunately both serf/memberlist and Nomad's raft layer
+		//     require resovlable advertise addresses.
+		return fmt.Errorf("Unable to resolve hostname to set advertise address: %v", err)
+	}
+	if ip.IP.IsLoopback() && !dev {
+		return fmt.Errorf("Unable to select default advertise address as hostname resolves to localhost")
+	}
+	newaddr := fmt.Sprintf("%s:%d", ip.IP.String(), defport)
+	*addr = newaddr
+	return nil
 }
