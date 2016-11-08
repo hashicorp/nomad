@@ -1185,7 +1185,13 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			default:
 			}
 
-			if err != noServersErr {
+			// COMPAT: Remove in 0.6. This is to allow the case in which the
+			// servers are not fully upgraded before the clients register. This
+			// can cause the SecretID to be lost
+			if strings.Contains(err.Error(), "node secret ID does not match") {
+				c.logger.Printf("[DEBUG] client: re-registering node as there was a secret ID mismatch: %v", err)
+				c.retryRegisterNode()
+			} else if err != noServersErr {
 				c.logger.Printf("[ERR] client: failed to query for node allocations: %v", err)
 			}
 			retry := c.retryIntv(getAllocRetryIntv)
