@@ -103,10 +103,10 @@ func TestAgent_Members(t *testing.T) {
 	}
 
 	// Check that we got the expected result
-	if n := len(mem); n != 1 {
+	if n := len(mem.Members); n != 1 {
 		t.Fatalf("expected 1 member, got: %d", n)
 	}
-	if m := mem[0]; m.Name == "" || m.Addr == "" || m.Port == 0 {
+	if m := mem.Members[0]; m.Name == "" || m.Addr == "" || m.Port == 0 {
 		t.Fatalf("bad member: %#v", m)
 	}
 }
