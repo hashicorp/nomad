@@ -314,7 +314,7 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 		// Embedding a single file
 		if !s.IsDir() {
 			if err := d.createDir(taskdir, filepath.Dir(dest)); err != nil {
-				return fmt.Errorf("Couldn't create destination directory 11 %v: %v", dest, err)
+				return fmt.Errorf("Couldn't create destination directory %v: %v", dest, err)
 			}
 
 			// Copy the file.
@@ -326,10 +326,11 @@ func (d *AllocDir) Embed(task string, entries map[string]string) error {
 			continue
 		}
 
-		destDir := filepath.Join(taskdir, dest)
 		// Create destination directory.
+		destDir := filepath.Join(taskdir, dest)
+
 		if err := d.createDir(taskdir, dest); err != nil {
-			return fmt.Errorf("Couldn't create destination directory 22 %v: %v", destDir, err)
+			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
 		}
 
 		// Enumerate the files in source.
@@ -573,6 +574,9 @@ func (d *AllocDir) createDir(basePath, relPath string) error {
 	if err != nil {
 		return err
 	}
+
+	// We are going backwards since we create the root of the directory first
+	// and then create the entire nested structure.
 	for i := len(filePerms) - 1; i >= 0; i-- {
 		fi := filePerms[i]
 		destDir := filepath.Join(basePath, fi.Name)
@@ -589,10 +593,15 @@ type fileInfo struct {
 	Perm os.FileMode
 }
 
-// splitPath stats each subdirectory of a path
+// splitPath stats each subdirectory of a path. The first element of the array
+// is the file passed to this method, and the last element is the root of the
+// path.
 func (d *AllocDir) splitPath(path string) ([]fileInfo, error) {
 	var mode os.FileMode
 	i, err := os.Stat(path)
+
+	// If the path is not present in the host then we respond with the most
+	// flexible permission.
 	if err != nil {
 		mode = os.ModePerm
 	} else {
@@ -606,6 +615,9 @@ func (d *AllocDir) splitPath(path string) ([]fileInfo, error) {
 		if dir == currentDir {
 			break
 		}
+
+		// We try to find the permission of the file in the host. If the path is not
+		// present in the host then we respond with the most flexible permission.
 		i, err = os.Stat(dir)
 		if err != nil {
 			mode = os.ModePerm
