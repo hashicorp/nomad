@@ -216,6 +216,23 @@ func TestClient_Fingerprint_InWhitelist(t *testing.T) {
 	}
 }
 
+func TestClient_Fingerprint_InBlacklist(t *testing.T) {
+	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
+		// Weird spacing to test trimming. Blacklist cpu.
+		c.Options["fingerprint.blacklist"] = "  cpu	"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["cpu.frequency"] != "" {
+		t.Fatalf("cpu fingerprint module loaded despite blacklisting")
+	}
+}
+
 func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
 	c := testClient(t, func(c *config.Config) {
 		if c.Options == nil {
@@ -229,6 +246,35 @@ func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
 	node := c.Node()
 	if node.Attributes["cpu.frequency"] != "" {
 		t.Fatalf("found cpu fingerprint module")
+	}
+}
+
+func TestClient_Fingerprint_WhitelistBlacklistCombination(t *testing.T) {
+	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
+		// With both white- and blacklist, should return the set difference of modules (arch, cpu)
+		c.Options["fingerprint.whitelist"] = "arch,memory,cpu"
+		c.Options["fingerprint.blacklist"] = "memory,nomad"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	// Check expected modules are present
+	if node.Attributes["cpu.frequency"] == "" {
+		t.Fatalf("missing cpu fingerprint module")
+	}
+	if node.Attributes["arch"] == "" {
+		t.Fatalf("missing arch fingerprint module")
+	}
+	// Check remainder _not_ present
+	if node.Attributes["memory.totalbytes"] != "" {
+		t.Fatalf("found memory fingerprint module")
+	}
+	if node.Attributes["nomad.version"] != "" {
+		t.Fatalf("found nomad fingerprint module")
 	}
 }
 
@@ -267,6 +313,27 @@ func TestClient_Drivers_InWhitelist(t *testing.T) {
 	}
 }
 
+func TestClient_Drivers_InBlacklist(t *testing.T) {
+	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
+		// Weird spacing to test trimming
+		c.Options["driver.blacklist"] = "   exec ,  foo	"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	if node.Attributes["driver.exec"] != "" {
+		if v, ok := osExecDriverSupport[runtime.GOOS]; !v && ok {
+			t.Fatalf("exec driver loaded despite blacklist")
+		} else {
+			t.Skipf("missing exec driver, no OS support")
+		}
+	}
+}
+
 func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
 	c := testClient(t, func(c *config.Config) {
 		if c.Options == nil {
@@ -280,6 +347,29 @@ func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
 	node := c.Node()
 	if node.Attributes["driver.exec"] != "" {
 		t.Fatalf("found exec driver")
+	}
+}
+
+func TestClient_Drivers_WhitelistBlacklistCombination(t *testing.T) {
+	c := testClient(t, func(c *config.Config) {
+		if c.Options == nil {
+			c.Options = make(map[string]string)
+		}
+
+		// Expected output is set difference (raw_exec)
+		c.Options["driver.whitelist"] = "raw_exec,exec"
+		c.Options["driver.blacklist"] = "exec"
+	})
+	defer c.Shutdown()
+
+	node := c.Node()
+	// Check expected present
+	if node.Attributes["driver.raw_exec"] == "" {
+		t.Fatalf("missing raw_exec driver")
+	}
+	// Check expected absent
+	if node.Attributes["driver.exec"] != "" {
+		t.Fatalf("exec driver loaded despite blacklist")
 	}
 }
 
