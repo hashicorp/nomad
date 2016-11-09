@@ -318,11 +318,16 @@ func TestAgent_ServerConfig(t *testing.T) {
 
 func TestAgent_ClientConfig(t *testing.T) {
 	conf := DefaultConfig()
+	// enabled just to allow using localhost for all addresses
+	conf.DevMode = true
 	a := &Agent{config: conf}
 	conf.Client.Enabled = true
 	conf.Addresses.HTTP = "127.0.0.1"
 	conf.Ports.HTTP = 5678
 
+	if ok := conf.normalize(getTestLogger(t), conf.DevMode); !ok {
+		t.Fatalf("error normalizing config")
+	}
 	c, err := a.clientConfig()
 	if err != nil {
 		t.Fatalf("got err: %v", err)
@@ -334,10 +339,14 @@ func TestAgent_ClientConfig(t *testing.T) {
 	}
 
 	conf = DefaultConfig()
+	conf.DevMode = true
 	a = &Agent{config: conf}
 	conf.Client.Enabled = true
 	conf.Addresses.HTTP = "127.0.0.1"
 
+	if ok := conf.normalize(getTestLogger(t), conf.DevMode); !ok {
+		t.Fatalf("error normalizing config")
+	}
 	c, err = a.clientConfig()
 	if err != nil {
 		t.Fatalf("got err: %v", err)
