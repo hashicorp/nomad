@@ -29,21 +29,41 @@ func (cm *CheckManager) UpdateCheck(newMetrics map[string]*api.CheckBundleMetric
 		return
 	}
 
+	// only if there is *something* to update
+	if !cm.forceCheckUpdate && len(newMetrics) == 0 && len(cm.metricTags) == 0 {
+		return
+	}
+
+	// refresh check bundle (in case there were changes made by other apps or in UI)
+	checkBundle, err := cm.apih.FetchCheckBundleByCID(api.CIDType(cm.checkBundle.Cid))
+	if err != nil {
+		cm.Log.Printf("[ERROR] unable to fetch up-to-date check bundle %v", err)
+		return
+	}
+	cm.cbmu.Lock()
+	cm.checkBundle = checkBundle
+	cm.cbmu.Unlock()
+
 	cm.addNewMetrics(newMetrics)
 
 	if len(cm.metricTags) > 0 {
+		// note: if a tag has been added (queued) for a metric which never gets sent
+		//       the tags will be discarded. (setting tags does not *create* metrics.)
 		for metricName, metricTags := range cm.metricTags {
-			// note: if a tag has been added (queued) for a metric which never gets sent
-			//       the tags will be discarded. (setting tags does not *create* metrics.)
-			cm.AddMetricTags(metricName, metricTags, false)
+			for metricIdx, metric := range cm.checkBundle.Metrics {
+				if metric.Name == metricName {
+					cm.checkBundle.Metrics[metricIdx].Tags = metricTags
+					break
+				}
+			}
 			cm.mtmu.Lock()
 			delete(cm.metricTags, metricName)
 			cm.mtmu.Unlock()
 		}
+		cm.forceCheckUpdate = true
 	}
 
 	if cm.forceCheckUpdate {
-
 		newCheckBundle, err := cm.apih.UpdateCheckBundle(cm.checkBundle)
 		if err != nil {
 			cm.Log.Printf("[ERROR] updating check bundle %v", err)

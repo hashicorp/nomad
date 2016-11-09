@@ -202,26 +202,26 @@
 		{
 			"checksumSHA1": "szvY4u7TlXkrQ3PW8wmyJaIFy0U=",
 			"path": "github.com/circonus-labs/circonus-gometrics",
-			"revision": "97c824a6a4418e3021f93624339fbd4ac8cf36a4",
-			"revisionTime": "2016-11-08T23:29:31Z"
+			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
+			"revisionTime": "2016-11-09T19:23:37Z"
 		},
 		{
 			"checksumSHA1": "WUE6oF152uN5FcLmmq+nO3Yl7pU=",
 			"path": "github.com/circonus-labs/circonus-gometrics/api",
-			"revision": "97c824a6a4418e3021f93624339fbd4ac8cf36a4",
-			"revisionTime": "2016-11-08T23:29:31Z"
+			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
+			"revisionTime": "2016-11-09T19:23:37Z"
 		},
 		{
-			"checksumSHA1": "Yn+yKETM1P74HXx5BVl5oUl2LMw=",
+			"checksumSHA1": "beRBHHy2+V6Ht4cACIMmZOCnzgg=",
 			"path": "github.com/circonus-labs/circonus-gometrics/checkmgr",
-			"revision": "97c824a6a4418e3021f93624339fbd4ac8cf36a4",
-			"revisionTime": "2016-11-08T23:29:31Z"
+			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
+			"revisionTime": "2016-11-09T19:23:37Z"
 		},
 		{
-			"checksumSHA1": "C4Z7+l5GOpOCW5DcvNYzheGvQRE=",
+			"checksumSHA1": "eYWKyMvUWZpmuXjDEIGy9lBddK0=",
 			"path": "github.com/circonus-labs/circonusllhist",
-			"revision": "d724266ae5270ae8b87a5d2e8081f04e307c3c18",
-			"revisionTime": "2016-05-26T04:38:13Z"
+			"revision": "f3bb61c09a65a1bb5833219937fe4e7042dadab4",
+			"revisionTime": "2016-11-09T20:01:07Z"
 		},
 		{
 			"path": "github.com/davecgh/go-spew/spew",
