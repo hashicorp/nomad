@@ -135,8 +135,7 @@ see the [drivers documentation](/docs/drivers/index.html).
 
 - `"driver.blacklist"` `(string: "")` - Specifies a comma-separated list of
   blacklisted drivers . If specified, drivers in the blacklist will be
-  disabled. If the blacklist is empty, all drivers are fingerprinted and enabled
-  where applicable.
+  disabled.
 
     ```hcl
     client {
@@ -228,7 +227,7 @@ see the [drivers documentation](/docs/drivers/index.html).
 
 - `"fingerprint.blacklist"` `(string: "")` - Specifies a comma-separated list of
   blacklisted fingerprinters. If specified, any fingerprinters in the blacklist
-  will be disabled. If the blacklist is empty, all fingerprinters are used.
+  will be disabled.
 
     ```hcl
     client {

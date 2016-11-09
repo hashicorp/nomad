@@ -721,7 +721,6 @@ func (c *Client) fingerprint() error {
 	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
 	whitelistEnabled := len(whitelist) > 0
 	blacklist := c.config.ReadStringListToMap("fingerprint.blacklist")
-	blacklistEnabled := len(blacklist) > 0
 
 	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
 
@@ -733,8 +732,8 @@ func (c *Client) fingerprint() error {
 			skipped = append(skipped, name)
 			continue
 		}
-		// Skip modules that are in the blacklist if it is enabled.
-		if _, ok := blacklist[name]; blacklistEnabled && ok {
+		// Skip modules that are in the blacklist
+		if _, ok := blacklist[name]; ok {
 			skipped = append(skipped, name)
 			continue
 		}
@@ -790,7 +789,6 @@ func (c *Client) setupDrivers() error {
 	whitelist := c.config.ReadStringListToMap("driver.whitelist")
 	whitelistEnabled := len(whitelist) > 0
 	blacklist := c.config.ReadStringListToMap("driver.blacklist")
-	blacklistEnabled := len(blacklist) > 0
 
 	var avail []string
 	var skipped []string
@@ -802,8 +800,8 @@ func (c *Client) setupDrivers() error {
 			skipped = append(skipped, name)
 			continue
 		}
-		// Skip fingerprinting drivers that are in the blacklist if it is enabled.
-		if _, ok := blacklist[name]; blacklistEnabled && ok {
+		// Skip fingerprinting drivers that are in the blacklist
+		if _, ok := blacklist[name]; ok {
 			skipped = append(skipped, name)
 			continue
 		}
