@@ -167,6 +167,23 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
+	// COMPAT 0.4.1 -> 0.5 Remove in 0.6
+	if apiJob.TaskGroups != nil {
+	OUTSIDE:
+		for _, tg := range apiJob.TaskGroups {
+			if tg.Tasks != nil {
+				for _, task := range tg.Tasks {
+					if task.Resources != nil {
+						if task.Resources.DiskMB > 0 {
+							c.Ui.Error("WARNING: disk attribute is deprecated in the resources block. See https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html")
+							break OUTSIDE
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if output {
 		req := api.RegisterJobRequest{Job: apiJob}
 		buf, err := json.MarshalIndent(req, "", "    ")

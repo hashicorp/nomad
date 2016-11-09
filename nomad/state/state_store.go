@@ -1662,15 +1662,15 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 // addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
 func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	for _, tg := range job.TaskGroups {
-		if tg.EphemeralDisk != nil {
-			continue
-		}
 		var diskMB int
 		for _, task := range tg.Tasks {
 			if task.Resources != nil {
 				diskMB += task.Resources.DiskMB
 				task.Resources.DiskMB = 0
 			}
+		}
+		if tg.EphemeralDisk != nil {
+			continue
 		}
 		tg.EphemeralDisk = &structs.EphemeralDisk{
 			SizeMB: diskMB,

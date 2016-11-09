@@ -235,7 +235,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT: Remove in 0.5
+	// COMPAT: Remove in 0.6
 	// Empty maps and slices should be treated as nil to avoid
 	// un-intended destructive updates in scheduler since we use
 	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
