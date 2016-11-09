@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/nomad/client"
@@ -110,7 +111,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		if a.config.Server.BootstrapExpect == 1 {
 			conf.Bootstrap = true
 		} else {
-			conf.BootstrapExpect = int32(a.config.Server.BootstrapExpect)
+			atomic.StoreInt32(&conf.BootstrapExpect, int32(a.config.Server.BootstrapExpect))
 		}
 	}
 	if a.config.DataDir != "" {
