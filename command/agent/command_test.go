@@ -61,7 +61,7 @@ func TestCommand_Args(t *testing.T) {
 
 		// To prevent test failures on hosts whose hostname resolves to
 		// a loopback address, we must append a bind address
-		tc.args = append(tc.args, "-bind=127.0.0.1")
+		tc.args = append(tc.args, "-bind=169.254.0.1")
 		if code := cmd.Run(tc.args); code != 1 {
 			t.Fatalf("args: %v\nexit: %d\n", tc.args, code)
 		}

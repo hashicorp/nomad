@@ -13,14 +13,6 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-// getTestLogger returns a log func appropriate for passing to
-// Config.normalize()
-func getTestLogger(t testing.TB) func(string) {
-	return func(s string) {
-		t.Log(s)
-	}
-}
-
 func getPort() int {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
@@ -80,8 +72,8 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 		cb(conf)
 	}
 
-	if ok := conf.normalize(getTestLogger(t), config.DevMode); !ok {
-		t.Fatalf("error normalizing config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	agent, err := NewAgent(conf, os.Stderr)
 	if err != nil {
@@ -104,30 +96,16 @@ func TestAgent_RPCPing(t *testing.T) {
 
 func TestAgent_ServerConfig(t *testing.T) {
 	conf := DefaultConfig()
+	conf.DevMode = true // allow localhost for advertise addrs
 	a := &Agent{config: conf}
-	testlogger := getTestLogger(t)
-	dev := false
 
-	// Returns error on bad serf addr
-	conf.AdvertiseAddrs.Serf = "nope"
-	_, err := a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "Failed to parse Serf") {
-		t.Fatalf("expected serf address error, got: %#v", err)
-	}
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
-
-	// Returns error on bad rpc addr
-	conf.AdvertiseAddrs.RPC = "nope"
-	_, err = a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "Failed to parse RPC") {
-		t.Fatalf("expected rpc address error, got: %#v", err)
-	}
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
 	conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
 
 	// Parses the advertise addrs correctly
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err := a.serverConfig()
 	if err != nil {
@@ -149,8 +127,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := conf.AdvertiseAddrs.HTTP; addr != "10.10.11.1:4005" {
 		t.Fatalf("expect 10.11.11.1:4005, got: %v", addr)
 	}
-	if addr := conf.Addresses.RPC; addr != "0.0.0.0:4647" {
-		t.Fatalf("expect 0.0.0.0:4001, got: %v", addr)
+	if addr := conf.Addresses.RPC; addr != "0.0.0.0" {
+		t.Fatalf("expect 0.0.0.0, got: %v", addr)
 	}
 
 	// Sets up the ports properly
@@ -159,8 +137,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Ports.RPC = 4003
 	conf.Ports.Serf = 4004
 
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if err != nil {
@@ -182,8 +160,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.AdvertiseAddrs.RPC = ""
 	conf.AdvertiseAddrs.Serf = "10.0.0.12:4004"
 
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	fmt.Println(conf.Addresses.RPC)
@@ -202,28 +180,37 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if port := out.SerfConfig.MemberlistConfig.BindPort; port != 4004 {
 		t.Fatalf("expect 4648, got: ^d", port)
 	}
-	if addr := conf.Addresses.HTTP; addr != "127.0.0.2:4646" {
+	if addr := conf.Addresses.HTTP; addr != "127.0.0.2" {
+		t.Fatalf("expect 127.0.0.2, got: %s", addr)
+	}
+	if addr := conf.Addresses.RPC; addr != "127.0.0.2" {
+		t.Fatalf("expect 127.0.0.2, got: %s", addr)
+	}
+	if addr := conf.Addresses.Serf; addr != "127.0.0.2" {
+		t.Fatalf("expect 10.0.0.12, got: %s", addr)
+	}
+	if addr := conf.normalizedAddrs.HTTP; addr != "127.0.0.2:4646" {
 		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
 	}
-	if addr := conf.Addresses.RPC; addr != "127.0.0.2:4003" {
+	if addr := conf.normalizedAddrs.RPC; addr != "127.0.0.2:4003" {
 		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
 	}
-	if addr := conf.Addresses.Serf; addr != "127.0.0.2:4004" {
+	if addr := conf.normalizedAddrs.Serf; addr != "127.0.0.2:4004" {
 		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
 	}
 	if addr := conf.AdvertiseAddrs.HTTP; addr != "10.0.0.10:4646" {
 		t.Fatalf("expect 10.0.0.10:4646, got: %s", addr)
 	}
-	if addr := conf.AdvertiseAddrs.RPC; addr != "127.0.0.3:4003" {
-		t.Fatalf("expect 127.0.0.3:4003, got: %s", addr)
+	if addr := conf.AdvertiseAddrs.RPC; addr != "127.0.0.2:4003" {
+		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
 	}
 	if addr := conf.AdvertiseAddrs.Serf; addr != "10.0.0.12:4004" {
 		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
 	}
 
 	conf.Server.NodeGCThreshold = "42g"
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
@@ -231,8 +218,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 
 	conf.Server.NodeGCThreshold = "10s"
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if threshold := out.NodeGCThreshold; threshold != time.Second*10 {
@@ -240,8 +227,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 
 	conf.Server.HeartbeatGrace = "42g"
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
@@ -249,8 +236,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 
 	conf.Server.HeartbeatGrace = "37s"
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
@@ -267,8 +254,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Ports.HTTP = 4646
 	conf.Ports.RPC = 4647
 	conf.Ports.Serf = 4648
-	if ok := conf.normalize(testlogger, dev); !ok {
-		t.Fatalf("failed to normalize config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
 	if err != nil {
@@ -280,13 +267,22 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
 		t.Fatalf("expect 127.0.0.3, got: %s", addr)
 	}
-	if addr := conf.Addresses.HTTP; addr != "127.0.0.3:4646" {
+	if addr := conf.Addresses.HTTP; addr != "127.0.0.3" {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr)
+	}
+	if addr := conf.Addresses.RPC; addr != "127.0.0.3" {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr)
+	}
+	if addr := conf.Addresses.Serf; addr != "127.0.0.3" {
+		t.Fatalf("expect 127.0.0.3, got: %s", addr)
+	}
+	if addr := conf.normalizedAddrs.HTTP; addr != "127.0.0.3:4646" {
 		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
 	}
-	if addr := conf.Addresses.RPC; addr != "127.0.0.3:4647" {
+	if addr := conf.normalizedAddrs.RPC; addr != "127.0.0.3:4647" {
 		t.Fatalf("expect 127.0.0.3:4647, got: %s", addr)
 	}
-	if addr := conf.Addresses.Serf; addr != "127.0.0.3:4648" {
+	if addr := conf.normalizedAddrs.Serf; addr != "127.0.0.3:4648" {
 		t.Fatalf("expect 127.0.0.3:4648, got: %s", addr)
 	}
 
@@ -325,8 +321,8 @@ func TestAgent_ClientConfig(t *testing.T) {
 	conf.Addresses.HTTP = "127.0.0.1"
 	conf.Ports.HTTP = 5678
 
-	if ok := conf.normalize(getTestLogger(t), conf.DevMode); !ok {
-		t.Fatalf("error normalizing config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	c, err := a.clientConfig()
 	if err != nil {
@@ -344,8 +340,8 @@ func TestAgent_ClientConfig(t *testing.T) {
 	conf.Client.Enabled = true
 	conf.Addresses.HTTP = "127.0.0.1"
 
-	if ok := conf.normalize(getTestLogger(t), conf.DevMode); !ok {
-		t.Fatalf("error normalizing config")
+	if err := conf.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
 	}
 	c, err = a.clientConfig()
 	if err != nil {

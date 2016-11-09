@@ -131,13 +131,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 
 	// Set up the bind addresses
-	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.RPC)
+	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.RPC)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.Addresses.RPC, err)
+		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.normalizedAddrs.RPC, err)
 	}
-	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.Addresses.Serf)
+	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.Serf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.Addresses.Serf, err)
+		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.normalizedAddrs.Serf, err)
 	}
 	conf.RPCAddr.Port = rpcAddr.Port
 	conf.RPCAddr.IP = rpcAddr.IP
@@ -256,7 +256,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.NodeClass = a.config.Client.NodeClass
 
 	// Set up the HTTP advertise address
-	conf.Node.HTTPAddr = a.config.Addresses.HTTP
+	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -315,9 +315,9 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Consul check addresses default to bind but can be toggled to use advertise
-	httpCheckAddr := a.config.Addresses.HTTP
-	rpcCheckAddr := a.config.Addresses.RPC
-	serfCheckAddr := a.config.Addresses.Serf
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	rpcCheckAddr := a.config.normalizedAddrs.RPC
+	serfCheckAddr := a.config.normalizedAddrs.Serf
 	if a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
@@ -438,7 +438,7 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Resolve the http check address
-	httpCheckAddr := a.config.Addresses.HTTP
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
 	if a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}

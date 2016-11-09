@@ -46,7 +46,12 @@ type Config struct {
 	Ports *Ports `mapstructure:"ports"`
 
 	// Addresses is used to override the network addresses we bind to.
+	//
+	// Use normalizedAddrs if you need the host+port to bind to.
 	Addresses *Addresses `mapstructure:"addresses"`
+
+	// normalizedAddr is set to the Address+Port by normalizeAddrs()
+	normalizedAddrs *Addresses
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
@@ -335,8 +340,8 @@ type Telemetry struct {
 	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
 }
 
-// Ports is used to encapsulate the various ports we bind to for network
-// services. If any are not specified then the defaults are used instead.
+// Ports encapsulates the various ports we bind to for network services. If any
+// are not specified then the defaults are used instead.
 type Ports struct {
 	HTTP int `mapstructure:"http"`
 	RPC  int `mapstructure:"rpc"`
@@ -352,8 +357,8 @@ type Addresses struct {
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
-// different network services. Not all network services support an
-// advertise address. All are optional and default to BindAddr.
+// different network services. All are optional and default to BindAddr and
+// their default Port.
 type AdvertiseAddrs struct {
 	HTTP string `mapstructure:"http"`
 	RPC  string `mapstructure:"rpc"`
@@ -658,137 +663,116 @@ func (c *Config) Merge(b *Config) *Config {
 	return &result
 }
 
-// normalize config to set defaults and prevent nil derefence panics.
-//
-// Returns true if config is ok and false on errors. Since some normalization
-// issues aren't fatal a logger must be provided to emit warnings.
-func (c *Config) normalize(logger func(string), dev bool) bool {
-	// Set the version info
-	c.Revision = c.Revision
-	c.Version = c.Version
-	c.VersionPrerelease = c.VersionPrerelease
-
-	// Normalize addresses
-	bind := c.BindAddr
-	if err := normalizeBind(&c.Addresses.HTTP, bind, &c.Ports.HTTP); err != nil {
-		logger(err.Error())
-		return false
-	}
-	if err := normalizeBind(&c.Addresses.RPC, bind, &c.Ports.RPC); err != nil {
-		logger(err.Error())
-		return false
-	}
-	if err := normalizeBind(&c.Addresses.Serf, bind, &c.Ports.Serf); err != nil {
-		logger(err.Error())
-		return false
+// normalize Addresses and AdvertiseAddrs to always be initialized and have
+// sane defaults.
+func (c *Config) normalizeAddrs() error {
+	c.Addresses.HTTP = normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	c.Addresses.Serf = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	c.normalizedAddrs = &Addresses{
+		HTTP: fmt.Sprintf("%s:%d", c.Addresses.HTTP, c.Ports.HTTP),
+		RPC:  fmt.Sprintf("%s:%d", c.Addresses.RPC, c.Ports.RPC),
+		Serf: fmt.Sprintf("%s:%d", c.Addresses.Serf, c.Ports.Serf),
 	}
 
-	if err := normalizeAdvertise(&c.AdvertiseAddrs.HTTP, bind, c.Ports.HTTP, dev); err != nil {
-		logger(err.Error())
-		return false
+	addr, err := normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	if err != nil {
+		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
 	}
-	if err := normalizeAdvertise(&c.AdvertiseAddrs.RPC, bind, c.Ports.RPC, dev); err != nil {
-		logger(err.Error())
-		return false
-	}
-	if err := normalizeAdvertise(&c.AdvertiseAddrs.Serf, bind, c.Ports.Serf, dev); err != nil {
-		logger(err.Error())
-		return false
-	}
+	c.AdvertiseAddrs.HTTP = addr
 
-	if c.Server.EncryptKey != "" {
-		if _, err := c.Server.EncryptBytes(); err != nil {
-			logger(fmt.Sprintf("Invalid encryption key: %s", err))
-			return false
-		}
-		keyfile := filepath.Join(c.DataDir, serfKeyring)
-		if _, err := os.Stat(keyfile); err == nil {
-			logger("WARNING: keyring exists but -encrypt given, using keyring")
-		}
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
+	if err != nil {
+		return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
 	}
-	return true
+	c.AdvertiseAddrs.RPC = addr
+
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
+	if err != nil {
+		return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
+	}
+	c.AdvertiseAddrs.Serf = addr
+
+	return nil
 }
 
-// Use normalizeAdvertise(&config.AdvertiseAddrs.<Service>, <Port>) to
-// retrieve a default address for advertising if one isn't set.
-func normalizeAdvertise(addr *string, bind string, defport int, dev bool) error {
-	if *addr != "" {
+// normalizeBind returns a normalized bind address.
+//
+// If addr is set it is used, if not the default bind address is used.
+func normalizeBind(addr, bind string) string {
+	if addr == "" {
+		return bind
+	}
+	return addr
+}
+
+// normalizeAdvertise returns a normalized advertise address.
+//
+// If addr is set, it is used and the default port is appended if no port is
+// set.
+//
+// If addr is not set and bind is a valid address, the returned string is the
+// bind+port.
+//
+// If addr is not set and bind is not a valid advertise address, the hostname
+// is resolved and returned with the port.
+//
+// Loopback is only considered a valid advertise address in dev mode.
+func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
+	if addr != "" {
 		// Default to using manually configured address
-		_, _, err := net.SplitHostPort(*addr)
+		_, _, err := net.SplitHostPort(addr)
 		if err != nil {
 			if !isMissingPort(err) {
-				return fmt.Errorf("Error parsing advertise address %q: %v", *addr, err)
+				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
 
 			// missing port, append the default
-			newaddr := fmt.Sprintf("%s:%d", *addr, defport)
-			*addr = newaddr
-			return nil
+			return fmt.Sprintf("%s:%d", addr, defport), nil
 		}
-		return nil
+		return addr, nil
 	}
 
-	// Fallback to Bind address if it's not 0.0.0.0
-	if bind != "0.0.0.0" {
-		newaddr := fmt.Sprintf("%s:%d", bind, defport)
-		*addr = newaddr
-		return nil
+	// Fallback to bind address first, and then try resolving the local hostname
+	ips, err := net.LookupIP(bind)
+	if err != nil {
+		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
+	}
+
+	// Return the first unicast address
+	for _, ip := range ips {
+		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
+			return fmt.Sprintf("%s:%d", ip, defport), nil
+		}
+		if ip.IsLoopback() && dev {
+			// loopback is fine for dev mode
+			return fmt.Sprintf("%s:%d", ip, defport), nil
+		}
 	}
 
 	// As a last resort resolve the hostname and use it if it's not
 	// localhost (as localhost is never a sensible default)
 	host, err := os.Hostname()
 	if err != nil {
-		return fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
-	}
-	ip, err := net.ResolveIPAddr("ip", host)
-	if err != nil {
-		//TODO It'd be nice if we could advertise unresolvable
-		//     addresses for configurations where this process may have
-		//     different name resolution than the rest of the cluster.
-		//     Unfortunately both serf/memberlist and Nomad's raft layer
-		//     require resovlable advertise addresses.
-		return fmt.Errorf("Unable to resolve hostname to set advertise address: %v", err)
-	}
-	if ip.IP.IsLoopback() && !dev {
-		return fmt.Errorf("Unable to select default advertise address as hostname resolves to localhost")
-	}
-	newaddr := fmt.Sprintf("%s:%d", ip.IP.String(), defport)
-	*addr = newaddr
-	return nil
-}
-
-func normalizeBind(addr *string, bind string, defport *int) error {
-	if *addr == "" {
-		newaddr := fmt.Sprintf("%s:%d", bind, *defport)
-		*addr = newaddr
-		return nil
+		return "", fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
 	}
 
-	_, portstr, err := net.SplitHostPort(*addr)
+	ips, err = net.LookupIP(host)
 	if err != nil {
-		if !isMissingPort(err) {
-			return fmt.Errorf("Error parsing bind address %q: %v", err, *addr)
+		return "", fmt.Errorf("Error resolving hostname %q for advertise address: %v", host, err)
+	}
+
+	// Return the first unicast address
+	for _, ip := range ips {
+		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
+			return fmt.Sprintf("%s:%d", ip, defport), nil
 		}
-
-		// missing port, add default
-		newaddr := fmt.Sprintf("%s:%d", *addr, *defport)
-		*addr = newaddr
-		return nil
+		if ip.IsLoopback() && dev {
+			// loopback is fine for dev mode
+			return fmt.Sprintf("%s:%d", ip, defport), nil
+		}
 	}
-
-	port, err := strconv.Atoi(portstr)
-	if err != nil {
-		return fmt.Errorf("Error parsing bind address's port: %q: %v", portstr, *addr)
-	}
-
-	// Set the default port for this service to the bound port to keep
-	// configuration consistent.
-	if port != *defport {
-		*defport = port
-	}
-
-	return nil
+	return "", fmt.Errorf("No valid advertise addresses, please set `advertise` manually")
 }
 
 // isMissingPort returns true if an error is a "missing port" error from

@@ -196,13 +196,31 @@ func (c *Command) readConfig() *Config {
 	// Merge any CLI options over config file options
 	config = config.Merge(cmdConfig)
 
-	if ok := config.normalize(c.Ui.Error, dev); !ok {
+	// Set the version info
+	config.Revision = c.Revision
+	config.Version = c.Version
+	config.VersionPrerelease = c.VersionPrerelease
+
+	// Normalize binds, ports, addresses, and advertise
+	if err := config.normalizeAddrs(); err != nil {
+		c.Ui.Error(err.Error())
 		return nil
 	}
 
 	if dev {
 		// Skip validation for dev mode
 		return config
+	}
+
+	if config.Server.EncryptKey != "" {
+		if _, err := config.Server.EncryptBytes(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
+			return nil
+		}
+		keyfile := filepath.Join(config.DataDir, serfKeyring)
+		if _, err := os.Stat(keyfile); err == nil {
+			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
+		}
 	}
 
 	// Parse the RetryInterval.
