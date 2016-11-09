@@ -103,35 +103,8 @@ func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 	if len(tls.RootCAs.Subjects()) != 1 {
 		t.Fatalf("expect root cert")
 	}
-	if tls.ServerName != "" {
-		t.Fatalf("expect no server name verification")
-	}
 	if !tls.InsecureSkipVerify {
 		t.Fatalf("should skip built-in verification")
-	}
-}
-
-func TestConfig_OutgoingTLS_ServerName(t *testing.T) {
-	conf := &Config{
-		VerifyOutgoing: true,
-		CAFile:         "./test/ca/root.cer",
-		ServerName:     "consul.example.com",
-	}
-	tls, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tls == nil {
-		t.Fatalf("expected config")
-	}
-	if len(tls.RootCAs.Subjects()) != 1 {
-		t.Fatalf("expect root cert")
-	}
-	if tls.ServerName != "consul.example.com" {
-		t.Fatalf("expect server name")
-	}
-	if tls.InsecureSkipVerify {
-		t.Fatalf("should not skip built-in verification")
 	}
 }
 
@@ -139,7 +112,6 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 	conf := &Config{
 		VerifyServerHostname: true,
 		CAFile:               "./test/ca/root.cer",
-		ServerName:           "foo",
 	}
 	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
@@ -150,9 +122,6 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 	}
 	if len(tls.RootCAs.Subjects()) != 1 {
 		t.Fatalf("expect root cert")
-	}
-	if tls.ServerName != "foo" {
-		t.Fatalf("expect server name")
 	}
 	if tls.InsecureSkipVerify {
 		t.Fatalf("should not skip built-in verification")
@@ -220,6 +189,7 @@ func startTLSServer(config *Config) (net.Conn, chan error) {
 	return clientConn, errc
 }
 
+// TODO sign the certificates for "server.regionFoo.nomad
 func TestConfig_outgoingWrapper_OK(t *testing.T) {
 	config := &Config{
 		CAFile:               "./test/hostname/CertAuth.crt",
@@ -227,7 +197,6 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 		KeyFile:              "./test/hostname/Alice.key",
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
-		ServerName:           "server.dc1.consul",
 	}
 
 	client, errc := startTLSServer(config)
@@ -240,7 +209,7 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 		t.Fatalf("OutgoingTLSWrapper err: %v", err)
 	}
 
-	tlsClient, err := wrap(client)
+	tlsClient, err := wrap("regionFoo", client)
 	if err != nil {
 		t.Fatalf("wrapTLS err: %v", err)
 	}
@@ -262,7 +231,6 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 		CAFile:               "./test/ca/root.cer",
 		CertFile:             "./test/key/ourdomain.cer",
 		KeyFile:              "./test/key/ourdomain.key",
-		ServerName:           "foo",
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
 	}
@@ -277,7 +245,7 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 		t.Fatalf("OutgoingTLSWrapper err: %v", err)
 	}
 
-	tlsClient, err := wrap(client)
+	tlsClient, err := wrap("regionFoo", client)
 	if err != nil {
 		t.Fatalf("wrapTLS err: %v", err)
 	}
