@@ -663,8 +663,8 @@ func (c *Config) Merge(b *Config) *Config {
 	return &result
 }
 
-// normalize Addresses and AdvertiseAddrs to always be initialized and have
-// sane defaults.
+// normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
+// initialized and have sane defaults.
 func (c *Config) normalizeAddrs() error {
 	c.Addresses.HTTP = normalizeBind(c.Addresses.HTTP, c.BindAddr)
 	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
