@@ -13,6 +13,14 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+// getTestLogger returns a log func appropriate for passing to
+// Config.normalize()
+func getTestLogger(t testing.TB) func(string) {
+	return func(s string) {
+		t.Log(s)
+	}
+}
+
 func getPort() int {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
@@ -72,6 +80,9 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 		cb(conf)
 	}
 
+	if ok := conf.normalize(getTestLogger(t), config.DevMode); !ok {
+		t.Fatalf("error normalizing config")
+	}
 	agent, err := NewAgent(conf, os.Stderr)
 	if err != nil {
 		os.RemoveAll(dir)
@@ -94,9 +105,7 @@ func TestAgent_RPCPing(t *testing.T) {
 func TestAgent_ServerConfig(t *testing.T) {
 	conf := DefaultConfig()
 	a := &Agent{config: conf}
-	testlogger := func(s string) {
-		t.Log(s)
-	}
+	testlogger := getTestLogger(t)
 	dev := false
 
 	// Returns error on bad serf addr
