@@ -178,7 +178,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
 	}
 	if port := out.SerfConfig.MemberlistConfig.BindPort; port != 4004 {
-		t.Fatalf("expect 4648, got: ^d", port)
+		t.Fatalf("expect 4648, got: %d", port)
 	}
 	if addr := conf.Addresses.HTTP; addr != "127.0.0.2" {
 		t.Fatalf("expect 127.0.0.2, got: %s", addr)
