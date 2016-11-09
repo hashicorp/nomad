@@ -135,6 +135,13 @@ These `telemetry` parameters apply to
   search results when neither a Submission URL or Check ID is provided. By
   default, this is set to service:app (e.g. "service:nomad").
 
+- `circonus_check_display_name` `(string: "")` - Specifies a name to give a
+   check when it is created. This name is displayed in the Circonus UI Checks
+   list.
+
+- `circonus_check_tags` `(string: "")` - Comma separated list of additional
+  tags to add to a check when it is created.
+
 - `circonus_broker_id` `(string: "")` - Specifies the ID of a specific Circonus
   Broker to use when creating a new check. The numeric portion of `broker._cid`
   field in a Broker API object. If metric management is enabled and neither a

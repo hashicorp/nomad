@@ -540,6 +540,8 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_check_force_metric_activation",
 		"circonus_check_instance_id",
 		"circonus_check_search_tag",
+		"circonus_check_display_name",
+		"circonus_check_tags",
 		"circonus_broker_id",
 		"circonus_broker_select_tag",
 	}
