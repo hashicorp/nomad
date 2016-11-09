@@ -772,7 +772,7 @@ func normalizeBind(addr *string, bind string, defport *int) error {
 		}
 
 		// missing port, add default
-		newaddr := fmt.Sprintf("%s:%d", *addr, defport)
+		newaddr := fmt.Sprintf("%s:%d", *addr, *defport)
 		*addr = newaddr
 		return nil
 	}
