@@ -2,6 +2,7 @@ package agent
 
 import (
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -539,5 +540,16 @@ func TestResources_ParseReserved(t *testing.T) {
 			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, r.ParsedReservedPorts, tc.Parsed)
 		}
 
+	}
+}
+
+func TestIsMissingPort(t *testing.T) {
+	_, _, err := net.SplitHostPort("localhost")
+	if missing := isMissingPort(err); !missing {
+		t.Errorf("expected missing port error, but got %v", err)
+	}
+	_, _, err = net.SplitHostPort("localhost:9000")
+	if missing := isMissingPort(err); missing {
+		t.Errorf("expected no error, but got %v", err)
 	}
 }
