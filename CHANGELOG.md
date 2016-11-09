@@ -30,6 +30,7 @@ IMPROVEMENTS:
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
   * cli: `nomad node-status` shows node metadata in verbose mode [GH-1841]
   * client: Failed RPCs are retried on all servers [GH-1735]
+  * client: Fingerprint and driver blacklist support [GH-1949]
   * client: Enforce shared allocation directory disk usage [GH-1580]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
