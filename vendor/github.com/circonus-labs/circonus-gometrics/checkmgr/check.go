@@ -127,8 +127,8 @@ func (cm *CheckManager) initializeTrapURL() error {
 		}
 	} else {
 		searchCriteria := fmt.Sprintf(
-			"(active:1)(host:\"%s\")(type:\"%s\")(tags:%s)",
-			cm.checkInstanceID, cm.checkType, strings.Join(cm.checkSearchTag, ","))
+			"(active:1)(host:\"%s\")(type:\"%s\")(tags:%s)(notes:%s)",
+			cm.checkTarget, cm.checkType, strings.Join(cm.checkSearchTag, ","), fmt.Sprintf("cgm_instanceid=%s", cm.checkInstanceID))
 		checkBundle, err = cm.checkBundleSearch(searchCriteria)
 		if err != nil {
 			return err
@@ -243,11 +243,11 @@ func (cm *CheckManager) createNewCheck() (*api.CheckBundle, *api.Broker, error) 
 		DisplayName: string(cm.checkDisplayName),
 		Metrics:     []api.CheckBundleMetric{},
 		MetricLimit: 0,
-		Notes:       "",
+		Notes:       fmt.Sprintf("cgm_instanceid=%s", cm.checkInstanceID),
 		Period:      60,
 		Status:      statusActive,
 		Tags:        append(cm.checkSearchTag, cm.checkTags...),
-		Target:      string(cm.checkInstanceID),
+		Target:      cm.checkTarget,
 		Timeout:     10,
 		Type:        string(cm.checkType),
 	}
