@@ -25,6 +25,8 @@ IMPROVEMENTS:
   * agent: Allow Consul health checks to use bind address rather than advertise
     [GH-1866]
   * agent/config: Advertise addresses do not need to specify a port [GH-1902]
+  * agent/config: Bind address defaults to 0.0.0.0 and Advertise defaults to
+    hostname [GH-1955]
   * api: Support TLS for encrypting Raft, RPC and HTTP APIs [GH-1853]
   * api: Implement blocking queries for querying a job's evaluations [GH-1892]
   * cli: `nomad alloc-status` shows allocation creation time [GH-1623]
