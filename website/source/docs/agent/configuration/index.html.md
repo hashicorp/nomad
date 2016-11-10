@@ -37,13 +37,16 @@ Here is an example Nomad agent configuration that runs in both client and server
 mode.
 
 ```hcl
-bind_addr = "0.0.0.0"
+bind_addr = "0.0.0.0" # the default
+
 data_dir  = "/var/lib/nomad"
 
 advertise {
-  # We need to specify our host's IP because we can't
-  # advertise 0.0.0.0 to other nodes in our cluster.
-  rpc = "1.2.3.4:4647"
+  # Defaults to the node's hostname. If the hostname resolves to a loopback
+  # address you must manually configure advertise addresses.
+  http = "1.2.3.4"
+  rpc  = "1.2.3.4"
+  serf = "1.2.3.4:5648" # non-default ports may be specified
 }
 
 server {
@@ -95,7 +98,8 @@ testing.
   configurations such as NAT. This configuration is optional, and defaults to
   the bind address of the specific network service if it is not provided. Any
   values configured in this stanza take precedence over the default
-  [bind_addr](#bind_addr).
+  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the hostname
+  is advertised. You may advertise an alternate port as well.
 
   - `http` - The address to advertise for the HTTP interface. This should be
     reachable by all the nodes from which end users are going to use the Nomad
@@ -111,12 +115,13 @@ testing.
 - `atlas` <code>([Atlas][atlas]: nil)</code> - Specifies if Nomad should connect
   to Nomad Enterprise and Atlas.
 
-- `bind_addr` `(string: "127.0.0.1")` - Specifies which address the Nomad
+- `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad
   agent should bind to for network services, including the HTTP interface as
   well as the internal gossip protocol and RPC mechanism. This should be
   specified in IP format, and can be used to easily bind all network services to
   the same address. It is also possible to bind the individual services to
   different addresses using the [addresses](#addresses) configuration option.
+  Dev mode (`-dev`) defaults to localhost.
 
 - `client` <code>([Client][client]: nil)</code> - Specifies configuration which is specific to the Nomad client.
 
