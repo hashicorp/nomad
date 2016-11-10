@@ -448,13 +448,15 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 	}
 
 	// Setup the Vault config
+	// Always set these to ensure nothing is picked up from the environment
+	conf.Vault = &ctconf.VaultConfig{
+		RenewToken: false,
+	}
+	set([]string{"vault", "vault.token", "vault.renew_token"})
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
-		conf.Vault = &ctconf.VaultConfig{
-			Address:    config.VaultConfig.Addr,
-			Token:      vaultToken,
-			RenewToken: false,
-		}
-		set([]string{"vault", "vault.address", "vault.token", "vault.renew_token"})
+		conf.Vault.Address = config.VaultConfig.Addr
+		conf.Vault.Token = vaultToken
+		set([]string{"vault.address"})
 
 		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
 			verify := config.VaultConfig.TLSSkipVerify == nil || !*config.VaultConfig.TLSSkipVerify
