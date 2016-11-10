@@ -1095,7 +1095,6 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 
 }
 
-// TODO The test should really check that the container can access the file.
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	cfg := testConfig()
 
