@@ -33,8 +33,6 @@ IMPROVEMENTS:
   * cli: `nomad node-status` shows node metadata in verbose mode [GH-1841]
   * client: Failed RPCs are retried on all servers [GH-1735]
   * client: Fingerprint and driver blacklist support [GH-1949]
-  * client: Enforce shared allocation directory disk usage [GH-1580]
-  * client: Do not validate the command does not contain spaces [GH-1974]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
   * client/jobspec: Add support for templates that can render static files,
@@ -63,6 +61,7 @@ BUG FIXES:
     [GH-1844]
   * client: Prevent race when persisting state file [GH-1682]
   * client: Retry recoverable errors when starting a driver [GH-1891]
+  * client: Do not validate the command does not contain spaces [GH-1974]
   * client: Fix old services not getting removed from consul on update [GH-1668]
   * client: Preserve permissions of nested directories while chrooting [GH-1960]
   * client: Folder permissions are dropped even when not running as root [GH-1888]

@@ -207,6 +207,13 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
+	// Check to see if we should read the Vault token from the environment
+	if config.Vault.Token == "" {
+		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
+			config.Vault.Token = token
+		}
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
@@ -276,13 +283,6 @@ func (c *Command) readConfig() *Config {
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
-	}
-
-	// Check to see if we should read the Vault token from the environment
-	if config.Vault.Token == "" {
-		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
-			config.Vault.Token = token
-		}
 	}
 
 	return config
