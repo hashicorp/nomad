@@ -45,13 +45,9 @@ type Agent struct {
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
 
-	client         *client.Client
-	clientHTTPAddr string
+	client *client.Client
 
-	server         *nomad.Server
-	serverHTTPAddr string
-	serverRPCAddr  string
-	serverSerfAddr string
+	server *nomad.Server
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -135,13 +131,13 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	}
 
 	// Set up the bind addresses
-	rpcAddr, err := a.getRPCAddr(true)
+	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.RPC)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.normalizedAddrs.RPC, err)
 	}
-	serfAddr, err := a.getSerfAddr(true)
+	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.Serf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.normalizedAddrs.Serf, err)
 	}
 	conf.RPCAddr.Port = rpcAddr.Port
 	conf.RPCAddr.IP = rpcAddr.IP
@@ -149,21 +145,14 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf.SerfConfig.MemberlistConfig.BindAddr = serfAddr.IP.String()
 
 	// Set up the advertise addresses
-	httpAddr, err := a.getHTTPAddr(false)
+	rpcAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.RPC)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse RPC advertise address %q: %v", a.config.AdvertiseAddrs.RPC, err)
 	}
-	rpcAddr, err = a.getRPCAddr(false)
+	serfAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.Serf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", a.config.AdvertiseAddrs.Serf, err)
 	}
-	serfAddr, err = a.getSerfAddr(false)
-	if err != nil {
-		return nil, err
-	}
-	a.serverHTTPAddr = net.JoinHostPort(httpAddr.IP.String(), strconv.Itoa(httpAddr.Port))
-	a.serverRPCAddr = net.JoinHostPort(rpcAddr.IP.String(), strconv.Itoa(rpcAddr.Port))
-	a.serverSerfAddr = net.JoinHostPort(serfAddr.IP.String(), strconv.Itoa(serfAddr.Port))
 	conf.RPCAdvertise = rpcAddr
 	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
 	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
@@ -267,12 +256,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.NodeClass = a.config.Client.NodeClass
 
 	// Set up the HTTP advertise address
-	httpAddr, err := a.selectAddr(a.getHTTPAddr, false)
-	if err != nil {
-		return nil, err
-	}
-	conf.Node.HTTPAddr = httpAddr
-	a.clientHTTPAddr = httpAddr
+	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -330,18 +314,14 @@ func (a *Agent) setupServer() error {
 	}
 	a.server = server
 
-	// Resolve consul check addresses. Always use advertise address for services
-	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.Consul.ChecksUseAdvertise)
-	if err != nil {
-		return err
-	}
-	rpcCheckAddr, err := a.selectAddr(a.getRPCAddr, !a.config.Consul.ChecksUseAdvertise)
-	if err != nil {
-		return err
-	}
-	serfCheckAddr, err := a.selectAddr(a.getSerfAddr, !a.config.Consul.ChecksUseAdvertise)
-	if err != nil {
-		return err
+	// Consul check addresses default to bind but can be toggled to use advertise
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	rpcCheckAddr := a.config.normalizedAddrs.RPC
+	serfCheckAddr := a.config.normalizedAddrs.Serf
+	if a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
+		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
+		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
@@ -349,7 +329,7 @@ func (a *Agent) setupServer() error {
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverHTTPAddr,
+			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
@@ -365,7 +345,7 @@ func (a *Agent) setupServer() error {
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverRPCAddr,
+			PortLabel: a.config.AdvertiseAddrs.RPC,
 			Tags:      []string{consul.ServiceTagRPC},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
@@ -378,8 +358,8 @@ func (a *Agent) setupServer() error {
 			},
 		}
 		serfServ := &structs.Service{
-			PortLabel: a.serverSerfAddr,
 			Name:      a.config.Consul.ServerServiceName,
+			PortLabel: a.config.AdvertiseAddrs.Serf,
 			Tags:      []string{consul.ServiceTagSerf},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
@@ -458,9 +438,9 @@ func (a *Agent) setupClient() error {
 	a.client = client
 
 	// Resolve the http check address
-	httpCheckAddr, err := a.selectAddr(a.getHTTPAddr, !a.config.Consul.ChecksUseAdvertise)
-	if err != nil {
-		return err
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	if a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 
 	// Create the Nomad Client  services for Consul
@@ -469,7 +449,7 @@ func (a *Agent) setupClient() error {
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientHTTPAddr,
+			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
@@ -491,103 +471,6 @@ func (a *Agent) setupClient() error {
 	}
 
 	return nil
-}
-
-// Defines the selector interface
-type addrSelector func(bool) (*net.TCPAddr, error)
-
-// selectAddr returns the right address given a selector, and return it as a PortLabel
-// preferBind is a weak preference, and will skip 0.0.0.0
-func (a *Agent) selectAddr(selector addrSelector, preferBind bool) (string, error) {
-	addr, err := selector(preferBind)
-	if err != nil {
-		return "", err
-	}
-
-	if preferBind && addr.IP.String() == "0.0.0.0" {
-		addr, err = selector(false)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	address := net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
-	return address, nil
-}
-
-// getHTTPAddr returns the HTTP address to use based on the clients
-// configuration. If bind is true, an address appropriate for binding is
-// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
-// unless returning a bind address, since that's the only time it's useful.
-func (a *Agent) getHTTPAddr(bind bool) (*net.TCPAddr, error) {
-	advertAddr := a.config.AdvertiseAddrs.HTTP
-	bindAddr := a.config.Addresses.HTTP
-	globalBindAddr := a.config.BindAddr
-	port := a.config.Ports.HTTP
-	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "HTTP")
-}
-
-// getRPCAddr returns the HTTP address to use based on the clients
-// configuration. If bind is true, an address appropriate for binding is
-// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
-// unless returning a bind address, since that's the only time it's useful.
-func (a *Agent) getRPCAddr(bind bool) (*net.TCPAddr, error) {
-	advertAddr := a.config.AdvertiseAddrs.RPC
-	bindAddr := a.config.Addresses.RPC
-	globalBindAddr := a.config.BindAddr
-	port := a.config.Ports.RPC
-	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "RPC")
-}
-
-// getSerfAddr returns the Serf address to use based on the clients
-// configuration. If bind is true, an address appropriate for binding is
-// returned, otherwise an address for advertising is returned. Skip 0.0.0.0
-// unless returning a bind address, since that's the only time it's useful.
-func (a *Agent) getSerfAddr(bind bool) (*net.TCPAddr, error) {
-	advertAddr := a.config.AdvertiseAddrs.Serf
-	bindAddr := a.config.Addresses.Serf
-	globalBindAddr := a.config.BindAddr
-	port := a.config.Ports.Serf
-	return pickAddress(bind, globalBindAddr, advertAddr, bindAddr, port, "Serf")
-}
-
-// pickAddress is a shared helper to pick the address to either bind to or
-// advertise.
-func pickAddress(bind bool, globalBindAddr, advertiseAddr, bindAddr string, port int, service string) (*net.TCPAddr, error) {
-	var serverAddr string
-	if advertiseAddr != "" && !bind {
-		serverAddr = advertiseAddr
-
-		// Check if the advertise has a port
-		if host, pport, err := net.SplitHostPort(advertiseAddr); err == nil {
-			if parsed, err := strconv.Atoi(pport); err == nil {
-				serverAddr = host
-				port = parsed
-			}
-		}
-	} else if bindAddr != "" && !(bindAddr == "0.0.0.0" && !bind) {
-		serverAddr = bindAddr
-	} else if globalBindAddr != "" && !(globalBindAddr == "0.0.0.0" && !bind) {
-		serverAddr = globalBindAddr
-	} else {
-		serverAddr = "127.0.0.1"
-	}
-
-	ip := net.ParseIP(serverAddr)
-	if ip == nil {
-		joined := net.JoinHostPort(serverAddr, strconv.Itoa(port))
-		addr, err := net.ResolveTCPAddr("tcp", joined)
-		if err == nil {
-			return addr, nil
-		}
-
-		return nil, fmt.Errorf("Failed to parse %s %q as IP and failed to resolve address: %v", service, serverAddr, err)
-	}
-
-	return &net.TCPAddr{
-		IP:   ip,
-		Port: port,
-	}, nil
 }
 
 // reservePortsForClient reserves a range of ports for the client to use when

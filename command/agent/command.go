@@ -201,6 +201,12 @@ func (c *Command) readConfig() *Config {
 	config.Version = c.Version
 	config.VersionPrerelease = c.VersionPrerelease
 
+	// Normalize binds, ports, addresses, and advertise
+	if err := config.normalizeAddrs(); err != nil {
+		c.Ui.Error(err.Error())
+		return nil
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
@@ -213,7 +219,7 @@ func (c *Command) readConfig() *Config {
 		}
 		keyfile := filepath.Join(config.DataDir, serfKeyring)
 		if _, err := os.Stat(keyfile); err == nil {
-			c.Ui.Error("WARNING: keyring exists but -encrypt given, using keyring")
+			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
 		}
 	}
 

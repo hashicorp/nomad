@@ -49,7 +49,7 @@ type HTTPServer struct {
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	lnAddr, err := agent.getHTTPAddr(true)
+	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
 	if err != nil {
 		return nil, err
 	}
