@@ -2059,6 +2059,10 @@ type Task struct {
 	// Map of environment variables to be used by the driver
 	Env map[string]string
 
+	// A mapping of directories on the host OS to attempt to embed inside
+	// task's chroot.
+	ChrootEnv map[string]string
+
 	// List of service definitions exposed by the Task
 	Services []*Service
 
@@ -2099,6 +2103,7 @@ func (t *Task) Copy() *Task {
 	nt := new(Task)
 	*nt = *t
 	nt.Env = CopyMapStringString(nt.Env)
+	nt.ChrootEnv = CopyMapStringString(nt.ChrootEnv)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -2149,6 +2154,9 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	}
 	if len(t.Env) == 0 {
 		t.Env = nil
+	}
+	if len(t.ChrootEnv) == 0 {
+		t.ChrootEnv = nil
 	}
 
 	for _, service := range t.Services {

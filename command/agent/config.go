@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-immutable-radix"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -173,6 +174,9 @@ type ClientConfig struct {
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string `mapstructure:"chroot_env"`
+
+	// Radix tree for ChrootEnv
+	ChrootEnvTree *iradix.Tree
 
 	// Interface to use for network fingerprinting
 	NetworkInterface string `mapstructure:"network_interface"`

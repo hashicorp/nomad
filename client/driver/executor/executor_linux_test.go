@@ -30,7 +30,6 @@ func testExecutorContextWithChroot(t *testing.T) *ExecutorContext {
 			"/lib64":            "/lib64",
 			"/usr/lib":          "/usr/lib",
 			"/bin/ls":           "/bin/ls",
-			"/foobar":           "/does/not/exist",
 		},
 	}
 	return ctx
