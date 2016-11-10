@@ -32,6 +32,7 @@ IMPROVEMENTS:
   * client: Failed RPCs are retried on all servers [GH-1735]
   * client: Fingerprint and driver blacklist support [GH-1949]
   * client: Enforce shared allocation directory disk usage [GH-1580]
+  * client: Do not validate the command does not contain spaces [GH-1974]
   * client: Introduce a `secrets/` directory to tasks where sensitive data can
     be written [GH-1681]
   * client/jobspec: Add support for templates that can render static files,
