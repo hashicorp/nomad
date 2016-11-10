@@ -6,7 +6,7 @@ VAGRANTFILE_API_VERSION = "2"
 
 DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
-GO_VERSION="1.7.1"
+GO_VERSION="1.7.3"
 
 # Install Prereq Packages
 sudo apt-get update
