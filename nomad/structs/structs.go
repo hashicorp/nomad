@@ -366,7 +366,6 @@ type ServerMembersResponse struct {
 	ServerRegion string
 	ServerDC     string
 	Members      []*ServerMember
-	QueryMeta
 }
 
 // ServerMember holds information about a Nomad server agent in a cluster
