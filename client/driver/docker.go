@@ -609,7 +609,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 
 		// Relative paths are always allowed as they mount within a container
 		// Expand path relative to alloc dir
-		parts[0] = filepath.Join(shared, parts[0])
+		parts[0] = filepath.Join(taskDir, parts[0])
 		binds = append(binds, strings.Join(parts, ":"))
 	}
 
