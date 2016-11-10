@@ -1083,7 +1083,12 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 
-		if _, err := ioutil.ReadFile(filepath.Join(execCtx.AllocDir.SharedDir, fn)); err != nil {
+		taskDir, ok := execCtx.AllocDir.TaskDirs[task.Name]
+		if !ok {
+			t.Fatalf("Failed to get task dir")
+		}
+
+		if _, err := ioutil.ReadFile(filepath.Join(taskDir, fn)); err != nil {
 			t.Fatalf("unexpected error reading %s: %v", fn, err)
 		}
 	}

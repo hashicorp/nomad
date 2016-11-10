@@ -166,9 +166,10 @@ The `docker` driver supports the following configuration in the job spec:
     ```
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Mounting host paths outside of the alloc
-  directory tasks normally have access to can be disabled on clients by setting
-  the `docker.volumes.enabled` option set to false.
+  host paths to container paths. Mounting host paths outside of the allocation
+  directory can be disabled on clients by setting the `docker.volumes.enabled`
+  option set to false. This will limit volumes to directories that exist inside
+  the allocation directory.
 
     ```hcl
     config {
@@ -177,7 +178,7 @@ The `docker` driver supports the following configuration in the job spec:
         "/path/on/host:/path/in/container",
 
         # Use relative paths to rebind paths already in the allocation dir
-        "relative/to/alloc:/also/in/container"
+        "relative/to/task:/also/in/container"
       ]
     }
     ```
