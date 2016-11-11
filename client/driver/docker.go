@@ -102,6 +102,7 @@ type DockerDriverConfig struct {
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
+	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
 	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
@@ -154,6 +155,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.Command = env.ReplaceEnv(dconf.Command)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
 	dconf.NetworkMode = env.ReplaceEnv(dconf.NetworkMode)
+	dconf.NetworkAliases = env.ParseAndReplace(dconf.NetworkAliases)
 	dconf.PidMode = env.ReplaceEnv(dconf.PidMode)
 	dconf.UTSMode = env.ReplaceEnv(dconf.UTSMode)
 	dconf.Hostname = env.ReplaceEnv(dconf.Hostname)
@@ -260,6 +262,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"network_mode": &fields.FieldSchema{
 				Type: fields.TypeString,
+			},
+			"network_aliases": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 			"pid_mode": &fields.FieldSchema{
 				Type: fields.TypeString,
@@ -818,10 +823,22 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.AllocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)
 
+	networkingConfig := &docker.NetworkingConfig{
+		EndpointsConfig: make(map[string]*docker.EndpointConfig),
+	}
+
+	if len(driverConfig.NetworkAliases) > 0 {
+		networkingConfig.EndpointsConfig[hostConfig.NetworkMode] = &docker.EndpointConfig{
+			Aliases: driverConfig.NetworkAliases,
+		}
+		d.logger.Printf("[DEBUG] driver.docker: applied network aliases on the container: [%s]%+v", hostConfig.NetworkMode, driverConfig.NetworkAliases)
+	}
+
 	return docker.CreateContainerOptions{
-		Name:       containerName,
-		Config:     config,
-		HostConfig: hostConfig,
+		Name:             containerName,
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
 	}, nil
 }
 
