@@ -58,7 +58,7 @@ API template functions, please refer to the [Consul Template README][ct].
   templates, but we recommend using `source` for larger templates.
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
-  if the Vault token changes. The possible values are:
+  if the rendered template changes. The possible values are:
 
   - `"noop"` - take no action (continue running the task)
   - `"restart"` - restart the task
