@@ -11,7 +11,7 @@ description: |-
 Nomad models infrastructure into regions and datacenters. Servers reside at the
 regional layer and manage all state and scheduling decisions for that region.
 Regions contain multiple datacenters, and clients are registered to a single
-datacenter (and thus a region that contains that region). For more details on
+datacenter (and thus a region that contains that datacenter). For more details on
 the architecture of Nomad and how it models infrastructure see the [architecture
 page](/docs/internals/architecture.html).
 
