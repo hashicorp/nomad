@@ -5,6 +5,8 @@ __BACKWARDS INCOMPATIBILITIES:__
     new block is name `ephemeral_disk`. Nomad will automatically convert
     existing jobs but newly submitted jobs should refactor the disk resource
     [GH-1710, GH-1679]
+  * agent/config: `network_speed` is now an override and not a default value. If
+    the network link speed is not detected a default value is applied.
 
 IMPROVEMENTS:
   * core: Support for gossip encryption [GH-1791]
