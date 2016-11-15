@@ -1393,7 +1393,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		// previous allocation
 		var prevAllocDir *allocdir.AllocDir
 		tg := add.Job.LookupTaskGroup(add.TaskGroup)
-		if tg != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
+		if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
 			prevAllocDir = ar.GetAllocDir()
 		}
 
@@ -1432,7 +1432,7 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 	}
 
 	// Wait for the remote previous alloc to be terminal if the alloc is sticky
-	if tg.EphemeralDisk.Sticky {
+	if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
 		c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
 		// Block until the previous allocation migrates to terminal state
 		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
@@ -1509,7 +1509,7 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 
 	// Skip migration of data if the ephemeral disk is not sticky or
 	// migration is turned off.
-	if !tg.EphemeralDisk.Sticky || !tg.EphemeralDisk.Migrate {
+	if tg.EphemeralDisk == nil || !tg.EphemeralDisk.Sticky || !tg.EphemeralDisk.Migrate {
 		return nil, nil
 	}
 
