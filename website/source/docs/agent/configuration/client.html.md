@@ -53,9 +53,10 @@ client {
   interface to force network fingerprinting on. This defaults to the loopback
   interface.
 
-- `network_speed` `(int: 100)` - Specifies the default link speed of network
-  interfaces, in megabits. Most clients can determine their speed automatically,
-  but will fallback to this value if they cannot.
+- `network_speed` `(int: 0)` - Specifies an override for the network link speed.
+  This value, if set, overrides any detected or defaulted link speed. Most
+  clients can determine their speed automatically, and thus in most cases this
+  should be left unset.
 
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
   group client nodes by user-defined class. This can be used during job
