@@ -36,12 +36,20 @@ type TestServerConfig struct {
 	Region            string        `json:"region,omitempty"`
 	DisableCheckpoint bool          `json:"disable_update_check"`
 	LogLevel          string        `json:"log_level,omitempty"`
+	AdvertiseAddrs    *Advertise    `json:"advertise,omitempty"`
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
 	Vault             *VaultConfig  `json:"vault,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
+}
+
+// Advertise is used to configure the addresses to advertise
+type Advertise struct {
+	HTTP string `json:"http,omitempty"`
+	RPC  string `json:"rpc,omitempty"`
+	Serf string `json:"serf,omitempty"`
 }
 
 // PortsConfig is used to configure the network ports we use.
@@ -80,6 +88,12 @@ func defaultServerConfig() *TestServerConfig {
 		NodeName:          fmt.Sprintf("node%d", idx),
 		DisableCheckpoint: true,
 		LogLevel:          "DEBUG",
+		// Advertise can't be localhost
+		AdvertiseAddrs: &Advertise{
+			HTTP: "169.254.42.42",
+			RPC:  "169.254.42.42",
+			Serf: "169.254.42.42",
+		},
 		Ports: &PortsConfig{
 			HTTP: 20000 + idx,
 			RPC:  21000 + idx,
