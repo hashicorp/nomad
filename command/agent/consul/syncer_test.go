@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -109,16 +111,35 @@ func TestCheckRegistration(t *testing.T) {
 	}
 }
 
-func TestConsulServiceRegisterServices(t *testing.T) {
-	cs, err := NewSyncer(config.DefaultConsulConfig(), nil, logger)
+// testConsul returns a Syncer configured with an embedded Consul server.
+//
+// Callers must defer Syncer.Shutdown() and TestServer.Stop()
+//
+func testConsul(t *testing.T) (*Syncer, *testutil.TestServer) {
+	// Create an embedded Consul server
+	testconsul := testutil.NewTestServerConfig(t, func(c *testutil.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+
+	// Configure Syncer to talk to the test server
+	cconf := config.DefaultConsulConfig()
+	cconf.Addr = testconsul.HTTPAddr
+
+	cs, err := NewSyncer(cconf, nil, logger)
 	if err != nil {
-		t.Fatalf("Err: %v", err)
+		t.Fatalf("Error creating Syncer: %v", err)
 	}
+	return cs, testconsul
+}
+
+func TestConsulServiceRegisterServices(t *testing.T) {
+	cs, testconsul := testConsul(t)
 	defer cs.Shutdown()
-	// Skipping the test if consul isn't present
-	if !cs.consulPresent() {
-		t.Skip("skipping because consul isn't present")
-	}
+	defer testconsul.Stop()
 
 	service1 := &structs.Service{Name: "foo", Tags: []string{"a", "b"}}
 	service2 := &structs.Service{Name: "foo"}
@@ -178,15 +199,10 @@ func TestConsulServiceRegisterServices(t *testing.T) {
 }
 
 func TestConsulServiceUpdateService(t *testing.T) {
-	cs, err := NewSyncer(config.DefaultConsulConfig(), nil, logger)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	cs, testconsul := testConsul(t)
 	defer cs.Shutdown()
-	// Skipping the test if consul isn't present
-	if !cs.consulPresent() {
-		t.Skip("skipping because consul isn't present")
-	}
+	defer testconsul.Stop()
+
 	cs.SetAddrFinder(func(h string) (string, int) {
 		a, pstr, _ := net.SplitHostPort(h)
 		p, _ := net.LookupPort("tcp", pstr)
