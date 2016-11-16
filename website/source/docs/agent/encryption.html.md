@@ -81,7 +81,8 @@ certificate you'll be using in Nomad:
     "CN": "regionglobal.nomad",
     "hosts": [
 	"server.regionglobal.nomad",
-	"client.regionglobal.nomad"
+	"client.regionglobal.nomad",
+        "localhost"
     ]
 }
 ```
