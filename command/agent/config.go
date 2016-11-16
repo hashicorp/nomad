@@ -177,7 +177,8 @@ type ClientConfig struct {
 	// Interface to use for network fingerprinting
 	NetworkInterface string `mapstructure:"network_interface"`
 
-	// The network link speed to use if it can not be determined dynamically.
+	// NetworkSpeed is used to override any detected or default network link
+	// speed.
 	NetworkSpeed int `mapstructure:"network_speed"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
@@ -485,7 +486,6 @@ func DefaultConfig() *Config {
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
 			Enabled:        false,
-			NetworkSpeed:   100,
 			MaxKillTimeout: "30s",
 			ClientMinPort:  14000,
 			ClientMaxPort:  14512,

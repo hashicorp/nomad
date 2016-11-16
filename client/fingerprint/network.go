@@ -10,6 +10,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// defaultNetworkSpeed is the speed set if the network link speed could not
+	// be detected.
+	defaultNetworkSpeed = 1000
+)
+
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
 type NetworkFingerprint struct {
 	StaticFingerprinter
@@ -74,12 +80,16 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 
 	f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP %v during fingerprinting", intf.Name, ip)
 
-	if throughput := f.linkSpeed(intf.Name); throughput > 0 {
+	throughput := f.linkSpeed(intf.Name)
+	if cfg.NetworkSpeed != 0 {
+		newNetwork.MBits = cfg.NetworkSpeed
+		f.logger.Printf("[DEBUG] fingerprint.network: setting link speed to user configured speed: %d", newNetwork.MBits)
+	} else if throughput != 0 {
 		newNetwork.MBits = throughput
 		f.logger.Printf("[DEBUG] fingerprint.network: link speed for %v set to %v", intf.Name, newNetwork.MBits)
 	} else {
-		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed; setting to default %v", cfg.NetworkSpeed)
-		newNetwork.MBits = cfg.NetworkSpeed
+		newNetwork.MBits = defaultNetworkSpeed
+		f.logger.Printf("[DEBUG] fingerprint.network: link speed could not be detected and no speed specified by user. Defaulting to %d", defaultNetworkSpeed)
 	}
 
 	if node.Resources == nil {
