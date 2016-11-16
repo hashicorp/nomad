@@ -1,4 +1,4 @@
-## 0.5.0 (Unreleased)
+## 0.5.0 (November 16, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * jobspec: Extracted the disk resources from the task to the task group. The
