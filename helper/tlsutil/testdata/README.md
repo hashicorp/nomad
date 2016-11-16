@@ -17,7 +17,7 @@ Using [cfssl 1.2.0](https://github.com/cloudflare/cfssl)
 ```sh
 # Write defaults and update
 cfssl print-defaults csr > ca-csr.json
-cfssl print-defaults config > ca.config.json
+cfssl print-defaults config > ca-config.json
 
 # Generate CA certificate and key
 cfssl gencert -config ca-config.json -initca ca-csr.json | cfssljson -bare ca -

@@ -72,18 +72,6 @@ certificates.
 tls {
   http = true
   rpc  = true
-}
-```
-
-### Custom Certificates
-
-This example shows configuring Nomad to communicate via TLS over HTTP and RPC
-using a custom certificate and CA bundle.
-
-```hcl
-tls {
-  http = true
-  rpc  = true
 
   ca_file   = "/etc/certs/ca.crt"
   cert_file = "/etc/certs/nomad.crt"
