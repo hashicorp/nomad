@@ -150,7 +150,6 @@ const aws_routes = `
 
 func TestNetworkFingerprint_AWS(t *testing.T) {
 	// configure mock server with fixture routes, data
-	// TODO: Refator with the AWS ENV test
 	routes := routes{}
 	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
 		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
@@ -201,7 +200,6 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 
 func TestNetworkFingerprint_AWS_network(t *testing.T) {
 	// configure mock server with fixture routes, data
-	// TODO: Refator with the AWS ENV test
 	routes := routes{}
 	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
 		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
