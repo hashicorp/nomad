@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Gossip and RPC Encryption"
 sidebar_current: "docs-agent-encryption"
 description: |-
-  Learn how to configure Nomad to encrypt all of its traffic.
+  Learn how to configure Nomad to encrypt HTTP, RPC, and Serf traffic.
 ---
 
 # Encryption
@@ -62,14 +62,13 @@ simpler command line tools when learning how to configure TLS and your [PKI].
 [`cfssl`][cfssl] is a tool for working with TLS certificates and certificate
 authorities similar to [OpenSSL's][openssl] `x509` command line tool.
 
-Once you have the `cfssl` command line tool installed create, the first step to
+Once you have the `cfssl` command line tool installed, the first step to
 setting up TLS is to create a Certificate Authority (CA) certificate.  The
 following command will generate a suitable example CA CSR, certificate, and
 key:
 
 ```sh
 # Run in the directory where you want to store certificates
-
 cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare ca
 ```
 
@@ -78,10 +77,10 @@ certificate you'll be using in Nomad:
 
 ```json
 {
-    "CN": "regionglobal.nomad",
+    "CN": "global.nomad",
     "hosts": [
-	"server.regionglobal.nomad",
-	"client.regionglobal.nomad",
+        "server.global.nomad",
+        "client.global.nomad",
         "localhost"
     ]
 }
@@ -91,8 +90,8 @@ This will create a certificate suitable for both clients and servers in the
 `global` (default) region.
 
 In production Nomad agents should have a certificate valid for the name
-`${ROLE}.region${REGION}.nomad` where role is either `client` or `server`
-depending on the node's role.
+`${ROLE}.${REGION}.nomad` where role is either `client` or `server` depending
+on the node's role.
 
 Create a certificate signed by your CA:
 
