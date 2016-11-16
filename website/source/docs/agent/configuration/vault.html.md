@@ -92,31 +92,43 @@ vault {
 The following examples only show the `vault` stanzas. Remember that the
 `vault` stanza is only valid in the placements listed above.
 
-### Custom Address
+### Nomad Server
 
-This example shows using a custom Vault address:
-
-```hcl
-vault {
-  enabled = true
-  address = "https://vault.company.internal:8200"
-}
-```
-
-### TLS Configuration
-
-This example shows utilizing a custom CA bundle and key to authenticate between
-Nomad and Vault:
+This example shows an example Vault configuration for a Nomad server:
 
 ```hcl
 vault {
-  enabled         = true
+  enabled     = true
   ca_path     = "/etc/certs/ca"
   cert_file   = "/var/certs/vault.crt"
   key_file    = "/var/certs/vault.key"
-  tls_server_name = "nomad.service.consul"
+
+  # Address to communicate with Vault. The below is the default address if
+  # unspecified.
+  address     = "https://vault.service.consul:8200"
+
+  # Embedding the token in the configuration is discouraged. Instead users
+  # should set the VAULT_TOKEN environment variable when starting the Nomad
+  # agent 
+  token       = "debecfdc-9ed7-ea22-c6ee-948f22cdd474"
 }
 ```
+
+### Nomad Client
+
+This example shows an example Vault configuration for a Nomad client:
+
+```hcl
+vault {
+  enabled     = true
+  address     = "https://vault.service.consul:8200"
+  ca_path     = "/etc/certs/ca"
+  cert_file   = "/var/certs/vault.crt"
+  key_file    = "/var/certs/vault.key"
+}
+```
+
+The key difference is that the token is not necessary on the client.
 
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
 [nomad-vault]: /docs/vault-integration/index.html "Nomad Vault Integration"
