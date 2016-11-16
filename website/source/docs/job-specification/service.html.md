@@ -247,7 +247,8 @@ service {
   }
 
   check {
-    type     = "https"
+    type     = "http"
+    protocol = "https"
     port     = "lb"
     path     = "/_healthz"
     interval = "5s"
