@@ -80,12 +80,6 @@ func TestRetryJoin(t *testing.T) {
 	defer os.RemoveAll(dir)
 	defer agent.Shutdown()
 
-	tmpDir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
 	doneCh := make(chan struct{})
 	shutdownCh := make(chan struct{})
 
@@ -96,7 +90,11 @@ func TestRetryJoin(t *testing.T) {
 
 	cmd := &Command{
 		ShutdownCh: shutdownCh,
-		Ui:         new(cli.MockUi),
+		Ui: &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		},
 	}
 
 	serfAddr := fmt.Sprintf(
@@ -105,8 +103,7 @@ func TestRetryJoin(t *testing.T) {
 		agent.config.Ports.Serf)
 
 	args := []string{
-		"-server",
-		"-data-dir", tmpDir,
+		"-dev",
 		"-node", fmt.Sprintf(`"Node %d"`, getPort()),
 		"-retry-join", serfAddr,
 		"-retry-interval", "1s",

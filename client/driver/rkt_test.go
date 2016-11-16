@@ -445,13 +445,19 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	if handle == nil {
 		t.Fatalf("missing handle")
 	}
-	defer handle.Kill()
+
+	failCh := make(chan error, 1)
+	go func() {
+		time.Sleep(1 * time.Second)
+		if err := handle.Kill(); err != nil {
+			failCh <- err
+		}
+	}()
 
 	select {
-	case res := <-handle.WaitCh():
-		if !res.Successful() {
-			t.Fatalf("err: %v", res)
-		}
+	case err := <-failCh:
+		t.Fatalf("failed to kill handle: %v", err)
+	case <-handle.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}

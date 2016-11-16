@@ -43,6 +43,10 @@ func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
 
+	// Set the data_dir
+	conf.DataDir = dir
+	conf.NomadConfig.DataDir = dir
+
 	// Bind and set ports
 	conf.BindAddr = "127.0.0.1"
 	conf.Ports = &Ports{

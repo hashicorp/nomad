@@ -241,7 +241,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing retry interval: %s", err)
+			return nil, fmt.Errorf("Error parsing max kill timeout: %s", err)
 		}
 		conf.MaxKillTimeout = dur
 	}
