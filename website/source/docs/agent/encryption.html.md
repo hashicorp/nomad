@@ -76,12 +76,12 @@ certificate you'll be using in Nomad:
 
 ```json
 {
-    "CN": "global.nomad",
-    "hosts": [
-        "server.global.nomad",
-        "client.global.nomad",
-        "localhost"
-    ]
+  "CN": "global.nomad",
+  "hosts": [
+    "server.global.nomad",
+    "client.global.nomad",
+    "localhost"
+  ]
 }
 ```
 
