@@ -3,9 +3,8 @@ layout: "docs"
 page_title: "Nomad Client and Server Requirements"
 sidebar_current: "docs-cluster-requirements"
 description: |-
-  Learn how to manually bootstrap a Nomad cluster using the server-join
-  command. This section also discusses Nomad federation across multiple
-  datacenters and regions.
+  Learn about Nomad client and server requirements such as memory and CPU
+  recommendations, network topologies, and more.
 ---
 
 # Cluster Requirements
