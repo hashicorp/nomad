@@ -102,13 +102,20 @@ $ cfssl gencert -ca ca.pem -ca-key ca-key.pem nomad-csr.json | cfssljson -bare n
 You've now successfully generated self-signed certificates! You should see the
 following files:
 
-| File            | Description                  | Usage                     |
-|-----------------|------------------------------|---------------------------|
-| `ca.pem`        | CA certificate               | `ca_file` setting         |
-| `ca-key.pem`    | CA private key               | Signing CSRs              |
-| `nomad.pem`     | Nomad cert for global region | `cert_file` setting       |
-| `nomad-key.pem` | Nomad key for foo region     | `key_file` setting        |
-| `*.csr`      | Certificate Signing Requests | Generating certs (temporary) |
+- `ca.pem` - the CA certificate. This corresponds to the Nomad `ca_file`
+  parameter in the Nomad [`tls` stanza][tls].
+
+- `ca-key.pem` - the CA private key. This is used to sign CSRs and should
+  **not** be included in the Nomad [`tls` stanza][tls].
+
+- `nomad.pem` - the Nomad certificate for the region. This corresponds to the
+  `cert_file` parameter in the Nomad [`tls` stanza][tls].
+
+- `nomad-key.pem` - the Nomad private key. This corresponds to the `key_file`
+  parameter in the Nomad [`tls` stanza][tls].
+
+- `*.csr` - the certificate signing request. This is temporary for generating
+  certificates and should **not** be included in the Nomad [`tls` stanza][tls].
 
 In your Nomad configuration add the `tls` stanza:
 
