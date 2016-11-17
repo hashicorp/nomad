@@ -51,7 +51,6 @@ TLS is used to secure the RPC calls between agents, but gossip between nodes is
 done over UDP and is secured using a symmetric key. See above for enabling
 gossip encryption.
 
-[tls]: /docs/agent/configuration/tls.html "Nomad TLS Configuration"
 
 ### Example TLS Configuration using cfssl
 
@@ -127,3 +126,4 @@ tls {
 [PKI]: https://en.wikipedia.org/wiki/Public_key_infrastructure
 [cfssl]: https://cfssl.org/
 [openssl]: https://www.openssl.org/
+[tls]: /docs/agent/configuration/tls.html "Nomad TLS Configuration"
