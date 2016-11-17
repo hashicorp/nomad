@@ -123,10 +123,12 @@ In your Nomad configuration add the `tls` stanza:
 tls {
   http = true
   rpc  = true
-  verify_server_hostname = true
+
   ca_file   = "ca.pem"
   cert_file = "nomad.pem"
   key_file  = "nomad-key.pem"
+
+  verify_server_hostname = true
 }
 ```
 
