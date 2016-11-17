@@ -31,51 +31,23 @@ description: |-
     </div>
   </div>
 
+  <% product_versions.each do |os, arches| %>
+    <% next if os == "web" %>
     <div class="row">
       <div class="col-md-12 download">
-        <div class="icon pull-left"><img src="/assets/images/icons/icon_darwin.png" /></div>
+        <div class="icon pull-left"><%= system_icon(os) %></div>
         <div class="details">
-          <h2 class="os-name">Mac OS X</h2>
+          <h2 class="os-name"><%= pretty_os(os) %></h2>
           <ul>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_darwin_amd64.zip">64-bit</a></li>
+            <% arches.each do |arch, url| %>
+              <li><a href="<%= url %>"><%= pretty_arch(arch) %></a></li>
+            <% end %>
           </ul>
           <div class="clearfix"></div>
         </div>
       </div>
     </div>
-    <div class="row">
-      <div class="col-md-12 download">
-        <div class="icon pull-left"><img src="/assets/images/icons/icon_linux.png" /></div>
-        <div class="details">
-          <h2 class="os-name">Linux</h2>
-          <ul>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_386.zip">32-bit</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_amd64.zip">64-bit</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_arm.zip">Arm</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_arm5.zip">Arm5</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_arm6.zip">Arm6</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_arm7.zip">Arm7</a></li>
-          </ul>
-	  <ul>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_linux_amd64_lxc.zip">64-bit with LXC</a> (requires liblxc installed)</li>
-          </ul>
-          <div class="clearfix"></div>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-12 download">
-        <div class="icon pull-left"><img src="/assets/images/icons/icon_windows.png" /></div>
-        <div class="details">
-          <h2 class="os-name">Windows</h2>
-          <ul>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_windows_386.zip">32-bit</a></li>
-              <li><a href="https://releases.hashicorp.com/nomad/0.5.0/nomad_0.5.0_windows_amd64.zip">64-bit</a></li>
-          </ul>
-          <div class="clearfix"></div>
-        </div>
-      </div>
-    </div>
+  <% end %>
 
   <div class="row">
     <div class="col-md-12 poweredby">
