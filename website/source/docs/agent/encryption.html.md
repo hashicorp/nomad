@@ -51,8 +51,9 @@ TLS is used to secure the RPC calls between agents, but gossip between nodes is
 done over UDP and is secured using a symmetric key. See above for enabling
 gossip encryption.
 
+## Encryption Examples
 
-### Example TLS Configuration using cfssl
+### TLS Configuration using `cfssl`
 
 While [Vault's PKI backend][vault] is an ideal solution for managing
 certificates and other secrets in a production environment, it's useful to use
