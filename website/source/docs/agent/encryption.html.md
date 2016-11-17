@@ -22,7 +22,7 @@ of this setting is a server configuration file containing the encryption key.
 The key must be 16-bytes, base64 encoded. As a convenience, Nomad provides the
 [`nomad keygen`](/docs/commands/keygen.html) command to generate a cryptographically suitable key:
 
-```shell
+```sh
 $ nomad keygen
 cg8StVXbQJ0gPvMd9o7yrg==
 ```
@@ -67,9 +67,9 @@ setting up TLS is to create a Certificate Authority (CA) certificate.  The
 following command will generate a suitable example CA CSR, certificate, and
 key:
 
-```sh
+```shell
 # Run in the directory where you want to store certificates
-cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare ca
+$ cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare ca
 ```
 
 Next create a `nomad-csr.json` which contains the configuration for the actual
@@ -95,8 +95,8 @@ on the node's role.
 
 Create a certificate signed by your CA:
 
-```sh
-cfssl gencert -ca ca.pem -ca-key ca-key.pem nomad-csr.json | cfssljson -bare nomad
+```shell
+$ cfssl gencert -ca ca.pem -ca-key ca-key.pem nomad-csr.json | cfssljson -bare nomad
 ```
 
 You've now successfully generated self-signed certificates! You should see the
