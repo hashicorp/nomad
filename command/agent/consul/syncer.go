@@ -873,8 +873,8 @@ func (c *Syncer) SyncServices() error {
 // the syncer
 func (c *Syncer) filterConsulServices(consulServices map[string]*consul.AgentService) map[consulServiceID]*consul.AgentService {
 	localServices := make(map[consulServiceID]*consul.AgentService, len(consulServices))
-	c.registryLock.RLock()
-	defer c.registryLock.RUnlock()
+	c.groupsLock.RLock()
+	defer c.groupsLock.RUnlock()
 	for serviceID, service := range consulServices {
 		for domain := range c.servicesGroups {
 			if strings.HasPrefix(service.ID, fmt.Sprintf("%s-%s", nomadServicePrefix, domain)) {
@@ -890,8 +890,8 @@ func (c *Syncer) filterConsulServices(consulServices map[string]*consul.AgentSer
 // services with Syncer's idPrefix.
 func (c *Syncer) filterConsulChecks(consulChecks map[string]*consul.AgentCheck) map[consulCheckID]*consul.AgentCheck {
 	localChecks := make(map[consulCheckID]*consul.AgentCheck, len(consulChecks))
-	c.registryLock.RLock()
-	defer c.registryLock.RUnlock()
+	c.groupsLock.RLock()
+	defer c.groupsLock.RUnlock()
 	for checkID, check := range consulChecks {
 		for domain := range c.checkGroups {
 			if strings.HasPrefix(check.ServiceID, fmt.Sprintf("%s-%s", nomadServicePrefix, domain)) {
