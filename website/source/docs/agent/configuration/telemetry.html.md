@@ -24,8 +24,8 @@ to third-party systems.
 
 ```hcl
 telemetry {
-  public_allocation_metrics = true
-  publish_node_metrics      = true
+  publish_allocation_metrics = true
+  publish_node_metrics       = true
 }
 ```
 
