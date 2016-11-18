@@ -107,7 +107,7 @@ func TestSyncerChaos(t *testing.T) {
 		}
 	}()
 
-	// Reap all but exec-0-* and possibly some of exec-99-*
+	// Reap all but exec-0-*
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
