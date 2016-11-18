@@ -168,6 +168,7 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 		checkGroups:       make(map[ServiceDomain]map[ServiceKey][]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[consulCheckID]*CheckRunner),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
+		notifySyncCh:      make(chan struct{}, 1),
 		// default noop implementation of addrFinder
 		addrFinder: func(string) (string, int) { return "", 0 },
 	}
@@ -824,7 +825,7 @@ func (c *Syncer) Run() {
 				c.consulAvailable = true
 			}
 		case <-c.notifySyncCh:
-			sync.Reset(syncInterval)
+			sync.Reset(0)
 		case <-c.shutdownCh:
 			c.Shutdown()
 		case <-c.notifyShutdownCh:
