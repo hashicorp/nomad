@@ -318,12 +318,13 @@ func TestAgent_ServerConfig(t *testing.T) {
 
 func TestAgent_ClientConfig(t *testing.T) {
 	conf := DefaultConfig()
-	// enabled just to allow using localhost for all addresses
-	conf.DevMode = true
-	a := &Agent{config: conf}
 	conf.Client.Enabled = true
-	conf.Addresses.HTTP = "127.0.0.1"
+
+	// For Clients HTTP and RPC must be set (Serf can be skipped)
+	conf.Addresses.HTTP = "169.254.0.1"
+	conf.Addresses.RPC = "169.254.0.1"
 	conf.Ports.HTTP = 5678
+	a := &Agent{config: conf}
 
 	if err := conf.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
@@ -333,7 +334,7 @@ func TestAgent_ClientConfig(t *testing.T) {
 		t.Fatalf("got err: %v", err)
 	}
 
-	expectedHttpAddr := "127.0.0.1:5678"
+	expectedHttpAddr := "169.254.0.1:5678"
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}
@@ -342,7 +343,7 @@ func TestAgent_ClientConfig(t *testing.T) {
 	conf.DevMode = true
 	a = &Agent{config: conf}
 	conf.Client.Enabled = true
-	conf.Addresses.HTTP = "127.0.0.1"
+	conf.Addresses.HTTP = "169.254.0.1"
 
 	if err := conf.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
@@ -352,7 +353,7 @@ func TestAgent_ClientConfig(t *testing.T) {
 		t.Fatalf("got err: %v", err)
 	}
 
-	expectedHttpAddr = "127.0.0.1:4646"
+	expectedHttpAddr = "169.254.0.1:4646"
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}

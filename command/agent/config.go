@@ -694,11 +694,14 @@ func (c *Config) normalizeAddrs() error {
 	}
 	c.AdvertiseAddrs.RPC = addr
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
-	if err != nil {
-		return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
+	// Skip serf if server is disabled
+	if c.Server != nil && c.Server.Enabled {
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
+		if err != nil {
+			return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
+		}
+		c.AdvertiseAddrs.Serf = addr
 	}
-	c.AdvertiseAddrs.Serf = addr
 
 	return nil
 }
