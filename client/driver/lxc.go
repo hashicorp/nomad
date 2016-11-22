@@ -182,7 +182,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.AllocID)
 	c, err := lxc.NewContainer(containerName, lxcPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create container: %v", err)
+		return nil, fmt.Errorf("unable to initialize container: %v", err)
 	}
 
 	var verbosity lxc.Verbosity
@@ -223,6 +223,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		Arch:                 driverConfig.Arch,
 		FlushCache:           driverConfig.FlushCache,
 		DisableGPGValidation: driverConfig.DisableGPGValidation,
+		ExtraArgs:            driverConfig.TemplateArgs,
 	}
 
 	if err := c.Create(options); err != nil {
