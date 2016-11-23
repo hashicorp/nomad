@@ -1146,6 +1146,9 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
+	// Dispatch is used to specify the job as a template job for dispatching.
+	Dispatch *DispatchConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -1179,6 +1182,10 @@ func (j *Job) Canonicalize() {
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
+
+	if j.Dispatch != nil {
+		j.Dispatch.Canonicalize()
+	}
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -1202,6 +1209,7 @@ func (j *Job) Copy() *Job {
 
 	nj.Periodic = nj.Periodic.Copy()
 	nj.Meta = CopyMapStringString(nj.Meta)
+	nj.Dispatch = nj.Dispatch.Copy()
 	return nj
 }
 
@@ -1276,6 +1284,12 @@ func (j *Job) Validate() error {
 		}
 	}
 
+	if j.IsDispatchTemplate() {
+		if err := j.Dispatch.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -1309,6 +1323,11 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 // IsPeriodic returns whether a job is periodic.
 func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
+}
+
+// IsDispatchTemplate returns whether a job is dispatch template.
+func (j *Job) IsDispatchTemplate() bool {
+	return j.Dispatch != nil
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -1523,6 +1542,80 @@ type PeriodicLaunch struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+const (
+	DispatchInputDataForbidden = "forbidden"
+	DispatchInputDataOptional  = "optional"
+	DispatchInputDataRequired  = "required"
+)
+
+// DispatchConfig is used to configure the dispatch template
+type DispatchConfig struct {
+	// Paused specifies whether jobs can be dispatched based on the template or
+	// if the job is paused.
+	Paused bool
+
+	// InputData configure the input data requirements
+	InputData string
+
+	// MetaRequired is metadata keys that must be specified by the dispatcher
+	MetaRequired []string
+
+	// MetaOptional is metadata keys that may be specified by the dispatcher
+	MetaOptional []string
+}
+
+func (d *DispatchConfig) Validate() error {
+	var mErr multierror.Error
+	switch d.InputData {
+	case DispatchInputDataOptional, DispatchInputDataRequired, DispatchInputDataForbidden:
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Unknown input data requirement: %q", d.InputData))
+	}
+
+	// Check that the meta configurations are disjoint sets
+	disjoint, offending := SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	if !disjoint {
+		multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (d *DispatchConfig) Canonicalize() {
+	if d.InputData == "" {
+		d.InputData = DispatchInputDataOptional
+	}
+}
+
+func (d *DispatchConfig) Copy() *DispatchConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(DispatchConfig)
+	*nd = *d
+	nd.MetaOptional = CopySliceString(nd.MetaOptional)
+	nd.MetaRequired = CopySliceString(nd.MetaRequired)
+	return nd
+}
+
+// DispatchInputConfig configures how a task gets its input from a job dispatch
+type DispatchInputConfig struct {
+	// Stdin specifies whether the input should be written to the task's stdin
+	Stdin bool
+
+	// File specifies a relative path to where the input data should be written
+	File string
+}
+
+func (d *DispatchInputConfig) Copy() *DispatchInputConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(DispatchInputConfig)
+	*nd = *d
+	return nd
 }
 
 var (
@@ -2076,6 +2169,10 @@ type Task struct {
 	// Resources is the resources needed by this task
 	Resources *Resources
 
+	// DispatchInput configures how the task retrieves its input from a dispatch
+	// template
+	DispatchInput *DispatchInputConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
@@ -2113,6 +2210,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
+	nt.DispatchInput = nt.DispatchInput.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))

@@ -187,6 +187,14 @@ type PeriodicConfig struct {
 	ProhibitOverlap bool
 }
 
+// DispatchConfig is used to configure the dispatch template
+type DispatchConfig struct {
+	Paused       bool
+	InputData    string
+	MetaRequired []string
+	MetaOptional []string
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	Region            string
@@ -201,6 +209,7 @@ type Job struct {
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
+	Dispatch          *DispatchConfig
 	Meta              map[string]string
 	VaultToken        string
 	Status            string

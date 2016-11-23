@@ -1444,3 +1444,29 @@ func TestVault_Validate(t *testing.T) {
 		t.Fatalf("Expected signal empty error")
 	}
 }
+
+func TestDispatchConfig_Validate(t *testing.T) {
+	d := &DispatchConfig{
+		InputData: "foo",
+	}
+
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "input data") {
+		t.Fatalf("Expected unknown input data requirement: %v", err)
+	}
+
+	d.InputData = DispatchInputDataOptional
+	d.MetaOptional = []string{"foo", "bar"}
+	d.MetaRequired = []string{"bar", "baz"}
+
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "disjoint") {
+		t.Fatalf("Expected meta not being disjoint error: %v", err)
+	}
+}
+
+func TestDispatchConfig_Canonicalize(t *testing.T) {
+	d := &DispatchConfig{}
+	d.Canonicalize()
+	if d.InputData != DispatchInputDataOptional {
+		t.Fatalf("Canonicalize failed")
+	}
+}
