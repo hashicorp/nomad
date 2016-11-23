@@ -1557,13 +1557,13 @@ type DispatchConfig struct {
 	Paused bool
 
 	// InputData configure the input data requirements
-	InputData string
+	InputData string `mapstructure:"input_data"`
 
 	// MetaRequired is metadata keys that must be specified by the dispatcher
-	MetaRequired []string
+	MetaRequired []string `mapstructure:"required"`
 
 	// MetaOptional is metadata keys that may be specified by the dispatcher
-	MetaOptional []string
+	MetaOptional []string `mapstructure:"optional"`
 }
 
 func (d *DispatchConfig) Validate() error {
