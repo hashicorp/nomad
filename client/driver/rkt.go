@@ -136,6 +136,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			"debug": &fields.FieldSchema{
 				Type: fields.TypeBool,
 			},
+			"volumes": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
 		},
 	}
 
