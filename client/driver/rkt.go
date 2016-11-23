@@ -309,13 +309,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
 
 	// Add DNS servers
-	for _, ip := range driverConfig.DNSServers {
-		if err := net.ParseIP(ip); err == nil {
-			msg := fmt.Errorf("invalid ip address for container dns server %q", ip)
-			d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
-			return nil, msg
-		} else {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
+	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
+		// Special case single item lists with the special values "host" or "none"
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", driverConfig.DNSServers[0]))
+	} else {
+		for _, ip := range driverConfig.DNSServers {
+			if err := net.ParseIP(ip); err == nil {
+				msg := fmt.Errorf("invalid ip address for container dns server %q", ip)
+				d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
+				return nil, msg
+			} else {
+				cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
+			}
 		}
 	}
 
