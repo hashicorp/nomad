@@ -1073,8 +1073,18 @@ func (s *StateStore) AllocsByNodeTerminal(node string, terminal bool) ([]*struct
 }
 
 // AllocsByJob returns all the allocations by job id
-func (s *StateStore) AllocsByJob(jobID string) ([]*structs.Allocation, error) {
+func (s *StateStore) AllocsByJob(jobID string, all bool) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
+
+	// Get the job
+	var job *structs.Job
+	rawJob, err := txn.First("jobs", "id", jobID)
+	if err != nil {
+		return nil, err
+	}
+	if rawJob != nil {
+		job = rawJob.(*structs.Job)
+	}
 
 	// Get an iterator over the node allocations
 	iter, err := txn.Get("allocs", "job", jobID)
@@ -1087,6 +1097,14 @@ func (s *StateStore) AllocsByJob(jobID string) ([]*structs.Allocation, error) {
 		raw := iter.Next()
 		if raw == nil {
 			break
+		}
+
+		alloc := raw.(*structs.Allocation)
+		// If the allocation belongs to a job with the same ID but a diff create
+		// index and we are not getting all the allocations whose Jobs matches
+		// the same Job ID then we skip it
+		if !all && job != nil && alloc.Job.CreateIndex != job.CreateIndex {
+			continue
 		}
 		out = append(out, raw.(*structs.Allocation))
 	}

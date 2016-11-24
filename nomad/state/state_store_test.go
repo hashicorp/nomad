@@ -2362,7 +2362,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.AllocsByJob("foo")
+	out, err := state.AllocsByJob("foo", false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2373,6 +2373,61 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 	if !reflect.DeepEqual(allocs, out) {
 		t.Fatalf("bad: %#v %#v", allocs, out)
 	}
+}
+
+func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+	var allocs1 []*structs.Allocation
+
+	job := mock.Job()
+	job.ID = "foo"
+	state.UpsertJob(100, job)
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		allocs = append(allocs, alloc)
+	}
+	if err := state.UpsertAllocs(200, allocs); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.DeleteJob(250, job.ID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job1 := mock.Job()
+	job1.ID = "foo"
+	job1.CreateIndex = 50
+	state.UpsertJob(300, job1)
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job1
+		alloc.JobID = job1.ID
+		allocs1 = append(allocs1, alloc)
+	}
+
+	if err := state.UpsertAllocs(1000, allocs1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocsByJob(job1.ID, true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := len(allocs) + len(allocs1)
+	if len(out) != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, len(out))
+	}
+
+	out1, err := state.AllocsByJob(job1.ID, false)
+	expected = len(allocs1)
+	if len(out1) != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, len(out1))
+	}
+
 }
 
 func TestStateStore_AllocsByIDPrefix(t *testing.T) {
