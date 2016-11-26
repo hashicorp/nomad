@@ -272,6 +272,14 @@ type JobSummaryRequest struct {
 	QueryOptions
 }
 
+// JobDispatchRequest is used to dispatch a job based on a job dispatch template
+type JobDispatchRequest struct {
+	JobID     string
+	InputData []byte
+	Meta      map[string]string
+	WriteRequest
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -522,6 +530,14 @@ type SingleJobResponse struct {
 // JobSummaryResponse is used to return a single job summary
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
+	QueryMeta
+}
+
+type JobDispatchResponse struct {
+	DispatchedJobID string
+	EvalID          string
+	EvalCreateIndex uint64
+	JobCreateIndex  uint64
 	QueryMeta
 }
 
@@ -1149,6 +1165,9 @@ type Job struct {
 	// Dispatch is used to specify the job as a template job for dispatching.
 	Dispatch *DispatchConfig
 
+	// InputData is the input data supplied when the job was dispatched.
+	InputData []byte
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -1548,6 +1567,10 @@ const (
 	DispatchInputDataForbidden = "forbidden"
 	DispatchInputDataOptional  = "optional"
 	DispatchInputDataRequired  = "required"
+
+	// DispatchLaunchSuffic is the string appended to the dispatch job
+	// templates's ID when dispatching instances of it.
+	DispatchLaunchSuffic = "/dispatch-"
 )
 
 // DispatchConfig is used to configure the dispatch template
@@ -1598,6 +1621,12 @@ func (d *DispatchConfig) Copy() *DispatchConfig {
 	nd.MetaOptional = CopySliceString(nd.MetaOptional)
 	nd.MetaRequired = CopySliceString(nd.MetaRequired)
 	return nd
+}
+
+// DispatchedID returns an ID appropriate for a job dispatched against a
+// particular template
+func DispatchedID(templateID string) string {
+	return fmt.Sprintf("%s%s%s", templateID, DispatchLaunchSuffic, GenerateUUID())
 }
 
 // DispatchInputConfig configures how a task gets its input from a job dispatch

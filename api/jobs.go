@@ -210,6 +210,7 @@ type Job struct {
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
 	Dispatch          *DispatchConfig
+	InputData         []byte
 	Meta              map[string]string
 	VaultToken        string
 	Status            string

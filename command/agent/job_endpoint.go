@@ -57,6 +57,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/summary"):
 		jobName := strings.TrimSuffix(path, "/summary")
 		return s.jobSummaryRequest(resp, req, jobName)
+	case strings.HasSuffix(path, "/dispatch"):
+		jobName := strings.TrimSuffix(path, "/dispatch")
+		return s.jobDispatchRequest(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -264,4 +267,24 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 	}
 	setIndex(resp, out.Index)
 	return out.JobSummary, nil
+}
+
+func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobDispatchRequest{
+		JobID: name,
+	}
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobDispatchResponse
+	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
 }

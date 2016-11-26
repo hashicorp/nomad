@@ -20,6 +20,10 @@ const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
+
+	// DispatchInputDataSizeLimit is the maximum size of the uncompressed input
+	// data payload.
+	DispatchInputDataSizeLimit = 16 * 1024
 )
 
 var (
@@ -133,8 +137,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic, we don't create an eval.
-	if args.Job.IsPeriodic() {
+	// If the job is periodic or a dispatch template, we don't create an eval.
+	if args.Job.IsPeriodic() || args.Job.IsDispatchTemplate() {
 		return nil
 	}
 
@@ -767,4 +771,155 @@ func validateJob(job *structs.Job) error {
 	}
 
 	return validationErrors.ErrorOrNil()
+}
+
+// Dispatch is used to dispatch a job based on a dispatch job template.
+func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispatchResponse) error {
+	if done, err := j.srv.forward("Job.Dispatch", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
+
+	// Lookup the job
+	if args.JobID == "" {
+		return fmt.Errorf("missing dispatch template job ID")
+	}
+
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	tmpl, err := snap.JobByID(args.JobID)
+	if err != nil {
+		return err
+	}
+	if tmpl == nil {
+		return fmt.Errorf("dispatch template job not found")
+	}
+
+	if !tmpl.IsDispatchTemplate() {
+		return fmt.Errorf("Specified job %q is not a dispatch template", args.JobID)
+	}
+
+	// Validate the arguments
+	if err := validateDispatchRequest(args, tmpl); err != nil {
+		return err
+	}
+
+	// XXX compress the input
+
+	// Derive the child job and commit it via Raft
+	dispatchJob := tmpl.Copy()
+	dispatchJob.Dispatch = nil
+	dispatchJob.InputData = args.InputData
+	dispatchJob.ID = structs.DispatchedID(tmpl.ID, time.Now())
+	dispatchJob.Name = dispatchJob.ID
+
+	regReq := &structs.JobRegisterRequest{
+		Job:          dispatchJob,
+		WriteRequest: args.WriteRequest,
+	}
+
+	// Commit this update via Raft
+	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		return err
+	}
+
+	// Create a new evaluation
+	eval := &structs.Evaluation{
+		ID:             structs.GenerateUUID(),
+		Priority:       dispatchJob.Priority,
+		Type:           dispatchJob.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          dispatchJob.ID,
+		JobModifyIndex: jobCreateIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.JobCreateIndex = jobCreateIndex
+	reply.DispatchedJobID = dispatchJob.ID
+	reply.Index = evalIndex
+	return nil
+}
+
+// validateDispatchRequest returns whether the request is valid given the
+// dispatch configuration of the template job
+func validateDispatchRequest(req *structs.JobDispatchRequest, tmpl *structs.Job) error {
+	// Check the input data constraint is met
+	hasInputData := len(req.InputData) != 0
+	if tmpl.Dispatch.InputData == structs.DispatchInputDataRequired && !hasInputData {
+		return fmt.Errorf("Input data is not provided but required by dispatch template")
+	} else if tmpl.Dispatch.InputData == structs.DispatchInputDataForbidden && hasInputData {
+		return fmt.Errorf("Input data provided but forbidden by dispatch template")
+	}
+
+	// Check the input data doesn't exceed the size limit
+	if l := len(req.InputData); l > DispatchInputDataSizeLimit {
+		return fmt.Errorf("Input data exceeds maximum size; %d > %d", l, DispatchInputDataSizeLimit)
+	}
+
+	// Check if the metadata is a set
+	keys := make(map[string]struct{}, len(req.Meta))
+	for k := range keys {
+		if _, ok := keys[k]; ok {
+			return fmt.Errorf("Duplicate key %q in passed metadata", k)
+		}
+		keys[k] = struct{}{}
+	}
+
+	required := structs.SliceStringToSet(tmpl.Dispatch.MetaRequired)
+	optional := structs.SliceStringToSet(tmpl.Dispatch.MetaOptional)
+
+	// Check the metadata key constraints are met
+	unpermitted := make(map[string]struct{})
+	for k := range req.Meta {
+		_, req := required[k]
+		_, opt := optional[k]
+		if !req && !opt {
+			unpermitted[k] = struct{}{}
+		}
+	}
+
+	if len(unpermitted) != 0 {
+		flat := make([]string, 0, len(unpermitted))
+		for k := range unpermitted {
+			flat = append(flat, k)
+		}
+
+		return fmt.Errorf("Dispatch request included unpermitted metadata keys: %v", flat)
+	}
+
+	missing := make(map[string]struct{})
+	for _, k := range tmpl.Dispatch.MetaRequired {
+		if _, ok := req.Meta[k]; !ok {
+			missing[k] = struct{}{}
+		}
+	}
+
+	if len(missing) != 0 {
+		flat := make([]string, 0, len(missing))
+		for k := range missing {
+			flat = append(flat, k)
+		}
+
+		return fmt.Errorf("Dispatch did not provided required meta keys: %v", flat)
+	}
+
+	return nil
 }

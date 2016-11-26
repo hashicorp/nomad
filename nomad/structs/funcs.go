@@ -328,3 +328,11 @@ func MapStringStringSliceValueSet(m map[string][]string) []string {
 	}
 	return flat
 }
+
+func SliceStringToSet(s []string) map[string]struct{} {
+	m := make(map[string]struct{}, (len(s)+1)/2)
+	for _, k := range s {
+		m[k] = struct{}{}
+	}
+	return m
+}
