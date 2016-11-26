@@ -1625,8 +1625,9 @@ func (d *DispatchConfig) Copy() *DispatchConfig {
 
 // DispatchedID returns an ID appropriate for a job dispatched against a
 // particular template
-func DispatchedID(templateID string) string {
-	return fmt.Sprintf("%s%s%s", templateID, DispatchLaunchSuffic, GenerateUUID())
+func DispatchedID(templateID string, t time.Time) string {
+	u := GenerateUUID()[:8]
+	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffic, t.Unix(), u)
 }
 
 // DispatchInputConfig configures how a task gets its input from a job dispatch

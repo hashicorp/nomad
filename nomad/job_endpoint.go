@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -806,14 +807,19 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	// XXX compress the input
+	// XXX disable job/evaluate on periodic jobs
+
+	// XXX merge in the meta data
 
 	// Derive the child job and commit it via Raft
 	dispatchJob := tmpl.Copy()
 	dispatchJob.Dispatch = nil
-	dispatchJob.InputData = args.InputData
 	dispatchJob.ID = structs.DispatchedID(tmpl.ID, time.Now())
 	dispatchJob.Name = dispatchJob.ID
+
+	// Compress the input
+	// XXX Decompress on the HTTP endpoint
+	dispatchJob.InputData = snappy.Encode(dispatchJob.InputData, args.InputData)
 
 	regReq := &structs.JobRegisterRequest{
 		Job:          dispatchJob,
