@@ -949,8 +949,7 @@ func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*d
 	recoverable := func(err error) *structs.RecoverableError {
 		r := false
 		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
-			strings.Contains(err.Error(), "EOF") ||
-			strings.Contains(err.Error(), "container already exists") {
+			strings.Contains(err.Error(), "EOF") {
 			r = true
 		}
 		return structs.NewRecoverableError(err, r)
@@ -997,6 +996,7 @@ CREATE:
 
 		if attempted < 5 {
 			attempted++
+			time.Sleep(1 * time.Second)
 			goto CREATE
 		}
 	}

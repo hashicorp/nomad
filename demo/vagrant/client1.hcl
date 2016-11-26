@@ -29,3 +29,9 @@ client {
 ports {
     http = 5656
 }
+
+advertise {
+  http = "localhost"
+  rpc = "localhost"
+  serf = "localhost"
+}
