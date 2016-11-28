@@ -1,3 +1,8 @@
+## 0.5.1 (Unreleased)
+
+BUG FIXES:
+  * agent/config: Fix use of IPv6 addresses [GH-2036]
+
 ## 0.5.0 (November 16, 2016)
 
 __BACKWARDS INCOMPATIBILITIES:__
