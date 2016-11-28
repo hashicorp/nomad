@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -153,8 +154,8 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 			if forwardedPort, ok := t.PortMap[label]; ok {
 				value = forwardedPort
 			}
-			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value)
-			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
+			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = strconv.Itoa(value)
+			IPPort := net.JoinHostPort(network.IP, strconv.Itoa(value))
 			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
 
 		}
