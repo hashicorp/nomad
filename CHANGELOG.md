@@ -2,6 +2,8 @@
 
 BUG FIXES:
   * agent/config: Fix use of IPv6 addresses [GH-2036]
+  * driver/docker: Make container exist errors non-retriable by task runner
+    [GH-2033]
 
 ## 0.5.0 (November 16, 2016)
 
