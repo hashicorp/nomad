@@ -2,6 +2,7 @@
 
 BUG FIXES:
   * agent/config: Fix use of IPv6 addresses [GH-2036]
+  * cli: Improve parsing error when a job without a name is specified [GH-2030]
   * driver/docker: Make container exist errors non-retriable by task runner
     [GH-2033]
 
