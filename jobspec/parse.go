@@ -84,9 +84,12 @@ func ParseFile(path string) (*structs.Job, error) {
 }
 
 func parseJob(result *structs.Job, list *ast.ObjectList) error {
-	list = list.Children()
 	if len(list.Items) != 1 {
 		return fmt.Errorf("only one 'job' block allowed")
+	}
+	list = list.Children()
+	if len(list.Items) != 1 {
+		return fmt.Errorf("'job' block missing name")
 	}
 
 	// Get our job object
