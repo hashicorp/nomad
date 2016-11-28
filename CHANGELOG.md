@@ -1,5 +1,8 @@
 ## 0.5.1 (Unreleased)
 
+IMPROVEMENTS:
+  * driver/rkt: Support rkt's `--dns=host` and `--dns=none` options [GH-2028]
+
 BUG FIXES:
   * agent/config: Fix use of IPv6 addresses [GH-2036]
   * driver/rkt: Fix validation of rkt volumes [GH-2027]
