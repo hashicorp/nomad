@@ -907,6 +907,8 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
 			if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
 				authOptions = authConfiguration
+			} else {
+				d.logger.Printf("[INFO] Failed to find docker auth with key %s", authConfigurationKey)
 			}
 		} else {
 			return fmt.Errorf("Failed to open auth config file: %v, error: %v", authConfigFile, err)
