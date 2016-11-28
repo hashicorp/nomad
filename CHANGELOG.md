@@ -6,6 +6,7 @@ BUG FIXES:
   * client: Fix race on StreamFramer Destroy which would cause a panic [GH-2007]
   * driver/docker: Make container exist errors non-retriable by task runner
     [GH-2033]
+  * driver/rkt: Fix validation of rkt volumes [GH-2027]
 
 ## 0.5.0 (November 16, 2016)
 
