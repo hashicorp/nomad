@@ -529,7 +529,7 @@ func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 			Err: &net.AddrError{Err: "invalid port", Addr: fmt.Sprint(port)},
 		}
 	}
-	return net.Listen(proto, fmt.Sprintf("%s:%d", addr, port))
+	return net.Listen(proto, net.JoinHostPort(addr, strconv.Itoa(port)))
 }
 
 // Merge merges two configurations.
@@ -677,9 +677,9 @@ func (c *Config) normalizeAddrs() error {
 	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
 	c.Addresses.Serf = normalizeBind(c.Addresses.Serf, c.BindAddr)
 	c.normalizedAddrs = &Addresses{
-		HTTP: fmt.Sprintf("%s:%d", c.Addresses.HTTP, c.Ports.HTTP),
-		RPC:  fmt.Sprintf("%s:%d", c.Addresses.RPC, c.Ports.RPC),
-		Serf: fmt.Sprintf("%s:%d", c.Addresses.Serf, c.Ports.Serf),
+		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
+		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
+		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
 	addr, err := normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
@@ -735,7 +735,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 			}
 
 			// missing port, append the default
-			return fmt.Sprintf("%s:%d", addr, defport), nil
+			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 		}
 		return addr, nil
 	}
@@ -749,11 +749,11 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	// Return the first unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return fmt.Sprintf("%s:%d", ip, defport), nil
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
 		if ip.IsLoopback() && dev {
 			// loopback is fine for dev mode
-			return fmt.Sprintf("%s:%d", ip, defport), nil
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
 	}
 
@@ -772,11 +772,11 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	// Return the first unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return fmt.Sprintf("%s:%d", ip, defport), nil
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
 		if ip.IsLoopback() && dev {
 			// loopback is fine for dev mode
-			return fmt.Sprintf("%s:%d", ip, defport), nil
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
 	}
 	return "", fmt.Errorf("No valid advertise addresses, please set `advertise` manually")
