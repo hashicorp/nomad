@@ -2,6 +2,7 @@
 
 BUG FIXES:
   * agent/config: Fix use of IPv6 addresses [GH-2036]
+  * driver/rkt: Fix validation of rkt volumes [GH-2027]
 
 ## 0.5.0 (November 16, 2016)
 
