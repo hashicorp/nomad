@@ -8,7 +8,7 @@ description: |-
 
 # /v1/allocation
 
-The `allocation` endpoint is used to query the a specific allocation.
+The `allocation` endpoint is used to query a specific allocation.
 By default, the agent's local region is used; another region can
 be specified using the `?region=` query parameter.
 
