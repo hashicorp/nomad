@@ -1,4 +1,4 @@
-## 0.5.1 (Unreleased)
+## 0.5.1
 
 IMPROVEMENTS:
   * driver/rkt: Support rkt's `--dns=host` and `--dns=none` options [GH-2028]
@@ -9,6 +9,8 @@ BUG FIXES:
   * client: Fix race on StreamFramer Destroy which would cause a panic [GH-2007]
   * driver/docker: Make container exist errors non-retriable by task runner
     [GH-2033]
+  * driver/docker: Fixed an issue related to purging containers with same name
+    as Nomad is trying to start [GH-2037]
   * driver/rkt: Fix validation of rkt volumes [GH-2027]
 
 ## 0.5.0 (November 16, 2016)
