@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -57,7 +58,19 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 	if out.Alloc == nil {
 		return nil, CodedError(404, "alloc not found")
 	}
-	return out.Alloc, nil
+
+	// Decode the input data if there is any
+	alloc := out.Alloc
+	if alloc.Job != nil && len(alloc.Job.InputData) != 0 {
+		decoded, err := snappy.Decode(nil, alloc.Job.InputData)
+		if err != nil {
+			return nil, err
+		}
+		alloc = alloc.Copy()
+		alloc.Job.InputData = decoded
+	}
+
+	return alloc, nil
 }
 
 func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

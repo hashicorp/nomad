@@ -316,6 +316,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	if job.IsPeriodic() {
 		return fmt.Errorf("can't evaluate periodic job")
+	} else if job.IsDispatchTemplate() {
+		return fmt.Errorf("can't evaluate dispatch template job")
 	}
 
 	// Create a new evaluation
@@ -807,19 +809,19 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	// XXX disable job/evaluate on periodic jobs
-
-	// XXX merge in the meta data
-
 	// Derive the child job and commit it via Raft
 	dispatchJob := tmpl.Copy()
 	dispatchJob.Dispatch = nil
 	dispatchJob.ID = structs.DispatchedID(tmpl.ID, time.Now())
 	dispatchJob.Name = dispatchJob.ID
 
+	// Merge in the meta data
+	for k, v := range args.Meta {
+		dispatchJob.Meta[k] = v
+	}
+
 	// Compress the input
-	// XXX Decompress on the HTTP endpoint
-	dispatchJob.InputData = snappy.Encode(dispatchJob.InputData, args.InputData)
+	dispatchJob.InputData = snappy.Encode(nil, args.InputData)
 
 	regReq := &structs.JobRegisterRequest{
 		Job:          dispatchJob,

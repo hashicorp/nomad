@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -208,7 +209,19 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	if out.Job == nil {
 		return nil, CodedError(404, "job not found")
 	}
-	return out.Job, nil
+
+	// Decode the input data if there is any
+	job := out.Job
+	if len(job.InputData) != 0 {
+		decoded, err := snappy.Decode(nil, out.Job.InputData)
+		if err != nil {
+			return nil, err
+		}
+		job = job.Copy()
+		job.InputData = decoded
+	}
+
+	return job, nil
 }
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
