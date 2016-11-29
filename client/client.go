@@ -1723,6 +1723,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 
 	// Store the alloc runner.
 	c.allocLock.Lock()
+	if _, ok := c.allocs[alloc.ID]; ok {
+		c.allocLock.Unlock()
+		panic(fmt.Sprintf("Alloc Runner already exists for alloc %q", alloc.ID))
+	}
 	c.allocs[alloc.ID] = ar
 	c.allocLock.Unlock()
 	return nil
