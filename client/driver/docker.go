@@ -965,17 +965,22 @@ CREATE:
 	}
 
 	if strings.Contains(strings.ToLower(err.Error()), "container already exists") {
-		containers, err := client.ListContainers(docker.ListContainersOptions{})
+		containers, err := client.ListContainers(docker.ListContainersOptions{
+			All: true,
+		})
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
 			return nil, recoverable(fmt.Errorf("Failed to query list of containers: %s", err))
 		}
 
 		// Delete matching containers
+		// Adding a / infront of the container name since Docker returns the
+		// container names with a / pre-pended to the Nomad generated container names
+		containerName := "/" + config.Name
 		for _, container := range containers {
 			found := false
 			for _, name := range container.Names {
-				if name == config.Name {
+				if name == containerName {
 					found = true
 					break
 				}
