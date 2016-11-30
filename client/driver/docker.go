@@ -421,14 +421,22 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
 
-	// Start the container
-	err = client.StartContainer(container.ID, container.HostConfig)
-	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
-		pluginClient.Kill()
-		return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+	// We don't need to start the container if the container is already running
+	// since we don't create containers which are already present on the host
+	// and are running
+	if !container.State.Running {
+		// Start the container
+		err = client.StartContainer(container.ID, container.HostConfig)
+		if err != nil {
+			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
+			pluginClient.Kill()
+			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+		}
+		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
+	} else {
+		d.logger.Printf("[DEBUG] driver.docker: re-attaching to container %s with status %q",
+			container.ID, container.State.String())
 	}
-	d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
@@ -992,8 +1000,19 @@ CREATE:
 				continue
 			}
 
+			// Inspect the container and if the container isn't dead then return
+			// the container
+			container, err := client.InspectContainer(container.ID)
+			if err != nil {
+				return nil, recoverable(fmt.Errorf("Failed to inspect container %s: %s", container.ID, err))
+			}
+			if container != nil && (container.State.Running || container.State.FinishedAt.IsZero()) {
+				return container, nil
+			}
+
 			err = client.RemoveContainer(docker.RemoveContainerOptions{
-				ID: container.ID,
+				ID:    container.ID,
+				Force: true,
 			})
 			if err != nil {
 				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
