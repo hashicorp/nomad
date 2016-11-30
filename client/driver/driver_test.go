@@ -89,7 +89,11 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 		return nil, nil
 	}
 
-	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	logger := testLogger()
+	emitter := func(m string, args ...interface{}) {
+		logger.Printf("[EVENT] "+m, args...)
+	}
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, logger, taskEnv, emitter)
 	return driverCtx, execCtx
 }
 

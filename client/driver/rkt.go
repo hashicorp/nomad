@@ -206,6 +206,13 @@ func (d *RktDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
+func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	return nil
+}
+
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig RktDriverConfig
@@ -289,10 +296,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
-	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
-	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	d.taskEnv.Build()
 	for k, v := range d.taskEnv.EnvMap() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
 	}

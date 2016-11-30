@@ -51,6 +51,10 @@ type Driver interface {
 	// Drivers must support the fingerprint interface for detection
 	fingerprint.Fingerprint
 
+	// Prestart prepares the task environment and performs expensive
+	// intialization steps like downloading images.
+	Prestart(*ExecContext, *structs.Task) error
+
 	// Start is used to being task execution
 	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
 
@@ -70,6 +74,9 @@ type DriverAbilities struct {
 	SendSignals bool
 }
 
+// LogEventFn is a callback which allows Drivers to emit task events.
+type LogEventFn func(message string, args ...interface{})
+
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjection with Factory, above.
@@ -79,18 +86,14 @@ type DriverContext struct {
 	logger   *log.Logger
 	node     *structs.Node
 	taskEnv  *env.TaskEnvironment
+
+	emitEvent LogEventFn
 }
 
 // NewEmptyDriverContext returns a DriverContext with all fields set to their
 // zero value.
 func NewEmptyDriverContext() *DriverContext {
-	return &DriverContext{
-		taskName: "",
-		config:   nil,
-		node:     nil,
-		logger:   nil,
-		taskEnv:  nil,
-	}
+	return &DriverContext{}
 }
 
 // NewDriverContext initializes a new DriverContext with the specified fields.
@@ -98,13 +101,14 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName string, config *config.Config, node *structs.Node,
-	logger *log.Logger, taskEnv *env.TaskEnvironment) *DriverContext {
+	logger *log.Logger, taskEnv *env.TaskEnvironment, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName: taskName,
-		config:   config,
-		node:     node,
-		logger:   logger,
-		taskEnv:  taskEnv,
+		taskName:  taskName,
+		config:    config,
+		node:      node,
+		logger:    logger,
+		taskEnv:   taskEnv,
+		emitEvent: eventEmitter,
 	}
 }
 

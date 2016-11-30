@@ -69,6 +69,9 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewLxcDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -141,6 +144,9 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewLxcDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)

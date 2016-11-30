@@ -252,30 +252,32 @@ const (
 	TaskSiblingFailed          = "Sibling task failed"
 	TaskSignaling              = "Signaling"
 	TaskRestartSignal          = "Restart Signaled"
+	TaskInitializing           = "Initializing"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
 // appropriate to the events type.
 type TaskEvent struct {
-	Type             string
-	Time             int64
-	FailsTask        bool
-	RestartReason    string
-	SetupError       string
-	DriverError      string
-	ExitCode         int
-	Signal           int
-	Message          string
-	KillReason       string
-	KillTimeout      time.Duration
-	KillError        string
-	StartDelay       int64
-	DownloadError    string
-	ValidationError  string
-	DiskLimit        int64
-	DiskSize         int64
-	FailedSibling    string
-	VaultError       string
-	TaskSignalReason string
-	TaskSignal       string
+	Type                  string
+	Time                  int64
+	FailsTask             bool
+	RestartReason         string
+	SetupError            string
+	DriverError           string
+	ExitCode              int
+	Signal                int
+	Message               string
+	KillReason            string
+	KillTimeout           time.Duration
+	KillError             string
+	StartDelay            int64
+	DownloadError         string
+	ValidationError       string
+	DiskLimit             int64
+	DiskSize              int64
+	FailedSibling         string
+	VaultError            string
+	TaskSignalReason      string
+	TaskSignal            string
+	InitializationMessage string
 }

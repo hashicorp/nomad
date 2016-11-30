@@ -2555,6 +2555,10 @@ const (
 	// TaskSiblingFailed indicates that a sibling task in the task group has
 	// failed.
 	TaskSiblingFailed = "Sibling task failed"
+
+	// TaskInitializing indicates that a task is performing a potentially
+	// slow initialization action such as downloading a Docker image.
+	TaskInitializing = "Initializing"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -2613,6 +2617,9 @@ type TaskEvent struct {
 
 	// TaskSignal is the signal that was sent to the task
 	TaskSignal string
+
+	// InitializationMessage indicates the initialization step being executed.
+	InitializationMessage string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -2738,6 +2745,11 @@ func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 	if err != nil {
 		e.VaultError = err.Error()
 	}
+	return e
+}
+
+func (e *TaskEvent) SetInitializationMessage(m string) *TaskEvent {
+	e.InitializationMessage = m
 	return e
 }
 
