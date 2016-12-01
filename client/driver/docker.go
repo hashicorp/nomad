@@ -49,6 +49,17 @@ var (
 	// The statistics the Docker driver exposes
 	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
 	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
+
+	// recoverableErrTimeouts returns a recoverable error if the error was due
+	// to timeouts
+	recoverableErrTimeouts = func(err error) *structs.RecoverableError {
+		r := false
+		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
+			strings.Contains(err.Error(), "EOF") {
+			r = true
+		}
+		return structs.NewRecoverableError(err, r)
+	}
 )
 
 const (
@@ -75,7 +86,7 @@ const (
 
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
-	dockerTimeout = 1 * time.Minute
+	dockerTimeout = 5 * time.Minute
 )
 
 type DockerDriver struct {
@@ -426,11 +437,12 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// and are running
 	if !container.State.Running {
 		// Start the container
-		err = client.StartContainer(container.ID, container.HostConfig)
+		err := d.startContainer(container)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
 			pluginClient.Kill()
-			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+			err.Err = fmt.Sprintf("Failed to start container %s: %s", container.ID, err)
+			return nil, err
 		}
 		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 	} else {
@@ -954,31 +966,22 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
 func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, *structs.RecoverableError) {
-	attempted := 0
-
-	recoverable := func(err error) *structs.RecoverableError {
-		r := false
-		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
-			strings.Contains(err.Error(), "EOF") {
-			r = true
-		}
-		return structs.NewRecoverableError(err, r)
-	}
-
 	// Create a container
+	attempted := 0
 CREATE:
-	container, err := client.CreateContainer(config)
-	if err == nil {
+	container, createErr := client.CreateContainer(config)
+	if createErr == nil {
 		return container, nil
 	}
 
-	if strings.Contains(strings.ToLower(err.Error()), "container already exists") {
+	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q (attempt %d): %v", config.Name, attempted+1, createErr)
+	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
 		})
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
-			return nil, recoverable(fmt.Errorf("Failed to query list of containers: %s", err))
+			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to query list of containers: %s", err))
 		}
 
 		// Delete matching containers
@@ -1004,7 +1007,7 @@ CREATE:
 			// the container
 			container, err := client.InspectContainer(container.ID)
 			if err != nil {
-				return nil, recoverable(fmt.Errorf("Failed to inspect container %s: %s", container.ID, err))
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to inspect container %s: %s", container.ID, err))
 			}
 			if container != nil && (container.State.Running || container.State.FinishedAt.IsZero()) {
 				return container, nil
@@ -1016,7 +1019,7 @@ CREATE:
 			})
 			if err != nil {
 				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
-				return nil, recoverable(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
 			} else if err == nil {
 				d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
 			}
@@ -1029,7 +1032,32 @@ CREATE:
 		}
 	}
 
-	return nil, recoverable(err)
+	return nil, recoverableErrTimeouts(createErr)
+}
+
+// startContainer starts the passed container. It attempts to handle any
+// transient Docker errors.
+func (d *DockerDriver) startContainer(c *docker.Container) *structs.RecoverableError {
+	// Start a container
+	attempted := 0
+START:
+	startErr := client.StartContainer(c.ID, c.HostConfig)
+	if startErr == nil {
+		return nil
+	}
+
+	d.logger.Printf("[DEBUG] driver.docker: failed to start container %q (attempt %d): %v", c.ID, attempted+1, startErr)
+
+	// If it is a 500 error it is likely we can retry and be successful
+	if strings.Contains(startErr.Error(), "API error (500)") {
+		if attempted < 5 {
+			attempted++
+			time.Sleep(1 * time.Second)
+			goto START
+		}
+	}
+
+	return recoverableErrTimeouts(startErr)
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
