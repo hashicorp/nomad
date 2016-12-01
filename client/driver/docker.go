@@ -1139,6 +1139,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		pluginClient:   pluginClient,
 		cleanupImage:   cleanupImage,
 		logger:         d.logger,
+		dockerLogger:   dockerLogger(d.logger, ctx.AllocID, "open"),
 		imageID:        pid.ImageID,
 		containerID:    pid.ContainerID,
 		version:        pid.Version,
