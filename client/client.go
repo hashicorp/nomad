@@ -1795,7 +1795,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		Tasks:    verifiedTasks,
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
-			AllowStale: true,
+			AllowStale: false,
 		},
 	}
 
