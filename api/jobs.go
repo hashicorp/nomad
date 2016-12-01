@@ -189,7 +189,6 @@ type PeriodicConfig struct {
 
 // DispatchConfig is used to configure the dispatch template
 type DispatchConfig struct {
-	Paused       bool
 	InputData    string
 	MetaRequired []string
 	MetaOptional []string

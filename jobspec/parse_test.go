@@ -548,7 +548,6 @@ func TestParse(t *testing.T) {
 				Region:   "global",
 
 				Dispatch: &structs.DispatchConfig{
-					Paused:       true,
 					InputData:    "required",
 					MetaRequired: []string{"foo", "bar"},
 					MetaOptional: []string{"baz", "bam"},

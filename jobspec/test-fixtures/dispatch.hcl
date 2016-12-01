@@ -1,6 +1,5 @@
 job "dispatch" {
     dispatch {
-        paused = true
         input_data = "required"
         meta_keys {
             required = ["foo", "bar"]

@@ -1575,10 +1575,6 @@ const (
 
 // DispatchConfig is used to configure the dispatch template
 type DispatchConfig struct {
-	// Paused specifies whether jobs can be dispatched based on the template or
-	// if the job is paused.
-	Paused bool
-
 	// InputData configure the input data requirements
 	InputData string `mapstructure:"input_data"`
 
