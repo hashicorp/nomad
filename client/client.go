@@ -1370,22 +1370,32 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	for _, add := range diff.added {
 		// If the allocation is chained and the previous allocation hasn't
 		// terminated yet, then add the alloc to the blocked queue.
+		c.blockedAllocsLock.Lock()
 		ar, ok := c.getAllocRunners()[add.PreviousAllocation]
 		if ok && !ar.Alloc().Terminated() {
-			c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue", add.ID)
-			c.blockedAllocsLock.Lock()
-			c.blockedAllocations[add.PreviousAllocation] = add
+			// Check if the alloc is already present in the blocked allocations
+			// map
+			if _, ok := c.blockedAllocations[add.PreviousAllocation]; !ok {
+				c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue for previous allocation %q", add.ID,
+					add.PreviousAllocation)
+				c.blockedAllocations[add.PreviousAllocation] = add
+			}
 			c.blockedAllocsLock.Unlock()
 			continue
 		}
+		c.blockedAllocsLock.Unlock()
 
 		// This means the allocation has a previous allocation on another node
 		// so we will block for the previous allocation to complete
 		if add.PreviousAllocation != "" && !ok {
+			// Ensure that we are not blocking for the remote allocation if we
+			// have already blocked
 			c.migratingAllocsLock.Lock()
-			c.migratingAllocs[add.ID] = make(chan struct{})
+			if _, ok := c.migratingAllocs[add.ID]; !ok {
+				c.migratingAllocs[add.ID] = make(chan struct{})
+				go c.blockForRemoteAlloc(add)
+			}
 			c.migratingAllocsLock.Unlock()
-			go c.blockForRemoteAlloc(add)
 			continue
 		}
 
@@ -1713,6 +1723,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 
 	// Store the alloc runner.
 	c.allocLock.Lock()
+	if _, ok := c.allocs[alloc.ID]; ok {
+		c.allocLock.Unlock()
+		panic(fmt.Sprintf("Alloc Runner already exists for alloc %q", alloc.ID))
+	}
 	c.allocs[alloc.ID] = ar
 	c.allocLock.Unlock()
 	return nil

@@ -263,8 +263,8 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	if time.Since(start) > 15*time.Second {
-		t.Fatalf("took too long to terminate")
+	if elapsed := time.Since(start); elapsed > 20*time.Second {
+		t.Fatalf("took too long to terminate: %s", elapsed)
 	}
 }
 
