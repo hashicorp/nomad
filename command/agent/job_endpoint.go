@@ -286,12 +286,17 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	args := structs.JobDispatchRequest{
-		JobID: name,
-	}
+	args := structs.JobDispatchRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
+	if args.JobID != "" && args.JobID != name {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+	if args.JobID == "" {
+		args.JobID = name
+	}
+
 	s.parseRegion(req, &args.Region)
 
 	var out structs.JobDispatchResponse
