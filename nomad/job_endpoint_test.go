@@ -249,6 +249,48 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Dispatch_Template(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request for a dispatch template job.
+	job := mock.Job()
+	job.Dispatch = &structs.DispatchConfig{}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.CreateIndex != resp.JobModifyIndex {
+		t.Fatalf("index mis-match")
+	}
+	if resp.EvalID != "" {
+		t.Fatalf("Register created an eval for a dispatch template job")
+	}
+}
+
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -714,6 +756,43 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluate_Dispatch_Template(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Dispatch = &structs.DispatchConfig{}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID:        job.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp); err == nil {
+		t.Fatal("expect an err")
+	}
+}
+
 func TestJobEndpoint_Deregister(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -891,6 +970,56 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 
 	if resp.EvalID != "" {
 		t.Fatalf("Deregister created an eval for a periodic job")
+	}
+}
+
+func TestJobEndpoint_Deregister_Dispatch_Template(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Dispatch = &structs.DispatchConfig{}
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Deregister
+	dereg := &structs.JobDeregisterRequest{
+		JobID:        job.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.JobDeregisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.JobModifyIndex == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected job")
+	}
+
+	if resp.EvalID != "" {
+		t.Fatalf("Deregister created an eval for a dispatch template job")
 	}
 }
 
@@ -1723,5 +1852,223 @@ func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
 
 	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "support sending signals") {
 		t.Fatalf("Expected signal feasibility error; got %v", err)
+	}
+}
+
+func TestJobEndpoint_Dispatch(t *testing.T) {
+
+	// No requirements
+	d1 := mock.Job()
+	d1.Dispatch = &structs.DispatchConfig{}
+
+	// Require input data
+	d2 := mock.Job()
+	d2.Dispatch = &structs.DispatchConfig{
+		InputData: structs.DispatchInputDataRequired,
+	}
+
+	// Disallow input data
+	d3 := mock.Job()
+	d3.Dispatch = &structs.DispatchConfig{
+		InputData: structs.DispatchInputDataForbidden,
+	}
+
+	// Require meta
+	d4 := mock.Job()
+	d4.Dispatch = &structs.DispatchConfig{
+		MetaRequired: []string{"foo", "bar"},
+	}
+
+	// Optional meta
+	d5 := mock.Job()
+	d5.Dispatch = &structs.DispatchConfig{
+		MetaOptional: []string{"foo", "bar"},
+	}
+
+	reqNoInputNoMeta := &structs.JobDispatchRequest{}
+	reqInputDataNoMeta := &structs.JobDispatchRequest{
+		InputData: []byte("hello world"),
+	}
+	reqNoInputDataMeta := &structs.JobDispatchRequest{
+		Meta: map[string]string{
+			"foo": "f1",
+			"bar": "f2",
+		},
+	}
+	reqInputDataMeta := &structs.JobDispatchRequest{
+		InputData: []byte("hello world"),
+		Meta: map[string]string{
+			"foo": "f1",
+			"bar": "f2",
+		},
+	}
+	reqBadMeta := &structs.JobDispatchRequest{
+		InputData: []byte("hello world"),
+		Meta: map[string]string{
+			"foo": "f1",
+			"bar": "f2",
+			"baz": "f3",
+		},
+	}
+	reqInputDataTooLarge := &structs.JobDispatchRequest{
+		InputData: make([]byte, DispatchInputDataSizeLimit+100),
+	}
+
+	type testCase struct {
+		name             string
+		dispatchTemplate *structs.Job
+		dispatchReq      *structs.JobDispatchRequest
+		err              bool
+		errStr           string
+	}
+	cases := []testCase{
+		{
+			name:             "optional input data w/ data",
+			dispatchTemplate: d1,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
+		},
+		{
+			name:             "optional input data w/o data",
+			dispatchTemplate: d1,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
+		},
+		{
+			name:             "require input data w/ data",
+			dispatchTemplate: d2,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
+		},
+		{
+			name:             "require input data w/o data",
+			dispatchTemplate: d2,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "not provided but required",
+		},
+		{
+			name:             "disallow input data w/o data",
+			dispatchTemplate: d3,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
+		},
+		{
+			name:             "disallow input data w/ data",
+			dispatchTemplate: d3,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              true,
+			errStr:           "provided but forbidden",
+		},
+		{
+			name:             "require meta w/ meta",
+			dispatchTemplate: d4,
+			dispatchReq:      reqInputDataMeta,
+			err:              false,
+		},
+		{
+			name:             "require meta w/o meta",
+			dispatchTemplate: d4,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "did not provide required meta keys",
+		},
+		{
+			name:             "optional meta w/ meta",
+			dispatchTemplate: d5,
+			dispatchReq:      reqNoInputDataMeta,
+			err:              false,
+		},
+		{
+			name:             "optional meta w/o meta",
+			dispatchTemplate: d5,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
+		},
+		{
+			name:             "optional meta w/ bad meta",
+			dispatchTemplate: d5,
+			dispatchReq:      reqBadMeta,
+			err:              true,
+			errStr:           "unpermitted metadata keys",
+		},
+		{
+			name:             "optional input w/ too big of input",
+			dispatchTemplate: d1,
+			dispatchReq:      reqInputDataTooLarge,
+			err:              true,
+			errStr:           "data exceeds maximum size",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1 := testServer(t, func(c *Config) {
+				c.NumSchedulers = 0 // Prevent automatic dequeue
+			})
+			defer s1.Shutdown()
+			codec := rpcClient(t, s1)
+			testutil.WaitForLeader(t, s1.RPC)
+
+			// Create the register request
+			regReq := &structs.JobRegisterRequest{
+				Job:          tc.dispatchTemplate,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			// Fetch the response
+			var regResp structs.JobRegisterResponse
+			if err := msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			// Now try to dispatch
+			tc.dispatchReq.JobID = tc.dispatchTemplate.ID
+			tc.dispatchReq.WriteRequest = structs.WriteRequest{Region: "global"}
+
+			var dispatchResp structs.JobDispatchResponse
+			dispatchErr := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &dispatchResp)
+
+			if dispatchErr == nil {
+				if tc.err {
+					t.Fatalf("Expected error: %v", dispatchErr)
+				}
+
+				// Check that we got an eval and job id back
+				if dispatchResp.EvalID == "" || dispatchResp.DispatchedJobID == "" {
+					t.Fatalf("Bad response")
+				}
+
+				state := s1.fsm.State()
+				out, err := state.JobByID(dispatchResp.DispatchedJobID)
+				if err != nil {
+					t.Fatalf("err: %v", err)
+				}
+				if out == nil {
+					t.Fatalf("expected job")
+				}
+				if out.CreateIndex != dispatchResp.JobCreateIndex {
+					t.Fatalf("index mis-match")
+				}
+
+				// Lookup the evaluation
+				eval, err := state.EvalByID(dispatchResp.EvalID)
+				if err != nil {
+					t.Fatalf("err: %v", err)
+				}
+				if eval == nil {
+					t.Fatalf("expected eval")
+				}
+				if eval.CreateIndex != dispatchResp.EvalCreateIndex {
+					t.Fatalf("index mis-match")
+				}
+			} else {
+				if !tc.err {
+					t.Fatalf("Got unexpected error: %v", dispatchErr)
+				} else if !strings.Contains(dispatchErr.Error(), tc.errStr) {
+					t.Fatalf("Expected err to include %q; got %v", tc.errStr, dispatchErr)
+				}
+			}
+		})
 	}
 }

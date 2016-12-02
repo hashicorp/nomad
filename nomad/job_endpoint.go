@@ -382,8 +382,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic, we don't create an eval.
-	if job != nil && job.IsPeriodic() {
+	// If the job is periodic or a dispatch template, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsDispatchTemplate()) {
 		return nil
 	}
 
@@ -926,7 +926,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, tmpl *structs.Job)
 			flat = append(flat, k)
 		}
 
-		return fmt.Errorf("Dispatch did not provided required meta keys: %v", flat)
+		return fmt.Errorf("Dispatch did not provide required meta keys: %v", flat)
 	}
 
 	return nil
