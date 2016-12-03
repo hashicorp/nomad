@@ -23,6 +23,69 @@ const (
 
 var logger = log.New(os.Stdout, "", log.LstdFlags)
 
+func TestSyncNow(t *testing.T) {
+	cs, testconsul := testConsul(t)
+	defer cs.Shutdown()
+	defer testconsul.Stop()
+
+	cs.SetAddrFinder(func(h string) (string, int) {
+		a, pstr, _ := net.SplitHostPort(h)
+		p, _ := net.LookupPort("tcp", pstr)
+		return a, p
+	})
+	cs.syncInterval = 9000 * time.Hour
+
+	service := &structs.Service{Name: "foo1", Tags: []string{"a", "b"}}
+	services := map[ServiceKey]*structs.Service{
+		GenerateServiceKey(service): service,
+	}
+
+	// Run syncs once on startup and then blocks forever
+	go cs.Run()
+
+	if err := cs.SetServices(serviceGroupName, services); err != nil {
+		t.Fatalf("error setting services: %v", err)
+	}
+
+	synced := false
+	for i := 0; !synced && i < 10; i++ {
+		time.Sleep(250 * time.Millisecond)
+		agentServices, err := cs.queryAgentServices()
+		if err != nil {
+			t.Fatalf("error querying consul services: %v", err)
+		}
+		synced = len(agentServices) == 1
+	}
+	if !synced {
+		t.Fatalf("initial sync never occurred")
+	}
+
+	// SetServices again should cause another sync
+	service1 := &structs.Service{Name: "foo1", Tags: []string{"Y", "Z"}}
+	service2 := &structs.Service{Name: "bar"}
+	services = map[ServiceKey]*structs.Service{
+		GenerateServiceKey(service1): service1,
+		GenerateServiceKey(service2): service2,
+	}
+
+	if err := cs.SetServices(serviceGroupName, services); err != nil {
+		t.Fatalf("error setting services: %v", err)
+	}
+
+	synced = false
+	for i := 0; !synced && i < 10; i++ {
+		time.Sleep(250 * time.Millisecond)
+		agentServices, err := cs.queryAgentServices()
+		if err != nil {
+			t.Fatalf("error querying consul services: %v", err)
+		}
+		synced = len(agentServices) == 2
+	}
+	if !synced {
+		t.Fatalf("SetServices didn't sync immediately")
+	}
+}
+
 func TestCheckRegistration(t *testing.T) {
 	cs, err := NewSyncer(config.DefaultConsulConfig(), make(chan struct{}), logger)
 	if err != nil {

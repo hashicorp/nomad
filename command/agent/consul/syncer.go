@@ -35,7 +35,6 @@ import (
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -56,11 +55,11 @@ const (
 	nomadServicePrefix = "_nomad"
 
 	// The periodic time interval for syncing services and checks with Consul
-	syncInterval = 5 * time.Second
+	defaultSyncInterval = 6 * time.Second
 
-	// syncJitter provides a little variance in the frequency at which
+	// defaultSyncJitter provides a little variance in the frequency at which
 	// Syncer polls Consul.
-	syncJitter = 8
+	defaultSyncJitter = time.Second
 
 	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
 	// the check result
@@ -144,6 +143,13 @@ type Syncer struct {
 	periodicCallbacks map[string]types.PeriodicCallback
 	notifySyncCh      chan struct{}
 	periodicLock      sync.RWMutex
+
+	// The periodic time interval for syncing services and checks with Consul
+	syncInterval time.Duration
+
+	// syncJitter provides a little variance in the frequency at which
+	// Syncer polls Consul.
+	syncJitter time.Duration
 }
 
 // NewSyncer returns a new consul.Syncer
@@ -170,7 +176,9 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
 		notifySyncCh:      make(chan struct{}, 1),
 		// default noop implementation of addrFinder
-		addrFinder: func(string) (string, int) { return "", 0 },
+		addrFinder:   func(string) (string, int) { return "", 0 },
+		syncInterval: defaultSyncInterval,
+		syncJitter:   defaultSyncJitter,
 	}
 
 	return &consulSyncer, nil
@@ -810,7 +818,7 @@ func (c *Syncer) Run() {
 	for {
 		select {
 		case <-sync.C:
-			d := syncInterval - lib.RandomStagger(syncInterval/syncJitter)
+			d := c.syncInterval - c.syncJitter
 			sync.Reset(d)
 
 			if err := c.SyncServices(); err != nil {
