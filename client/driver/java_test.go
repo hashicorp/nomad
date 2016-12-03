@@ -34,11 +34,12 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
+		Driver:    "java",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
 			"unique.cgroup.mountpoint": "/sys/fs/cgroups",
@@ -72,7 +73,8 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
-		Name: "demo-app",
+		Name:   "demo-app",
+		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path":    "demoapp.jar",
 			"jvm_options": []string{"-Xmx64m", "-Xms32m"},
@@ -84,18 +86,18 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
-	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -104,7 +106,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -127,7 +129,8 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
-		Name: "demo-app",
+		Name:   "demo-app",
+		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
 		},
@@ -138,17 +141,18 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
-	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -168,7 +172,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	}
 
 	// Get the stdout of the process and assrt that it's not empty
-	stdout := filepath.Join(execCtx.AllocDir.LogDir(), "demo-app.stdout.0")
+	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {
 		t.Fatalf("failed to get stdout of process: %v", err)
@@ -191,7 +195,8 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
-		Name: "demo-app",
+		Name:   "demo-app",
+		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
 		},
@@ -202,18 +207,18 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
-	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -252,7 +257,8 @@ func TestJavaDriver_Signal(t *testing.T) {
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
-		Name: "demo-app",
+		Name:   "demo-app",
+		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
 		},
@@ -263,18 +269,18 @@ func TestJavaDriver_Signal(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
-	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -313,8 +319,9 @@ func TestJavaDriverUser(t *testing.T) {
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
-		Name: "demo-app",
-		User: "alice",
+		Name:   "demo-app",
+		Driver: "java",
+		User:   "alice",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
 		},
@@ -325,14 +332,14 @@ func TestJavaDriverUser(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewJavaDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
 		handle.Kill()
 		t.Fatalf("Should've failed")

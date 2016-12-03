@@ -44,7 +44,7 @@ type execHandle struct {
 	executor        executor.Executor
 	isolationConfig *dstructs.IsolationConfig
 	userPid         int
-	allocDir        *allocdir.AllocDir
+	taskDir         *allocdir.TaskDir
 	killTimeout     time.Duration
 	maxKillTimeout  time.Duration
 	logger          *log.Logger
@@ -86,11 +86,15 @@ func (d *ExecDriver) Abilities() DriverAbilities {
 	}
 }
 
+func (d *ExecDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationChroot
+}
+
 func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *ExecDriver) Prestart(execctx *ExecContext, task *structs.Task) error {
+func (d *ExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 	return nil
 }
 
@@ -106,17 +110,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 
-	// Get the task directory for storing the executor logs.
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
-
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -126,12 +124,12 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:   d.taskEnv,
-		Driver:    "exec",
-		AllocDir:  ctx.AllocDir,
-		AllocID:   ctx.AllocID,
-		ChrootEnv: d.config.ChrootEnv,
-		Task:      task,
+		TaskEnv: d.taskEnv,
+		Driver:  "exec",
+		AllocID: ctx.AllocID,
+		LogDir:  ctx.TaskDir.LogDir,
+		TaskDir: ctx.TaskDir.Dir,
+		Task:    task,
 	}
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
@@ -160,7 +158,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient:    pluginClient,
 		userPid:         ps.Pid,
 		executor:        exec,
-		allocDir:        ctx.AllocDir,
 		isolationConfig: ps.IsolationConfig,
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
@@ -181,8 +178,6 @@ type execId struct {
 	KillTimeout     time.Duration
 	MaxKillTimeout  time.Duration
 	UserPid         int
-	TaskDir         string
-	AllocDir        *allocdir.AllocDir
 	IsolationConfig *dstructs.IsolationConfig
 	PluginConfig    *PluginReattachConfig
 }
@@ -210,9 +205,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
 			}
 		}
-		if e := ctx.AllocDir.UnmountAll(); e != nil {
-			merrs.Errors = append(merrs.Errors, e)
-		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
@@ -223,7 +215,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient:    client,
 		executor:        exec,
 		userPid:         id.UserPid,
-		allocDir:        id.AllocDir,
 		isolationConfig: id.IsolationConfig,
 		logger:          d.logger,
 		version:         id.Version,
@@ -246,7 +237,6 @@ func (h *execHandle) ID() string {
 		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
-		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
 	}
 
@@ -284,17 +274,15 @@ func (h *execHandle) Kill() error {
 
 	select {
 	case <-h.doneCh:
-		return nil
 	case <-time.After(h.killTimeout):
 		if h.pluginClient.Exited() {
-			return nil
+			break
 		}
 		if err := h.executor.Exit(); err != nil {
 			return fmt.Errorf("executor Exit failed: %v", err)
 		}
-
-		return nil
 	}
+	return nil
 }
 
 func (h *execHandle) Stats() (*cstructs.TaskResourceUsage, error) {
@@ -316,9 +304,6 @@ func (h *execHandle) run() {
 			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
 				h.logger.Printf("[ERR] driver.exec: destroying resource container failed: %v", e)
 			}
-		}
-		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 

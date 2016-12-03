@@ -92,7 +92,9 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	go s.server.Start()
 	logFileSize := int64(ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 
-	lro, err := NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stdout", ctx.TaskName),
+	//FIXME There's an easier way to get this
+	logdir := ctx.AllocDir.TaskDirs[ctx.TaskName].LogDir
+	lro, err := NewFileRotator(logdir, fmt.Sprintf("%v.stdout", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 
 	if err != nil {
@@ -100,7 +102,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	}
 	s.lro = lro
 
-	lre, err := NewFileRotator(ctx.AllocDir.LogDir(), fmt.Sprintf("%v.stderr", ctx.TaskName),
+	lre, err := NewFileRotator(logdir, fmt.Sprintf("%v.stderr", ctx.TaskName),
 		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 	if err != nil {
 		return nil, err
@@ -157,7 +159,7 @@ func (s *SyslogCollector) configureTaskDir() error {
 	if !ok {
 		return fmt.Errorf("couldn't find task directory for task %v", s.ctx.TaskName)
 	}
-	s.taskDir = taskDir
+	s.taskDir = taskDir.Dir
 	return nil
 }
 

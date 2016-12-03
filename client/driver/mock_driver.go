@@ -75,6 +75,10 @@ func (d *MockDriver) Abilities() DriverAbilities {
 	}
 }
 
+func (d *MockDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationNone
+}
+
 func (d *MockDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 	return nil
 }

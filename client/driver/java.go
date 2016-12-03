@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -54,8 +53,6 @@ type javaHandle struct {
 	executor        executor.Executor
 	isolationConfig *dstructs.IsolationConfig
 
-	taskDir        string
-	allocDir       *allocdir.AllocDir
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
 	version        string
@@ -98,6 +95,10 @@ func (d *JavaDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
 	}
+}
+
+func (d *JavaDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationChroot
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -173,11 +174,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
-
 	if driverConfig.JarPath == "" {
 		return nil, fmt.Errorf("jar_path must be specified")
 	}
@@ -200,7 +196,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -212,12 +208,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Set the context
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:   d.taskEnv,
-		Driver:    "java",
-		AllocDir:  ctx.AllocDir,
-		AllocID:   ctx.AllocID,
-		ChrootEnv: d.config.ChrootEnv,
-		Task:      task,
+		TaskEnv: d.taskEnv,
+		Driver:  "java",
+		AllocID: ctx.AllocID,
+		Task:    task,
+		TaskDir: ctx.TaskDir.Dir,
+		LogDir:  ctx.TaskDir.LogDir,
 	}
 	if err := execIntf.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
@@ -250,8 +246,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		executor:        execIntf,
 		userPid:         ps.Pid,
 		isolationConfig: ps.IsolationConfig,
-		taskDir:         taskDir,
-		allocDir:        ctx.AllocDir,
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
 		version:         d.config.Version,
@@ -279,8 +273,6 @@ type javaId struct {
 	MaxKillTimeout  time.Duration
 	PluginConfig    *PluginReattachConfig
 	IsolationConfig *dstructs.IsolationConfig
-	TaskDir         string
-	AllocDir        *allocdir.AllocDir
 	UserPid         int
 }
 
@@ -307,9 +299,6 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying resource container failed: %v", e))
 			}
 		}
-		if e := ctx.AllocDir.UnmountAll(); e != nil {
-			merrs.Errors = append(merrs.Errors, e)
-		}
 
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
@@ -323,8 +312,6 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		executor:        exec,
 		userPid:         id.UserPid,
 		isolationConfig: id.IsolationConfig,
-		taskDir:         id.TaskDir,
-		allocDir:        id.AllocDir,
 		logger:          d.logger,
 		version:         id.Version,
 		killTimeout:     id.KillTimeout,
@@ -347,8 +334,6 @@ func (h *javaHandle) ID() string {
 		MaxKillTimeout:  h.maxKillTimeout,
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
-		TaskDir:         h.taskDir,
-		AllocDir:        h.allocDir,
 		IsolationConfig: h.isolationConfig,
 	}
 
@@ -386,17 +371,16 @@ func (h *javaHandle) Kill() error {
 
 	select {
 	case <-h.doneCh:
-		return nil
 	case <-time.After(h.killTimeout):
 		if h.pluginClient.Exited() {
-			return nil
+			break
 		}
 		if err := h.executor.Exit(); err != nil {
 			return fmt.Errorf("executor Exit failed: %v", err)
 		}
 
-		return nil
 	}
+	return nil
 }
 
 func (h *javaHandle) Stats() (*cstructs.TaskResourceUsage, error) {
@@ -416,9 +400,6 @@ func (h *javaHandle) run() {
 			if e := killProcess(h.userPid); e != nil {
 				h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
 			}
-		}
-		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 

@@ -80,7 +80,6 @@ type rktHandle struct {
 	pluginClient   *plugin.Client
 	executorPid    int
 	executor       executor.Executor
-	allocDir       *allocdir.AllocDir
 	logger         *log.Logger
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
@@ -92,7 +91,6 @@ type rktHandle struct {
 // disk
 type rktPID struct {
 	PluginConfig   *PluginReattachConfig
-	AllocDir       *allocdir.AllocDir
 	ExecutorPid    int
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
@@ -101,6 +99,10 @@ type rktPID struct {
 // NewRktDriver is used to create a new exec driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
+}
+
+func (d *RktDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationImage
 }
 
 // Validate is used to validate the driver configuration
@@ -207,9 +209,6 @@ func (d *RktDriver) Periodic() (bool, time.Duration) {
 }
 
 func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
-	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	return nil
 }
 
@@ -224,13 +223,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// ACI image
 	img := driverConfig.ImageName
-
-	// Get the tasks local directory.
-	taskName := d.DriverContext.taskName
-	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
 
 	// Build the command.
 	var cmdArgs []string
@@ -259,17 +251,17 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Mount /alloc
 	allocVolName := fmt.Sprintf("%s-%s-alloc", ctx.AllocID, task.Name)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.AllocDir.SharedDir))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.TaskDir.SharedAllocDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
 
 	// Mount /local
 	localVolName := fmt.Sprintf("%s-%s-local", ctx.AllocID, task.Name)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, filepath.Join(taskDir, allocdir.TaskLocal)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, ctx.TaskDir.LocalDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
 
 	// Mount /secrets
 	secretsVolName := fmt.Sprintf("%s-%s-secrets", ctx.AllocID, task.Name)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, filepath.Join(taskDir, allocdir.TaskSecrets)))
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, ctx.TaskDir.SecretsDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
 
 	// Mount arbitrary volumes if enabled
@@ -297,7 +289,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Inject environment variables
 	for k, v := range d.taskEnv.EnvMap() {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%v", k, v))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%q", k, v))
 	}
 
 	// Check if the user has overridden the exec command.
@@ -407,7 +399,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -417,11 +409,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "rkt",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv: d.taskEnv,
+		Driver:  "rkt",
+		AllocID: ctx.AllocID,
+		Task:    task,
+		TaskDir: ctx.TaskDir.Dir,
+		LogDir:  ctx.TaskDir.LogDir,
 	}
 	if err := execIntf.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
@@ -450,7 +443,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		pluginClient:   pluginClient,
 		executor:       execIntf,
 		executorPid:    ps.Pid,
-		allocDir:       ctx.AllocDir,
 		logger:         d.logger,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
@@ -490,7 +482,6 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	h := &rktHandle{
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,
-		allocDir:       id.AllocDir,
 		executor:       exec,
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
@@ -512,7 +503,6 @@ func (h *rktHandle) ID() string {
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
 		ExecutorPid:    h.executorPid,
-		AllocDir:       h.allocDir,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -560,9 +550,6 @@ func (h *rktHandle) run() {
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.executorPid); e != nil {
 			h.logger.Printf("[ERROR] driver.rkt: error killing user process: %v", e)
-		}
-		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERROR] driver.rkt: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	// Remove services

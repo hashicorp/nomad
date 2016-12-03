@@ -173,8 +173,8 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 		}
 
 		// Check the alloc directory still exists
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err != nil {
-			return false, fmt.Errorf("alloc dir destroyed: %v", ar.ctx.AllocDir.AllocDir)
+		if _, err := os.Stat(ar.allocDir.AllocDir); err != nil {
+			return false, fmt.Errorf("alloc dir destroyed: %v", ar.allocDir.AllocDir)
 		}
 
 		return true, nil
@@ -204,8 +204,8 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 		}
 
 		// Check the alloc directory was cleaned
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err == nil {
-			return false, fmt.Errorf("alloc dir still exists: %v", ar.ctx.AllocDir.AllocDir)
+		if _, err := os.Stat(ar.allocDir.AllocDir); err == nil {
+			return false, fmt.Errorf("alloc dir still exists: %v", ar.allocDir.AllocDir)
 		} else if !os.IsNotExist(err) {
 			return false, fmt.Errorf("stat err: %v", err)
 		}
@@ -252,8 +252,8 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		}
 
 		// Check the alloc directory was cleaned
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err == nil {
-			return false, fmt.Errorf("alloc dir still exists: %v", ar.ctx.AllocDir.AllocDir)
+		if _, err := os.Stat(ar.allocDir.AllocDir); err == nil {
+			return false, fmt.Errorf("alloc dir still exists: %v", ar.allocDir.AllocDir)
 		} else if !os.IsNotExist(err) {
 			return false, fmt.Errorf("stat err: %v", err)
 		}
@@ -424,8 +424,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 		}
 
 		// Check the alloc directory still exists
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err != nil {
-			return false, fmt.Errorf("alloc dir destroyed: %v", ar.ctx.AllocDir.AllocDir)
+		if _, err := os.Stat(ar.allocDir.AllocDir); err != nil {
+			return false, fmt.Errorf("alloc dir destroyed: %v", ar.allocDir.AllocDir)
 		}
 
 		return true, nil
@@ -456,8 +456,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 		}
 
 		// Check the alloc directory was cleaned
-		if _, err := os.Stat(ar.ctx.AllocDir.AllocDir); err == nil {
-			return false, fmt.Errorf("alloc dir still exists: %v", ar.ctx.AllocDir.AllocDir)
+		if _, err := os.Stat(ar.allocDir.AllocDir); err == nil {
+			return false, fmt.Errorf("alloc dir still exists: %v", ar.allocDir.AllocDir)
 		} else if !os.IsNotExist(err) {
 			return false, fmt.Errorf("stat err: %v", err)
 		}
@@ -546,10 +546,10 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	})
 
 	// Write some data in data dir and task dir of the alloc
-	dataFile := filepath.Join(ar.ctx.AllocDir.SharedDir, "data", "data_file")
+	dataFile := filepath.Join(ar.allocDir.SharedDir, "data", "data_file")
 	ioutil.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
-	taskDir := ar.ctx.AllocDir.TaskDirs[task.Name]
-	taskLocalFile := filepath.Join(taskDir, "local", "local_file")
+	taskDir := ar.allocDir.TaskDirs[task.Name]
+	taskLocalFile := filepath.Join(taskDir.LocalDir, "local_file")
 	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
 
 	// Create another alloc runner
@@ -560,7 +560,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 		"run_for": "1s",
 	}
 	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
-	ar1.SetPreviousAllocDir(ar.ctx.AllocDir)
+	ar1.SetPreviousAllocDir(ar.allocDir)
 	go ar1.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -577,13 +577,13 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	})
 
 	// Ensure that data from ar1 was moved to ar
-	taskDir = ar1.ctx.AllocDir.TaskDirs[task.Name]
-	taskLocalFile = filepath.Join(taskDir, "local", "local_file")
+	taskDir = ar1.allocDir.TaskDirs[task.Name]
+	taskLocalFile = filepath.Join(taskDir.LocalDir, "local_file")
 	if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
 		t.Fatalf("file %v not found", taskLocalFile)
 	}
 
-	dataFile = filepath.Join(ar1.ctx.AllocDir.SharedDir, "data", "data_file")
+	dataFile = filepath.Join(ar1.allocDir.SharedDir, "data", "data_file")
 	if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
 		t.Fatalf("file %v not found", dataFile)
 	}

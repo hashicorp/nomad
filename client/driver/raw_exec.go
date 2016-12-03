@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -47,7 +46,6 @@ type rawExecHandle struct {
 	executor       executor.Executor
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
-	allocDir       *allocdir.AllocDir
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
@@ -86,6 +84,10 @@ func (d *RawExecDriver) Abilities() DriverAbilities {
 	}
 }
 
+func (d *RawExecDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationNone
+}
+
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes
@@ -113,18 +115,16 @@ func (d *RawExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		d.logger.Printf("[WARN] driver.raw_exec: XXX error decoding config")
 		return nil, err
 	}
 	// Get the tasks local directory.
 	taskName := d.DriverContext.taskName
-	taskDir, ok := ctx.AllocDir.TaskDirs[taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
 
 	// Get the command to be ran
 	command := driverConfig.Command
 	if err := validateCommand(command, "args"); err != nil {
+		d.logger.Printf("[WARN] driver.raw_exec: XXX error validating command")
 		return nil, err
 	}
 
@@ -132,21 +132,23 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", taskName))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
 
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
+		d.logger.Printf("[WARN] driver.raw_exec: XXX error creating executor")
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "raw_exec",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv: d.taskEnv,
+		Driver:  "raw_exec",
+		AllocID: ctx.AllocID,
+		Task:    task,
+		TaskDir: ctx.TaskDir.Dir,
+		LogDir:  ctx.TaskDir.LogDir,
 	}
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
@@ -160,6 +162,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
+		d.logger.Printf("[WARN] driver.raw_exec: XXX error launching command: %v", err)
+		d.logger.Printf("[WARN] driver.raw_exec: XXX error launching command: cmd=%q --- args=%q --- user=%q", command, driverConfig.Args, task.User)
 		pluginClient.Kill()
 		return nil, err
 	}
@@ -173,7 +177,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		userPid:        ps.Pid,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
-		allocDir:       ctx.AllocDir,
 		version:        d.config.Version,
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
@@ -192,7 +195,6 @@ type rawExecId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
-	AllocDir       *allocdir.AllocDir
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -224,7 +226,6 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
-		allocDir:       id.AllocDir,
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
@@ -243,7 +244,6 @@ func (h *rawExecHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
-		AllocDir:       h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -303,9 +303,6 @@ func (h *rawExecHandle) run() {
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
-		}
-		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	// Remove services

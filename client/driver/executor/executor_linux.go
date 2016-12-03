@@ -15,31 +15,13 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/system"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
-	// A mapping of directories on the host OS to attempt to embed inside each
-	// task's chroot.
-	chrootEnv = map[string]string{
-		"/bin":            "/bin",
-		"/etc":            "/etc",
-		"/lib":            "/lib",
-		"/lib32":          "/lib32",
-		"/lib64":          "/lib64",
-		"/run/resolvconf": "/run/resolvconf",
-		"/sbin":           "/sbin",
-		"/usr":            "/usr",
-	}
-
-	// clockTicks is the clocks per second of the machine
-	clockTicks = uint64(system.GetClockTicks())
-
 	// The statistics the executor exposes when using cgroups
 	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -71,9 +53,6 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 	manager := getCgroupManager(e.resConCtx.groups, nil)
 	if err := manager.Apply(pid); err != nil {
 		e.logger.Printf("[ERR] executor: error applying pid to cgroup: %v", err)
-		if er := e.removeChrootMounts(); er != nil {
-			e.logger.Printf("[ERR] executor: error removing chroot: %v", er)
-		}
 		return err
 	}
 	e.resConCtx.cgPaths = manager.GetPaths()
@@ -82,9 +61,6 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
 		if er := DestroyCgroup(e.resConCtx.groups, e.resConCtx.cgPaths, os.Getpid()); er != nil {
 			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
-		}
-		if er := e.removeChrootMounts(); er != nil {
-			e.logger.Printf("[ERR] executor: error removing chroot: %v", er)
 		}
 		return err
 	}
@@ -222,48 +198,14 @@ func (e *UniversalExecutor) runAs(userid string) error {
 
 // configureChroot configures a chroot
 func (e *UniversalExecutor) configureChroot() error {
-	allocDir := e.ctx.AllocDir
-	if err := allocDir.MountSharedDir(e.ctx.Task.Name); err != nil {
-		return err
-	}
-
-	chroot := chrootEnv
-	if len(e.ctx.ChrootEnv) > 0 {
-		chroot = e.ctx.ChrootEnv
-	}
-
-	if err := allocDir.Embed(e.ctx.Task.Name, chroot); err != nil {
-		return err
-	}
-
-	// Set the tasks AllocDir environment variable.
-	e.ctx.TaskEnv.
-		SetAllocDir(filepath.Join("/", allocdir.SharedAllocName)).
-		SetTaskLocalDir(filepath.Join("/", allocdir.TaskLocal)).
-		SetSecretsDir(filepath.Join("/", allocdir.TaskSecrets)).
-		Build()
-
 	if e.cmd.SysProcAttr == nil {
 		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	e.cmd.SysProcAttr.Chroot = e.taskDir
+	e.cmd.SysProcAttr.Chroot = e.ctx.TaskDir
 	e.cmd.Dir = "/"
-
-	if err := allocDir.MountSpecialDirs(e.taskDir); err != nil {
-		return err
-	}
 
 	e.fsIsolationEnforced = true
 	return nil
-}
-
-// cleanTaskDir is an idempotent operation to clean the task directory and
-// should be called when tearing down the task.
-func (e *UniversalExecutor) removeChrootMounts() error {
-	// Prevent a race between Wait/ForceStop
-	e.resConCtx.cgLock.Lock()
-	defer e.resConCtx.cgLock.Unlock()
-	return e.ctx.AllocDir.UnmountAll()
 }
 
 // getAllPids returns the pids of all the processes spun up by the executor. We

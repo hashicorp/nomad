@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -55,7 +54,6 @@ type qemuHandle struct {
 	pluginClient   *plugin.Client
 	userPid        int
 	executor       executor.Executor
-	allocDir       *allocdir.AllocDir
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
 	logger         *log.Logger
@@ -101,6 +99,10 @@ func (d *QemuDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
 	}
+}
+
+func (d *QemuDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationImage
 }
 
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -157,12 +159,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("image_path must be set")
 	}
 	vmID := filepath.Base(vmPath)
-
-	// Get the tasks local directory.
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
 
 	// Parse configuration arguments
 	// Create the base arguments
@@ -242,7 +238,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -252,11 +248,12 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:  d.taskEnv,
-		Driver:   "qemu",
-		AllocDir: ctx.AllocDir,
-		AllocID:  ctx.AllocID,
-		Task:     task,
+		TaskEnv: d.taskEnv,
+		Driver:  "qemu",
+		AllocID: ctx.AllocID,
+		Task:    task,
+		TaskDir: ctx.TaskDir.Dir,
+		LogDir:  ctx.TaskDir.LogDir,
 	}
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
@@ -281,7 +278,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        ps.Pid,
-		allocDir:       ctx.AllocDir,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		version:        d.config.Version,
@@ -303,7 +299,6 @@ type qemuId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
-	AllocDir       *allocdir.AllocDir
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -332,7 +327,6 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        id.UserPid,
-		allocDir:       id.AllocDir,
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
@@ -354,7 +348,6 @@ func (h *qemuHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
-		AllocDir:       h.allocDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -415,9 +408,6 @@ func (h *qemuHandle) run() {
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.qemu: error killing user process: %v", e)
-		}
-		if e := h.allocDir.UnmountAll(); e != nil {
-			h.logger.Printf("[ERR] driver.qemu: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
 	close(h.doneCh)

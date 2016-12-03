@@ -8,13 +8,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
 	tomb "gopkg.in/tomb.v1"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -50,8 +49,7 @@ var (
 	}
 )
 
-// Test that given a set of tasks, each task gets a directory and that directory
-// has the shared alloc dir inside of it.
+// Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
@@ -61,126 +59,29 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 
 	d := NewAllocDir(tmp)
 	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	d.NewTaskDir(t1.Name)
+	d.NewTaskDir(t2.Name)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
 	}
 
 	// Check that the AllocDir and each of the task directories exist.
 	if _, err := os.Stat(d.AllocDir); os.IsNotExist(err) {
-		t.Fatalf("Build(%v) didn't create AllocDir %v", tasks, d.AllocDir)
+		t.Fatalf("Build() didn't create AllocDir %v", d.AllocDir)
 	}
 
-	for _, task := range tasks {
+	for _, task := range []*structs.Task{t1, t2} {
 		tDir, ok := d.TaskDirs[task.Name]
 		if !ok {
 			t.Fatalf("Task directory not found for %v", task.Name)
 		}
 
-		if _, err := os.Stat(tDir); os.IsNotExist(err) {
-			t.Fatalf("Build(%v) didn't create TaskDir %v", tasks, tDir)
+		if stat, _ := os.Stat(tDir.Dir); stat != nil {
+			t.Fatalf("Build() created TaskDir %v", tDir.Dir)
 		}
 
-		if _, err := os.Stat(filepath.Join(tDir, TaskSecrets)); os.IsNotExist(err) {
-			t.Fatalf("Build(%v) didn't create secret dir %v", tasks)
-		}
-	}
-}
-
-func TestAllocDir_LogDir(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-
-	d := NewAllocDir(tmp)
-	defer d.Destroy()
-
-	expected := filepath.Join(d.AllocDir, SharedAllocName, LogDirName)
-	if d.LogDir() != expected {
-		t.Fatalf("expected: %v, got: %v", expected, d.LogDir())
-	}
-}
-
-func TestAllocDir_EmbedNonExistent(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-
-	d := NewAllocDir(tmp)
-	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
-	}
-
-	fakeDir := "/foobarbaz"
-	task := tasks[0].Name
-	mapping := map[string]string{fakeDir: fakeDir}
-	if err := d.Embed(task, mapping); err != nil {
-		t.Fatalf("Embed(%v, %v) should should skip %v since it does not exist", task, mapping, fakeDir)
-	}
-}
-
-func TestAllocDir_EmbedDirs(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-
-	d := NewAllocDir(tmp)
-	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
-	}
-
-	// Create a fake host directory, with a file, and a subfolder that contains
-	// a file.
-	host, err := ioutil.TempDir("", "AllocDirHost")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(host)
-
-	subDirName := "subdir"
-	subDir := filepath.Join(host, subDirName)
-	if err := os.MkdirAll(subDir, 0777); err != nil {
-		t.Fatalf("Failed to make subdir %v: %v", subDir, err)
-	}
-
-	file := "foo"
-	subFile := "bar"
-	if err := ioutil.WriteFile(filepath.Join(host, file), []byte{'a'}, 0777); err != nil {
-		t.Fatalf("Coudn't create file in host dir %v: %v", host, err)
-	}
-
-	if err := ioutil.WriteFile(filepath.Join(subDir, subFile), []byte{'a'}, 0777); err != nil {
-		t.Fatalf("Coudn't create file in host subdir %v: %v", subDir, err)
-	}
-
-	// Create mapping from host dir to task dir.
-	task := tasks[0].Name
-	taskDest := "bin/test/"
-	mapping := map[string]string{host: taskDest}
-	if err := d.Embed(task, mapping); err != nil {
-		t.Fatalf("Embed(%v, %v) failed: %v", task, mapping, err)
-	}
-
-	// Check that the embedding was done properly.
-	taskDir, ok := d.TaskDirs[task]
-	if !ok {
-		t.Fatalf("Task directory not found for %v", task)
-	}
-
-	exp := []string{filepath.Join(taskDir, taskDest, file), filepath.Join(taskDir, taskDest, subDirName, subFile)}
-	for _, e := range exp {
-		if _, err := os.Stat(e); os.IsNotExist(err) {
-			t.Fatalf("File %v not embeded: %v", e, err)
+		if stat, _ := os.Stat(tDir.SecretsDir); stat != nil {
+			t.Fatalf("Build() created secret dir %v", tDir.Dir)
 		}
 	}
 }
@@ -195,41 +96,37 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	d := NewAllocDir(tmp)
 	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
+
+	// Build 2 task dirs
+	td1 := d.NewTaskDir(t1.Name)
+	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
+	}
+	td2 := d.NewTaskDir(t2.Name)
+	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
 	// Write a file to the shared dir.
-	exp := []byte{'f', 'o', 'o'}
-	file := "bar"
-	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, file), exp, 0777); err != nil {
+	contents := []byte("foo")
+	const filename = "bar"
+	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, filename), contents, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
-	for _, task := range tasks {
-		// Mount and then check that the file exists in the task directory.
-		if err := d.MountSharedDir(task.Name); err != nil {
-			if v, ok := osMountSharedDirSupport[runtime.GOOS]; v && ok {
-				t.Fatalf("MountSharedDir(%v) failed: %v", task.Name, err)
-			} else {
-				t.Skipf("MountShareDir(%v) failed, no OS support")
-			}
-		}
-
-		taskDir, ok := d.TaskDirs[task.Name]
-		if !ok {
-			t.Fatalf("Task directory not found for %v", task.Name)
-		}
-
-		taskFile := filepath.Join(taskDir, SharedAllocName, file)
+	// Check that the file exists in the task directories
+	for _, td := range []*TaskDir{td1, td2} {
+		taskFile := filepath.Join(td.SharedTaskDir, filename)
 		act, err := ioutil.ReadFile(taskFile)
 		if err != nil {
 			t.Fatalf("Failed to read shared alloc file from task dir: %v", err)
 		}
 
-		if !reflect.DeepEqual(act, exp) {
-			t.Fatalf("Incorrect data read from task dir: want %v; got %v", exp, act)
+		if !bytes.Equal(act, contents) {
+			t.Fatalf("Incorrect data read from task dir: want %v; got %v", contents, act)
 		}
 	}
 }
@@ -243,27 +140,31 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	d := NewAllocDir(tmp)
 	defer d.Destroy()
-
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
 	}
 
-	dataDir := filepath.Join(d.SharedDir, "data")
-	taskDir := d.TaskDirs[t1.Name]
-	taskLocal := filepath.Join(taskDir, "local")
+	// Build 2 task dirs
+	td1 := d.NewTaskDir(t1.Name)
+	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
+	}
+	td2 := d.NewTaskDir(t2.Name)
+	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
+	}
 
 	// Write a file to the shared dir.
 	exp := []byte{'f', 'o', 'o'}
 	file := "bar"
-	if err := ioutil.WriteFile(filepath.Join(dataDir, file), exp, 0777); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, "data", file), exp, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
 	// Write a file to the task local
 	exp = []byte{'b', 'a', 'r'}
 	file1 := "lol"
-	if err := ioutil.WriteFile(filepath.Join(taskLocal, file1), exp, 0777); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file1), exp, 0666); err != nil {
 		t.Fatalf("couldn't write to task local directory: %v", err)
 	}
 
@@ -307,50 +208,55 @@ func TestAllocDir_Move(t *testing.T) {
 
 	// Create two alloc dirs
 	d1 := NewAllocDir(tmp1)
+	if err := d1.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
 	defer d1.Destroy()
 
 	d2 := NewAllocDir(tmp2)
+	if err := d2.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
 	defer d2.Destroy()
 
-	tasks := []*structs.Task{t1, t2}
-	if err := d1.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	td1 := d1.NewTaskDir(t1.Name)
+	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
-	if err := d2.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	td2 := d2.NewTaskDir(t1.Name)
+	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
-	dataDir := filepath.Join(d1.SharedDir, "data")
-	taskDir := d1.TaskDirs[t1.Name]
-	taskLocal := filepath.Join(taskDir, "local")
+	dataDir := filepath.Join(d1.SharedDir, SharedDataDir)
 
 	// Write a file to the shared dir.
-	exp := []byte{'f', 'o', 'o'}
-	file := "bar"
-	if err := ioutil.WriteFile(filepath.Join(dataDir, file), exp, 0777); err != nil {
+	exp1 := []byte("foo")
+	file1 := "bar"
+	if err := ioutil.WriteFile(filepath.Join(dataDir, file1), exp1, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
 	// Write a file to the task local
-	exp = []byte{'b', 'a', 'r'}
-	file1 := "lol"
-	if err := ioutil.WriteFile(filepath.Join(taskLocal, file1), exp, 0777); err != nil {
+	exp2 := []byte("bar")
+	file2 := "lol"
+	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file2), exp2, 0666); err != nil {
 		t.Fatalf("couldn't write to task local directory: %v", err)
 	}
 
 	// Move the d1 allocdir to d2
-	if err := d2.Move(d1, []*structs.Task{t1, t2}); err != nil {
+	if err := d2.Move(d1, []*structs.Task{t1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Ensure the files in d1 are present in d2
-	fi, err := os.Stat(filepath.Join(d2.SharedDir, "data", "bar"))
+	fi, err := os.Stat(filepath.Join(d2.SharedDir, SharedDataDir, file1))
 	if err != nil || fi == nil {
 		t.Fatalf("data dir was not moved")
 	}
 
-	fi, err = os.Stat(filepath.Join(d2.TaskDirs[t1.Name], "local", "lol"))
+	fi, err = os.Stat(filepath.Join(d2.TaskDirs[t1.Name].LocalDir, file2))
 	if err != nil || fi == nil {
 		t.Fatalf("task local dir was not moved")
 	}
@@ -364,11 +270,10 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
-	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
 	}
+	defer d.Destroy()
 
 	// Check that issuing calls that escape the alloc dir returns errors
 	// List
@@ -398,6 +303,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 }
 
+// Test that `nomad fs` can't read secrets
 func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
@@ -406,10 +312,14 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	d := NewAllocDir(tmp)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
 	defer d.Destroy()
-	tasks := []*structs.Task{t1, t2}
-	if err := d.Build(tasks); err != nil {
-		t.Fatalf("Build(%v) failed: %v", tasks, err)
+
+	td := d.NewTaskDir(t1.Name)
+	if err := td.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 
 	// ReadAt of secret dir should fail
@@ -431,10 +341,7 @@ func TestAllocDir_SplitPath(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	d := NewAllocDir(dir)
-	defer d.Destroy()
-
-	info, err := d.splitPath(dest)
+	info, err := splitPath(dest)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -466,10 +373,7 @@ func TestAllocDir_CreateDir(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	d := NewAllocDir(dir)
-	defer d.Destroy()
-
-	if err := d.createDir(dir1, subdir); err != nil {
+	if err := createDir(dir1, subdir); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
