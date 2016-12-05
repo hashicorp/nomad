@@ -1578,6 +1578,18 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 		return nil, fmt.Errorf("error getting snapshot for alloc %v: %v", alloc.ID, err)
 	}
 
+	if err := c.unarchiveAllocDir(resp, allocID, pathToAllocDir); err != nil {
+		return nil, err
+	}
+
+	// If there were no errors then we create the allocdir
+	prevAllocDir := allocdir.NewAllocDir(pathToAllocDir)
+	return prevAllocDir, nil
+}
+
+// unarchiveAllocDir reads the stream of a compressed allocation directory and
+// writes them to the disk.
+func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAllocDir string) error {
 	tr := tar.NewReader(resp)
 	defer resp.Close()
 
@@ -1586,40 +1598,38 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 	stopMigrating, ok := c.migratingAllocs[allocID]
 	if !ok {
 		os.RemoveAll(pathToAllocDir)
-		return nil, fmt.Errorf("couldn't find a migration validity notifier for alloc: %v", alloc.ID)
+		return fmt.Errorf("Allocation %q is not marked for remote migration: %v", allocID)
 	}
 	for {
 		// See if the alloc still needs migration
 		select {
 		case <-stopMigrating:
 			os.RemoveAll(pathToAllocDir)
-			c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", alloc.ID)
-			return nil, nil
+			c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", allocID)
+			return nil
 		case <-c.shutdownCh:
 			os.RemoveAll(pathToAllocDir)
-			c.logger.Printf("[INFO] client: stopping migration of alloc %q since client is shutting down", alloc.ID)
-			return nil, nil
+			c.logger.Printf("[INFO] client: stopping migration of alloc %q since client is shutting down", allocID)
+			return nil
 		default:
 		}
 
 		// Get the next header
 		hdr, err := tr.Next()
 
-		// If the snapshot has ended then we create the previous
-		// allocdir
+		// Snapshot has ended
 		if err == io.EOF {
-			prevAllocDir := allocdir.NewAllocDir(pathToAllocDir)
-			return prevAllocDir, nil
+			return nil
 		}
 		// If there is an error then we avoid creating the alloc dir
 		if err != nil {
 			os.RemoveAll(pathToAllocDir)
-			return nil, fmt.Errorf("error creating alloc dir for alloc %q: %v", alloc.ID, err)
+			return fmt.Errorf("error creating alloc dir for alloc %q: %v", allocID, err)
 		}
 
 		// If the header is for a directory we create the directory
 		if hdr.Typeflag == tar.TypeDir {
-			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), 0777)
+			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), os.FileMode(hdr.Mode))
 			continue
 		}
 		// If the header is a file, we write to a file
@@ -1630,33 +1640,47 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 				continue
 			}
 
+			// Setting the permissions of the file as the origin.
+			if err := f.Chmod(os.FileMode(hdr.Mode)); err != nil {
+				f.Close()
+				c.logger.Printf("[ERR] client: error chmod-ing file %s: %v", f.Name(), err)
+				return fmt.Errorf("error chmoding file %v", err)
+			}
+			if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
+				f.Close()
+				c.logger.Printf("[ERR] client: error chown-ing file %s: %v", f.Name(), err)
+				return fmt.Errorf("error chowning file %v", err)
+			}
+
 			// We write in chunks of 32 bytes so that we can test if
 			// the client is still alive
 			for {
 				if c.shutdown {
 					f.Close()
 					os.RemoveAll(pathToAllocDir)
-					c.logger.Printf("[INFO] client: stopping migration of alloc %q because client is shutting down", alloc.ID)
-					return nil, nil
+					c.logger.Printf("[INFO] client: stopping migration of alloc %q because client is shutting down", allocID)
+					return nil
 				}
 
 				n, err := tr.Read(buf)
 				if err != nil {
 					f.Close()
 					if err != io.EOF {
-						return nil, fmt.Errorf("error reading snapshot: %v", err)
+						return fmt.Errorf("error reading snapshot: %v", err)
 					}
 					break
 				}
 				if _, err := f.Write(buf[:n]); err != nil {
 					f.Close()
 					os.RemoveAll(pathToAllocDir)
-					return nil, fmt.Errorf("error writing to file %q: %v", f.Name(), err)
+					return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
 				}
 			}
 
 		}
 	}
+
+	return nil
 }
 
 // getNode gets the node from the server with the given Node ID
