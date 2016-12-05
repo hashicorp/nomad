@@ -35,7 +35,6 @@ import (
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -56,11 +55,11 @@ const (
 	nomadServicePrefix = "_nomad"
 
 	// The periodic time interval for syncing services and checks with Consul
-	syncInterval = 5 * time.Second
+	defaultSyncInterval = 6 * time.Second
 
-	// syncJitter provides a little variance in the frequency at which
+	// defaultSyncJitter provides a little variance in the frequency at which
 	// Syncer polls Consul.
-	syncJitter = 8
+	defaultSyncJitter = time.Second
 
 	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
 	// the check result
@@ -144,6 +143,13 @@ type Syncer struct {
 	periodicCallbacks map[string]types.PeriodicCallback
 	notifySyncCh      chan struct{}
 	periodicLock      sync.RWMutex
+
+	// The periodic time interval for syncing services and checks with Consul
+	syncInterval time.Duration
+
+	// syncJitter provides a little variance in the frequency at which
+	// Syncer polls Consul.
+	syncJitter time.Duration
 }
 
 // NewSyncer returns a new consul.Syncer
@@ -168,8 +174,11 @@ func NewSyncer(consulConfig *config.ConsulConfig, shutdownCh chan struct{}, logg
 		checkGroups:       make(map[ServiceDomain]map[ServiceKey][]*consul.AgentCheckRegistration),
 		checkRunners:      make(map[consulCheckID]*CheckRunner),
 		periodicCallbacks: make(map[string]types.PeriodicCallback),
+		notifySyncCh:      make(chan struct{}, 1),
 		// default noop implementation of addrFinder
-		addrFinder: func(string) (string, int) { return "", 0 },
+		addrFinder:   func(string) (string, int) { return "", 0 },
+		syncInterval: defaultSyncInterval,
+		syncJitter:   defaultSyncJitter,
 	}
 
 	return &consulSyncer, nil
@@ -809,7 +818,7 @@ func (c *Syncer) Run() {
 	for {
 		select {
 		case <-sync.C:
-			d := syncInterval - lib.RandomStagger(syncInterval/syncJitter)
+			d := c.syncInterval - c.syncJitter
 			sync.Reset(d)
 
 			if err := c.SyncServices(); err != nil {
@@ -824,7 +833,7 @@ func (c *Syncer) Run() {
 				c.consulAvailable = true
 			}
 		case <-c.notifySyncCh:
-			sync.Reset(syncInterval)
+			sync.Reset(0)
 		case <-c.shutdownCh:
 			c.Shutdown()
 		case <-c.notifyShutdownCh:
@@ -872,8 +881,8 @@ func (c *Syncer) SyncServices() error {
 // the syncer
 func (c *Syncer) filterConsulServices(consulServices map[string]*consul.AgentService) map[consulServiceID]*consul.AgentService {
 	localServices := make(map[consulServiceID]*consul.AgentService, len(consulServices))
-	c.registryLock.RLock()
-	defer c.registryLock.RUnlock()
+	c.groupsLock.RLock()
+	defer c.groupsLock.RUnlock()
 	for serviceID, service := range consulServices {
 		for domain := range c.servicesGroups {
 			if strings.HasPrefix(service.ID, fmt.Sprintf("%s-%s", nomadServicePrefix, domain)) {
@@ -889,8 +898,8 @@ func (c *Syncer) filterConsulServices(consulServices map[string]*consul.AgentSer
 // services with Syncer's idPrefix.
 func (c *Syncer) filterConsulChecks(consulChecks map[string]*consul.AgentCheck) map[consulCheckID]*consul.AgentCheck {
 	localChecks := make(map[consulCheckID]*consul.AgentCheck, len(consulChecks))
-	c.registryLock.RLock()
-	defer c.registryLock.RUnlock()
+	c.groupsLock.RLock()
+	defer c.groupsLock.RUnlock()
 	for checkID, check := range consulChecks {
 		for domain := range c.checkGroups {
 			if strings.HasPrefix(check.ServiceID, fmt.Sprintf("%s-%s", nomadServicePrefix, domain)) {
