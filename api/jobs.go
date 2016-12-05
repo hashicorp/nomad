@@ -168,6 +168,21 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 	return &resp, qm, nil
 }
 
+func (j *Jobs) Dispatch(jobID string, meta map[string]string,
+	inputData []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	var resp JobDispatchResponse
+	req := &JobDispatchRequest{
+		JobID:     jobID,
+		Meta:      meta,
+		InputData: inputData,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/dispatch", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -410,4 +425,18 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+}
+
+type JobDispatchRequest struct {
+	JobID     string
+	InputData []byte
+	Meta      map[string]string
+}
+
+type JobDispatchResponse struct {
+	DispatchedJobID string
+	EvalID          string
+	EvalCreateIndex uint64
+	JobCreateIndex  uint64
+	QueryMeta
 }
