@@ -15,8 +15,16 @@ type JobDispatchCommand struct {
 
 func (c *JobDispatchCommand) Help() string {
 	helpText := `
-Usage: nomad job dispatch [options] <dispatch-template>
+Usage: nomad job dispatch [options] <template> [input source]
 
+Dispatch creates an instance of a dispatch template. Input data to the
+dispatched instance can be provided via stdin by using "-" or by specifiying a
+path to a file. Metadata can be supplied by using the meta flag one or more
+times. 
+
+Upon successfully creation, the dispatched job ID will be printed and the
+triggered evaluation will be monitored. This can be disabled by supplying the
+detach flag.
 
 General Options:
 
@@ -24,6 +32,13 @@ General Options:
 
 Dispatch Options:
 
+  -detach
+    Return immediately instead of entering monitor mode. After job dispatch,
+    the evaluation ID will be printed to the screen, which can be used to
+    examine the evaluation using the eval-status command.
+
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -35,13 +50,11 @@ func (c *JobDispatchCommand) Synopsis() string {
 func (c *JobDispatchCommand) Run(args []string) int {
 	var detach, verbose bool
 	var meta []string
-	var inputFile string
 
 	flags := c.Meta.FlagSet("job dispatch", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.StringVar(&inputFile, "input-file", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -49,14 +62,14 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	// Truncate the id unless full length is requested
-	//length := shortId
-	//if verbose {
-	//length = fullId
-	//}
+	length := shortId
+	if verbose {
+		length = fullId
+	}
 
 	// Check that we got exactly one node
 	args = flags.Args()
-	if len(args) != 1 {
+	if l := len(args); l < 1 || l > 2 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
@@ -65,16 +78,18 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	var inputData []byte
 	var readErr error
 
-	// If the input data is specified try to read from the file
-	if inputFile != "" {
-		inputData, readErr = ioutil.ReadFile(inputFile)
-	} else {
-		// Read from stdin
-		inputData, readErr = ioutil.ReadAll(os.Stdin)
-	}
-	if readErr != nil {
-		c.Ui.Error(fmt.Sprintf("Error reading input data: %v", readErr))
-		return 1
+	// Read the input
+	if len(args) == 2 {
+		switch args[1] {
+		case "-":
+			inputData, readErr = ioutil.ReadAll(os.Stdin)
+		default:
+			inputData, readErr = ioutil.ReadFile(args[1])
+		}
+		if readErr != nil {
+			c.Ui.Error(fmt.Sprintf("Error reading input data: %v", readErr))
+			return 1
+		}
 	}
 
 	// Build the meta
@@ -105,8 +120,15 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	basic := []string{
 		fmt.Sprintf("Dispatched Job ID|%s", resp.DispatchedJobID),
-		fmt.Sprintf("Evaluation ID|%s", resp.EvalID),
+		fmt.Sprintf("Evaluation ID|%s", limit(resp.EvalID, length)),
 	}
 	c.Ui.Output(formatKV(basic))
-	return 0
+
+	if detach {
+		return 0
+	}
+
+	c.Ui.Output("")
+	mon := newMonitor(c.Ui, client, length)
+	return mon.monitor(resp.EvalID, false)
 }
