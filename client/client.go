@@ -1069,13 +1069,34 @@ func (c *Client) updateNodeStatus() error {
 
 // updateAllocStatus is used to update the status of an allocation
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
-	// Only send the fields that are updatable by the client.
+	// If this alloc was blocking another alloc and transitioned to a
+	// terminal state then start the blocked allocation
+	c.blockedAllocsLock.Lock()
+	if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
+		var prevAllocDir *allocdir.AllocDir
+		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
+			tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+			if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
+				prevAllocDir = ar.GetAllocDir()
+			}
+		}
+		if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
+			c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
+				blockedAlloc.ID, err)
+		}
+		delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
+	}
+	c.blockedAllocsLock.Unlock()
+
+	// Strip all the information that can be reconstructed at the server.  Only
+	// send the fields that are updatable by the client.
 	stripped := new(structs.Allocation)
 	stripped.ID = alloc.ID
 	stripped.NodeID = c.Node().ID
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
+
 	select {
 	case c.allocUpdates <- stripped:
 	case <-c.shutdownCh:
@@ -1096,22 +1117,6 @@ func (c *Client) allocSync() {
 		case alloc := <-c.allocUpdates:
 			// Batch the allocation updates until the timer triggers.
 			updates[alloc.ID] = alloc
-
-			// If this alloc was blocking another alloc and transitioned to a
-			// terminal state then start the blocked allocation
-			c.blockedAllocsLock.Lock()
-			if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
-				var prevAllocDir *allocdir.AllocDir
-				if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-					prevAllocDir = ar.GetAllocDir()
-				}
-				if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
-					c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
-						blockedAlloc.ID, err)
-				}
-				delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
-			}
-			c.blockedAllocsLock.Unlock()
 		case <-syncTicker.C:
 			// Fast path if there are no updates
 			if len(updates) == 0 {
@@ -1403,7 +1408,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		// previous allocation
 		var prevAllocDir *allocdir.AllocDir
 		tg := add.Job.LookupTaskGroup(add.TaskGroup)
-		if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky == true && ar != nil {
+		if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky && ar != nil {
 			prevAllocDir = ar.GetAllocDir()
 		}
 
