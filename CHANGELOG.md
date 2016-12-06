@@ -6,7 +6,11 @@ IMPROVEMENTS:
 BUG FIXES:
   * agent/config: Fix use of IPv6 addresses [GH-2036]
   * cli: Improve parsing error when a job without a name is specified [GH-2030]
+  * client: Fixed permissions of migrated allocation directory [GH-2061]
+  * client: Ensuring allocations are not blocked more than once [GH-2040]
   * client: Fix race on StreamFramer Destroy which would cause a panic [GH-2007]
+  * client: Not migrating allocation directories on the same client if sticky is
+    turned off [GH-2017]
   * client/vault: Fix issue in which deriving a Vault token would fail with
     allocation does not exist due to stale queries [GH-2050]
   * driver/docker: Make container exist errors non-retriable by task runner
