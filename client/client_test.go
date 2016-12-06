@@ -1,7 +1,10 @@
 package client
 
 import (
+	"archive/tar"
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -803,4 +806,112 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}
 	c1.allocLock.Unlock()
 
+}
+
+func TestClient_UnarchiveAllocDir(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err := os.Mkdir(filepath.Join(dir, "foo"), 0777); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	dirInfo, err := os.Stat(filepath.Join(dir, "foo"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	f, err := os.Create(filepath.Join(dir, "foo", "bar"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if _, err := f.WriteString("foo"); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := f.Chmod(0644); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	fInfo, err := f.Stat()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	f.Close()
+
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+
+	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		// Ignore if the file is a symlink
+		if fileInfo.Mode() == os.ModeSymlink {
+			return nil
+		}
+
+		// Include the path of the file name relative to the alloc dir
+		// so that we can put the files in the right directories
+		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		if err != nil {
+			return fmt.Errorf("error creating file header: %v", err)
+		}
+		hdr.Name = fileInfo.Name()
+		tw.WriteHeader(hdr)
+
+		// If it's a directory we just write the header into the tar
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		// Write the file into the archive
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		if _, err := io.Copy(tw, file); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if err := filepath.Walk(dir, walkFn); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	tw.Close()
+
+	dir1, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(dir1)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.RPCHandler = nil
+	})
+	defer c1.Shutdown()
+
+	rc := ioutil.NopCloser(buf)
+
+	c1.migratingAllocs["123"] = make(chan struct{})
+	if err := c1.unarchiveAllocDir(rc, "123", dir1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure foo is present
+	fi, err := os.Stat(filepath.Join(dir1, "foo"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fi.Mode() != dirInfo.Mode() {
+		t.Fatalf("mode: %v", fi.Mode())
+	}
+
+	fi1, err := os.Stat(filepath.Join(dir1, "bar"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fi1.Mode() != fInfo.Mode() {
+		t.Fatalf("mode: %v", fi1.Mode())
+	}
 }
