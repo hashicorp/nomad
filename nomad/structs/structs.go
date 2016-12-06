@@ -1078,39 +1078,6 @@ const (
 	CoreJobPriority = JobMaxPriority * 2
 )
 
-// JobSummary summarizes the state of the allocations of a job
-type JobSummary struct {
-	JobID   string
-	Summary map[string]TaskGroupSummary
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// Copy returns a new copy of JobSummary
-func (js *JobSummary) Copy() *JobSummary {
-	newJobSummary := new(JobSummary)
-	*newJobSummary = *js
-	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
-	for k, v := range js.Summary {
-		newTGSummary[k] = v
-	}
-	newJobSummary.Summary = newTGSummary
-	return newJobSummary
-}
-
-// TaskGroup summarizes the state of all the allocations of a particular
-// TaskGroup
-type TaskGroupSummary struct {
-	Queued   int
-	Complete int
-	Failed   int
-	Running  int
-	Starting int
-	Lost     int
-}
-
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
@@ -1435,6 +1402,64 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+}
+
+// JobSummary summarizes the state of the allocations of a job
+type JobSummary struct {
+	JobID string
+
+	// Summmary contains the summary per task group for the Job
+	Summary map[string]TaskGroupSummary
+
+	// Children contains a summary for the children of this job. If there are no
+	// children the summary will be nil
+	Children *JobChildrenSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// Copy returns a new copy of JobSummary
+func (js *JobSummary) Copy() *JobSummary {
+	newJobSummary := new(JobSummary)
+	*newJobSummary = *js
+	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
+	for k, v := range js.Summary {
+		newTGSummary[k] = v
+	}
+	newJobSummary.Summary = newTGSummary
+	newJobSummary.Children = newJobSummary.Children.Copy()
+	return newJobSummary
+}
+
+// JobChildrenSummary contains the summary of children job statuses
+type JobChildrenSummary struct {
+	Pending uint64
+	Running uint64
+	Dead    uint64
+}
+
+// Copy returns a new copy of a JobChildrenSummary
+func (jc *JobChildrenSummary) Copy() *JobChildrenSummary {
+	if jc == nil {
+		return nil
+	}
+
+	njc := new(JobChildrenSummary)
+	*njc = *jc
+	return njc
+}
+
+// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroup
+type TaskGroupSummary struct {
+	Queued   int
+	Complete int
+	Failed   int
+	Running  int
+	Starting int
+	Lost     int
 }
 
 // UpdateStrategy is used to modify how updates are done

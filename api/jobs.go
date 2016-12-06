@@ -236,12 +236,20 @@ type Job struct {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
-	JobID   string
-	Summary map[string]TaskGroupSummary
+	JobID    string
+	Summary  map[string]TaskGroupSummary
+	Children *JobChildrenSummary
 
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobChildrenSummary contains the summary of children job status
+type JobChildrenSummary struct {
+	Pending uint64
+	Running uint64
+	Dead    uint64
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular

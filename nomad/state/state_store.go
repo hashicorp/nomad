@@ -1786,6 +1786,8 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 
 // JobSummaryRestore is used to restore a job summary
 func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
+	r.items.Add(watch.Item{Table: "job_summary"})
+	r.items.Add(watch.Item{JobSummary: jobSummary.JobID})
 	if err := r.txn.Insert("job_summary", *jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}
