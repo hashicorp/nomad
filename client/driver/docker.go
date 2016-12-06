@@ -170,11 +170,11 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 		}
 	}
 
-	for _, a := range dconf.Auth {
-		a.Username = env.ReplaceEnv(a.Username)
-		a.Password = env.ReplaceEnv(a.Password)
-		a.Email = env.ReplaceEnv(a.Email)
-		a.ServerAddress = env.ReplaceEnv(a.ServerAddress)
+	for i, a := range dconf.Auth {
+		dconf.Auth[i].Username = env.ReplaceEnv(a.Username)
+		dconf.Auth[i].Password = env.ReplaceEnv(a.Password)
+		dconf.Auth[i].Email = env.ReplaceEnv(a.Email)
+		dconf.Auth[i].ServerAddress = env.ReplaceEnv(a.ServerAddress)
 	}
 
 	for _, l := range dconf.Logging {
