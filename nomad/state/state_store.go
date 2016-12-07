@@ -401,7 +401,48 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	watcher.Add(watch.Item{Table: "job_summary"})
 	watcher.Add(watch.Item{JobSummary: jobID})
 
-	// Delete the node
+	// Check if we should update a parent job summary
+	job := existing.(*structs.Job)
+	if job.ParentID != "" {
+		summaryRaw, err := txn.First("job_summary", "id", job.ParentID)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
+		}
+
+		// Only continue if the summary exists. It could not exist if the parent
+		// job was removed
+		if summaryRaw != nil {
+			existing := summaryRaw.(structs.JobSummary)
+			pSummary := existing.Copy()
+			if pSummary.Children != nil {
+
+				switch job.Status {
+				case structs.JobStatusPending:
+					pSummary.Children.Pending--
+					pSummary.Children.Dead++
+				case structs.JobStatusRunning:
+					pSummary.Children.Running--
+					pSummary.Children.Dead++
+				case structs.JobStatusDead:
+				default:
+					return fmt.Errorf("unknown old job status %q", job.Status)
+				}
+
+				watcher.Add(watch.Item{Table: "job_summary"})
+				watcher.Add(watch.Item{JobSummary: job.ParentID})
+
+				// Insert the summary
+				if err := txn.Insert("job_summary", *pSummary); err != nil {
+					return fmt.Errorf("job summary insert failed: %v", err)
+				}
+				if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+					return fmt.Errorf("index update failed: %v", err)
+				}
+			}
+		}
+	}
+
+	// Delete the job
 	if err := txn.Delete("jobs", existing); err != nil {
 		return fmt.Errorf("job delete failed: %v", err)
 	}
