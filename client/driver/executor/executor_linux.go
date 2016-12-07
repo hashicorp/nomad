@@ -36,7 +36,6 @@ var (
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
 	}
-	chrootEnvTree = GetChrootEnvTree(chrootEnv)
 
 	// clockTicks is the clocks per second of the machine
 	clockTicks = uint64(system.GetClockTicks())
@@ -229,12 +228,8 @@ func (e *UniversalExecutor) configureChroot() error {
 	}
 
 	chroot := chrootEnv
-	if e.ctx.ChrootEnv != nil && len(e.ctx.ChrootEnv) > 0 {
-		if !IsValidChroot(chrootEnvTree, e.ctx.ChrootEnv) {
-			return fmt.Errorf("Chroot not subset of Default Chroot: \n%v\n%v", e.ctx.ChrootEnv, chrootEnv)
-		} else {
-			chroot = e.ctx.ChrootEnv
-		}
+	if len(e.ctx.ChrootEnv) > 0 {
+		chroot = e.ctx.ChrootEnv
 	}
 
 	if err := allocDir.Embed(e.ctx.Task.Name, chroot); err != nil {
