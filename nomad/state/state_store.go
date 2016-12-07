@@ -344,12 +344,19 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
 
-		// If we are inserting the job for the first time, we don't need to
-		// calculate the jobs status as it is known.
-		if job.IsPeriodic() {
-			job.Status = structs.JobStatusRunning
-		} else {
-			job.Status = structs.JobStatusPending
+		// Since it is a new job ensure it has no status set
+		job.Status = ""
+		if err := s.setJobStatus(index, watcher, txn, job, false, ""); err != nil {
+			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
+		}
+
+		// Have to get the job again since it could have been updated
+		updated, err := txn.First("jobs", "id", job.ID)
+		if err != nil {
+			return fmt.Errorf("job lookup failed: %v", err)
+		}
+		if updated != nil {
+			job = updated.(*structs.Job)
 		}
 	}
 
@@ -1454,6 +1461,69 @@ func (s *StateStore) setJobStatus(index uint64, watcher watch.Items, txn *memdb.
 	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
+	// Update the children summary
+	if updated.ParentID != "" {
+		// Try to update the summary of the parent job summary
+		summaryRaw, err := txn.First("job_summary", "id", updated.ParentID)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
+		}
+
+		// Only continue if the summary exists. It could not exist if the parent
+		// job was removed
+		if summaryRaw != nil {
+			existing := summaryRaw.(structs.JobSummary)
+			pSummary := existing.Copy()
+			if pSummary.Children == nil {
+				pSummary.Children = new(structs.JobChildrenSummary)
+			}
+
+			// Determine the transistion and update the correct fields
+			children := pSummary.Children
+
+			// Decrement old status
+			if oldStatus != "" {
+				switch oldStatus {
+				case structs.JobStatusPending:
+					children.Pending--
+				case structs.JobStatusRunning:
+					children.Running--
+				case structs.JobStatusDead:
+					children.Dead--
+				default:
+					return fmt.Errorf("unknown old job status %q", oldStatus)
+				}
+			}
+
+			// Increment new status
+			switch newStatus {
+			case structs.JobStatusPending:
+				children.Pending++
+			case structs.JobStatusRunning:
+				children.Running++
+			case structs.JobStatusDead:
+				children.Dead++
+			default:
+				return fmt.Errorf("unknown new job status %q", newStatus)
+			}
+
+			// Update the index
+			pSummary.ModifyIndex = index
+
+			watcher.Add(watch.Item{Table: "job_summary"})
+			watcher.Add(watch.Item{JobSummary: updated.ParentID})
+
+			// Insert the summary
+			if err := txn.Insert("job_summary", *pSummary); err != nil {
+				return fmt.Errorf("job summary insert failed: %v", err)
+			}
+			if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+				return fmt.Errorf("index update failed: %v", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -1492,9 +1562,9 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	}
 
 	// If there are no allocations or evaluations it is a new job. If the job is
-	// periodic, we mark it as running as it will never have an
-	// allocation/evaluation against it.
-	if job.IsPeriodic() {
+	// periodic or is a dispatch template, we mark it as running as it will
+	// never have an allocation/evaluation against it.
+	if job.IsPeriodic() || job.IsDispatchTemplate() {
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil

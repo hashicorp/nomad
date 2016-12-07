@@ -813,6 +813,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob := tmpl.Copy()
 	dispatchJob.Dispatch = nil
 	dispatchJob.ID = structs.DispatchedID(tmpl.ID, time.Now())
+	dispatchJob.ParentID = tmpl.ID
 	dispatchJob.Name = dispatchJob.ID
 
 	// Merge in the meta data

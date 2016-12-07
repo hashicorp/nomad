@@ -2050,6 +2050,9 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				if out.CreateIndex != dispatchResp.JobCreateIndex {
 					t.Fatalf("index mis-match")
 				}
+				if out.ParentID != tc.dispatchTemplate.ID {
+					t.Fatalf("bad parent ID")
+				}
 
 				// Lookup the evaluation
 				eval, err := state.EvalByID(dispatchResp.EvalID)
