@@ -43,6 +43,10 @@ job "docs" {
 
 - `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
   be passed to the running process.
+  
+- `chroot_env` <code>([chroot_env][]: nil)</code> - Specifies a key/value mapping 
+  that defines the chroot environment for the task before starting. This task chroot
+  env has to be a subset of agent chroot env (if configured).
 
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
   application to gracefully quit before force-killing. Nomad sends an `SIGINT`.
@@ -159,6 +163,7 @@ task "server" {
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [env]: /docs/job-specification/env.html "Nomad env Job Specification"
+[chroot_env]: /docs/job-specification/chroot_env.html "Nomad chroot_env Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [logs]: /docs/job-specification/logs.html "Nomad logs Job Specification"
