@@ -24,9 +24,9 @@ description: |-
 </table>
 
 The `constraint` allows restricting the set of eligible nodes. Constraints may
-filter on [attributes][interpolation] or [metadata][meta]. Additionally
-constraints may be specified at the [job][job], [group][group], or [task][task]
-levels for ultimate flexibility.
+filter on [attributes][interpolation] or [client metadata][client-meta].
+Additionally constraints may be specified at the [job][job], [group][group], or
+[task][task] levels for ultimate flexibility.
 
 ```hcl
 job "docs" {
@@ -46,7 +46,7 @@ job "docs" {
     task "server" {
       # All tasks must run where "my_custom_value" is greater than 3.
       constraint {
-        attribute = "${meta.my_custom_value}"
+        attribute = "${node.meta.my_custom_value}"
         operator  = ">"
         value     = "3"
       }
@@ -217,6 +217,6 @@ constraint {
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
-[meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"

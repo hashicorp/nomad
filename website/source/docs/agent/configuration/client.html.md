@@ -299,5 +299,3 @@ client {
   }
 }
 ```
-
-[meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
