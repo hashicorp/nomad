@@ -46,7 +46,7 @@ client {
   job is allowed to wait to exit. Individual jobs may customize their own kill
   timeout, but it may not exceed this value.
 
-- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+- `meta` `(map[string]string: nil)` - Specifies a key-value map that annotates
   with user-defined metadata.
 
 - `network_interface` `(string: "lo | lo0")` - Specifies the name of the
