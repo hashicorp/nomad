@@ -92,12 +92,12 @@ driver.
     <td><tt>linux-64bit</tt></td>
   </tr>
   <tr>
-    <td><tt>${attr.&lt;property&gt;}</tt></td>
+    <td><tt>${node.attr.&lt;property&gt;}</tt></td>
     <td>Property given by <tt>property</tt> on the client</td>
     <td><tt>${attr.arch} => amd64</tt></td>
   </tr>
   <tr>
-    <td><tt>${meta.&lt;key&gt;}</tt></td>
+    <td><tt>${node.meta.&lt;key&gt;}</tt></td>
     <td>Metadata value given by <tt>key</tt> on the client</td>
     <td><tt>${meta.foo} => bar</tt></td>
   </tr>
