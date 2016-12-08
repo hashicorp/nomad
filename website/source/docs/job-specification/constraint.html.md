@@ -23,8 +23,10 @@ description: |-
   </tr>
 </table>
 
+[//]: XXX The way we expose the attributes is bad
+
 The `constraint` allows restricting the set of eligible nodes. Constraints may
-filter on [attributes][interpolation] or [metadata][meta]. Additionally
+filter on node [attributes or metadata][interpolation]. Additionally
 constraints may be specified at the [job][job], [group][group], or [task][task]
 levels for ultimate flexibility.
 
@@ -46,7 +48,7 @@ job "docs" {
     task "server" {
       # All tasks must run where "my_custom_value" is greater than 3.
       constraint {
-        attribute = "${meta.my_custom_value}"
+        attribute = "${node.meta.my_custom_value}"
         operator  = ">"
         value     = "3"
       }
@@ -204,6 +206,8 @@ constraint {
 
 ### User-Specified Metadata
 
+[//]: XXX The meta data link is wrong. Here and in other places. At least the client config block too
+
 This example restricts the task to running on nodes where the binaries for
 redis, cypress, and nginx are all cached locally. This particular example is
 utilizing node [metadata][meta].
@@ -219,4 +223,4 @@ constraint {
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
-[interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[interpolation]: /docs/runtime/interpolation.html#node-variables "Nomad interpolation"
