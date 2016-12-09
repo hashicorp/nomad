@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -569,6 +568,22 @@ func (s *HTTPServer) stream(offset int64, path string,
 		t.Done()
 	}()
 
+	// parseFramerErr takes an error and returns an error. The error will
+	// potentially change if it was caused by the connection being closed.
+	parseFramerErr := func(e error) error {
+		if err == io.ErrClosedPipe {
+			// The pipe check is for tests
+			return syscall.EPIPE
+		}
+
+		// The connection was closed by our peer
+		if strings.Contains(e.Error(), syscall.EPIPE.Error()) || strings.Contains(e.Error(), syscall.ECONNRESET.Error()) {
+			return syscall.EPIPE
+		}
+
+		return err
+	}
+
 	// Create a variable to allow setting the last event
 	var lastEvent string
 
@@ -594,23 +609,7 @@ OUTER:
 		// Send the frame
 		if n != 0 {
 			if err := framer.Send(path, lastEvent, data[:n], offset); err != nil {
-
-				// Check if the connection has been closed
-				if err == io.ErrClosedPipe {
-					// The pipe check is for tests
-					return syscall.EPIPE
-				}
-
-				operr, ok := err.(*net.OpError)
-				if ok {
-					// The connection was closed by our peer
-					e := operr.Err.Error()
-					if strings.Contains(e, syscall.EPIPE.Error()) || strings.Contains(e, syscall.ECONNRESET.Error()) {
-						return syscall.EPIPE
-					}
-				}
-
-				return err
+				return parseFramerErr(err)
 			}
 		}
 
@@ -657,7 +656,7 @@ OUTER:
 				lastEvent = truncateEvent
 				continue OUTER
 			case <-framer.ExitCh():
-				return nil
+				return parseFramerErr(framer.Err)
 			case err, ok := <-eofCancelCh:
 				if !ok {
 					return nil
