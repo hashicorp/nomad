@@ -571,7 +571,11 @@ func (s *HTTPServer) stream(offset int64, path string,
 	// parseFramerErr takes an error and returns an error. The error will
 	// potentially change if it was caused by the connection being closed.
 	parseFramerErr := func(e error) error {
-		if err == io.ErrClosedPipe {
+		if e == nil {
+			return nil
+		}
+
+		if strings.Contains(e.Error(), io.ErrClosedPipe.Error()) {
 			// The pipe check is for tests
 			return syscall.EPIPE
 		}
@@ -636,7 +640,7 @@ OUTER:
 			case <-changes.Modified:
 				continue OUTER
 			case <-changes.Deleted:
-				return framer.Send(path, deleteEvent, nil, offset)
+				return parseFramerErr(framer.Send(path, deleteEvent, nil, offset))
 			case <-changes.Truncated:
 				// Close the current reader
 				if err := f.Close(); err != nil {

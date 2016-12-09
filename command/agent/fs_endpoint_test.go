@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -438,7 +439,7 @@ func TestHTTP_Stream_MissingParams(t *testing.T) {
 
 // tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
 // should destroy the temp dir.
-func tempAllocDir(t *testing.T) *allocdir.AllocDir {
+func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
@@ -923,6 +924,112 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 			t.Fatalf("connection not closed")
 		})
 	})
+}
+
+func BenchmarkHTTP_Logs_Follow(t *testing.B) {
+	runtime.MemProfileRate = 1
+
+	s := makeHTTPServer(t, nil)
+	defer s.Cleanup()
+	testutil.WaitForLeader(t, s.Agent.RPC)
+
+	// Get a temp alloc dir and create the log dir
+	ad := tempAllocDir(t)
+	s.Agent.logger.Printf("ALEX: LOG DIR: %q", ad.SharedDir)
+	//defer os.RemoveAll(ad.AllocDir)
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	if err := os.MkdirAll(logDir, 0777); err != nil {
+		t.Fatalf("Failed to make log dir: %v", err)
+	}
+
+	// Create a series of log files in the temp dir
+	task := "foo"
+	logType := "stdout"
+	expected := make([]byte, 1024*1024*100)
+	initialWrites := 3
+
+	writeToFile := func(index int, data []byte) {
+		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
+		logFilePath := filepath.Join(logDir, logFile)
+		err := ioutil.WriteFile(logFilePath, data, 777)
+		if err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+	}
+
+	part := (len(expected) / 3) - 50
+	goodEnough := (8 * len(expected)) / 10
+	for i := 0; i < initialWrites; i++ {
+		writeToFile(i, expected[i*part:(i+1)*part])
+	}
+
+	t.ResetTimer()
+	for i := 0; i < t.N; i++ {
+		s.Agent.logger.Printf("BENCHMARK %d", i)
+
+		// Create a decoder
+		r, w := io.Pipe()
+		wrappedW := &WriteCloseChecker{WriteCloser: w}
+		defer r.Close()
+		defer w.Close()
+		dec := codec.NewDecoder(r, jsonHandle)
+
+		var received []byte
+
+		// Start the reader
+		fullResultCh := make(chan struct{})
+		go func() {
+			for {
+				var frame StreamFrame
+				if err := dec.Decode(&frame); err != nil {
+					if err == io.EOF {
+						t.Logf("EOF")
+						return
+					}
+
+					t.Fatalf("failed to decode: %v", err)
+				}
+
+				if frame.IsHeartbeat() {
+					continue
+				}
+
+				received = append(received, frame.Data...)
+				if len(received) > goodEnough {
+					close(fullResultCh)
+					return
+				}
+			}
+		}()
+
+		// Start streaming logs
+		go func() {
+			if err := s.Server.logs(true, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
+				t.Fatalf("logs() failed: %v", err)
+			}
+		}()
+
+		select {
+		case <-fullResultCh:
+		case <-time.After(time.Duration(60 * time.Second)):
+			t.Fatalf("did not receive data: %d < %d", len(received), goodEnough)
+		}
+
+		s.Agent.logger.Printf("ALEX: CLOSING")
+
+		// Close the reader
+		r.Close()
+		s.Agent.logger.Printf("ALEX: CLOSED")
+
+		s.Agent.logger.Printf("ALEX: WAITING FOR WRITER TO CLOSE")
+		testutil.WaitForResult(func() (bool, error) {
+			return wrappedW.Closed, nil
+		}, func(err error) {
+			t.Fatalf("connection not closed")
+		})
+		s.Agent.logger.Printf("ALEX: WRITER CLOSED")
+	}
 }
 
 func TestLogs_findClosest(t *testing.T) {
