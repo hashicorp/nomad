@@ -206,6 +206,8 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 }
 
 var (
+	// HeartbeatStreamFrame is the StreamFrame to send as a heartbeat, avoiding
+	// creating many instances of the empty StreamFrame
 	HeartbeatStreamFrame = &StreamFrame{}
 )
 
