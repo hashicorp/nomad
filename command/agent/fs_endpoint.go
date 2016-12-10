@@ -1,5 +1,7 @@
 package agent
 
+//go:generate codecgen -o fs_endpoint.generated.go fs_endpoint.go
+
 import (
 	"bytes"
 	"fmt"
@@ -203,6 +205,10 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 	return nil, r.Close()
 }
 
+var (
+	HeartbeatStreamFrame = &StreamFrame{}
+)
+
 // StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
 	// Offset is the offset the data was read from
@@ -224,6 +230,27 @@ func (s *StreamFrame) IsHeartbeat() bool {
 	return s.Offset == 0 && len(s.Data) == 0 && s.File == "" && s.FileEvent == ""
 }
 
+func (s *StreamFrame) Clear() {
+	s.Offset = 0
+	s.Data = nil
+	s.File = ""
+	s.FileEvent = ""
+}
+
+func (s *StreamFrame) IsCleared() bool {
+	if s.Offset != 0 {
+		return false
+	} else if s.Data != nil {
+		return false
+	} else if s.File != "" {
+		return false
+	} else if s.FileEvent != "" {
+		return false
+	} else {
+		return true
+	}
+}
+
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
 	out     io.WriteCloser
@@ -242,7 +269,7 @@ type StreamFramer struct {
 	l sync.Mutex
 
 	// The current working frame
-	f    *StreamFrame
+	f    StreamFrame
 	data *bytes.Buffer
 
 	// Captures whether the framer is running and any error that occurred to
@@ -327,32 +354,32 @@ OUTER:
 		case <-s.flusher.C:
 			// Skip if there is nothing to flush
 			s.l.Lock()
-			if s.f == nil {
+			if s.f.IsCleared() {
 				s.l.Unlock()
 				continue
 			}
 
 			// Read the data for the frame, and send it
 			s.f.Data = s.readData()
-			err = s.send(s.f)
-			s.f = nil
+			err = s.send(&s.f)
+			s.f.Clear()
 			s.l.Unlock()
 			if err != nil {
 				return
 			}
 		case <-s.heartbeat.C:
 			// Send a heartbeat frame
-			if err = s.send(&StreamFrame{}); err != nil {
+			if err = s.send(HeartbeatStreamFrame); err != nil {
 				return
 			}
 		}
 	}
 
 	s.l.Lock()
-	if s.f != nil {
+	if !s.f.IsCleared() {
 		s.f.Data = s.readData()
-		err = s.send(s.f)
-		s.f = nil
+		err = s.send(&s.f)
+		s.f.Clear()
 	}
 	s.l.Unlock()
 }
@@ -377,9 +404,7 @@ func (s *StreamFramer) readData() []byte {
 		return nil
 	}
 	d := s.data.Next(size)
-	b := make([]byte, size)
-	copy(b, d)
-	return b
+	return d
 }
 
 // Send creates and sends a StreamFrame based on the passed parameters. An error
@@ -400,75 +425,62 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	}
 
 	// Check if not mergeable
-	if s.f != nil && (s.f.File != file || s.f.FileEvent != fileEvent) {
+	if !s.f.IsCleared() && (s.f.File != file || s.f.FileEvent != fileEvent) {
 		// Flush the old frame
-		f := *s.f
-		f.Data = s.readData()
+		s.f.Data = s.readData()
 		select {
 		case <-s.exitCh:
 			return nil
 		default:
 		}
-		err := s.send(&f)
-		s.f = nil
+		err := s.send(&s.f)
+		s.f.Clear()
 		if err != nil {
 			return err
 		}
 	}
 
 	// Store the new data as the current frame.
-	if s.f == nil {
-		s.f = &StreamFrame{
-			Offset:    offset,
-			File:      file,
-			FileEvent: fileEvent,
-		}
+	if s.f.IsCleared() {
+		s.f.Offset = offset
+		s.f.File = file
+		s.f.FileEvent = fileEvent
 	}
 
 	// Write the data to the buffer
 	s.data.Write(data)
 
 	// Handle the delete case in which there is no data
+	force := false
 	if s.data.Len() == 0 && s.f.FileEvent != "" {
-		select {
-		case <-s.exitCh:
-			return nil
-		default:
-		}
-
-		f := &StreamFrame{
-			Offset:    s.f.Offset,
-			File:      s.f.File,
-			FileEvent: s.f.FileEvent,
-		}
-		if err := s.send(f); err != nil {
-			return err
-		}
+		force = true
 	}
 
 	// Flush till we are under the max frame size
-	for s.data.Len() >= s.frameSize {
+	for s.data.Len() >= s.frameSize || force {
+		// Clear
+		if force {
+			force = false
+		}
+
 		// Create a new frame to send it
-		d := s.readData()
+		s.f.Data = s.readData()
 		select {
 		case <-s.exitCh:
 			return nil
 		default:
 		}
 
-		f := &StreamFrame{
-			Offset:    s.f.Offset,
-			File:      s.f.File,
-			FileEvent: s.f.FileEvent,
-			Data:      d,
-		}
-		if err := s.send(f); err != nil {
+		if err := s.send(&s.f); err != nil {
 			return err
 		}
+
+		// Update the offset
+		s.f.Offset += int64(len(s.f.Data))
 	}
 
 	if s.data.Len() == 0 {
-		s.f = nil
+		s.f.Clear()
 	}
 
 	return nil
@@ -853,7 +865,9 @@ func blockUntilNextLog(fs allocdir.AllocDirFS, t *tomb.Tomb, logPath, task, logT
 			return
 		}
 
-		scanCh := time.Tick(nextLogCheckRate)
+		ticker := time.NewTicker(nextLogCheckRate)
+		defer ticker.Stop()
+		scanCh := ticker.C
 		for {
 			select {
 			case <-t.Dead():
