@@ -54,7 +54,7 @@ func IsTravis() bool {
 
 type rpcFn func(string, interface{}, interface{}) error
 
-func WaitForLeader(t *testing.T, rpc rpcFn) {
+func WaitForLeader(t testing.TB, rpc rpcFn) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.GenericRequest{}
 		var leader string
