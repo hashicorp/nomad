@@ -1,4 +1,4 @@
-## 0.5.1 (Unreleased)
+## 0.5.1 (December 12, 2016)
 
 IMPROVEMENTS:
   * driver/rkt: Support rkt's `--dns=host` and `--dns=none` options [GH-2028]
