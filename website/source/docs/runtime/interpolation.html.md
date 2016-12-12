@@ -219,7 +219,7 @@ a particular node and as such can not be used in constraints.
   </tr>
   <tr>
     <td><tt>${NOMAD_ALLOC_INDEX}</tt></td>
-    <td>The allocation index; useful to distinguish instances of task groups</td>
+    <td>The allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
   </tr>
   <tr>
     <td><tt>${NOMAD_TASK_NAME}</tt></td>
