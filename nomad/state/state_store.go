@@ -344,8 +344,6 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
 
-		// Since it is a new job ensure it has no status set
-		job.Status = ""
 		if err := s.setJobStatus(index, watcher, txn, job, false, ""); err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
 		}
@@ -1470,6 +1468,9 @@ func (s *StateStore) setJobStatus(index uint64, watcher watch.Items, txn *memdb.
 
 	// Capture the current status so we can check if there is a change
 	oldStatus := job.Status
+	if index == job.CreateIndex {
+		oldStatus = ""
+	}
 	newStatus := forceStatus
 
 	// If forceStatus is not set, compute the jobs status.
