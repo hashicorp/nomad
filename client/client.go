@@ -154,6 +154,10 @@ type Client struct {
 	// migratingAllocs is the set of allocs whose data migration is in flight
 	migratingAllocs     map[string]chan struct{}
 	migratingAllocsLock sync.Mutex
+
+	// garbageCollector is used to garbage collect terminal allocations present
+	// in the node automatically
+	garbageCollector *AllocGarbageCollector
 }
 
 var (
@@ -191,6 +195,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		servers:             newServerList(),
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
+		garbageCollector:    NewAllocGarbageCollector(logger),
 	}
 
 	// Initialize the client
@@ -432,6 +437,23 @@ func (c *Client) Stats() map[string]map[string]string {
 		"runtime": nomad.RuntimeStats(),
 	}
 	return stats
+}
+
+// CollectAllocation garbage collects a single allocation
+func (c *Client) CollectAllocation(allocID string) error {
+	if err := c.garbageCollector.Collect(allocID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CollectAllAllocs garbage collects all allocations on a node in the terminal
+// state
+func (c *Client) CollectAllAllocs() error {
+	if err := c.garbageCollector.CollectAll(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Node returns the locally registered node
@@ -1087,6 +1109,15 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 		delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
 	}
 	c.blockedAllocsLock.Unlock()
+
+	// Mark the allocation for GC if it is in terminal state
+	if alloc.Terminated() {
+		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
+			if err := c.garbageCollector.MarkForCollection(ar); err != nil {
+				c.logger.Printf("[DEBUG] client: couldn't add alloc %v for GC: %v", alloc.ID, err)
+			}
+		}
+	}
 
 	// Strip all the information that can be reconstructed at the server.  Only
 	// send the fields that are updatable by the client.
