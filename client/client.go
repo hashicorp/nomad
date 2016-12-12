@@ -141,8 +141,6 @@ type Client struct {
 
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
-	resourceUsage      *stats.HostStats
-	resourceUsageLock  sync.RWMutex
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -481,9 +479,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 
 // HostStats returns all the stats related to a Nomad client
 func (c *Client) LatestHostStats() *stats.HostStats {
-	c.resourceUsageLock.RLock()
-	defer c.resourceUsageLock.RUnlock()
-	return c.resourceUsage
+	return c.hostStatsCollector.Stats()
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -2104,20 +2100,16 @@ func (c *Client) collectHostStats() {
 	for {
 		select {
 		case <-next.C:
-			ru, err := c.hostStatsCollector.Collect()
+			err := c.hostStatsCollector.Collect()
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
 				continue
 			}
 
-			c.resourceUsageLock.Lock()
-			c.resourceUsage = ru
-			c.resourceUsageLock.Unlock()
-
 			// Publish Node metrics if operator has opted in
 			if c.config.PublishNodeMetrics {
-				c.emitStats(ru)
+				c.emitStats(c.hostStatsCollector.Stats())
 			}
 		case <-c.shutdownCh:
 			return

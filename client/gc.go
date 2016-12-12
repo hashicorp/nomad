@@ -163,6 +163,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 
 		ar := gcAlloc.allocRunner
 		alloc := ar.Alloc()
+		a.logger.Printf("[INFO] client: garbage collecting allocation %v", alloc.ID)
 		ar.Destroy()
 		diskCleared += alloc.Resources.DiskMB
 		if diskCleared >= totalResource.DiskMB {
