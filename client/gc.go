@@ -11,9 +11,9 @@ import (
 )
 
 type GCAlloc struct {
-	timeStamp time.Time
-	alloc     *AllocRunner
-	index     int
+	timeStamp   time.Time
+	allocRunner *AllocRunner
+	index       int
 }
 
 type GCAllocPQImpl []*GCAlloc
@@ -68,8 +68,8 @@ func (i *IndexedGCAllocPQ) Push(ar *AllocRunner) error {
 		return fmt.Errorf("alloc %v already being tracked for GC", alloc.ID)
 	}
 	gcAlloc := &GCAlloc{
-		timeStamp: time.Now(),
-		alloc:     ar,
+		timeStamp:   time.Now(),
+		allocRunner: ar,
 	}
 	i.index[alloc.ID] = gcAlloc
 	heap.Push(&i.heap, gcAlloc)
@@ -82,7 +82,7 @@ func (i *IndexedGCAllocPQ) Pop() *GCAlloc {
 	}
 
 	gcAlloc := heap.Pop(&i.heap).(*GCAlloc)
-	delete(i.index, gcAlloc.alloc.Alloc().ID)
+	delete(i.index, gcAlloc.allocRunner.Alloc().ID)
 	return gcAlloc
 }
 
@@ -123,7 +123,7 @@ func (a *AllocGarbageCollector) Collect(allocID string) error {
 		return fmt.Errorf("unable to collect allocation %q: %v", allocID, err)
 	}
 
-	ar := gcAlloc.alloc
+	ar := gcAlloc.allocRunner
 	a.logger.Printf("[INFO] client: garbage collecting allocation %q", ar.Alloc().ID)
 	ar.Destroy()
 
@@ -137,7 +137,7 @@ func (a *AllocGarbageCollector) CollectAll() error {
 		if gcAlloc == nil {
 			break
 		}
-		ar := gcAlloc.alloc
+		ar := gcAlloc.allocRunner
 		a.logger.Printf("[INFO] client: garbage collecting alloc runner for alloc %q", ar.Alloc().ID)
 		ar.Destroy()
 	}
@@ -161,7 +161,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 			break
 		}
 
-		ar := gcAlloc.alloc
+		ar := gcAlloc.allocRunner
 		alloc := ar.Alloc()
 		ar.Destroy()
 		diskCleared += alloc.Resources.DiskMB
