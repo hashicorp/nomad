@@ -467,6 +467,47 @@ func TestStateStore_UpsertJob_NoEphemeralDisk(t *testing.T) {
 	}
 }
 
+// Upsert a job that is the child of a parent job and ensures its summary gets
+// updated.
+func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
+	state := testStateStore(t)
+	parent := mock.Job()
+	if err := state.UpsertJob(1000, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID})
+
+	err := state.UpsertJob(1001, child)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 1 || summary.Children.Running != 0 || summary.Children.Dead != 0 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+	notify.verify(t)
+}
+
 func TestStateStore_DeleteJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
@@ -511,6 +552,50 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 		t.Fatalf("expected summary to be nil, but got: %v", summary)
 	}
 
+	notify.verify(t)
+}
+
+func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
+	state := testStateStore(t)
+
+	parent := mock.Job()
+	if err := state.UpsertJob(998, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+
+	if err := state.UpsertJob(999, child); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID})
+
+	err := state.DeleteJob(1001, child.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 0 || summary.Children.Dead != 1 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
 	notify.verify(t)
 }
 
@@ -1305,6 +1390,75 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
+	state := testStateStore(t)
+
+	parent := mock.Job()
+	if err := state.UpsertJob(998, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+
+	if err := state.UpsertJob(999, child); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.JobID = child.ID
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID},
+		watch.Item{Table: "evals"},
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
+
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.EvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval, out) {
+		t.Fatalf("bad: %#v %#v", eval, out)
+	}
+
+	index, err := state.Index("evals")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 0 || summary.Children.Dead != 1 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+
+	notify.verify(t)
+}
+
 func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	state := testStateStore(t)
 	eval1 := mock.Eval()
@@ -1398,6 +1552,66 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	}
 	if index != 1002 {
 		t.Fatalf("bad: %d", index)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
+	state := testStateStore(t)
+
+	parent := mock.Job()
+	if err := state.UpsertJob(998, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+
+	if err := state.UpsertJob(999, child); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval1 := mock.Eval()
+	eval1.JobID = child.ID
+	alloc1 := mock.Alloc()
+	alloc1.JobID = child.ID
+
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc1})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID})
+
+	err = state.DeleteEval(1002, []string{eval1.ID}, []string{alloc1.ID})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 0 || summary.Children.Dead != 1 {
+		t.Fatalf("bad children summary: %v", summary.Children)
 	}
 
 	notify.verify(t)
@@ -1571,6 +1785,68 @@ func TestStateStore_RestoreEval(t *testing.T) {
 }
 
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
+	state := testStateStore(t)
+
+	parent := mock.Job()
+	if err := state.UpsertJob(998, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+	if err := state.UpsertJob(999, child); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc := mock.Alloc()
+	alloc.JobID = child.ID
+	alloc.Job = child
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID})
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the delta updates
+	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStatePending}}
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		TaskStates:   ts,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+	}
+	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 1 || summary.Children.Dead != 0 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+
+	notify.verify(t)
+}
+
+func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
@@ -1822,6 +2098,55 @@ func TestStateStore_UpsertAlloc_NoEphemeralDisk(t *testing.T) {
 	if !reflect.DeepEqual(expected, out) {
 		t.Fatalf("bad: %#v %#v", expected, out)
 	}
+}
+
+func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
+	state := testStateStore(t)
+
+	parent := mock.Job()
+	if err := state.UpsertJob(998, parent); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	child := mock.Job()
+	child.ParentID = parent.ID
+
+	if err := state.UpsertJob(999, child); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc := mock.Alloc()
+	alloc.JobID = child.ID
+	alloc.Job = child
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "job_summary"},
+		watch.Item{JobSummary: parent.ID})
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	summary, err := state.JobSummaryByID(parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 1 || summary.Children.Dead != 0 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+
+	notify.verify(t)
 }
 
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {

@@ -927,6 +927,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
+
 	// Trigger the watcher
 	watcher.Add(watch.Item{Alloc: alloc.ID})
 	watcher.Add(watch.Item{AllocEval: exist.EvalID})
