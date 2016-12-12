@@ -42,11 +42,5 @@ popd
 
 # Upload
 if [ ! -z $HC_RELEASE ]; then
-  hc-releases -upload $DIR/pkg/dist --publish --purge
-
-  curl -X PURGE https://releases.hashicorp.com/nomad/${VERSION}
-  for FILENAME in $(find $DIR/pkg/dist -type f); do
-    FILENAME=$(basename $FILENAME)
-    curl -X PURGE https://releases.hashicorp.com/nomad/${VERSION}/${FILENAME}
-  done
+  hc-releases upload $DIR/pkg/dist && hc-releases publish
 fi
