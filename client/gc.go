@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -102,17 +103,19 @@ func (i *IndexedGCAllocPQ) Length() int {
 
 // AllocGarbageCollector garbage collects terminated allocations on a node
 type AllocGarbageCollector struct {
-	allocRunners *IndexedGCAllocPQ
-	allocsLock   sync.Mutex
-	logger       *log.Logger
+	allocRunners   *IndexedGCAllocPQ
+	allocsLock     sync.Mutex
+	statsCollector *stats.HostStatsCollector
+	logger         *log.Logger
 }
 
 // NewAllocGarbageCollector returns a garbage collector for terminated
 // allocations on a node.
-func NewAllocGarbageCollector(logger *log.Logger) *AllocGarbageCollector {
+func NewAllocGarbageCollector(logger *log.Logger, statsCollector *stats.HostStatsCollector) *AllocGarbageCollector {
 	return &AllocGarbageCollector{
-		allocRunners: NewIndexedGCAllocPQ(),
-		logger:       logger,
+		allocRunners:   NewIndexedGCAllocPQ(),
+		statsCollector: statsCollector,
+		logger:         logger,
 	}
 }
 

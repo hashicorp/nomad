@@ -177,6 +177,8 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		tlsWrap = tw
 	}
 
+	statsCollector := stats.NewHostStatsCollector(logger)
+
 	// Create the client
 	c := &Client{
 		config:              cfg,
@@ -184,7 +186,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		start:               time.Now(),
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
-		hostStatsCollector:  stats.NewHostStatsCollector(logger),
+		hostStatsCollector:  statsCollector,
 		allocs:              make(map[string]*AllocRunner),
 		blockedAllocations:  make(map[string]*structs.Allocation),
 		allocUpdates:        make(chan *structs.Allocation, 64),
@@ -193,7 +195,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		servers:             newServerList(),
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
-		garbageCollector:    NewAllocGarbageCollector(logger),
+		garbageCollector:    NewAllocGarbageCollector(logger, statsCollector),
 	}
 
 	// Initialize the client
