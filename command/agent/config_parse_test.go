@@ -91,6 +91,7 @@ func TestConfig_Parse(t *testing.T) {
 					StatsiteAddr:             "127.0.0.1:1234",
 					StatsdAddr:               "127.0.0.1:2345",
 					DisableHostname:          true,
+					UseNodeName:              false,
 					CollectionInterval:       "3s",
 					collectionInterval:       3 * time.Second,
 					PublishAllocationMetrics: true,

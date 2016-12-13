@@ -527,6 +527,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"statsite_address",
 		"statsd_address",
 		"disable_hostname",
+		"use_node_name",
 		"collection_interval",
 		"publish_allocation_metrics",
 		"publish_node_metrics",

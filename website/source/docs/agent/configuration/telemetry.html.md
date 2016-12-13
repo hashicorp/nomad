@@ -45,6 +45,10 @@ The following options are available on all telemetry configurations.
 - `disable_hostname` `(bool: false)` - Specifies if gauge values should be
   prefixed with the local hostname.
 
+- `use_node_name` `(bool: false)` - Specifies if gauge values should be
+  prefixed with the name of the node, instead of the hostname. If set it will
+  override [disable_hostname](#disable_hostname) value.
+
 - `publish_allocation_metrics` `(bool: false)` - Specifies if Nomad should
   publish runtime metrics of allocations.
 

@@ -271,6 +271,7 @@ type Telemetry struct {
 	StatsdAddr               string        `mapstructure:"statsd_address"`
 	DataDogAddr              string        `mapstructure:"datadog_address"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
+	UseNodeName              bool          `mapstructure:"use_node_name"`
 	CollectionInterval       string        `mapstructure:"collection_interval"`
 	collectionInterval       time.Duration `mapstructure:"-"`
 	PublishAllocationMetrics bool          `mapstructure:"publish_allocation_metrics"`
