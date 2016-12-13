@@ -1397,8 +1397,13 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			// have already blocked
 			c.migratingAllocsLock.Lock()
 			if _, ok := c.migratingAllocs[add.ID]; !ok {
-				c.migratingAllocs[add.ID] = make(chan struct{})
-				go c.blockForRemoteAlloc(add)
+				// Check that we don't have an alloc runner already. This
+				// prevents a race between a finishing blockForRemoteAlloc and
+				// another invocation of runAllocs
+				if _, ok := c.getAllocRunners()[add.PreviousAllocation]; !ok {
+					c.migratingAllocs[add.ID] = make(chan struct{})
+					go c.blockForRemoteAlloc(add)
+				}
 			}
 			c.migratingAllocsLock.Unlock()
 			continue
@@ -1744,6 +1749,15 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.AllocDir) error {
+	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
+
+	// Check if we already have an alloc runner
+	if _, ok := c.allocs[alloc.ID]; ok {
+		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
+		return nil
+	}
+
 	c.configLock.RLock()
 	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
 	ar.SetPreviousAllocDir(prevAllocDir)
@@ -1751,13 +1765,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	go ar.Run()
 
 	// Store the alloc runner.
-	c.allocLock.Lock()
-	if _, ok := c.allocs[alloc.ID]; ok {
-		c.allocLock.Unlock()
-		panic(fmt.Sprintf("Alloc Runner already exists for alloc %q", alloc.ID))
-	}
 	c.allocs[alloc.ID] = ar
-	c.allocLock.Unlock()
 	return nil
 }
 
