@@ -1,7 +1,8 @@
 ## 0.5.2 (Unreleased)
 
 BUG FIXES:
-  * client: Fixed a race condition and remove panic from code [GH-2096]
+  * client: Fixed a race condition and remove panic when handling duplicate
+    allocations [GH-2096]
   * client: Cancel wait for remote allocation if migration is no longer required
     [GH-2097]
 
