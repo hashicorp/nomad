@@ -1447,10 +1447,11 @@ func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
 	}
 
 	// Wait for the remote previous alloc to be terminal if the alloc is sticky
-	if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
+	if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky && tg.EphemeralDisk.Migrate {
 		c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
 		// Block until the previous allocation migrates to terminal state
-		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation)
+		stopCh := c.migratingAllocs[alloc.ID]
+		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation, stopCh)
 		if err != nil {
 			c.logger.Printf("[ERR] client: error waiting for allocation %q: %v",
 				alloc.PreviousAllocation, err)
@@ -1473,7 +1474,7 @@ ADDALLOC:
 
 // waitForAllocTerminal waits for an allocation with the given alloc id to
 // transition to terminal state and blocks the caller until then.
-func (c *Client) waitForAllocTerminal(allocID string) (*structs.Allocation, error) {
+func (c *Client) waitForAllocTerminal(allocID string, stopCh chan struct{}) (*structs.Allocation, error) {
 	req := structs.AllocSpecificRequest{
 		AllocID: allocID,
 		QueryOptions: structs.QueryOptions{
@@ -1491,6 +1492,8 @@ func (c *Client) waitForAllocTerminal(allocID string) (*structs.Allocation, erro
 			select {
 			case <-time.After(retry):
 				continue
+			case <-stopCh:
+				return nil, fmt.Errorf("giving up waiting on alloc %v since migration is not needed", allocID)
 			case <-c.shutdownCh:
 				return nil, fmt.Errorf("aborting because client is shutting down")
 			}
