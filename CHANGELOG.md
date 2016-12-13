@@ -5,6 +5,8 @@ BUG FIXES:
     allocations [GH-2096]
   * client: Cancel wait for remote allocation if migration is no longer required
     [GH-2097]
+  * client: Failure to stat a single mountpoint does not cause all of host
+    resource usage collection to fail [GH-2090]
 
 ## 0.5.1 (December 12, 2016)
 
