@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"log"
 	"math"
 	"runtime"
 	"time"
@@ -56,15 +57,17 @@ type HostStatsCollector struct {
 	clkSpeed        float64
 	numCores        int
 	statsCalculator map[string]*HostCpuStatsCalculator
+	logger          *log.Logger
 }
 
 // NewHostStatsCollector returns a HostStatsCollector
-func NewHostStatsCollector() *HostStatsCollector {
+func NewHostStatsCollector(logger *log.Logger) *HostStatsCollector {
 	numCores := runtime.NumCPU()
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
 	collector := &HostStatsCollector{
 		statsCalculator: statsCalculator,
 		numCores:        numCores,
+		logger:          logger,
 	}
 	return collector
 }
@@ -116,7 +119,8 @@ func (h *HostStatsCollector) Collect() (*HostStats, error) {
 	for _, partition := range partitions {
 		usage, err := disk.Usage(partition.Mountpoint)
 		if err != nil {
-			return nil, err
+			h.logger.Printf("[WARN] client: error fetching host disk usage stats for %v: %v", partition.Mountpoint, err)
+			continue
 		}
 		ds := DiskStats{
 			Device:            partition.Device,

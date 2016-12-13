@@ -182,7 +182,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		start:               time.Now(),
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
-		hostStatsCollector:  stats.NewHostStatsCollector(),
+		hostStatsCollector:  stats.NewHostStatsCollector(logger),
 		allocs:              make(map[string]*AllocRunner),
 		blockedAllocations:  make(map[string]*structs.Allocation),
 		allocUpdates:        make(chan *structs.Allocation, 64),
