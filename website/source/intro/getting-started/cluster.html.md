@@ -33,6 +33,12 @@ server {
     # Self-elect, should be 3 or 5 for production
     bootstrap_expect = 1
 }
+
+advertise {
+  http = "localhost"
+  rpc = "localhost"
+  serf = "localhost"
+}
 ```
 
 This is a fairly minimal server configuration file, but it
