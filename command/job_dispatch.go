@@ -75,16 +75,16 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	templateJob := args[0]
-	var inputData []byte
+	var payload []byte
 	var readErr error
 
 	// Read the input
 	if len(args) == 2 {
 		switch args[1] {
 		case "-":
-			inputData, readErr = ioutil.ReadAll(os.Stdin)
+			payload, readErr = ioutil.ReadAll(os.Stdin)
 		default:
-			inputData, readErr = ioutil.ReadFile(args[1])
+			payload, readErr = ioutil.ReadFile(args[1])
 		}
 		if readErr != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading input data: %v", readErr))
@@ -112,7 +112,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	// Dispatch the job
-	resp, _, err := client.Jobs().Dispatch(templateJob, metaMap, inputData, nil)
+	resp, _, err := client.Jobs().Dispatch(templateJob, metaMap, payload, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1

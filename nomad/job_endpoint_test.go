@@ -249,7 +249,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Register_Dispatch_Template(t *testing.T) {
+func TestJobEndpoint_Register_Constructor(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -257,9 +257,9 @@ func TestJobEndpoint_Register_Dispatch_Template(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request for a dispatch template job.
+	// Create the register request for a constructor job.
 	job := mock.Job()
-	job.Dispatch = &structs.DispatchConfig{}
+	job.Constructor = &structs.ConstructorConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -274,7 +274,7 @@ func TestJobEndpoint_Register_Dispatch_Template(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
-	// Check for the node in the FSM
+	// Check for the job in the FSM
 	state := s1.fsm.State()
 	out, err := state.JobByID(job.ID)
 	if err != nil {
@@ -287,7 +287,7 @@ func TestJobEndpoint_Register_Dispatch_Template(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 	if resp.EvalID != "" {
-		t.Fatalf("Register created an eval for a dispatch template job")
+		t.Fatalf("Register created an eval for a constructor job")
 	}
 }
 
@@ -756,7 +756,7 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Evaluate_Dispatch_Template(t *testing.T) {
+func TestJobEndpoint_Evaluate_Constructor(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -766,7 +766,7 @@ func TestJobEndpoint_Evaluate_Dispatch_Template(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.Dispatch = &structs.DispatchConfig{}
+	job.Constructor = &structs.ConstructorConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -973,7 +973,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Deregister_Dispatch_Template(t *testing.T) {
+func TestJobEndpoint_Deregister_Constructor(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -983,7 +983,7 @@ func TestJobEndpoint_Deregister_Dispatch_Template(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.Dispatch = &structs.DispatchConfig{}
+	job.Constructor = &structs.ConstructorConfig{}
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -1019,7 +1019,7 @@ func TestJobEndpoint_Deregister_Dispatch_Template(t *testing.T) {
 	}
 
 	if resp.EvalID != "" {
-		t.Fatalf("Deregister created an eval for a dispatch template job")
+		t.Fatalf("Deregister created an eval for a constructor job")
 	}
 }
 
@@ -1859,35 +1859,35 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 	// No requirements
 	d1 := mock.Job()
-	d1.Dispatch = &structs.DispatchConfig{}
+	d1.Constructor = &structs.ConstructorConfig{}
 
 	// Require input data
 	d2 := mock.Job()
-	d2.Dispatch = &structs.DispatchConfig{
-		InputData: structs.DispatchInputDataRequired,
+	d2.Constructor = &structs.ConstructorConfig{
+		Payload: structs.DispatchPayloadRequired,
 	}
 
 	// Disallow input data
 	d3 := mock.Job()
-	d3.Dispatch = &structs.DispatchConfig{
-		InputData: structs.DispatchInputDataForbidden,
+	d3.Constructor = &structs.ConstructorConfig{
+		Payload: structs.DispatchPayloadForbidden,
 	}
 
 	// Require meta
 	d4 := mock.Job()
-	d4.Dispatch = &structs.DispatchConfig{
+	d4.Constructor = &structs.ConstructorConfig{
 		MetaRequired: []string{"foo", "bar"},
 	}
 
 	// Optional meta
 	d5 := mock.Job()
-	d5.Dispatch = &structs.DispatchConfig{
+	d5.Constructor = &structs.ConstructorConfig{
 		MetaOptional: []string{"foo", "bar"},
 	}
 
 	reqNoInputNoMeta := &structs.JobDispatchRequest{}
 	reqInputDataNoMeta := &structs.JobDispatchRequest{
-		InputData: []byte("hello world"),
+		Payload: []byte("hello world"),
 	}
 	reqNoInputDataMeta := &structs.JobDispatchRequest{
 		Meta: map[string]string{
@@ -1896,14 +1896,14 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		},
 	}
 	reqInputDataMeta := &structs.JobDispatchRequest{
-		InputData: []byte("hello world"),
+		Payload: []byte("hello world"),
 		Meta: map[string]string{
 			"foo": "f1",
 			"bar": "f2",
 		},
 	}
 	reqBadMeta := &structs.JobDispatchRequest{
-		InputData: []byte("hello world"),
+		Payload: []byte("hello world"),
 		Meta: map[string]string{
 			"foo": "f1",
 			"bar": "f2",
@@ -1911,93 +1911,93 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		},
 	}
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
-		InputData: make([]byte, DispatchInputDataSizeLimit+100),
+		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
 
 	type testCase struct {
-		name             string
-		dispatchTemplate *structs.Job
-		dispatchReq      *structs.JobDispatchRequest
-		err              bool
-		errStr           string
+		name        string
+		constructor *structs.Job
+		dispatchReq *structs.JobDispatchRequest
+		err         bool
+		errStr      string
 	}
 	cases := []testCase{
 		{
-			name:             "optional input data w/ data",
-			dispatchTemplate: d1,
-			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			name:        "optional input data w/ data",
+			constructor: d1,
+			dispatchReq: reqInputDataNoMeta,
+			err:         false,
 		},
 		{
-			name:             "optional input data w/o data",
-			dispatchTemplate: d1,
-			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			name:        "optional input data w/o data",
+			constructor: d1,
+			dispatchReq: reqNoInputNoMeta,
+			err:         false,
 		},
 		{
-			name:             "require input data w/ data",
-			dispatchTemplate: d2,
-			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			name:        "require input data w/ data",
+			constructor: d2,
+			dispatchReq: reqInputDataNoMeta,
+			err:         false,
 		},
 		{
-			name:             "require input data w/o data",
-			dispatchTemplate: d2,
-			dispatchReq:      reqNoInputNoMeta,
-			err:              true,
-			errStr:           "not provided but required",
+			name:        "require input data w/o data",
+			constructor: d2,
+			dispatchReq: reqNoInputNoMeta,
+			err:         true,
+			errStr:      "not provided but required",
 		},
 		{
-			name:             "disallow input data w/o data",
-			dispatchTemplate: d3,
-			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			name:        "disallow input data w/o data",
+			constructor: d3,
+			dispatchReq: reqNoInputNoMeta,
+			err:         false,
 		},
 		{
-			name:             "disallow input data w/ data",
-			dispatchTemplate: d3,
-			dispatchReq:      reqInputDataNoMeta,
-			err:              true,
-			errStr:           "provided but forbidden",
+			name:        "disallow input data w/ data",
+			constructor: d3,
+			dispatchReq: reqInputDataNoMeta,
+			err:         true,
+			errStr:      "provided but forbidden",
 		},
 		{
-			name:             "require meta w/ meta",
-			dispatchTemplate: d4,
-			dispatchReq:      reqInputDataMeta,
-			err:              false,
+			name:        "require meta w/ meta",
+			constructor: d4,
+			dispatchReq: reqInputDataMeta,
+			err:         false,
 		},
 		{
-			name:             "require meta w/o meta",
-			dispatchTemplate: d4,
-			dispatchReq:      reqNoInputNoMeta,
-			err:              true,
-			errStr:           "did not provide required meta keys",
+			name:        "require meta w/o meta",
+			constructor: d4,
+			dispatchReq: reqNoInputNoMeta,
+			err:         true,
+			errStr:      "did not provide required meta keys",
 		},
 		{
-			name:             "optional meta w/ meta",
-			dispatchTemplate: d5,
-			dispatchReq:      reqNoInputDataMeta,
-			err:              false,
+			name:        "optional meta w/ meta",
+			constructor: d5,
+			dispatchReq: reqNoInputDataMeta,
+			err:         false,
 		},
 		{
-			name:             "optional meta w/o meta",
-			dispatchTemplate: d5,
-			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			name:        "optional meta w/o meta",
+			constructor: d5,
+			dispatchReq: reqNoInputNoMeta,
+			err:         false,
 		},
 		{
-			name:             "optional meta w/ bad meta",
-			dispatchTemplate: d5,
-			dispatchReq:      reqBadMeta,
-			err:              true,
-			errStr:           "unpermitted metadata keys",
+			name:        "optional meta w/ bad meta",
+			constructor: d5,
+			dispatchReq: reqBadMeta,
+			err:         true,
+			errStr:      "unpermitted metadata keys",
 		},
 		{
-			name:             "optional input w/ too big of input",
-			dispatchTemplate: d1,
-			dispatchReq:      reqInputDataTooLarge,
-			err:              true,
-			errStr:           "data exceeds maximum size",
+			name:        "optional input w/ too big of input",
+			constructor: d1,
+			dispatchReq: reqInputDataTooLarge,
+			err:         true,
+			errStr:      "Payload exceeds maximum size",
 		},
 	}
 
@@ -2012,7 +2012,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Create the register request
 			regReq := &structs.JobRegisterRequest{
-				Job:          tc.dispatchTemplate,
+				Job:          tc.constructor,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 
@@ -2023,7 +2023,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			}
 
 			// Now try to dispatch
-			tc.dispatchReq.JobID = tc.dispatchTemplate.ID
+			tc.dispatchReq.JobID = tc.constructor.ID
 			tc.dispatchReq.WriteRequest = structs.WriteRequest{Region: "global"}
 
 			var dispatchResp structs.JobDispatchResponse
@@ -2050,7 +2050,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				if out.CreateIndex != dispatchResp.JobCreateIndex {
 					t.Fatalf("index mis-match")
 				}
-				if out.ParentID != tc.dispatchTemplate.ID {
+				if out.ParentID != tc.constructor.ID {
 					t.Fatalf("bad parent ID")
 				}
 

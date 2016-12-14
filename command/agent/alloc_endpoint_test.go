@@ -163,7 +163,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 	})
 }
 
-func TestHTTP_AllocQuery_InputData(t *testing.T) {
+func TestHTTP_AllocQuery_Payload(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -172,10 +172,10 @@ func TestHTTP_AllocQuery_InputData(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Insert InputData compressed
+		// Insert Payload compressed
 		expected := []byte("hello world")
 		compressed := snappy.Encode(nil, expected)
-		alloc.Job.InputData = compressed
+		alloc.Job.Payload = compressed
 
 		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
 		if err != nil {
@@ -212,9 +212,9 @@ func TestHTTP_AllocQuery_InputData(t *testing.T) {
 			t.Fatalf("bad: %#v", a)
 		}
 
-		// Check the input data is decompressed
-		if !reflect.DeepEqual(a.Job.InputData, expected) {
-			t.Fatalf("InputData not decompressed properly; got %#v; want %#v", a.Job.InputData, expected)
+		// Check the payload is decompressed
+		if !reflect.DeepEqual(a.Job.Payload, expected) {
+			t.Fatalf("Payload not decompressed properly; got %#v; want %#v", a.Job.Payload, expected)
 		}
 	})
 }

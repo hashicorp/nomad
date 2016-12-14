@@ -143,8 +143,7 @@ type LogConfig struct {
 
 // DispatchInputConfig configures how a task gets its input from a job dispatch
 type DispatchInputConfig struct {
-	Stdin bool
-	File  string
+	File string
 }
 
 // Task is a single process in a task group.

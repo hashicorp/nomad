@@ -539,16 +539,16 @@ func TestParse(t *testing.T) {
 		},
 
 		{
-			"dispatch.hcl",
+			"constructor.hcl",
 			&structs.Job{
-				ID:       "dispatch",
-				Name:     "dispatch",
+				ID:       "constructor",
+				Name:     "constructor",
 				Type:     "service",
 				Priority: 50,
 				Region:   "global",
 
-				Dispatch: &structs.DispatchConfig{
-					InputData:    "required",
+				Constructor: &structs.ConstructorConfig{
+					Payload:      "required",
 					MetaRequired: []string{"foo", "bar"},
 					MetaOptional: []string{"baz", "bam"},
 				},
@@ -572,8 +572,7 @@ func TestParse(t *testing.T) {
 									MaxFileSizeMB: 10,
 								},
 								DispatchInput: &structs.DispatchInputConfig{
-									Stdin: true,
-									File:  "foo/bar",
+									File: "foo/bar",
 								},
 							},
 						},

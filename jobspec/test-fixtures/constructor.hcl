@@ -1,6 +1,6 @@
-job "dispatch" {
-    dispatch {
-        input_data = "required"
+job "constructor" {
+    constructor {
+        payload = "required"
         meta_keys {
             required = ["foo", "bar"]
             optional = ["baz", "bam"]
@@ -12,7 +12,6 @@ job "dispatch" {
             resources {}
 
             dispatch_input {
-                stdin = true
                 file = "foo/bar"
             }
         }

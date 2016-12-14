@@ -59,15 +59,15 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 		return nil, CodedError(404, "alloc not found")
 	}
 
-	// Decode the input data if there is any
+	// Decode the payload if there is any
 	alloc := out.Alloc
-	if alloc.Job != nil && len(alloc.Job.InputData) != 0 {
-		decoded, err := snappy.Decode(nil, alloc.Job.InputData)
+	if alloc.Job != nil && len(alloc.Job.Payload) != 0 {
+		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
 		if err != nil {
 			return nil, err
 		}
 		alloc = alloc.Copy()
-		alloc.Job.InputData = decoded
+		alloc.Job.Payload = decoded
 	}
 
 	return alloc, nil

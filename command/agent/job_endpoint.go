@@ -210,15 +210,15 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job not found")
 	}
 
-	// Decode the input data if there is any
+	// Decode the payload if there is any
 	job := out.Job
-	if len(job.InputData) != 0 {
-		decoded, err := snappy.Decode(nil, out.Job.InputData)
+	if len(job.Payload) != 0 {
+		decoded, err := snappy.Decode(nil, out.Job.Payload)
 		if err != nil {
 			return nil, err
 		}
 		job = job.Copy()
-		job.InputData = decoded
+		job.Payload = decoded
 	}
 
 	return job, nil

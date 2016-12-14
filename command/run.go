@@ -147,9 +147,9 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if the job is periodic or is a dispatch template
+	// Check if the job is periodic or is a constructor job
 	periodic := job.IsPeriodic()
-	template := job.IsDispatchTemplate()
+	constructor := job.IsConstructor()
 
 	// Parse the Vault token
 	if vaultToken == "" {
@@ -240,14 +240,14 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Check if we should enter monitor mode
-	if detach || periodic || template {
+	if detach || periodic || constructor {
 		c.Ui.Output("Job registration successful")
 		if periodic {
 			now := time.Now().UTC()
 			next := job.Periodic.Next(now)
 			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
 				formatTime(next), formatTimeDifference(now, next, time.Second)))
-		} else if !template {
+		} else if !constructor {
 			c.Ui.Output("Evaluation ID: " + evalID)
 		}
 

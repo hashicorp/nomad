@@ -207,15 +207,15 @@ func TestHTTP_JobQuery(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobQuery_InputData(t *testing.T) {
+func TestHTTP_JobQuery_Payload(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
 		job := mock.Job()
 
-		// Insert InputData compressed
+		// Insert Payload compressed
 		expected := []byte("hello world")
 		compressed := snappy.Encode(nil, expected)
-		job.InputData = compressed
+		job.Payload = compressed
 
 		args := structs.JobRegisterRequest{
 			Job:          job,
@@ -256,9 +256,9 @@ func TestHTTP_JobQuery_InputData(t *testing.T) {
 			t.Fatalf("bad: %#v", j)
 		}
 
-		// Check the input data is decompressed
-		if !reflect.DeepEqual(j.InputData, expected) {
-			t.Fatalf("InputData not decompressed properly; got %#v; want %#v", j.InputData, expected)
+		// Check the payload is decompressed
+		if !reflect.DeepEqual(j.Payload, expected) {
+			t.Fatalf("Payload not decompressed properly; got %#v; want %#v", j.Payload, expected)
 		}
 	})
 }
@@ -582,9 +582,9 @@ func TestHTTP_JobPlan(t *testing.T) {
 
 func TestHTTP_JobDispatch(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
-		// Create the dispatch template job
+		// Create the constructor job
 		job := mock.Job()
-		job.Dispatch = &structs.DispatchConfig{}
+		job.Constructor = &structs.ConstructorConfig{}
 
 		args := structs.JobRegisterRequest{
 			Job:          job,

@@ -272,11 +272,11 @@ type JobSummaryRequest struct {
 	QueryOptions
 }
 
-// JobDispatchRequest is used to dispatch a job based on a job dispatch template
+// JobDispatchRequest is used to dispatch a job based on a constructor job
 type JobDispatchRequest struct {
-	JobID     string
-	InputData []byte
-	Meta      map[string]string
+	JobID   string
+	Payload []byte
+	Meta    map[string]string
 	WriteRequest
 }
 
@@ -1129,11 +1129,11 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
-	// Dispatch is used to specify the job as a template job for dispatching.
-	Dispatch *DispatchConfig
+	// Constructor is used to specify the job as a constructor job for dispatching.
+	Constructor *ConstructorConfig
 
-	// InputData is the input data supplied when the job was dispatched.
-	InputData []byte
+	// Payload is the payload supplied when the job was dispatched.
+	Payload []byte
 
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
@@ -1169,8 +1169,8 @@ func (j *Job) Canonicalize() {
 		tg.Canonicalize(j)
 	}
 
-	if j.Dispatch != nil {
-		j.Dispatch.Canonicalize()
+	if j.Constructor != nil {
+		j.Constructor.Canonicalize()
 	}
 }
 
@@ -1195,7 +1195,7 @@ func (j *Job) Copy() *Job {
 
 	nj.Periodic = nj.Periodic.Copy()
 	nj.Meta = CopyMapStringString(nj.Meta)
-	nj.Dispatch = nj.Dispatch.Copy()
+	nj.Constructor = nj.Constructor.Copy()
 	return nj
 }
 
@@ -1270,8 +1270,8 @@ func (j *Job) Validate() error {
 		}
 	}
 
-	if j.IsDispatchTemplate() {
-		if err := j.Dispatch.Validate(); err != nil {
+	if j.IsConstructor() {
+		if err := j.Constructor.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -1311,9 +1311,9 @@ func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
 }
 
-// IsDispatchTemplate returns whether a job is dispatch template.
-func (j *Job) IsDispatchTemplate() bool {
-	return j.Dispatch != nil
+// IsConstructor returns whether a job is constructor job.
+func (j *Job) IsConstructor() bool {
+	return j.Constructor != nil
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -1589,19 +1589,19 @@ type PeriodicLaunch struct {
 }
 
 const (
-	DispatchInputDataForbidden = "forbidden"
-	DispatchInputDataOptional  = "optional"
-	DispatchInputDataRequired  = "required"
+	DispatchPayloadForbidden = "forbidden"
+	DispatchPayloadOptional  = "optional"
+	DispatchPayloadRequired  = "required"
 
-	// DispatchLaunchSuffic is the string appended to the dispatch job
-	// templates's ID when dispatching instances of it.
+	// DispatchLaunchSuffic is the string appended to the constructor job's ID
+	// when dispatching instances of it.
 	DispatchLaunchSuffic = "/dispatch-"
 )
 
-// DispatchConfig is used to configure the dispatch template
-type DispatchConfig struct {
-	// InputData configure the input data requirements
-	InputData string `mapstructure:"input_data"`
+// ConstructorConfig is used to configure the constructor job
+type ConstructorConfig struct {
+	// Payload configure the payload requirements
+	Payload string
 
 	// MetaRequired is metadata keys that must be specified by the dispatcher
 	MetaRequired []string `mapstructure:"required"`
@@ -1610,12 +1610,12 @@ type DispatchConfig struct {
 	MetaOptional []string `mapstructure:"optional"`
 }
 
-func (d *DispatchConfig) Validate() error {
+func (d *ConstructorConfig) Validate() error {
 	var mErr multierror.Error
-	switch d.InputData {
-	case DispatchInputDataOptional, DispatchInputDataRequired, DispatchInputDataForbidden:
+	switch d.Payload {
+	case DispatchPayloadOptional, DispatchPayloadRequired, DispatchPayloadForbidden:
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Unknown input data requirement: %q", d.InputData))
+		multierror.Append(&mErr, fmt.Errorf("Unknown payload requirement: %q", d.Payload))
 	}
 
 	// Check that the meta configurations are disjoint sets
@@ -1627,17 +1627,17 @@ func (d *DispatchConfig) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-func (d *DispatchConfig) Canonicalize() {
-	if d.InputData == "" {
-		d.InputData = DispatchInputDataOptional
+func (d *ConstructorConfig) Canonicalize() {
+	if d.Payload == "" {
+		d.Payload = DispatchPayloadOptional
 	}
 }
 
-func (d *DispatchConfig) Copy() *DispatchConfig {
+func (d *ConstructorConfig) Copy() *ConstructorConfig {
 	if d == nil {
 		return nil
 	}
-	nd := new(DispatchConfig)
+	nd := new(ConstructorConfig)
 	*nd = *d
 	nd.MetaOptional = CopySliceString(nd.MetaOptional)
 	nd.MetaRequired = CopySliceString(nd.MetaRequired)
@@ -1645,7 +1645,7 @@ func (d *DispatchConfig) Copy() *DispatchConfig {
 }
 
 // DispatchedID returns an ID appropriate for a job dispatched against a
-// particular template
+// particular constructor
 func DispatchedID(templateID string, t time.Time) string {
 	u := GenerateUUID()[:8]
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffic, t.Unix(), u)
@@ -1653,9 +1653,6 @@ func DispatchedID(templateID string, t time.Time) string {
 
 // DispatchInputConfig configures how a task gets its input from a job dispatch
 type DispatchInputConfig struct {
-	// Stdin specifies whether the input should be written to the task's stdin
-	Stdin bool
-
 	// File specifies a relative path to where the input data should be written
 	File string
 }
@@ -2221,7 +2218,6 @@ type Task struct {
 	Resources *Resources
 
 	// DispatchInput configures how the task retrieves its input from a dispatch
-	// template
 	DispatchInput *DispatchInputConfig
 
 	// Meta is used to associate arbitrary metadata with this

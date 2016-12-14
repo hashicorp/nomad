@@ -102,7 +102,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "update")
 	delete(m, "periodic")
 	delete(m, "vault")
-	delete(m, "dispatch")
+	delete(m, "constructor")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -131,7 +131,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"datacenters",
-		"dispatch",
+		"constructor",
 		"group",
 		"id",
 		"meta",
@@ -170,10 +170,10 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		}
 	}
 
-	// If we have a dispatch definition, then parse that
-	if o := listVal.Filter("dispatch"); len(o.Items) > 0 {
-		if err := parseDispatch(&result.Dispatch, o); err != nil {
-			return multierror.Prefix(err, "dispatch ->")
+	// If we have a constructor definition, then parse that
+	if o := listVal.Filter("constructor"); len(o.Items) > 0 {
+		if err := parseConstructor(&result.Constructor, o); err != nil {
+			return multierror.Prefix(err, "constructor ->")
 		}
 	}
 
@@ -747,14 +747,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		// If we have a dispatch_input block parse that
 		if o := listVal.Filter("dispatch_input"); len(o.Items) > 0 {
 			if len(o.Items) > 1 {
-				return fmt.Errorf("only one dispatch_input block is allowed in a task. Number of logs block found: %d", len(o.Items))
+				return fmt.Errorf("only one dispatch_input block is allowed in a task. Number of dispatch_input blocks found: %d", len(o.Items))
 			}
 			var m map[string]interface{}
 			dispatchBlock := o.Items[0]
 
 			// Check for invalid keys
 			valid := []string{
-				"stdin",
 				"file",
 			}
 			if err := checkHCLKeys(dispatchBlock.Val, valid); err != nil {
@@ -1243,10 +1242,10 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseDispatch(result **structs.DispatchConfig, list *ast.ObjectList) error {
+func parseConstructor(result **structs.ConstructorConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'dispatch' block allowed per job")
+		return fmt.Errorf("only one 'constructor' block allowed per job")
 	}
 
 	// Get our resource object
@@ -1261,16 +1260,15 @@ func parseDispatch(result **structs.DispatchConfig, list *ast.ObjectList) error 
 
 	// Check for invalid keys
 	valid := []string{
-		"input_data",
+		"payload",
 		"meta_keys",
-		"paused",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
-	// Build the dispatch block
-	var d structs.DispatchConfig
+	// Build the constructor block
+	var d structs.ConstructorConfig
 	if err := mapstructure.WeakDecode(m, &d); err != nil {
 		return err
 	}
@@ -1279,7 +1277,7 @@ func parseDispatch(result **structs.DispatchConfig, list *ast.ObjectList) error 
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
 		listVal = ot.List
 	} else {
-		return fmt.Errorf("dispatch block should be an object")
+		return fmt.Errorf("constructor block should be an object")
 	}
 
 	// Parse the meta block

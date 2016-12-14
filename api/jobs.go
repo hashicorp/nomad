@@ -169,12 +169,12 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 }
 
 func (j *Jobs) Dispatch(jobID string, meta map[string]string,
-	inputData []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	payload []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
 	var resp JobDispatchResponse
 	req := &JobDispatchRequest{
-		JobID:     jobID,
-		Meta:      meta,
-		InputData: inputData,
+		JobID:   jobID,
+		Meta:    meta,
+		Payload: payload,
 	}
 	wm, err := j.client.write("/v1/job/"+jobID+"/dispatch", req, &resp, q)
 	if err != nil {
@@ -202,9 +202,9 @@ type PeriodicConfig struct {
 	ProhibitOverlap bool
 }
 
-// DispatchConfig is used to configure the dispatch template
-type DispatchConfig struct {
-	InputData    string
+// ConstructorConfig is used to configure the constructor job
+type ConstructorConfig struct {
+	Payload      string
 	MetaRequired []string
 	MetaOptional []string
 }
@@ -223,8 +223,8 @@ type Job struct {
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
-	Dispatch          *DispatchConfig
-	InputData         []byte
+	Constructor       *ConstructorConfig
+	Payload           []byte
 	Meta              map[string]string
 	VaultToken        string
 	Status            string
@@ -436,9 +436,9 @@ type DesiredUpdates struct {
 }
 
 type JobDispatchRequest struct {
-	JobID     string
-	InputData []byte
-	Meta      map[string]string
+	JobID   string
+	Payload []byte
+	Meta    map[string]string
 }
 
 type JobDispatchResponse struct {

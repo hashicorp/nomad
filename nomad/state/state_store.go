@@ -1605,9 +1605,9 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	}
 
 	// If there are no allocations or evaluations it is a new job. If the job is
-	// periodic or is a dispatch template, we mark it as running as it will
-	// never have an allocation/evaluation against it.
-	if job.IsPeriodic() || job.IsDispatchTemplate() {
+	// periodic or is a constructor, we mark it as running as it will never have
+	// an allocation/evaluation against it.
+	if job.IsPeriodic() || job.IsConstructor() {
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil

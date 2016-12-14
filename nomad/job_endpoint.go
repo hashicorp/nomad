@@ -22,9 +22,9 @@ const (
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
 
-	// DispatchInputDataSizeLimit is the maximum size of the uncompressed input
+	// DispatchPayloadSizeLimit is the maximum size of the uncompressed input
 	// data payload.
-	DispatchInputDataSizeLimit = 16 * 1024
+	DispatchPayloadSizeLimit = 16 * 1024
 )
 
 var (
@@ -138,8 +138,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic or a dispatch template, we don't create an eval.
-	if args.Job.IsPeriodic() || args.Job.IsDispatchTemplate() {
+	// If the job is periodic or a constructor, we don't create an eval.
+	if args.Job.IsPeriodic() || args.Job.IsConstructor() {
 		return nil
 	}
 
@@ -316,8 +316,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	if job.IsPeriodic() {
 		return fmt.Errorf("can't evaluate periodic job")
-	} else if job.IsDispatchTemplate() {
-		return fmt.Errorf("can't evaluate dispatch template job")
+	} else if job.IsConstructor() {
+		return fmt.Errorf("can't evaluate constructor job")
 	}
 
 	// Create a new evaluation
@@ -382,8 +382,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic or a dispatch template, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsDispatchTemplate()) {
+	// If the job is periodic or a construcotr, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsConstructor()) {
 		return nil
 	}
 
@@ -776,7 +776,7 @@ func validateJob(job *structs.Job) error {
 	return validationErrors.ErrorOrNil()
 }
 
-// Dispatch is used to dispatch a job based on a dispatch job template.
+// Dispatch is used to dispatch a job based on a constructor job.
 func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispatchResponse) error {
 	if done, err := j.srv.forward("Job.Dispatch", args, args, reply); done {
 		return err
@@ -785,35 +785,35 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Lookup the job
 	if args.JobID == "" {
-		return fmt.Errorf("missing dispatch template job ID")
+		return fmt.Errorf("missing constructor job ID")
 	}
 
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
-	tmpl, err := snap.JobByID(args.JobID)
+	constructor, err := snap.JobByID(args.JobID)
 	if err != nil {
 		return err
 	}
-	if tmpl == nil {
-		return fmt.Errorf("dispatch template job not found")
+	if constructor == nil {
+		return fmt.Errorf("constructor job not found")
 	}
 
-	if !tmpl.IsDispatchTemplate() {
-		return fmt.Errorf("Specified job %q is not a dispatch template", args.JobID)
+	if !constructor.IsConstructor() {
+		return fmt.Errorf("Specified job %q is not a constructor job", args.JobID)
 	}
 
 	// Validate the arguments
-	if err := validateDispatchRequest(args, tmpl); err != nil {
+	if err := validateDispatchRequest(args, constructor); err != nil {
 		return err
 	}
 
 	// Derive the child job and commit it via Raft
-	dispatchJob := tmpl.Copy()
-	dispatchJob.Dispatch = nil
-	dispatchJob.ID = structs.DispatchedID(tmpl.ID, time.Now())
-	dispatchJob.ParentID = tmpl.ID
+	dispatchJob := constructor.Copy()
+	dispatchJob.Constructor = nil
+	dispatchJob.ID = structs.DispatchedID(constructor.ID, time.Now())
+	dispatchJob.ParentID = constructor.ID
 	dispatchJob.Name = dispatchJob.ID
 
 	// Merge in the meta data
@@ -821,8 +821,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		dispatchJob.Meta[k] = v
 	}
 
-	// Compress the input
-	dispatchJob.InputData = snappy.Encode(nil, args.InputData)
+	// Compress the payload
+	dispatchJob.Payload = snappy.Encode(nil, args.Payload)
 
 	regReq := &structs.JobRegisterRequest{
 		Job:          dispatchJob,
@@ -868,19 +868,19 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 }
 
 // validateDispatchRequest returns whether the request is valid given the
-// dispatch configuration of the template job
-func validateDispatchRequest(req *structs.JobDispatchRequest, tmpl *structs.Job) error {
-	// Check the input data constraint is met
-	hasInputData := len(req.InputData) != 0
-	if tmpl.Dispatch.InputData == structs.DispatchInputDataRequired && !hasInputData {
-		return fmt.Errorf("Input data is not provided but required by dispatch template")
-	} else if tmpl.Dispatch.InputData == structs.DispatchInputDataForbidden && hasInputData {
-		return fmt.Errorf("Input data provided but forbidden by dispatch template")
+// jobs constructor
+func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) error {
+	// Check the payload constraint is met
+	hasInputData := len(req.Payload) != 0
+	if job.Constructor.Payload == structs.DispatchPayloadRequired && !hasInputData {
+		return fmt.Errorf("Payload is not provided but required by constructor")
+	} else if job.Constructor.Payload == structs.DispatchPayloadForbidden && hasInputData {
+		return fmt.Errorf("Payload provided but forbidden by constructor")
 	}
 
-	// Check the input data doesn't exceed the size limit
-	if l := len(req.InputData); l > DispatchInputDataSizeLimit {
-		return fmt.Errorf("Input data exceeds maximum size; %d > %d", l, DispatchInputDataSizeLimit)
+	// Check the payload doesn't exceed the size limit
+	if l := len(req.Payload); l > DispatchPayloadSizeLimit {
+		return fmt.Errorf("Payload exceeds maximum size; %d > %d", l, DispatchPayloadSizeLimit)
 	}
 
 	// Check if the metadata is a set
@@ -892,8 +892,8 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, tmpl *structs.Job)
 		keys[k] = struct{}{}
 	}
 
-	required := structs.SliceStringToSet(tmpl.Dispatch.MetaRequired)
-	optional := structs.SliceStringToSet(tmpl.Dispatch.MetaOptional)
+	required := structs.SliceStringToSet(job.Constructor.MetaRequired)
+	optional := structs.SliceStringToSet(job.Constructor.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})
@@ -915,7 +915,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, tmpl *structs.Job)
 	}
 
 	missing := make(map[string]struct{})
-	for _, k := range tmpl.Dispatch.MetaRequired {
+	for _, k := range job.Constructor.MetaRequired {
 		if _, ok := req.Meta[k]; !ok {
 			missing[k] = struct{}{}
 		}
