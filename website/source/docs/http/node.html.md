@@ -73,7 +73,13 @@ be specified using the `?region=` query parameter.
         "IOPS": 0,
         "Networks": null
     },
-    "Reserved": null,
+    "Reserved": {
+        "CPU": 0,
+        "MemoryMB": 0,
+        "DiskMB": 0,
+        "IOPS": 0,
+        "Networks": null
+    },
     "Links": {},
     "Meta": {},
     "NodeClass": "",
