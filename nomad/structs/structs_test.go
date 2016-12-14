@@ -1446,15 +1446,15 @@ func TestVault_Validate(t *testing.T) {
 }
 
 func TestDispatchConfig_Validate(t *testing.T) {
-	d := &DispatchConfig{
-		InputData: "foo",
+	d := &ConstructorConfig{
+		Payload: "foo",
 	}
 
-	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "input data") {
-		t.Fatalf("Expected unknown input data requirement: %v", err)
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "payload") {
+		t.Fatalf("Expected unknown payload requirement: %v", err)
 	}
 
-	d.InputData = DispatchInputDataOptional
+	d.Payload = DispatchPayloadOptional
 	d.MetaOptional = []string{"foo", "bar"}
 	d.MetaRequired = []string{"bar", "baz"}
 
@@ -1464,9 +1464,9 @@ func TestDispatchConfig_Validate(t *testing.T) {
 }
 
 func TestDispatchConfig_Canonicalize(t *testing.T) {
-	d := &DispatchConfig{}
+	d := &ConstructorConfig{}
 	d.Canonicalize()
-	if d.InputData != DispatchInputDataOptional {
+	if d.Payload != DispatchPayloadOptional {
 		t.Fatalf("Canonicalize failed")
 	}
 }

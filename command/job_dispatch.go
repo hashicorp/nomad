@@ -15,9 +15,9 @@ type JobDispatchCommand struct {
 
 func (c *JobDispatchCommand) Help() string {
 	helpText := `
-Usage: nomad job dispatch [options] <template> [input source]
+Usage: nomad job dispatch [options] <constructor> [input source]
 
-Dispatch creates an instance of a dispatch template. Input data to the
+Dispatch creates an instance of a constructor job. A data payload to the
 dispatched instance can be provided via stdin by using "-" or by specifiying a
 path to a file. Metadata can be supplied by using the meta flag one or more
 times. 
@@ -44,7 +44,7 @@ Dispatch Options:
 }
 
 func (c *JobDispatchCommand) Synopsis() string {
-	return "Dispatch an instance of a dispatch template"
+	return "Dispatch an instance of a constructor job"
 }
 
 func (c *JobDispatchCommand) Run(args []string) int {
@@ -74,7 +74,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
-	templateJob := args[0]
+	constructor := args[0]
 	var payload []byte
 	var readErr error
 
@@ -112,7 +112,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	// Dispatch the job
-	resp, _, err := client.Jobs().Dispatch(templateJob, metaMap, payload, nil)
+	resp, _, err := client.Jobs().Dispatch(constructor, metaMap, payload, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1
