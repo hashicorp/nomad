@@ -48,11 +48,11 @@ gox \
 
 echo ""
 if pkg-config --exists lxc; then
-    echo "==> Building linux_amd64_lxc..."
+    echo "==> Building linux_amd64-lxc..."
     go build \
         -tags lxc \
         -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
-        -o "pkg/linux_amd64_lxc/nomad"
+        -o "pkg/linux_amd64-lxc/nomad"
 else
     if [[ "${NOMAD_DEV}" ]]; then
 	 # No lxc in dev mode is no problem
