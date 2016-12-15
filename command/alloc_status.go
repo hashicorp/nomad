@@ -25,7 +25,7 @@ func (c *AllocStatusCommand) Help() string {
 Usage: nomad alloc-status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
-  be used to inspect the current status of all allocation, including its running
+  be used to inspect the current status of an allocation, including its running
   status, metadata, and verbose failure messages reported by internal
   subsystems.
 
@@ -235,7 +235,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		if statsErr != nil {
 			c.Ui.Output("")
 			if statsErr != api.NodeDownErr {
-				c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
 			} else {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
@@ -409,7 +409,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		firstAddr = addr[0]
 	}
 
-	// Display the rolled up stats. If possible prefer the live stastics
+	// Display the rolled up stats. If possible prefer the live statistics
 	cpuUsage := strconv.Itoa(resource.CPU)
 	memUsage := humanize.IBytes(uint64(resource.MemoryMB * bytesPerMegabyte))
 	if stats != nil {
