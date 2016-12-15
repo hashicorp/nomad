@@ -82,6 +82,12 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
                 ]
               }
             ],
+            "Vault": {
+              "Policies": ["policy-name"],
+              "Env": true,
+              "ChangeMode": "restart",
+              "ChangeSignal": ""
+            },
             "Resources":{
               "CPU":500,
               "MemoryMB":256,
