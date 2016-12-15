@@ -213,6 +213,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
 		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
+		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),
+		fmt.Sprintf("Desired Description|%s", alloc.DesiredDescription),
 		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
 	}
 
