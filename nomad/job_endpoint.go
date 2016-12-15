@@ -818,6 +818,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Merge in the meta data
 	for k, v := range args.Meta {
+		if dispatchJob.Meta == nil {
+			dispatchJob.Meta = make(map[string]string, len(args.Meta))
+		}
 		dispatchJob.Meta[k] = v
 	}
 

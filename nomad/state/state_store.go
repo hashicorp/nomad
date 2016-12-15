@@ -1627,6 +1627,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		existing = &structs.JobSummary{
 			JobID:       job.ID,
 			Summary:     make(map[string]structs.TaskGroupSummary),
+			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: index,
 		}
 		hasSummaryChanged = true

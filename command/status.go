@@ -127,13 +127,14 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if it is periodic
+	// Check if it is periodic or a constructor job
 	sJob, err := convertApiJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
 	}
 	periodic := sJob.IsPeriodic()
+	constructor := sJob.IsConstructor()
 
 	// Format the job info
 	basic := []string{
@@ -144,6 +145,7 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Status|%s", job.Status),
 		fmt.Sprintf("Periodic|%v", periodic),
+		fmt.Sprintf("Constructor|%v", constructor),
 	}
 
 	if periodic {
@@ -167,13 +169,16 @@ func (c *StatusCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
-
-		return 0
-	}
-
-	if err := c.outputJobInfo(client, job); err != nil {
-		c.Ui.Error(err.Error())
-		return 1
+	} else if constructor {
+		if err := c.outputConstructorInfo(client, job); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+	} else {
+		if err := c.outputJobInfo(client, job); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 	}
 
 	return 0
@@ -182,6 +187,11 @@ func (c *StatusCommand) Run(args []string) int {
 // outputPeriodicInfo prints information about the passed periodic job. If a
 // request fails, an error is returned.
 func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) error {
+	// Output the summary
+	if err := c.outputJobSummary(client, job); err != nil {
+		return err
+	}
+
 	// Generate the prefix that matches launched jobs from the periodic job.
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
@@ -208,7 +218,55 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 			child.Status))
 	}
 
-	c.Ui.Output(fmt.Sprintf("\nPreviously launched jobs:\n%s", formatList(out)))
+	c.Ui.Output(c.Colorize().Color("\n[bold]Previously Launched Jobs[reset]"))
+	c.Ui.Output(formatList(out))
+	return nil
+}
+
+// outputConstructorInfo prints information about the passed constructor job. If a
+// request fails, an error is returned.
+func (c *StatusCommand) outputConstructorInfo(client *api.Client, job *api.Job) error {
+	// Output constructor details
+	c.Ui.Output(c.Colorize().Color("\n[bold]Constructor[reset]"))
+	constructor := make([]string, 3)
+	constructor[0] = fmt.Sprintf("Payload|%s", job.Constructor.Payload)
+	constructor[1] = fmt.Sprintf("Required Metadata|%v", strings.Join(job.Constructor.MetaRequired, ", "))
+	constructor[2] = fmt.Sprintf("Optional Metadata|%v", strings.Join(job.Constructor.MetaOptional, ", "))
+	c.Ui.Output(formatKV(constructor))
+
+	// Output the summary
+	if err := c.outputJobSummary(client, job); err != nil {
+		return err
+	}
+
+	// Generate the prefix that matches launched jobs from the periodic job.
+	prefix := fmt.Sprintf("%s%s", job.ID, structs.DispatchLaunchSuffic)
+	children, _, err := client.Jobs().PrefixList(prefix)
+	if err != nil {
+		return fmt.Errorf("Error querying job: %s", err)
+	}
+
+	if len(children) == 0 {
+		c.Ui.Output("\nNo dispatched instances of constructor job found")
+		return nil
+	}
+
+	out := make([]string, 1)
+	out[0] = "ID|Status"
+	for _, child := range children {
+		// Ensure that we are only showing jobs whose parent is the requested
+		// job.
+		if child.ParentID != job.ID {
+			continue
+		}
+
+		out = append(out, fmt.Sprintf("%s|%s",
+			child.ID,
+			child.Status))
+	}
+
+	c.Ui.Output(c.Colorize().Color("\n[bold]Dispatched Jobs[reset]"))
+	c.Ui.Output(formatList(out))
 	return nil
 }
 
@@ -229,31 +287,9 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
-	// Query the summary
-	summary, _, err := client.Jobs().Summary(job.ID, nil)
-	if err != nil {
-		return fmt.Errorf("Error querying job summary: %s", err)
-	}
-
-	// Format the summary
-	c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
-	if summary != nil {
-		summaries := make([]string, len(summary.Summary)+1)
-		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
-		taskGroups := make([]string, 0, len(summary.Summary))
-		for taskGroup := range summary.Summary {
-			taskGroups = append(taskGroups, taskGroup)
-		}
-		sort.Strings(taskGroups)
-		for idx, taskGroup := range taskGroups {
-			tgs := summary.Summary[taskGroup]
-			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
-				taskGroup, tgs.Queued, tgs.Starting,
-				tgs.Running, tgs.Failed,
-				tgs.Complete, tgs.Lost,
-			)
-		}
-		c.Ui.Output(formatList(summaries))
+	// Output the summary
+	if err := c.outputJobSummary(client, job); err != nil {
+		return err
 	}
 
 	// Determine latest evaluation with failures whose follow up hasn't
@@ -317,6 +353,66 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	} else {
 		c.Ui.Output("No allocations placed")
 	}
+	return nil
+}
+
+// outputJobSummary displays the given jobs summary and children job summary
+// where appropriate
+func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
+	// Query the summary
+	summary, _, err := client.Jobs().Summary(job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying job summary: %s", err)
+	}
+
+	if summary == nil {
+		return nil
+	}
+
+	sJob, err := convertApiJob(job)
+	if err != nil {
+		return fmt.Errorf("Error converting job: %s", err)
+	}
+
+	periodic := sJob.IsPeriodic()
+	constructor := sJob.IsConstructor()
+
+	// Print the summary
+	if !periodic && !constructor {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
+		summaries := make([]string, len(summary.Summary)+1)
+		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
+		taskGroups := make([]string, 0, len(summary.Summary))
+		for taskGroup := range summary.Summary {
+			taskGroups = append(taskGroups, taskGroup)
+		}
+		sort.Strings(taskGroups)
+		for idx, taskGroup := range taskGroups {
+			tgs := summary.Summary[taskGroup]
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+				taskGroup, tgs.Queued, tgs.Starting,
+				tgs.Running, tgs.Failed,
+				tgs.Complete, tgs.Lost,
+			)
+		}
+		c.Ui.Output(formatList(summaries))
+	}
+
+	// Always display the summary if we are periodic or a constructor job
+	// but only display if the summary is non-zero on normal jobs
+	if summary.Children != nil && (constructor || periodic || summary.Children.Sum() > 0) {
+		if constructor {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Dispatched Job Summary[reset]"))
+		} else {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Children Job Summary[reset]"))
+		}
+		summaries := make([]string, 2)
+		summaries[0] = "Pending|Running|Dead"
+		summaries[1] = fmt.Sprintf("%d|%d|%d",
+			summary.Children.Pending, summary.Children.Running, summary.Children.Dead)
+		c.Ui.Output(formatList(summaries))
+	}
+
 	return nil
 }
 

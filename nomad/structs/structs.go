@@ -1411,8 +1411,7 @@ type JobSummary struct {
 	// Summmary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
 
-	// Children contains a summary for the children of this job. If there are no
-	// children the summary will be nil
+	// Children contains a summary for the children of this job.
 	Children *JobChildrenSummary
 
 	// Raft Indexes

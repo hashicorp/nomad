@@ -247,9 +247,17 @@ type JobSummary struct {
 
 // JobChildrenSummary contains the summary of children job status
 type JobChildrenSummary struct {
-	Pending uint64
-	Running uint64
-	Dead    uint64
+	Pending int64
+	Running int64
+	Dead    int64
+}
+
+func (jc *JobChildrenSummary) Sum() int {
+	if jc == nil {
+		return 0
+	}
+
+	return int(jc.Pending + jc.Running + jc.Dead)
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular
