@@ -1132,6 +1132,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
 		ModifyIndex: job.CreateIndex,
 	}

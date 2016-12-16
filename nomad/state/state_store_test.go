@@ -2008,6 +2008,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 				Starting: 1,
 			},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 999,
 		ModifyIndex: 1001,
 	}
@@ -2356,6 +2357,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 				Running: 1,
 			},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 900,
 		ModifyIndex: 930,
 	}
@@ -2406,6 +2408,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 1000,
 		ModifyIndex: 1000,
 	}
@@ -2539,6 +2542,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 500,
 		ModifyIndex: 500,
 	}
@@ -3166,6 +3170,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 				Starting: 1,
 			},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 1000,
 		ModifyIndex: 1001,
 	}
@@ -3195,6 +3200,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 				Starting: 3,
 			},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
 		ModifyIndex: outA.ModifyIndex,
 	}
@@ -3227,6 +3233,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 				Starting: 1,
 			},
 		},
+		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
 		ModifyIndex: outA.ModifyIndex,
 	}

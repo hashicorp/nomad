@@ -731,6 +731,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 					Lost:   1,
 				},
 			},
+			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: jobResp.JobModifyIndex,
 			ModifyIndex: summary.ModifyIndex,
 		}
@@ -749,6 +750,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 					Lost: 1,
 				},
 			},
+			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: jobResp1.JobModifyIndex,
 			ModifyIndex: summary1.ModifyIndex,
 		}
