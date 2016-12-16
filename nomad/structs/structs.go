@@ -1271,6 +1271,11 @@ func (j *Job) Validate() error {
 	}
 
 	if j.IsConstructor() {
+		if j.Type != JobTypeBatch {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Constructor job can only be used with %q scheduler", JobTypeBatch))
+		}
+
 		if err := j.Constructor.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}

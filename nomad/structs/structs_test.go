@@ -1445,7 +1445,7 @@ func TestVault_Validate(t *testing.T) {
 	}
 }
 
-func TestDispatchConfig_Validate(t *testing.T) {
+func TestConstructorConfig_Validate(t *testing.T) {
 	d := &ConstructorConfig{
 		Payload: "foo",
 	}
@@ -1463,7 +1463,19 @@ func TestDispatchConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestDispatchConfig_Canonicalize(t *testing.T) {
+func TestConstructorConfig_Validate_NonBatch(t *testing.T) {
+	job := testJob()
+	job.Constructor = &ConstructorConfig{
+		Payload: DispatchPayloadOptional,
+	}
+	job.Type = JobTypeSystem
+
+	if err := job.Validate(); err == nil || !strings.Contains(err.Error(), "only be used with") {
+		t.Fatalf("Expected bad scheduler tpye: %v", err)
+	}
+}
+
+func TestConstructorConfig_Canonicalize(t *testing.T) {
 	d := &ConstructorConfig{}
 	d.Canonicalize()
 	if d.Payload != DispatchPayloadOptional {
