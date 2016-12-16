@@ -12,8 +12,10 @@ server {
     bootstrap_expect = 1
 }
 
-advertise {
-  http = "localhost"
-  rpc = "localhost"
-  serf = "localhost"
-}
+# Advertise must be set to a non-loopback address.
+# Defaults to the resolving the local hostname.
+#advertise {
+#    http = "10.0.2.1"
+#    rpc  = "10.0.2.1"
+#    serf = "10.0.2.1"
+#}
