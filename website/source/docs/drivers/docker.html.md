@@ -451,7 +451,6 @@ container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
 limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
 usage. Memory limit is expressed in megabytes so 1024 = 1Gb.
-HIO!!!
 
 ### IO
 
