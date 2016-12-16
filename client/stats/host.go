@@ -20,6 +20,7 @@ type HostStats struct {
 	Memory           *MemoryStats
 	CPU              []*CPUStats
 	DiskStats        []*DiskStats
+	AllocDirStats    *DiskStats
 	Uptime           uint64
 	Timestamp        int64
 	CPUTicksConsumed float64
@@ -53,6 +54,11 @@ type DiskStats struct {
 	InodesUsedPercent float64
 }
 
+type NodeStatsCollector interface {
+	Collect() error
+	Stats() *HostStats
+}
+
 // HostStatsCollector collects host resource usage stats
 type HostStatsCollector struct {
 	clkSpeed        float64
@@ -61,16 +67,18 @@ type HostStatsCollector struct {
 	logger          *log.Logger
 	hostStats       *HostStats
 	hostStatsLock   sync.RWMutex
+	allocDir        string
 }
 
 // NewHostStatsCollector returns a HostStatsCollector
-func NewHostStatsCollector(logger *log.Logger) *HostStatsCollector {
+func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollector {
 	numCores := runtime.NumCPU()
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
 	collector := &HostStatsCollector{
 		statsCalculator: statsCalculator,
 		numCores:        numCores,
 		logger:          logger,
+		allocDir:        allocDir,
 	}
 	return collector
 }
@@ -125,24 +133,16 @@ func (h *HostStatsCollector) Collect() error {
 			h.logger.Printf("[WARN] client: error fetching host disk usage stats for %v: %v", partition.Mountpoint, err)
 			continue
 		}
-		ds := DiskStats{
-			Device:            partition.Device,
-			Mountpoint:        partition.Mountpoint,
-			Size:              usage.Total,
-			Used:              usage.Used,
-			Available:         usage.Free,
-			UsedPercent:       usage.UsedPercent,
-			InodesUsedPercent: usage.InodesUsedPercent,
-		}
-		if math.IsNaN(ds.UsedPercent) {
-			ds.UsedPercent = 0.0
-		}
-		if math.IsNaN(ds.InodesUsedPercent) {
-			ds.InodesUsedPercent = 0.0
-		}
-		diskStats = append(diskStats, &ds)
+		ds := h.toDiskStats(usage, &partition)
+		diskStats = append(diskStats, ds)
 	}
 	hs.DiskStats = diskStats
+
+	usage, err := disk.Usage(h.allocDir)
+	if err != nil {
+		return err
+	}
+	hs.AllocDirStats = h.toDiskStats(usage, nil)
 
 	uptime, err := host.Uptime()
 	if err != nil {
@@ -156,10 +156,38 @@ func (h *HostStatsCollector) Collect() error {
 	return nil
 }
 
+// Stats returns the host stats that has been collected
 func (h *HostStatsCollector) Stats() *HostStats {
 	h.hostStatsLock.RLock()
 	defer h.hostStatsLock.RUnlock()
 	return h.hostStats
+}
+
+// toDiskStats merges UsageStat and PartitionStat to create a DiskStat
+func (h *HostStatsCollector) toDiskStats(usage *disk.UsageStat, partitionStat *disk.PartitionStat) *DiskStats {
+	if usage == nil {
+		return nil
+	}
+	ds := DiskStats{
+		Size:              usage.Total,
+		Used:              usage.Used,
+		Available:         usage.Free,
+		UsedPercent:       usage.UsedPercent,
+		InodesUsedPercent: usage.InodesUsedPercent,
+	}
+	if math.IsNaN(ds.UsedPercent) {
+		ds.UsedPercent = 0.0
+	}
+	if math.IsNaN(ds.InodesUsedPercent) {
+		ds.InodesUsedPercent = 0.0
+	}
+
+	if partitionStat != nil {
+		ds.Device = partitionStat.Device
+		ds.Mountpoint = partitionStat.Mountpoint
+	}
+
+	return &ds
 }
 
 // HostCpuStatsCalculator calculates cpu usage percentages
