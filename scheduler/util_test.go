@@ -454,50 +454,51 @@ func TestShuffleNodes(t *testing.T) {
 func TestTasksUpdated(t *testing.T) {
 	j1 := mock.Job()
 	j2 := mock.Job()
+	name := j1.TaskGroups[0].Name
 
-	if tasksUpdated(j1.TaskGroups[0], j2.TaskGroups[0]) {
+	if tasksUpdated(j1, j2, name) {
 		t.Fatalf("bad")
 	}
 
 	j2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	if !tasksUpdated(j1.TaskGroups[0], j2.TaskGroups[0]) {
+	if !tasksUpdated(j1, j2, name) {
 		t.Fatalf("bad")
 	}
 
 	j3 := mock.Job()
 	j3.TaskGroups[0].Tasks[0].Name = "foo"
-	if !tasksUpdated(j1.TaskGroups[0], j3.TaskGroups[0]) {
+	if !tasksUpdated(j1, j3, name) {
 		t.Fatalf("bad")
 	}
 
 	j4 := mock.Job()
 	j4.TaskGroups[0].Tasks[0].Driver = "foo"
-	if !tasksUpdated(j1.TaskGroups[0], j4.TaskGroups[0]) {
+	if !tasksUpdated(j1, j4, name) {
 		t.Fatalf("bad")
 	}
 
 	j5 := mock.Job()
 	j5.TaskGroups[0].Tasks = append(j5.TaskGroups[0].Tasks,
 		j5.TaskGroups[0].Tasks[0])
-	if !tasksUpdated(j1.TaskGroups[0], j5.TaskGroups[0]) {
+	if !tasksUpdated(j1, j5, name) {
 		t.Fatalf("bad")
 	}
 
 	j6 := mock.Job()
 	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{{"http", 0}, {"https", 0}, {"admin", 0}}
-	if !tasksUpdated(j1.TaskGroups[0], j6.TaskGroups[0]) {
+	if !tasksUpdated(j1, j6, name) {
 		t.Fatalf("bad")
 	}
 
 	j7 := mock.Job()
 	j7.TaskGroups[0].Tasks[0].Env["NEW_ENV"] = "NEW_VALUE"
-	if !tasksUpdated(j1.TaskGroups[0], j7.TaskGroups[0]) {
+	if !tasksUpdated(j1, j7, name) {
 		t.Fatalf("bad")
 	}
 
 	j8 := mock.Job()
 	j8.TaskGroups[0].Tasks[0].User = "foo"
-	if !tasksUpdated(j1.TaskGroups[0], j8.TaskGroups[0]) {
+	if !tasksUpdated(j1, j8, name) {
 		t.Fatalf("bad")
 	}
 
@@ -507,49 +508,63 @@ func TestTasksUpdated(t *testing.T) {
 			GetterSource: "http://foo.com/bar",
 		},
 	}
-	if !tasksUpdated(j1.TaskGroups[0], j9.TaskGroups[0]) {
+	if !tasksUpdated(j1, j9, name) {
 		t.Fatalf("bad")
 	}
 
 	j10 := mock.Job()
 	j10.TaskGroups[0].Tasks[0].Meta["baz"] = "boom"
-	if !tasksUpdated(j1.TaskGroups[0], j10.TaskGroups[0]) {
+	if !tasksUpdated(j1, j10, name) {
 		t.Fatalf("bad")
 	}
 
 	j11 := mock.Job()
 	j11.TaskGroups[0].Tasks[0].Resources.CPU = 1337
-	if !tasksUpdated(j1.TaskGroups[0], j11.TaskGroups[0]) {
+	if !tasksUpdated(j1, j11, name) {
 		t.Fatalf("bad")
 	}
 
 	j12 := mock.Job()
 	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
-	if !tasksUpdated(j1.TaskGroups[0], j12.TaskGroups[0]) {
+	if !tasksUpdated(j1, j12, name) {
 		t.Fatalf("bad")
 	}
 
 	j13 := mock.Job()
 	j13.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts[0].Label = "foobar"
-	if !tasksUpdated(j1.TaskGroups[0], j13.TaskGroups[0]) {
+	if !tasksUpdated(j1, j13, name) {
 		t.Fatalf("bad")
 	}
 
 	j14 := mock.Job()
 	j14.TaskGroups[0].Tasks[0].Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
-	if !tasksUpdated(j1.TaskGroups[0], j14.TaskGroups[0]) {
+	if !tasksUpdated(j1, j14, name) {
 		t.Fatalf("bad")
 	}
 
 	j15 := mock.Job()
 	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
-	if !tasksUpdated(j1.TaskGroups[0], j15.TaskGroups[0]) {
+	if !tasksUpdated(j1, j15, name) {
 		t.Fatalf("bad")
 	}
 
 	j16 := mock.Job()
 	j16.TaskGroups[0].EphemeralDisk.Sticky = true
-	if !tasksUpdated(j1.TaskGroups[0], j16.TaskGroups[0]) {
+	if !tasksUpdated(j1, j16, name) {
+		t.Fatal("bad")
+	}
+
+	// Change group meta
+	j17 := mock.Job()
+	j17.TaskGroups[0].Meta["j17_test"] = "roll_baby_roll"
+	if !tasksUpdated(j1, j17, name) {
+		t.Fatal("bad")
+	}
+
+	// Change job meta
+	j18 := mock.Job()
+	j18.Meta["j18_test"] = "roll_baby_roll"
+	if !tasksUpdated(j1, j18, name) {
 		t.Fatal("bad")
 	}
 }

@@ -1289,6 +1289,42 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 	return nil
 }
 
+// CombinedTaskMeta takes a TaskGroup and Task name and returns the combined
+// meta data for the task. When joining Job, Group and Task Meta, the precedence
+// is by deepest scope (Task > Group > Job).
+func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
+	group := j.LookupTaskGroup(groupName)
+	if group == nil {
+		return nil
+	}
+
+	task := group.LookupTask(taskName)
+	if task == nil {
+		return nil
+	}
+
+	meta := CopyMapStringString(task.Meta)
+	if meta == nil {
+		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
+	}
+
+	// Add the group specific meta
+	for k, v := range group.Meta {
+		if _, ok := meta[k]; !ok {
+			meta[k] = v
+		}
+	}
+
+	// Add the job specific meta
+	for k, v := range j.Meta {
+		if _, ok := meta[k]; !ok {
+			meta[k] = v
+		}
+	}
+
+	return meta
+}
+
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
