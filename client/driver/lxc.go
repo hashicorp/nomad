@@ -59,14 +59,14 @@ type LxcDriverConfig struct {
 	Distro               string
 	Release              string
 	Arch                 string
-	ImageVariant         string   "mapstructure:`image_variant`"
-	ImageServer          string   "mapstructure:`image_server`"
-	GPGKeyID             string   "mapstructure:`gpg_key_id`"
-	GPGKeyServer         string   "mapstructure:`gpg_key_server`"
-	DisableGPGValidation bool     "mapstructure:`disable_gpg`"
-	FlushCache           bool     "mapstructure:`flush_cache`"
-	ForceCache           bool     "mapstructure:`force_cache`"
-	TemplateArgs         []string "mapstructure:`template_args`"
+	ImageVariant         string   `mapstructure:"image_variant"`
+	ImageServer          string   `mapstructure:"image_server"`
+	GPGKeyID             string   `mapstructure:"gpg_key_id"`
+	GPGKeyServer         string   `mapstructure:"gpg_key_server"`
+	DisableGPGValidation bool     `mapstructure:"disable_gpg"`
+	FlushCache           bool     `mapstructure:"flush_cache"`
+	ForceCache           bool     `mapstructure:"force_cache"`
+	TemplateArgs         []string `mapstructure:"template_args"`
 	LogLevel             string   `mapstructure:"log_level"`
 	Verbosity            string
 }
