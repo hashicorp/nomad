@@ -411,7 +411,7 @@ func (d *AllocDir) LogDir() string {
 
 // List returns the list of files at a path relative to the alloc dir
 func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
-	if escapes, err := structs.PathEscapesAllocDir(path); err != nil {
+	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -437,7 +437,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 
 // Stat returns information about the file at a path relative to the alloc dir
 func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
-	if escapes, err := structs.PathEscapesAllocDir(path); err != nil {
+	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -460,7 +460,7 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 
 // ReadAt returns a reader for a file at the path relative to the alloc dir
 func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
-	if escapes, err := structs.PathEscapesAllocDir(path); err != nil {
+	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -489,7 +489,7 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 // BlockUntilExists blocks until the passed file relative the allocation
 // directory exists. The block can be cancelled with the passed tomb.
 func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, error) {
-	if escapes, err := structs.PathEscapesAllocDir(path); err != nil {
+	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -510,7 +510,7 @@ func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, erro
 // allocation directory. The offset should be the last read offset. The tomb is
 // used to clean up the watch.
 func (d *AllocDir) ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error) {
-	if escapes, err := structs.PathEscapesAllocDir(path); err != nil {
+	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")

@@ -1267,7 +1267,7 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	valid.RelativeDest = "local/../.."
+	valid.RelativeDest = "local/../../.."
 	if err := valid.Validate(); err == nil {
 		t.Fatalf("expected error: %v", err)
 	}
@@ -1480,5 +1480,28 @@ func TestConstructorConfig_Canonicalize(t *testing.T) {
 	d.Canonicalize()
 	if d.Payload != DispatchPayloadOptional {
 		t.Fatalf("Canonicalize failed")
+	}
+}
+
+func TestDispatchInputConfig_Validate(t *testing.T) {
+	d := &DispatchInputConfig{
+		File: "foo",
+	}
+
+	// task/local/haha
+	if err := d.Validate(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// task/haha
+	d.File = "../haha"
+	if err := d.Validate(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// ../haha
+	d.File = "../../../haha"
+	if err := d.Validate(); err == nil {
+		t.Fatalf("bad: %v", err)
 	}
 }

@@ -1706,6 +1706,18 @@ func (d *DispatchInputConfig) Copy() *DispatchInputConfig {
 	return nd
 }
 
+func (d *DispatchInputConfig) Validate() error {
+	// Verify the destination doesn't escape
+	escaped, err := PathEscapesAllocDir("task/local/", d.File)
+	if err != nil {
+		return fmt.Errorf("invalid destination path: %v", err)
+	} else if escaped {
+		return fmt.Errorf("destination escapes allocation directory")
+	}
+
+	return nil
+}
+
 var (
 	defaultServiceJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
@@ -2462,6 +2474,13 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
+	// Validate the dispatch input block if there
+	if t.DispatchInput != nil {
+		if err := t.DispatchInput.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2603,7 +2622,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir(t.DestPath)
+	escaped, err := PathEscapesAllocDir("task", t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -2955,14 +2974,16 @@ func (ta *TaskArtifact) GoString() string {
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
-// directory
-func PathEscapesAllocDir(path string) (bool, error) {
+// directory. The prefix allows adding a prefix if the path will be joined, for
+// example a "task/local" prefix may be provided if the path will be joined
+// against that prefix.
+func PathEscapesAllocDir(prefix, path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
+	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
 	if err != nil {
 		return false, err
 	}
-	abs, err := filepath.Abs(filepath.Join(alloc, path))
+	abs, err := filepath.Abs(filepath.Join(alloc, prefix, path))
 	if err != nil {
 		return false, err
 	}
@@ -2981,7 +3002,7 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
 	}
 
-	escaped, err := PathEscapesAllocDir(ta.RelativeDest)
+	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
