@@ -87,15 +87,11 @@ func dockerTask() (*structs.Task, int, int) {
 // If there is a problem during setup this function will abort or skip the test
 // and indicate the reason.
 func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle, func()) {
-	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
-	}
+	client := newTestDockerClient(t)
+	return dockerSetupWithClient(t, task, client)
+}
 
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		t.Fatalf("Failed to initialize client: %s\nStack\n%s", err, debug.Stack())
-	}
-
+func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Client) (*docker.Client, DriverHandle, func()) {
 	driverCtx, execCtx := testDriverContexts(task)
 	driverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(driverCtx)
@@ -117,6 +113,18 @@ func dockerSetup(t *testing.T, task *structs.Task) (*docker.Client, DriverHandle
 	}
 
 	return client, handle, cleanup
+}
+
+func newTestDockerClient(t *testing.T) *docker.Client {
+	if !testutil.DockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Fatalf("Failed to initialize client: %s\nStack\n%s", err, debug.Stack())
+	}
+	return client
 }
 
 // This test should always pass, even if docker daemon is not available
@@ -586,6 +594,51 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	actual := container.HostConfig.NetworkMode
 	if actual != expected {
 		t.Fatalf("Got network mode %q; want %q", expected, actual)
+	}
+}
+
+func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
+	// Because go-dockerclient doesn't provide api for query network aliases, just check that
+	// a container can be created with a 'network_aliases' property
+
+	// Create network, network-scoped alias is supported only for containers in user defined networks
+	client := newTestDockerClient(t)
+	networkOpts := docker.CreateNetworkOptions{Name: "foobar", Driver: "bridge"}
+	network, err := client.CreateNetwork(networkOpts)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer client.RemoveNetwork(network.ID)
+
+	expected := []string{"foobar"}
+	task := &structs.Task{
+		Name: "nc-demo",
+		Config: map[string]interface{}{
+			"image":           "busybox",
+			"load":            []string{"busybox.tar"},
+			"command":         "/bin/nc",
+			"args":            []string{"-l", "127.0.0.1", "-p", "0"},
+			"network_mode":    network.Name,
+			"network_aliases": expected,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	client, handle, cleanup := dockerSetupWithClient(t, task, client)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	_, err = client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
 	}
 }
 

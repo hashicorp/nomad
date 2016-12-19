@@ -126,6 +126,21 @@ The `docker` driver supports the following configuration in the job spec:
   pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
   See below for more details.
 
+* `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
+  container to be discovered by an alternate name by any other container within
+  the scope of a particular network. Network-scoped alias is supported only for
+  containers in user defined networks
+
+    ```hcl
+    config {
+      network_mode = "overlay"
+      network_aliases = [
+        "${NOMAD_TASK_NAME}",
+        "${NOMAD_TASK_NAME}-${NOMAD_ALLOC_INDEX}"
+      ]
+    }
+    ```
+
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
   container the task starts will have the same hostname.
