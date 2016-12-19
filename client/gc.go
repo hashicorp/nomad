@@ -23,6 +23,9 @@ const (
 	// maintain, whenever we are over it we will attempt to GC terminal
 	// allocations
 	inodeUsageThreshold = 70
+
+	// MB is a constant which converts values in bytes to MB
+	MB = 1024 * 1024
 )
 
 type GCAlloc struct {
@@ -180,6 +183,11 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 
 		// See if we are below thresholds for used disk space and inode usage
 		diskStats := a.statsCollector.Stats().AllocDirStats
+
+		if diskStats == nil {
+			break
+		}
+
 		if diskStats.UsedPercent <= diskUsageThreshold &&
 			diskStats.InodesUsedPercent <= inodeUsageThreshold {
 			break
@@ -249,18 +257,31 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 
 	// If the host has enough free space to accomodate the new allocations then
 	// we don't need to garbage collect terminated allocations
-	hostStats := a.statsCollector.Stats()
-	if hostStats != nil && uint64(totalResource.DiskMB*1024*1024) < hostStats.AllocDirStats.Available {
-		return nil
+	if hostStats := a.statsCollector.Stats(); hostStats != nil {
+		var availableForAllocations uint64
+		if hostStats.AllocDirStats.Available < uint64(a.reservedDiskMB*MB) {
+			availableForAllocations = 0
+		} else {
+			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.reservedDiskMB*MB)
+		}
+		if uint64(totalResource.DiskMB*MB) < availableForAllocations {
+			return nil
+		}
 	}
 
 	var diskCleared int
 	for {
 		// Collect host stats and see if we still need to remove older
 		// allocations
+		var allocDirStats *stats.DiskStats
 		if err := a.statsCollector.Collect(); err == nil {
-			hostStats := a.statsCollector.Stats()
-			if hostStats.AllocDirStats.Available >= uint64(totalResource.DiskMB*1024*1024) {
+			if hostStats := a.statsCollector.Stats(); hostStats != nil {
+				allocDirStats = hostStats.AllocDirStats
+			}
+		}
+
+		if allocDirStats != nil {
+			if allocDirStats.Available >= uint64(totalResource.DiskMB*1024*1024) {
 				break
 			}
 		} else {
