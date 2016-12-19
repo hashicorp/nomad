@@ -116,6 +116,35 @@ func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Payload(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job containing an invalid driver
+	// config
+	job := mock.Job()
+	job.Payload = []byte{0x1}
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil {
+		t.Fatalf("expected a validation error")
+	}
+
+	if !strings.Contains(err.Error(), "payload") {
+		t.Fatalf("expected a payload error but got: %v", err)
+	}
+}
+
 func TestJobEndpoint_Register_Existing(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -259,6 +288,7 @@ func TestJobEndpoint_Register_Constructor(t *testing.T) {
 
 	// Create the register request for a constructor job.
 	job := mock.Job()
+	job.Type = structs.JobTypeBatch
 	job.Constructor = &structs.ConstructorConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
@@ -766,6 +796,7 @@ func TestJobEndpoint_Evaluate_Constructor(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
+	job.Type = structs.JobTypeBatch
 	job.Constructor = &structs.ConstructorConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
@@ -983,6 +1014,7 @@ func TestJobEndpoint_Deregister_Constructor(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
+	job.Type = structs.JobTypeBatch
 	job.Constructor = &structs.ConstructorConfig{}
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
@@ -1860,28 +1892,33 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 	// No requirements
 	d1 := mock.Job()
+	d1.Type = structs.JobTypeBatch
 	d1.Constructor = &structs.ConstructorConfig{}
 
 	// Require input data
 	d2 := mock.Job()
+	d2.Type = structs.JobTypeBatch
 	d2.Constructor = &structs.ConstructorConfig{
 		Payload: structs.DispatchPayloadRequired,
 	}
 
 	// Disallow input data
 	d3 := mock.Job()
+	d3.Type = structs.JobTypeBatch
 	d3.Constructor = &structs.ConstructorConfig{
 		Payload: structs.DispatchPayloadForbidden,
 	}
 
 	// Require meta
 	d4 := mock.Job()
+	d4.Type = structs.JobTypeBatch
 	d4.Constructor = &structs.ConstructorConfig{
 		MetaRequired: []string{"foo", "bar"},
 	}
 
 	// Optional meta
 	d5 := mock.Job()
+	d5.Type = structs.JobTypeBatch
 	d5.Constructor = &structs.ConstructorConfig{
 		MetaOptional: []string{"foo", "bar"},
 	}

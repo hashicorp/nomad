@@ -584,6 +584,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the constructor job
 		job := mock.Job()
+		job.Type = structs.JobTypeBatch
 		job.Constructor = &structs.ConstructorConfig{}
 
 		args := structs.JobRegisterRequest{

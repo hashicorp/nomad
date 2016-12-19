@@ -2477,7 +2477,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	// Validate the dispatch input block if there
 	if t.DispatchInput != nil {
 		if err := t.DispatchInput.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Input validation failed: %v", err))
 		}
 	}
 
@@ -3006,7 +3006,7 @@ func (ta *TaskArtifact) Validate() error {
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes task's directory"))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
 	// Verify the checksum
