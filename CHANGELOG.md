@@ -1,3 +1,8 @@
+## 0.5.3 (Unreleased) 
+
+BUG FIXES:
+  * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
+
 ## 0.5.2 (Unreleased)
 
 BUG FIXES:
