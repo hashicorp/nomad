@@ -217,13 +217,10 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 		compressed := snappy.Encode(nil, expected)
 		job.Payload = compressed
 
-		args := structs.JobRegisterRequest{
-			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}
-		var resp structs.JobRegisterResponse
-		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
-			t.Fatalf("err: %v", err)
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		if err := state.UpsertJob(1000, job); err != nil {
+			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
 		// Make the HTTP request
