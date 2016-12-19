@@ -188,8 +188,8 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 		dconf.Auth[i].ServerAddress = env.ReplaceEnv(a.ServerAddress)
 	}
 
-	for _, l := range dconf.Logging {
-		l.Type = env.ReplaceEnv(l.Type)
+	for i, l := range dconf.Logging {
+		dconf.Logging[i].Type = env.ReplaceEnv(l.Type)
 		for _, c := range l.ConfigRaw {
 			for k, v := range c {
 				delete(c, k)
