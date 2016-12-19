@@ -133,7 +133,7 @@ The `docker` driver supports the following configuration in the job spec:
 
     ```hcl
     config {
-      network_mode = "overlay"
+      network_mode = "user-network"
       network_aliases = [
         "${NOMAD_TASK_NAME}",
         "${NOMAD_TASK_NAME}-${NOMAD_ALLOC_INDEX}"

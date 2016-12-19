@@ -843,15 +843,18 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.AllocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)
 
-	networkingConfig := &docker.NetworkingConfig{
-		EndpointsConfig: make(map[string]*docker.EndpointConfig),
-	}
-
+	var networkingConfig *docker.NetworkingConfig
 	if len(driverConfig.NetworkAliases) > 0 {
-		networkingConfig.EndpointsConfig[hostConfig.NetworkMode] = &docker.EndpointConfig{
-			Aliases: driverConfig.NetworkAliases,
+		networkingConfig = &docker.NetworkingConfig{
+			EndpointsConfig: map[string]*docker.EndpointConfig{
+				hostConfig.NetworkMode: &docker.EndpointConfig{
+					Aliases: driverConfig.NetworkAliases,
+				},
+			},
 		}
-		d.logger.Printf("[DEBUG] driver.docker: applied network aliases on the container: [%s]%+v", hostConfig.NetworkMode, driverConfig.NetworkAliases)
+
+		d.logger.Printf("[DEBUG] driver.docker: using network_mode %q with network aliases: %v",
+			hostConfig.NetworkMode, strings.Join(driverConfig.NetworkAliases, ", "))
 	}
 
 	return docker.CreateContainerOptions{
