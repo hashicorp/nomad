@@ -27,6 +27,8 @@ BUG FIXES:
     allocation does not exist due to stale queries [GH-2050]
   * driver/docker: Make container exist errors non-retriable by task runner
     [GH-2033]
+  * driver/docker: Fixed an issue related to purging containers with same name
+    as Nomad is trying to start [GH-2037]
   * driver/rkt: Fix validation of rkt volumes [GH-2027]
 
 ## 0.5.0 (November 16, 2016)
