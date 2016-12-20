@@ -47,7 +47,8 @@ Status Options:
     Display the evaluations associated with the job.
 
   -all-allocs
-    Display the allocs that matches the job name.
+    Display all allocations matching the job ID, including those from an older
+    instance of the job.
 
   -verbose
     Display full information.
