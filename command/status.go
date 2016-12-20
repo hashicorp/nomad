@@ -20,9 +20,10 @@ const (
 
 type StatusCommand struct {
 	Meta
-	length  int
-	evals   bool
-	verbose bool
+	length    int
+	evals     bool
+	allAllocs bool
+	verbose   bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -45,6 +46,10 @@ Status Options:
   -evals
     Display the evaluations associated with the job.
 
+  -all-allocs
+    Display all allocations matching the job ID, including those from an older
+    instance of the job.
+
   -verbose
     Display full information.
 `
@@ -62,6 +67,7 @@ func (c *StatusCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
+	flags.BoolVar(&c.allAllocs, "all-allocs", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -218,7 +224,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	var evals, allocs []string
 
 	// Query the allocations
-	jobAllocs, _, err := client.Jobs().Allocations(job.ID, nil)
+	jobAllocs, _, err := client.Jobs().Allocations(job.ID, c.allAllocs, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}

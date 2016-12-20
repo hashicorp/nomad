@@ -66,7 +66,7 @@ type State interface {
 	Nodes() (memdb.ResultIterator, error)
 
 	// AllocsByJob returns the allocations by JobID
-	AllocsByJob(jobID string) ([]*structs.Allocation, error)
+	AllocsByJob(jobID string, all bool) ([]*structs.Allocation, error)
 
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(node string) ([]*structs.Allocation, error)

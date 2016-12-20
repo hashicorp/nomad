@@ -348,7 +348,7 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 // but use a dead allocation if no running allocations are found
 func getRandomJobAlloc(client *api.Client, jobID string) (string, error) {
 	var runningAllocs []*api.AllocationListStub
-	allocs, _, err := client.Jobs().Allocations(jobID, nil)
+	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
 
 	// Check that the job actually has allocations
 	if len(allocs) == 0 {

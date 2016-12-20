@@ -354,7 +354,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(s.eval.JobID)
+	allocs, err := s.state.AllocsByJob(s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)
