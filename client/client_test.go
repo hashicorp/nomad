@@ -94,6 +94,11 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	conf := config.DefaultConfig()
 	conf.VaultConfig.Enabled = &f
 	conf.DevMode = true
+	conf.Node = &structs.Node{
+		Reserved: &structs.Resources{
+			DiskMB: 0,
+		},
+	}
 	if cb != nil {
 		cb(conf)
 	}
