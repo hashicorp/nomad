@@ -141,8 +141,6 @@ type Client struct {
 
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
-	resourceUsage      *stats.HostStats
-	resourceUsageLock  sync.RWMutex
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -154,6 +152,10 @@ type Client struct {
 	// migratingAllocs is the set of allocs whose data migration is in flight
 	migratingAllocs     map[string]chan struct{}
 	migratingAllocsLock sync.Mutex
+
+	// garbageCollector is used to garbage collect terminal allocations present
+	// in the node automatically
+	garbageCollector *AllocGarbageCollector
 }
 
 var (
@@ -182,7 +184,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		start:               time.Now(),
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
-		hostStatsCollector:  stats.NewHostStatsCollector(logger),
 		allocs:              make(map[string]*AllocRunner),
 		blockedAllocations:  make(map[string]*structs.Allocation),
 		allocUpdates:        make(chan *structs.Allocation, 64),
@@ -197,6 +198,11 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// Add the stats collector and the garbage collector
+	statsCollector := stats.NewHostStatsCollector(logger, c.config.AllocDir)
+	c.hostStatsCollector = statsCollector
+	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, cfg.Node.Reserved.DiskMB)
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {
@@ -367,6 +373,9 @@ func (c *Client) Shutdown() error {
 		c.vaultClient.Stop()
 	}
 
+	// Stop Garbage collector
+	c.garbageCollector.Stop()
+
 	// Destroy all the running allocations.
 	if c.config.DevMode {
 		c.allocLock.Lock()
@@ -434,6 +443,17 @@ func (c *Client) Stats() map[string]map[string]string {
 	return stats
 }
 
+// CollectAllocation garbage collects a single allocation
+func (c *Client) CollectAllocation(allocID string) error {
+	return c.garbageCollector.Collect(allocID)
+}
+
+// CollectAllAllocs garbage collects all allocations on a node in the terminal
+// state
+func (c *Client) CollectAllAllocs() error {
+	return c.garbageCollector.CollectAll()
+}
+
 // Node returns the locally registered node
 func (c *Client) Node() *structs.Node {
 	c.configLock.RLock()
@@ -459,9 +479,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 
 // HostStats returns all the stats related to a Nomad client
 func (c *Client) LatestHostStats() *stats.HostStats {
-	c.resourceUsageLock.RLock()
-	defer c.resourceUsageLock.RUnlock()
-	return c.resourceUsage
+	return c.hostStatsCollector.Stats()
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1087,6 +1105,15 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 		delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
 	}
 	c.blockedAllocsLock.Unlock()
+
+	// Mark the allocation for GC if it is in terminal state
+	if alloc.Terminated() {
+		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
+			if err := c.garbageCollector.MarkForCollection(ar); err != nil {
+				c.logger.Printf("[DEBUG] client: couldn't add alloc %v for GC: %v", alloc.ID, err)
+			}
+		}
+	}
 
 	// Strip all the information that can be reconstructed at the server.  Only
 	// send the fields that are updatable by the client.
@@ -1732,6 +1759,9 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	delete(c.allocs, alloc.ID)
 	c.allocLock.Unlock()
 
+	// Remove the allocrunner from garbage collector
+	c.garbageCollector.Remove(ar)
+
 	ar.Destroy()
 	return nil
 }
@@ -1759,6 +1789,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
 		return nil
+	}
+
+	// Make room for the allocation
+	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
+		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
 	}
 
 	c.configLock.RLock()
@@ -2068,20 +2103,16 @@ func (c *Client) collectHostStats() {
 	for {
 		select {
 		case <-next.C:
-			ru, err := c.hostStatsCollector.Collect()
+			err := c.hostStatsCollector.Collect()
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
 				continue
 			}
 
-			c.resourceUsageLock.Lock()
-			c.resourceUsage = ru
-			c.resourceUsageLock.Unlock()
-
 			// Publish Node metrics if operator has opted in
 			if c.config.PublishNodeMetrics {
-				c.emitStats(ru)
+				c.emitStats(c.hostStatsCollector.Stats())
 			}
 		case <-c.shutdownCh:
 			return

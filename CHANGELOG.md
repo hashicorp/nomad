@@ -6,6 +6,10 @@ BUG FIXES:
 
 ## 0.5.2 (Unreleased)
 
+IMPROVEMENTS:
+  * client: Garbage collect Allocation Runners to free up disk resouces
+    [GH-2081]
+
 BUG FIXES:
   * client: Fixed a race condition and remove panic when handling duplicate
     allocations [GH-2096]

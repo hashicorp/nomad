@@ -79,9 +79,22 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return s.allocStats(allocID, resp, req)
 	case "snapshot":
 		return s.allocSnapshot(allocID, resp, req)
+	case "gc":
+		return s.allocGC(allocID, resp, req)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
+}
+
+func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if s.agent.client == nil {
+		return nil, clientNotRunning
+	}
+	return nil, s.agent.Client().CollectAllAllocs()
+}
+
+func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	return nil, s.agent.Client().CollectAllocation(allocID)
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
