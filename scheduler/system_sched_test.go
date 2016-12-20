@@ -58,7 +58,7 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -182,7 +182,7 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -205,7 +205,7 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err = h1.State.AllocsByJob(job1.ID)
+	out, err = h1.State.AllocsByJob(job1.ID, false)
 	noErr(t, err)
 	if len(out) != 0 {
 		t.Fatalf("bad: %#v", out)
@@ -319,7 +319,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -430,7 +430,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -558,7 +558,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -746,7 +746,7 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -822,7 +822,7 @@ func TestSystemSched_JobDeregister(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure no remaining allocations
@@ -1094,7 +1094,7 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID)
+	out, err := h.State.AllocsByJob(job.ID, false)
 	noErr(t, err)
 
 	// Ensure no allocations placed

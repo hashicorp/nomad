@@ -111,7 +111,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	// get an alloc id
 	allocId1 := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocId1 = allocs[0].ID
 		}

@@ -683,11 +683,11 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 
 	// Wait for the scheduler to create an allocation
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, err := s1.fsm.state.AllocsByJob(job.ID)
+		allocs, err := s1.fsm.state.AllocsByJob(job.ID, true)
 		if err != nil {
 			return false, err
 		}
-		allocs1, err := s1.fsm.state.AllocsByJob(job1.ID)
+		allocs1, err := s1.fsm.state.AllocsByJob(job1.ID, true)
 		if err != nil {
 			return false, err
 		}
