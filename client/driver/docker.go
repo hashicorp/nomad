@@ -454,7 +454,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	// and are running
 	if !container.State.Running {
 		// Start the container
-		if err := client.StartContainer(container.ID, container.HostConfig); err != nil {
+		if err := d.startContainer(container); err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
 			pluginClient.Kill()
 			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
