@@ -950,6 +950,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 		}
 	}
 
+	d.emitEvent("Downloading image")
 	err := client.PullImage(pullOptions, authOptions)
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
