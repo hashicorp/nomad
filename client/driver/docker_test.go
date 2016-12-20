@@ -1055,7 +1055,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		}
 	}
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, cfg, "")
 	if err != nil {
 		cleanup()
 		t.Fatalf("Failed to get task env: %v", err)
