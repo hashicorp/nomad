@@ -324,7 +324,8 @@ func (r *TaskRunner) setTaskEnv() error {
 	r.taskEnvLock.Lock()
 	defer r.taskEnvLock.Unlock()
 
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc, r.vaultFuture.Get())
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node,
+		r.task.Copy(), r.alloc, r.config, r.vaultFuture.Get())
 	if err != nil {
 		return err
 	}
