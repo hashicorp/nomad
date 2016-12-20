@@ -93,7 +93,6 @@ type DockerDriver struct {
 	DriverContext
 
 	imageID      string
-	waitClient   *docker.Client
 	driverConfig *DockerDriverConfig
 }
 
@@ -359,7 +358,7 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 	}
 
 	// Initialize docker API clients
-	client, waitClient, err := d.dockerClients()
+	client, _, err := d.dockerClients()
 	if err != nil {
 		return fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
@@ -379,7 +378,6 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 
 	// Set state needed by Start()
 	d.imageID = dockerImage.ID
-	d.waitClient = waitClient
 	d.driverConfig = driverConfig
 	return nil
 }
@@ -469,7 +467,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
 		client:         client,
-		waitClient:     d.waitClient,
+		waitClient:     waitClient,
 		executor:       exec,
 		pluginClient:   pluginClient,
 		cleanupImage:   cleanupImage,
