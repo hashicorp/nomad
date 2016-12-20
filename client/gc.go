@@ -329,3 +329,15 @@ func (a *AllocGarbageCollector) MarkForCollection(ar *AllocRunner) error {
 	a.logger.Printf("[INFO] client: marking allocation %v for GC", ar.Alloc().ID)
 	return a.allocRunners.Push(ar)
 }
+
+// Remove removes an alloc runner without garbage collecting it
+func (a *AllocGarbageCollector) Remove(ar *AllocRunner) {
+	if ar == nil || ar.Alloc() == nil {
+		return
+	}
+
+	alloc := ar.Alloc()
+	if _, err := a.allocRunners.Remove(alloc.ID); err == nil {
+		a.logger.Printf("[INFO] client: removed alloc runner %v from garbage collector", alloc.ID)
+	}
+}

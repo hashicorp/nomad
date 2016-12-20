@@ -1759,6 +1759,9 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	delete(c.allocs, alloc.ID)
 	c.allocLock.Unlock()
 
+	// Remove the allocrunner from garbage collector
+	c.garbageCollector.Remove(ar)
+
 	ar.Destroy()
 	return nil
 }
