@@ -350,8 +350,8 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	// state to drivers
 	eventEmitter := func(m string, args ...interface{}) {
 		msg := fmt.Sprintf(m, args...)
-		r.logger.Printf("[DEBUG] client: initialization event for alloc %q: %s", r.alloc.ID, msg)
-		r.setState("", structs.NewTaskEvent(structs.TaskInitializing).SetInitializationMessage(msg))
+		r.logger.Printf("[DEBUG] client: driver event for alloc %q: %s", r.alloc.ID, msg)
+		r.setState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
 	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env, eventEmitter)
