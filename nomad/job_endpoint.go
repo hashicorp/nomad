@@ -534,7 +534,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 			if err != nil {
 				return err
 			}
-			allocs, err := snap.AllocsByJob(args.JobID)
+			allocs, err := snap.AllocsByJob(args.JobID, args.AllAllocs)
 			if err != nil {
 				return err
 			}

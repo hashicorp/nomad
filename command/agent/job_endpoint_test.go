@@ -396,9 +396,9 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 func TestHTTP_JobAllocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
+		alloc1 := mock.Alloc()
 		args := structs.JobRegisterRequest{
-			Job:          job,
+			Job:          alloc1.Job,
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
@@ -408,15 +408,13 @@ func TestHTTP_JobAllocations(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		alloc1 := mock.Alloc()
-		alloc1.JobID = job.ID
 		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/allocations", nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+alloc1.Job.ID+"/allocations?all=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
