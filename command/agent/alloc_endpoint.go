@@ -90,13 +90,11 @@ func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request
 	if s.agent.client == nil {
 		return nil, clientNotRunning
 	}
-	err := s.agent.Client().CollectAllAllocs()
-	return nil, err
+	return nil, s.agent.Client().CollectAllAllocs()
 }
 
 func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	err := s.agent.Client().CollectAllocation(allocID)
-	return nil, err
+	return nil, s.agent.Client().CollectAllocation(allocID)
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {

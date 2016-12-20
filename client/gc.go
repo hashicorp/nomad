@@ -28,6 +28,8 @@ const (
 	MB = 1024 * 1024
 )
 
+// GCAlloc wraps an allocation runner and an index enabling it to be used within
+// a PQ
 type GCAlloc struct {
 	timeStamp   time.Time
 	allocRunner *AllocRunner
@@ -162,7 +164,7 @@ func (a *AllocGarbageCollector) run() {
 		select {
 		case <-ticker.C:
 			if err := a.keepUsageBelowThreshold(); err != nil {
-				a.logger.Printf("[ERR] client: error GCing allocation: %v", err)
+				a.logger.Printf("[ERR] client: error garbage collecting allocation: %v", err)
 			}
 		case <-a.shutdownCh:
 			ticker.Stop()
@@ -214,7 +216,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 }
 
 func (a *AllocGarbageCollector) Stop() {
-	a.shutdownCh <- struct{}{}
+	close(a.shutdownCh)
 }
 
 // Collect garbage collects a single allocation on a node
@@ -281,7 +283,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 
 		if allocDirStats != nil {
-			if allocDirStats.Available >= uint64(totalResource.DiskMB*1024*1024) {
+			if allocDirStats.Available >= uint64(totalResource.DiskMB*MB) {
 				break
 			}
 		} else {

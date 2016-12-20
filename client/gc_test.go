@@ -162,6 +162,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 	statsCollector.inodePercents = []float64{0}
 
 	alloc := mock.Alloc()
+	alloc.Resources.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -197,6 +198,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 	statsCollector.inodePercents = []float64{0, 0, 0}
 
 	alloc := mock.Alloc()
+	alloc.Resources.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -233,6 +235,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 	statsCollector.inodePercents = []float64{0, 0, 0}
 
 	alloc := mock.Alloc()
+	alloc.Resources.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -260,6 +263,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	}
 
 	alloc := mock.Alloc()
+	alloc.Resources.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -297,6 +301,14 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 	if err := gc.keepUsageBelowThreshold(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// We shouldn't GC any of the allocs since the used percent values are below
+	// threshold
+	for i := 0; i < 2; i++ {
+		if gcAlloc := gc.allocRunners.Pop(); gcAlloc == nil {
+			t.Fatalf("err: %v", gcAlloc)
+		}
+	}
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
@@ -321,5 +333,15 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 
 	if err := gc.keepUsageBelowThreshold(); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	// We should be GC-ing only one of the alloc runners since the second time
+	// used percent returns a number below threshold.
+	if gcAlloc := gc.allocRunners.Pop(); gcAlloc == nil {
+		t.Fatalf("err: %v", gcAlloc)
+	}
+
+	if gcAlloc := gc.allocRunners.Pop(); gcAlloc != nil {
+		t.Fatalf("gcAlloc: %v", gcAlloc)
 	}
 }

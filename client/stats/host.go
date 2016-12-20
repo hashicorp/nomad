@@ -54,6 +54,8 @@ type DiskStats struct {
 	InodesUsedPercent float64
 }
 
+// NodeStatsCollector is an interface which is used for the puproses of mocking
+// the HostStatsCollector in the tests
 type NodeStatsCollector interface {
 	Collect() error
 	Stats() *HostStats
@@ -70,7 +72,9 @@ type HostStatsCollector struct {
 	allocDir        string
 }
 
-// NewHostStatsCollector returns a HostStatsCollector
+// NewHostStatsCollector returns a HostStatsCollector. The allocDir is passed in
+// so that we can present the disk related statistics for the mountpoint where
+// the allocation directory lives
 func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollector {
 	numCores := runtime.NumCPU()
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
@@ -138,6 +142,7 @@ func (h *HostStatsCollector) Collect() error {
 	}
 	hs.DiskStats = diskStats
 
+	// Getting the disk stats for the allocation directory
 	usage, err := disk.Usage(h.allocDir)
 	if err != nil {
 		return err

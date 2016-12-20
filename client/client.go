@@ -445,19 +445,13 @@ func (c *Client) Stats() map[string]map[string]string {
 
 // CollectAllocation garbage collects a single allocation
 func (c *Client) CollectAllocation(allocID string) error {
-	if err := c.garbageCollector.Collect(allocID); err != nil {
-		return err
-	}
-	return nil
+	return c.garbageCollector.Collect(allocID)
 }
 
 // CollectAllAllocs garbage collects all allocations on a node in the terminal
 // state
 func (c *Client) CollectAllAllocs() error {
-	if err := c.garbageCollector.CollectAll(); err != nil {
-		return err
-	}
-	return nil
+	return c.garbageCollector.CollectAll()
 }
 
 // Node returns the locally registered node
