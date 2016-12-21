@@ -82,6 +82,13 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		newNetwork.MBits = cfg.NetworkSpeed
 	}
 
+	const INDIVIDUAL_POOL = "Individual Ports Pool"
+	const RANGE_POOL = "Port Ranges Pool"
+	individualPortsPool := structs.PortRange{Label: INDIVIDUAL_POOL, Base: 20000, Span: 20000}
+	rangePortsPool := structs.PortRange{Label: RANGE_POOL, Base: 40000, Span: 20000}
+	newNetwork.DynamicPortRanges = append(newNetwork.DynamicPortRanges, individualPortsPool)
+	newNetwork.DynamicPortRanges = append(newNetwork.DynamicPortRanges, rangePortsPool)
+
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}

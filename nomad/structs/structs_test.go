@@ -150,8 +150,9 @@ func testJob() *Job {
 							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
-									MBits:        50,
-									DynamicPorts: []Port{{Label: "http"}},
+									MBits:             50,
+									DynamicPorts:      []Port{{Label: "http"}},
+									DynamicPortRanges: []PortRange{{Label: "range", Span: 100}},
 								},
 							},
 						},
@@ -564,16 +565,18 @@ func TestResource_Add_Network(t *testing.T) {
 	r2 := &Resources{
 		Networks: []*NetworkResource{
 			&NetworkResource{
-				MBits:        50,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}},
+				MBits:             50,
+				DynamicPorts:      []Port{{"http", 0}, {"https", 0}},
+				DynamicPortRanges: []PortRange{{Label: "range_http", Span: 100}},
 			},
 		},
 	}
 	r3 := &Resources{
 		Networks: []*NetworkResource{
 			&NetworkResource{
-				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0}},
+				MBits:             25,
+				DynamicPorts:      []Port{{"admin", 0}},
+				DynamicPortRanges: []PortRange{{Label: "range_ngp", Span: 100}},
 			},
 		},
 	}
@@ -590,8 +593,9 @@ func TestResource_Add_Network(t *testing.T) {
 	expect := &Resources{
 		Networks: []*NetworkResource{
 			&NetworkResource{
-				MBits:        75,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+				MBits:             75,
+				DynamicPorts:      []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+				DynamicPortRanges: []PortRange{{Label: "range_http", Span: 100}, {Label: "range_ngp", Span: 100}},
 			},
 		},
 	}

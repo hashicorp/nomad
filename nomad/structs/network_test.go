@@ -6,6 +6,11 @@ import (
 	"testing"
 )
 
+const (
+	MinDynamicPort = 20000
+	MaxDynamicPort = 60000
+)
+
 func TestNetworkIndex_Overcommitted(t *testing.T) {
 	idx := NewNetworkIndex()
 
@@ -145,10 +150,11 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 	idx := NewNetworkIndex()
 
 	reserved := &NetworkResource{
-		Device:        "eth0",
-		IP:            "192.168.0.100",
-		MBits:         20,
-		ReservedPorts: []Port{{"one", 8000}, {"two", 9000}},
+		Device:            "eth0",
+		IP:                "192.168.0.100",
+		MBits:             20,
+		ReservedPorts:     []Port{{"one", 8000}, {"two", 9000}},
+		DynamicPortRanges: []PortRange{{"one_range", 40000, 100}, {"second_range", 40101, 100}},
 	}
 	collide := idx.AddReserved(reserved)
 	if collide {
@@ -162,6 +168,16 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 		t.Fatalf("Bad")
 	}
 	if !idx.UsedPorts["192.168.0.100"].Check(9000) {
+		t.Fatalf("Bad")
+	}
+
+	if !idx.UsedPorts["192.168.0.100"].Check(40000) {
+		t.Fatalf("Bad")
+	}
+	if !idx.UsedPorts["192.168.0.100"].Check(40100) {
+		t.Fatalf("Bad")
+	}
+	if !idx.UsedPorts["192.168.0.100"].Check(40200) {
 		t.Fatalf("Bad")
 	}
 
@@ -397,7 +413,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	}
 }
 
-func TestIntContains(t *testing.T) {
+func TestNetworkIndex_IntContains(t *testing.T) {
 	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")
@@ -406,6 +422,249 @@ func TestIntContains(t *testing.T) {
 		t.Fatalf("bad")
 	}
 	if !isPortReserved(l, 1) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestNetworkIndex_allocatePortRange(t *testing.T) {
+	{
+		usedSet, _ := NewBitmap(maxValidPort)
+		availablePorts := usedSet.IndexesInRange(false, 40000, 40020)
+		if i := allocatePortRange(availablePorts, 21); i != 0 {
+			t.Fatal("Bad index:", i)
+		}
+		if i := allocatePortRange(availablePorts, 1); i != 0 {
+			t.Fatal("Bad index:", i)
+		}
+		if i := allocatePortRange(availablePorts, 22); i != -1 {
+			t.Fatal("Bad index:", i)
+		}
+	}
+	{
+		usedSet, _ := NewBitmap(maxValidPort)
+		usedSet.Set(40002)
+		availablePorts := usedSet.IndexesInRange(false, 40000, 40020)
+		if i := allocatePortRange(availablePorts, 20); i != -1 {
+			t.Fatal("Bad index:", i)
+		}
+		if i := allocatePortRange(availablePorts, 1); i != 0 {
+			t.Fatal("Bad index:", i)
+		}
+		if i := allocatePortRange(availablePorts, 18); availablePorts[i] != 40003 {
+			t.Fatal("Bad index:", i)
+		}
+	}
+}
+
+func TestNetworkIndex_getDynamicPortsRange(t *testing.T) {
+	usedSet, _ := NewBitmap(maxValidPort)
+
+	// getDynamicPortsPrecise takes the nodes used port bitmap which may be nil if
+	// no ports have been allocated yet, the network ask and returns a set of unused
+	// ports to fullfil the ask's DynamicPorts or an error if it failed. An error
+	// means the ask can not be satisfied as the method does a precise search.
+	//func getDynamicPortsRange(nodeUsed Bitmap, ask *NetworkResource, allowed PortRange) ([]PortRange, error) {
+	{
+		// Ask for dynamic ports
+		ask := &NetworkResource{
+			DynamicPortRanges: []PortRange{{Label: "node1", Span: 100}},
+		}
+		allowed := PortRange{Label: "Dynrange", Base: 40000, Span: 200}
+		results, err := getDynamicPortsRange(usedSet, ask, allowed)
+		if len(results) == 0 || err != nil {
+			t.Fatal("Bad result size:", len(results), " error:", err)
+		}
+		r := results[0]
+		if r.Base != allowed.Base || r.Span != 100 {
+			t.Fatal("Bad result base:", r.Base, " span:", r.Span)
+		}
+	}
+
+	// getDynamicPortsPrecise takes the nodes used port bitmap which may be nil if
+	// no ports have been allocated yet, the network ask and returns a set of unused
+	// ports to fullfil the ask's DynamicPorts or an error if it failed. An error
+	// means the ask can not be satisfied as the method does a precise search.
+	//func getDynamicPortsRange(nodeUsed Bitmap, ask *NetworkResource, allowed PortRange) ([]PortRange, error) {
+	{
+		// Ask for dynamic ports
+		ask := &NetworkResource{
+			DynamicPortRanges: []PortRange{{Label: "node1", Span: 100}, {Label: "node2", Span: 100}},
+		}
+		allowed := PortRange{Label: "Dynrange", Base: 40000, Span: 200}
+		results, err := getDynamicPortsRange(usedSet, ask, allowed)
+		if len(results) != 2 || err != nil {
+			t.Fatal("Bad result size:", len(results), " error:", err)
+		}
+		r := results[0]
+		if r.Base != allowed.Base || r.Span != 100 {
+			t.Fatal("Bad result base:", r.Base, " span:", r.Span)
+		}
+		r2 := results[1]
+		if r2.Base != allowed.Base+100 || r2.Span != 100 {
+			t.Fatal("Bad result base:", r2.Base, " span:", r2.Span)
+		}
+	}
+
+}
+
+func TestNetworkIndex_AssignNetworkRange(t *testing.T) {
+	idx := NewNetworkIndex()
+	n := &Node{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/30",
+					MBits:  1000,
+					DynamicPortRanges: []PortRange{{Label: "Individual Ports Pool", Base: 20000, Span: 20000},
+						{Label: "Port Ranges Pool", Base: 40000, Span: 20000}}},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				&NetworkResource{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{"ssh", 22}},
+					MBits:         1,
+				},
+			},
+		},
+	}
+	idx.SetNode(n)
+
+	allocs := []*Allocation{
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"web": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							MBits:         20,
+							ReservedPorts: []Port{{"one", 8000}, {"two", 9000}},
+						},
+					},
+				},
+			},
+		},
+		&Allocation{
+			TaskResources: map[string]*Resources{
+				"api": &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							Device:            "eth0",
+							IP:                "192.168.0.100",
+							MBits:             50,
+							DynamicPortRanges: []PortRange{{Label: "main", Span: 1000}},
+						},
+					},
+				},
+			},
+		},
+	}
+	idx.AddAllocs(allocs)
+
+	// Ask for a reserved port
+	ask := &NetworkResource{
+		ReservedPorts: []Port{{"main", 8000}},
+	}
+	offer, err := idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if offer == nil {
+		t.Fatalf("bad")
+	}
+	if offer.IP != "192.168.0.101" {
+		t.Fatalf("bad: %#v", offer)
+	}
+	rp := Port{"main", 8000}
+	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
+		t.Fatalf("bad: %#v", offer)
+	}
+
+	// Ask for dynamic ports
+	ask = &NetworkResource{
+		DynamicPorts: []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+	}
+	offer, err = idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if offer == nil {
+		t.Fatalf("bad")
+	}
+	if offer.IP != "192.168.0.100" {
+		t.Fatalf("bad: %#v", offer)
+	}
+	if len(offer.DynamicPorts) != 3 {
+		t.Fatalf("There should be three dynamic ports")
+	}
+	for _, port := range offer.DynamicPorts {
+		if port.Value == 0 {
+			t.Fatalf("Dynamic Port: %v should have been assigned a host port", port.Label)
+		}
+	}
+
+	// Ask for reserved + dynamic ports
+	ask = &NetworkResource{
+		ReservedPorts: []Port{{"main", 2345}},
+		DynamicPorts:  []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+	}
+	offer, err = idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if offer == nil {
+		t.Fatalf("bad")
+	}
+	if offer.IP != "192.168.0.100" {
+		t.Fatalf("bad: %#v", offer)
+	}
+
+	rp = Port{"main", 2345}
+	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
+		t.Fatalf("bad: %#v", offer)
+	}
+
+	// Ask for dynamic port range
+	ask = &NetworkResource{
+		DynamicPorts:      []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+		DynamicPortRanges: []PortRange{{Label: "ngp", Base: 0, Span: 100}},
+	}
+	offer, err = idx.AssignNetwork(ask)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(offer.DynamicPorts) != 3 {
+		t.Fatalf("There should be three dynamic ports")
+	}
+	for _, port := range offer.DynamicPorts {
+		if port.Value == 0 {
+			t.Fatalf("Dynamic Port: %v should have been assigned a host port", port.Label)
+		}
+	}
+
+	if len(offer.DynamicPortRanges) != 1 {
+		t.Fatalf("There should be one dynamic port range")
+	}
+
+	drange := offer.DynamicPortRanges[0]
+
+	if drange.Base == 0 || drange.Span != 100 {
+		t.Fatalf("Wrong dynamic range result")
+	}
+
+	// Ask for too much bandwidth
+	ask = &NetworkResource{
+		MBits: 1000,
+	}
+	offer, err = idx.AssignNetwork(ask)
+	if err.Error() != "bandwidth exceeded" {
+		t.Fatalf("err: %v", err)
+	}
+	if offer != nil {
 		t.Fatalf("bad")
 	}
 }

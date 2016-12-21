@@ -483,6 +483,12 @@ func TestTasksUpdated(t *testing.T) {
 	if !tasksUpdated(j1.TaskGroups[0], j14.TaskGroups[0]) {
 		t.Fatalf("bad")
 	}
+
+	j15 := mock.Job()
+	j15.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPortRanges = []structs.PortRange{{Label: "foo_range", Base: 1312}}
+	if !tasksUpdated(j1.TaskGroups[0], j15.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {

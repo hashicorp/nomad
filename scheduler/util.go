@@ -368,13 +368,17 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 // networkPortMap takes a network resource and returns a map of port labels to
 // values. The value for dynamic ports is disregarded even if it is set. This
 // makes this function suitable for comparing two network resources for changes.
-func networkPortMap(n *structs.NetworkResource) map[string]int {
-	m := make(map[string]int, len(n.DynamicPorts)+len(n.ReservedPorts))
+func networkPortMap(n *structs.NetworkResource) map[string]structs.PortRange {
+	m := make(map[string]structs.PortRange, len(n.DynamicPorts)+len(n.ReservedPorts)+len(n.DynamicPortRanges))
 	for _, p := range n.ReservedPorts {
-		m[p.Label] = p.Value
+		m[p.Label] = structs.PortRange{Label: p.Label, Base: p.Value, Span: 1}
 	}
 	for _, p := range n.DynamicPorts {
-		m[p.Label] = -1
+		m[p.Label] = structs.PortRange{Label: p.Label, Base: -1, Span: 1}
+	}
+	// TODO: optimize it
+	for _, p := range n.DynamicPortRanges {
+		m[p.Label] = p
 	}
 	return m
 }

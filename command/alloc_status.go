@@ -357,6 +357,9 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		for _, port := range ports {
 			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
 		}
+		for _, port := range nw.DynamicPortRanges {
+			addr = append(addr, fmt.Sprintf("%v: %v:%v span%v\n", port.Label, nw.IP, port.Base, port.Span))
+		}
 	}
 	var resourcesOutput []string
 	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")

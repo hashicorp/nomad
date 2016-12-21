@@ -645,11 +645,15 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 	// Port diffs
 	resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, false, contextual)
 	dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, true, contextual)
+	dynPortRanges := portRangeDiffs(r.DynamicPortRanges, other.DynamicPortRanges, true, contextual)
 	if resPorts != nil {
 		diff.Objects = append(diff.Objects, resPorts...)
 	}
 	if dynPorts != nil {
 		diff.Objects = append(diff.Objects, dynPorts...)
+	}
+	if dynPortRanges != nil {
+		diff.Objects = append(diff.Objects, dynPortRanges...)
 	}
 
 	return diff
@@ -716,6 +720,59 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 	if dynamic {
 		filter = []string{"Value"}
 		name = "Dynamic Port"
+	}
+
+	var diffs []*ObjectDiff
+	for portLabel, oldPort := range oldPorts {
+		// Diff the same, deleted and edited
+		if newPort, ok := newPorts[portLabel]; ok {
+			diff := primitiveObjectDiff(oldPort, newPort, filter, name, contextual)
+			if diff != nil {
+				diffs = append(diffs, diff)
+			}
+		} else {
+			diff := primitiveObjectDiff(oldPort, nil, filter, name, contextual)
+			if diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+	for label, newPort := range newPorts {
+		// Diff the added
+		if _, ok := oldPorts[label]; !ok {
+			diff := primitiveObjectDiff(nil, newPort, filter, name, contextual)
+			if diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+
+}
+
+// portRangeDiffs returns the diff of two sets of portRanges. The dynamic flag marks the
+// set of ports as being Dynamic ports versus Static ports. If contextual diff is enabled,
+// non-changed fields will still be returned.
+func portRangeDiffs(old, new []PortRange, dynamic bool, contextual bool) []*ObjectDiff {
+	makeSet := func(ports []PortRange) map[string]PortRange {
+		portMap := make(map[string]PortRange, len(ports))
+		for _, port := range ports {
+			portMap[port.Label] = port
+		}
+
+		return portMap
+	}
+
+	oldPorts := makeSet(old)
+	newPorts := makeSet(new)
+
+	var filter []string
+	name := "Static Ports Range"
+	if dynamic {
+		filter = []string{"Base"}
+		name = "Dynamic Ports Range"
 	}
 
 	var diffs []*ObjectDiff

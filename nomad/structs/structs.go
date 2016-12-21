@@ -865,15 +865,22 @@ type Port struct {
 	Value int `mapstructure:"static"`
 }
 
+type PortRange struct {
+	Label string
+	Base  int `mapstructure:"base"`
+	Span  int `mapstructure:"span"`
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // IP address
-	MBits         int    // Throughput
-	ReservedPorts []Port // Reserved ports
-	DynamicPorts  []Port // Dynamically assigned ports
+	Device            string      // Name of the device
+	CIDR              string      // CIDR block of addresses
+	IP                string      // IP address
+	MBits             int         // Throughput
+	ReservedPorts     []Port      // Reserved ports
+	DynamicPorts      []Port      // Dynamically assigned ports
+	DynamicPortRanges []PortRange // Dynamically assigned port ranges
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -923,20 +930,29 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 	}
 	n.MBits += delta.MBits
 	n.DynamicPorts = append(n.DynamicPorts, delta.DynamicPorts...)
+	n.DynamicPortRanges = append(n.DynamicPortRanges, delta.DynamicPortRanges...)
 }
 
 func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-func (n *NetworkResource) MapLabelToValues(port_map map[string]int) map[string]int {
-	labelValues := make(map[string]int)
+func (n *NetworkResource) MapLabelToValues(port_map map[string]PortRange) map[string]PortRange {
+	labelValues := make(map[string]PortRange)
 	ports := append(n.ReservedPorts, n.DynamicPorts...)
 	for _, port := range ports {
 		if mapping, ok := port_map[port.Label]; ok {
 			labelValues[port.Label] = mapping
 		} else {
-			labelValues[port.Label] = port.Value
+			labelValues[port.Label] = PortRange{Label: port.Label, Base: port.Value, Span: 1}
+		}
+	}
+
+	for _, port := range n.DynamicPortRanges {
+		if mapping, ok := port_map[port.Label]; ok {
+			labelValues[port.Label] = mapping
+		} else {
+			labelValues[port.Label] = port
 		}
 	}
 	return labelValues
@@ -1937,7 +1953,7 @@ func (t *Task) GoString() string {
 func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
 	for _, network := range t.Resources.Networks {
 		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
-			return network.IP, p
+			return network.IP, p.Base
 		}
 	}
 	return "", 0

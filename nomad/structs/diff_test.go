@@ -2018,6 +2018,12 @@ func TestTaskDiff(t *testing.T) {
 									Label: "bar",
 								},
 							},
+							DynamicPortRanges: []PortRange{
+								{
+									Label: "range",
+									Span:  50,
+								},
+							},
 						},
 					},
 				},
@@ -2039,6 +2045,12 @@ func TestTaskDiff(t *testing.T) {
 							DynamicPorts: []Port{
 								{
 									Label: "baz",
+								},
+							},
+							DynamicPortRanges: []PortRange{
+								{
+									Label: "range",
+									Span:  150,
 								},
 							},
 						},
@@ -2094,6 +2106,24 @@ func TestTaskDiff(t *testing.T) {
 											},
 										},
 									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Dynamic Ports Range",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Label",
+												Old:  "",
+												New:  "range",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "Span",
+												Old:  "",
+												New:  "150",
+											},
+										},
+									},
 								},
 							},
 							{
@@ -2134,6 +2164,24 @@ func TestTaskDiff(t *testing.T) {
 												Type: DiffTypeDeleted,
 												Name: "Label",
 												Old:  "bar",
+												New:  "",
+											},
+										},
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Dynamic Ports Range",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Label",
+												Old:  "range",
+												New:  "",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "Span",
+												Old:  "50",
 												New:  "",
 											},
 										},

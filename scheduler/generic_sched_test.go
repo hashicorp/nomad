@@ -88,6 +88,19 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		}
 	}
 
+	for _, alloc := range out {
+		for _, resource := range alloc.TaskResources {
+			for _, portRange := range resource.Networks[0].DynamicPortRanges {
+				for port := portRange.Base; port <= portRange.Base+portRange.Span; port++ {
+					if _, ok := used[port]; ok {
+						t.Fatalf("Port collision %v", port)
+					}
+					used[port] = struct{}{}
+				}
+			}
+		}
+	}
+
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 

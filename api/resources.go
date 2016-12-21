@@ -15,13 +15,20 @@ type Port struct {
 	Value int
 }
 
+type PortRange struct {
+	Label string
+	Base  int
+	Span  int
+}
+
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
-	Public        bool
-	CIDR          string
-	ReservedPorts []Port
-	DynamicPorts  []Port
-	IP            string
-	MBits         int
+	Public            bool
+	CIDR              string
+	ReservedPorts     []Port
+	DynamicPorts      []Port
+	DynamicPortRanges []PortRange
+	IP                string
+	MBits             int
 }

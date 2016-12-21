@@ -50,6 +50,9 @@ const (
 	// PortPrefix is the prefix for passing the port allocation to a task.
 	PortPrefix = "NOMAD_PORT_"
 
+	// PortRangeSuffixSpan is the suffix of span of port range
+	PortRangeSuffixSpan = "_SPAN"
+
 	// HostPortPrefix is the prefix for passing the host port when a portmap is
 	// specified.
 	HostPortPrefix = "NOMAD_HOST_PORT_"
@@ -135,12 +138,13 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	for _, network := range t.Networks {
 		for label, value := range network.MapLabelToValues(nil) {
 			t.TaskEnv[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
-			t.TaskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(value)
+			t.TaskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(value.Base)
+			t.TaskEnv[fmt.Sprintf("%s%s%s", HostPortPrefix, label, PortRangeSuffixSpan)] = strconv.Itoa(value.Span)
 			if forwardedPort, ok := t.PortMap[label]; ok {
-				value = forwardedPort
+				value = structs.PortRange{Label: label, Base: forwardedPort, Span: 1}
 			}
-			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value)
-			IPPort := fmt.Sprintf("%s:%d", network.IP, value)
+			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value.Base)
+			IPPort := fmt.Sprintf("%s:%d", network.IP, value.Base)
 			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
 
 		}
