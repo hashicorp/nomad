@@ -115,8 +115,9 @@ func testJob() *Job {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:  "web",
-				Count: 10,
+				Name:          "web",
+				Count:         10,
+				EphemeralDisk: DefaultEphemeralDisk(),
 				RestartPolicy: &RestartPolicy{
 					Mode:     RestartPolicyModeFail,
 					Attempts: 3,
@@ -147,7 +148,6 @@ func testJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   20,
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									MBits:             50,
@@ -223,6 +223,176 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	}
 }
 
+func TestJob_VaultPolicies(t *testing.T) {
+	j0 := &Job{}
+	e0 := make(map[string]map[string]*Vault, 0)
+
+	vj1 := &Vault{
+		Policies: []string{
+			"p1",
+			"p2",
+		},
+	}
+	vj2 := &Vault{
+		Policies: []string{
+			"p3",
+			"p4",
+		},
+	}
+	vj3 := &Vault{
+		Policies: []string{
+			"p5",
+		},
+	}
+	j1 := &Job{
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "foo",
+				Tasks: []*Task{
+					&Task{
+						Name: "t1",
+					},
+					&Task{
+						Name:  "t2",
+						Vault: vj1,
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "bar",
+				Tasks: []*Task{
+					&Task{
+						Name:  "t3",
+						Vault: vj2,
+					},
+					&Task{
+						Name:  "t4",
+						Vault: vj3,
+					},
+				},
+			},
+		},
+	}
+
+	e1 := map[string]map[string]*Vault{
+		"foo": map[string]*Vault{
+			"t2": vj1,
+		},
+		"bar": map[string]*Vault{
+			"t3": vj2,
+			"t4": vj3,
+		},
+	}
+
+	cases := []struct {
+		Job      *Job
+		Expected map[string]map[string]*Vault
+	}{
+		{
+			Job:      j0,
+			Expected: e0,
+		},
+		{
+			Job:      j1,
+			Expected: e1,
+		},
+	}
+
+	for i, c := range cases {
+		got := c.Job.VaultPolicies()
+		if !reflect.DeepEqual(got, c.Expected) {
+			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
+		}
+	}
+}
+
+func TestJob_RequiredSignals(t *testing.T) {
+	j0 := &Job{}
+	e0 := make(map[string]map[string][]string, 0)
+
+	vj1 := &Vault{
+		Policies:   []string{"p1"},
+		ChangeMode: VaultChangeModeNoop,
+	}
+	vj2 := &Vault{
+		Policies:     []string{"p1"},
+		ChangeMode:   VaultChangeModeSignal,
+		ChangeSignal: "SIGUSR1",
+	}
+	tj1 := &Template{
+		SourcePath: "foo",
+		DestPath:   "bar",
+		ChangeMode: TemplateChangeModeNoop,
+	}
+	tj2 := &Template{
+		SourcePath:   "foo",
+		DestPath:     "bar",
+		ChangeMode:   TemplateChangeModeSignal,
+		ChangeSignal: "SIGUSR2",
+	}
+	j1 := &Job{
+		TaskGroups: []*TaskGroup{
+			&TaskGroup{
+				Name: "foo",
+				Tasks: []*Task{
+					&Task{
+						Name: "t1",
+					},
+					&Task{
+						Name:      "t2",
+						Vault:     vj2,
+						Templates: []*Template{tj2},
+					},
+				},
+			},
+			&TaskGroup{
+				Name: "bar",
+				Tasks: []*Task{
+					&Task{
+						Name:      "t3",
+						Vault:     vj1,
+						Templates: []*Template{tj1},
+					},
+					&Task{
+						Name:  "t4",
+						Vault: vj2,
+					},
+				},
+			},
+		},
+	}
+
+	e1 := map[string]map[string][]string{
+		"foo": map[string][]string{
+			"t2": []string{"SIGUSR1", "SIGUSR2"},
+		},
+		"bar": map[string][]string{
+			"t4": []string{"SIGUSR1"},
+		},
+	}
+
+	cases := []struct {
+		Job      *Job
+		Expected map[string]map[string][]string
+	}{
+		{
+			Job:      j0,
+			Expected: e0,
+		},
+		{
+			Job:      j1,
+			Expected: e1,
+		},
+	}
+
+	for i, c := range cases {
+		got := c.Job.RequiredSignals()
+		if !reflect.DeepEqual(got, c.Expected) {
+			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
+		}
+	}
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	tg := &TaskGroup{
 		Count: -1,
@@ -263,20 +433,24 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 	err = tg.Validate()
 	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Task 3 missing name") {
+	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
 
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
-	err := task.Validate()
+	ephemeralDisk := DefaultEphemeralDisk()
+	err := task.Validate(ephemeralDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -289,7 +463,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate()
+	err = task.Validate(ephemeralDisk)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -300,13 +474,13 @@ func TestTask_Validate(t *testing.T) {
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
-	err = task.Validate()
+	ephemeralDisk.SizeMB = 200
+	err = task.Validate(ephemeralDisk)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -327,6 +501,11 @@ func TestTask_Validate_Services(t *testing.T) {
 				Type:    ServiceCheckTCP,
 				Timeout: 2 * time.Second,
 			},
+			{
+				Name:     "check-name",
+				Type:     ServiceCheckTCP,
+				Interval: 1 * time.Second,
+			},
 		},
 	}
 
@@ -334,18 +513,20 @@ func TestTask_Validate_Services(t *testing.T) {
 		Name: "service-name",
 	}
 
+	ephemeralDisk := DefaultEphemeralDisk()
 	task := &Task{
 		Name:   "web",
 		Driver: "docker",
 		Resources: &Resources{
 			CPU:      100,
-			DiskMB:   200,
 			MemoryMB: 100,
 			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
-	err := task.Validate()
+	ephemeralDisk.SizeMB = 200
+
+	err := task.Validate(ephemeralDisk)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -361,7 +542,11 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "interval (0s) can not be lower") {
+	if !strings.Contains(err.Error(), "missing required value interval") {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "cannot be less than") {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -412,15 +597,126 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
-		Resources: &Resources{
-			DiskMB: 1,
-		},
+	}
+	ephemeralDisk := &EphemeralDisk{
+		SizeMB: 1,
 	}
 
-	err := task.Validate()
+	err := task.Validate(ephemeralDisk)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTask_Validate_Template(t *testing.T) {
+
+	bad := &Template{}
+	task := &Task{
+		Templates: []*Template{bad},
+	}
+	ephemeralDisk := &EphemeralDisk{
+		SizeMB: 1,
+	}
+
+	err := task.Validate(ephemeralDisk)
+	if !strings.Contains(err.Error(), "Template 1 validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Have two templates that share the same destination
+	good := &Template{
+		SourcePath: "foo",
+		DestPath:   "local/foo",
+		ChangeMode: "noop",
+	}
+
+	task.Templates = []*Template{good, good}
+	err = task.Validate(ephemeralDisk)
+	if !strings.Contains(err.Error(), "same destination as") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTemplate_Validate(t *testing.T) {
+	cases := []struct {
+		Tmpl         *Template
+		Fail         bool
+		ContainsErrs []string
+	}{
+		{
+			Tmpl: &Template{},
+			Fail: true,
+			ContainsErrs: []string{
+				"specify a source path",
+				"specify a destination",
+				TemplateChangeModeInvalidError.Error(),
+			},
+		},
+		{
+			Tmpl: &Template{
+				Splay: -100,
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"positive splay",
+			},
+		},
+		{
+			Tmpl: &Template{
+				ChangeMode: "foo",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				TemplateChangeModeInvalidError.Error(),
+			},
+		},
+		{
+			Tmpl: &Template{
+				ChangeMode: "signal",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"specify signal value",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "../../root",
+				ChangeMode: "noop",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"destination escapes",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+			},
+			Fail: false,
+		},
+	}
+
+	for i, c := range cases {
+		err := c.Tmpl.Validate()
+		if err != nil {
+			if !c.Fail {
+				t.Fatalf("Case %d: shouldn't have failed: %v", i+1, err)
+			}
+
+			e := err.Error()
+			for _, exp := range c.ContainsErrs {
+				if !strings.Contains(e, exp) {
+					t.Fatalf("Cased %d: should have contained error %q: %q", i+1, exp, e)
+				}
+			}
+		} else if c.Fail {
+			t.Fatalf("Case %d: should have failed: %v", i+1, err)
+		}
 	}
 }
 
@@ -668,7 +964,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 		Name:      "service.name",
 		PortLabel: "bar",
 	}
-	if err := s.Validate(); err == nil {
+	if err := s.ValidateName(s.Name); err == nil {
 		t.Fatalf("Service should be invalid (contains a dot): %v", err)
 	}
 
@@ -681,10 +977,18 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
+		Name:      "my-service-${NOMAD_META_FOO}",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err != nil {
+		t.Fatalf("Service should be valid: %v", err)
+	}
+
+	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
 		PortLabel: "bar",
 	}
-	if err := s.Validate(); err == nil {
+	if err := s.ValidateName(s.Name); err == nil {
 		t.Fatalf("Service should be invalid (too long): %v", err)
 	}
 
@@ -973,6 +1277,77 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	}
 }
 
+func TestAllocation_ShouldMigrate(t *testing.T) {
+	alloc := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if !alloc.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc1 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name:          "foo",
+					EphemeralDisk: &EphemeralDisk{},
+				},
+			},
+		},
+	}
+
+	if alloc1.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc2 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Sticky:  false,
+						Migrate: true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc2.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc3 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+				},
+			},
+		},
+	}
+
+	if alloc3.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+}
+
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	cases := []struct {
 		Input *TaskArtifact
@@ -1013,5 +1388,63 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			t.Fatalf("case %d: %v", i, err)
 			continue
 		}
+	}
+}
+
+func TestAllocation_Terminated(t *testing.T) {
+	type desiredState struct {
+		ClientStatus  string
+		DesiredStatus string
+		Terminated    bool
+	}
+
+	harness := []desiredState{
+		{
+			ClientStatus:  AllocClientStatusPending,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    false,
+		},
+		{
+			ClientStatus:  AllocClientStatusRunning,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    false,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusStop,
+			Terminated:    true,
+		},
+		{
+			ClientStatus:  AllocClientStatusFailed,
+			DesiredStatus: AllocDesiredStatusRun,
+			Terminated:    true,
+		},
+	}
+
+	for _, state := range harness {
+		alloc := Allocation{}
+		alloc.DesiredStatus = state.DesiredStatus
+		alloc.ClientStatus = state.ClientStatus
+		if alloc.Terminated() != state.Terminated {
+			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
+		}
+	}
+}
+
+func TestVault_Validate(t *testing.T) {
+	v := &Vault{
+		Env:        true,
+		ChangeMode: VaultChangeModeNoop,
+	}
+
+	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Policy list") {
+		t.Fatalf("Expected policy list empty error")
+	}
+
+	v.Policies = []string{"foo"}
+	v.ChangeMode = VaultChangeModeSignal
+
+	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Signal must") {
+		t.Fatalf("Expected signal empty error")
 	}
 }

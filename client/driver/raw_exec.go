@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-plugin"
@@ -80,6 +80,12 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *RawExecDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes
@@ -88,7 +94,7 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 	// Check that the user has explicitly enabled this executor.
 	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
 
-	if enabled {
+	if enabled || cfg.DevMode {
 		if currentlyEnabled {
 			d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		}
@@ -98,6 +104,10 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 
 	delete(node.Attributes, rawExecDriverAttr)
 	return false, nil
+}
+
+func (d *RawExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	return nil
 }
 
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -117,10 +127,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
 	}
-
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
 
 	bin, err := discover.NomadExecutable()
 	if err != nil {
@@ -142,12 +148,17 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		AllocID:  ctx.AllocID,
 		Task:     task,
 	}
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:  command,
 		Args: driverConfig.Args,
 		User: task.User,
-	}, executorCtx)
+	}
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -255,6 +266,10 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 	return nil
 }
 
+func (h *rawExecHandle) Signal(s os.Signal) error {
+	return h.executor.Signal(s)
+}
+
 func (h *rawExecHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
@@ -283,9 +298,9 @@ func (h *rawExecHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *rawExecHandle) run() {
-	ps, err := h.executor.Wait()
+	ps, werr := h.executor.Wait()
 	close(h.doneCh)
-	if ps.ExitCode == 0 && err != nil {
+	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
 		}
@@ -293,15 +308,18 @@ func (h *rawExecHandle) run() {
 			h.logger.Printf("[ERR] driver.raw_exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
-	close(h.waitCh)
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: failed to deregister services: %v", err)
 	}
 
+	// Exit the executor
 	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: werr}
+	close(h.waitCh)
 }

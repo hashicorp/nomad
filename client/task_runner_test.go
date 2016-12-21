@@ -2,17 +2,20 @@ package client
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -30,12 +33,20 @@ func prefixedTestLogger(prefix string) *log.Logger {
 
 type MockTaskStateUpdater struct {
 	state  string
+	failed bool
 	events []*structs.TaskEvent
 }
 
 func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
-	m.state = state
-	m.events = append(m.events, event)
+	if state != "" {
+		m.state = state
+	}
+	if event != nil {
+		if event.FailsTask {
+			m.failed = true
+		}
+		m.events = append(m.events, event)
+	}
 }
 
 func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
@@ -58,8 +69,9 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
 	allocDir.Build([]*structs.Task{task})
 
+	vclient := vaultclient.NewMockVaultClient()
 	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task)
+	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task, vclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -71,7 +83,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	upd, tr := testTaskRunner(false)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {
@@ -99,6 +111,45 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	if upd.events[2].Type != structs.TaskTerminated {
 		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
 	}
+}
+
+func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code":               0,
+		"start_error":             "driver failure",
+		"start_error_recoverable": true,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(true, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l < 3 {
+			return false, fmt.Errorf("Expect at least three  events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskDriverFailure {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDriverFailure)
+		}
+
+		if upd.events[2].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[2].Type, structs.TaskRestarting)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
@@ -138,7 +189,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 	}
 
 	// Begin the tear down
-	tr.Destroy()
+	tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	select {
 	case <-tr.WaitCh():
@@ -171,7 +222,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	tr.task.Config["command"] = "/bin/sleep"
 	tr.task.Config["args"] = []string{"100"}
 	go tr.Run()
-	defer tr.Destroy()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	// Update the task definition
@@ -202,8 +253,11 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Wait for update to take place
 	testutil.WaitForResult(func() (bool, error) {
-		if tr.task != newTask {
-			return false, fmt.Errorf("task not updated")
+		if tr.task == newTask {
+			return false, fmt.Errorf("We copied the pointer! This would be very bad")
+		}
+		if tr.task.Driver != newTask.Driver {
+			return false, fmt.Errorf("Task not copied")
 		}
 		if tr.restartTracker.policy.Mode != newMode {
 			return false, fmt.Errorf("restart policy not updated")
@@ -218,36 +272,82 @@ func TestTaskRunner_Update(t *testing.T) {
 }
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(false)
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "5s",
+	}
 
-	// Change command to ensure we run for a bit
-	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"10"}
+	// Give it a Vault token
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
-	// Snapshot state
-	time.Sleep(2 * time.Second)
+	// Wait for the task to be running and then snapshot the state
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	if err := tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Read the token from the file system
+	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
+	if err != nil {
+		t.Fatalf("failed to determine task %s secret dir: %v", err)
+	}
+
+	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	token := string(data)
+	if len(token) == 0 {
+		t.Fatalf("Token not written to disk")
+	}
+
 	// Create a new task runner
 	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name})
+		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.vaultClient)
+	tr2.restartTracker = noRestartsTracker()
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
-	defer tr2.Destroy()
+	defer tr2.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	// Destroy and wait
-	testutil.WaitForResult(func() (bool, error) {
-		return tr2.handle != nil, fmt.Errorf("RestoreState() didn't open handle")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	select {
+	case <-tr2.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check that we recovered the token
+	if act := tr2.vaultFuture.Get(); act != token {
+		t.Fatalf("Vault token not properly recovered")
+	}
 }
 
 func TestTaskRunner_Download_List(t *testing.T) {
@@ -272,7 +372,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	upd, tr := testTaskRunnerFromAlloc(false, alloc)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {
@@ -337,7 +437,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	upd, tr := testTaskRunnerFromAlloc(true, alloc)
 	tr.MarkReceived()
 	go tr.Run()
-	defer tr.Destroy()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 	defer tr.ctx.AllocDir.Destroy()
 
 	select {
@@ -385,6 +485,12 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	_, tr := testTaskRunner(false)
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	if err := tr.setTaskEnv(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
 
 	// Try to run as root with exec.
 	tr.task.Driver = "exec"
@@ -406,4 +512,735 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	if err := tr.validateTask(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestTaskRunner_RestartTask(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(true, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	go func() {
+		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
+		tr.Restart("test", "restart")
+		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
+		tr.Kill("test", "restart", false)
+	}()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 9 {
+		t.Fatalf("should have 9 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskRestartSignal {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskRestartSignal)
+	}
+
+	if upd.events[3].Type != structs.TaskKilling {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilling)
+	}
+
+	if upd.events[4].Type != structs.TaskKilled {
+		t.Fatalf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskKilled)
+	}
+
+	t.Logf("%+v", upd.events[5])
+	if upd.events[5].Type != structs.TaskRestarting {
+		t.Fatalf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskRestarting)
+	}
+
+	if upd.events[6].Type != structs.TaskStarted {
+		t.Fatalf("Seventh Event was %v; want %v", upd.events[7].Type, structs.TaskStarted)
+	}
+	if upd.events[7].Type != structs.TaskKilling {
+		t.Fatalf("Eighth Event was %v; want %v", upd.events[7].Type, structs.TaskKilling)
+	}
+
+	if upd.events[8].Type != structs.TaskKilled {
+		t.Fatalf("Nineth Event was %v; want %v", upd.events[8].Type, structs.TaskKilled)
+	}
+}
+
+func TestTaskRunner_KillTask(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		tr.Kill("test", "kill", true)
+	}()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if !upd.failed {
+		t.Fatalf("TaskState should be failed: %+v", upd)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskKilling {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilling)
+	}
+
+	if upd.events[3].Type != structs.TaskKilled {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilled)
+	}
+}
+
+func TestTaskRunner_SignalFailure(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code":    "0",
+		"run_for":      "10s",
+		"signal_error": "test forcing failure",
+	}
+
+	_, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	go tr.Run()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	time.Sleep(100 * time.Millisecond)
+	if err := tr.Signal("test", "test", syscall.SIGINT); err == nil {
+		t.Fatalf("Didn't receive error")
+	}
+}
+
+func TestTaskRunner_BlockForVault(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	// Control when we get a Vault token
+	token := "1234"
+	waitCh := make(chan struct{})
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{task.Name: token}, nil
+	}
+	tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
+
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+		t.Fatalf("premature exit")
+	case <-time.After(1 * time.Second):
+	}
+
+	if len(upd.events) != 1 {
+		t.Fatalf("should have 1 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStatePending {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStatePending)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	// Unblock
+	close(waitCh)
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	}
+
+	// Check that the token is on disk
+	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
+	if err != nil {
+		t.Fatalf("failed to determine task %s secret dir: %v", err)
+	}
+
+	// Read the token from the file system
+	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	if act := string(data); act != token {
+		t.Fatalf("Token didn't get written to disk properly, got %q; want %q", act, token)
+	}
+}
+
+func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	// Control when we get a Vault token
+	token := "1234"
+	count := 0
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		if count > 0 {
+			return map[string]string{task.Name: token}, nil
+		}
+
+		count++
+		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
+	}
+	tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	}
+
+	// Check that the token is on disk
+	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
+	if err != nil {
+		t.Fatalf("failed to determine task %s secret dir: %v", err)
+	}
+
+	// Read the token from the file system
+	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	if act := string(data); act != token {
+		t.Fatalf("Token didn't get written to disk properly, got %q; want %q", act, token)
+	}
+}
+
+func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:   []string{"default"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	// Error the token derivation
+	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	vc.SetDeriveTokenError(alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
+	go tr.Run()
+
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskKilling)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestTaskRunner_Template_Block(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: "{{key \"foo\"}}",
+			DestPath:     "local/test",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+		},
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+		t.Fatalf("premature exit")
+	case <-time.After(1 * time.Second):
+	}
+
+	if len(upd.events) != 1 {
+		t.Fatalf("should have 1 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStatePending {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStatePending)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	// Unblock
+	tr.UnblockStart("test")
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	}
+}
+
+func TestTaskRunner_Template_Artifact(t *testing.T) {
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal("bad: %v", err)
+	}
+
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, ".."))))
+	defer ts.Close()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	// Create an allocation that has a task that renders a template from an
+	// artifact
+	f1 := "CHANGELOG.md"
+	artifact := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1),
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact}
+	task.Templates = []*structs.Template{
+		{
+			SourcePath: "CHANGELOG.md",
+			DestPath:   "local/test",
+			ChangeMode: structs.TemplateChangeModeNoop,
+		},
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	}
+
+	if upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskTerminated)
+	}
+
+	// Check that both files exist.
+	taskDir := tr.ctx.AllocDir.TaskDirs[task.Name]
+	if _, err := os.Stat(filepath.Join(taskDir, f1)); err != nil {
+		t.Fatalf("%v not downloaded", f1)
+	}
+	if _, err := os.Stat(filepath.Join(taskDir, allocdir.TaskLocal, "test")); err != nil {
+		t.Fatalf("template not rendered")
+	}
+}
+
+func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: "{{key \"foo\"}}",
+			DestPath:     "local/test",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+		},
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	_, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+	go tr.Run()
+
+	// Wait for a Vault token
+	var token string
+	testutil.WaitForResult(func() (bool, error) {
+		if token = tr.vaultFuture.Get(); token == "" {
+			return false, fmt.Errorf("No Vault token")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Error the token renewal
+	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vc.RenewTokens[token]
+	if !ok {
+		t.Fatalf("no renewal channel")
+	}
+
+	originalManager := tr.templateManager
+
+	renewalCh <- fmt.Errorf("Test killing")
+	close(renewalCh)
+
+	// Wait for a new Vault token
+	var token2 string
+	testutil.WaitForResult(func() (bool, error) {
+		if token2 = tr.vaultFuture.Get(); token2 == "" || token2 == token {
+			return false, fmt.Errorf("No new Vault token")
+		}
+
+		if originalManager == tr.templateManager {
+			return false, fmt.Errorf("Template manager not updated")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestTaskRunner_VaultManager_Restart(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:   []string{"default"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+	go tr.Run()
+
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Error the token renewal
+	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vc.RenewTokens[tr.vaultFuture.Get()]
+	if !ok {
+		t.Fatalf("no renewal channel")
+	}
+
+	renewalCh <- fmt.Errorf("Test killing")
+	close(renewalCh)
+
+	// Ensure a restart
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 7 {
+			return false, fmt.Errorf("Expect seven events; got %#v", upd.events)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		if upd.events[2].Type != structs.TaskRestartSignal {
+			return false, fmt.Errorf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskRestartSignal)
+		}
+
+		if upd.events[3].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilling)
+		}
+
+		if upd.events[4].Type != structs.TaskKilled {
+			return false, fmt.Errorf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskKilled)
+		}
+
+		if upd.events[5].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskRestarting)
+		}
+
+		if upd.events[6].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Seventh Event was %v; want %v", upd.events[6].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestTaskRunner_VaultManager_Signal(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:     []string{"default"},
+		ChangeMode:   structs.VaultChangeModeSignal,
+		ChangeSignal: "SIGUSR1",
+	}
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+	go tr.Run()
+
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Error the token renewal
+	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vc.RenewTokens[tr.vaultFuture.Get()]
+	if !ok {
+		t.Fatalf("no renewal channel")
+	}
+
+	renewalCh <- fmt.Errorf("Test killing")
+	close(renewalCh)
+
+	// Ensure a restart
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(upd.events); l != 3 {
+			return false, fmt.Errorf("Expect three events; got %#v", upd.events)
+		}
+
+		if upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		}
+
+		if upd.events[2].Type != structs.TaskSignaling {
+			return false, fmt.Errorf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskSignaling)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }

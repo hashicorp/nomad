@@ -11,14 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchellh/go-ps"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/go-ps"
 )
 
 var (
@@ -63,8 +62,12 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	_, err := executor.LaunchCmd(&execCmd, ctx)
-	if err == nil {
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	if _, err := executor.LaunchCmd(&execCmd); err == nil {
 		t.Fatalf("Expected error")
 	}
 }
@@ -74,7 +77,16 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, _ := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
+	if err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
 	if ps.Pid == 0 {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
@@ -92,7 +104,12 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("error in launching command: %v", err)
 	}
@@ -125,7 +142,12 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -171,7 +193,12 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd.User = "nobody"
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("error in launching command: %v", err)
 	}
@@ -203,7 +230,12 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	ctx := testExecutorContext(t)
 	defer ctx.AllocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	ps, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("error in launching command: %v", err)
 	}

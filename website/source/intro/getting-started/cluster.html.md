@@ -19,7 +19,7 @@ The first step is to create the config file for the server. Either download
 the file from the [repository here](https://github.com/hashicorp/nomad/tree/master/demo/vagrant),
 or paste this into a file called `server.hcl`:
 
-```
+```hcl
 # Increase log verbosity
 log_level = "DEBUG"
 

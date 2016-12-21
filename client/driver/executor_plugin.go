@@ -4,6 +4,8 @@ import (
 	"encoding/gob"
 	"log"
 	"net/rpc"
+	"os"
+	"syscall"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -18,6 +20,7 @@ func init() {
 	gob.Register(map[string]interface{}{})
 	gob.Register([]map[string]string{})
 	gob.Register([]map[string]int{})
+	gob.Register(syscall.Signal(0x1))
 }
 
 type ExecutorRPC struct {
@@ -28,12 +31,6 @@ type ExecutorRPC struct {
 // LaunchCmdArgs wraps a user command and the args for the purposes of RPC
 type LaunchCmdArgs struct {
 	Cmd *executor.ExecCommand
-	Ctx *executor.ExecutorContext
-}
-
-// LaunchSyslogServerArgs wraps the executor context for the purposes of RPC
-type LaunchSyslogServerArgs struct {
-	Ctx *executor.ExecutorContext
 }
 
 // SyncServicesArgs wraps the consul context for the purposes of RPC
@@ -41,15 +38,15 @@ type SyncServicesArgs struct {
 	Ctx *executor.ConsulContext
 }
 
-func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand, ctx *executor.ExecutorContext) (*executor.ProcessState, error) {
+func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
 	var ps *executor.ProcessState
-	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd, Ctx: ctx}, &ps)
+	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd}, &ps)
 	return ps, err
 }
 
-func (e *ExecutorRPC) LaunchSyslogServer(ctx *executor.ExecutorContext) (*executor.SyslogServerState, error) {
+func (e *ExecutorRPC) LaunchSyslogServer() (*executor.SyslogServerState, error) {
 	var ss *executor.SyslogServerState
-	err := e.client.Call("Plugin.LaunchSyslogServer", LaunchSyslogServerArgs{Ctx: ctx}, &ss)
+	err := e.client.Call("Plugin.LaunchSyslogServer", new(interface{}), &ss)
 	return ss, err
 }
 
@@ -65,6 +62,10 @@ func (e *ExecutorRPC) ShutDown() error {
 
 func (e *ExecutorRPC) Exit() error {
 	return e.client.Call("Plugin.Exit", new(interface{}), new(interface{}))
+}
+
+func (e *ExecutorRPC) SetContext(ctx *executor.ExecutorContext) error {
+	return e.client.Call("Plugin.SetContext", ctx, new(interface{}))
 }
 
 func (e *ExecutorRPC) UpdateLogConfig(logConfig *structs.LogConfig) error {
@@ -95,21 +96,25 @@ func (e *ExecutorRPC) Stats() (*cstructs.TaskResourceUsage, error) {
 	return &resourceUsage, err
 }
 
+func (e *ExecutorRPC) Signal(s os.Signal) error {
+	return e.client.Call("Plugin.Signal", &s, new(interface{}))
+}
+
 type ExecutorRPCServer struct {
 	Impl   executor.Executor
 	logger *log.Logger
 }
 
 func (e *ExecutorRPCServer) LaunchCmd(args LaunchCmdArgs, ps *executor.ProcessState) error {
-	state, err := e.Impl.LaunchCmd(args.Cmd, args.Ctx)
+	state, err := e.Impl.LaunchCmd(args.Cmd)
 	if state != nil {
 		*ps = *state
 	}
 	return err
 }
 
-func (e *ExecutorRPCServer) LaunchSyslogServer(args LaunchSyslogServerArgs, ss *executor.SyslogServerState) error {
-	state, err := e.Impl.LaunchSyslogServer(args.Ctx)
+func (e *ExecutorRPCServer) LaunchSyslogServer(args interface{}, ss *executor.SyslogServerState) error {
+	state, err := e.Impl.LaunchSyslogServer()
 	if state != nil {
 		*ss = *state
 	}
@@ -130,6 +135,10 @@ func (e *ExecutorRPCServer) ShutDown(args interface{}, resp *interface{}) error 
 
 func (e *ExecutorRPCServer) Exit(args interface{}, resp *interface{}) error {
 	return e.Impl.Exit()
+}
+
+func (e *ExecutorRPCServer) SetContext(args *executor.ExecutorContext, resp *interface{}) error {
+	return e.Impl.SetContext(args)
 }
 
 func (e *ExecutorRPCServer) UpdateLogConfig(args *structs.LogConfig, resp *interface{}) error {
@@ -162,6 +171,10 @@ func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.Task
 		*resourceUsage = *ru
 	}
 	return err
+}
+
+func (e *ExecutorRPCServer) Signal(args os.Signal, resp *interface{}) error {
+	return e.Impl.Signal(args)
 }
 
 type ExecutorPlugin struct {

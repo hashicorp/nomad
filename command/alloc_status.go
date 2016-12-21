@@ -25,7 +25,7 @@ func (c *AllocStatusCommand) Help() string {
 Usage: nomad alloc-status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
-  be used to inspect the current status of all allocation, including its running
+  be used to inspect the current status of an allocation, including its running
   status, metadata, and verbose failure messages reported by internal
   subsystems.
 
@@ -204,14 +204,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	var statsErr error
-	var stats *api.AllocResourceUsage
-	stats, statsErr = client.Allocations().Stats(alloc, nil)
-	if statsErr != nil {
-		c.Ui.Output("")
-		c.Ui.Error(fmt.Sprintf("couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
-	}
-
 	// Format the allocation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, length)),
@@ -220,6 +212,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, length)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
+		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
+		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),
+		fmt.Sprintf("Desired Description|%s", alloc.DesiredDescription),
+		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
 	}
 
 	if verbose {
@@ -235,6 +231,17 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if short {
 		c.shortTaskStatus(alloc)
 	} else {
+		var statsErr error
+		var stats *api.AllocResourceUsage
+		stats, statsErr = client.Allocations().Stats(alloc, nil)
+		if statsErr != nil {
+			c.Ui.Output("")
+			if statsErr != api.NodeDownErr {
+				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+			} else {
+				c.Ui.Output("Omitting resource statistics since the node is down.")
+			}
+		}
 		c.outputTaskDetails(alloc, stats, displayStats)
 	}
 
@@ -283,6 +290,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Validation of task failed"
 			}
+		case api.TaskSetupFailure:
+			if event.SetupError != "" {
+				desc = event.SetupError
+			} else {
+				desc = "Task setup failed"
+			}
 		case api.TaskDriverFailure:
 			if event.DriverError != "" {
 				desc = event.DriverError
@@ -298,10 +311,12 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 				desc = "Failed to download artifacts"
 			}
 		case api.TaskKilling:
-			if event.KillTimeout != 0 {
-				desc = fmt.Sprintf("Sent interupt. Waiting %v before force killing", event.KillTimeout)
+			if event.KillReason != "" {
+				desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+			} else if event.KillTimeout != 0 {
+				desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
 			} else {
-				desc = "Sent interupt"
+				desc = "Sent interrupt"
 			}
 		case api.TaskKilled:
 			if event.KillError != "" {
@@ -334,6 +349,39 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Task exceeded restart policy"
 			}
+		case api.TaskVaultRenewalFailed:
+			if event.VaultError != "" {
+				desc = event.VaultError
+			} else {
+				desc = "Task's Vault token failed to be renewed"
+			}
+		case api.TaskSiblingFailed:
+			if event.FailedSibling != "" {
+				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+			} else {
+				desc = "Task's sibling failed"
+			}
+		case api.TaskSignaling:
+			sig := event.TaskSignal
+			reason := event.TaskSignalReason
+
+			if sig == "" && reason == "" {
+				desc = "Task being sent a signal"
+			} else if sig == "" {
+				desc = reason
+			} else if reason == "" {
+				desc = fmt.Sprintf("Task being sent signal %v", sig)
+			} else {
+				desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+			}
+		case api.TaskRestartSignal:
+			if event.RestartReason != "" {
+				desc = event.RestartReason
+			} else {
+				desc = "Task signaled to restart"
+			}
+		case api.TaskDriverMessage:
+			desc = event.DriverMessage
 		}
 
 		// Reverse order so we are sorted by time
@@ -368,15 +416,17 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		firstAddr = addr[0]
 	}
 
-	// Display the rolled up stats. If possible prefer the live stastics
+	// Display the rolled up stats. If possible prefer the live statistics
 	cpuUsage := strconv.Itoa(resource.CPU)
 	memUsage := humanize.IBytes(uint64(resource.MemoryMB * bytesPerMegabyte))
-	if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
-		if cs := ru.ResourceUsage.CpuStats; cs != nil {
-			cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
-		}
-		if ms := ru.ResourceUsage.MemoryStats; ms != nil {
-			memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
+	if stats != nil {
+		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
+			if cs := ru.ResourceUsage.CpuStats; cs != nil {
+				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
+			}
+			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
+				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
+			}
 		}
 	}
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
@@ -390,9 +440,11 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
-	if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
-		c.Ui.Output("")
-		c.outputVerboseResourceUsage(task, ru.ResourceUsage)
+	if stats != nil {
+		if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
+			c.Ui.Output("")
+			c.outputVerboseResourceUsage(task, ru.ResourceUsage)
+		}
 	}
 }
 

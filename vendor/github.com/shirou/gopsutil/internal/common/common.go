@@ -26,7 +26,7 @@ import (
 
 var (
 	Timeout    = 3 * time.Second
-	TimeoutErr = errors.New("Command timed out.")
+	ErrTimeout = errors.New("Command timed out.")
 )
 
 type Invoker interface {
@@ -338,6 +338,6 @@ func WaitTimeout(c *exec.Cmd, timeout time.Duration) error {
 		}
 		// wait for the command to return after killing it
 		<-done
-		return TimeoutErr
+		return ErrTimeout
 	}
 }

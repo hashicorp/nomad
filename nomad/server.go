@@ -18,9 +18,9 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -139,6 +139,9 @@ type Server struct {
 	// consulSyncer advertises this Nomad Agent with Consul
 	consulSyncer *consul.Syncer
 
+	// vault is the client for communicating with Vault.
+	vault VaultClient
+
 	// Worker used for processing
 	workers []*Worker
 
@@ -184,11 +187,29 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		return nil, err
 	}
 
+	// Configure TLS
+	var tlsWrap tlsutil.RegionWrapper
+	var incomingTLS *tls.Config
+	if config.TLSConfig.EnableRPC {
+		tlsConf := config.tlsConfig()
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		incomingTLS = itls
+	}
+
 	// Create the server
 	s := &Server{
 		config:       config,
 		consulSyncer: consulSyncer,
-		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, nil),
+		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:       logger,
 		rpcServer:    rpc.NewServer(),
 		peers:        make(map[string][]*serverParts),
@@ -198,15 +219,22 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		evalBroker:   evalBroker,
 		blockedEvals: blockedEvals,
 		planQueue:    planQueue,
+		rpcTLS:       incomingTLS,
 		shutdownCh:   make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
 	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
 
+	// Setup Vault
+	if err := s.setupVaultClient(); err != nil {
+		s.Shutdown()
+		s.logger.Printf("[ERR] nomad: failed to setup Vault client: %v", err)
+		return nil, fmt.Errorf("Failed to setup Vault client: %v", err)
+	}
+
 	// Initialize the RPC layer
-	// TODO: TLS...
-	if err := s.setupRPC(nil); err != nil {
+	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
 		s.logger.Printf("[ERR] nomad: failed to start RPC layer: %s", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
@@ -305,6 +333,12 @@ func (s *Server) Shutdown() error {
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
+
+	// Stop Vault token renewal
+	if s.vault != nil {
+		s.vault.Stop()
+	}
+
 	return nil
 }
 
@@ -549,8 +583,18 @@ func (s *Server) setupConsulSyncer() error {
 	return nil
 }
 
+// setupVaultClient is used to set up the Vault API client.
+func (s *Server) setupVaultClient() error {
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
+	if err != nil {
+		return err
+	}
+	s.vault = v
+	return nil
+}
+
 // setupRPC is used to setup the RPC listener
-func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
+func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Create endpoints
 	s.endpoints.Status = &Status{s}
 	s.endpoints.Node = &Node{srv: s}
@@ -596,11 +640,8 @@ func (s *Server) setupRPC(tlsWrap tlsutil.DCWrapper) error {
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 
-	// Provide a DC specific wrapper. Raft replication is only
-	// ever done in the same datacenter, so we can provide it as a constant.
-	// wrapper := tlsutil.SpecificDC(s.config.Datacenter, tlsWrap)
-	// TODO: TLS...
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, nil)
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 	return nil
 }
 
@@ -908,4 +949,19 @@ func (s *Server) Stats() map[string]map[string]string {
 		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
 	}
 	return stats
+}
+
+// Region retuns the region of the server
+func (s *Server) Region() string {
+	return s.config.Region
+}
+
+// Datacenter returns the data center of the server
+func (s *Server) Datacenter() string {
+	return s.config.Datacenter
+}
+
+// GetConfig returns the config of the server for testing purposes only
+func (s *Server) GetConfig() *Config {
+	return s.config
 }

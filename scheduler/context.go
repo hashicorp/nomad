@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 
@@ -269,7 +268,6 @@ func (e *EvalEligibility) JobStatus(class string) ComputedClassFeasibility {
 	// will not have a computed class. The safest value to return is the escaped
 	// case, since it disables any optimization.
 	if e.jobEscaped || class == "" {
-		fmt.Println(e.jobEscaped, class)
 		return EvalComputedClassEscaped
 	}
 

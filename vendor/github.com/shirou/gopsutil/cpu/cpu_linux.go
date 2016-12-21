@@ -65,22 +65,39 @@ func sysCPUPath(cpu int32, relPath string) string {
 }
 
 func finishCPUInfo(c *InfoStat) error {
-	if c.Mhz == 0 {
-		lines, err := common.ReadLines(sysCPUPath(c.CPU, "cpufreq/cpuinfo_max_freq"))
-		if err == nil {
-			value, err := strconv.ParseFloat(lines[0], 64)
-			if err != nil {
-				return err
-			}
-			c.Mhz = value
-		}
-	}
+	var lines []string
+	var err error
+	var value float64
+
 	if len(c.CoreID) == 0 {
-		lines, err := common.ReadLines(sysCPUPath(c.CPU, "topology/coreId"))
+		lines, err = common.ReadLines(sysCPUPath(c.CPU, "topology/core_id"))
 		if err == nil {
 			c.CoreID = lines[0]
 		}
 	}
+
+	// override the value of c.Mhz with cpufreq/cpuinfo_max_freq regardless
+	// of the value from /proc/cpuinfo because we want to report the maximum
+	// clock-speed of the CPU for c.Mhz, matching the behaviour of Windows
+	lines, err = common.ReadLines(sysCPUPath(c.CPU, "cpufreq/cpuinfo_max_freq"))
+	// if we encounter errors below but has a value from parsing /proc/cpuinfo
+	// then we ignore the error
+	if err != nil {
+		if c.Mhz == 0 {
+			return err
+		} else {
+			return nil
+		}
+	}
+	value, err = strconv.ParseFloat(lines[0], 64)
+	if err != nil {
+		if c.Mhz == 0 {
+			return err
+		} else {
+			return nil
+		}
+	}
+	c.Mhz = value/1000.0  // value is in kHz
 	return nil
 }
 
@@ -136,11 +153,10 @@ func Info() ([]InfoStat, error) {
 			}
 			c.Stepping = int32(t)
 		case "cpu MHz":
-			t, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				return ret, err
+			// treat this as the fallback value, thus we ignore error
+			if t, err := strconv.ParseFloat(value, 64); err == nil {
+				c.Mhz = t
 			}
-			c.Mhz = t
 		case "cache size":
 			t, err := strconv.ParseInt(strings.Replace(value, " KB", "", 1), 10, 64)
 			if err != nil {

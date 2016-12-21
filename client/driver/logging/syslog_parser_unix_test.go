@@ -5,9 +5,10 @@ package logging
 import (
 	"bytes"
 	"log"
-	"log/syslog"
 	"os"
 	"testing"
+
+	syslog "github.com/RackSec/srslog"
 )
 
 func TestLogParser_Priority(t *testing.T) {

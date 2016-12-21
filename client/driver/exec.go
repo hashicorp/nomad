@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -81,8 +80,18 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *ExecDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
+}
+
+func (d *ExecDriver) Prestart(execctx *ExecContext, task *structs.Task) error {
+	return nil
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -96,10 +105,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
 	}
-
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
 
 	// Get the task directory for storing the executor logs.
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
@@ -128,18 +133,25 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		ChrootEnv: d.config.ChrootEnv,
 		Task:      task,
 	}
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-	}, executorCtx)
+	}
+
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
 	}
+
 	d.logger.Printf("[DEBUG] driver.exec: started process via plugin with pid: %v", ps.Pid)
 
 	// Return a driver handle
@@ -258,6 +270,10 @@ func (h *execHandle) Update(task *structs.Task) error {
 	return nil
 }
 
+func (h *execHandle) Signal(s os.Signal) error {
+	return h.executor.Signal(s)
+}
+
 func (h *execHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
@@ -286,7 +302,7 @@ func (h *execHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *execHandle) run() {
-	ps, err := h.executor.Wait()
+	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 
 	// If the exitcode is 0 and we had an error that means the plugin didn't
@@ -294,7 +310,7 @@ func (h *execHandle) run() {
 	// the user process so that when we create a new executor on restarting the
 	// new user process doesn't have collisions with resources that the older
 	// user pid might be holding onto.
-	if ps.ExitCode == 0 && err != nil {
+	if ps.ExitCode == 0 && werr != nil {
 		if h.isolationConfig != nil {
 			ePid := h.pluginClient.ReattachConfig().Pid
 			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
@@ -305,15 +321,19 @@ func (h *execHandle) run() {
 			h.logger.Printf("[ERR] driver.exec: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, ps.Signal, err)
-	close(h.waitCh)
+
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.exec: failed to deregister services: %v", err)
 	}
 
+	// Exit the executor
 	if err := h.executor.Exit(); err != nil {
 		h.logger.Printf("[ERR] driver.exec: error destroying executor: %v", err)
 	}
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, ps.Signal, werr)
+	close(h.waitCh)
 }

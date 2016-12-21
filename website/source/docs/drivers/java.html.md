@@ -10,11 +10,22 @@ description: |-
 
 Name: `java`
 
-The `Java` driver is used to execute Java applications packaged into a Java Jar
+The `java` driver is used to execute Java applications packaged into a Java Jar
 file. The driver requires the Jar file to be accessible from the Nomad
-client via the [`artifact` downloader](/docs/jobspec/index.html#artifact_doc). 
+client via the [`artifact` downloader](/docs/job-specification/artifact.html).
 
 ## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "java"
+
+  config {
+    jar_path    = "local/exaple.jar"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+}  
+```
 
 The `java` driver supports the following configuration in the job spec:
 
@@ -23,47 +34,45 @@ The `java` driver supports the following configuration in the job spec:
   contains the Jar in a subfolder, the path will need to be the relative path
   (`subdir/from_archive/my.jar`).
 
-*   `args` - (Optional) A list of arguments to the optional `command`.
-    References to environment variables or any [interpretable Nomad
-    variables](/docs/jobspec/interpreted.html) will be interpreted
-    before launching the task. For example:
-
-    ```
-        args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-    ```
+* `args` - (Optional) A list of arguments to the Jar's main method. References
+  to environment variables or any [interpretable Nomad
+  variables](/docs/runtime/interpolation.html) will be interpreted before
+  launching the task.
 
 * `jvm_options` - (Optional) A list of JVM options to be passed while invoking
-  java. These options are passed not validated in any way in Nomad.
+  java. These options are passed without being validated in any way by Nomad.
 
 ## Examples
 
 A simple config block to run a Java Jar:
 
-```
+```hcl
 task "web" {
   driver = "java"
 
   config {
-    jar_path = "local/hello.jar"
+    jar_path    = "local/hello.jar"
     jvm_options = ["-Xmx2048m", "-Xms256m"]
   }
 
-  # Specifying an artifact is required with the "java"
-  # driver. This is the # mechanism to ship the Jar to be run.
+  # Specifying an artifact is required with the "java" driver. This is the
+  # mechanism to ship the Jar to be run.
   artifact {
-    source = "https://dl.dropboxusercontent.com/u/1234/hello.jar"
+    source = "https://internal.file.server/hello.jar"
 
     options {
       checksum = "md5:123445555555555"
     }
   }
+}
 ```
 
 ## Client Requirements
 
-The `java` driver requires Java to be installed and in your systems `$PATH`. The
-task must also specify at least one artifact to download as this is the only way
-to retrieve the Jar being run.
+The `java` driver requires Java to be installed and in your system's `$PATH`. On
+Linux, Nomad must run as root since it will use `chroot` and `cgroups` which
+require root privileges. The task must also specify at least one artifact to
+download, as this is the only way to retrieve the Jar being run.
 
 ## Client Attributes
 
@@ -75,6 +84,19 @@ this by executing `java -version` on the host and parsing the output
 * `driver.java.runtime` - Runtime version, ex: `Java(TM) SE Runtime Environment (build 1.6.0_65-b14-466.1-11M4716)`
 * `driver.java.vm` - Virtual Machine information, ex: `Java HotSpot(TM) 64-Bit Server VM (build 20.65-b04-466.1, mixed mode)`
 
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where the JVM is higher than version 1.6.0.
+  constraint {
+    attribute = "${driver.java.version}"
+    operator  = ">"
+    value     = "1.6.0"
+  }
+}
+```
+
 ## Resource Isolation
 
 The resource isolation provided varies by the operating system of
@@ -82,8 +104,7 @@ the client and the configuration.
 
 On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
 to isolate the resources of a process. If the Nomad agent is not
-running as root many of these mechanisms cannot be used.
+running as root, many of these mechanisms cannot be used.
 
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
-

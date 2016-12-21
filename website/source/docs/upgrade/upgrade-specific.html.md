@@ -1,6 +1,6 @@
 ---
 layout: "docs"
-page_title: "Upgrading Specific Versions"
+page_title: "Upgrade Guides"
 sidebar_current: "docs-upgrade-specific"
 description: |-
   Specific versions of Nomad may have additional information about the upgrade

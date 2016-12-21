@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -21,6 +22,10 @@ const (
 	// removed.
 	TaskLocalDir = "NOMAD_TASK_DIR"
 
+	// SecretsDir is the environment variable with the path to the tasks secret
+	// directory where it can store sensitive data.
+	SecretsDir = "NOMAD_SECRETS_DIR"
+
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
@@ -35,6 +40,9 @@ const (
 
 	// TaskName is the environment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
+
+	// JobName is the environment variable for passing the job name.
+	JobName = "NOMAD_JOB_NAME"
 
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
@@ -59,6 +67,9 @@ const (
 
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
+
+	// VaultToken is the environment variable for passing the Vault token
+	VaultToken = "VAULT_TOKEN"
 )
 
 // The node values that can be interpreted.
@@ -76,21 +87,25 @@ const (
 // TaskEnvironment is used to expose information to a task via environment
 // variables and provide interpolation of Nomad variables.
 type TaskEnvironment struct {
-	Env           map[string]string
-	TaskMeta      map[string]string
-	TaskGroupMeta map[string]string
-	JobMeta       map[string]string
-	AllocDir      string
-	TaskDir       string
-	CpuLimit      int
-	MemLimit      int
-	TaskName      string
-	AllocIndex    int
-	AllocId       string
-	AllocName     string
-	Node          *structs.Node
-	Networks      []*structs.NetworkResource
-	PortMap       map[string]int
+	Env              map[string]string
+	TaskMeta         map[string]string
+	TaskGroupMeta    map[string]string
+	JobMeta          map[string]string
+	AllocDir         string
+	TaskDir          string
+	SecretsDir       string
+	CpuLimit         int
+	MemLimit         int
+	TaskName         string
+	AllocIndex       int
+	AllocId          string
+	AllocName        string
+	Node             *structs.Node
+	Networks         []*structs.NetworkResource
+	PortMap          map[string]int
+	VaultToken       string
+	InjectVaultToken bool
+	JobName          string
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -139,12 +154,14 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		for label, value := range network.MapLabelToValues(nil) {
 			t.TaskEnv[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
 			t.TaskEnv[fmt.Sprintf("%s%s", HostPortPrefix, label)] = strconv.Itoa(value.Base)
-			t.TaskEnv[fmt.Sprintf("%s%s%s", HostPortPrefix, label, PortRangeSuffixSpan)] = strconv.Itoa(value.Span)
+			if value.Span > 1 {
+				t.TaskEnv[fmt.Sprintf("%s%s%s", PortPrefix, label, PortRangeSuffixSpan)] = strconv.Itoa(value.Span)
+			}
 			if forwardedPort, ok := t.PortMap[label]; ok {
 				value = structs.PortRange{Label: label, Base: forwardedPort, Span: 1}
 			}
-			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = fmt.Sprintf("%d", value.Base)
-			IPPort := fmt.Sprintf("%s:%d", network.IP, value.Base)
+			t.TaskEnv[fmt.Sprintf("%s%s", PortPrefix, label)] = strconv.Itoa(value.Base)
+			IPPort := net.JoinHostPort(network.IP, strconv.Itoa(value.Base))
 			t.TaskEnv[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
 
 		}
@@ -156,6 +173,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.TaskDir != "" {
 		t.TaskEnv[TaskLocalDir] = t.TaskDir
+	}
+	if t.SecretsDir != "" {
+		t.TaskEnv[SecretsDir] = t.SecretsDir
 	}
 
 	// Build the resource limits
@@ -179,6 +199,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	if t.TaskName != "" {
 		t.TaskEnv[TaskName] = t.TaskName
 	}
+	if t.JobName != "" {
+		t.TaskEnv[JobName] = t.JobName
+	}
 
 	// Build the node
 	if t.Node != nil {
@@ -197,6 +220,11 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		for k, v := range t.Node.Meta {
 			t.NodeValues[fmt.Sprintf("%s%s", nodeMetaPrefix, k)] = v
 		}
+	}
+
+	// Build the Vault Token
+	if t.InjectVaultToken && t.VaultToken != "" {
+		t.TaskEnv[VaultToken] = t.VaultToken
 	}
 
 	// Interpret the environment variables
@@ -250,6 +278,16 @@ func (t *TaskEnvironment) SetTaskLocalDir(dir string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearTaskLocalDir() *TaskEnvironment {
 	t.TaskDir = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetSecretsDir(dir string) *TaskEnvironment {
+	t.SecretsDir = dir
+	return t
+}
+
+func (t *TaskEnvironment) ClearSecretsDir() *TaskEnvironment {
+	t.SecretsDir = ""
 	return t
 }
 
@@ -428,7 +466,29 @@ func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
 	return t
 }
 
+func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
+	t.JobName = name
+	return t
+}
+
 func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
 	t.TaskName = ""
+	return t
+}
+
+func (t *TaskEnvironment) ClearJobName() *TaskEnvironment {
+	t.JobName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetVaultToken(token string, inject bool) *TaskEnvironment {
+	t.VaultToken = token
+	t.InjectVaultToken = inject
+	return t
+}
+
+func (t *TaskEnvironment) ClearVaultToken() *TaskEnvironment {
+	t.VaultToken = ""
+	t.InjectVaultToken = false
 	return t
 }

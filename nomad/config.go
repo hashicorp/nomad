@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -182,12 +183,18 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
+	// VaultConfig is this Agent's Vault configuration
+	VaultConfig *config.VaultConfig
+
 	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
 	// This is used to paper over a loss of leadership by instead holding RPCs,
 	// so that the caller experiences a slow response rather than an error.
 	// This period is meant to be long enough for a leader election to take
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
+
+	// TLSConfig holds various TLS related configurations
+	TLSConfig *config.TLSConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -234,7 +241,9 @@ func DefaultConfig() *Config {
 		HeartbeatGrace:         10 * time.Second,
 		FailoverHeartbeatTTL:   300 * time.Second,
 		ConsulConfig:           config.DefaultConsulConfig(),
+		VaultConfig:            config.DefaultVaultConfig(),
 		RPCHoldTimeout:         5 * time.Second,
+		TLSConfig:              &config.TLSConfig{},
 	}
 
 	// Enable all known schedulers by default
@@ -258,4 +267,17 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 	return c
+}
+
+// tlsConfig returns a TLSUtil Config based on the server configuration
+func (c *Config) tlsConfig() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
+		CAFile:               c.TLSConfig.CAFile,
+		CertFile:             c.TLSConfig.CertFile,
+		KeyFile:              c.TLSConfig.KeyFile,
+	}
+	return tlsConf
 }

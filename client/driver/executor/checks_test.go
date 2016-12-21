@@ -49,7 +49,12 @@ func TestExecScriptCheckWithIsolation(t *testing.T) {
 	execCmd.User = cstructs.DefaultUnpriviledgedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-	_, err := executor.LaunchCmd(&execCmd, ctx)
+
+	if err := executor.SetContext(ctx); err != nil {
+		t.Fatalf("Unexpected error")
+	}
+
+	_, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
 		t.Fatalf("error in launching command: %v", err)
 	}

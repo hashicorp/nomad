@@ -1,9 +1,12 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
@@ -70,4 +73,71 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both -json and -t are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
+}
+
+func TestAllocStatusCommand_Run(t *testing.T) {
+	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer srv.Stop()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+
+	jobID := "job1_sfx"
+	job1 := testJob(jobID)
+	evalId1, _, err := client.Jobs().Register(job1, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := waitForSuccess(ui, client, fullId, t, evalId1); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
+	}
+	// get an alloc id
+	allocId1 := ""
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if len(allocs) > 0 {
+			allocId1 = allocs[0].ID
+		}
+	}
+	if allocId1 == "" {
+		t.Fatal("unable to find an allocation")
+	}
+
+	if code := cmd.Run([]string{"-address=" + url, allocId1}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "Created At") {
+		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, allocId1) {
+		t.Fatal("expected to find alloc id in output")
+	}
+	if !strings.Contains(out, "Created At") {
+		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	}
+	ui.OutputWriter.Reset()
 }

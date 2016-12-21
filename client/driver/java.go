@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -93,6 +94,12 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *JavaDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: true,
+	}
+}
+
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes
@@ -156,15 +163,15 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
+func (d *JavaDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	return nil
+}
+
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
-
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
 
 	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
 	if !ok {
@@ -202,6 +209,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the context
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv:   d.taskEnv,
 		Driver:    "java",
@@ -210,19 +219,24 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		ChrootEnv: d.config.ChrootEnv,
 		Task:      task,
 	}
+	if err := execIntf.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
 
 	absPath, err := GetAbsolutePath("java")
 	if err != nil {
 		return nil, err
 	}
 
-	ps, err := execIntf.LaunchCmd(&executor.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-	}, executorCtx)
+	}
+	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -358,6 +372,10 @@ func (h *javaHandle) Update(task *structs.Task) error {
 	return nil
 }
 
+func (h *javaHandle) Signal(s os.Signal) error {
+	return h.executor.Signal(s)
+}
+
 func (h *javaHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
@@ -386,9 +404,9 @@ func (h *javaHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *javaHandle) run() {
-	ps, err := h.executor.Wait()
+	ps, werr := h.executor.Wait()
 	close(h.doneCh)
-	if ps.ExitCode == 0 && err != nil {
+	if ps.ExitCode == 0 && werr != nil {
 		if h.isolationConfig != nil {
 			ePid := h.pluginClient.ReattachConfig().Pid
 			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
@@ -403,14 +421,17 @@ func (h *javaHandle) run() {
 			h.logger.Printf("[ERR] driver.java: unmounting dev,proc and alloc dirs failed: %v", e)
 		}
 	}
-	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
-	close(h.waitCh)
 
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.java: failed to kill the deregister services: %v", err)
 	}
 
+	// Exit the executor
 	h.executor.Exit()
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: werr}
+	close(h.waitCh)
 }

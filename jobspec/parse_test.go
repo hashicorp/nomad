@@ -28,6 +28,7 @@ func TestParse(t *testing.T) {
 				AllAtOnce:   true,
 				Datacenters: []string{"us2", "eu1"},
 				Region:      "global",
+				VaultToken:  "foo",
 
 				Meta: map[string]string{
 					"foo": "bar",
@@ -48,8 +49,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "outside",
-						Count: 1,
+						Name:          "outside",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "outside",
@@ -85,6 +87,10 @@ func TestParse(t *testing.T) {
 							Attempts: 5,
 							Delay:    15 * time.Second,
 							Mode:     "delay",
+						},
+						EphemeralDisk: &structs.EphemeralDisk{
+							Sticky: true,
+							SizeMB: 150,
 						},
 						Tasks: []*structs.Task{
 							&structs.Task{
@@ -122,7 +128,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     0,
 									Networks: []*structs.NetworkResource{
 										&structs.NetworkResource{
@@ -153,6 +158,27 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Vault: &structs.Vault{
+									Policies:   []string{"foo", "bar"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
+								},
+								Templates: []*structs.Template{
+									{
+										SourcePath:   "foo",
+										DestPath:     "foo",
+										ChangeMode:   "foo",
+										ChangeSignal: "foo",
+										Splay:        10 * time.Second,
+									},
+									{
+										SourcePath:   "bar",
+										DestPath:     "bar",
+										ChangeMode:   structs.TemplateChangeModeRestart,
+										ChangeSignal: "",
+										Splay:        5 * time.Second,
+									},
+								},
 							},
 							&structs.Task{
 								Name:   "storagelocker",
@@ -164,7 +190,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      500,
 									MemoryMB: 128,
-									DiskMB:   300,
 									IOPS:     30,
 								},
 								Constraints: []*structs.Constraint{
@@ -175,6 +200,12 @@ func TestParse(t *testing.T) {
 									},
 								},
 								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:     []string{"foo", "bar"},
+									Env:          false,
+									ChangeMode:   structs.VaultChangeModeSignal,
+									ChangeSignal: "SIGUSR1",
+								},
 							},
 						},
 					},
@@ -191,6 +222,12 @@ func TestParse(t *testing.T) {
 
 		{
 			"multi-resource.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multi-vault.hcl",
 			nil,
 			true,
 		},
@@ -239,6 +276,25 @@ func TestParse(t *testing.T) {
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
 						Operand: structs.ConstraintRegex,
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"set-contains-constraint.hcl",
+			&structs.Job{
+				ID:       "foo",
+				Name:     "foo",
+				Priority: 50,
+				Region:   "global",
+				Type:     "service",
+				Constraints: []*structs.Constraint{
+					&structs.Constraint{
+						LTarget: "$meta.data",
+						RTarget: "foo,bar,baz",
+						Operand: structs.ConstraintSetContains,
 					},
 				},
 			},
@@ -303,8 +359,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "bar",
-						Count: 1,
+						Name:          "bar",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "bar",
@@ -346,8 +403,9 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "binsl",
-						Count: 1,
+						Name:          "binsl",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name:   "binstore",
@@ -355,7 +413,6 @@ func TestParse(t *testing.T) {
 								Resources: &structs.Resources{
 									CPU:      100,
 									MemoryMB: 10,
-									DiskMB:   300,
 									IOPS:     0,
 								},
 								LogConfig: &structs.LogConfig{
@@ -396,8 +453,9 @@ func TestParse(t *testing.T) {
 				Region:   "global",
 				TaskGroups: []*structs.TaskGroup{
 					&structs.TaskGroup{
-						Name:  "group",
-						Count: 1,
+						Name:          "group",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
 						Tasks: []*structs.Task{
 							&structs.Task{
 								Name: "task",
@@ -425,6 +483,60 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"vault_inheritance.hcl",
+			&structs.Job{
+				ID:       "example",
+				Name:     "example",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:          "cache",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:   []string{"group"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
+								},
+							},
+							&structs.Task{
+								Name:      "redis2",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:   []string{"task"},
+									Env:        false,
+									ChangeMode: structs.VaultChangeModeRestart,
+								},
+							},
+						},
+					},
+					&structs.TaskGroup{
+						Name:          "cache2",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:      "redis",
+								LogConfig: structs.DefaultLogConfig(),
+								Vault: &structs.Vault{
+									Policies:   []string{"job"},
+									Env:        true,
+									ChangeMode: structs.VaultChangeModeRestart,
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -443,6 +555,10 @@ func TestParse(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(actual, tc.Result) {
+			diff, err := actual.Diff(tc.Result, true)
+			if err == nil {
+				t.Logf("file %s diff:\n%#v\n", tc.File, diff)
+			}
 			t.Fatalf("file: %s\n\n%#v\n\n%#v", tc.File, actual, tc.Result)
 		}
 	}

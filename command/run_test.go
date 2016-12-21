@@ -32,7 +32,6 @@ job "job1" {
 			driver = "exec"
 			resources = {
 				cpu = 1000
-				disk = 150
 				memory = 512
 			}
 		}
@@ -121,7 +120,6 @@ job "job1" {
 			driver = "exec"
 			resources = {
 				cpu = 1000
-				disk = 150
 				memory = 512
 			}
 		}
@@ -171,7 +169,6 @@ job "job1" {
 			driver = "exec"
 			resources = {
 				cpu = 1000
-				disk = 150
 				memory = 512
 			}
 		}

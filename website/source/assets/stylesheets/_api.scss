@@ -32,10 +32,16 @@
     li {
       margin: 0;
       list-style-type: none;
-      padding-bottom: 20px;
+      line-height: 20px;
+      padding: 0;
+      padding-bottom: 15px;
       font-size: 15px;
       font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-weight: 500;
+
+      &:last-child {
+        padding-bottom: 0;
+      }
 
       span.param {
         font-weight: bold;

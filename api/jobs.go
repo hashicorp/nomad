@@ -2,7 +2,9 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -89,9 +91,18 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 }
 
 // Allocations is used to return the allocs for a given job ID.
-func (j *Jobs) Allocations(jobID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
+func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
-	qm, err := j.client.query("/v1/job/"+jobID+"/allocations", &resp, q)
+	u, err := url.Parse("/v1/job/" + jobID + "/allocations")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	v := u.Query()
+	v.Add("all", strconv.FormatBool(allAllocs))
+	u.RawQuery = v.Encode()
+
+	qm, err := j.client.query(u.String(), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -191,6 +202,7 @@ type PeriodicConfig struct {
 type Job struct {
 	Region            string
 	ID                string
+	ParentID          string
 	Name              string
 	Type              string
 	Priority          int
@@ -201,6 +213,7 @@ type Job struct {
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
 	Meta              map[string]string
+	VaultToken        string
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64

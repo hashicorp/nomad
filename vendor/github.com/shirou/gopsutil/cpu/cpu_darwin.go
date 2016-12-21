@@ -96,11 +96,11 @@ func Info() ([]InfoStat, error) {
 	}
 
 	values := strings.Fields(string(out))
-	mhz, err := strconv.ParseFloat(values[1], 64)
+	hz, err := strconv.ParseFloat(values[1], 64)
 	if err != nil {
 		return ret, err
 	}
-	c.Mhz = mhz / 1000000.0
+	c.Mhz = hz / 1000000.0
 
 	return append(ret, c), nil
 }

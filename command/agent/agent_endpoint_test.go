@@ -1,11 +1,15 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
@@ -81,9 +85,9 @@ func TestHTTP_AgentMembers(t *testing.T) {
 		}
 
 		// Check the job
-		members := obj.([]Member)
-		if len(members) != 1 {
-			t.Fatalf("bad: %#v", members)
+		members := obj.(structs.ServerMembersResponse)
+		if len(members.Members) != 1 {
+			t.Fatalf("bad: %#v", members.Members)
 		}
 	})
 }
@@ -114,13 +118,6 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 		respW := httptest.NewRecorder()
 
-		// Make the request and check the result
-		out, err := s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
-		numServers := len(out.([]string))
-
 		// Create the request
 		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
 		if err != nil {
@@ -135,7 +132,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 
 		// Create a valid request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647", nil)
+		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -158,14 +155,15 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		expected := map[string]bool{
 			"127.0.0.1:4647": true,
 			"127.0.0.2:4647": true,
+			"127.0.0.3:4647": true,
 		}
-		out, err = s.Server.AgentServersRequest(respW, req)
+		out, err := s.Server.AgentServersRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		servers := out.([]string)
-		if n := len(servers); n != numServers+2 {
-			t.Fatalf("expected %d servers, got: %d: %v", numServers+2, n, servers)
+		if n := len(servers); n != len(expected) {
+			t.Fatalf("expected %d servers, got: %d: %v", len(expected), n, servers)
 		}
 		received := make(map[string]bool, len(servers))
 		for _, server := range servers {
@@ -180,6 +178,114 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		}
 		if foundCount != len(expected) {
 			t.Fatalf("bad servers result")
+		}
+	})
+}
+
+func TestHTTP_AgentListKeys(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 1 {
+			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentInstallKey(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+
+		_, err = s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 2 {
+			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentRemoveKey(t *testing.T) {
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
+
+	httpTest(t, func(c *Config) {
+		c.Server.EncryptKey = key1
+	}, func(s *TestServer) {
+		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW := httptest.NewRecorder()
+		_, err = s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/remove", bytes.NewReader(b))
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+		if _, err = s.Server.KeyringOperationRequest(respW, req); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		respW = httptest.NewRecorder()
+		out, err := s.Server.KeyringOperationRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		kresp := out.(structs.KeyringResponse)
+		if len(kresp.Keys) != 1 {
+			t.Fatalf("bad: %v", kresp)
 		}
 	})
 }

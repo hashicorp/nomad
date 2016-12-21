@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -96,6 +97,12 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 	return nil
 }
 
+func (d *QemuDriver) Abilities() DriverAbilities {
+	return DriverAbilities{
+		SendSignals: false,
+	}
+}
+
 func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Get the current status so that we can log any debug messages only if the
 	// state changes
@@ -126,6 +133,10 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	node.Attributes[qemuDriverAttr] = "1"
 	node.Attributes["driver.qemu.version"] = matches[1]
 	return true, nil
+}
+
+func (d *QemuDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	return nil
 }
 
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
@@ -247,11 +258,17 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		AllocID:  ctx.AllocID,
 		Task:     task,
 	}
-	ps, err := exec.LaunchCmd(&executor.ExecCommand{
+	if err := exec.SetContext(executorCtx); err != nil {
+		pluginClient.Kill()
+		return nil, fmt.Errorf("failed to set executor context: %v", err)
+	}
+
+	execCmd := &executor.ExecCommand{
 		Cmd:  args[0],
 		Args: args[1:],
 		User: task.User,
-	}, executorCtx)
+	}
+	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -360,6 +377,10 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 	return nil
 }
 
+func (h *qemuHandle) Signal(s os.Signal) error {
+	return fmt.Errorf("Qemu driver can't send signals")
+}
+
 // TODO: allow a 'shutdown_command' that can be executed over a ssh connection
 // to the VM
 func (h *qemuHandle) Kill() error {
@@ -390,8 +411,8 @@ func (h *qemuHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 }
 
 func (h *qemuHandle) run() {
-	ps, err := h.executor.Wait()
-	if ps.ExitCode == 0 && err != nil {
+	ps, werr := h.executor.Wait()
+	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.qemu: error killing user process: %v", e)
 		}
@@ -400,13 +421,17 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: err}
-	close(h.waitCh)
+
 	// Remove services
 	if err := h.executor.DeregisterServices(); err != nil {
 		h.logger.Printf("[ERR] driver.qemu: failed to deregister services: %v", err)
 	}
 
+	// Exit the executor
 	h.executor.Exit()
 	h.pluginClient.Kill()
+
+	// Send the results
+	h.waitCh <- &dstructs.WaitResult{ExitCode: ps.ExitCode, Signal: ps.Signal, Err: werr}
+	close(h.waitCh)
 }

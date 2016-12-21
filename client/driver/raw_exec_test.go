@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -17,7 +18,12 @@ import (
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	task := &structs.Task{
+		Name:      "foo",
+		Resources: structs.DefaultResources(),
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -69,6 +75,9 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -114,6 +123,9 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -164,6 +176,9 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -213,6 +228,9 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -262,6 +280,9 @@ func TestRawExecDriverUser(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewRawExecDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err == nil {
 		handle.Kill()
@@ -270,5 +291,82 @@ func TestRawExecDriverUser(t *testing.T) {
 	msg := "unknown user alice"
 	if !strings.Contains(err.Error(), msg) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
+
+func TestRawExecDriver_Signal(t *testing.T) {
+	task := &structs.Task{
+		Name: "signal",
+		Config: map[string]interface{}{
+			"command": "/bin/bash",
+			"args":    []string{"test.sh"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources:   basicResources,
+		KillTimeout: 10 * time.Second,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewExecDriver(driverCtx)
+
+	testFile := filepath.Join(execCtx.AllocDir.TaskDirs["signal"], "test.sh")
+	testData := []byte(`
+at_term() {
+    echo 'Terminated.'
+    exit 3
+}
+trap at_term USR1
+while true; do
+    sleep 1
+done
+	`)
+	if err := ioutil.WriteFile(testFile, testData, 0777); err != nil {
+		fmt.Errorf("Failed to write data")
+	}
+
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	handle, err := d.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		err := handle.Signal(syscall.SIGUSR1)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Task should terminate quickly
+	select {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
+			t.Fatal("should err")
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*6) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check the log file to see it exited because of the signal
+	outputFile := filepath.Join(execCtx.AllocDir.LogDir(), "signal.stdout.0")
+	act, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Couldn't read expected output: %v", err)
+	}
+
+	exp := "Terminated."
+	if strings.TrimSpace(string(act)) != exp {
+		t.Logf("Read from %v", outputFile)
+		t.Fatalf("Command outputted %v; want %v", act, exp)
 	}
 }

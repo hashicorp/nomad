@@ -59,8 +59,16 @@ func (d *diffResult) Append(other *diffResult) {
 // need to be migrated (node is draining), the allocs that need to be evicted
 // (no longer required), those that should be ignored and those that are lost
 // that need to be replaced (running on a lost node).
+//
+// job is the job whose allocs is going to be diff-ed.
+// taintedNodes is an index of the nodes which are either down or in drain mode
+// by name.
+// required is a set of allocations that must exist.
+// allocs is a list of non terminal allocations.
+// terminalAllocs is an index of the latest terminal allocations by name.
 func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
-	required map[string]*structs.TaskGroup, allocs []*structs.Allocation) *diffResult {
+	required map[string]*structs.TaskGroup, allocs []*structs.Allocation,
+	terminalAllocs map[string]*structs.Allocation) *diffResult {
 	result := &diffResult{}
 
 	// Scan the existing updates
@@ -143,6 +151,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			result.place = append(result.place, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
+				Alloc:     terminalAllocs[name],
 			})
 		}
 	}
@@ -151,8 +160,15 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 
 // diffSystemAllocs is like diffAllocs however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
+//
+// job is the job whose allocs is going to be diff-ed.
+// nodes is a list of nodes in ready state.
+// taintedNodes is an index of the nodes which are either down or in drain mode
+// by name.
+// allocs is a list of non terminal allocations.
+// terminalAllocs is an index of the latest terminal allocations by name.
 func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[string]*structs.Node,
-	allocs []*structs.Allocation) *diffResult {
+	allocs []*structs.Allocation, terminalAllocs map[string]*structs.Allocation) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
 	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
@@ -172,12 +188,23 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 
 	result := &diffResult{}
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffAllocs(job, taintedNodes, required, allocs)
+		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
 
-		// Mark the alloc as being for a specific node.
-		for i := range diff.place {
-			alloc := &diff.place[i]
-			alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+		// If the node is tainted there should be no placements made
+		if _, ok := taintedNodes[nodeID]; ok {
+			diff.place = nil
+		} else {
+			// Mark the alloc as being for a specific node.
+			for i := range diff.place {
+				alloc := &diff.place[i]
+
+				// If the new allocation isn't annotated with a previous allocation
+				// or if the previous allocation isn't from the same node then we
+				// annotate the allocTuple with a new Allocation
+				if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
+					alloc.Alloc = &structs.Allocation{NodeID: nodeID}
+				}
+			}
 		}
 
 		// Migrate does not apply to system jobs and instead should be marked as
@@ -308,6 +335,11 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		return true
 	}
 
+	// Check ephemeral disk
+	if !reflect.DeepEqual(a.EphemeralDisk, b.EphemeralDisk) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -330,6 +362,12 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 			return true
 		}
 		if !reflect.DeepEqual(at.Artifacts, bt.Artifacts) {
+			return true
+		}
+		if !reflect.DeepEqual(at.Vault, bt.Vault) {
+			return true
+		}
+		if !reflect.DeepEqual(at.Templates, bt.Templates) {
 			return true
 		}
 
@@ -355,8 +393,6 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
-			return true
-		} else if ar.DiskMB != br.DiskMB {
 			return true
 		} else if ar.IOPS != br.IOPS {
 			return true
@@ -491,7 +527,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies both the the diffResult and the
+// placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
 func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
 	n := len(allocs)
@@ -509,7 +545,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 }
 
 // markLostAndPlace is used to mark allocations as lost and add them to the
-// placement queue. evictAndPlace modifies both the the diffResult and the
+// placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
 func markLostAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
 	n := len(allocs)
@@ -544,7 +580,7 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 	c := tgConstrainTuple{
 		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
 		drivers:     make(map[string]struct{}),
-		size:        new(structs.Resources),
+		size:        &structs.Resources{DiskMB: tg.EphemeralDisk.SizeMB},
 	}
 
 	c.constraints = append(c.constraints, tg.Constraints...)

@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,7 +50,11 @@ Usage: nomad run [options] <path>
   issues or internal errors, are indicated by exit code 1.
 
   If the job has specified the region, the -region flag and NOMAD_REGION
-  environment variable are overridden and the the job's region is used.
+  environment variable are overridden and the job's region is used.
+
+  The run command will set the vault_token of the job based on the following
+  precedence, going from highest to lowest: the -vault-token flag, the
+  $VAULT_TOKEN environment variable and finally the value in the job file.
 
 General Options:
 
@@ -58,7 +63,7 @@ General Options:
 Run Options:
 
   -check-index
-    If set, the job is only registered or updated if the the passed
+    If set, the job is only registered or updated if the passed
     job modify index matches the server side version. If a check-index value of
     zero is passed, the job is only registered if it does not yet exist. If a
     non-zero value is passed, it ensures that the job is being updated from a
@@ -73,6 +78,12 @@ Run Options:
   -verbose
     Display full information.
 
+  -vault-token
+    If set, the passed Vault token is stored in the job before sending to the
+    Nomad servers. This allows passing the Vault token without storing it in
+    the job file. This overrides the token found in $VAULT_TOKEN environment
+    variable and that found in the job.
+
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
@@ -86,7 +97,7 @@ func (c *RunCommand) Synopsis() string {
 
 func (c *RunCommand) Run(args []string) int {
 	var detach, verbose, output bool
-	var checkIndexStr string
+	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -94,6 +105,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
+	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -138,11 +150,38 @@ func (c *RunCommand) Run(args []string) int {
 	// Check if the job is periodic.
 	periodic := job.IsPeriodic()
 
+	// Parse the Vault token
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	if vaultToken != "" {
+		job.VaultToken = vaultToken
+	}
+
 	// Convert it to something we can use
 	apiJob, err := convertStructJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
+	}
+
+	// COMPAT 0.4.1 -> 0.5 Remove in 0.6
+	if apiJob.TaskGroups != nil {
+	OUTSIDE:
+		for _, tg := range apiJob.TaskGroups {
+			if tg.Tasks != nil {
+				for _, task := range tg.Tasks {
+					if task.Resources != nil {
+						if task.Resources.DiskMB > 0 {
+							c.Ui.Error("WARNING: disk attribute is deprecated in the resources block. See https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html")
+							break OUTSIDE
+						}
+					}
+				}
+			}
+		}
 	}
 
 	if output {

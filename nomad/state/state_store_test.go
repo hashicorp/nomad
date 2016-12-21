@@ -433,6 +433,40 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	notify.verify(t)
 }
 
+// This test ensures that UpsertJob creates the EphemeralDisk is a job doesn't have
+// one and clear out the task's disk resource asks
+// COMPAT 0.4.1 -> 0.5
+func TestStateStore_UpsertJob_NoEphemeralDisk(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+
+	// Set the EphemeralDisk to nil and set the tasks's DiskMB to 150
+	job.TaskGroups[0].EphemeralDisk = nil
+	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
+
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Expect the state store to create the EphemeralDisk and clear out Tasks's
+	// DiskMB
+	expected := job.Copy()
+	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
+		SizeMB: 150,
+	}
+	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
+
+	if !reflect.DeepEqual(expected, out) {
+		t.Fatalf("bad: %#v %#v", expected, out)
+	}
+}
+
 func TestStateStore_DeleteJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
@@ -813,6 +847,51 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	notify.verify(t)
 }
 
+// This test ensures that the state restore creates the EphemeralDisk for a job if
+// it doesn't have one
+// COMPAT 0.4.1 -> 0.5
+func TestStateStore_Jobs_NoEphemeralDisk(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+
+	// Set EphemeralDisk to nil and set the DiskMB to 150
+	job.TaskGroups[0].EphemeralDisk = nil
+	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "jobs"},
+		watch.Item{Job: job.ID})
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.JobRestore(job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Expect job to have local disk and clear out the task's disk resource ask
+	expected := job.Copy()
+	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
+		SizeMB: 150,
+	}
+	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
+	if !reflect.DeepEqual(out, expected) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	notify.verify(t)
+}
+
 func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
@@ -1148,7 +1227,8 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	notify := setupNotifyTest(
 		state,
 		watch.Item{Table: "evals"},
-		watch.Item{Eval: eval.ID})
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
 
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	if err != nil {
@@ -1187,10 +1267,12 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	notify := setupNotifyTest(
 		state,
 		watch.Item{Table: "evals"},
-		watch.Item{Eval: eval.ID})
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
 
 	eval2 := mock.Eval()
 	eval2.ID = eval.ID
+	eval2.JobID = eval.JobID
 	err = state.UpsertEvals(1001, []*structs.Evaluation{eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1236,6 +1318,8 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 		watch.Item{Table: "allocs"},
 		watch.Item{Eval: eval1.ID},
 		watch.Item{Eval: eval2.ID},
+		watch.Item{EvalJob: eval1.JobID},
+		watch.Item{EvalJob: eval2.JobID},
 		watch.Item{Alloc: alloc1.ID},
 		watch.Item{Alloc: alloc2.ID},
 		watch.Item{AllocEval: alloc1.EvalID},
@@ -1711,6 +1795,33 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 
 	notify.verify(t)
+}
+
+func TestStateStore_UpsertAlloc_NoEphemeralDisk(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].EphemeralDisk = nil
+	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := alloc.Copy()
+	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
+	if !reflect.DeepEqual(expected, out) {
+		t.Fatalf("bad: %#v %#v", expected, out)
+	}
 }
 
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
@@ -2251,7 +2362,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := state.AllocsByJob("foo")
+	out, err := state.AllocsByJob("foo", false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2262,6 +2373,61 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 	if !reflect.DeepEqual(allocs, out) {
 		t.Fatalf("bad: %#v %#v", allocs, out)
 	}
+}
+
+func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+	var allocs1 []*structs.Allocation
+
+	job := mock.Job()
+	job.ID = "foo"
+	state.UpsertJob(100, job)
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		allocs = append(allocs, alloc)
+	}
+	if err := state.UpsertAllocs(200, allocs); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.DeleteJob(250, job.ID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job1 := mock.Job()
+	job1.ID = "foo"
+	job1.CreateIndex = 50
+	state.UpsertJob(300, job1)
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job1
+		alloc.JobID = job1.ID
+		allocs1 = append(allocs1, alloc)
+	}
+
+	if err := state.UpsertAllocs(1000, allocs1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.AllocsByJob(job1.ID, true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := len(allocs) + len(allocs1)
+	if len(out) != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, len(out))
+	}
+
+	out1, err := state.AllocsByJob(job1.ID, false)
+	expected = len(allocs1)
+	if len(out1) != expected {
+		t.Fatalf("expected: %v, actual: %v", expected, len(out1))
+	}
+
 }
 
 func TestStateStore_AllocsByIDPrefix(t *testing.T) {
@@ -2408,6 +2574,38 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	}
 
 	notify.verify(t)
+}
+
+func TestStateStore_RestoreAlloc_NoEphemeralDisk(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].EphemeralDisk = nil
+	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.AllocRestore(alloc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	restore.Commit()
+
+	out, err := state.AllocByID(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expected := alloc.Copy()
+	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
+	expected.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
+
+	if !reflect.DeepEqual(out, expected) {
+		t.Fatalf("Bad: %#v %#v", out, expected)
+	}
 }
 
 func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
@@ -2830,6 +3028,214 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	summary, _ = state.JobSummaryByID(job.ID)
 	if summary.Summary["web"].Starting != 1 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
 		t.Fatalf("bad job summary: %v", summary)
+	}
+}
+
+func TestStateStore_UpsertVaultAccessors(t *testing.T) {
+	state := testStateStore(t)
+	a := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+
+	err := state.UpsertVaultAccessor(1000, []*structs.VaultAccessor{a, a2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessor(a.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(a, out) {
+		t.Fatalf("bad: %#v %#v", a, out)
+	}
+
+	out, err = state.VaultAccessor(a2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(a2, out) {
+		t.Fatalf("bad: %#v %#v", a2, out)
+	}
+
+	iter, err := state.VaultAccessors()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		count++
+		accessor := raw.(*structs.VaultAccessor)
+
+		if !reflect.DeepEqual(accessor, a) && !reflect.DeepEqual(accessor, a2) {
+			t.Fatalf("bad: %#v", accessor)
+		}
+	}
+
+	if count != 2 {
+		t.Fatalf("bad: %d", count)
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_DeleteVaultAccessors(t *testing.T) {
+	state := testStateStore(t)
+	a1 := mock.VaultAccessor()
+	a2 := mock.VaultAccessor()
+	accessors := []*structs.VaultAccessor{a1, a2}
+
+	err := state.UpsertVaultAccessor(1000, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = state.DeleteVaultAccessors(1001, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessor(a1.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", a1, out)
+	}
+	out, err = state.VaultAccessor(a2.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", a2, out)
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_VaultAccessorsByAlloc(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	var accessors []*structs.VaultAccessor
+	var expected []*structs.VaultAccessor
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.VaultAccessor()
+		accessor.AllocID = alloc.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.VaultAccessor()
+		accessors = append(accessors, accessor)
+	}
+
+	err := state.UpsertVaultAccessor(1000, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessorsByAlloc(alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(expected) != len(out) {
+		t.Fatalf("bad: %#v %#v", len(expected), len(out))
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_VaultAccessorsByNode(t *testing.T) {
+	state := testStateStore(t)
+	node := mock.Node()
+	var accessors []*structs.VaultAccessor
+	var expected []*structs.VaultAccessor
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.VaultAccessor()
+		accessor.NodeID = node.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.VaultAccessor()
+		accessors = append(accessors, accessor)
+	}
+
+	err := state.UpsertVaultAccessor(1000, accessors)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.VaultAccessorsByNode(node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(expected) != len(out) {
+		t.Fatalf("bad: %#v %#v", len(expected), len(out))
+	}
+
+	index, err := state.Index("vault_accessors")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
+func TestStateStore_RestoreVaultAccessor(t *testing.T) {
+	state := testStateStore(t)
+	a := mock.VaultAccessor()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.VaultAccessorRestore(a)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	out, err := state.VaultAccessor(a.Accessor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, a) {
+		t.Fatalf("Bad: %#v %#v", out, a)
 	}
 }
 

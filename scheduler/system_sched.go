@@ -178,7 +178,7 @@ func (s *SystemScheduler) process() (bool, error) {
 // existing allocations and node status to update the allocations.
 func (s *SystemScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(s.eval.JobID)
+	allocs, err := s.state.AllocsByJob(s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)
@@ -196,10 +196,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
 	// Filter out the allocations in a terminal state
-	allocs = structs.FilterTerminalAllocs(allocs)
+	allocs, terminalAllocs := structs.FilterTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs)
+	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs, terminalAllocs)
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, diff)
 
 	// Add all the allocs to stop
@@ -259,10 +259,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	}
 
 	nodes := make([]*structs.Node, 1)
-
-	// nodesFiltered holds the number of nodes filtered by the stack due to
-	// constrain mismatches while we are trying to place allocations on node
-	var nodesFiltered int
 	for _, missing := range place {
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
@@ -280,7 +276,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// If nodes were filtered because of constain mismatches and we
 			// couldn't create an allocation then decrementing queued for that
 			// task group
-			if s.ctx.metrics.NodesFiltered > nodesFiltered {
+			if s.ctx.metrics.NodesFiltered > 0 {
 				s.queuedAllocs[missing.TaskGroup.Name] -= 1
 
 				// If we are annotating the plan, then decrement the desired
@@ -291,9 +287,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 					desired.Place -= 1
 				}
 			}
-
-			// Record the current number of nodes filtered in this iteration
-			nodesFiltered = s.ctx.metrics.NodesFiltered
 
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
@@ -319,6 +312,16 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
+
+				SharedResources: &structs.Resources{
+					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
+				},
+			}
+
+			// If the new allocation is replacing an older allocation then we
+			// set the record the older allocation id so that they are chained
+			if missing.Alloc != nil {
+				alloc.PreviousAllocation = missing.Alloc.ID
 			}
 
 			s.plan.AppendAlloc(alloc)

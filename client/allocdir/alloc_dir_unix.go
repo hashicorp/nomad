@@ -14,14 +14,26 @@ import (
 )
 
 var (
-	//Path inside container for mounted directory shared across tasks in a task group.
+	// SharedAllocContainerPath is the path inside container for mounted
+	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("/", SharedAllocName)
 
-	//Path inside container for mounted directory for local storage.
+	// TaskLocalContainer is the path inside a container for mounted directory
+	// for local storage.
 	TaskLocalContainerPath = filepath.Join("/", TaskLocal)
+
+	// TaskSecretsContainerPath is the path inside a container for mounted
+	// secrets directory
+	TaskSecretsContainerPath = filepath.Join("/", TaskSecrets)
 )
 
 func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
+	// Avoid link/copy if the file already exists in the chroot
+	// TODO 0.6 clean this up. This was needed because chroot creation fails
+	// when a process restarts.
+	if fileInfo, _ := os.Stat(dst); fileInfo != nil {
+		return nil
+	}
 	// Attempt to hardlink.
 	if err := os.Link(src, dst); err == nil {
 		return nil
@@ -31,7 +43,11 @@ func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
 }
 
 func (d *AllocDir) dropDirPermissions(path string) error {
-	// Can't do anything if not root.
+	if err := os.Chmod(path, 0777); err != nil {
+		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
+	}
+
+	// Can't change owner if not root.
 	if unix.Geteuid() != 0 {
 		return nil
 	}
@@ -53,10 +69,6 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 
 	if err := os.Chown(path, uid, gid); err != nil {
 		return fmt.Errorf("Couldn't change owner/group of %v to (uid: %v, gid: %v): %v", path, uid, gid, err)
-	}
-
-	if err := os.Chmod(path, 0777); err != nil {
-		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
 
 	return nil

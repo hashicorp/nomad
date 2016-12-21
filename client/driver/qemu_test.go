@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -15,7 +16,12 @@ import (
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	ctestutils.QemuCompatible(t)
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	task := &structs.Task{
+		Name:      "foo",
+		Resources: structs.DefaultResources(),
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewQemuDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -77,6 +83,11 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 	if handle == nil {
 		t.Fatalf("missing handle")
+	}
+
+	// Ensure that sending a Signal returns an error
+	if err := handle.Signal(syscall.SIGINT); err == nil {
+		t.Fatalf("Expect an error when signalling")
 	}
 
 	// Attempt to open

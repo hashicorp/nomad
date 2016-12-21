@@ -1,17 +1,21 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package executor
 
 import (
 	"fmt"
 	"io"
-	"log/syslog"
+
+	syslog "github.com/RackSec/srslog"
 
 	"github.com/hashicorp/nomad/client/driver/logging"
 )
 
-func (e *UniversalExecutor) LaunchSyslogServer(ctx *ExecutorContext) (*SyslogServerState, error) {
-	e.ctx = ctx
+func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
+	// Ensure the context has been set first
+	if e.ctx == nil {
+		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
+	}
 
 	// configuring the task dir
 	if err := e.configureTaskDir(); err != nil {

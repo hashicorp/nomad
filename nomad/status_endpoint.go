@@ -61,3 +61,32 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 	*reply = peers
 	return nil
 }
+
+// Members return the list of servers in a cluster that a particular server is
+// aware of
+func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
+	serfMembers := s.srv.Members()
+	members := make([]*structs.ServerMember, len(serfMembers))
+	for i, mem := range serfMembers {
+		members[i] = &structs.ServerMember{
+			Name:        mem.Name,
+			Addr:        mem.Addr,
+			Port:        mem.Port,
+			Tags:        mem.Tags,
+			Status:      mem.Status.String(),
+			ProtocolMin: mem.ProtocolMin,
+			ProtocolMax: mem.ProtocolMax,
+			ProtocolCur: mem.ProtocolCur,
+			DelegateMin: mem.DelegateMin,
+			DelegateMax: mem.DelegateMax,
+			DelegateCur: mem.DelegateCur,
+		}
+	}
+	*reply = structs.ServerMembersResponse{
+		ServerName:   s.srv.config.NodeName,
+		ServerRegion: s.srv.config.Region,
+		ServerDC:     s.srv.config.Datacenter,
+		Members:      members,
+	}
+	return nil
+}

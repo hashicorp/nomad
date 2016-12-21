@@ -3,7 +3,9 @@ package agent
 import (
 	"net"
 	"net/http"
+	"strings"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -86,17 +88,13 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	srv := s.agent.Server()
-	if srv == nil {
-		return nil, CodedError(501, ErrInvalidMethod)
+	args := &structs.GenericRequest{}
+	var out structs.ServerMembersResponse
+	if err := s.agent.RPC("Status.Members", args, &out); err != nil {
+		return nil, err
 	}
 
-	serfMembers := srv.Members()
-	members := make([]Member, len(serfMembers))
-	for i, mem := range serfMembers {
-		members[i] = nomadMember(mem)
-	}
-	return members, nil
+	return out, nil
 }
 
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -139,7 +137,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	peers := s.agent.client.RPCProxy().ServerRPCAddrs()
+	peers := s.agent.client.GetServers()
 	return peers, nil
 }
 
@@ -156,14 +154,63 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	for _, server := range servers {
-		s.agent.logger.Printf("[TRACE] Adding server %s to the client's primary server list", server)
-		se := client.AddPrimaryServerToRPCProxy(server)
-		if se == nil {
-			s.agent.logger.Printf("[ERR] Attempt to add server %q to client failed", server)
-		}
+	s.agent.logger.Printf("[TRACE] Adding servers %+q to the client's primary server list", servers)
+	if err := client.SetServers(servers); err != nil {
+		s.agent.logger.Printf("[ERR] Attempt to add servers %q to client failed: %v", servers, err)
+		//TODO is this the right error to return?
+		return nil, CodedError(400, err.Error())
 	}
 	return nil, nil
+}
+
+// KeyringOperationRequest allows an operator to install/delete/use keys
+func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	kmgr := srv.KeyManager()
+	var sresp *serf.KeyResponse
+	var err error
+
+	// Get the key from the req body
+	var args structs.KeyringRequest
+
+	//Get the op
+	op := strings.TrimPrefix(req.URL.Path, "/v1/agent/keyring/")
+
+	switch op {
+	case "list":
+		sresp, err = kmgr.ListKeys()
+	case "install":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.InstallKey(args.Key)
+	case "use":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.UseKey(args.Key)
+	case "remove":
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		sresp, err = kmgr.RemoveKey(args.Key)
+	default:
+		return nil, CodedError(404, "resource not found")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	kresp := structs.KeyringResponse{
+		Messages: sresp.Messages,
+		Keys:     sresp.Keys,
+		NumNodes: sresp.NumNodes,
+	}
+	return kresp, nil
 }
 
 type agentSelf struct {

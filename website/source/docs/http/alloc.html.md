@@ -8,7 +8,7 @@ description: |-
 
 # /v1/allocation
 
-The `allocation` endpoint is used to query the a specific allocation.
+The `allocation` endpoint is used to query a specific allocation.
 By default, the agent's local region is used; another region can
 be specified using the `?region=` query parameter.
 
@@ -225,6 +225,7 @@ be specified using the `?region=` query parameter.
             }
           ],
           "State": "running"
+          "Failed": false,
         }
       },
       "CreateIndex": 7
@@ -249,6 +250,8 @@ be specified using the `?region=` query parameter.
     <p>The latest 10 events are stored per task. Each event is timestamped (unix nano-seconds)
     and has one of the following types:</p>
 
+    * `Setup Failure` - The task could not be started because there was a
+      failure setting up the task prior to it running.
     * `Driver Failure` - The task could not be started due to a failure in the
       driver.
     * `Started` - The task was started; either for the first time or due to a
@@ -262,5 +265,8 @@ be specified using the `?region=` query parameter.
     * `Not Restarting` - the task has failed and is not being restarted because it has exceeded its restart policy.
     * `Downloading Artifacts` - The task is downloading the artifact(s) specified in the task. 
     * `Failed Artifact Download` - Artifact(s) specified in the task failed to download.
+    * `Restart Signaled` - The task was signalled to be restarted.
+    * `Signaling` - The task was is being sent a signal.
+    * `Sibling task failed` - A task in the same task group failed.
 
     Depending on the type the event will have applicable annotations.

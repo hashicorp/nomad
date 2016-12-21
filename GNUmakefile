@@ -63,12 +63,6 @@ vet:
 		echo "[LINT] Found "log"".Printf" calls. These should use Nomad's logger instead."; \
 	fi
 
-web:
-	./scripts/website_run.sh
-
-web-push:
-	./scripts/website_push.sh
-
 # bootstrap the build by downloading additional tools
 bootstrap:
 	@for tool in  $(EXTERNAL_TOOLS) ; do \
@@ -82,4 +76,4 @@ install: bin/nomad
 travis:
 	@sh -c "'$(PWD)/scripts/travis.sh'"
 
-.PHONY: all bin cov integ test vet web web-push test-nodep
+.PHONY: all bin cov integ test vet test-nodep

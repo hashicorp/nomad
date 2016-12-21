@@ -33,6 +33,10 @@ type ConsulConfig struct {
 	// services with Consul.
 	AutoAdvertise bool `mapstructure:"auto_advertise"`
 
+	// ChecksUseAdvertise specifies that Consul checks should use advertise
+	// address instead of bind address
+	ChecksUseAdvertise bool `mapstructure:"checks_use_advertise"`
+
 	// Addr is the address of the local Consul agent
 	Addr string `mapstructure:"address"`
 
@@ -187,4 +191,15 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	}
 
 	return config, nil
+}
+
+// Copy returns a copy of this Consul config.
+func (c *ConsulConfig) Copy() *ConsulConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ConsulConfig)
+	*nc = *c
+	return nc
 }

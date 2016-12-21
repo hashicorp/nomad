@@ -35,6 +35,7 @@ const (
 	TimeTableSnapshot
 	PeriodicLaunchSnapshot
 	JobSummarySnapshot
+	VaultAccessorSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -137,6 +138,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAllocClientUpdate(buf[1:], log.Index)
 	case structs.ReconcileJobSummariesRequestType:
 		return n.applyReconcileSummaries(buf[1:], log.Index)
+	case structs.VaultAccessorRegisterRequestType:
+		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
+	case structs.VaultAccessorDegisterRequestType:
+		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -230,7 +235,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT: Remove in 0.5
+	// COMPAT: Remove in 0.6
 	// Empty maps and slices should be treated as nil to avoid
 	// un-intended destructive updates in scheduler since we use
 	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
@@ -387,6 +392,14 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
+			// COMPAT 0.4.1 -> 0.5
+			// Set the shared resources for allocations which don't have them
+			if alloc.SharedResources == nil {
+				alloc.SharedResources = &structs.Resources{
+					DiskMB: alloc.Resources.DiskMB,
+				}
+			}
+
 			continue
 		}
 
@@ -394,6 +407,9 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		for _, task := range alloc.TaskResources {
 			alloc.Resources.Add(task)
 		}
+
+		// Add the shared resources
+		alloc.Resources.Add(alloc.SharedResources)
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
@@ -452,6 +468,39 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 		return err
 	}
 	return n.reconcileQueuedAllocations(index)
+}
+
+// applyUpsertVaultAccessor stores the Vault accessors for a given allocation
+// and task
+func (n *nomadFSM) applyUpsertVaultAccessor(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_vault_accessor"}, time.Now())
+	var req structs.VaultAccessorsRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertVaultAccessor(index, req.Accessors); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertVaultAccessor failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyDeregisterVaultAccessor deregisters a set of Vault accessors
+func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_vault_accessor"}, time.Now())
+	var req structs.VaultAccessorsRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteVaultAccessors(index, req.Accessors); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeregisterVaultAccessor failed: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
@@ -580,6 +629,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.JobSummaryRestore(summary); err != nil {
+				return err
+			}
+
+		case VaultAccessorSnapshot:
+			accessor := new(structs.VaultAccessor)
+			if err := dec.Decode(accessor); err != nil {
+				return err
+			}
+			if err := restore.VaultAccessorRestore(accessor); err != nil {
 				return err
 			}
 
@@ -753,6 +811,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistJobSummaries(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistVaultAccessors(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -939,6 +1001,30 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	accessors, err := s.snap.VaultAccessors()
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := accessors.Next()
+		if raw == nil {
+			break
+		}
+
+		accessor := raw.(*structs.VaultAccessor)
+
+		sink.Write([]byte{byte(VaultAccessorSnapshot)})
+		if err := encoder.Encode(accessor); err != nil {
 			return err
 		}
 	}

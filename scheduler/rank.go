@@ -131,11 +131,11 @@ func (iter *StaticRankIterator) Reset() {
 // BinPackIterator is a RankIterator that scores potential options
 // based on a bin-packing algorithm.
 type BinPackIterator struct {
-	ctx      Context
-	source   RankIterator
-	evict    bool
-	priority int
-	tasks    []*structs.Task
+	ctx       Context
+	source    RankIterator
+	evict     bool
+	priority  int
+	taskGroup *structs.TaskGroup
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
@@ -154,8 +154,8 @@ func (iter *BinPackIterator) SetPriority(p int) {
 	iter.priority = p
 }
 
-func (iter *BinPackIterator) SetTasks(tasks []*structs.Task) {
-	iter.tasks = tasks
+func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
+	iter.taskGroup = taskGroup
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
@@ -182,8 +182,10 @@ OUTER:
 		netIdx.AddAllocs(proposed)
 
 		// Assign the resources for each task
-		total := new(structs.Resources)
-		for _, task := range iter.tasks {
+		total := &structs.Resources{
+			DiskMB: iter.taskGroup.EphemeralDisk.SizeMB,
+		}
+		for _, task := range iter.taskGroup.Tasks {
 			taskResources := task.Resources.Copy()
 
 			// Check if we need a network resource

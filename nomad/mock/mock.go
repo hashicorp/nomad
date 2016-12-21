@@ -9,13 +9,14 @@ import (
 func Node() *structs.Node {
 	node := &structs.Node{
 		ID:         structs.GenerateUUID(),
+		SecretID:   structs.GenerateUUID(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name": "linux",
-			"arch":        "x86",
-			"version":     "0.1.0",
-			"driver.exec": "1",
+			"kernel.name":   "linux",
+			"arch":          "x86",
+			"nomad.version": "0.5.0",
+			"driver.exec":   "1",
 		},
 		Resources: &structs.Resources{
 			CPU:      4000,
@@ -78,6 +79,9 @@ func Job() *structs.Job {
 			&structs.TaskGroup{
 				Name:  "web",
 				Count: 10,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
+				},
 				RestartPolicy: &structs.RestartPolicy{
 					Attempts: 3,
 					Interval: 10 * time.Minute,
@@ -119,7 +123,6 @@ func Job() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							DiskMB:   150,
 							Networks: []*structs.NetworkResource{
 								&structs.NetworkResource{
 									MBits:        50,
@@ -177,6 +180,7 @@ func SystemJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
 					&structs.Task{
 						Name:   "web",
@@ -184,6 +188,7 @@ func SystemJob() *structs.Job {
 						Config: map[string]interface{}{
 							"command": "/bin/date",
 						},
+						Env: map[string]string{},
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
@@ -253,7 +258,7 @@ func Alloc() *structs.Allocation {
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
-			DiskMB:   10,
+			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					Device:        "eth0",
@@ -268,7 +273,6 @@ func Alloc() *structs.Allocation {
 			"web": &structs.Resources{
 				CPU:      500,
 				MemoryMB: 256,
-				DiskMB:   10,
 				Networks: []*structs.NetworkResource{
 					&structs.NetworkResource{
 						Device:        "eth0",
@@ -280,12 +284,25 @@ func Alloc() *structs.Allocation {
 				},
 			},
 		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
 	return alloc
+}
+
+func VaultAccessor() *structs.VaultAccessor {
+	return &structs.VaultAccessor{
+		Accessor:    structs.GenerateUUID(),
+		NodeID:      structs.GenerateUUID(),
+		AllocID:     structs.GenerateUUID(),
+		CreationTTL: 86400,
+		Task:        "foo",
+	}
 }
 
 func Plan() *structs.Plan {

@@ -16,33 +16,49 @@ const (
 )
 
 func init() {
-	builtinFingerprintMap["arch"] = NewArchFingerprint
-	builtinFingerprintMap["cpu"] = NewCPUFingerprint
-	builtinFingerprintMap["env_aws"] = NewEnvAWSFingerprint
-	builtinFingerprintMap["env_gce"] = NewEnvGCEFingerprint
-	builtinFingerprintMap["host"] = NewHostFingerprint
-	builtinFingerprintMap["memory"] = NewMemoryFingerprint
-	builtinFingerprintMap["network"] = NewNetworkFingerprint
-	builtinFingerprintMap["nomad"] = NewNomadFingerprint
-	builtinFingerprintMap["storage"] = NewStorageFingerprint
 
 	// Initialize the list of available fingerprinters per platform.  Each
 	// platform defines its own list of available fingerprinters.
-	initPlatformFingerprints(builtinFingerprintMap)
+	initPlatformFingerprints(hostFingerprinters)
 }
 
-// builtinFingerprintMap contains the built in registered fingerprints which are
-// available for a given platform.
-var builtinFingerprintMap = make(map[string]Factory, 16)
+var (
+	// hostFingerprinters contains the host fingerprints which are available for a
+	// given platform.
+	hostFingerprinters = map[string]Factory{
+		"arch":    NewArchFingerprint,
+		"consul":  NewConsulFingerprint,
+		"cpu":     NewCPUFingerprint,
+		"host":    NewHostFingerprint,
+		"memory":  NewMemoryFingerprint,
+		"network": NewNetworkFingerprint,
+		"nomad":   NewNomadFingerprint,
+		"signal":  NewSignalFingerprint,
+		"storage": NewStorageFingerprint,
+		"vault":   NewVaultFingerprint,
+	}
+
+	// envFingerprinters contains the fingerprints that are environment specific.
+	// This should run after the host fingerprinters as they may override specific
+	// node resources with more detailed information.
+	envFingerprinters = map[string]Factory{
+		"env_aws": NewEnvAWSFingerprint,
+		"env_gce": NewEnvGCEFingerprint,
+	}
+)
 
 // BuiltinFingerprints is a slice containing the key names of all registered
-// fingerprints available, to provided an ordered iteration
+// fingerprints available. The order of this slice should be preserved when
+// fingerprinting.
 func BuiltinFingerprints() []string {
-	fingerprints := make([]string, 0, len(builtinFingerprintMap))
-	for k := range builtinFingerprintMap {
+	fingerprints := make([]string, 0, len(hostFingerprinters))
+	for k := range hostFingerprinters {
 		fingerprints = append(fingerprints, k)
 	}
 	sort.Strings(fingerprints)
+	for k := range envFingerprinters {
+		fingerprints = append(fingerprints, k)
+	}
 	return fingerprints
 }
 
@@ -50,9 +66,12 @@ func BuiltinFingerprints() []string {
 // given the name and a logger
 func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 	// Lookup the factory function
-	factory, ok := builtinFingerprintMap[name]
+	factory, ok := hostFingerprinters[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown fingerprint '%s'", name)
+		factory, ok = envFingerprinters[name]
+		if !ok {
+			return nil, fmt.Errorf("unknown fingerprint '%s'", name)
+		}
 	}
 
 	// Instantiate the fingerprint

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -24,7 +25,7 @@ const (
 	clientHttpCheckInterval = 10 * time.Second
 	clientHttpCheckTimeout  = 3 * time.Second
 	serverHttpCheckInterval = 10 * time.Second
-	serverHttpCheckTimeout  = 3 * time.Second
+	serverHttpCheckTimeout  = 6 * time.Second
 	serverRpcCheckInterval  = 10 * time.Second
 	serverRpcCheckTimeout   = 3 * time.Second
 	serverSerfCheckInterval = 10 * time.Second
@@ -44,13 +45,9 @@ type Agent struct {
 	// consulSyncer registers the Nomad agent with the Consul Agent
 	consulSyncer *consul.Syncer
 
-	client         *client.Client
-	clientHTTPAddr string
+	client *client.Client
 
-	server         *nomad.Server
-	serverHTTPAddr string
-	serverRPCAddr  string
-	serverSerfAddr string
+	server *nomad.Server
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -133,92 +130,34 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
 	}
 
-	// Set up the advertise addrs
-	if addr := a.config.AdvertiseAddrs.Serf; addr != "" {
-		serfAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving serf advertise address: %s", err)
-		}
-		conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
-		conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
-	}
-	if addr := a.config.AdvertiseAddrs.RPC; addr != "" {
-		rpcAddr, err := net.ResolveTCPAddr("tcp", addr)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving rpc advertise address: %s", err)
-		}
-		conf.RPCAdvertise = rpcAddr
-	}
-
 	// Set up the bind addresses
-	if addr := a.config.BindAddr; addr != "" {
-		conf.RPCAddr.IP = net.ParseIP(addr)
-		conf.SerfConfig.MemberlistConfig.BindAddr = addr
-	}
-	if addr := a.config.Addresses.RPC; addr != "" {
-		conf.RPCAddr.IP = net.ParseIP(addr)
-	}
-
-	if addr := a.config.Addresses.Serf; addr != "" {
-		conf.SerfConfig.MemberlistConfig.BindAddr = addr
-	}
-
-	// Set up the ports
-	if port := a.config.Ports.RPC; port != 0 {
-		conf.RPCAddr.Port = port
-	}
-	if port := a.config.Ports.Serf; port != 0 {
-		conf.SerfConfig.MemberlistConfig.BindPort = port
-	}
-
-	// Resolve the Server's HTTP Address
-	if a.config.AdvertiseAddrs.HTTP != "" {
-		a.serverHTTPAddr = a.config.AdvertiseAddrs.HTTP
-	} else if a.config.Addresses.HTTP != "" {
-		a.serverHTTPAddr = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
-	} else if a.config.BindAddr != "" {
-		a.serverHTTPAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.HTTP))
-	} else {
-		a.serverHTTPAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
-	}
-	addr, err := net.ResolveTCPAddr("tcp", a.serverHTTPAddr)
+	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.RPC)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.serverHTTPAddr, err)
+		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.normalizedAddrs.RPC, err)
 	}
-	a.serverHTTPAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
-
-	// Resolve the Server's RPC Address
-	if a.config.AdvertiseAddrs.RPC != "" {
-		a.serverRPCAddr = a.config.AdvertiseAddrs.RPC
-	} else if a.config.Addresses.RPC != "" {
-		a.serverRPCAddr = net.JoinHostPort(a.config.Addresses.RPC, strconv.Itoa(a.config.Ports.RPC))
-	} else if a.config.BindAddr != "" {
-		a.serverRPCAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.RPC))
-	} else {
-		a.serverRPCAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.RPC))
-	}
-	addr, err = net.ResolveTCPAddr("tcp", a.serverRPCAddr)
+	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.Serf)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving RPC addr %+q: %v", a.serverRPCAddr, err)
+		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.normalizedAddrs.Serf, err)
 	}
-	a.serverRPCAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
+	conf.RPCAddr.Port = rpcAddr.Port
+	conf.RPCAddr.IP = rpcAddr.IP
+	conf.SerfConfig.MemberlistConfig.BindPort = serfAddr.Port
+	conf.SerfConfig.MemberlistConfig.BindAddr = serfAddr.IP.String()
 
-	// Resolve the Server's Serf Address
-	if a.config.AdvertiseAddrs.Serf != "" {
-		a.serverSerfAddr = a.config.AdvertiseAddrs.Serf
-	} else if a.config.Addresses.Serf != "" {
-		a.serverSerfAddr = net.JoinHostPort(a.config.Addresses.Serf, strconv.Itoa(a.config.Ports.Serf))
-	} else if a.config.BindAddr != "" {
-		a.serverSerfAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.Serf))
-	} else {
-		a.serverSerfAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.Serf))
-	}
-	addr, err = net.ResolveTCPAddr("tcp", a.serverSerfAddr)
+	// Set up the advertise addresses
+	rpcAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.RPC)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving Serf addr %+q: %v", a.serverSerfAddr, err)
+		return nil, fmt.Errorf("Failed to parse RPC advertise address %q: %v", a.config.AdvertiseAddrs.RPC, err)
 	}
-	a.serverSerfAddr = net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
+	serfAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.Serf)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", a.config.AdvertiseAddrs.Serf, err)
+	}
+	conf.RPCAdvertise = rpcAddr
+	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
+	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
 
+	// Set up gc threshold and heartbeat grace period
 	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
@@ -239,7 +178,12 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
+	// Add the Consul and Vault configs
 	conf.ConsulConfig = a.config.Consul
+	conf.VaultConfig = a.config.Vault
+
+	// Set the TLS config
+	conf.TLSConfig = a.config.TLSConfig
 
 	return conf, nil
 }
@@ -286,8 +230,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
-		a.logger.Printf(`Nomad client ignores consul related configuration in client options. 
-		Please refer to the guide https://www.nomadproject.io/docs/agent/config.html#consul_options 
+		a.logger.Printf(`Nomad client ignores consul related configuration in client options.
+		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
 	}
 
@@ -297,7 +241,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing retry interval: %s", err)
+			return nil, fmt.Errorf("Error parsing max kill timeout: %s", err)
 		}
 		conf.MaxKillTimeout = dur
 	}
@@ -311,24 +255,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
 
-	// Resolve the Client's HTTP address
-	if a.config.AdvertiseAddrs.HTTP != "" {
-		a.clientHTTPAddr = a.config.AdvertiseAddrs.HTTP
-	} else if a.config.Addresses.HTTP != "" {
-		a.clientHTTPAddr = net.JoinHostPort(a.config.Addresses.HTTP, strconv.Itoa(a.config.Ports.HTTP))
-	} else if a.config.BindAddr != "" {
-		a.clientHTTPAddr = net.JoinHostPort(a.config.BindAddr, strconv.Itoa(a.config.Ports.HTTP))
-	} else {
-		a.clientHTTPAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(a.config.Ports.HTTP))
-	}
-	addr, err := net.ResolveTCPAddr("tcp", a.clientHTTPAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving HTTP addr %+q: %v", a.clientHTTPAddr, err)
-	}
-	httpAddr := net.JoinHostPort(addr.IP.String(), strconv.Itoa(addr.Port))
-
-	conf.Node.HTTPAddr = httpAddr
-	a.clientHTTPAddr = httpAddr
+	// Set up the HTTP advertise address
+	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
 
 	// Reserve resources on the node.
 	r := conf.Node.Reserved
@@ -350,9 +278,15 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = a.config.Consul
+	conf.VaultConfig = a.config.Vault
 	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics
+
+	// Set the TLS related configs
+	conf.TLSConfig = a.config.TLSConfig
+	conf.Node.TLSEnabled = conf.TLSConfig.EnableHTTP
+
 	return conf, nil
 }
 
@@ -368,6 +302,11 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
+	// Sets up the keyring for gossip encryption
+	if err := a.setupKeyrings(conf); err != nil {
+		return fmt.Errorf("failed to configure keyring: %v", err)
+	}
+
 	// Create the server
 	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
 	if err != nil {
@@ -375,56 +314,100 @@ func (a *Agent) setupServer() error {
 	}
 	a.server = server
 
+	// Consul check addresses default to bind but can be toggled to use advertise
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	rpcCheckAddr := a.config.normalizedAddrs.RPC
+	serfCheckAddr := a.config.normalizedAddrs.Serf
+	if a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
+		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
+		serfCheckAddr = a.config.AdvertiseAddrs.Serf
+	}
+
 	// Create the Nomad Server services for Consul
+	// TODO re-introduce HTTP/S checks when Consul 0.7.1 comes out
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverHTTPAddr,
+			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
-					Name:     "Nomad Server HTTP Check",
-					Type:     "http",
-					Path:     "/v1/status/peers",
-					Protocol: "http", // TODO TLS
-					Interval: serverHttpCheckInterval,
-					Timeout:  serverHttpCheckTimeout,
+					Name:      "Nomad Server HTTP Check",
+					Type:      "http",
+					Path:      "/v1/status/peers",
+					Protocol:  "http",
+					Interval:  serverHttpCheckInterval,
+					Timeout:   serverHttpCheckTimeout,
+					PortLabel: httpCheckAddr,
 				},
 			},
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
-			PortLabel: a.serverRPCAddr,
+			PortLabel: a.config.AdvertiseAddrs.RPC,
 			Tags:      []string{consul.ServiceTagRPC},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
-					Name:     "Nomad Server RPC Check",
-					Type:     "tcp",
-					Interval: serverRpcCheckInterval,
-					Timeout:  serverRpcCheckTimeout,
+					Name:      "Nomad Server RPC Check",
+					Type:      "tcp",
+					Interval:  serverRpcCheckInterval,
+					Timeout:   serverRpcCheckTimeout,
+					PortLabel: rpcCheckAddr,
 				},
 			},
 		}
 		serfServ := &structs.Service{
-			PortLabel: a.serverSerfAddr,
 			Name:      a.config.Consul.ServerServiceName,
+			PortLabel: a.config.AdvertiseAddrs.Serf,
 			Tags:      []string{consul.ServiceTagSerf},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
-					Name:     "Nomad Server Serf Check",
-					Type:     "tcp",
-					Interval: serverSerfCheckInterval,
-					Timeout:  serverSerfCheckTimeout,
+					Name:      "Nomad Server Serf Check",
+					Type:      "tcp",
+					Interval:  serverSerfCheckInterval,
+					Timeout:   serverSerfCheckTimeout,
+					PortLabel: serfCheckAddr,
 				},
 			},
 		}
-		a.consulSyncer.SetServices(consul.ServerDomain, map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(httpServ): httpServ,
+
+		// Add the http port check if TLS isn't enabled
+		// TODO Add TLS check when Consul 0.7.1 comes out.
+		consulServices := map[consul.ServiceKey]*structs.Service{
 			consul.GenerateServiceKey(rpcServ):  rpcServ,
 			consul.GenerateServiceKey(serfServ): serfServ,
-		})
+		}
+		if !conf.TLSConfig.EnableHTTP {
+			consulServices[consul.GenerateServiceKey(httpServ)] = httpServ
+		}
+		a.consulSyncer.SetServices(consul.ServerDomain, consulServices)
 	}
 
+	return nil
+}
+
+// setupKeyrings is used to initialize and load keyrings during agent startup
+func (a *Agent) setupKeyrings(config *nomad.Config) error {
+	file := filepath.Join(a.config.DataDir, serfKeyring)
+
+	if a.config.Server.EncryptKey == "" {
+		goto LOAD
+	}
+	if _, err := os.Stat(file); err != nil {
+		if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+			return err
+		}
+	}
+
+LOAD:
+	if _, err := os.Stat(file); err == nil {
+		config.SerfConfig.KeyringFile = file
+	}
+	if err := loadKeyringFile(config.SerfConfig); err != nil {
+		return err
+	}
+	// Success!
 	return nil
 }
 
@@ -454,26 +437,37 @@ func (a *Agent) setupClient() error {
 	}
 	a.client = client
 
+	// Resolve the http check address
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	if a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
+	}
+
 	// Create the Nomad Client  services for Consul
+	// TODO think how we can re-introduce HTTP/S checks when Consul 0.7.1 comes
+	// out
 	if a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
-			PortLabel: a.clientHTTPAddr,
+			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 			Checks: []*structs.ServiceCheck{
 				&structs.ServiceCheck{
-					Name:     "Nomad Client HTTP Check",
-					Type:     "http",
-					Path:     "/v1/agent/servers",
-					Protocol: "http", // TODO TLS
-					Interval: clientHttpCheckInterval,
-					Timeout:  clientHttpCheckTimeout,
+					Name:      "Nomad Client HTTP Check",
+					Type:      "http",
+					Path:      "/v1/agent/servers",
+					Protocol:  "http",
+					Interval:  clientHttpCheckInterval,
+					Timeout:   clientHttpCheckTimeout,
+					PortLabel: httpCheckAddr,
 				},
 			},
 		}
-		a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(httpServ): httpServ,
-		})
+		if !conf.TLSConfig.EnableHTTP {
+			a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
+				consul.GenerateServiceKey(httpServ): httpServ,
+			})
+		}
 	}
 
 	return nil

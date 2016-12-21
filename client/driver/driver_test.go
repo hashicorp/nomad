@@ -20,6 +20,7 @@ import (
 var basicResources = &structs.Resources{
 	CPU:      250,
 	MemoryMB: 256,
+	DiskMB:   20,
 	Networks: []*structs.NetworkResource{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
@@ -83,12 +84,16 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc)
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, cfg, "")
 	if err != nil {
 		return nil, nil
 	}
 
-	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	logger := testLogger()
+	emitter := func(m string, args ...interface{}) {
+		logger.Printf("[EVENT] "+m, args...)
+	}
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, logger, taskEnv, emitter)
 	return driverCtx, execCtx
 }
 
@@ -104,9 +109,10 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 			MemoryMB: 500,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					IP:            "1.2.3.4",
-					ReservedPorts: []structs.Port{{"one", 80}, {"two", 443}},
-					DynamicPorts:  []structs.Port{{"admin", 8081}, {"web", 8086}},
+					IP:                "1.2.3.4",
+					ReservedPorts:     []structs.Port{{"one", 80}, {"two", 443}},
+					DynamicPorts:      []structs.Port{{"admin", 8081}, {"web", 8086}},
+					DynamicPortRanges: []structs.PortRange{{"streamer", 40000, 1000}},
 				},
 			},
 		},
@@ -118,7 +124,7 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Name = "Bar"
-	env, err := GetTaskEnv(nil, nil, task, alloc)
+	env, err := GetTaskEnv(nil, nil, task, alloc, testConfig(), "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
@@ -137,6 +143,11 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		"NOMAD_IP_admin":                "1.2.3.4",
 		"NOMAD_PORT_admin":              "8081",
 		"NOMAD_HOST_PORT_admin":         "8081",
+		"NOMAD_ADDR_streamer":           "1.2.3.4:40000",
+		"NOMAD_IP_streamer":             "1.2.3.4",
+		"NOMAD_PORT_streamer":           "40000",
+		"NOMAD_PORT_streamer_SPAN":      "1000",
+		"NOMAD_HOST_PORT_streamer":      "40000",
 		"NOMAD_ADDR_web":                "1.2.3.4:8086",
 		"NOMAD_IP_web":                  "1.2.3.4",
 		"NOMAD_PORT_web":                "8086",
@@ -152,11 +163,21 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		"NOMAD_ALLOC_ID":                alloc.ID,
 		"NOMAD_ALLOC_NAME":              alloc.Name,
 		"NOMAD_TASK_NAME":               task.Name,
+		"NOMAD_JOB_NAME":                alloc.Job.Name,
 	}
 
 	act := env.EnvMap()
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("GetTaskEnv() returned %#v; want %#v", act, exp)
+
+	// Since host env vars are included only ensure expected env vars are present
+	for expk, expv := range exp {
+		v, ok := act[expk]
+		if !ok {
+			t.Errorf("%q not found in task env", expk)
+			continue
+		}
+		if v != expv {
+			t.Errorf("Expected %s=%q but found %q", expk, expv, v)
+		}
 	}
 }
 

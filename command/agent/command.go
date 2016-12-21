@@ -17,12 +17,14 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
+	"github.com/armon/go-metrics/datadog"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-checkpoint"
 	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	"github.com/hashicorp/nomad/helper/flag-slice"
+	"github.com/hashicorp/nomad/helper/flag-helpers"
 	"github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 )
@@ -64,6 +66,7 @@ func (c *Command) readConfig() *Config {
 		Client: &ClientConfig{},
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
+		Vault:  &config.VaultConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -77,22 +80,23 @@ func (c *Command) readConfig() *Config {
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
 	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
-	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
-	flags.Var((*sliceflag.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
+	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&servers, "servers", "", "")
-	flags.Var((*sliceflag.StringFlag)(&meta), "meta", "")
+	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
 
 	// General options
-	flags.Var((*sliceflag.StringFlag)(&configPath), "config", "config")
+	flags.Var((*flaghelper.StringFlag)(&configPath), "config", "config")
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
@@ -104,6 +108,27 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
 	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
 	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
+
+	// Vault options
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Vault.Enabled = &b
+		return nil
+	}), "vault-enabled", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Vault.AllowUnauthenticated = &b
+		return nil
+	}), "vault-allow-unauthenticated", "")
+	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
+	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
+	flags.StringVar(&cmdConfig.Vault.TLSKeyFile, "vault-key-file", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Vault.TLSSkipVerify = &b
+		return nil
+	}), "vault-tls-skip-verify", "")
+	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -176,9 +201,33 @@ func (c *Command) readConfig() *Config {
 	config.Version = c.Version
 	config.VersionPrerelease = c.VersionPrerelease
 
+	// Normalize binds, ports, addresses, and advertise
+	if err := config.normalizeAddrs(); err != nil {
+		c.Ui.Error(err.Error())
+		return nil
+	}
+
+	// Check to see if we should read the Vault token from the environment
+	if config.Vault.Token == "" {
+		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
+			config.Vault.Token = token
+		}
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
+	}
+
+	if config.Server.EncryptKey != "" {
+		if _, err := config.Server.EncryptBytes(); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
+			return nil
+		}
+		keyfile := filepath.Join(config.DataDir, serfKeyring)
+		if _, err := os.Stat(keyfile); err == nil {
+			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
+		}
 	}
 
 	// Parse the RetryInterval.
@@ -387,7 +436,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Initialize the telemetry
-	if err := c.setupTelementry(config); err != nil {
+	if err := c.setupTelemetry(config); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
 	}
@@ -419,6 +468,7 @@ func (c *Command) Run(args []string) int {
 
 	// Compile agent information for output later
 	info := make(map[string]string)
+	info["version"] = fmt.Sprintf("%s%s", config.Version, config.VersionPrerelease)
 	info["client"] = strconv.FormatBool(config.Client.Enabled)
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
@@ -466,7 +516,7 @@ func (c *Command) Run(args []string) int {
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals(config *Config) int {
 	signalCh := make(chan os.Signal, 4)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
 	// Wait for a signal
 WAIT:
@@ -480,6 +530,11 @@ WAIT:
 		return 1
 	}
 	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
+	// Skip any SIGPIPE signal (See issue #1798)
+	if sig == syscall.SIGPIPE {
+		goto WAIT
+	}
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
@@ -548,8 +603,8 @@ func (c *Command) handleReload(config *Config) *Config {
 	return newConf
 }
 
-// setupTelementry is used ot setup the telemetry sub-systems
-func (c *Command) setupTelementry(config *Config) error {
+// setupTelemetry is used ot setup the telemetry sub-systems
+func (c *Command) setupTelemetry(config *Config) error {
 	/* Setup telemetry
 	Aggregate on 10 second intervals for 1 minute. Expose the
 	metrics over stderr when there is a SIGUSR1 received.
@@ -586,6 +641,15 @@ func (c *Command) setupTelementry(config *Config) error {
 		fanout = append(fanout, sink)
 	}
 
+	// Configure the datadog sink
+	if telConfig.DataDogAddr != "" {
+		sink, err := datadog.NewDogStatsdSink(telConfig.DataDogAddr, config.NodeName)
+		if err != nil {
+			return err
+		}
+		fanout = append(fanout, sink)
+	}
+
 	// Configure the Circonus sink
 	if telConfig.CirconusAPIToken != "" || telConfig.CirconusCheckSubmissionURL != "" {
 		cfg := &circonus.Config{}
@@ -598,17 +662,13 @@ func (c *Command) setupTelementry(config *Config) error {
 		cfg.CheckManager.Check.ForceMetricActivation = telConfig.CirconusCheckForceMetricActivation
 		cfg.CheckManager.Check.InstanceID = telConfig.CirconusCheckInstanceID
 		cfg.CheckManager.Check.SearchTag = telConfig.CirconusCheckSearchTag
+		cfg.CheckManager.Check.Tags = telConfig.CirconusCheckTags
+		cfg.CheckManager.Check.DisplayName = telConfig.CirconusCheckDisplayName
 		cfg.CheckManager.Broker.ID = telConfig.CirconusBrokerID
 		cfg.CheckManager.Broker.SelectTag = telConfig.CirconusBrokerSelectTag
 
 		if cfg.CheckManager.API.TokenApp == "" {
 			cfg.CheckManager.API.TokenApp = "nomad"
-		}
-
-		if cfg.CheckManager.Check.InstanceID == "" {
-			if config.NodeName != "" && config.Datacenter != "" {
-				cfg.CheckManager.Check.InstanceID = fmt.Sprintf("%s:%s", config.NodeName, config.Datacenter)
-			}
 		}
 
 		if cfg.CheckManager.Check.SearchTag == "" {
@@ -799,6 +859,9 @@ Server Options:
     bootstrapping the cluster. Once <num> servers have joined eachother,
     Nomad initiates the bootstrap process.
 
+  -encrypt=<key>
+    Provides the gossip encryption key
+
   -join=<address>
     Address of an agent to join at start time. Can be specified
     multiple times.
@@ -852,6 +915,44 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+Vault Options:
+
+  -vault-enabled
+    Whether to enable or disable Vault integration.
+
+  -vault-address=<addr>
+    The address to communicate with Vault. This should be provided with the http://
+    or https:// prefix.
+
+  -vault-token=<token>
+    The Vault token used to derive tokens from Vault on behalf of clients.
+    This only needs to be set on Servers. Overrides the Vault token read from
+    the VAULT_TOKEN environment variable.
+
+  -vault-allow-unauthenticated
+    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    authentication. The flag only applies to Servers.
+
+  -vault-ca-file=<path>
+    The path to a PEM-encoded CA cert file to use to verify the Vault server SSL
+    certificate.
+
+  -vault-ca-path=<path>
+    The path to a directory of PEM-encoded CA cert files to verify the Vault server
+    certificate.
+
+  -vault-cert-file=<token>
+    The path to the certificate for Vault communication.
+
+  -vault-key-file=<addr>
+    The path to the private key for Vault communication.
+
+  -vault-tls-skip-verify=<token>
+    Enables or disables SSL certificate verification.
+
+  -vault-tls-server-name=<token>
+    Used to set the SNI host when connecting over TLS.
 
 Atlas Options:
 

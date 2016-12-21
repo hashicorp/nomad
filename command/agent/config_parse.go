@@ -93,6 +93,8 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"disable_anonymous_signature",
 		"atlas",
 		"consul",
+		"vault",
+		"tls",
 		"http_api_response_headers",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
@@ -113,6 +115,8 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "telemetry")
 	delete(m, "atlas")
 	delete(m, "consul")
+	delete(m, "vault")
+	delete(m, "tls")
 	delete(m, "http_api_response_headers")
 
 	// Decode the rest
@@ -173,6 +177,20 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("consul"); len(o.Items) > 0 {
 		if err := parseConsulConfig(&result.Consul, o); err != nil {
 			return multierror.Prefix(err, "consul ->")
+		}
+	}
+
+	// Parse the vault config
+	if o := list.Filter("vault"); len(o.Items) > 0 {
+		if err := parseVaultConfig(&result.Vault, o); err != nil {
+			return multierror.Prefix(err, "vault ->")
+		}
+	}
+
+	// Parse the TLS config
+	if o := list.Filter("tls"); len(o.Items) > 0 {
+		if err := parseTLSConfig(&result.TLSConfig, o); err != nil {
+			return multierror.Prefix(err, "tls ->")
 		}
 	}
 
@@ -475,6 +493,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"retry_max",
 		"retry_interval",
 		"rejoin_after_leave",
+		"encrypt",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -511,6 +530,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"collection_interval",
 		"publish_allocation_metrics",
 		"publish_node_metrics",
+		"datadog_address",
 		"circonus_api_token",
 		"circonus_api_app",
 		"circonus_api_url",
@@ -520,6 +540,8 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_check_force_metric_activation",
 		"circonus_check_instance_id",
 		"circonus_check_search_tag",
+		"circonus_check_display_name",
+		"circonus_check_tags",
 		"circonus_broker_id",
 		"circonus_broker_select_tag",
 	}
@@ -596,6 +618,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"auto_advertise",
 		"ca_file",
 		"cert_file",
+		"checks_use_advertise",
 		"client_auto_join",
 		"client_service_name",
 		"key_file",
@@ -630,6 +653,91 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 	}
 
 	*result = consulConfig
+	return nil
+}
+
+func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'tls' block allowed")
+	}
+
+	// Get the TLS object
+	listVal := list.Items[0].Val
+
+	valid := []string{
+		"http",
+		"rpc",
+		"verify_server_hostname",
+		"ca_file",
+		"cert_file",
+		"key_file",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var tlsConfig config.TLSConfig
+	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
+		return err
+	}
+	*result = &tlsConfig
+	return nil
+}
+
+func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'vault' block allowed")
+	}
+
+	// Get our Vault object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"address",
+		"allow_unauthenticated",
+		"enabled",
+		"task_token_ttl",
+		"ca_file",
+		"ca_path",
+		"cert_file",
+		"key_file",
+		"tls_server_name",
+		"tls_skip_verify",
+		"token",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	vaultConfig := config.DefaultVaultConfig()
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &vaultConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = vaultConfig
 	return nil
 }
 

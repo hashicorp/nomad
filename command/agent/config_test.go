@@ -2,6 +2,7 @@ package agent
 
 import (
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +10,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
+)
+
+var (
+	// trueValue/falseValue are used to get a pointer to a boolean
+	trueValue  = true
+	falseValue = false
 )
 
 func TestConfig_Merge(t *testing.T) {
@@ -29,6 +37,7 @@ func TestConfig_Merge(t *testing.T) {
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.1:8125",
 			StatsdAddr:                         "127.0.0.1:8125",
+			DataDogAddr:                        "127.0.0.1:8125",
 			DisableHostname:                    false,
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
@@ -39,6 +48,8 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckForceMetricActivation: "true",
 			CirconusCheckInstanceID:            "node1:nomadic",
 			CirconusCheckSearchTag:             "service:nomadic",
+			CirconusCheckDisplayName:           "node1:nomadic",
+			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "0",
 			CirconusBrokerSelectTag:            "dc:dc1",
 		},
@@ -94,6 +105,34 @@ func TestConfig_Merge(t *testing.T) {
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
 		},
+		Vault: &config.VaultConfig{
+			Token:                "1",
+			AllowUnauthenticated: &falseValue,
+			TaskTokenTTL:         "1",
+			Addr:                 "1",
+			TLSCaFile:            "1",
+			TLSCaPath:            "1",
+			TLSCertFile:          "1",
+			TLSKeyFile:           "1",
+			TLSSkipVerify:        &falseValue,
+			TLSServerName:        "1",
+		},
+		Consul: &config.ConsulConfig{
+			ServerServiceName: "1",
+			ClientServiceName: "1",
+			AutoAdvertise:     false,
+			Addr:              "1",
+			Timeout:           1 * time.Second,
+			Token:             "1",
+			Auth:              "1",
+			EnableSSL:         false,
+			VerifySSL:         false,
+			CAFile:            "1",
+			CertFile:          "1",
+			KeyFile:           "1",
+			ServerAutoJoin:    false,
+			ClientAutoJoin:    false,
+		},
 	}
 
 	c2 := &Config{
@@ -113,7 +152,10 @@ func TestConfig_Merge(t *testing.T) {
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
+			DataDogAddr:                        "127.0.0.1:8125",
 			DisableHostname:                    true,
+			PublishNodeMetrics:                 true,
+			PublishAllocationMetrics:           true,
 			CirconusAPIToken:                   "1",
 			CirconusAPIApp:                     "nomad",
 			CirconusAPIURL:                     "https://api.circonus.com/v2",
@@ -123,6 +165,8 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckForceMetricActivation: "false",
 			CirconusCheckInstanceID:            "node2:nomad",
 			CirconusCheckSearchTag:             "service:nomad",
+			CirconusCheckDisplayName:           "node2:nomad",
+			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "1",
 			CirconusBrokerSelectTag:            "dc:dc2",
 		},
@@ -191,6 +235,34 @@ func TestConfig_Merge(t *testing.T) {
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+		},
+		Vault: &config.VaultConfig{
+			Token:                "2",
+			AllowUnauthenticated: &trueValue,
+			TaskTokenTTL:         "2",
+			Addr:                 "2",
+			TLSCaFile:            "2",
+			TLSCaPath:            "2",
+			TLSCertFile:          "2",
+			TLSKeyFile:           "2",
+			TLSSkipVerify:        &trueValue,
+			TLSServerName:        "2",
+		},
+		Consul: &config.ConsulConfig{
+			ServerServiceName: "2",
+			ClientServiceName: "2",
+			AutoAdvertise:     true,
+			Addr:              "2",
+			Timeout:           2 * time.Second,
+			Token:             "2",
+			Auth:              "2",
+			EnableSSL:         true,
+			VerifySSL:         true,
+			CAFile:            "2",
+			CertFile:          "2",
+			KeyFile:           "2",
+			ServerAutoJoin:    true,
+			ClientAutoJoin:    true,
 		},
 	}
 
@@ -472,5 +544,16 @@ func TestResources_ParseReserved(t *testing.T) {
 			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, r.ParsedReservedPorts, tc.Parsed)
 		}
 
+	}
+}
+
+func TestIsMissingPort(t *testing.T) {
+	_, _, err := net.SplitHostPort("localhost")
+	if missing := isMissingPort(err); !missing {
+		t.Errorf("expected missing port error, but got %v", err)
+	}
+	_, _, err = net.SplitHostPort("localhost:9000")
+	if missing := isMissingPort(err); missing {
+		t.Errorf("expected no error, but got %v", err)
 	}
 }

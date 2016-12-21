@@ -16,24 +16,30 @@ and cleaning up after containers.
 
 ## Task Configuration
 
-The `docker` driver is configured via a `config` block:
-
-```
+```hcl
 task "webservice" {
-    driver = "docker"
-    config = {
-        image = "redis"
-        labels = {
-            group = "webservice-cache"
-        }
+  driver = "docker"
+
+  config {
+    image = "redis:3.2"
+    labels {
+      group = "webservice-cache"
     }
+  }
 }
 ```
 
-The following options are available for use in the job specification.
+The `docker` driver supports the following configuration in the job spec:
 
-* `image` - The Docker image to run. The image may include a tag or custom URL and should include `https://` if required.
-  By default it will be fetched from Docker Hub.
+* `image` - The Docker image to run. The image may include a tag or custom URL
+  and should include `https://` if required. By default it will be fetched from
+  Docker Hub.
+
+    ```hcl
+    config {
+      image = "https://hub.docker.internal/redis:3.2"
+    }
+    ```
 
 * `load` - (Optional) A list of paths to image archive files. If
   this key is not specified, Nomad assumes the `image` is hosted on a repository
@@ -41,19 +47,52 @@ The following options are available for use in the job specification.
   download each of the archive files. The equivalent of `docker load -i path`
   would be run on each of the archive files.
 
+    ```hcl
+    artifact {
+      source = "http://path.to/redis.tar"
+    }
+    config {
+      load = ["redis.tar"]
+      image = "redis"
+    }
+    ```
+
 * `command` - (Optional) The command to run when starting the container.
 
+    ```hcl
+    config {
+      command = "my-command"
+    }
+    ```
+
 * `args` - (Optional) A list of arguments to the optional `command`. If no
-  `command` is present, `args` are ignored. References to environment variables
-  or any [interpretable Nomad variables](/docs/jobspec/interpreted.html) will be
-  interpreted before launching the task. For example:
+  `command` is specified, the args are passed directly to the container.
+  References to environment variables or any [interpretable Nomad
+  variables](/docs/runtime/interpolation.html) will be interpreted before
+  launching the task. For example:
 
-  ```
-  args = ["${nomad.datacenter}", "${MY_ENV}", "${meta.foo}"]
-  ```
+    ```hcl
+    config {
+      args = [
+        "-bind", "${NOMAD_PORT_http}",
+        "${nomad.datacenter}",
+        "${MY_ENV}",
+        "${meta.foo}",
+      ]
+    }
+    ```
 
-* `labels` - (Optional) A key/value map of labels to set to the containers on
+* `labels` - (Optional) A key-value map of labels to set to the containers on
   start.
+
+    ```hcl
+    config {
+      labels {
+        foo = "bar"
+        zip = "zap"
+      }
+    }
+    ```
 
 * `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
   the container access to devices on the host. Note that this also requires the
@@ -63,7 +102,7 @@ The following options are available for use in the job specification.
 * `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
   is `none` for a private IPC namespace. Other values are `host` for sharing
   the host IPC namespace or the name or id of an existing container. Note that
-  it is not possible to refer to Nomad started Docker containers since their
+  it is not possible to refer to Docker containers started by Nomad since their
   names are not known in advance. Note that setting this option also requires the
   Nomad agent to be configured to allow privileged containers.
 
@@ -75,6 +114,10 @@ The following options are available for use in the job specification.
   the UTS namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.
 
+* `userns_mode` - (Optional) `host` or not set (default). Set to `host` to use
+  the host's user namespace when user namespace remapping is enabled on the
+  docker daemon.
+
 * `network_mode` - (Optional) The network mode to be used for the container. In
   order to support userspace networking plugins in Docker 1.9 this accepts any
   value. The default is `bridge` for all operating systems but Windows, which
@@ -82,6 +125,21 @@ The following options are available for use in the job specification.
   configuration on the host (which is outside the scope of Nomad).  Valid values
   pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
   See below for more details.
+
+* `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
+  container to be discovered by an alternate name by any other container within
+  the scope of a particular network. Network-scoped alias is supported only for
+  containers in user defined networks
+
+    ```hcl
+    config {
+      network_mode = "user-network"
+      network_aliases = [
+        "${NOMAD_TASK_NAME}",
+        "${NOMAD_TASK_NAME}-${NOMAD_ALLOC_INDEX}"
+      ]
+    }
+    ```
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
@@ -96,7 +154,7 @@ The following options are available for use in the job specification.
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
   repository. The default value is `true`.
 
-* `port_map` - (Optional) A key/value map of port labels (see below).
+* `port_map` - (Optional) A key-value map of port labels (see below).
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
@@ -105,8 +163,40 @@ The following options are available for use in the job specification.
 
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
-  
+
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
+
+* `logging` - (Optional) A key-value map of Docker logging options. The default
+  value is `syslog`.
+
+    ```hcl
+    config {
+      logging {
+        type = "fluentd"
+        config {
+          fluentd-address = "localhost:24224"
+        }
+      }
+    }
+    ```
+
+* `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+  host paths to container paths. Mounting host paths outside of the allocation
+  directory can be disabled on clients by setting the `docker.volumes.enabled`
+  option set to false. This will limit volumes to directories that exist inside
+  the allocation directory.
+
+    ```hcl
+    config {
+      volumes = [
+        # Use absolute paths to mount arbitrary paths on the host
+        "/path/on/host:/path/in/container",
+
+        # Use relative paths to rebind paths already in the allocation dir
+        "relative/to/task:/also/in/container"
+      ]
+    }
+    ```
 
 * `work_dir` - (Optional) The working directory inside the container.
 
@@ -137,23 +227,23 @@ The `auth` object supports the following keys:
 
 Example:
 
-```
-task "secretservice" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    config {
-        image = "secret/service"
+  config {
+    image = "secret/service"
 
-        auth {
-            username = "dockerhub_user"
-            password = "dockerhub_password"
-        }
+    auth {
+      username = "dockerhub_user"
+      password = "dockerhub_password"
     }
+  }
 }
 ```
 
-**Please note that these credentials are stored in Nomad in plain text.**
-Secrets management will be added in a later release.
+!> **Be Careful!** At this time these credentials are stored in Nomad in plain
+text. Secrets management will be added in a later release.
 
 ## Networking
 
@@ -168,18 +258,18 @@ scope of Nomad.
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/jobspec/networking.html). Here is a recap:
+[networking page](/docs/job-specification/network.html). Here is a recap:
 
-```
-task "webservice" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    resources {
-        network {
-            port "http" {}
-            port "https" {}
-        }
+  resources {
+    network {
+      port "http" {}
+      port "https" {}
     }
+  }
 }
 ```
 
@@ -211,24 +301,24 @@ performance.
 If you prefer to use the traditional port-mapping method, you can specify the
 `port_map` option in your job specification. It looks like this:
 
-```
-task "redis" {
-    driver = "docker"
+```hcl
+task "example" {
+  driver = "docker"
 
-    resources {
-        network {
-            mbits = 20
-            port "redis" {}
-        }
+  config {
+    image = "redis"
+
+    port_map {
+      redis = 6379
     }
+  }
 
-    config {
-      image = "redis"
-
-      port_map {
-        redis = 6379
-      }
+  resources {
+    network {
+      mbits = 20
+      port "redis" {}
     }
+  }
 }
 ```
 
@@ -252,7 +342,7 @@ Some networking modes like `container` or `none` will require coordination
 outside of Nomad. First-class support for these options may be improved later
 through Nomad plugins or dynamic job configuration.
 
-## Host Requirements
+## Client Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
 Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
@@ -270,17 +360,17 @@ user to the `docker` group so you can run Nomad without root:
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
-## Agent Configuration
+## Client Configuration
 
 The `docker` driver has the following [client configuration
-options](/docs/agent/config.html#options):
+options](/docs/agent/configuration/client.html#options):
 
 * `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (http or another
+  to customize this if you use a non-standard socket (HTTP or another
   location).
 
-* `docker.auth.config` - Allows an operator to specify a json file which is in
-  the dockercfg format containing authentication information for private registry.
+* `docker.auth.config` - Allows an operator to specify a JSON file which is in
+  the dockercfg format containing authentication information for a private registry.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
@@ -300,8 +390,14 @@ options](/docs/agent/config.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
+* `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+  (`volumes`) inside their container. Binding relative paths is always allowed
+  and will be resolved relative to the allocation's directory.
+
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
-  label to the allocation and task local bind-mounts to containers.
+  label to the allocation and task local bind-mounts to containers. If used
+  with `docker.volumes.enabled` set to false, the labels will still be applied
+  to the standard binds in the container.
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full
@@ -313,23 +409,36 @@ Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `docker.endpoint` is set Nomad will **only** read client configuration from the
 config file.
 
-An example is given below: 
+An example is given below:
 
-```
-    client {
-        options = {
-            "docker.cleanup.image" = "false"
-        }
-    }
+```hcl
+client {
+  options = {
+    "docker.cleanup.image" = "false"
+  }
+}
 ```
 
-## Agent Attributes
+## Client Attributes
 
 The `docker` driver will set the following client attributes:
 
 * `driver.docker` - This will be set to "1", indicating the driver is
   available.
-* `driver.docker.version` - This will be set to version of the docker server
+* `driver.docker.version` - This will be set to version of the docker server.
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Require docker version higher than 1.2.
+  constraint {
+    attribute = "${driver.docker.version}"
+    operator  = ">"
+    version   = "1.2"
+  }
+}
+```
 
 ## Resource Isolation
 
@@ -371,3 +480,18 @@ Containers essentially have a virtual file system all to themselves. If you
 need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
 [QEMU](/docs/drivers/qemu.html).
+
+## Docker For Mac Caveats
+
+Docker For Mac runs docker inside a small VM and then allows access to parts of
+the host filesystem into that VM. At present, nomad uses a syslog server bound to
+a unix socket within a path that both the host and the VM can access to forward
+log messages back to nomad. But at present, Docker For Mac does not work for
+unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
+these shared paths.
+
+As a result, using nomad with the docker driver on OS X/macOS will work, but no
+logs will be available to nomad. Users must use the native docker facilities to
+examine the logs of any jobs running under docker.
+
+In the future, we will resolve this issue, one way or another.

@@ -14,6 +14,7 @@ type Item struct {
 	AllocJob   string
 	AllocNode  string
 	Eval       string
+	EvalJob    string
 	Job        string
 	JobSummary string
 	Node       string

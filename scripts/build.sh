@@ -16,8 +16,12 @@ GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_DIRTY="$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)"
 
 # Determine the arch/os combos we're building for
+# XC_ARCH=${XC_ARCH:-"386 amd64"}
+# XC_OS=${XC_OS:-linux}
+
 XC_ARCH=${XC_ARCH:-"386 amd64"}
-XC_OS=${XC_OS:-linux}
+XC_OS=${XC_OS:-"linux"}
+XC_EXCLUDE=${XC_EXCLUDE:-"!darwin/arm !darwin/386"}
 
 # Delete the old dir
 echo "==> Removing old directory..."
@@ -35,16 +39,30 @@ fi
 echo "==> Building..."
 gox \
     -os="${XC_OS}" \
-    -os="!dragonfly" \
-    -os="!netbsd" \
-    -os="!openbsd" \
-    -os="!solaris" \
     -arch="${XC_ARCH}" \
+    -osarch="${XC_EXCLUDE}" \
     -cgo \
-    -osarch="!darwin/386" \
     -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -output "pkg/{{.OS}}_{{.Arch}}/nomad" \
     .
+
+echo ""
+if pkg-config --exists lxc; then
+    echo "==> Building linux_amd64-lxc..."
+    go build \
+        -tags lxc \
+        -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
+        -o "pkg/linux_amd64-lxc/nomad"
+else
+    if [[ "${NOMAD_DEV}" ]]; then
+	 # No lxc in dev mode is no problem
+        echo "LXC not installed; skipping"
+    else
+	# Require LXC for release mode
+	echo "LXC not installed; install lxc-dev to build release binaries"
+	exit 1
+    fi
+fi
 
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}

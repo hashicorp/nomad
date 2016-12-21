@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
@@ -47,9 +49,30 @@ type HTTPServer struct {
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
 	// Start the listener
-	ln, err := config.Listener("tcp", config.Addresses.HTTP, config.Ports.HTTP)
+	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
+	if err != nil {
+		return nil, err
+	}
+	ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
+	}
+
+	// If TLS is enabled, wrap the listener with a TLS listener
+	if config.TLSConfig.EnableHTTP {
+		tlsConf := &tlsutil.Config{
+			VerifyIncoming:       false,
+			VerifyOutgoing:       true,
+			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
+			CAFile:               config.TLSConfig.CAFile,
+			CertFile:             config.TLSConfig.CertFile,
+			KeyFile:              config.TLSConfig.KeyFile,
+		}
+		tlsConfig, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
 	}
 
 	// Create the mux
@@ -91,6 +114,23 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 	return srv
 }
 
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by NewHttpServer so
+// dead TCP connections eventually go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(30 * time.Second)
+	return tc, nil
+}
+
 // Shutdown is used to shutdown the HTTP server
 func (s *HTTPServer) Shutdown() {
 	if s != nil {
@@ -116,12 +156,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
 	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
 	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))
+	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
 	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))
 	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
+	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 
 	s.mux.HandleFunc("/v1/regions", s.wrap(s.RegionListRequest))
 

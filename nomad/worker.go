@@ -27,6 +27,10 @@ const (
 	// the slower backoff
 	backoffLimitSlow = 10 * time.Second
 
+	// backoffSchedulerVersionMismatch is the backoff between retries when the
+	// scheduler version mismatches that of the leader.
+	backoffSchedulerVersionMismatch = 30 * time.Second
+
 	// dequeueTimeout is used to timeout an evaluation dequeue so that
 	// we can check if there is a shutdown event
 	dequeueTimeout = 500 * time.Millisecond
@@ -112,7 +116,7 @@ func (w *Worker) run() {
 			return
 		}
 
-		// Wait for the the raft log to catchup to the evaluation
+		// Wait for the raft log to catchup to the evaluation
 		if err := w.waitForIndex(eval.ModifyIndex, raftSyncLimit); err != nil {
 			w.sendAck(eval.ID, token, false)
 			continue
@@ -134,8 +138,9 @@ func (w *Worker) run() {
 func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, string, bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
-		Schedulers: w.srv.config.EnabledSchedulers,
-		Timeout:    timeout,
+		Schedulers:       w.srv.config.EnabledSchedulers,
+		Timeout:          timeout,
+		SchedulerVersion: scheduler.SchedulerVersion,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
 		},
@@ -154,7 +159,16 @@ REQ:
 		if time.Since(w.start) > dequeueErrGrace && !w.srv.IsShutdown() {
 			w.logger.Printf("[ERR] worker: failed to dequeue evaluation: %v", err)
 		}
-		if w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
+
+		// Adjust the backoff based on the error. If it is a scheduler version
+		// mismatch we increase the baseline.
+		base, limit := backoffBaselineFast, backoffLimitSlow
+		if strings.Contains(err.Error(), "calling scheduler version") {
+			base = backoffSchedulerVersionMismatch
+			limit = backoffSchedulerVersionMismatch
+		}
+
+		if w.backoffErr(base, limit) {
 			return nil, "", true
 		}
 		goto REQ
@@ -327,7 +341,7 @@ SUBMIT:
 	// allocations.
 	var state scheduler.State
 	if result.RefreshIndex != 0 {
-		// Wait for the the raft log to catchup to the evaluation
+		// Wait for the raft log to catchup to the evaluation
 		w.logger.Printf("[DEBUG] worker: refreshing state to index %d for %q", result.RefreshIndex, plan.EvalID)
 		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
 			return nil, nil, err

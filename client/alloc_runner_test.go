@@ -2,7 +2,9 @@ package client
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/client/vaultclient"
 )
 
 type MockAllocStateUpdater struct {
@@ -24,20 +27,23 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 	m.Allocs = append(m.Allocs, alloc)
 }
 
-func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
+func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
-	alloc := mock.Alloc()
 	if !restarts {
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
-
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc)
+	vclient := vaultclient.NewMockVaultClient()
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient)
 	return upd, ar
+}
+
+func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
+	return testAllocRunnerFromAlloc(mock.Alloc(), restarts)
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
@@ -53,6 +59,67 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// TestAllocRuner_RetryArtifact ensures that if one task in a task group is
+// retrying fetching an artifact, other tasks in the group should be able
+// to proceed.
+func TestAllocRunner_RetryArtifact(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].RestartPolicy.Mode = structs.RestartPolicyModeFail
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 1
+	alloc.Job.TaskGroups[0].RestartPolicy.Delay = time.Duration(4*testutil.TestMultiplier()) * time.Second
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+
+	// Create a new task with a bad artifact
+	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	badtask.Name = "bad"
+	badtask.Artifacts = []*structs.TaskArtifact{
+		{GetterSource: "http://127.1.1.111:12315/foo/bar/baz"},
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
+	upd, ar := testAllocRunnerFromAlloc(alloc, true)
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count < 6 {
+			return false, fmt.Errorf("Not enough updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+
+		// web task should have completed successfully while bad task
+		// retries artififact fetching
+		webstate := last.TaskStates["web"]
+		if webstate.State != structs.TaskStateDead {
+			return false, fmt.Errorf("expected web to be dead but found %q", last.TaskStates["web"].State)
+		}
+		if !webstate.Successful() {
+			return false, fmt.Errorf("expected web to have exited successfully")
+		}
+
+		// bad task should have failed
+		badstate := last.TaskStates["bad"]
+		if badstate.State != structs.TaskStateDead {
+			return false, fmt.Errorf("expected bad to be dead but found %q", badstate.State)
+		}
+		if !badstate.Failed {
+			return false, fmt.Errorf("expected bad to have failed: %#v", badstate.Events)
 		}
 		return true, nil
 	}, func(err error) {
@@ -162,7 +229,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 	// Begin the tear down
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		ar.Destroy()
 	}()
 
@@ -196,8 +263,8 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	if time.Since(start) > 15*time.Second {
-		t.Fatalf("took too long to terminate")
+	if elapsed := time.Since(start); elapsed > 20*time.Second {
+		t.Fatalf("took too long to terminate: %s", elapsed)
 	}
 }
 
@@ -228,13 +295,15 @@ func TestAllocRunner_Update(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	upd, ar := testAllocRunner(false)
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 
-	// Ensure task takes some time
-	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
 
 	// Snapshot state
@@ -251,28 +320,43 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
 
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar2.tasks) != 1 {
+			return false, fmt.Errorf("Incorrect number of tasks")
+		}
+
+		if upd.Count == 0 {
+			return false, nil
+		}
+
+		last := upd.Allocs[upd.Count-1]
+		return last.ClientStatus == structs.AllocClientStatusRunning, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
 	// Destroy and wait
 	ar2.Destroy()
 	start := time.Now()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		alloc := ar2.Alloc()
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("Bad client status; got %v; want %v", alloc.ClientStatus, structs.AllocClientStatusComplete)
 		}
-		last := upd.Allocs[upd.Count-1]
-		return last.ClientStatus != structs.AllocClientStatusPending, nil
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
 	})
 
-	if time.Since(start) > time.Duration(testutil.TestMultiplier()*15)*time.Second {
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
 		t.Fatalf("took too long to terminate")
 	}
 }
@@ -283,9 +367,10 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.logger = prefixedTestLogger("ar1: ")
 
 	// Ensure task takes some time
+
+	ar.alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"1000"}
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -323,7 +408,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID})
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
 	if err != nil {
@@ -414,8 +499,11 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if lastE := state1.Events[len(state1.Events)-1]; lastE.Type != structs.TaskKilled {
-			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskKilled)
+		if len(state1.Events) < 3 {
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+		if lastE := state1.Events[len(state1.Events)-3]; lastE.Type != structs.TaskSiblingFailed {
+			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskSiblingFailed)
 		}
 
 		// Task Two should be failed
@@ -423,7 +511,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state2.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state2.State, structs.TaskStateDead)
 		}
-		if !state2.Failed() {
+		if !state2.Failed {
 			return false, fmt.Errorf("task2 should have failed")
 		}
 
@@ -431,4 +519,72 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestAllocRunner_MoveAllocDir(t *testing.T) {
+	// Create an alloc runner
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	go ar.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Write some data in data dir and task dir of the alloc
+	dataFile := filepath.Join(ar.ctx.AllocDir.SharedDir, "data", "data_file")
+	ioutil.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
+	taskDir := ar.ctx.AllocDir.TaskDirs[task.Name]
+	taskLocalFile := filepath.Join(taskDir, "local", "local_file")
+	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
+
+	// Create another alloc runner
+	alloc1 := mock.Alloc()
+	task = alloc1.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
+	ar1.SetPreviousAllocDir(ar.ctx.AllocDir)
+	go ar1.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd1.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd1.Allocs[upd1.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure that data from ar1 was moved to ar
+	taskDir = ar1.ctx.AllocDir.TaskDirs[task.Name]
+	taskLocalFile = filepath.Join(taskDir, "local", "local_file")
+	if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
+		t.Fatalf("file %v not found", taskLocalFile)
+	}
+
+	dataFile = filepath.Join(ar1.ctx.AllocDir.SharedDir, "data", "data_file")
+	if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
+		t.Fatalf("file %v not found", dataFile)
+	}
 }

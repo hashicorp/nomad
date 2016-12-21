@@ -4,6 +4,7 @@ job "binstore-storagelocker" {
   priority    = 50
   all_at_once = true
   datacenters = ["us2", "eu1"]
+  vault_token = "foo"
 
   meta {
     foo = "bar"
@@ -39,6 +40,11 @@ job "binstore-storagelocker" {
       interval = "10m"
       delay    = "15s"
       mode     = "delay"
+    }
+
+    ephemeral_disk {
+        sticky = true
+        size = 150
     }
 
     task "binstore" {
@@ -123,6 +129,23 @@ job "binstore-storagelocker" {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
         }
       }
+
+      vault {
+        policies = ["foo", "bar"]
+      }
+
+      template {
+        source = "foo"
+        destination = "foo"
+        change_mode = "foo"
+        change_signal = "foo"
+        splay = "10s"
+      }
+
+      template {
+        source = "bar"
+        destination = "bar"
+      }
     }
 
     task "storagelocker" {
@@ -141,6 +164,13 @@ job "binstore-storagelocker" {
       constraint {
         attribute = "kernel.arch"
         value     = "amd64"
+      }
+
+      vault {
+        policies = ["foo", "bar"]
+        env = false
+        change_mode = "signal"
+        change_signal = "SIGUSR1"
       }
     }
 

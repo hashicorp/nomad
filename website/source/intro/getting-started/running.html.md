@@ -99,8 +99,8 @@ ring using the [`server-members`](/docs/commands/server-members.html) command:
 
 ```text
 $ nomad server-members
-Name          Address    Port  Status  Leader  Protocol  Build     Datacenter  Region
-nomad.global  127.0.0.1  4648  alive   true    2         0.4.0rc2  dc1         global
+Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
+nomad.global  127.0.0.1  4648  alive   true    2         0.4.1  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its
@@ -111,8 +111,8 @@ Additional metadata can be viewed by providing the `-detailed` flag.
 
 You can use `Ctrl-C` (the interrupt signal) to halt the agent.
 By default, all signals will cause the agent to forcefully shutdown.
-The agent [can be configured](/docs/agent/config.html) to gracefully
-leave on either the interrupt or terminate signals.
+The agent [can be configured](/docs/agent/configuration/index.html) to
+gracefully leave on either the interrupt or terminate signals.
 
 After interrupting the agent, you should see it leave the cluster
 and shut down:

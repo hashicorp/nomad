@@ -9,22 +9,22 @@ description: >
 # Command: run
 
 The `run` command is used to submit new jobs to Nomad or to update existing
-jobs. Job files must conform to the [job specification](/docs/jobspec/index.html)
+jobs. Job files must conform to the [job specification](/docs/job-specification/index.html)
 format.
 
 ## Usage
 
 ```
-nomad run [options] <jobfile>
+nomad run [options] <job file>
 ```
 
 The run command requires a single argument, specifying the path to a file
-containing a valid [job specification](/docs/jobspec/index.html). This file
+containing a valid [job specification](/docs/job-specification/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling. If the
-supplied path is "-", the jobfile is read from STDIN. Otherwise it is read
+supplied path is "-", the job file is read from STDIN. Otherwise it is read
 from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads jobfile using [`go-getter`](https://github.com/hashicorp/go-getter)
-and support `go-getter` syntax.
+Nomad downloads the job file using [`go-getter`](https://github.com/hashicorp/go-getter)
+and supports `go-getter` syntax.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
@@ -37,16 +37,20 @@ exhaustion, etc), then the exit code will be 2. Any other errors, including
 client connection issues or internal errors, are indicated by exit code 1.
 
 If the job has specified the region, the -region flag and NOMAD_REGION
-environment variable are overridden and the the job's region is used.
+environment variable are overridden and the job's region is used.
+
+The run command will set the `vault_token` of the job based on the following
+precedence, going from highest to lowest: the `-vault-token` flag, the
+`$VAULT_TOKEN` environment variable and finally the value in the job file.
 
 ## General Options
 
-<%= general_options_usage %>
+<%= partial "docs/commands/_general_options" %>
 
 ## Run Options
 
 * `-check-index`: If set, the job is only registered or
-  updated if the the passed job modify index matches the server side version.
+  updated if the passed job modify index matches the server side version.
   If a check-index value of zero is passed, the job is only registered if it does
   not yet exist. If a non-zero value is passed, it ensures that the job is being
   updated from a known state. The use of this flag is most common in conjunction
@@ -55,6 +59,11 @@ environment variable are overridden and the the job's region is used.
 * `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval-status](/docs/commands/eval-status.html) command
+
+* `-vault-token`: If set, the passed Vault token is stored in the job before
+  sending to the Nomad servers. This allows passing the Vault token without
+  storing it in the job file. This overrides the token found in $VAULT_TOKEN
+  environment variable and that found in the job.
 
 * `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.

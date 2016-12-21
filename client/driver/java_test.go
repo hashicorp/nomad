@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -31,7 +32,12 @@ func javaLocated() bool {
 // The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	ctestutils.JavaCompatible(t)
-	driverCtx, _ := testDriverContexts(&structs.Task{Name: "foo"})
+	task := &structs.Task{
+		Name:      "foo",
+		Resources: structs.DefaultResources(),
+	}
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
@@ -86,6 +92,9 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -136,6 +145,9 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -198,6 +210,9 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -209,6 +224,67 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		err := handle.Kill()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Task should terminate quickly
+	select {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
+			t.Fatal("should err")
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*10) * time.Second):
+		t.Fatalf("timeout")
+
+		// Need to kill long lived process
+		if err = handle.Kill(); err != nil {
+			t.Fatalf("Error: %s", err)
+		}
+	}
+}
+
+func TestJavaDriver_Signal(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
+	ctestutils.JavaCompatible(t)
+	task := &structs.Task{
+		Name: "demo-app",
+		Config: map[string]interface{}{
+			"jar_path": "demoapp.jar",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	driverCtx, execCtx := testDriverContexts(task)
+	defer execCtx.AllocDir.Destroy()
+	d := NewJavaDriver(driverCtx)
+
+	// Copy the test jar into the task's directory
+	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
+
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	handle, err := d.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		err := handle.Signal(syscall.SIGHUP)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -253,6 +329,9 @@ func TestJavaDriverUser(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewJavaDriver(driverCtx)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err == nil {
 		handle.Kill()

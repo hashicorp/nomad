@@ -68,6 +68,7 @@ server {
 	retry_max = 3
 	retry_interval = "15s"
 	rejoin_after_leave = true
+    encrypt = "abc"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"
@@ -99,11 +100,33 @@ consul {
     token = "token1"
     auth = "username:pass"
     ssl = true
-    verify_ssl = false
+    verify_ssl = true
     ca_file = "/path/to/ca/file"
     cert_file = "/path/to/cert/file"
     key_file = "/path/to/key/file"
-    server_auto_join = false
-    client_auto_join = false
-    auto_advertise = false
+    server_auto_join = true
+    client_auto_join = true
+    auto_advertise = true
+    checks_use_advertise = true
+}
+vault {
+    address = "127.0.0.1:9500"
+    allow_unauthenticated = true
+    task_token_ttl = "1s"
+    enabled = false
+    token = "12345"
+    ca_file = "/path/to/ca/file"
+    ca_path = "/path/to/ca"
+    cert_file = "/path/to/cert/file"
+    key_file = "/path/to/key/file"
+    tls_server_name = "foobar"
+    tls_skip_verify = true
+}
+tls {
+    http = true
+    rpc = true
+    verify_server_hostname = true
+    ca_file = "foo"
+    cert_file = "bar"
+    key_file = "pipe"
 }

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -34,15 +34,16 @@ func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 }
 
 type RestartTracker struct {
-	waitRes   *cstructs.WaitResult
-	startErr  error
-	count     int       // Current number of attempts.
-	onSuccess bool      // Whether to restart on successful exit code.
-	startTime time.Time // When the interval began
-	reason    string    // The reason for the last state
-	policy    *structs.RestartPolicy
-	rand      *rand.Rand
-	lock      sync.Mutex
+	waitRes          *dstructs.WaitResult
+	startErr         error
+	restartTriggered bool      // Whether the task has been signalled to be restarted
+	count            int       // Current number of attempts.
+	onSuccess        bool      // Whether to restart on successful exit code.
+	startTime        time.Time // When the interval began
+	reason           string    // The reason for the last state
+	policy           *structs.RestartPolicy
+	rand             *rand.Rand
+	lock             sync.Mutex
 }
 
 // SetPolicy updates the policy used to determine restarts.
@@ -62,10 +63,19 @@ func (r *RestartTracker) SetStartError(err error) *RestartTracker {
 }
 
 // SetWaitResult is used to mark the most recent wait result.
-func (r *RestartTracker) SetWaitResult(res *cstructs.WaitResult) *RestartTracker {
+func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.waitRes = res
+	return r
+}
+
+// SetRestartTriggered is used to mark that the task has been signalled to be
+// restarted
+func (r *RestartTracker) SetRestartTriggered() *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.restartTriggered = true
 	return r
 }
 
@@ -91,6 +101,19 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	// Clear out the existing state
+	defer func() {
+		r.startErr = nil
+		r.waitRes = nil
+		r.restartTriggered = false
+	}()
+
+	// Hot path if a restart was triggered
+	if r.restartTriggered {
+		r.reason = ""
+		return structs.TaskRestarting, 0
+	}
+
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
 		r.reason = ReasonNoRestartsAllowed
@@ -115,9 +138,9 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		return r.handleStartError()
 	} else if r.waitRes != nil {
 		return r.handleWaitResult()
-	} else {
-		return "", 0
 	}
+
+	return "", 0
 }
 
 // handleStartError returns the new state and potential wait duration for
@@ -126,7 +149,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 // infinitely try to start a task.
 func (r *RestartTracker) handleStartError() (string, time.Duration) {
 	// If the error is not recoverable, do not restart.
-	if rerr, ok := r.startErr.(*cstructs.RecoverableError); !(ok && rerr.Recoverable) {
+	if rerr, ok := r.startErr.(*structs.RecoverableError); !(ok && rerr.Recoverable) {
 		r.reason = ReasonUnrecoverableErrror
 		return structs.TaskNotRestarting, 0
 	}

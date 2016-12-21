@@ -57,6 +57,10 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.ElectionTimeout = 50 * time.Millisecond
 	config.RaftTimeout = 500 * time.Millisecond
 
+	// Disable Vault
+	f := false
+	config.VaultConfig.Enabled = &f
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)

@@ -397,6 +397,39 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Datacenter contextual
+			Contextual: true,
+			Old: &Job{
+				Datacenters: []string{"foo", "bar"},
+			},
+			New: &Job{
+				Datacenters: []string{"foo", "bar"},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeNone,
+						Name: "Datacenters",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Datacenters",
+								Old:  "bar",
+								New:  "bar",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Datacenters",
+								Old:  "foo",
+								New:  "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Update strategy edited
 			Old: &Job{
 				Update: UpdateStrategy{
@@ -1270,6 +1303,180 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Mode",
 								Old:  "fail",
 								New:  "fail",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// EphemeralDisk added
+			Old: &TaskGroup{},
+			New: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  100,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "EphemeralDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Migrate",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SizeMB",
+								Old:  "",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Sticky",
+								Old:  "",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// EphemeralDisk deleted
+			Old: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  100,
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "EphemeralDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Migrate",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "SizeMB",
+								Old:  "100",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Sticky",
+								Old:  "true",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// EphemeralDisk edited
+			Old: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  150,
+				},
+			},
+			New: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: false,
+					Sticky:  false,
+					SizeMB:  90,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "EphemeralDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Migrate",
+								Old:  "true",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SizeMB",
+								Old:  "150",
+								New:  "90",
+							},
+
+							{
+								Type: DiffTypeEdited,
+								Name: "Sticky",
+								Old:  "true",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// EphemeralDisk edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: false,
+					Sticky:  false,
+					SizeMB:  100,
+				},
+			},
+			New: &TaskGroup{
+				EphemeralDisk: &EphemeralDisk{
+					Migrate: true,
+					Sticky:  true,
+					SizeMB:  90,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "EphemeralDisk",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Migrate",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SizeMB",
+								Old:  "100",
+								New:  "90",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Sticky",
+								Old:  "false",
+								New:  "true",
 							},
 						},
 					},
@@ -2862,6 +3069,403 @@ func TestTaskDiff(t *testing.T) {
 										New:  "tcp",
 									},
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault added
+			Old: &Task{},
+			New: &Task{
+				Vault: &Vault{
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeMode",
+								Old:  "",
+								New:  "signal",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeSignal",
+								Old:  "",
+								New:  "SIGUSR1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Env",
+								Old:  "",
+								New:  "true",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "foo",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault deleted
+			Old: &Task{
+				Vault: &Vault{
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
+				},
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Env",
+								Old:  "true",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "bar",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault edited
+			Old: &Task{
+				Vault: &Vault{
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
+				},
+			},
+			New: &Task{
+				Vault: &Vault{
+					Policies:     []string{"bar", "baz"},
+					Env:          false,
+					ChangeMode:   "restart",
+					ChangeSignal: "foo",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "restart",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Env",
+								Old:  "true",
+								New:  "false",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "baz",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Vault edited with context
+			Contextual: true,
+			Old: &Task{
+				Vault: &Vault{
+					Policies:     []string{"foo", "bar"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
+				},
+			},
+			New: &Task{
+				Vault: &Vault{
+					Policies:     []string{"bar", "baz"},
+					Env:          true,
+					ChangeMode:   "signal",
+					ChangeSignal: "SIGUSR1",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Vault",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "ChangeMode",
+								Old:  "signal",
+								New:  "signal",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "ChangeSignal",
+								Old:  "SIGUSR1",
+								New:  "SIGUSR1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Env",
+								Old:  "true",
+								New:  "true",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Policies",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Policies",
+										Old:  "",
+										New:  "baz",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Policies",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Policies",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Template edited
+			Old: &Task{
+				Templates: []*Template{
+					{
+						SourcePath:   "foo",
+						DestPath:     "bar",
+						EmbeddedTmpl: "baz",
+						ChangeMode:   "bam",
+						ChangeSignal: "SIGHUP",
+						Splay:        1,
+					},
+					{
+						SourcePath:   "foo2",
+						DestPath:     "bar2",
+						EmbeddedTmpl: "baz2",
+						ChangeMode:   "bam2",
+						ChangeSignal: "SIGHUP2",
+						Splay:        2,
+					},
+				},
+			},
+			New: &Task{
+				Templates: []*Template{
+					{
+						SourcePath:   "foo",
+						DestPath:     "bar",
+						EmbeddedTmpl: "baz",
+						ChangeMode:   "bam",
+						ChangeSignal: "SIGHUP",
+						Splay:        1,
+					},
+					{
+						SourcePath:   "foo3",
+						DestPath:     "bar3",
+						EmbeddedTmpl: "baz3",
+						ChangeMode:   "bam3",
+						ChangeSignal: "SIGHUP3",
+						Splay:        3,
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeMode",
+								Old:  "",
+								New:  "bam3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeSignal",
+								Old:  "",
+								New:  "SIGHUP3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DestPath",
+								Old:  "",
+								New:  "bar3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "EmbeddedTmpl",
+								Old:  "",
+								New:  "baz3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SourcePath",
+								Old:  "",
+								New:  "foo3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Splay",
+								Old:  "",
+								New:  "3",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeMode",
+								Old:  "bam2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeSignal",
+								Old:  "SIGHUP2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DestPath",
+								Old:  "bar2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "EmbeddedTmpl",
+								Old:  "baz2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "SourcePath",
+								Old:  "foo2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Splay",
+								Old:  "2",
+								New:  "",
 							},
 						},
 					},

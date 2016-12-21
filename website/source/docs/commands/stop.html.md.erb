@@ -22,14 +22,13 @@ cancel. If there is an exact match based on the provided job ID or prefix, then
 the job will be cancelled. Otherwise, a list of matching jobs and information
 will be displayed.
 
-Upon successful deregistration, an interactive monitor session will start to
-display log lines as the job unwinds its allocations and completes shutting
-down. The monitor will exit once all allocations are stopped and the job has
-reached a terminal state. It is safe to exit the monitor early using ctrl+c.
+Stop will issue a request to deregister the matched job and then invoke an
+interactive monitor that exits automatically once the scheduler has processed
+the request. It is safe to exit the monitor early using ctrl+c.
 
 ## General Options
 
-<%= general_options_usage %>
+<%= partial "docs/commands/_general_options" %>
 
 ## Stop Options
 
@@ -38,9 +37,9 @@ reached a terminal state. It is safe to exit the monitor early using ctrl+c.
   which can be used to examine the evaluation using the
   [eval-status](/docs/commands/eval-status.html) command.
 
-## Status Options
-
 * `-verbose`: Show full information.
+
+* `-yes`: Automatic yes to prompts.
 
 ## Examples
 

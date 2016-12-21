@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -8,7 +9,8 @@ import (
 )
 
 const (
-	allocNotFoundErr = "allocation not found"
+	allocNotFoundErr    = "allocation not found"
+	resourceNotFoundErr = "resource not found"
 )
 
 func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -68,12 +70,45 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	// tokenize the suffix of the path to get the alloc id and find the action
 	// invoked on the alloc id
 	tokens := strings.Split(reqSuffix, "/")
-	if len(tokens) == 1 || tokens[1] != "stats" {
-		return nil, CodedError(404, allocNotFoundErr)
+	if len(tokens) != 2 {
+		return nil, CodedError(404, resourceNotFoundErr)
 	}
 	allocID := tokens[0]
+	switch tokens[1] {
+	case "stats":
+		return s.allocStats(allocID, resp, req)
+	case "snapshot":
+		return s.allocSnapshot(allocID, resp, req)
+	case "gc":
+		return s.allocGC(allocID, resp, req)
+	}
 
-	// Get the stats reporter
+	return nil, CodedError(404, resourceNotFoundErr)
+}
+
+func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if s.agent.client == nil {
+		return nil, clientNotRunning
+	}
+	return nil, s.agent.Client().CollectAllAllocs()
+}
+
+func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	return nil, s.agent.Client().CollectAllocation(allocID)
+}
+
+func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	allocFS, err := s.agent.Client().GetAllocFS(allocID)
+	if err != nil {
+		return nil, fmt.Errorf(allocNotFoundErr)
+	}
+	if err := allocFS.Snapshot(resp); err != nil {
+		return nil, fmt.Errorf("error making snapshot: %v", err)
+	}
+	return nil, nil
+}
+
+func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	clientStats := s.agent.client.StatsReporter()
 	aStats, err := clientStats.GetAllocStats(allocID)
 	if err != nil {

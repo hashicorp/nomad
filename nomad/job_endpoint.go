@@ -1,10 +1,13 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver"
@@ -17,6 +20,16 @@ const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
+)
+
+var (
+	// vaultConstraint is the implicit constraint added to jobs requesting a
+	// Vault token
+	vaultConstraint = &structs.Constraint{
+		LTarget: "${attr.vault.version}",
+		RTarget: ">= 0.6.1",
+		Operand: structs.ConstraintVersion,
+	}
 )
 
 // Job endpoint is used for job interactions
@@ -38,6 +51,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Initialize the job fields (sets defaults and any necessary init work).
 	args.Job.Canonicalize()
+
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
 
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {
@@ -66,6 +82,46 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
 		}
 	}
+
+	// Ensure that the job has permissions for the requested Vault tokens
+	policies := args.Job.VaultPolicies()
+	if len(policies) != 0 {
+		vconf := j.srv.config.VaultConfig
+		if !vconf.IsEnabled() {
+			return fmt.Errorf("Vault not enabled and Vault policies requested")
+		}
+
+		// Have to check if the user has permissions
+		if !vconf.AllowsUnauthenticated() {
+			if args.Job.VaultToken == "" {
+				return fmt.Errorf("Vault policies requested but missing Vault Token")
+			}
+
+			vault := j.srv.vault
+			s, err := vault.LookupToken(context.Background(), args.Job.VaultToken)
+			if err != nil {
+				return err
+			}
+
+			allowedPolicies, err := PoliciesFrom(s)
+			if err != nil {
+				return err
+			}
+
+			// If we are given a root token it can access all policies
+			if !lib.StrContains(allowedPolicies, "root") {
+				flatPolicies := structs.VaultPoliciesSet(policies)
+				subset, offending := structs.SliceStringIsSubset(allowedPolicies, flatPolicies)
+				if !subset {
+					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
+						strings.Join(offending, ", "))
+				}
+			}
+		}
+	}
+
+	// Clear the Vault token
+	args.Job.VaultToken = ""
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -111,6 +167,77 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
 	return nil
+}
+
+// setImplicitConstraints adds implicit constraints to the job based on the
+// features it is requesting.
+func setImplicitConstraints(j *structs.Job) {
+	// Get the required Vault Policies
+	policies := j.VaultPolicies()
+
+	// Get the required signals
+	signals := j.RequiredSignals()
+
+	// Hot path
+	if len(signals) == 0 && len(policies) == 0 {
+		return
+	}
+
+	// Add Vault constraints
+	for _, tg := range j.TaskGroups {
+		_, ok := policies[tg.Name]
+		if !ok {
+			// Not requesting Vault
+			continue
+		}
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equal(vaultConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, vaultConstraint)
+		}
+	}
+
+	// Add signal constraints
+	for _, tg := range j.TaskGroups {
+		tgSignals, ok := signals[tg.Name]
+		if !ok {
+			// Not requesting Vault
+			continue
+		}
+
+		// Flatten the signals
+		required := structs.MapStringStringSliceValueSet(tgSignals)
+		sigConstraint := getSignalConstraint(required)
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equal(sigConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, sigConstraint)
+		}
+	}
+}
+
+// getSignalConstraint builds a suitable constraint based on the required
+// signals
+func getSignalConstraint(signals []string) *structs.Constraint {
+	return &structs.Constraint{
+		Operand: structs.ConstraintSetContains,
+		LTarget: "${attr.os.signals}",
+		RTarget: strings.Join(signals, ","),
+	}
 }
 
 // Summary retreives the summary of a job
@@ -407,7 +534,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 			if err != nil {
 				return err
 			}
-			allocs, err := snap.AllocsByJob(args.JobID)
+			allocs, err := snap.AllocsByJob(args.JobID, args.AllAllocs)
 			if err != nil {
 				return err
 			}
@@ -443,26 +570,36 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluations"}, time.Now())
 
-	// Capture the evaluations
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	reply.Evaluations, err = snap.EvalsByJob(args.JobID)
-	if err != nil {
-		return err
-	}
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		watch:     watch.NewItems(watch.Item{EvalJob: args.JobID}),
+		run: func() error {
+			// Capture the evals
+			snap, err := j.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
 
-	// Use the last index that affected the evals table
-	index, err := snap.Index("evals")
-	if err != nil {
-		return err
-	}
-	reply.Index = index
+			reply.Evaluations, err = snap.EvalsByJob(args.JobID)
+			if err != nil {
+				return err
+			}
 
-	// Set the query response
-	j.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
+			// Use the last index that affected the evals table
+			index, err := snap.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+
+	return j.srv.blockingRPC(&opts)
 }
 
 // Plan is used to cause a dry-run evaluation of the Job and return the results
@@ -480,6 +617,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Initialize the job fields (sets defaults and any necessary init work).
 	args.Job.Canonicalize()
+
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
 
 	// Validate the job.
 	if err := validateJob(args.Job); err != nil {
@@ -581,8 +721,14 @@ func validateJob(job *structs.Job) error {
 		multierror.Append(validationErrors, err)
 	}
 
+	// Get the signals required
+	signals := job.RequiredSignals()
+
 	// Validate the driver configurations.
 	for _, tg := range job.TaskGroups {
+		// Get the signals for the task group
+		tgSignals, tgOk := signals[tg.Name]
+
 		for _, task := range tg.Tasks {
 			d, err := driver.NewDriver(
 				task.Driver,
@@ -597,6 +743,21 @@ func validateJob(job *structs.Job) error {
 			if err := d.Validate(task.Config); err != nil {
 				formatted := fmt.Errorf("group %q -> task %q -> config: %v", tg.Name, task.Name, err)
 				multierror.Append(validationErrors, formatted)
+			}
+
+			// The task group didn't have any task that required signals
+			if !tgOk {
+				continue
+			}
+
+			// This task requires signals. Ensure the driver is capable
+			if required, ok := tgSignals[task.Name]; ok {
+				abilities := d.Abilities()
+				if !abilities.SendSignals {
+					formatted := fmt.Errorf("group %q -> task %q: driver %q doesn't support sending signals. Requested signals are %v",
+						tg.Name, task.Name, task.Driver, strings.Join(required, ", "))
+					multierror.Append(validationErrors, formatted)
+				}
 			}
 		}
 	}

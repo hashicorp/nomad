@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -58,10 +59,17 @@ type AllocRunner struct {
 
 	updateCh chan *structs.Allocation
 
+	vaultClient vaultclient.VaultClient
+
+	otherAllocDir *allocdir.AllocDir
+
 	destroy     bool
 	destroyCh   chan struct{}
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
+
+	// serialize saveAllocRunnerState calls
+	persistLock sync.Mutex
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -70,25 +78,25 @@ type allocRunnerState struct {
 	Alloc                  *structs.Allocation
 	AllocClientStatus      string
 	AllocClientDescription string
-	TaskStates             map[string]*structs.TaskState
 	Context                *driver.ExecContext
 }
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation) *AllocRunner {
+	alloc *structs.Allocation, vaultClient vaultclient.VaultClient) *AllocRunner {
 	ar := &AllocRunner{
-		config:     config,
-		updater:    updater,
-		logger:     logger,
-		alloc:      alloc,
-		dirtyCh:    make(chan struct{}, 1),
-		tasks:      make(map[string]*TaskRunner),
-		taskStates: copyTaskStates(alloc.TaskStates),
-		restored:   make(map[string]struct{}),
-		updateCh:   make(chan *structs.Allocation, 64),
-		destroyCh:  make(chan struct{}),
-		waitCh:     make(chan struct{}),
+		config:      config,
+		updater:     updater,
+		logger:      logger,
+		alloc:       alloc,
+		dirtyCh:     make(chan struct{}, 1),
+		tasks:       make(map[string]*TaskRunner),
+		taskStates:  copyTaskStates(alloc.TaskStates),
+		restored:    make(map[string]struct{}),
+		updateCh:    make(chan *structs.Allocation, 64),
+		destroyCh:   make(chan struct{}),
+		waitCh:      make(chan struct{}),
+		vaultClient: vaultClient,
 	}
 	return ar
 }
@@ -114,7 +122,6 @@ func (r *AllocRunner) RestoreState() error {
 	r.ctx = snap.Context
 	r.allocClientStatus = snap.AllocClientStatus
 	r.allocClientDescription = snap.AllocClientDescription
-	r.taskStates = snap.TaskStates
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -127,6 +134,8 @@ func (r *AllocRunner) RestoreState() error {
 		return e
 	}
 
+	r.taskStates = snap.Alloc.TaskStates
+
 	// Restore the task runners
 	var mErr multierror.Error
 	for name, state := range r.taskStates {
@@ -135,7 +144,7 @@ func (r *AllocRunner) RestoreState() error {
 
 		task := &structs.Task{Name: name}
 		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
-			task)
+			task, r.vaultClient)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -151,7 +160,16 @@ func (r *AllocRunner) RestoreState() error {
 			go tr.Run()
 		}
 	}
+
 	return mErr.ErrorOrNil()
+}
+
+// GetAllocDir returns the alloc dir for the alloc runner
+func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
+	if r.ctx == nil {
+		return nil
+	}
+	return r.ctx.AllocDir
 }
 
 // SaveState is used to snapshot the state of the alloc runner
@@ -175,12 +193,12 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
-	// Create the snapshot.
-	r.taskStatusLock.RLock()
-	states := copyTaskStates(r.taskStates)
-	r.taskStatusLock.RUnlock()
+	r.persistLock.Lock()
+	defer r.persistLock.Unlock()
 
+	// Create the snapshot.
 	alloc := r.Alloc()
+
 	r.allocLock.Lock()
 	allocClientStatus := r.allocClientStatus
 	allocClientDescription := r.allocClientDescription
@@ -196,7 +214,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		Context:                ctx,
 		AllocClientStatus:      allocClientStatus,
 		AllocClientDescription: allocClientDescription,
-		TaskStates:             states,
 	}
 	return persistState(r.stateFilePath(), &snap)
 }
@@ -237,6 +254,12 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {
 		alloc.ClientStatus = r.allocClientStatus
 		alloc.ClientDescription = r.allocClientDescription
+
+		// Copy over the task states so we don't lose them
+		r.taskStatusLock.RLock()
+		alloc.TaskStates = copyTaskStates(r.taskStates)
+		r.taskStatusLock.RUnlock()
+
 		r.allocLock.Unlock()
 		return alloc
 	}
@@ -253,7 +276,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		case structs.TaskStatePending:
 			pending = true
 		case structs.TaskStateDead:
-			if state.Failed() {
+			if state.Failed {
 				failed = true
 			} else {
 				dead = true
@@ -308,7 +331,8 @@ func (r *AllocRunner) setStatus(status, desc string) {
 	}
 }
 
-// setTaskState is used to set the status of a task
+// setTaskState is used to set the status of a task. If state is empty then the
+// event is appended but not synced with the server. The event may be omitted
 func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEvent) {
 	r.taskStatusLock.Lock()
 	defer r.taskStatusLock.Unlock()
@@ -319,20 +343,31 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	}
 
 	// Set the tasks state.
-	taskState.State = state
-	r.appendTaskEvent(taskState, event)
-
-	// If the task failed, we should kill all the other tasks in the task group.
-	if state == structs.TaskStateDead && taskState.Failed() {
-		var destroyingTasks []string
-		for task, tr := range r.tasks {
-			if task != taskName {
-				destroyingTasks = append(destroyingTasks, task)
-				tr.Destroy()
-			}
+	if event != nil {
+		if event.FailsTask {
+			taskState.Failed = true
 		}
-		if len(destroyingTasks) > 0 {
-			r.logger.Printf("[DEBUG] client: task %q failed, destroying other tasks in task group: %v", taskName, destroyingTasks)
+		r.appendTaskEvent(taskState, event)
+	}
+
+	if state == "" {
+		return
+	}
+
+	taskState.State = state
+	if state == structs.TaskStateDead {
+		// If the task failed, we should kill all the other tasks in the task group.
+		if taskState.Failed {
+			var destroyingTasks []string
+			for task, tr := range r.tasks {
+				if task != taskName {
+					destroyingTasks = append(destroyingTasks, task)
+					tr.Destroy(structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
+				}
+			}
+			if len(destroyingTasks) > 0 {
+				r.logger.Printf("[DEBUG] client: task %q failed, destroying other tasks in task group: %v", taskName, destroyingTasks)
+			}
 		}
 	}
 
@@ -384,6 +419,14 @@ func (r *AllocRunner) Run() {
 			return
 		}
 		r.ctx = driver.NewExecContext(allocDir, r.alloc.ID)
+		if r.otherAllocDir != nil {
+			if err := allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
+				r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
+			}
+			if err := r.otherAllocDir.Destroy(); err != nil {
+				r.logger.Printf("[ERROR] client: error destroying allocdir %v", r.otherAllocDir.AllocDir, err)
+			}
+		}
 	}
 	r.ctxLock.Unlock()
 
@@ -405,13 +448,17 @@ func (r *AllocRunner) Run() {
 			continue
 		}
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(),
-			task.Copy())
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, r.ctx, r.Alloc(), task.Copy(), r.vaultClient)
 		r.tasks[task.Name] = tr
 		tr.MarkReceived()
+
 		go tr.Run()
 	}
 	r.taskLock.Unlock()
+
+	// taskDestroyEvent contains an event that caused the destroyment of a task
+	// in the allocation.
+	var taskDestroyEvent *structs.TaskEvent
 
 OUTER:
 	// Wait for updates
@@ -425,6 +472,7 @@ OUTER:
 
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
+				taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 				break OUTER
 			}
 
@@ -434,14 +482,32 @@ OUTER:
 				tr.Update(update)
 			}
 		case <-r.destroyCh:
+			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 			break OUTER
 		}
 	}
 
+	// Kill the task runners
+	r.destroyTaskRunners(taskDestroyEvent)
+
+	// Block until we should destroy the state of the alloc
+	r.handleDestroy()
+	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
+}
+
+// SetPreviousAllocDir sets the previous allocation directory of the current
+// allocation
+func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
+	r.otherAllocDir = allocDir
+}
+
+// destroyTaskRunners destroys the task runners, waits for them to terminate and
+// then saves state.
+func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 	// Destroy each sub-task
 	runners := r.getTaskRunners()
 	for _, tr := range runners {
-		tr.Destroy()
+		tr.Destroy(destroyEvent)
 	}
 
 	// Wait for termination of the task runners
@@ -451,10 +517,6 @@ OUTER:
 
 	// Final state sync
 	r.syncStatus()
-
-	// Block until we should destroy the state of the alloc
-	r.handleDestroy()
-	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
 
 // handleDestroy blocks till the AllocRunner should be destroyed and does the

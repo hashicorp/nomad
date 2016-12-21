@@ -39,11 +39,12 @@ func testServer(
 }
 
 func testJob(jobID string) *api.Job {
-	task := api.NewTask("task1", "raw_exec").
-		SetConfig("command", "/bin/sleep").
+	task := api.NewTask("task1", "mock_driver").
+		SetConfig("kill_after", "1s").
+		SetConfig("run_for", "5s").
+		SetConfig("exit_code", 0).
 		Require(&api.Resources{
 			MemoryMB: 256,
-			DiskMB:   20,
 			CPU:      100,
 		}).
 		SetLogConfig(&api.LogConfig{
@@ -52,7 +53,10 @@ func testJob(jobID string) *api.Job {
 		})
 
 	group := api.NewTaskGroup("group1", 1).
-		AddTask(task)
+		AddTask(task).
+		RequireDisk(&api.EphemeralDisk{
+			SizeMB: 20,
+		})
 
 	job := api.NewBatchJob(jobID, jobID, "region1", 1).
 		AddDatacenter("dc1").

@@ -307,9 +307,7 @@ region is used; another region can be specified using the `?region=` query param
       <li>
         <span class="param">Job</span>
         <span class="param-flags">required</span>
-        The JSON definition of the job. The general structure is given
-        by the [job specification](/docs/jobspec/index.html), and matches
-        the return response of GET.
+        The JSON definition of the job.
       </li>
     </ul>
   </dd>
@@ -378,9 +376,7 @@ region is used; another region can be specified using the `?region=` query param
       <li>
         <span class="param">Job</span>
         <span class="param-flags">required</span>
-        The JSON definition of the job. The general structure is given
-        by the [job specification](/docs/jobspec/index.html), and matches
-        the return response of GET.
+        The JSON definition of the job.
       </li>
       <li>
         <span class="param">Diff</span>
@@ -532,9 +528,9 @@ region is used; another region can be specified using the `?region=` query param
       <li>
         <span class="param">Diff</span>
         A diff structure between the submitted job and the server side version.
-        The top-level object is a Job Diff which contains, Task Group Diffs
+        The top-level object is a Job Diff which contains Task Group Diffs,
         which in turn contain Task Diffs. Each of these objects then has Object
-        and Field Diff structures in-bedded.
+        and Field Diff structures embedded.
       </li>
       <li>
         <span class="param">NextPeriodicLaunch</span>
@@ -571,7 +567,7 @@ region is used; another region can be specified using the `?region=` query param
   <dd>
     Forces a new instance of the periodic job. A new instance will be created
     even if it violates the job's
-    [`prohibit_overlap`](/docs/jobspec/index.html#prohibit_overlap) settings. As
+    [`prohibit_overlap`](/docs/job-specification/periodic.html#prohibit_overlap) settings. As
     such, this should be only used to immediately run a periodic job.
   </dd>
 

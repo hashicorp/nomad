@@ -118,11 +118,6 @@ func validateCommand(command, argField string) error {
 		return fmt.Errorf("command contains extra white space: %q", command)
 	}
 
-	split := strings.Split(trimmed, " ")
-	if len(split) != 1 {
-		return fmt.Errorf("command contained more than one input. Use %q field to pass arguments", argField)
-	}
-
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -45,7 +46,12 @@ type Config struct {
 	Ports *Ports `mapstructure:"ports"`
 
 	// Addresses is used to override the network addresses we bind to.
+	//
+	// Use normalizedAddrs if you need the host+port to bind to.
 	Addresses *Addresses `mapstructure:"addresses"`
+
+	// normalizedAddr is set to the Address+Port by normalizeAddrs()
+	normalizedAddrs *Addresses
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `mapstructure:"advertise"`
@@ -88,6 +94,10 @@ type Config struct {
 	// discover the current Nomad servers.
 	Consul *config.ConsulConfig `mapstructure:"consul"`
 
+	// Vault contains the configuration for the Vault Agent and
+	// parameters necessary to derive tokens.
+	Vault *config.VaultConfig `mapstructure:"vault"`
+
 	// NomadConfig is used to override the default config.
 	// This is largly used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
@@ -106,6 +116,10 @@ type Config struct {
 
 	// List of config files that have been loaded (in order)
 	Files []string `mapstructure:"-"`
+
+	// TLSConfig provides TLS related configuration for the Nomad server and
+	// client
+	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
@@ -163,7 +177,8 @@ type ClientConfig struct {
 	// Interface to use for network fingerprinting
 	NetworkInterface string `mapstructure:"network_interface"`
 
-	// The network link speed to use if it can not be determined dynamically.
+	// NetworkSpeed is used to override any detected or default network link
+	// speed.
 	NetworkSpeed int `mapstructure:"network_speed"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
@@ -240,12 +255,21 @@ type ServerConfig struct {
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+
+	// Encryption key to use for the Serf communication
+	EncryptKey string `mapstructure:"encrypt" json:"-"`
+}
+
+// EncryptBytes returns the encryption key configured.
+func (s *ServerConfig) EncryptBytes() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s.EncryptKey)
 }
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
+	DataDogAddr              string        `mapstructure:"datadog_address"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	CollectionInterval       string        `mapstructure:"collection_interval"`
 	collectionInterval       time.Duration `mapstructure:"-"`
@@ -270,7 +294,7 @@ type Telemetry struct {
 	// Default: none
 	CirconusAPIToken string `mapstructure:"circonus_api_token"`
 	// CirconusAPIApp is an app name associated with API token.
-	// Default: "consul"
+	// Default: "nomad"
 	CirconusAPIApp string `mapstructure:"circonus_api_app"`
 	// CirconusAPIURL is the base URL to use for contacting the Circonus API.
 	// Default: "https://api.circonus.com/v2"
@@ -299,8 +323,15 @@ type Telemetry struct {
 	CirconusCheckInstanceID string `mapstructure:"circonus_check_instance_id"`
 	// CirconusCheckSearchTag is a special tag which, when coupled with the instance id, helps to
 	// narrow down the search results when neither a Submission URL or Check ID is provided.
-	// Default: service:app (e.g. service:consul)
+	// Default: service:app (e.g. service:nomad)
 	CirconusCheckSearchTag string `mapstructure:"circonus_check_search_tag"`
+	// CirconusCheckTags is a comma separated list of tags to apply to the check. Note that
+	// the value of CirconusCheckSearchTag will always be added to the check.
+	// Default: none
+	CirconusCheckTags string `mapstructure:"circonus_check_tags"`
+	// CirconusCheckDisplayName is the name for the check which will be displayed in the Circonus UI.
+	// Default: value of CirconusCheckInstanceID
+	CirconusCheckDisplayName string `mapstructure:"circonus_check_display_name"`
 	// CirconusBrokerID is an explicit broker to use when creating a new check. The numeric portion
 	// of broker._cid. If metric management is enabled and neither a Submission URL nor Check ID
 	// is provided, an attempt will be made to search for an existing check using Instance ID and
@@ -317,8 +348,8 @@ type Telemetry struct {
 	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
 }
 
-// Ports is used to encapsulate the various ports we bind to for network
-// services. If any are not specified then the defaults are used instead.
+// Ports encapsulates the various ports we bind to for network services. If any
+// are not specified then the defaults are used instead.
 type Ports struct {
 	HTTP int `mapstructure:"http"`
 	RPC  int `mapstructure:"rpc"`
@@ -334,8 +365,8 @@ type Addresses struct {
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
-// different network services. Not all network services support an
-// advertise address. All are optional and default to BindAddr.
+// different network services. All are optional and default to BindAddr and
+// their default Port.
 type AdvertiseAddrs struct {
 	HTTP string `mapstructure:"http"`
 	RPC  string `mapstructure:"rpc"`
@@ -413,6 +444,7 @@ func (r *Resources) ParseReserved() error {
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig() *Config {
 	conf := DefaultConfig()
+	conf.BindAddr = "127.0.0.1"
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
@@ -428,6 +460,9 @@ func DevConfig() *Config {
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
 	}
+	conf.Client.Options = map[string]string{
+		"driver.docker.volumes": "true",
+	}
 
 	return conf
 }
@@ -438,7 +473,7 @@ func DefaultConfig() *Config {
 		LogLevel:   "INFO",
 		Region:     "global",
 		Datacenter: "dc1",
-		BindAddr:   "127.0.0.1",
+		BindAddr:   "0.0.0.0",
 		Ports: &Ports{
 			HTTP: 4646,
 			RPC:  4647,
@@ -448,9 +483,9 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Atlas:          &AtlasConfig{},
 		Consul:         config.DefaultConsulConfig(),
+		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
 			Enabled:        false,
-			NetworkSpeed:   100,
 			MaxKillTimeout: "30s",
 			ClientMinPort:  14000,
 			ClientMaxPort:  14512,
@@ -468,6 +503,7 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
+		TLSConfig: &config.TLSConfig{},
 	}
 }
 
@@ -493,7 +529,7 @@ func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 			Err: &net.AddrError{Err: "invalid port", Addr: fmt.Sprint(port)},
 		}
 	}
-	return net.Listen(proto, fmt.Sprintf("%s:%d", addr, port))
+	return net.Listen(proto, net.JoinHostPort(addr, strconv.Itoa(port)))
 }
 
 // Merge merges two configurations.
@@ -546,6 +582,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Telemetry = &telemetry
 	} else if b.Telemetry != nil {
 		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
+	}
+
+	// Apply the TLS Config
+	if result.TLSConfig == nil && b.TLSConfig != nil {
+		tlsConfig := *b.TLSConfig
+		result.TLSConfig = &tlsConfig
+	} else if b.TLSConfig != nil {
+		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
 
 	// Apply the client config
@@ -604,6 +648,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Consul = result.Consul.Merge(b.Consul)
 	}
 
+	// Apply the Vault Configuration
+	if result.Vault == nil && b.Vault != nil {
+		vaultConfig := *b.Vault
+		result.Vault = &vaultConfig
+	} else if b.Vault != nil {
+		result.Vault = result.Vault.Merge(b.Vault)
+	}
+
 	// Merge config files lists
 	result.Files = append(result.Files, b.Files...)
 
@@ -616,6 +668,129 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 
 	return &result
+}
+
+// normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
+// initialized and have sane defaults.
+func (c *Config) normalizeAddrs() error {
+	c.Addresses.HTTP = normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	c.Addresses.Serf = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	c.normalizedAddrs = &Addresses{
+		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
+		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
+		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
+	}
+
+	addr, err := normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	if err != nil {
+		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
+	}
+	c.AdvertiseAddrs.HTTP = addr
+
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
+	if err != nil {
+		return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
+	}
+	c.AdvertiseAddrs.RPC = addr
+
+	// Skip serf if server is disabled
+	if c.Server != nil && c.Server.Enabled {
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
+		if err != nil {
+			return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
+		}
+		c.AdvertiseAddrs.Serf = addr
+	}
+
+	return nil
+}
+
+// normalizeBind returns a normalized bind address.
+//
+// If addr is set it is used, if not the default bind address is used.
+func normalizeBind(addr, bind string) string {
+	if addr == "" {
+		return bind
+	}
+	return addr
+}
+
+// normalizeAdvertise returns a normalized advertise address.
+//
+// If addr is set, it is used and the default port is appended if no port is
+// set.
+//
+// If addr is not set and bind is a valid address, the returned string is the
+// bind+port.
+//
+// If addr is not set and bind is not a valid advertise address, the hostname
+// is resolved and returned with the port.
+//
+// Loopback is only considered a valid advertise address in dev mode.
+func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
+	if addr != "" {
+		// Default to using manually configured address
+		_, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			if !isMissingPort(err) {
+				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
+			}
+
+			// missing port, append the default
+			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
+		}
+		return addr, nil
+	}
+
+	// Fallback to bind address first, and then try resolving the local hostname
+	ips, err := net.LookupIP(bind)
+	if err != nil {
+		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
+	}
+
+	// Return the first unicast address
+	for _, ip := range ips {
+		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+		if ip.IsLoopback() && dev {
+			// loopback is fine for dev mode
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+	}
+
+	// As a last resort resolve the hostname and use it if it's not
+	// localhost (as localhost is never a sensible default)
+	host, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
+	}
+
+	ips, err = net.LookupIP(host)
+	if err != nil {
+		return "", fmt.Errorf("Error resolving hostname %q for advertise address: %v", host, err)
+	}
+
+	// Return the first unicast address
+	for _, ip := range ips {
+		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+		if ip.IsLoopback() && dev {
+			// loopback is fine for dev mode
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+	}
+	return "", fmt.Errorf("No valid advertise addresses, please set `advertise` manually")
+}
+
+// isMissingPort returns true if an error is a "missing port" error from
+// net.SplitHostPort.
+func isMissingPort(err error) bool {
+	// matches error const in net/ipsock.go
+	const missingPort = "missing port in address"
+	return err != nil && strings.HasPrefix(err.Error(), missingPort)
 }
 
 // Merge is used to merge two server configs together
@@ -652,6 +827,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
+	}
+	if b.EncryptKey != "" {
+		result.EncryptKey = b.EncryptKey
 	}
 
 	// Add the schedulers
@@ -745,6 +923,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.StatsdAddr != "" {
 		result.StatsdAddr = b.StatsdAddr
 	}
+	if b.DataDogAddr != "" {
+		result.DataDogAddr = b.DataDogAddr
+	}
 	if b.DisableHostname {
 		result.DisableHostname = true
 	}
@@ -753,6 +934,12 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.collectionInterval != 0 {
 		result.collectionInterval = b.collectionInterval
+	}
+	if b.PublishNodeMetrics {
+		result.PublishNodeMetrics = true
+	}
+	if b.PublishAllocationMetrics {
+		result.PublishAllocationMetrics = true
 	}
 	if b.CirconusAPIToken != "" {
 		result.CirconusAPIToken = b.CirconusAPIToken
@@ -780,6 +967,12 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.CirconusCheckSearchTag != "" {
 		result.CirconusCheckSearchTag = b.CirconusCheckSearchTag
+	}
+	if b.CirconusCheckTags != "" {
+		result.CirconusCheckTags = b.CirconusCheckTags
+	}
+	if b.CirconusCheckDisplayName != "" {
+		result.CirconusCheckDisplayName = b.CirconusCheckDisplayName
 	}
 	if b.CirconusBrokerID != "" {
 		result.CirconusBrokerID = b.CirconusBrokerID

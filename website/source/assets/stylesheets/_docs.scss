@@ -2,22 +2,12 @@
 // Docs
 // --------------------------------------------------
 
-body.layout-atlas,
-body.layout-consul,
-body.layout-dnsimple,
-body.layout-dme,
-body.layout-cloudflare,
-body.layout-cloudstack,
-body.layout-google,
-body.layout-heroku,
-body.layout-mailgun,
-body.layout-digitalocean,
-body.layout-aws,
+$docs-font-size: 15px;
+
 body.layout-docs,
 body.layout-inner,
 body.layout-downloads,
 body.layout-intro{
-  //background: $light-black image-url('sidebar-wire.png') left 62px no-repeat;
   >.container{
     .col-md-8[role=main]{
       min-height: 800px;
@@ -28,6 +18,28 @@ body.layout-intro{
         z-index: 10;
       }
     }
+  }
+
+  *:focus {
+    outline: none;
+  }
+
+  h1 > code,
+  h2 > code,
+  h3 > code,
+  h4 > code,
+  h5 > code
+  h6 > code,
+  li > code,
+  table code,
+  p code,
+  tt,
+  .alert code {
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 90%;
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
   }
 }
 
@@ -51,62 +63,37 @@ body.layout-intro{
 
       > a{
         padding: 10px 8px;
-        font-size: 15px;
+        font-size: 13px;
         color: $blue-dark;
-
-        &:before{
-          @include bez-1-transition();
-        }
 
         &:hover{
           background-color: transparent !important;
-
-          &:before{
-            @include bez-1-transition();
-          }
         }
       }
     }
 
     $parent-active-state: -14px;
-    $parent-default-state: -10px;
+    $parent-default-state: -14px;
     $child-active-state: -4px;
-    $child-default-state: 0px;
+    $child-default-state: -4px;
 
     //first teir li
-    > li {
+    li {
       margin: 0 0 0 10px;
-
-      &.active {
-        >a{
-          color: $green-dark;
-          font-weight: 600;
-          border-right: 1px solid $green-faint;
-
-          &:hover{
-            &:before{
-              left: $parent-default-state;
-            }
-          }
-
-          &:before{
-            @include rotate(90deg);
-            opacity: 1;
-          }
-        }
-
-        .nav {
-          display: block;
-        }
-      }
 
       > a {
         -webkit-font-smoothing: antialiased;
 
         &:hover{
+          color: #000;
+
           &:before{
-            left: $parent-active-state;
+            opacity: 1;
           }
+        }
+
+        &:focus {
+          background-color: inherit;
         }
 
         &:before{
@@ -122,6 +109,20 @@ body.layout-intro{
           @include img-retina("caret-light.png", "caret-light@2x.png", 6px, 9px);
         }
       }
+
+      &.active {
+        >a{
+          color: $green-dark;
+
+          &:before{
+            opacity: 1;
+          }
+        }
+
+        > .nav {
+          display: block;
+        }
+      }
     }
 
     //nested ul.nav
@@ -129,27 +130,43 @@ body.layout-intro{
       display: none;
       padding-top: 10px;
       padding-bottom: 10px;
-      margin-bottom: 15px;
-      border-right: 1px solid $green-faint;
-      border-bottom: 1px solid $green-faint;
 
       > li{
         margin-left: 10px;
 
+        > a {
+          &:before{
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 12px;
+            top: 10px;
+            left: $child-default-state;
+            overflow: hidden;
+            background: image-url("caret-light.png") 0 0 no-repeat;
+            opacity: .3;
+            @include img-retina("caret-light.png", "caret-light@2x.png", 6px, 9px);
+          }
+
+          &:focus {
+            background-color: inherit;
+          }
+
+          &:hover {
+            color: #000;
+
+            &:before {
+              opacity: 1;
+            }
+          }
+        }
+
         &.active{
           > a{
             color: $green-dark;
-            font-weight: 600;
-
-            &:hover{
-              &:before{
-                left: $child-default-state;
-              }
-            }
 
             &:before{
-              //background: url(triangle-sprite.png) 0 0 no-repeat;
-              //@include img-retina("triangle-sprite.png", "triangle-sprite@2x.png", 5px, 19px);
+              opacity: 1;
             }
           }
         }
@@ -157,25 +174,6 @@ body.layout-intro{
         > a{
           -webkit-font-smoothing: antialiased;
           padding: 6px 15px;
-
-          &:hover{
-            &:before{
-              left: $child-active-state;
-            }
-          }
-
-          &:before{
-            opacity: .75;
-            content: '';
-            position: absolute;
-            width: 5px;
-            height: 7px;
-            top: 12px;
-            left: $child-default-state;
-            overflow: hidden;
-            //background: url(triangle-sprite.png) 0 -13px no-repeat;
-            //@include img-retina("triangle-sprite.png", "triangle-sprite@2x.png", 5px, 19px);
-          }
         }
       }
     }
@@ -202,28 +200,37 @@ body.layout-intro{
 
   p, li, .alert {
     color: $blue-dark;
-    font-size: 18px;
+    font-size: $docs-font-size;
     font-family: $font-family-open-sans;
     font-weight: $font-weight-reg;
     line-height: 1.84em;
-    margin: 0 0 18px;
+    margin: 0 0 $docs-font-size;
     -webkit-font-smoothing: antialiased;
   }
 
-  pre{
-    margin: 0 0 18px;
+  pre {
+    font-size: ($docs-font-size - 3);
+    margin: 0 0 $docs-font-size;
+
+    // This will force the code to scroll horizontally on small screens
+    // instead of wrapping.
+    code {
+      overflow-wrap: normal;
+      white-space: pre;
+    }
   }
 
   a{
     color: $green-dark;
-    border-bottom: 1px solid $green-dark;
-    @include transition(all 300ms ease-in);
+    text-decoration: none;
 
     &:hover{
-      color: $blue-dark;
-      border-bottom: 2px solid $blue-dark;
-      text-decoration: none;
-      @include transition(all 300ms ease-in);
+      text-decoration: underline;
+    }
+
+    code {
+      background: inherit;
+      color: $green-dark;
     }
   }
 
@@ -236,19 +243,20 @@ body.layout-intro{
   h1, .h1, h2, .h2, h3, .h3, h4, .h4{
     color: $gray-dark;
     margin-top: 54px;
-    margin-bottom: 18px;
+    margin-bottom: $docs-font-size;
+    line-height: 1.3;
     @include open-sb();
   }
 
-  h1{
-    font-size: 36px;
+  h2 {
+    padding-bottom: 3px;
+    border-bottom: 1px solid $gray-light;
   }
 
   #graph {
     margin-top: 30px;
   }
 }
-
 
 @media (max-width: 992px) {
 
@@ -260,23 +268,13 @@ body.layout-intro{
 @media (max-width: 768px) {
   .bs-docs-section{
     padding-top: 0;
-    h1{
-      margin-top: 0;
-    }
   }
 }
-
-
-
 
 @media (max-width: 480px) {
   .bs-docs-section{
     img{
       max-width: 450px;
-    }
-
-    h1{
-      font-size: 32px;
     }
   }
 }

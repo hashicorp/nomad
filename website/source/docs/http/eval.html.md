@@ -40,13 +40,13 @@ be specified using the `?region=` query parameter.
   <dd>
 
     ```javascript
-    {
-    "ID": "151accaa-1ac6-90fe-d427-313e70ccbb88",
+	{
+    "ID": "055c0867-8bf7-5068-b3a3-d64e4e84e702",
     "Priority": 50,
     "Type": "service",
     "TriggeredBy": "job-register",
-    "JobID": "binstore-storagelocker",
-    "JobModifyIndex": 14,
+    "JobID": "example",
+    "JobModifyIndex": 13,
     "NodeID": "",
     "NodeModifyIndex": 0,
     "Status": "complete",
@@ -54,9 +54,29 @@ be specified using the `?region=` query parameter.
     "Wait": 0,
     "NextEval": "",
     "PreviousEval": "",
-    "CreateIndex": 15,
+    "BlockedEval": "fee40e32-aa0f-bf5e-b2fd-b08350875fdb",
+    "FailedTGAllocs": {
+        "cache": {
+            "NodesEvaluated": 1,
+            "NodesFiltered": 0,
+            "NodesAvailable": {
+                "dc1": 1
+            },
+            "ClassFiltered": null,
+            "ConstraintFiltered": null,
+            "NodesExhausted": 1,
+            "ClassExhausted": null,
+            "DimensionExhausted": {
+                "memory exhausted": 1
+            },
+            "Scores": null,
+            "AllocationTime": 61601,
+            "CoalescedFailures": 2
+        }
+    },
+    "CreateIndex": 14,
     "ModifyIndex": 17
-    }
+	}
     ```
 
   </dd>

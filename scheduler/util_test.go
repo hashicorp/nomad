@@ -99,7 +99,29 @@ func TestDiffAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffAllocs(job, tainted, required, allocs)
+	// Have three terminal allocs
+	terminalAllocs := map[string]*structs.Allocation{
+		"my-job.web[4]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[4]",
+			Job:    job,
+		},
+		"my-job.web[5]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[5]",
+			Job:    job,
+		},
+		"my-job.web[6]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "zip",
+			Name:   "my-job.web[6]",
+			Job:    job,
+		},
+	}
+
+	diff := diffAllocs(job, tainted, required, allocs, terminalAllocs)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -136,18 +158,22 @@ func TestDiffAllocs(t *testing.T) {
 	if len(place) != 6 {
 		t.Fatalf("bad: %#v", place)
 	}
+
+	// Ensure that the allocations which are replacements of terminal allocs are
+	// annotated
+	for name, alloc := range terminalAllocs {
+		for _, allocTuple := range diff.place {
+			if name == allocTuple.Name {
+				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
+					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
+				}
+			}
+		}
+	}
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
 	job := mock.SystemJob()
-
-	// Create three alive nodes.
-	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"}}
-
-	// The "old" job has a previous modify index
-	oldJob := new(structs.Job)
-	*oldJob = *job
-	oldJob.JobModifyIndex -= 1
 
 	drainNode := mock.Node()
 	drainNode.Drain = true
@@ -156,9 +182,18 @@ func TestDiffSystemAllocs(t *testing.T) {
 	deadNode.Status = structs.NodeStatusDown
 
 	tainted := map[string]*structs.Node{
-		"dead":      deadNode,
-		"drainNode": drainNode,
+		deadNode.ID:  deadNode,
+		drainNode.ID: drainNode,
 	}
+
+	// Create three alive nodes.
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"},
+		{ID: "pipe"}, {ID: drainNode.ID}, {ID: deadNode.ID}}
+
+	// The "old" job has a previous modify index
+	oldJob := new(structs.Job)
+	*oldJob = *job
+	oldJob.JobModifyIndex -= 1
 
 	allocs := []*structs.Allocation{
 		// Update allocation on baz
@@ -180,20 +215,30 @@ func TestDiffSystemAllocs(t *testing.T) {
 		// Stop allocation on draining node.
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "drainNode",
+			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 		// Mark as lost on a dead node
 		&structs.Allocation{
 			ID:     structs.GenerateUUID(),
-			NodeID: "dead",
+			NodeID: deadNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, tainted, allocs)
+	// Have three terminal allocs
+	terminalAllocs := map[string]*structs.Allocation{
+		"my-job.web[0]": &structs.Allocation{
+			ID:     structs.GenerateUUID(),
+			NodeID: "pipe",
+			Name:   "my-job.web[0]",
+			Job:    job,
+		},
+	}
+
+	diff := diffSystemAllocs(job, nodes, tainted, allocs, terminalAllocs)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -227,8 +272,20 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	// We should place 1
-	if len(place) != 1 {
-		t.Fatalf("bad: %#v", place)
+	if l := len(place); l != 2 {
+		t.Fatalf("bad: %#v", l)
+	}
+
+	// Ensure that the allocations which are replacements of terminal allocs are
+	// annotated
+	for _, alloc := range terminalAllocs {
+		for _, allocTuple := range diff.place {
+			if alloc.NodeID == allocTuple.Alloc.NodeID {
+				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
+					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
+				}
+			}
+		}
 	}
 }
 
@@ -484,10 +541,22 @@ func TestTasksUpdated(t *testing.T) {
 		t.Fatalf("bad")
 	}
 
+	jpr := mock.Job()
+	jpr.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPortRanges = []structs.PortRange{{Label: "foo_range", Base: 1312}}
+	if !tasksUpdated(j1.TaskGroups[0], jpr.TaskGroups[0]) {
+		t.Fatalf("bad")
+	}
+
 	j15 := mock.Job()
-	j15.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPortRanges = []structs.PortRange{{Label: "foo_range", Base: 1312}}
+	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
 	if !tasksUpdated(j1.TaskGroups[0], j15.TaskGroups[0]) {
 		t.Fatalf("bad")
+	}
+
+	j16 := mock.Job()
+	j16.TaskGroups[0].EphemeralDisk.Sticky = true
+	if !tasksUpdated(j1.TaskGroups[0], j16.TaskGroups[0]) {
+		t.Fatal("bad")
 	}
 }
 
@@ -849,9 +918,10 @@ func TestTaskGroupConstraints(t *testing.T) {
 	constr3 := &structs.Constraint{Operand: "<"}
 
 	tg := &structs.TaskGroup{
-		Name:        "web",
-		Count:       10,
-		Constraints: []*structs.Constraint{constr},
+		Name:          "web",
+		Count:         10,
+		Constraints:   []*structs.Constraint{constr},
+		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
 			&structs.Task{
 				Driver: "exec",

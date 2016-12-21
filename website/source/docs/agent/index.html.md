@@ -1,9 +1,10 @@
 ---
 layout: "docs"
 page_title: "Nomad Agent"
-sidebar_current: "docs-agent-basics"
+sidebar_current: "docs-agent"
 description: |-
-  The Nomad agent is a long running process which can be used either in a client or server mode.
+  The Nomad agent is a long running process which can be used either in
+  a client or server mode.
 ---
 
 # Nomad Agent
@@ -14,12 +15,12 @@ running in client or server mode. Clients are responsible for running tasks,
 while servers are responsible for managing the cluster.
 
 Client mode agents are relatively simple. They make use of fingerprinting
-to determine the capabilities and resources of the host machine, as well as 
+to determine the capabilities and resources of the host machine, as well as
 determining what [drivers](/docs/drivers/index.html) are available. Clients
 register with servers to provide the node information, heartbeat to provide
 liveness, and run any tasks assigned to them.
 
-Servers take on the responsibility of being part of the 
+Servers take on the responsibility of being part of the
 [consensus protocol](/docs/internals/consensus.html) and [gossip protocol](/docs/internals/gossip.html).
 The consensus protocol, powered by Raft, allows the servers to perform
 leader election and state replication. The gossip protocol allows for simple
@@ -27,9 +28,10 @@ clustering of servers and multi-region federation. The higher burden on the
 server nodes means that usually they should be run on dedicated instances --
 they are more resource intensive than a client node.
 
-Client nodes make up the majority of the cluster, and are very lightweight
-as they interface with the server nodes and maintain very little state of their own.
-Each cluster has usually 3 or 5 server mode agents and potentially thousands of clients.
+Client nodes make up the majority of the cluster, and are very lightweight as
+they interface with the server nodes and maintain very little state of their
+own. Each cluster has usually 3 or 5 server mode agents and potentially
+thousands of clients.
 
 ## Running an Agent
 
@@ -44,40 +46,40 @@ $ nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: (Infrastructure: 'armon/test' Join: false)
+                 Atlas: (Infrastructure: 'hashicorp/example' Join: false)
                 Client: true
-             Log Level: DEBUG
+             Log Level: INFO
                 Region: global (DC: dc1)
                 Server: true
 
 ==> Nomad agent started! Log data will stream in below:
 
-    [INFO] serf: EventMemberJoin: Armons-MacBook-Air.local.global 127.0.0.1
+    [INFO] serf: EventMemberJoin: server-1.node.global 127.0.0.1
     [INFO] nomad: starting 4 scheduling worker(s) for [service batch _core]
 ...
 ```
 
 There are several important messages that `nomad agent` outputs:
 
-* **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
-  with which the node is registered, if any. It also indicates if auto-join is enabled.
-  The Atlas infrastructure is set using [`-atlas`](/docs/agent/config.html#_atlas)
-  and auto-join is enabled by setting [`-atlas-join`](/docs/agent/config.html#_atlas_join).
+- **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
+  with which the node is registered, if any. It also indicates if auto-join is
+  enabled. The Atlas infrastructure is set using `-atlas` and auto-join is
+  enabled by setting `-atlas-join`.
 
-* **Client**: This indicates whether the agent has enabled client mode.
+- **Client**: This indicates whether the agent has enabled client mode.
   Client nodes fingerprint their host environment, register with servers,
   and run tasks.
 
-* **Log Level**: This indicates the configured log level. Only messages with
+- **Log Level**: This indicates the configured log level. Only messages with
   an equal or higher severity will be logged. This can be tuned to increase
   verbosity for debugging, or reduced to avoid noisy logging.
 
-* **Region**: This is the region and datacenter in which the agent is configured to run.
- Nomad has first-class support for multi-datacenter and multi-region configurations.
- The [`-region` and `-dc`](/docs/agent/config.html#_region) flag can be used to set
- the region and datacenter. The default is the `global` region in `dc1`.
+- **Region**: This is the region and datacenter in which the agent is configured
+  to run. Nomad has first-class support for multi-datacenter and multi-region
+  configurations. The `-region` and `-dc` flags can be used to set the region
+  and datacenter. The default is the `global` region in `dc1`.
 
-* **Server**: This indicates whether the agent has enabled server mode.
+- **Server**: This indicates whether the agent has enabled server mode.
   Server nodes have the extra burden of participating in the consensus protocol,
   storing cluster state, and making scheduling decisions.
 
@@ -92,13 +94,13 @@ respective signals.
 When gracefully exiting, clients will update their status to terminal on
 the servers so that tasks can be migrated to healthy agents. Servers
 will notify their intention to leave the cluster which allows them to
-leave the [consensus quorum](/docs/internals/consensus.html).
+leave the [consensus](/docs/internals/consensus.html) peer set.
 
 It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
-the consensus quorum. If a server does not gracefully leave, and will not
+the consensus peer set. If a server does not gracefully leave, and will not
 return into service, the [`server-force-leave` command](/docs/commands/server-force-leave.html)
-should be used to eject it from the consensus quorum.
+should be used to eject it from the consensus peer set.
 
 ## Lifecycle
 
@@ -135,5 +137,5 @@ to the entire cluster, meaning all nodes will eventually be aware of each other.
 
 When a server _leaves_, it specifies its intent to do so, and the cluster marks that
 node as having _left_. If the server has _left_, replication to it will stop and it
-is removed as a member of the consensus quorum. If the server has _failed_, replication
+is removed from the consensus peer set. If the server has _failed_, replication
 will attempt to make progress to recover from a software or network failure.

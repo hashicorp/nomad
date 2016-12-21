@@ -1,0 +1,8 @@
+{
+  "allowed_policies": "nomad-server",
+  "explicit_max_ttl": 0,
+  "name": "nomad-server",
+  "orphan": false,
+  "period": 259200,
+  "renewable": true
+}

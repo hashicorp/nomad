@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -118,6 +119,9 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
+	// VaultConfig is this Agent's Vault configuration
+	VaultConfig *config.VaultConfig
+
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
 	StatsCollectionInterval time.Duration
@@ -129,6 +133,9 @@ type Config struct {
 	// PublishAllocationMetrics determines whether nomad is going to publish
 	// allocation metrics to remote Telemetry sinks
 	PublishAllocationMetrics bool
+
+	// TLSConfig holds various TLS related configurations
+	TLSConfig *config.TLSConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -137,16 +144,21 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = structs.CopySliceString(nc.Servers)
 	nc.Options = structs.CopyMapStringString(nc.Options)
+	nc.GloballyReservedPorts = structs.CopySliceInt(c.GloballyReservedPorts)
+	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		VaultConfig:             config.DefaultVaultConfig(),
 		ConsulConfig:            config.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
+		TLSConfig:               &config.TLSConfig{},
 	}
 }
 
@@ -218,4 +230,17 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 		}
 	}
 	return list
+}
+
+// TLSConfig returns a TLSUtil Config based on the client configuration
+func (c *Config) TLSConfiguration() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
+		CAFile:               c.TLSConfig.CAFile,
+		CertFile:             c.TLSConfig.CertFile,
+		KeyFile:              c.TLSConfig.KeyFile,
+	}
+	return tlsConf
 }

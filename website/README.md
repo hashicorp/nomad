@@ -12,7 +12,19 @@ requests like any normal GitHub project, and we'll merge it in.
 
 ## Running the Site Locally
 
-Running the site locally is simple. Clone this repo and run `make dev`.
+To run the site locally, clone this repository and run:
 
-Then open up `http://localhost:4567`. Note that some URLs you may need to append
-".html" to make them work (in the navigation).
+```shell
+$ make website
+```
+
+You must have Docker installed for this to work.
+
+Alternatively, you can manually run the website like this:
+
+```shell
+$ bundle
+$ bundle exec middleman server
+```
+
+Then open up `http://localhost:4567`.
