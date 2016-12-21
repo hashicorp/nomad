@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-plugin"
@@ -108,9 +107,6 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 }
 
 func (d *RawExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
 	return nil
 }
 

@@ -164,9 +164,6 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 }
 
 func (d *JavaDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
 	return nil
 }
 
