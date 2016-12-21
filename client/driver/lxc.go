@@ -168,6 +168,13 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	return true, nil
 }
 
+func (d *LxcDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
+	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	return nil
+}
+
 // Start starts the LXC Driver
 func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig LxcDriverConfig

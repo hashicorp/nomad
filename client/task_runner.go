@@ -324,7 +324,8 @@ func (r *TaskRunner) setTaskEnv() error {
 	r.taskEnvLock.Lock()
 	defer r.taskEnvLock.Unlock()
 
-	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node, r.task.Copy(), r.alloc, r.vaultFuture.Get())
+	taskEnv, err := driver.GetTaskEnv(r.ctx.AllocDir, r.config.Node,
+		r.task.Copy(), r.alloc, r.config, r.vaultFuture.Get())
 	if err != nil {
 		return err
 	}
@@ -346,7 +347,15 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		return nil, fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env)
+	// Create a task-specific event emitter callback to expose minimal
+	// state to drivers
+	eventEmitter := func(m string, args ...interface{}) {
+		msg := fmt.Sprintf(m, args...)
+		r.logger.Printf("[DEBUG] client: driver event for alloc %q: %s", r.alloc.ID, msg)
+		r.setState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
+	}
+
+	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env, eventEmitter)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -1019,17 +1028,31 @@ func (r *TaskRunner) startTask() error {
 	// Create a driver
 	driver, err := r.createDriver()
 	if err != nil {
-		return fmt.Errorf("failed to create driver of task '%s' for alloc '%s': %v",
+		return fmt.Errorf("failed to create driver of task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
+	}
+
+	// Run prestart
+	if err := driver.Prestart(r.ctx, r.task); err != nil {
+		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
+			r.task.Name, r.alloc.ID, err)
+
+		r.logger.Printf("[WARN] client: %v", wrapped)
+
+		if rerr, ok := err.(*structs.RecoverableError); ok {
+			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
+		}
+
+		return wrapped
 	}
 
 	// Start the job
 	handle, err := driver.Start(r.ctx, r.task)
 	if err != nil {
-		wrapped := fmt.Errorf("failed to start task '%s' for alloc '%s': %v",
+		wrapped := fmt.Errorf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
 
-		r.logger.Printf("[INFO] client: %v", wrapped)
+		r.logger.Printf("[WARN] client: %v", wrapped)
 
 		if rerr, ok := err.(*structs.RecoverableError); ok {
 			return structs.NewRecoverableError(wrapped, rerr.Recoverable)

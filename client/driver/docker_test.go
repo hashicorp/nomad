@@ -97,6 +97,10 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 	driver := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
+	if err := driver.Prestart(execCtx, task); err != nil {
+		execCtx.AllocDir.Destroy()
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := driver.Start(execCtx, task)
 	if err != nil {
 		execCtx.AllocDir.Destroy()
@@ -175,6 +179,9 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 	d := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -264,6 +271,9 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	// Copy the image into the task's directory
 	copyImage(execCtx, task, "busybox.tar", t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -324,9 +334,9 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	d := NewDockerDriver(driverCtx)
 
-	_, err := d.Start(execCtx, task)
+	err := d.Prestart(execCtx, task)
 	if err == nil {
-		t.Fatalf("want err: %v", err)
+		t.Fatalf("want error in prestart: %v", err)
 	}
 
 	if rerr, ok := err.(*structs.RecoverableError); !ok {
@@ -374,6 +384,9 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	d := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -464,6 +477,9 @@ func TestDockerDriver_StartN(t *testing.T) {
 		d := NewDockerDriver(driverCtx)
 		copyImage(execCtx, task, "busybox.tar", t)
 
+		if err := d.Prestart(execCtx, task); err != nil {
+			t.Fatalf("error in prestart #%d: %v", idx+1, err)
+		}
 		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)
@@ -521,6 +537,9 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 		copyImage(execCtx, task, "busybox_musl.tar", t)
 		copyImage(execCtx, task, "busybox_glibc.tar", t)
 
+		if err := d.Prestart(execCtx, task); err != nil {
+			t.Fatalf("error in prestart #%d: %v", idx+1, err)
+		}
 		handles[idx], err = d.Start(execCtx, task)
 		if err != nil {
 			t.Errorf("Failed starting task #%d: %s", idx+1, err)
@@ -857,6 +876,10 @@ func TestDockerDriver_User(t *testing.T) {
 	defer execCtx.AllocDir.Destroy()
 	copyImage(execCtx, task, "busybox.tar", t)
 
+	if err := driver.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+
 	// It should fail because the user "alice" does not exist on the given
 	// image.
 	handle, err := driver.Start(execCtx, task)
@@ -1006,6 +1029,9 @@ done
 		fmt.Errorf("Failed to write data")
 	}
 
+	if err := d.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := d.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1082,13 +1108,17 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		}
 	}
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, cfg, "")
 	if err != nil {
 		cleanup()
 		t.Fatalf("Failed to get task env: %v", err)
 	}
 
-	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	logger := testLogger()
+	emitter := func(m string, args ...interface{}) {
+		logger.Printf("[EVENT] "+m, args...)
+	}
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv, emitter)
 	driver := NewDockerDriver(driverCtx)
 	copyImage(execCtx, task, "busybox.tar", t)
 
@@ -1111,6 +1141,9 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 		task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 		defer cleanup()
 
+		if err := driver.Prestart(execCtx, task); err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
 		if _, err := driver.Start(execCtx, task); err == nil {
 			t.Fatalf("Started driver successfully when volumes should have been disabled.")
 		}
@@ -1121,6 +1154,9 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 		task, driver, execCtx, fn, cleanup := setupDockerVolumes(t, cfg, ".")
 		defer cleanup()
 
+		if err := driver.Prestart(execCtx, task); err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
 		handle, err := driver.Start(execCtx, task)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1159,6 +1195,9 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 	defer cleanup()
 
+	if err := driver.Prestart(execCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
 	handle, err := driver.Start(execCtx, task)
 	if err != nil {
 		t.Fatalf("Failed to start docker driver: %v", err)

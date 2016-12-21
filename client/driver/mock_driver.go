@@ -75,6 +75,10 @@ func (d *MockDriver) Abilities() DriverAbilities {
 	}
 }
 
+func (d *MockDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	return nil
+}
+
 // Start starts the mock driver
 func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig MockDriverConfig

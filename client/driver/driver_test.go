@@ -84,12 +84,16 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	alloc := mock.Alloc()
 	execCtx := NewExecContext(allocDir, alloc.ID)
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, cfg, "")
 	if err != nil {
 		return nil, nil
 	}
 
-	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	logger := testLogger()
+	emitter := func(m string, args ...interface{}) {
+		logger.Printf("[EVENT] "+m, args...)
+	}
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, logger, taskEnv, emitter)
 	return driverCtx, execCtx
 }
 
@@ -119,7 +123,7 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Name = "Bar"
-	env, err := GetTaskEnv(nil, nil, task, alloc, "")
+	env, err := GetTaskEnv(nil, nil, task, alloc, testConfig(), "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
@@ -157,8 +161,17 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	}
 
 	act := env.EnvMap()
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("GetTaskEnv() returned %#v; want %#v", act, exp)
+
+	// Since host env vars are included only ensure expected env vars are present
+	for expk, expv := range exp {
+		v, ok := act[expk]
+		if !ok {
+			t.Errorf("%q not found in task env", expk)
+			continue
+		}
+		if v != expv {
+			t.Errorf("Expected %s=%q but found %q", expk, expv, v)
+		}
 	}
 }
 

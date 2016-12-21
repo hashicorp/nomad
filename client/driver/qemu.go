@@ -135,6 +135,10 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
+func (d *QemuDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+	return nil
+}
+
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {

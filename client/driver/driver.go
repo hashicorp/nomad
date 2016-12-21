@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -51,6 +52,10 @@ type Driver interface {
 	// Drivers must support the fingerprint interface for detection
 	fingerprint.Fingerprint
 
+	// Prestart prepares the task environment and performs expensive
+	// intialization steps like downloading images.
+	Prestart(*ExecContext, *structs.Task) error
+
 	// Start is used to being task execution
 	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
 
@@ -70,6 +75,9 @@ type DriverAbilities struct {
 	SendSignals bool
 }
 
+// LogEventFn is a callback which allows Drivers to emit task events.
+type LogEventFn func(message string, args ...interface{})
+
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjection with Factory, above.
@@ -79,18 +87,14 @@ type DriverContext struct {
 	logger   *log.Logger
 	node     *structs.Node
 	taskEnv  *env.TaskEnvironment
+
+	emitEvent LogEventFn
 }
 
 // NewEmptyDriverContext returns a DriverContext with all fields set to their
 // zero value.
 func NewEmptyDriverContext() *DriverContext {
-	return &DriverContext{
-		taskName: "",
-		config:   nil,
-		node:     nil,
-		logger:   nil,
-		taskEnv:  nil,
-	}
+	return &DriverContext{}
 }
 
 // NewDriverContext initializes a new DriverContext with the specified fields.
@@ -98,13 +102,14 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName string, config *config.Config, node *structs.Node,
-	logger *log.Logger, taskEnv *env.TaskEnvironment) *DriverContext {
+	logger *log.Logger, taskEnv *env.TaskEnvironment, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName: taskName,
-		config:   config,
-		node:     node,
-		logger:   logger,
-		taskEnv:  taskEnv,
+		taskName:  taskName,
+		config:    config,
+		node:      node,
+		logger:    logger,
+		taskEnv:   taskEnv,
+		emitEvent: eventEmitter,
 	}
 }
 
@@ -148,7 +153,8 @@ func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
 // GetTaskEnv converts the alloc dir, the node, task and alloc into a
 // TaskEnvironment.
 func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
-	task *structs.Task, alloc *structs.Allocation, vaultToken string) (*env.TaskEnvironment, error) {
+	task *structs.Task, alloc *structs.Allocation, conf *config.Config,
+	vaultToken string) (*env.TaskEnvironment, error) {
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	env := env.NewTaskEnvironment(node).
@@ -183,6 +189,10 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 	if task.Vault != nil {
 		env.SetVaultToken(vaultToken, task.Vault.Env)
 	}
+
+	// Set the host environment variables.
+	filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	env.AppendHostEnvvars(filter)
 
 	return env.Build(), nil
 }

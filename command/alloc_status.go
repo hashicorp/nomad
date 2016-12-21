@@ -380,6 +380,8 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			} else {
 				desc = "Task signaled to restart"
 			}
+		case api.TaskDriverMessage:
+			desc = event.DriverMessage
 		}
 
 		// Reverse order so we are sorted by time
