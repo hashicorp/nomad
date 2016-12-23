@@ -2,7 +2,7 @@ set :base_url, "https://www.nomadproject.io/"
 
 activate :hashicorp do |h|
   h.name        = "nomad"
-  h.version     = "0.5.1"
+  h.version     = "0.5.2"
   h.github_slug = "hashicorp/nomad"
 end
 
@@ -18,7 +18,7 @@ helpers do
     end
 
      "Nomad by HashiCorp"
-   end
+  end
 
   # Get the description for the page
   #
