@@ -18,7 +18,7 @@ helpers do
     end
 
      "Nomad by HashiCorp"
-   end
+  end
 
   # Get the description for the page
   #
