@@ -1,4 +1,4 @@
-## 0.5.2 (Unreleased)
+## 0.5.2 (December 23, 2016)
 
 BUG FIXES:
   * client: Fixed a race condition and remove panic when handling duplicate
