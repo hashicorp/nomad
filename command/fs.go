@@ -31,7 +31,7 @@ type FSCommand struct {
 
 func (f *FSCommand) Help() string {
 	helpText := `
-Usage: nomad fs <alloc-id> <path>
+Usage: nomad fs [options] <allocation> <path>
 
   fs displays either the contents of an allocation directory for the passed allocation,
   or displays the file at the given path. The path is relative to the root of the alloc
@@ -59,7 +59,7 @@ FS Specific Options:
     Causes the output to not stop when the end of the file is reached, but rather to
     wait for additional output.
 
-  -tail 
+  -tail
     Show the files contents with offsets relative to the end of the file. If no
     offset is given, -n is defaulted to 10.
 

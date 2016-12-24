@@ -18,7 +18,7 @@ type LogsCommand struct {
 
 func (l *LogsCommand) Help() string {
 	helpText := `
-Usage: nomad logs [options] <alloc-id> <task>
+Usage: nomad logs [options] <allocation> <task>
 
   Streams the stdout/stderr of the given allocation and task.
 
@@ -51,7 +51,7 @@ Logs Specific Options:
 
   -c
     Sets the tail location in number of bytes relative to the end of the logs.
-	`
+  `
 	return strings.TrimSpace(helpText)
 }
 
