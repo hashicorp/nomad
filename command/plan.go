@@ -31,7 +31,7 @@ type PlanCommand struct {
 
 func (c *PlanCommand) Help() string {
 	helpText := `
-Usage: nomad plan [options] <file>
+Usage: nomad plan [options] <path>
 
   Plan invokes a dry-run of the scheduler to determine the effects of submitting
   either a new or updated version of a job. The plan will not result in any

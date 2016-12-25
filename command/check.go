@@ -21,7 +21,7 @@ type AgentCheckCommand struct {
 
 func (c *AgentCheckCommand) Help() string {
 	helpText := `
-Usage: nomad check
+Usage: nomad check [options]
 
   Display state of the Nomad agent. The exit code of the command is Nagios
   compatible and could be used with alerting systems.
