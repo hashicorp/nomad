@@ -28,7 +28,7 @@ General Options:
 
 Logs Specific Options:
 
-  -stderr:
+  -stderr
     Display stderr logs.
 
   -verbose
