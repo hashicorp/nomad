@@ -136,6 +136,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, usefull if your tags are mutable
 }
 
 // Validate validates a docker driver config
@@ -330,6 +331,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"volumes": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"force_pull": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
 		},
 	}
@@ -890,9 +894,11 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 	var dockerImage *docker.Image
 	var err error
 	// We're going to check whether the image is already downloaded. If the tag
-	// is "latest" we have to check for a new version every time so we don't
+	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
-	if tag != "latest" {
+	if driverConfig.ForcePull {
+		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s:%s' instead of inspecting local", repo, tag)
+	} else if tag != "latest" {
 		dockerImage, err = client.InspectImage(image)
 	}
 

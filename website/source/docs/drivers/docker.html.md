@@ -164,6 +164,10 @@ The `docker` driver supports the following configuration in the job spec:
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
+* `force_pull` - (Optional) `true` or `false` (default). Always pull latest image
+  instead of using existing local image. Should be set to `true` if repository tags
+  are mutable.
+
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
 * `logging` - (Optional) A key-value map of Docker logging options. The default
