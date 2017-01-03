@@ -953,7 +953,8 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 
 func TestDockerDriver_Stats(t *testing.T) {
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "docker",
 		Config: map[string]interface{}{
 			"image":   "busybox",
 			"load":    []string{"busybox.tar"},
