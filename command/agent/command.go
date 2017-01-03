@@ -621,6 +621,10 @@ func (c *Command) setupTelemetry(config *Config) error {
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
+	if telConfig.UseNodeName {
+		metricsConf.HostName = config.NodeName
+		metricsConf.EnableHostname = true
+	}
 
 	// Configure the statsite sink
 	var fanout metrics.FanoutSink
