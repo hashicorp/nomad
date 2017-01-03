@@ -46,7 +46,7 @@ job "docs" {
     task "server" {
       # All tasks must run where "my_custom_value" is greater than 3.
       constraint {
-        attribute = "${node.meta.my_custom_value}"
+        attribute = "${meta.my_custom_value}"
         operator  = ">"
         value     = "3"
       }
@@ -210,7 +210,7 @@ utilizing node [metadata][meta].
 
 ```hcl
 constraint {
-  attribute    = "${node.meta.cached_binaries}"
+  attribute    = "${meta.cached_binaries}"
   set_contains = "redis,cypress,nginx"
 }
 ```
