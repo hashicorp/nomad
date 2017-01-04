@@ -214,9 +214,17 @@ func evalTableSchema() *memdb.TableSchema {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "JobID",
+							Lowercase: true,
+						},
+						&memdb.StringFieldIndex{
+							Field:     "Status",
+							Lowercase: true,
+						},
+					},
 				},
 			},
 		},

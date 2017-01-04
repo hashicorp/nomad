@@ -484,3 +484,27 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 }
+
+func TestBlockedEvals_Untrack(t *testing.T) {
+	blocked, _ := testBlockedEvals(t)
+
+	// Create two blocked evals and add them to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.ClassEligibility = map[string]bool{"v1:123": false, "v1:456": false}
+	e.SnapshotIndex = 1000
+	blocked.Block(e)
+
+	// Verify block did track
+	bStats := blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+
+	// Untrack and verify
+	blocked.Untrack(e.JobID)
+	bStats = blocked.Stats()
+	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+}

@@ -445,6 +445,114 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 	}
 }
 
+func TestFSM_UpdateEval_Untrack(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Mark an eval as blocked.
+	bEval := mock.Eval()
+	bEval.ClassEligibility = map[string]bool{"v1:123": true}
+	fsm.blockedEvals.Block(bEval)
+
+	// Create a successful eval for the same job
+	eval := mock.Eval()
+	eval.JobID = bEval.JobID
+	eval.Status = structs.EvalStatusComplete
+
+	req := structs.EvalUpdateRequest{
+		Evals: []*structs.Evaluation{eval},
+	}
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().EvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("not found!")
+	}
+	if out.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out.CreateIndex)
+	}
+
+	// Verify the eval wasn't enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v %#v", stats, out)
+	}
+
+	// Verify the eval was untracked in the blocked tracker.
+	bStats := fsm.blockedEvals.Stats()
+	if bStats.TotalBlocked != 0 {
+		t.Fatalf("bad: %#v %#v", bStats, out)
+	}
+}
+
+func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Mark an eval as blocked.
+	bEval := mock.Eval()
+	bEval.ClassEligibility = map[string]bool{"v1:123": true}
+	fsm.blockedEvals.Block(bEval)
+
+	// Create a successful eval for the same job but with placement failures
+	eval := mock.Eval()
+	eval.JobID = bEval.JobID
+	eval.Status = structs.EvalStatusComplete
+	eval.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+	eval.FailedTGAllocs["test"] = new(structs.AllocMetric)
+
+	req := structs.EvalUpdateRequest{
+		Evals: []*structs.Evaluation{eval},
+	}
+	buf, err := structs.Encode(structs.EvalUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().EvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("not found!")
+	}
+	if out.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", out.CreateIndex)
+	}
+
+	// Verify the eval wasn't enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 0 {
+		t.Fatalf("bad: %#v %#v", stats, out)
+	}
+
+	// Verify the eval was not untracked in the blocked tracker.
+	bStats := fsm.blockedEvals.Stats()
+	if bStats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v %#v", bStats, out)
+	}
+}
+
 func TestFSM_DeleteEval(t *testing.T) {
 	fsm := testFSM(t)
 
