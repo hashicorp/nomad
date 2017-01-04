@@ -378,12 +378,10 @@ func (c *Client) Shutdown() error {
 
 	// Destroy all the running allocations.
 	if c.config.DevMode {
-		c.allocLock.Lock()
-		for _, ar := range c.allocs {
+		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
 			<-ar.WaitCh()
 		}
-		c.allocLock.Unlock()
 	}
 
 	c.shutdown = true
