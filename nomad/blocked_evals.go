@@ -39,8 +39,8 @@ type BlockedEvals struct {
 	capacityChangeCh chan *capacityUpdate
 
 	// jobs is the map of blocked job and is used to ensure that only one
-	// blocked eval exists for each job.
-	jobs map[string]struct{}
+	// blocked eval exists for each job. The value is the blocked evaluation ID.
+	jobs map[string]string
 
 	// unblockIndexes maps computed node classes to the index in which they were
 	// unblocked. This is used to check if an evaluation could have been
@@ -91,7 +91,7 @@ func NewBlockedEvals(evalBroker *EvalBroker) *BlockedEvals {
 		evalBroker:       evalBroker,
 		captured:         make(map[string]wrappedEval),
 		escaped:          make(map[string]wrappedEval),
-		jobs:             make(map[string]struct{}),
+		jobs:             make(map[string]string),
 		unblockIndexes:   make(map[string]uint64),
 		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
 		duplicateCh:      make(chan struct{}, 1),
@@ -183,7 +183,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 
 	// Mark the job as tracked.
 	b.stats.TotalBlocked++
-	b.jobs[eval.JobID] = struct{}{}
+	b.jobs[eval.JobID] = eval.ID
 
 	// Wrap the evaluation, capturing its token.
 	wrapped := wrappedEval{
@@ -242,6 +242,40 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 
 	// The evaluation is ahead of all recent unblocks.
 	return false
+}
+
+// Untrack causes any blocked evaluation for the passed job to be no longer
+// tracked. Untrack is called when there is a successful evaluation for the job
+// and a blocked evaluation is no longer needed.
+func (b *BlockedEvals) Untrack(jobID string) {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Do nothing if not enabled
+	if !b.enabled {
+		return
+	}
+
+	// Get the evaluation ID to cancel
+	evalID, ok := b.jobs[jobID]
+	if !ok {
+		// No blocked evaluation so exit
+		return
+	}
+
+	// Attempt to delete the evaluation
+	if w, ok := b.captured[evalID]; ok {
+		delete(b.jobs, w.eval.JobID)
+		delete(b.captured, evalID)
+		b.stats.TotalBlocked--
+	}
+
+	if w, ok := b.escaped[evalID]; ok {
+		delete(b.jobs, w.eval.JobID)
+		delete(b.escaped, evalID)
+		b.stats.TotalEscaped--
+		b.stats.TotalBlocked--
+	}
 }
 
 // Unblock causes any evaluation that could potentially make progress on a
@@ -410,7 +444,7 @@ func (b *BlockedEvals) Flush() {
 	b.stats.TotalBlocked = 0
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
-	b.jobs = make(map[string]struct{})
+	b.jobs = make(map[string]string)
 	b.duplicates = nil
 	b.capacityChangeCh = make(chan *capacityUpdate, unblockBuffer)
 	b.stopCh = make(chan struct{})
