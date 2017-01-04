@@ -148,7 +148,7 @@ func (r *AllocRunner) RestoreState() error {
 			err := fmt.Errorf("failed to find task dir metadata for alloc %q task %q",
 				r.alloc.ID, name)
 			r.logger.Printf("[ERR] client: %v", err)
-			mErr.Errors = append(mErr.Errors, err)
+			return err
 		}
 
 		task := &structs.Task{Name: name}
