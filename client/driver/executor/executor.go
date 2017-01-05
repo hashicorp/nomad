@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
 	"github.com/shirou/gopsutil/process"
@@ -900,4 +901,25 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	}
 
 	return nil
+}
+
+func GetChrootEnvTree(chrootEnv map[string]string) *iradix.Tree {
+	chrootEnvTree := iradix.New()
+	for k, _ := range chrootEnv {
+		chrootEnvTree, _, _ = chrootEnvTree.Insert([]byte(k), 1)
+	}
+	return chrootEnvTree
+}
+
+func IsValidChroot(chrootTree *iradix.Tree, taskChroot map[string]string) bool {
+	if chrootTree == nil || (*chrootTree).Len() <= 0 {
+		return true
+	}
+	for k, _ := range taskChroot {
+		_, _, found := (*chrootTree).Root().LongestPrefix([]byte(k))
+		if !found {
+			return false
+		}
+	}
+	return true
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -103,6 +104,10 @@ type Config struct {
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string
+
+	// Radix tree of ChrootEnv used to check valid Chroot when Jobs specific Chroot
+	// is given
+	ChrootEnvTree *iradix.Tree
 
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:

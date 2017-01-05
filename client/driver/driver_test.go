@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -77,6 +78,16 @@ func testConfig() *config.Config {
 	return conf
 }
 
+func testConfigWithChrootEnv(chrootEnv map[string]string) *config.Config {
+	conf := config.DefaultConfig()
+	conf.StateDir = os.TempDir()
+	conf.AllocDir = os.TempDir()
+	conf.MaxKillTimeout = 10 * time.Second
+	conf.ChrootEnv = chrootEnv
+	conf.ChrootEnvTree = executor.GetChrootEnvTree(chrootEnv)
+	return conf
+}
+
 func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	cfg := testConfig()
 	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
@@ -97,6 +108,21 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 	return driverCtx, execCtx
 }
 
+func testDriverContextsWithChrootEnv(task *structs.Task, chrootEnv map[string]string) (*DriverContext, *ExecContext) {
+	cfg := testConfigWithChrootEnv(chrootEnv)
+	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
+	allocDir.Build([]*structs.Task{task})
+	alloc := mock.Alloc()
+	execCtx := NewExecContext(allocDir, alloc.ID)
+
+	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, "")
+	if err != nil {
+		return nil, nil
+	}
+
+	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, testLogger(), taskEnv)
+	return driverCtx, execCtx
+}
 func TestDriver_GetTaskEnv(t *testing.T) {
 	task := &structs.Task{
 		Name: "Foo",

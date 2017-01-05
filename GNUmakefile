@@ -3,6 +3,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
 	github.com/kardianos/govendor \
+	github.com/hashicorp/go-immutable-radix \
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
 	github.com/axw/gocov/gocov \

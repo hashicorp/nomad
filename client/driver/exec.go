@@ -99,6 +99,15 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
+	chrootEnv := d.config.ChrootEnv
+
+	if task.ChrootEnv != nil {
+		if !executor.IsValidChroot(d.config.ChrootEnvTree, task.ChrootEnv) {
+			return nil, fmt.Errorf("Task Chroot not subset of Agent Chroot: \n%v\n%v", task.ChrootEnv, d.config.ChrootEnv)
+		} else {
+			chrootEnv = task.ChrootEnv
+		}
+	}
 
 	// Get the command to be ran
 	command := driverConfig.Command
@@ -130,7 +139,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		Driver:    "exec",
 		AllocDir:  ctx.AllocDir,
 		AllocID:   ctx.AllocID,
-		ChrootEnv: d.config.ChrootEnv,
+		ChrootEnv: chrootEnv,
 		Task:      task,
 	}
 	if err := exec.SetContext(executorCtx); err != nil {

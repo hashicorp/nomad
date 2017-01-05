@@ -149,6 +149,7 @@ type Task struct {
 	Config      map[string]interface{}
 	Constraints []*Constraint
 	Env         map[string]string
+	ChrootEnv   map[string]string
 	Services    []Service
 	Resources   *Resources
 	Meta        map[string]string

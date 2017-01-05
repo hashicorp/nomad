@@ -358,6 +358,9 @@ func tasksUpdated(a, b *structs.TaskGroup) bool {
 		if !reflect.DeepEqual(at.Env, bt.Env) {
 			return true
 		}
+		if !reflect.DeepEqual(at.ChrootEnv, bt.ChrootEnv) {
+			return true
+		}
 		if !reflect.DeepEqual(at.Meta, bt.Meta) {
 			return true
 		}

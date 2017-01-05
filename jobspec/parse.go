@@ -557,6 +557,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			"constraint",
 			"driver",
 			"env",
+			"chroot_env",
 			"kill_timeout",
 			"logs",
 			"meta",
@@ -578,6 +579,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		delete(m, "config")
 		delete(m, "constraint")
 		delete(m, "env")
+		delete(m, "chroot_env")
 		delete(m, "logs")
 		delete(m, "meta")
 		delete(m, "resources")
@@ -611,6 +613,19 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 					return err
 				}
 				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
+					return err
+				}
+			}
+		}
+
+		// If we have chroot env, then parse them
+		if o := listVal.Filter("chroot_env"); len(o.Items) > 0 {
+			for _, o := range o.Elem().Items {
+				var m map[string]interface{}
+				if err := hcl.DecodeObject(&m, o.Val); err != nil {
+					return err
+				}
+				if err := mapstructure.WeakDecode(m, &t.ChrootEnv); err != nil {
 					return err
 				}
 			}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -219,6 +220,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
 	conf.ChrootEnv = a.config.Client.ChrootEnv
+	conf.ChrootEnvTree = executor.GetChrootEnvTree(conf.ChrootEnv)
+
 	conf.Options = a.config.Client.Options
 	// Logging deprecation messages about consul related configuration in client
 	// options
