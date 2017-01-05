@@ -1,6 +1,7 @@
 ## 0.5.3 (Unreleased) 
 
 IMPROVEMENTS:
+  * core: Introduce Constructor jobs and Dispatch command/API [GH-2128]
   * cli: Defaulting to showing allocations which belong to currently registered
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
