@@ -877,6 +877,247 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Constructor added
+			Old: &Job{},
+			New: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadRequired,
+					MetaOptional: []string{"foo"},
+					MetaRequired: []string{"bar"},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Constructor",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Payload",
+								Old:  "",
+								New:  DispatchPayloadRequired,
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "OptionalMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "OptionalMeta",
+										Old:  "",
+										New:  "foo",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RequiredMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "RequiredMeta",
+										Old:  "",
+										New:  "bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Constructor deleted
+			Old: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadRequired,
+					MetaOptional: []string{"foo"},
+					MetaRequired: []string{"bar"},
+				},
+			},
+			New: &Job{},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Constructor",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Payload",
+								Old:  DispatchPayloadRequired,
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "OptionalMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "OptionalMeta",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RequiredMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "RequiredMeta",
+										Old:  "bar",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Constructor edited
+			Old: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadRequired,
+					MetaOptional: []string{"foo"},
+					MetaRequired: []string{"bar"},
+				},
+			},
+			New: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadOptional,
+					MetaOptional: []string{"bam"},
+					MetaRequired: []string{"bang"},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Constructor",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Payload",
+								Old:  DispatchPayloadRequired,
+								New:  DispatchPayloadOptional,
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "OptionalMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "OptionalMeta",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "OptionalMeta",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "RequiredMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "RequiredMeta",
+										Old:  "",
+										New:  "bang",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "RequiredMeta",
+										Old:  "bar",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Constructor edited with context
+			Contextual: true,
+			Old: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadRequired,
+					MetaOptional: []string{"foo"},
+					MetaRequired: []string{"bar"},
+				},
+			},
+			New: &Job{
+				Constructor: &ConstructorConfig{
+					Payload:      DispatchPayloadOptional,
+					MetaOptional: []string{"foo"},
+					MetaRequired: []string{"bar"},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Constructor",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Payload",
+								Old:  DispatchPayloadRequired,
+								New:  DispatchPayloadOptional,
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "OptionalMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "OptionalMeta",
+										Old:  "foo",
+										New:  "foo",
+									},
+								},
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "RequiredMeta",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "RequiredMeta",
+										Old:  "bar",
+										New:  "bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
@@ -3418,6 +3659,120 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Splay",
 								Old:  "2",
 								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// DispatchInput added
+			Old: &Task{},
+			New: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "foo",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "DispatchInput",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "File",
+								Old:  "",
+								New:  "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// DispatchInput deleted
+			Old: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "foo",
+				},
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "DispatchInput",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "File",
+								Old:  "foo",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Dispatch input edited
+			Old: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "foo",
+				},
+			},
+			New: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "bar",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "DispatchInput",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "File",
+								Old:  "foo",
+								New:  "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// DispatchInput edited with context. Place holder for if more
+			// fields are added
+			Contextual: true,
+			Old: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "foo",
+				},
+			},
+			New: &Task{
+				DispatchInput: &DispatchInputConfig{
+					File: "bar",
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "DispatchInput",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "File",
+								Old:  "foo",
+								New:  "bar",
 							},
 						},
 					},

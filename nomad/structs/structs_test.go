@@ -1267,7 +1267,7 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	valid.RelativeDest = "local/../.."
+	valid.RelativeDest = "local/../../.."
 	if err := valid.Validate(); err == nil {
 		t.Fatalf("expected error: %v", err)
 	}
@@ -1442,5 +1442,66 @@ func TestVault_Validate(t *testing.T) {
 
 	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Signal must") {
 		t.Fatalf("Expected signal empty error")
+	}
+}
+
+func TestConstructorConfig_Validate(t *testing.T) {
+	d := &ConstructorConfig{
+		Payload: "foo",
+	}
+
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "payload") {
+		t.Fatalf("Expected unknown payload requirement: %v", err)
+	}
+
+	d.Payload = DispatchPayloadOptional
+	d.MetaOptional = []string{"foo", "bar"}
+	d.MetaRequired = []string{"bar", "baz"}
+
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "disjoint") {
+		t.Fatalf("Expected meta not being disjoint error: %v", err)
+	}
+}
+
+func TestConstructorConfig_Validate_NonBatch(t *testing.T) {
+	job := testJob()
+	job.Constructor = &ConstructorConfig{
+		Payload: DispatchPayloadOptional,
+	}
+	job.Type = JobTypeSystem
+
+	if err := job.Validate(); err == nil || !strings.Contains(err.Error(), "only be used with") {
+		t.Fatalf("Expected bad scheduler tpye: %v", err)
+	}
+}
+
+func TestConstructorConfig_Canonicalize(t *testing.T) {
+	d := &ConstructorConfig{}
+	d.Canonicalize()
+	if d.Payload != DispatchPayloadOptional {
+		t.Fatalf("Canonicalize failed")
+	}
+}
+
+func TestDispatchInputConfig_Validate(t *testing.T) {
+	d := &DispatchInputConfig{
+		File: "foo",
+	}
+
+	// task/local/haha
+	if err := d.Validate(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// task/haha
+	d.File = "../haha"
+	if err := d.Validate(); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// ../haha
+	d.File = "../../../haha"
+	if err := d.Validate(); err == nil {
+		t.Fatalf("bad: %v", err)
 	}
 }

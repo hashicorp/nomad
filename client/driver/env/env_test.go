@@ -140,7 +140,6 @@ func TestEnvironment_AsList(t *testing.T) {
 	env := NewTaskEnvironment(n).
 		SetNetworks(networks).
 		SetPortMap(portMap).
-		SetTaskGroupMeta(map[string]string{"foo": "bar", "baz": "bam"}).
 		SetTaskMeta(map[string]string{"foo": "baz"}).Build()
 
 	act := env.EnvList()
@@ -154,7 +153,6 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_META_FOO=baz",
-		"NOMAD_META_BAZ=bam",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
@@ -257,25 +255,5 @@ func TestEnvironment_AppendHostEnvVars(t *testing.T) {
 	}
 	if _, ok := act[skip]; ok {
 		t.Fatalf("Didn't filter environment variable %q", skip)
-	}
-}
-
-func TestEnvironment_MetaPrecedence(t *testing.T) {
-	n := mock.Node()
-	env := NewTaskEnvironment(n).
-		SetJobMeta(map[string]string{"foo": "job", "bar": "job", "baz": "job"}).
-		SetTaskGroupMeta(map[string]string{"foo": "tg", "bar": "tg"}).
-		SetTaskMeta(map[string]string{"foo": "task"}).Build()
-
-	act := env.EnvList()
-	exp := []string{
-		"NOMAD_META_FOO=task",
-		"NOMAD_META_BAR=tg",
-		"NOMAD_META_BAZ=job",
-	}
-	sort.Strings(act)
-	sort.Strings(exp)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
 	}
 }

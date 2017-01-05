@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
@@ -85,6 +87,9 @@ type TaskRunner struct {
 	// downloaded
 	artifactsDownloaded bool
 
+	// payloadRendered tracks whether the payload has been rendered to disk
+	payloadRendered bool
+
 	// vaultFuture is the means to wait for and get a Vault token
 	vaultFuture *tokenFuture
 
@@ -129,6 +134,7 @@ type taskRunnerState struct {
 	Task               *structs.Task
 	HandleID           string
 	ArtifactDownloaded bool
+	PayloadRendered    bool
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
@@ -231,6 +237,7 @@ func (r *TaskRunner) RestoreState() error {
 		r.task = snap.Task
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
+	r.payloadRendered = snap.PayloadRendered
 
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
@@ -293,6 +300,7 @@ func (r *TaskRunner) SaveState() error {
 		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
+		PayloadRendered:    r.payloadRendered,
 	}
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -711,6 +719,31 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
 		resultCh <- false
 		return
+	}
+
+	// If the job is a dispatch job and there is a payload write it to disk
+	requirePayload := len(r.alloc.Job.Payload) != 0 &&
+		(r.task.DispatchInput != nil && r.task.DispatchInput.File != "")
+	if !r.payloadRendered && requirePayload {
+		renderTo := filepath.Join(r.taskDir, allocdir.TaskLocal, r.task.DispatchInput.File)
+		decoded, err := snappy.Decode(nil, r.alloc.Job.Payload)
+		if err != nil {
+			r.setState(
+				structs.TaskStateDead,
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+			resultCh <- false
+			return
+		}
+
+		if err := ioutil.WriteFile(renderTo, decoded, 0777); err != nil {
+			r.setState(
+				structs.TaskStateDead,
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+			resultCh <- false
+			return
+		}
+
+		r.payloadRendered = true
 	}
 
 	for {

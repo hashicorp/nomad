@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -20,6 +21,10 @@ const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
+
+	// DispatchPayloadSizeLimit is the maximum size of the uncompressed input
+	// data payload.
+	DispatchPayloadSizeLimit = 16 * 1024
 )
 
 var (
@@ -133,8 +138,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic, we don't create an eval.
-	if args.Job.IsPeriodic() {
+	// If the job is periodic or a constructor, we don't create an eval.
+	if args.Job.IsPeriodic() || args.Job.IsConstructor() {
 		return nil
 	}
 
@@ -311,6 +316,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	if job.IsPeriodic() {
 		return fmt.Errorf("can't evaluate periodic job")
+	} else if job.IsConstructor() {
+		return fmt.Errorf("can't evaluate constructor job")
 	}
 
 	// Create a new evaluation
@@ -375,8 +382,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	// If the job is periodic, we don't create an eval.
-	if job != nil && job.IsPeriodic() {
+	// If the job is periodic or a construcotr, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsConstructor()) {
 		return nil
 	}
 
@@ -766,5 +773,169 @@ func validateJob(job *structs.Job) error {
 		multierror.Append(validationErrors, fmt.Errorf("job type cannot be core"))
 	}
 
+	if len(job.Payload) != 0 {
+		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
+	}
+
 	return validationErrors.ErrorOrNil()
+}
+
+// Dispatch is used to dispatch a job based on a constructor job.
+func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispatchResponse) error {
+	if done, err := j.srv.forward("Job.Dispatch", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
+
+	// Lookup the job
+	if args.JobID == "" {
+		return fmt.Errorf("missing constructor job ID")
+	}
+
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	constructor, err := snap.JobByID(args.JobID)
+	if err != nil {
+		return err
+	}
+	if constructor == nil {
+		return fmt.Errorf("constructor job not found")
+	}
+
+	if !constructor.IsConstructor() {
+		return fmt.Errorf("Specified job %q is not a constructor job", args.JobID)
+	}
+
+	// Validate the arguments
+	if err := validateDispatchRequest(args, constructor); err != nil {
+		return err
+	}
+
+	// Derive the child job and commit it via Raft
+	dispatchJob := constructor.Copy()
+	dispatchJob.Constructor = nil
+	dispatchJob.ID = structs.DispatchedID(constructor.ID, time.Now())
+	dispatchJob.ParentID = constructor.ID
+	dispatchJob.Name = dispatchJob.ID
+
+	// Merge in the meta data
+	for k, v := range args.Meta {
+		if dispatchJob.Meta == nil {
+			dispatchJob.Meta = make(map[string]string, len(args.Meta))
+		}
+		dispatchJob.Meta[k] = v
+	}
+
+	// Compress the payload
+	dispatchJob.Payload = snappy.Encode(nil, args.Payload)
+
+	regReq := &structs.JobRegisterRequest{
+		Job:          dispatchJob,
+		WriteRequest: args.WriteRequest,
+	}
+
+	// Commit this update via Raft
+	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		return err
+	}
+
+	// Create a new evaluation
+	eval := &structs.Evaluation{
+		ID:             structs.GenerateUUID(),
+		Priority:       dispatchJob.Priority,
+		Type:           dispatchJob.Type,
+		TriggeredBy:    structs.EvalTriggerJobRegister,
+		JobID:          dispatchJob.ID,
+		JobModifyIndex: jobCreateIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.JobCreateIndex = jobCreateIndex
+	reply.DispatchedJobID = dispatchJob.ID
+	reply.Index = evalIndex
+	return nil
+}
+
+// validateDispatchRequest returns whether the request is valid given the
+// jobs constructor
+func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) error {
+	// Check the payload constraint is met
+	hasInputData := len(req.Payload) != 0
+	if job.Constructor.Payload == structs.DispatchPayloadRequired && !hasInputData {
+		return fmt.Errorf("Payload is not provided but required by constructor")
+	} else if job.Constructor.Payload == structs.DispatchPayloadForbidden && hasInputData {
+		return fmt.Errorf("Payload provided but forbidden by constructor")
+	}
+
+	// Check the payload doesn't exceed the size limit
+	if l := len(req.Payload); l > DispatchPayloadSizeLimit {
+		return fmt.Errorf("Payload exceeds maximum size; %d > %d", l, DispatchPayloadSizeLimit)
+	}
+
+	// Check if the metadata is a set
+	keys := make(map[string]struct{}, len(req.Meta))
+	for k := range keys {
+		if _, ok := keys[k]; ok {
+			return fmt.Errorf("Duplicate key %q in passed metadata", k)
+		}
+		keys[k] = struct{}{}
+	}
+
+	required := structs.SliceStringToSet(job.Constructor.MetaRequired)
+	optional := structs.SliceStringToSet(job.Constructor.MetaOptional)
+
+	// Check the metadata key constraints are met
+	unpermitted := make(map[string]struct{})
+	for k := range req.Meta {
+		_, req := required[k]
+		_, opt := optional[k]
+		if !req && !opt {
+			unpermitted[k] = struct{}{}
+		}
+	}
+
+	if len(unpermitted) != 0 {
+		flat := make([]string, 0, len(unpermitted))
+		for k := range unpermitted {
+			flat = append(flat, k)
+		}
+
+		return fmt.Errorf("Dispatch request included unpermitted metadata keys: %v", flat)
+	}
+
+	missing := make(map[string]struct{})
+	for _, k := range job.Constructor.MetaRequired {
+		if _, ok := req.Meta[k]; !ok {
+			missing[k] = struct{}{}
+		}
+	}
+
+	if len(missing) != 0 {
+		flat := make([]string, 0, len(missing))
+		for k := range missing {
+			flat = append(flat, k)
+		}
+
+		return fmt.Errorf("Dispatch did not provide required meta keys: %v", flat)
+	}
+
+	return nil
 }

@@ -122,6 +122,7 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	}
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
 	env, err := GetTaskEnv(nil, nil, task, alloc, testConfig(), "")
 	if err != nil {

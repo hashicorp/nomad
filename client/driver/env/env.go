@@ -86,8 +86,6 @@ const (
 type TaskEnvironment struct {
 	Env              map[string]string
 	TaskMeta         map[string]string
-	TaskGroupMeta    map[string]string
-	JobMeta          map[string]string
 	AllocDir         string
 	TaskDir          string
 	SecretsDir       string
@@ -139,11 +137,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	t.NodeValues = make(map[string]string)
 	t.TaskEnv = make(map[string]string)
 
-	// Build the meta with the following precedence: task, task group, job.
-	for _, meta := range []map[string]string{t.JobMeta, t.TaskGroupMeta, t.TaskMeta} {
-		for k, v := range meta {
-			t.TaskEnv[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
-		}
+	// Build the meta
+	for k, v := range t.TaskMeta {
+		t.TaskEnv[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
 	}
 
 	// Build the ports
@@ -334,26 +330,6 @@ func (t *TaskEnvironment) SetTaskMeta(m map[string]string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearTaskMeta() *TaskEnvironment {
 	t.TaskMeta = nil
-	return t
-}
-
-func (t *TaskEnvironment) SetTaskGroupMeta(m map[string]string) *TaskEnvironment {
-	t.TaskGroupMeta = m
-	return t
-}
-
-func (t *TaskEnvironment) ClearTaskGroupMeta() *TaskEnvironment {
-	t.TaskGroupMeta = nil
-	return t
-}
-
-func (t *TaskEnvironment) SetJobMeta(m map[string]string) *TaskEnvironment {
-	t.JobMeta = m
-	return t
-}
-
-func (t *TaskEnvironment) ClearJobMeta() *TaskEnvironment {
-	t.JobMeta = nil
 	return t
 }
 

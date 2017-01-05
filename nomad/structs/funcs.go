@@ -269,6 +269,30 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 	return subset, offending
 }
 
+func SliceSetDisjoint(first, second []string) (bool, []string) {
+	contained := make(map[string]struct{}, len(first))
+	for _, k := range first {
+		contained[k] = struct{}{}
+	}
+
+	offending := make(map[string]struct{})
+	for _, k := range second {
+		if _, ok := contained[k]; ok {
+			offending[k] = struct{}{}
+		}
+	}
+
+	if len(offending) == 0 {
+		return true, nil
+	}
+
+	flattened := make([]string, 0, len(offending))
+	for k := range offending {
+		flattened = append(flattened, k)
+	}
+	return false, flattened
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
@@ -303,4 +327,12 @@ func MapStringStringSliceValueSet(m map[string][]string) []string {
 		flat = append(flat, k)
 	}
 	return flat
+}
+
+func SliceStringToSet(s []string) map[string]struct{} {
+	m := make(map[string]struct{}, (len(s)+1)/2)
+	for _, k := range s {
+		m[k] = struct{}{}
+	}
+	return m
 }

@@ -273,6 +273,14 @@ type JobSummaryRequest struct {
 	QueryOptions
 }
 
+// JobDispatchRequest is used to dispatch a job based on a constructor job
+type JobDispatchRequest struct {
+	JobID   string
+	Payload []byte
+	Meta    map[string]string
+	WriteRequest
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -523,6 +531,14 @@ type SingleJobResponse struct {
 // JobSummaryResponse is used to return a single job summary
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
+	QueryMeta
+}
+
+type JobDispatchResponse struct {
+	DispatchedJobID string
+	EvalID          string
+	EvalCreateIndex uint64
+	JobCreateIndex  uint64
 	QueryMeta
 }
 
@@ -1063,39 +1079,6 @@ const (
 	CoreJobPriority = JobMaxPriority * 2
 )
 
-// JobSummary summarizes the state of the allocations of a job
-type JobSummary struct {
-	JobID   string
-	Summary map[string]TaskGroupSummary
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// Copy returns a new copy of JobSummary
-func (js *JobSummary) Copy() *JobSummary {
-	newJobSummary := new(JobSummary)
-	*newJobSummary = *js
-	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
-	for k, v := range js.Summary {
-		newTGSummary[k] = v
-	}
-	newJobSummary.Summary = newTGSummary
-	return newJobSummary
-}
-
-// TaskGroup summarizes the state of all the allocations of a particular
-// TaskGroup
-type TaskGroupSummary struct {
-	Queued   int
-	Complete int
-	Failed   int
-	Running  int
-	Starting int
-	Lost     int
-}
-
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
@@ -1147,6 +1130,12 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
+	// Constructor is used to specify the job as a constructor job for dispatching.
+	Constructor *ConstructorConfig
+
+	// Payload is the payload supplied when the job was dispatched.
+	Payload []byte
+
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
@@ -1180,6 +1169,10 @@ func (j *Job) Canonicalize() {
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
+
+	if j.Constructor != nil {
+		j.Constructor.Canonicalize()
+	}
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -1203,6 +1196,7 @@ func (j *Job) Copy() *Job {
 
 	nj.Periodic = nj.Periodic.Copy()
 	nj.Meta = CopyMapStringString(nj.Meta)
+	nj.Constructor = nj.Constructor.Copy()
 	return nj
 }
 
@@ -1277,6 +1271,17 @@ func (j *Job) Validate() error {
 		}
 	}
 
+	if j.IsConstructor() {
+		if j.Type != JobTypeBatch {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Constructor job can only be used with %q scheduler", JobTypeBatch))
+		}
+
+		if err := j.Constructor.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -1288,6 +1293,42 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 		}
 	}
 	return nil
+}
+
+// CombinedTaskMeta takes a TaskGroup and Task name and returns the combined
+// meta data for the task. When joining Job, Group and Task Meta, the precedence
+// is by deepest scope (Task > Group > Job).
+func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
+	group := j.LookupTaskGroup(groupName)
+	if group == nil {
+		return nil
+	}
+
+	task := group.LookupTask(taskName)
+	if task == nil {
+		return nil
+	}
+
+	meta := CopyMapStringString(task.Meta)
+	if meta == nil {
+		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
+	}
+
+	// Add the group specific meta
+	for k, v := range group.Meta {
+		if _, ok := meta[k]; !ok {
+			meta[k] = v
+		}
+	}
+
+	// Add the job specific meta
+	for k, v := range j.Meta {
+		if _, ok := meta[k]; !ok {
+			meta[k] = v
+		}
+	}
+
+	return meta
 }
 
 // Stub is used to return a summary of the job
@@ -1310,6 +1351,11 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 // IsPeriodic returns whether a job is periodic.
 func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
+}
+
+// IsConstructor returns whether a job is constructor job.
+func (j *Job) IsConstructor() bool {
+	return j.Constructor != nil
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -1398,6 +1444,63 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+}
+
+// JobSummary summarizes the state of the allocations of a job
+type JobSummary struct {
+	JobID string
+
+	// Summmary contains the summary per task group for the Job
+	Summary map[string]TaskGroupSummary
+
+	// Children contains a summary for the children of this job.
+	Children *JobChildrenSummary
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// Copy returns a new copy of JobSummary
+func (js *JobSummary) Copy() *JobSummary {
+	newJobSummary := new(JobSummary)
+	*newJobSummary = *js
+	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
+	for k, v := range js.Summary {
+		newTGSummary[k] = v
+	}
+	newJobSummary.Summary = newTGSummary
+	newJobSummary.Children = newJobSummary.Children.Copy()
+	return newJobSummary
+}
+
+// JobChildrenSummary contains the summary of children job statuses
+type JobChildrenSummary struct {
+	Pending int64
+	Running int64
+	Dead    int64
+}
+
+// Copy returns a new copy of a JobChildrenSummary
+func (jc *JobChildrenSummary) Copy() *JobChildrenSummary {
+	if jc == nil {
+		return nil
+	}
+
+	njc := new(JobChildrenSummary)
+	*njc = *jc
+	return njc
+}
+
+// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroup
+type TaskGroupSummary struct {
+	Queued   int
+	Complete int
+	Failed   int
+	Running  int
+	Starting int
+	Lost     int
 }
 
 // UpdateStrategy is used to modify how updates are done
@@ -1524,6 +1627,96 @@ type PeriodicLaunch struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+const (
+	DispatchPayloadForbidden = "forbidden"
+	DispatchPayloadOptional  = "optional"
+	DispatchPayloadRequired  = "required"
+
+	// DispatchLaunchSuffic is the string appended to the constructor job's ID
+	// when dispatching instances of it.
+	DispatchLaunchSuffic = "/dispatch-"
+)
+
+// ConstructorConfig is used to configure the constructor job
+type ConstructorConfig struct {
+	// Payload configure the payload requirements
+	Payload string
+
+	// MetaRequired is metadata keys that must be specified by the dispatcher
+	MetaRequired []string `mapstructure:"required"`
+
+	// MetaOptional is metadata keys that may be specified by the dispatcher
+	MetaOptional []string `mapstructure:"optional"`
+}
+
+func (d *ConstructorConfig) Validate() error {
+	var mErr multierror.Error
+	switch d.Payload {
+	case DispatchPayloadOptional, DispatchPayloadRequired, DispatchPayloadForbidden:
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Unknown payload requirement: %q", d.Payload))
+	}
+
+	// Check that the meta configurations are disjoint sets
+	disjoint, offending := SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	if !disjoint {
+		multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (d *ConstructorConfig) Canonicalize() {
+	if d.Payload == "" {
+		d.Payload = DispatchPayloadOptional
+	}
+}
+
+func (d *ConstructorConfig) Copy() *ConstructorConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(ConstructorConfig)
+	*nd = *d
+	nd.MetaOptional = CopySliceString(nd.MetaOptional)
+	nd.MetaRequired = CopySliceString(nd.MetaRequired)
+	return nd
+}
+
+// DispatchedID returns an ID appropriate for a job dispatched against a
+// particular constructor
+func DispatchedID(templateID string, t time.Time) string {
+	u := GenerateUUID()[:8]
+	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffic, t.Unix(), u)
+}
+
+// DispatchInputConfig configures how a task gets its input from a job dispatch
+type DispatchInputConfig struct {
+	// File specifies a relative path to where the input data should be written
+	File string
+}
+
+func (d *DispatchInputConfig) Copy() *DispatchInputConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(DispatchInputConfig)
+	*nd = *d
+	return nd
+}
+
+func (d *DispatchInputConfig) Validate() error {
+	// Verify the destination doesn't escape
+	escaped, err := PathEscapesAllocDir("task/local/", d.File)
+	if err != nil {
+		return fmt.Errorf("invalid destination path: %v", err)
+	} else if escaped {
+		return fmt.Errorf("destination escapes allocation directory")
+	}
+
+	return nil
 }
 
 var (
@@ -2077,6 +2270,9 @@ type Task struct {
 	// Resources is the resources needed by this task
 	Resources *Resources
 
+	// DispatchInput configures how the task retrieves its input from a dispatch
+	DispatchInput *DispatchInputConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
@@ -2114,6 +2310,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = CopyMapStringString(nt.Meta)
+	nt.DispatchInput = nt.DispatchInput.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -2278,6 +2475,13 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
+	// Validate the dispatch input block if there
+	if t.DispatchInput != nil {
+		if err := t.DispatchInput.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Input validation failed: %v", err))
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2419,7 +2623,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir(t.DestPath)
+	escaped, err := PathEscapesAllocDir("task", t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -2784,14 +2988,16 @@ func (ta *TaskArtifact) GoString() string {
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
-// directory
-func PathEscapesAllocDir(path string) (bool, error) {
+// directory. The prefix allows adding a prefix if the path will be joined, for
+// example a "task/local" prefix may be provided if the path will be joined
+// against that prefix.
+func PathEscapesAllocDir(prefix, path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "foo/", "bar/"))
+	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
 	if err != nil {
 		return false, err
 	}
-	abs, err := filepath.Abs(filepath.Join(alloc, path))
+	abs, err := filepath.Abs(filepath.Join(alloc, prefix, path))
 	if err != nil {
 		return false, err
 	}
@@ -2810,11 +3016,11 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
 	}
 
-	escaped, err := PathEscapesAllocDir(ta.RelativeDest)
+	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes task's directory"))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
 	// Verify the checksum

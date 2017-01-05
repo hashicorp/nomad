@@ -179,6 +179,21 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 	return &resp, qm, nil
 }
 
+func (j *Jobs) Dispatch(jobID string, meta map[string]string,
+	payload []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	var resp JobDispatchResponse
+	req := &JobDispatchRequest{
+		JobID:   jobID,
+		Meta:    meta,
+		Payload: payload,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/dispatch", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -198,6 +213,13 @@ type PeriodicConfig struct {
 	ProhibitOverlap bool
 }
 
+// ConstructorConfig is used to configure the constructor job
+type ConstructorConfig struct {
+	Payload      string
+	MetaRequired []string
+	MetaOptional []string
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	Region            string
@@ -212,6 +234,8 @@ type Job struct {
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
+	Constructor       *ConstructorConfig
+	Payload           []byte
 	Meta              map[string]string
 	VaultToken        string
 	Status            string
@@ -223,12 +247,28 @@ type Job struct {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
-	JobID   string
-	Summary map[string]TaskGroupSummary
+	JobID    string
+	Summary  map[string]TaskGroupSummary
+	Children *JobChildrenSummary
 
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobChildrenSummary contains the summary of children job status
+type JobChildrenSummary struct {
+	Pending int64
+	Running int64
+	Dead    int64
+}
+
+func (jc *JobChildrenSummary) Sum() int {
+	if jc == nil {
+		return 0
+	}
+
+	return int(jc.Pending + jc.Running + jc.Dead)
 }
 
 // TaskGroup summarizes the state of all the allocations of a particular
@@ -412,4 +452,18 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+}
+
+type JobDispatchRequest struct {
+	JobID   string
+	Payload []byte
+	Meta    map[string]string
+}
+
+type JobDispatchResponse struct {
+	DispatchedJobID string
+	EvalID          string
+	EvalCreateIndex uint64
+	JobCreateIndex  uint64
+	QueryMeta
 }

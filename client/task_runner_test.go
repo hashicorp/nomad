@@ -8,10 +8,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -1243,4 +1245,67 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+// Test that the payload is written to disk
+func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "1s",
+	}
+	fileName := "test"
+	task.DispatchInput = &structs.DispatchInputConfig{
+		File: fileName,
+	}
+	alloc.Job.Constructor = &structs.ConstructorConfig{}
+
+	// Add an encrypted payload
+	expected := []byte("hello world")
+	compressed := snappy.Encode(nil, expected)
+	alloc.Job.Payload = compressed
+
+	upd, tr := testTaskRunnerFromAlloc(false, alloc)
+	tr.MarkReceived()
+	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer tr.ctx.AllocDir.Destroy()
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if len(upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", upd.events)
+	}
+
+	if upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	}
+
+	if upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	}
+
+	if upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	}
+
+	// Check that the file was written to disk properly
+	payloadPath := filepath.Join(tr.taskDir, allocdir.TaskLocal, fileName)
+	data, err := ioutil.ReadFile(payloadPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if !reflect.DeepEqual(data, expected) {
+		t.Fatalf("Bad; got %v; want %v", string(data), string(expected))
+	}
 }

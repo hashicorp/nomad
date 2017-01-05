@@ -344,12 +344,17 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
 
-		// If we are inserting the job for the first time, we don't need to
-		// calculate the jobs status as it is known.
-		if job.IsPeriodic() {
-			job.Status = structs.JobStatusRunning
-		} else {
-			job.Status = structs.JobStatusPending
+		if err := s.setJobStatus(index, watcher, txn, job, false, ""); err != nil {
+			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
+		}
+
+		// Have to get the job again since it could have been updated
+		updated, err := txn.First("jobs", "id", job.ID)
+		if err != nil {
+			return fmt.Errorf("job lookup failed: %v", err)
+		}
+		if updated != nil {
+			job = updated.(*structs.Job)
 		}
 	}
 
@@ -394,7 +399,48 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	watcher.Add(watch.Item{Table: "job_summary"})
 	watcher.Add(watch.Item{JobSummary: jobID})
 
-	// Delete the node
+	// Check if we should update a parent job summary
+	job := existing.(*structs.Job)
+	if job.ParentID != "" {
+		summaryRaw, err := txn.First("job_summary", "id", job.ParentID)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
+		}
+
+		// Only continue if the summary exists. It could not exist if the parent
+		// job was removed
+		if summaryRaw != nil {
+			existing := summaryRaw.(structs.JobSummary)
+			pSummary := existing.Copy()
+			if pSummary.Children != nil {
+
+				switch job.Status {
+				case structs.JobStatusPending:
+					pSummary.Children.Pending--
+					pSummary.Children.Dead++
+				case structs.JobStatusRunning:
+					pSummary.Children.Running--
+					pSummary.Children.Dead++
+				case structs.JobStatusDead:
+				default:
+					return fmt.Errorf("unknown old job status %q", job.Status)
+				}
+
+				watcher.Add(watch.Item{Table: "job_summary"})
+				watcher.Add(watch.Item{JobSummary: job.ParentID})
+
+				// Insert the summary
+				if err := txn.Insert("job_summary", *pSummary); err != nil {
+					return fmt.Errorf("job summary insert failed: %v", err)
+				}
+				if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+					return fmt.Errorf("index update failed: %v", err)
+				}
+			}
+		}
+	}
+
+	// Delete the job
 	if err := txn.Delete("jobs", existing); err != nil {
 		return fmt.Errorf("job delete failed: %v", err)
 	}
@@ -881,6 +927,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, watcher watch.I
 		return nil
 	}
 	exist := existing.(*structs.Allocation)
+
 	// Trigger the watcher
 	watcher.Add(watch.Item{Alloc: alloc.ID})
 	watcher.Add(watch.Item{AllocEval: exist.EvalID})
@@ -1440,6 +1487,9 @@ func (s *StateStore) setJobStatus(index uint64, watcher watch.Items, txn *memdb.
 
 	// Capture the current status so we can check if there is a change
 	oldStatus := job.Status
+	if index == job.CreateIndex {
+		oldStatus = ""
+	}
 	newStatus := forceStatus
 
 	// If forceStatus is not set, compute the jobs status.
@@ -1472,6 +1522,69 @@ func (s *StateStore) setJobStatus(index uint64, watcher watch.Items, txn *memdb.
 	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
+	// Update the children summary
+	if updated.ParentID != "" {
+		// Try to update the summary of the parent job summary
+		summaryRaw, err := txn.First("job_summary", "id", updated.ParentID)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
+		}
+
+		// Only continue if the summary exists. It could not exist if the parent
+		// job was removed
+		if summaryRaw != nil {
+			existing := summaryRaw.(structs.JobSummary)
+			pSummary := existing.Copy()
+			if pSummary.Children == nil {
+				pSummary.Children = new(structs.JobChildrenSummary)
+			}
+
+			// Determine the transistion and update the correct fields
+			children := pSummary.Children
+
+			// Decrement old status
+			if oldStatus != "" {
+				switch oldStatus {
+				case structs.JobStatusPending:
+					children.Pending--
+				case structs.JobStatusRunning:
+					children.Running--
+				case structs.JobStatusDead:
+					children.Dead--
+				default:
+					return fmt.Errorf("unknown old job status %q", oldStatus)
+				}
+			}
+
+			// Increment new status
+			switch newStatus {
+			case structs.JobStatusPending:
+				children.Pending++
+			case structs.JobStatusRunning:
+				children.Running++
+			case structs.JobStatusDead:
+				children.Dead++
+			default:
+				return fmt.Errorf("unknown new job status %q", newStatus)
+			}
+
+			// Update the index
+			pSummary.ModifyIndex = index
+
+			watcher.Add(watch.Item{Table: "job_summary"})
+			watcher.Add(watch.Item{JobSummary: updated.ParentID})
+
+			// Insert the summary
+			if err := txn.Insert("job_summary", *pSummary); err != nil {
+				return fmt.Errorf("job summary insert failed: %v", err)
+			}
+			if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+				return fmt.Errorf("index update failed: %v", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -1510,9 +1623,9 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	}
 
 	// If there are no allocations or evaluations it is a new job. If the job is
-	// periodic, we mark it as running as it will never have an
-	// allocation/evaluation against it.
-	if job.IsPeriodic() {
+	// periodic or is a constructor, we mark it as running as it will never have
+	// an allocation/evaluation against it.
+	if job.IsPeriodic() || job.IsConstructor() {
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil
@@ -1532,6 +1645,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		existing = &structs.JobSummary{
 			JobID:       job.ID,
 			Summary:     make(map[string]structs.TaskGroupSummary),
+			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: index,
 		}
 		hasSummaryChanged = true
@@ -1804,6 +1918,8 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 
 // JobSummaryRestore is used to restore a job summary
 func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
+	r.items.Add(watch.Item{Table: "job_summary"})
+	r.items.Add(watch.Item{JobSummary: jobSummary.JobID})
 	if err := r.txn.Insert("job_summary", *jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
 	}

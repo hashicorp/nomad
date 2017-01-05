@@ -3,8 +3,10 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -201,6 +203,59 @@ func TestHTTP_JobQuery(t *testing.T) {
 		j := obj.(*structs.Job)
 		if j.ID != job.ID {
 			t.Fatalf("bad: %#v", j)
+		}
+	})
+}
+
+func TestHTTP_JobQuery_Payload(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+
+		// Insert Payload compressed
+		expected := []byte("hello world")
+		compressed := snappy.Encode(nil, expected)
+		job.Payload = compressed
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		if err := state.UpsertJob(1000, job); err != nil {
+			t.Fatalf("Failed to upsert job: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the job
+		j := obj.(*structs.Job)
+		if j.ID != job.ID {
+			t.Fatalf("bad: %#v", j)
+		}
+
+		// Check the payload is decompressed
+		if !reflect.DeepEqual(j.Payload, expected) {
+			t.Fatalf("Payload not decompressed properly; got %#v; want %#v", j.Payload, expected)
 		}
 	})
 }
@@ -516,6 +571,54 @@ func TestHTTP_JobPlan(t *testing.T) {
 
 		if plan.Diff == nil {
 			t.Fatalf("bad: %v", plan)
+		}
+	})
+}
+
+func TestHTTP_JobDispatch(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the constructor job
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		job.Constructor = &structs.ConstructorConfig{}
+
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the request
+		respW := httptest.NewRecorder()
+		args2 := structs.JobDispatchRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args2)
+
+		// Make the HTTP request
+		req2, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/dispatch", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW.Flush()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req2)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		dispatch := obj.(structs.JobDispatchResponse)
+		if dispatch.EvalID == "" {
+			t.Fatalf("bad: %v", dispatch)
+		}
+
+		if dispatch.DispatchedJobID == "" {
+			t.Fatalf("bad: %v", dispatch)
 		}
 	})
 }

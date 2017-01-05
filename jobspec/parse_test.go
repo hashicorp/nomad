@@ -537,6 +537,50 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+
+		{
+			"constructor.hcl",
+			&structs.Job{
+				ID:       "constructor",
+				Name:     "constructor",
+				Type:     "service",
+				Priority: 50,
+				Region:   "global",
+
+				Constructor: &structs.ConstructorConfig{
+					Payload:      "required",
+					MetaRequired: []string{"foo", "bar"},
+					MetaOptional: []string{"baz", "bam"},
+				},
+
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Name:          "foo",
+						Count:         1,
+						EphemeralDisk: structs.DefaultEphemeralDisk(),
+						Tasks: []*structs.Task{
+							&structs.Task{
+								Name:   "bar",
+								Driver: "docker",
+								Resources: &structs.Resources{
+									CPU:      100,
+									MemoryMB: 10,
+									IOPS:     0,
+								},
+								LogConfig: &structs.LogConfig{
+									MaxFiles:      10,
+									MaxFileSizeMB: 10,
+								},
+								DispatchInput: &structs.DispatchInputConfig{
+									File: "foo/bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

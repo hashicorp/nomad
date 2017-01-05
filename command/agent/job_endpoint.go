@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -58,6 +59,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/summary"):
 		jobName := strings.TrimSuffix(path, "/summary")
 		return s.jobSummaryRequest(resp, req, jobName)
+	case strings.HasSuffix(path, "/dispatch"):
+		jobName := strings.TrimSuffix(path, "/dispatch")
+		return s.jobDispatchRequest(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -209,7 +213,19 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	if out.Job == nil {
 		return nil, CodedError(404, "job not found")
 	}
-	return out.Job, nil
+
+	// Decode the payload if there is any
+	job := out.Job
+	if len(job.Payload) != 0 {
+		decoded, err := snappy.Decode(nil, out.Job.Payload)
+		if err != nil {
+			return nil, err
+		}
+		job = job.Copy()
+		job.Payload = decoded
+	}
+
+	return job, nil
 }
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
@@ -268,4 +284,29 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 	}
 	setIndex(resp, out.Index)
 	return out.JobSummary, nil
+}
+
+func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobDispatchRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if args.JobID != "" && args.JobID != name {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+	if args.JobID == "" {
+		args.JobID = name
+	}
+
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobDispatchResponse
+	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
 }

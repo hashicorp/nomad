@@ -211,6 +211,7 @@ func SystemJob() *structs.Job {
 		CreateIndex: 42,
 		ModifyIndex: 99,
 	}
+	job.Canonicalize()
 	return job
 }
 
@@ -222,6 +223,7 @@ func PeriodicJob() *structs.Job {
 		SpecType: structs.PeriodicSpecCron,
 		Spec:     "*/30 * * * *",
 	}
+	job.Status = structs.JobStatusRunning
 	return job
 }
 

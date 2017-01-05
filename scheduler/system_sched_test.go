@@ -1179,6 +1179,7 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 	h1 := NewHarnessWithState(t, h.State)
 	job1 := mock.SystemJob()
 	job1.ID = job.ID
+	job1.TaskGroups[0].Tasks[0].Env = make(map[string]string)
 	job1.TaskGroups[0].Tasks[0].Env["foo"] = "bar"
 	noErr(t, h1.State.UpsertJob(h1.NextIndex(), job1))
 
