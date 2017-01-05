@@ -1780,19 +1780,21 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.AllocDir) error {
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
-
 	// Check if we already have an alloc runner
+	c.allocLock.Lock()
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
 		return nil
 	}
+	c.allocLock.Unlock()
 
 	// Make room for the allocation
 	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
 	}
+
+	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
 	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
