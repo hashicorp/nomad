@@ -26,7 +26,7 @@ func Parse(s string) (os.Signal, error) {
 	sig, ok := SignalLookup[strings.ToUpper(s)]
 	if !ok {
 		return nil, fmt.Errorf("invalid signal %q - valid signals are %q",
-			sig, ValidSignals)
+			s, ValidSignals)
 	}
 	return sig, nil
 }

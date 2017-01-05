@@ -71,26 +71,17 @@ func NewClientSet() *ClientSet {
 
 // CreateConsulClient creates a new Consul API client from the given input.
 func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
-	log.Printf("[INFO] (clients) creating consul/api client")
-
-	// Generate the default config
 	consulConfig := consulapi.DefaultConfig()
 
-	// Set the address
 	if i.Address != "" {
-		log.Printf("[DEBUG] (clients) setting consul address to %q", i.Address)
 		consulConfig.Address = i.Address
 	}
 
-	// Configure the token
 	if i.Token != "" {
-		log.Printf("[DEBUG] (clients) setting consul token")
 		consulConfig.Token = i.Token
 	}
 
-	// Add basic auth
 	if i.AuthEnabled {
-		log.Printf("[DEBUG] (clients) setting basic auth")
 		consulConfig.HttpAuth = &consulapi.HttpBasicAuth{
 			Username: i.AuthUsername,
 			Password: i.AuthPassword,
@@ -102,7 +93,6 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 
 	// Configure SSL
 	if i.SSLEnabled {
-		log.Printf("[DEBUG] (clients) enabling consul SSL")
 		consulConfig.Scheme = "https"
 
 		var tlsConfig tls.Config
@@ -140,7 +130,6 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 		if i.ServerName != "" {
 			tlsConfig.ServerName = i.ServerName
 			tlsConfig.InsecureSkipVerify = false
-			log.Printf("[DEBUG] (clients) using explicit consul TLS server host name: %s", tlsConfig.ServerName)
 		}
 		if !i.SSLVerify {
 			log.Printf("[WARN] (clients) disabling consul SSL verification")
@@ -170,14 +159,9 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 }
 
 func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
-	log.Printf("[INFO] (clients) creating vault/api client")
-
-	// Generate the default config
 	vaultConfig := vaultapi.DefaultConfig()
 
-	// Set the address
 	if i.Address != "" {
-		log.Printf("[DEBUG] (clients) setting vault address to %q", i.Address)
 		vaultConfig.Address = i.Address
 	}
 
@@ -186,7 +170,6 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 
 	// Configure SSL
 	if i.SSLEnabled {
-		log.Printf("[DEBUG] (clients) enabling vault SSL")
 		var tlsConfig tls.Config
 
 		// Custom certificate or certificate and key
@@ -222,7 +205,6 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 		if i.ServerName != "" {
 			tlsConfig.ServerName = i.ServerName
 			tlsConfig.InsecureSkipVerify = false
-			log.Printf("[DEBUG] (clients) using explicit vault TLS server host name: %s", tlsConfig.ServerName)
 		}
 		if !i.SSLVerify {
 			log.Printf("[WARN] (clients) disabling vault SSL verification")
@@ -244,13 +226,11 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 
 	// Set the token if given
 	if i.Token != "" {
-		log.Printf("[DEBUG] (clients) setting vault token")
 		client.SetToken(i.Token)
 	}
 
 	// Check if we are unwrapping
 	if i.UnwrapToken {
-		log.Printf("[INFO] (clients) unwrapping vault token")
 		secret, err := client.Logical().Unwrap(i.Token)
 		if err != nil {
 			return fmt.Errorf("client set: vault unwrap: %s", err)
@@ -280,32 +260,18 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 	return nil
 }
 
-// Consul returns the Consul client for this clientset, or an error if no
-// Consul client has been set.
-func (c *ClientSet) Consul() (*consulapi.Client, error) {
+// Consul returns the Consul client for this set.
+func (c *ClientSet) Consul() *consulapi.Client {
 	c.RLock()
 	defer c.RUnlock()
-
-	if c.consul == nil {
-		return nil, fmt.Errorf("clientset: missing consul client")
-	}
-	cp := new(consulapi.Client)
-	*cp = *c.consul.client
-	return cp, nil
+	return c.consul.client
 }
 
-// Vault returns the Vault client for this clientset, or an error if no
-// Vault client has been set.
-func (c *ClientSet) Vault() (*vaultapi.Client, error) {
+// Vault returns the Consul client for this set.
+func (c *ClientSet) Vault() *vaultapi.Client {
 	c.RLock()
 	defer c.RUnlock()
-
-	if c.vault == nil {
-		return nil, fmt.Errorf("clientset: missing vault client")
-	}
-	cp := new(vaultapi.Client)
-	*cp = *c.vault.client
-	return cp, nil
+	return c.vault.client
 }
 
 // Stop closes all idle connections for any attached clients.

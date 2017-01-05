@@ -1,43 +1,36 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/consul-template/watch"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/mitchellh/mapstructure"
+
+	"github.com/pkg/errors"
 )
 
-// The pattern to split the config template syntax on
-var configTemplateRe = regexp.MustCompile("([a-zA-Z]:)?([^:]+)")
-
 const (
-	// DefaultFilePerms are the default file permissions for templates rendered
-	// onto disk when a specific file permission has not already been specified.
-	DefaultFilePerms = 0644
+	// DefaultLogLevel is the default logging level.
+	DefaultLogLevel = "WARN"
 
-	// DefaultDedupPrefix is the default prefix used for de-duplication mode
-	DefaultDedupPrefix = "consul-template/dedup/"
-
-	// DefaultCommandTimeout is the amount of time to wait for a command to return.
-	DefaultCommandTimeout = 30 * time.Second
+	// DefaultMaxStale is the default staleness permitted. This enables stale
+	// queries by default for performance reasons.
+	DefaultMaxStale = 2 * time.Second
 
 	// DefaultReloadSignal is the default signal for reload.
 	DefaultReloadSignal = syscall.SIGHUP
 
-	// DefaultDumpSignal is the default signal for a core dump.
-	DefaultDumpSignal = syscall.SIGQUIT
+	// DefaultRetry is the default amount of time to sleep before retrying.
+	DefaultRetry = 5 * time.Second
 
 	// DefaultKillSignal is the default signal for termination.
 	DefaultKillSignal = syscall.SIGINT
@@ -45,32 +38,39 @@ const (
 
 // Config is used to configure Consul Template
 type Config struct {
-	// Path is the path to this configuration file on disk. This value is not
-	// read from disk by rather dynamically populated by the code so the Config
-	// has a reference to the path to the file on disk that created it.
-	Path string `mapstructure:"-"`
-
-	// Consul is the location of the Consul instance to query (may be an IP
-	// address or FQDN) with port.
-	Consul string `mapstructure:"consul"`
-
-	// Token is the Consul API token.
-	Token string `mapstructure:"token"`
-
-	// ReloadSignal is the signal to listen for a reload event.
-	ReloadSignal os.Signal `mapstructure:"reload_signal"`
-
-	// DumpSignal is the signal to listen for a core dump event.
-	DumpSignal os.Signal `mapstructure:"dump_signal"`
-
-	// KillSignal is the signal to listen for a graceful terminate event.
-	KillSignal os.Signal `mapstructure:"kill_signal"`
-
 	// Auth is the HTTP basic authentication for communicating with Consul.
 	Auth *AuthConfig `mapstructure:"auth"`
 
-	// Vault is the configuration for connecting to a vault server.
-	Vault *VaultConfig `mapstructure:"vault"`
+	// Consul is the location of the Consul instance to query (may be an IP
+	// address or FQDN) with port.
+	Consul *string `mapstructure:"consul"`
+
+	// Dedup is used to configure the dedup settings
+	Dedup *DedupConfig `mapstructure:"deduplicate"`
+
+	// Exec is the configuration for exec/supervise mode.
+	Exec *ExecConfig `mapstructure:"exec"`
+
+	// KillSignal is the signal to listen for a graceful terminate event.
+	KillSignal *os.Signal `mapstructure:"kill_signal"`
+
+	// LogLevel is the level with which to log for this config.
+	LogLevel *string `mapstructure:"log_level"`
+
+	// MaxStale is the maximum amount of time for staleness from Consul as given
+	// by LastContact. If supplied, Consul Template will query all servers instead
+	// of just the leader.
+	MaxStale *time.Duration `mapstructure:"max_stale"`
+
+	// PidFile is the path on disk where a PID file should be written containing
+	// this processes PID.
+	PidFile *string `mapstructure:"pid_file"`
+
+	// ReloadSignal is the signal to listen for a reload event.
+	ReloadSignal *os.Signal `mapstructure:"reload_signal"`
+
+	// Retry is the duration of time to wait between Consul failures.
+	Retry *time.Duration `mapstructure:"retry"`
 
 	// SSL indicates we should use a secure connection while talking to
 	// Consul. This requires Consul to be configured to serve HTTPS.
@@ -79,415 +79,196 @@ type Config struct {
 	// Syslog is the configuration for syslog.
 	Syslog *SyslogConfig `mapstructure:"syslog"`
 
-	// Exec is the configuration for exec/supervise mode.
-	Exec *ExecConfig `mapstructure:"exec"`
+	// Templates is the list of templates.
+	Templates *TemplateConfigs `mapstructure:"template"`
 
-	// MaxStale is the maximum amount of time for staleness from Consul as given
-	// by LastContact. If supplied, Consul Template will query all servers instead
-	// of just the leader.
-	MaxStale time.Duration `mapstructure:"max_stale"`
+	// Token is the Consul API token.
+	Token *string `mapstructure:"token"`
 
-	// ConfigTemplates is a slice of the ConfigTemplate objects in the config.
-	ConfigTemplates []*ConfigTemplate `mapstructure:"template"`
-
-	// Retry is the duration of time to wait between Consul failures.
-	Retry time.Duration `mapstructure:"retry"`
+	// Vault is the configuration for connecting to a vault server.
+	Vault *VaultConfig `mapstructure:"vault"`
 
 	// Wait is the quiescence timers.
-	Wait *watch.Wait `mapstructure:"wait"`
-
-	// PidFile is the path on disk where a PID file should be written containing
-	// this processes PID.
-	PidFile string `mapstructure:"pid_file"`
-
-	// LogLevel is the level with which to log for this config.
-	LogLevel string `mapstructure:"log_level"`
-
-	// Deduplicate is used to configure the dedup settings
-	Deduplicate *DeduplicateConfig `mapstructure:"deduplicate"`
-
-	// setKeys is the list of config keys that were set by the user.
-	setKeys map[string]struct{}
+	Wait *WaitConfig `mapstructure:"wait"`
 }
 
 // Copy returns a deep copy of the current configuration. This is useful because
 // the nested data structures may be shared.
 func (c *Config) Copy() *Config {
-	config := new(Config)
-	config.Path = c.Path
-	config.Consul = c.Consul
-	config.Token = c.Token
-	config.ReloadSignal = c.ReloadSignal
-	config.DumpSignal = c.DumpSignal
-	config.KillSignal = c.KillSignal
+	var o Config
 
 	if c.Auth != nil {
-		config.Auth = &AuthConfig{
-			Enabled:  c.Auth.Enabled,
-			Username: c.Auth.Username,
-			Password: c.Auth.Password,
-		}
+		o.Auth = c.Auth.Copy()
 	}
 
-	if c.Vault != nil {
-		config.Vault = &VaultConfig{
-			Address:     c.Vault.Address,
-			Token:       c.Vault.Token,
-			UnwrapToken: c.Vault.UnwrapToken,
-			RenewToken:  c.Vault.RenewToken,
-		}
+	o.Consul = c.Consul
 
-		if c.Vault.SSL != nil {
-			config.Vault.SSL = &SSLConfig{
-				Enabled:    c.Vault.SSL.Enabled,
-				Verify:     c.Vault.SSL.Verify,
-				Cert:       c.Vault.SSL.Cert,
-				Key:        c.Vault.SSL.Key,
-				CaCert:     c.Vault.SSL.CaCert,
-				CaPath:     c.Vault.SSL.CaPath,
-				ServerName: c.Vault.SSL.ServerName,
-			}
-		}
-	}
-
-	if c.SSL != nil {
-		config.SSL = &SSLConfig{
-			Enabled:    c.SSL.Enabled,
-			Verify:     c.SSL.Verify,
-			Cert:       c.SSL.Cert,
-			Key:        c.SSL.Key,
-			CaCert:     c.SSL.CaCert,
-			CaPath:     c.SSL.CaPath,
-			ServerName: c.SSL.ServerName,
-		}
-	}
-
-	if c.Syslog != nil {
-		config.Syslog = &SyslogConfig{
-			Enabled:  c.Syslog.Enabled,
-			Facility: c.Syslog.Facility,
-		}
+	if c.Dedup != nil {
+		o.Dedup = c.Dedup.Copy()
 	}
 
 	if c.Exec != nil {
-		config.Exec = &ExecConfig{
-			Command:      c.Exec.Command,
-			Splay:        c.Exec.Splay,
-			ReloadSignal: c.Exec.ReloadSignal,
-			KillSignal:   c.Exec.KillSignal,
-			KillTimeout:  c.Exec.KillTimeout,
-		}
+		o.Exec = c.Exec.Copy()
 	}
 
-	config.MaxStale = c.MaxStale
+	o.KillSignal = c.KillSignal
 
-	config.ConfigTemplates = make([]*ConfigTemplate, len(c.ConfigTemplates))
-	for i, t := range c.ConfigTemplates {
-		config.ConfigTemplates[i] = &ConfigTemplate{
-			Source:           t.Source,
-			Destination:      t.Destination,
-			EmbeddedTemplate: t.EmbeddedTemplate,
-			Command:          t.Command,
-			CommandTimeout:   t.CommandTimeout,
-			Perms:            t.Perms,
-			Backup:           t.Backup,
-			LeftDelim:        t.LeftDelim,
-			RightDelim:       t.RightDelim,
-			Wait:             t.Wait,
-		}
+	o.LogLevel = c.LogLevel
+
+	o.MaxStale = c.MaxStale
+
+	o.PidFile = c.PidFile
+
+	o.ReloadSignal = c.ReloadSignal
+
+	o.Retry = c.Retry
+
+	if c.SSL != nil {
+		o.SSL = c.SSL.Copy()
 	}
 
-	config.Retry = c.Retry
+	if c.Syslog != nil {
+		o.Syslog = c.Syslog.Copy()
+	}
+
+	if c.Templates != nil {
+		o.Templates = c.Templates.Copy()
+	}
+
+	o.Token = c.Token
+
+	if c.Vault != nil {
+		o.Vault = c.Vault.Copy()
+	}
 
 	if c.Wait != nil {
-		config.Wait = &watch.Wait{
-			Min: c.Wait.Min,
-			Max: c.Wait.Max,
-		}
+		o.Wait = c.Wait.Copy()
 	}
 
-	config.PidFile = c.PidFile
-	config.LogLevel = c.LogLevel
-
-	if c.Deduplicate != nil {
-		config.Deduplicate = &DeduplicateConfig{
-			Enabled: c.Deduplicate.Enabled,
-			Prefix:  c.Deduplicate.Prefix,
-			TTL:     c.Deduplicate.TTL,
-		}
-	}
-
-	config.setKeys = c.setKeys
-
-	return config
+	return &o
 }
 
 // Merge merges the values in config into this config object. Values in the
 // config object overwrite the values in c.
-func (c *Config) Merge(config *Config) {
-	if config.WasSet("path") {
-		c.Path = config.Path
+func (c *Config) Merge(o *Config) *Config {
+	if c == nil {
+		if o == nil {
+			return nil
+		}
+		return o.Copy()
 	}
 
-	if config.WasSet("consul") {
-		c.Consul = config.Consul
+	if o == nil {
+		return c.Copy()
 	}
 
-	if config.WasSet("token") {
-		c.Token = config.Token
+	r := c.Copy()
+
+	if o.Auth != nil {
+		r.Auth = r.Auth.Merge(o.Auth)
 	}
 
-	if config.WasSet("reload_signal") {
-		c.ReloadSignal = config.ReloadSignal
+	if o.Consul != nil {
+		r.Consul = o.Consul
 	}
 
-	if config.WasSet("dump_signal") {
-		c.DumpSignal = config.DumpSignal
+	if o.Dedup != nil {
+		r.Dedup = r.Dedup.Merge(o.Dedup)
 	}
 
-	if config.WasSet("kill_signal") {
-		c.KillSignal = config.KillSignal
+	if o.Exec != nil {
+		r.Exec = r.Exec.Merge(o.Exec)
 	}
 
-	if config.WasSet("vault") {
-		if c.Vault == nil {
-			c.Vault = &VaultConfig{}
-		}
-		if config.WasSet("vault.address") {
-			c.Vault.Address = config.Vault.Address
-		}
-		if config.WasSet("vault.token") {
-			c.Vault.Token = config.Vault.Token
-		}
-		if config.WasSet("vault.unwrap_token") {
-			c.Vault.UnwrapToken = config.Vault.UnwrapToken
-		}
-		if config.WasSet("vault.renew_token") {
-			c.Vault.RenewToken = config.Vault.RenewToken
-		}
-		if config.WasSet("vault.ssl") {
-			if c.Vault.SSL == nil {
-				c.Vault.SSL = &SSLConfig{}
-			}
-			if config.WasSet("vault.ssl.verify") {
-				c.Vault.SSL.Verify = config.Vault.SSL.Verify
-				c.Vault.SSL.Enabled = true
-			}
-			if config.WasSet("vault.ssl.cert") {
-				c.Vault.SSL.Cert = config.Vault.SSL.Cert
-				c.Vault.SSL.Enabled = true
-			}
-			if config.WasSet("vault.ssl.key") {
-				c.Vault.SSL.Key = config.Vault.SSL.Key
-				c.Vault.SSL.Enabled = true
-			}
-			if config.WasSet("vault.ssl.ca_cert") {
-				c.Vault.SSL.CaCert = config.Vault.SSL.CaCert
-				c.Vault.SSL.Enabled = true
-			}
-			if config.WasSet("vault.ssl.ca_path") {
-				c.Vault.SSL.CaPath = config.Vault.SSL.CaPath
-				c.Vault.SSL.Enabled = true
-			}
-			if config.WasSet("vault.ssl.enabled") {
-				c.Vault.SSL.Enabled = config.Vault.SSL.Enabled
-			}
-			if config.WasSet("vault.ssl.server_name") {
-				c.Vault.SSL.ServerName = config.Vault.SSL.ServerName
-			}
-		}
+	if o.KillSignal != nil {
+		r.KillSignal = o.KillSignal
 	}
 
-	if config.WasSet("auth") {
-		if c.Auth == nil {
-			c.Auth = &AuthConfig{}
-		}
-		if config.WasSet("auth.username") {
-			c.Auth.Username = config.Auth.Username
-			c.Auth.Enabled = true
-		}
-		if config.WasSet("auth.password") {
-			c.Auth.Password = config.Auth.Password
-			c.Auth.Enabled = true
-		}
-		if config.WasSet("auth.enabled") {
-			c.Auth.Enabled = config.Auth.Enabled
-		}
+	if o.LogLevel != nil {
+		r.LogLevel = o.LogLevel
 	}
 
-	if config.WasSet("ssl") {
-		if c.SSL == nil {
-			c.SSL = &SSLConfig{}
-		}
-		if config.WasSet("ssl.verify") {
-			c.SSL.Verify = config.SSL.Verify
-			c.SSL.Enabled = true
-		}
-		if config.WasSet("ssl.cert") {
-			c.SSL.Cert = config.SSL.Cert
-			c.SSL.Enabled = true
-		}
-		if config.WasSet("ssl.key") {
-			c.SSL.Key = config.SSL.Key
-			c.SSL.Enabled = true
-		}
-		if config.WasSet("ssl.ca_cert") {
-			c.SSL.CaCert = config.SSL.CaCert
-			c.SSL.Enabled = true
-		}
-		if config.WasSet("ssl.ca_path") {
-			c.SSL.CaPath = config.SSL.CaPath
-			c.SSL.Enabled = true
-		}
-		if config.WasSet("ssl.enabled") {
-			c.SSL.Enabled = config.SSL.Enabled
-		}
-		if config.WasSet("ssl.server_name") {
-			c.SSL.ServerName = config.SSL.ServerName
-		}
+	if o.MaxStale != nil {
+		r.MaxStale = o.MaxStale
 	}
 
-	if config.WasSet("syslog") {
-		if c.Syslog == nil {
-			c.Syslog = &SyslogConfig{}
-		}
-		if config.WasSet("syslog.facility") {
-			c.Syslog.Facility = config.Syslog.Facility
-			c.Syslog.Enabled = true
-		}
-		if config.WasSet("syslog.enabled") {
-			c.Syslog.Enabled = config.Syslog.Enabled
-		}
+	if o.PidFile != nil {
+		r.PidFile = o.PidFile
 	}
 
-	if config.WasSet("exec") {
-		if c.Exec == nil {
-			c.Exec = &ExecConfig{}
-		}
-		if config.WasSet("exec.command") {
-			c.Exec.Command = config.Exec.Command
-		}
-		if config.WasSet("exec.splay") {
-			c.Exec.Splay = config.Exec.Splay
-		}
-		if config.WasSet("exec.reload_signal") {
-			c.Exec.ReloadSignal = config.Exec.ReloadSignal
-		}
-		if config.WasSet("exec.kill_signal") {
-			c.Exec.KillSignal = config.Exec.KillSignal
-		}
-		if config.WasSet("exec.kill_timeout") {
-			c.Exec.KillTimeout = config.Exec.KillTimeout
-		}
+	if o.ReloadSignal != nil {
+		r.ReloadSignal = o.ReloadSignal
 	}
 
-	if config.WasSet("max_stale") {
-		c.MaxStale = config.MaxStale
+	if o.Retry != nil {
+		r.Retry = o.Retry
 	}
 
-	if len(config.ConfigTemplates) > 0 {
-		if c.ConfigTemplates == nil {
-			c.ConfigTemplates = make([]*ConfigTemplate, 0, 1)
-		}
-		for _, template := range config.ConfigTemplates {
-			c.ConfigTemplates = append(c.ConfigTemplates, &ConfigTemplate{
-				Source:           template.Source,
-				Destination:      template.Destination,
-				EmbeddedTemplate: template.EmbeddedTemplate,
-				Command:          template.Command,
-				CommandTimeout:   template.CommandTimeout,
-				Perms:            template.Perms,
-				Backup:           template.Backup,
-				LeftDelim:        template.LeftDelim,
-				RightDelim:       template.RightDelim,
-				Wait:             template.Wait,
-			})
-		}
+	if o.SSL != nil {
+		r.SSL = r.SSL.Merge(o.SSL)
 	}
 
-	if config.WasSet("retry") {
-		c.Retry = config.Retry
+	if o.Syslog != nil {
+		r.Syslog = r.Syslog.Merge(o.Syslog)
 	}
 
-	if config.WasSet("wait") {
-		c.Wait = &watch.Wait{
-			Min: config.Wait.Min,
-			Max: config.Wait.Max,
-		}
+	if o.Templates != nil {
+		r.Templates = r.Templates.Merge(o.Templates)
 	}
 
-	if config.WasSet("pid_file") {
-		c.PidFile = config.PidFile
+	if o.Token != nil {
+		r.Token = o.Token
 	}
 
-	if config.WasSet("log_level") {
-		c.LogLevel = config.LogLevel
+	if o.Vault != nil {
+		r.Vault = r.Vault.Merge(o.Vault)
 	}
 
-	if config.WasSet("deduplicate") {
-		if c.Deduplicate == nil {
-			c.Deduplicate = &DeduplicateConfig{}
-		}
-		if config.WasSet("deduplicate.enabled") {
-			c.Deduplicate.Enabled = config.Deduplicate.Enabled
-		}
-		if config.WasSet("deduplicate.prefix") {
-			c.Deduplicate.Prefix = config.Deduplicate.Prefix
-		}
+	if o.Wait != nil {
+		r.Wait = r.Wait.Merge(o.Wait)
 	}
 
-	if c.setKeys == nil {
-		c.setKeys = make(map[string]struct{})
-	}
-	for k := range config.setKeys {
-		if _, ok := c.setKeys[k]; !ok {
-			c.setKeys[k] = struct{}{}
-		}
-	}
-}
-
-// WasSet determines if the given key was set in the config (as opposed to just
-// having the default value).
-func (c *Config) WasSet(key string) bool {
-	if _, ok := c.setKeys[key]; ok {
-		return true
-	}
-	return false
-}
-
-// Set is a helper function for marking a key as set.
-func (c *Config) Set(key string) {
-	if c.setKeys == nil {
-		c.setKeys = make(map[string]struct{})
-	}
-	if _, ok := c.setKeys[key]; !ok {
-		c.setKeys[key] = struct{}{}
-	}
+	return r
 }
 
 // Parse parses the given string contents as a config
 func Parse(s string) (*Config, error) {
-	var errs *multierror.Error
-
-	// Parse the file (could be HCL or JSON)
 	var shadow interface{}
 	if err := hcl.Decode(&shadow, s); err != nil {
-		return nil, fmt.Errorf("error decoding config: %s", err)
+		return nil, errors.Wrap(err, "error decoding config")
 	}
 
 	// Convert to a map and flatten the keys we want to flatten
 	parsed, ok := shadow.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("error converting config")
+		return nil, errors.New("error converting config")
 	}
+
 	flattenKeys(parsed, []string{
 		"auth",
+		"deduplicate",
+		"env",
+		"exec",
+		"exec.env",
 		"ssl",
 		"syslog",
-		"exec",
 		"vault",
-		"deduplicate",
+		"vault.ssl",
+		"wait",
 	})
+
+	// FlattenFlatten keys belonging to the templates. We cannot do this above
+	// because it is an array of tmeplates.
+	if templates, ok := parsed["template"].([]map[string]interface{}); ok {
+		for _, template := range templates {
+			flattenKeys(template, []string{
+				"env",
+				"exec",
+				"exec.env",
+				"wait",
+			})
+		}
+	}
 
 	// Deprecations
 	if vault, ok := parsed["vault"].(map[string]interface{}); ok {
@@ -500,85 +281,30 @@ func Parse(s string) (*Config, error) {
 	}
 
 	// Create a new, empty config
-	config := new(Config)
+	var c Config
 
 	// Use mapstructure to populate the basic config fields
-	metadata := new(mapstructure.Metadata)
+	var md mapstructure.Metadata
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			StringToFileModeFunc(),
 			signals.StringToSignalFunc(),
-			watch.StringToWaitDurationHookFunc(),
+			StringToWaitDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
 			mapstructure.StringToTimeDurationHookFunc(),
 		),
 		ErrorUnused: true,
-		Metadata:    metadata,
-		Result:      config,
+		Metadata:    &md,
+		Result:      &c,
 	})
 	if err != nil {
-		errs = multierror.Append(errs, err)
-		return nil, errs.ErrorOrNil()
+		return nil, errors.Wrap(err, "mapstructure decoder creation failed")
 	}
 	if err := decoder.Decode(parsed); err != nil {
-		errs = multierror.Append(errs, err)
-		return nil, errs.ErrorOrNil()
+		return nil, errors.Wrap(err, "mapstructure decode failed")
 	}
 
-	// Explicitly check for the nil signal and set the value back to nil
-	if config.ReloadSignal == signals.SIGNIL {
-		config.ReloadSignal = nil
-	}
-	if config.DumpSignal == signals.SIGNIL {
-		config.DumpSignal = nil
-	}
-	if config.KillSignal == signals.SIGNIL {
-		config.KillSignal = nil
-	}
-	if config.Exec != nil {
-		if config.Exec.ReloadSignal == signals.SIGNIL {
-			config.Exec.ReloadSignal = nil
-		}
-		if config.Exec.KillSignal == signals.SIGNIL {
-			config.Exec.KillSignal = nil
-		}
-	}
-
-	// Setup default values for templates
-	for _, t := range config.ConfigTemplates {
-		// Ensure there's a default value for the template's file permissions
-		if t.Perms == 0000 {
-			t.Perms = DefaultFilePerms
-		}
-
-		// Ensure we have a default command timeout
-		if t.CommandTimeout == 0 {
-			t.CommandTimeout = DefaultCommandTimeout
-		}
-
-		// Set up a default zero wait, which disables it for this
-		// template.
-		if t.Wait == nil {
-			t.Wait = &watch.Wait{}
-		}
-	}
-
-	// Update the list of set keys
-	if config.setKeys == nil {
-		config.setKeys = make(map[string]struct{})
-	}
-	for _, key := range metadata.Keys {
-		if _, ok := config.setKeys[key]; !ok {
-			config.setKeys[key] = struct{}{}
-		}
-	}
-	config.setKeys["path"] = struct{}{}
-
-	d := DefaultConfig()
-	d.Merge(config)
-	config = d
-
-	return config, errs.ErrorOrNil()
+	return &c, nil
 }
 
 // Must returns a config object that must compile. If there are any errors, this
@@ -586,9 +312,17 @@ func Parse(s string) (*Config, error) {
 func Must(s string) *Config {
 	c, err := Parse(s)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return c
+}
+
+// TestConfig returuns a default, finalized config, with the provided
+// configuration taking precedence.
+func TestConfig(c *Config) *Config {
+	d := DefaultConfig().Merge(c)
+	d.Finalize()
+	return d
 }
 
 // FromFile reads the configuration file at the given path and returns a new
@@ -596,9 +330,8 @@ func Must(s string) *Config {
 func FromFile(path string) (*Config, error) {
 	c, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading config at %q: %s", path, err)
+		return nil, errors.Wrap(err, fmt.Sprintf("from file %s", path))
 	}
-
 	return Parse(string(c))
 }
 
@@ -607,13 +340,13 @@ func FromFile(path string) (*Config, error) {
 func FromPath(path string) (*Config, error) {
 	// Ensure the given filepath exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("config: missing file/folder: %s", path)
+		return nil, errors.Wrap(err, "missing file/folder"+path)
 	}
 
 	// Check if a file was given or a path to a directory
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("config: error stating file: %s", err)
+		return nil, errors.Wrap(err, "failed stating file "+path)
 	}
 
 	// Recursively parse directories, single load files
@@ -621,11 +354,11 @@ func FromPath(path string) (*Config, error) {
 		// Ensure the given filepath has at least one config file
 		_, err := ioutil.ReadDir(path)
 		if err != nil {
-			return nil, fmt.Errorf("config: error listing directory: %s", err)
+			return nil, errors.Wrap(err, "failed listing dir "+path)
 		}
 
 		// Create a blank config to merge off of
-		config := DefaultConfig()
+		var c *Config
 
 		// Potential bug: Walk does not follow symlinks!
 		err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
@@ -644,237 +377,192 @@ func FromPath(path string) (*Config, error) {
 			if err != nil {
 				return err
 			}
-			config.Merge(newConfig)
+			c = c.Merge(newConfig)
 
 			return nil
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("config: walk error: %s", err)
+			return nil, errors.Wrap(err, "walk error")
 		}
 
-		return config, nil
+		return c, nil
 	} else if stat.Mode().IsRegular() {
 		return FromFile(path)
 	}
 
-	return nil, fmt.Errorf("config: unknown filetype: %q", stat.Mode().String())
+	return nil, fmt.Errorf("unknown filetype: %q", stat.Mode().String())
 }
 
-// DefaultConfig returns the default configuration struct.
+// GoString defines the printable version of this struct.
+func (c *Config) GoString() string {
+	if c == nil {
+		return "(*Config)(nil)"
+	}
+
+	return fmt.Sprintf("&Config{"+
+		"Auth:%#v, "+
+		"Consul:%s, "+
+		"Dedup:%#v, "+
+		"Exec:%#v, "+
+		"KillSignal:%s, "+
+		"LogLevel:%s, "+
+		"MaxStale:%s, "+
+		"PidFile:%s, "+
+		"ReloadSignal:%s, "+
+		"Retry:%s, "+
+		"SSL:%#v, "+
+		"Syslog:%#v, "+
+		"Templates:%#v, "+
+		"Token:%s, "+
+		"Vault:%#v, "+
+		"Wait:%#v"+
+		"}",
+		c.Auth,
+		StringGoString(c.Consul),
+		c.Dedup,
+		c.Exec,
+		SignalGoString(c.KillSignal),
+		StringGoString(c.LogLevel),
+		TimeDurationGoString(c.MaxStale),
+		StringGoString(c.PidFile),
+		SignalGoString(c.ReloadSignal),
+		TimeDurationGoString(c.Retry),
+		c.SSL,
+		c.Syslog,
+		c.Templates,
+		StringGoString(c.Token),
+		c.Vault,
+		c.Wait,
+	)
+}
+
+// DefaultConfig returns the default configuration struct. Certain environment
+// variables may be set which control the values for the default configuration.
 func DefaultConfig() *Config {
-	logLevel := os.Getenv("CONSUL_TEMPLATE_LOG")
-	if logLevel == "" {
-		logLevel = "WARN"
+	return &Config{
+		Auth:         DefaultAuthConfig(),
+		Consul:       stringFromEnv("CONSUL_HTTP_ADDR"),
+		Dedup:        DefaultDedupConfig(),
+		Exec:         DefaultExecConfig(),
+		KillSignal:   Signal(DefaultKillSignal),
+		LogLevel:     stringFromEnv("CT_LOG", "CONSUL_TEMPLATE_LOG"),
+		MaxStale:     TimeDuration(DefaultMaxStale),
+		PidFile:      String(""),
+		ReloadSignal: Signal(DefaultReloadSignal),
+		Retry:        TimeDuration(DefaultRetry),
+		SSL:          DefaultSSLConfig(),
+		Syslog:       DefaultSyslogConfig(),
+		Templates:    DefaultTemplateConfigs(),
+		Token:        stringFromEnv("CONSUL_TOKEN", "CONSUL_HTTP_TOKEN"),
+		Vault:        DefaultVaultConfig(),
+		Wait:         DefaultWaitConfig(),
 	}
-
-	config := &Config{
-		Vault: &VaultConfig{
-			RenewToken: true,
-			SSL: &SSLConfig{
-				Enabled: true,
-				Verify:  true,
-			},
-		},
-		Auth: &AuthConfig{
-			Enabled: false,
-		},
-		ReloadSignal: DefaultReloadSignal,
-		DumpSignal:   DefaultDumpSignal,
-		KillSignal:   DefaultKillSignal,
-		SSL: &SSLConfig{
-			Enabled: false,
-			Verify:  true,
-		},
-		Syslog: &SyslogConfig{
-			Enabled:  false,
-			Facility: "LOCAL0",
-		},
-		Deduplicate: &DeduplicateConfig{
-			Enabled: false,
-			Prefix:  DefaultDedupPrefix,
-			TTL:     15 * time.Second,
-		},
-		Exec: &ExecConfig{
-			KillSignal:  syscall.SIGTERM,
-			KillTimeout: 30 * time.Second,
-		},
-		ConfigTemplates: make([]*ConfigTemplate, 0),
-		Retry:           5 * time.Second,
-		MaxStale:        1 * time.Second,
-		Wait:            &watch.Wait{},
-		LogLevel:        logLevel,
-		setKeys:         make(map[string]struct{}),
-	}
-
-	if v := os.Getenv("CONSUL_HTTP_ADDR"); v != "" {
-		config.Consul = v
-	}
-
-	if v := os.Getenv("CONSUL_TOKEN"); v != "" {
-		config.Token = v
-	}
-
-	if v := os.Getenv("VAULT_ADDR"); v != "" {
-		config.Vault.Address = v
-	}
-
-	if v := os.Getenv("VAULT_TOKEN"); v != "" {
-		config.Vault.Token = v
-	}
-
-	if v := os.Getenv("VAULT_UNWRAP_TOKEN"); v != "" {
-		config.Vault.UnwrapToken = true
-	}
-
-	if v := os.Getenv("VAULT_CAPATH"); v != "" {
-		config.Vault.SSL.Cert = v
-	}
-
-	if v := os.Getenv("VAULT_CACERT"); v != "" {
-		config.Vault.SSL.CaCert = v
-	}
-
-	if v := os.Getenv("VAULT_SKIP_VERIFY"); v != "" {
-		config.Vault.SSL.Verify = false
-	}
-
-	if v := os.Getenv("VAULT_TLS_SERVER_NAME"); v != "" {
-		config.Vault.SSL.ServerName = v
-	}
-
-	return config
 }
 
-// AuthConfig is the HTTP basic authentication data.
-type AuthConfig struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"`
-}
+// Finalize ensures all configuration options have the default values, so it
+// is safe to dereference the pointers later down the line. It also
+// intelligently tries to activate stanzas that should be "enabled" because
+// data was given, but the user did not explicitly add "Enabled: true" to the
+// configuration.
+func (c *Config) Finalize() {
+	if c.Auth == nil {
+		c.Auth = DefaultAuthConfig()
+	}
+	c.Auth.Finalize()
 
-// String is the string representation of this authentication. If authentication
-// is not enabled, this returns the empty string. The username and password will
-// be separated by a colon.
-func (a *AuthConfig) String() string {
-	if !a.Enabled {
-		return ""
+	if c.Consul == nil {
+		c.Consul = String("")
 	}
 
-	if a.Password != "" {
-		return fmt.Sprintf("%s:%s", a.Username, a.Password)
+	if c.Dedup == nil {
+		c.Dedup = DefaultDedupConfig()
+	}
+	c.Dedup.Finalize()
+
+	if c.Exec == nil {
+		c.Exec = DefaultExecConfig()
+	}
+	c.Exec.Finalize()
+
+	if c.KillSignal == nil {
+		c.KillSignal = Signal(DefaultKillSignal)
 	}
 
-	return a.Username
-}
-
-// ExecConfig is used to configure the application when it runs in
-// exec/supervise mode.
-type ExecConfig struct {
-	// Command is the command to execute and watch as a child process.
-	Command string `mapstructure:"command"`
-
-	// Splay is the maximum amount of time to wait to kill the process.
-	Splay time.Duration `mapstructure:"splay"`
-
-	// ReloadSignal is the signal to send to the child process when a template
-	// changes. This tells the child process that templates have
-	ReloadSignal os.Signal `mapstructure:"reload_signal"`
-
-	// KillSignal is the signal to send to the command to kill it gracefully. The
-	// default value is "SIGTERM".
-	KillSignal os.Signal `mapstructure:"kill_signal"`
-
-	// KillTimeout is the amount of time to give the process to cleanup before
-	// hard-killing it.
-	KillTimeout time.Duration `mapstructure:"kill_timeout"`
-}
-
-// DeduplicateConfig is used to enable the de-duplication mode, which depends
-// on electing a leader per-template and watching of a key. This is used
-// to reduce the cost of many instances of CT running the same template.
-type DeduplicateConfig struct {
-	// Controls if deduplication mode is enabled
-	Enabled bool `mapstructure:"enabled"`
-
-	// Controls the KV prefix used. Defaults to defaultDedupPrefix
-	Prefix string `mapstructure:"prefix"`
-
-	// TTL is the Session TTL used for lock acquisition, defaults to 15 seconds.
-	TTL time.Duration `mapstructure:"ttl"`
-}
-
-// SSLConfig is the configuration for SSL.
-type SSLConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	Verify     bool   `mapstructure:"verify"`
-	Cert       string `mapstructure:"cert"`
-	Key        string `mapstructure:"key"`
-	CaCert     string `mapstructure:"ca_cert"`
-	CaPath     string `mapstructure:"ca_path"`
-	ServerName string `mapstructure:"server_name"`
-}
-
-// SyslogConfig is the configuration for syslog.
-type SyslogConfig struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	Facility string `mapstructure:"facility"`
-}
-
-// ConfigTemplate is the representation of an input template, output location,
-// and optional command to execute when rendered
-type ConfigTemplate struct {
-	Source           string        `mapstructure:"source"`
-	Destination      string        `mapstructure:"destination"`
-	EmbeddedTemplate string        `mapstructure:"contents"`
-	Command          string        `mapstructure:"command"`
-	CommandTimeout   time.Duration `mapstructure:"command_timeout"`
-	Perms            os.FileMode   `mapstructure:"perms"`
-	Backup           bool          `mapstructure:"backup"`
-	LeftDelim        string        `mapstructure:"left_delimiter"`
-	RightDelim       string        `mapstructure:"right_delimiter"`
-	Wait             *watch.Wait   `mapstructure:"wait"`
-}
-
-// VaultConfig is the configuration for connecting to a vault server.
-type VaultConfig struct {
-	Address     string `mapstructure:"address"`
-	Token       string `mapstructure:"token" json:"-"`
-	UnwrapToken bool   `mapstructure:"unwrap_token"`
-	RenewToken  bool   `mapstructure:"renew_token"`
-
-	// SSL indicates we should use a secure connection while talking to Vault.
-	SSL *SSLConfig `mapstructure:"ssl"`
-}
-
-// ParseConfigTemplate parses a string into a ConfigTemplate struct
-func ParseConfigTemplate(s string) (*ConfigTemplate, error) {
-	if len(strings.TrimSpace(s)) < 1 {
-		return nil, errors.New("cannot specify empty template declaration")
+	if c.LogLevel == nil {
+		c.LogLevel = String(DefaultLogLevel)
 	}
 
-	var source, destination, command string
-	parts := configTemplateRe.FindAllString(s, -1)
-
-	switch len(parts) {
-	case 1:
-		source = parts[0]
-	case 2:
-		source, destination = parts[0], parts[1]
-	case 3:
-		source, destination, command = parts[0], parts[1], parts[2]
-	default:
-		return nil, errors.New("invalid template declaration format")
+	if c.MaxStale == nil {
+		c.MaxStale = TimeDuration(DefaultMaxStale)
 	}
 
-	return &ConfigTemplate{
-		Source:         source,
-		Destination:    destination,
-		Command:        command,
-		CommandTimeout: DefaultCommandTimeout,
-		Perms:          DefaultFilePerms,
-		Wait:           &watch.Wait{},
-	}, nil
+	if c.PidFile == nil {
+		c.PidFile = String("")
+	}
+
+	if c.ReloadSignal == nil {
+		c.ReloadSignal = Signal(DefaultReloadSignal)
+	}
+
+	if c.Retry == nil {
+		c.Retry = TimeDuration(DefaultRetry)
+	}
+
+	if c.SSL == nil {
+		c.SSL = DefaultSSLConfig()
+	}
+	c.SSL.Finalize()
+
+	if c.Syslog == nil {
+		c.Syslog = DefaultSyslogConfig()
+	}
+	c.Syslog.Finalize()
+
+	if c.Templates == nil {
+		c.Templates = DefaultTemplateConfigs()
+	}
+	c.Templates.Finalize()
+
+	if c.Token == nil {
+		c.Token = String("")
+	}
+
+	if c.Vault == nil {
+		c.Vault = DefaultVaultConfig()
+	}
+	c.Vault.Finalize()
+
+	if c.Wait == nil {
+		c.Wait = DefaultWaitConfig()
+	}
+	c.Wait.Finalize()
+}
+
+func stringFromEnv(list ...string) *string {
+	for _, s := range list {
+		if v := os.Getenv(s); v != "" {
+			return String(strings.TrimSpace(v))
+		}
+	}
+	return nil
+}
+
+func antiboolFromEnv(s string) *bool {
+	if b := boolFromEnv(s); b != nil {
+		return Bool(!*b)
+	}
+	return nil
+}
+
+func boolFromEnv(s string) *bool {
+	if v := os.Getenv(s); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err == nil {
+			return Bool(b)
+		}
+	}
+	return nil
 }
 
 // flattenKeys is a function that takes a map[string]interface{} and recursively
@@ -886,10 +574,16 @@ func flattenKeys(m map[string]interface{}, keys []string) {
 		keyMap[key] = struct{}{}
 	}
 
-	var flatten func(map[string]interface{})
-	flatten = func(m map[string]interface{}) {
+	var flatten func(map[string]interface{}, string)
+	flatten = func(m map[string]interface{}, parent string) {
 		for k, v := range m {
-			if _, ok := keyMap[k]; !ok {
+			// Calculate the map key, since it could include a parent.
+			mapKey := k
+			if parent != "" {
+				mapKey = parent + "." + k
+			}
+
+			if _, ok := keyMap[mapKey]; !ok {
 				continue
 			}
 
@@ -897,13 +591,13 @@ func flattenKeys(m map[string]interface{}, keys []string) {
 			case []map[string]interface{}:
 				if len(typed) > 0 {
 					last := typed[len(typed)-1]
-					flatten(last)
+					flatten(last, mapKey)
 					m[k] = last
 				} else {
 					m[k] = nil
 				}
 			case map[string]interface{}:
-				flatten(typed)
+				flatten(typed, mapKey)
 				m[k] = typed
 			default:
 				m[k] = v
@@ -911,5 +605,5 @@ func flattenKeys(m map[string]interface{}, keys []string) {
 		}
 	}
 
-	flatten(m)
+	flatten(m, "")
 }

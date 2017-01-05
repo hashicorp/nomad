@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/burntsushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -24,105 +25,124 @@ import (
 var now = func() time.Time { return time.Now().UTC() }
 
 // datacentersFunc returns or accumulates datacenter dependencies.
-func datacentersFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) ([]string, error) {
-	return func(s ...string) ([]string, error) {
+func datacentersFunc(b *Brain, used, missing *dep.Set) func() ([]string, error) {
+	return func() ([]string, error) {
 		result := []string{}
 
-		d, err := dep.ParseDatacenters(s...)
+		d, err := dep.NewCatalogDatacentersQuery()
 		if err != nil {
 			return result, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			return value.([]string), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
+// executeTemplateFunc executes the given template in the context of the
+// parent. If an argument is specified, it will be used as the context instead.
+// This can be used for nested template definitions.
+func executeTemplateFunc(t *template.Template) func(string, ...interface{}) (string, error) {
+	return func(s string, data ...interface{}) (string, error) {
+		var dot interface{}
+		switch len(data) {
+		case 0:
+			dot = nil
+		case 1:
+			dot = data[0]
+		default:
+			return "", fmt.Errorf("executeTemplate: wrong number of arguments, expected 1 or 2"+
+				", but got %d", len(data)+1)
+		}
+		var b bytes.Buffer
+		if err := t.ExecuteTemplate(&b, s, dot); err != nil {
+			return "", err
+		}
+		return b.String(), nil
+	}
+}
+
 // fileFunc returns or accumulates file dependencies.
-func fileFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) (string, error) {
+func fileFunc(b *Brain, used, missing *dep.Set) func(string) (string, error) {
 	return func(s string) (string, error) {
 		if len(s) == 0 {
 			return "", nil
 		}
 
-		d, err := dep.ParseFile(s)
+		d, err := dep.NewFileQuery(s)
 		if err != nil {
 			return "", err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			if value == nil {
 				return "", nil
 			}
 			return value.(string), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return "", nil
 	}
 }
 
 // keyFunc returns or accumulates key dependencies.
-func keyFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) (string, error) {
+func keyFunc(b *Brain, used, missing *dep.Set) func(string) (string, error) {
 	return func(s string) (string, error) {
 		if len(s) == 0 {
 			return "", nil
 		}
 
-		d, err := dep.ParseStoreKey(s)
+		d, err := dep.NewKVGetQuery(s)
 		if err != nil {
 			return "", err
 		}
+		d.EnableBlocking()
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			if value == nil {
 				return "", nil
 			}
 			return value.(string), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return "", nil
 	}
 }
 
 // keyExistsFunc returns true if a key exists, false otherwise.
-func keyExistsFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) (bool, error) {
+func keyExistsFunc(b *Brain, used, missing *dep.Set) func(string) (bool, error) {
 	return func(s string) (bool, error) {
 		if len(s) == 0 {
 			return false, nil
 		}
 
-		d, err := dep.ParseStoreKey(s)
+		d, err := dep.NewKVGetQuery(s)
 		if err != nil {
 			return false, err
 		}
-		d.SetExistenceCheck(true)
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
-			return value.(bool), nil
+		if value, ok := b.Recall(d); ok {
+			return value != nil, nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return false, nil
 	}
@@ -130,37 +150,34 @@ func keyExistsFunc(brain *Brain,
 
 // keyWithDefaultFunc returns or accumulates key dependencies that have a
 // default value.
-func keyWithDefaultFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string, string) (string, error) {
+func keyWithDefaultFunc(b *Brain, used, missing *dep.Set) func(string, string) (string, error) {
 	return func(s, def string) (string, error) {
 		if len(s) == 0 {
 			return def, nil
 		}
 
-		d, err := dep.ParseStoreKey(s)
+		d, err := dep.NewKVGetQuery(s)
 		if err != nil {
 			return "", err
 		}
-		d.SetDefault(def)
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
-			if value == nil {
+		if value, ok := b.Recall(d); ok {
+			if value == nil || value.(string) == "" {
 				return def, nil
 			}
 			return value.(string), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return def, nil
 	}
 }
 
 // lsFunc returns or accumulates keyPrefix dependencies.
-func lsFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) ([]*dep.KeyPair, error) {
+func lsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -168,15 +185,15 @@ func lsFunc(brain *Brain,
 			return result, nil
 		}
 
-		d, err := dep.ParseStoreKeyPrefix(s)
+		d, err := dep.NewKVListQuery(s)
 		if err != nil {
 			return result, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
 		// Only return non-empty top-level keys
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			for _, pair := range value.([]*dep.KeyPair) {
 				if pair.Key != "" && !strings.Contains(pair.Key, "/") {
 					result = append(result, pair)
@@ -185,88 +202,84 @@ func lsFunc(brain *Brain,
 			return result, nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // nodeFunc returns or accumulates catalog node dependency.
-func nodeFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) (*dep.NodeDetail, error) {
-	return func(s ...string) (*dep.NodeDetail, error) {
+func nodeFunc(b *Brain, used, missing *dep.Set) func(...string) (*dep.CatalogNode, error) {
+	return func(s ...string) (*dep.CatalogNode, error) {
 
-		d, err := dep.ParseCatalogNode(s...)
+		d, err := dep.NewCatalogNodeQuery(strings.Join(s, ""))
 		if err != nil {
 			return nil, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
-			return value.(*dep.NodeDetail), nil
+		if value, ok := b.Recall(d); ok {
+			return value.(*dep.CatalogNode), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return nil, nil
 	}
 }
 
 // nodesFunc returns or accumulates catalog node dependencies.
-func nodesFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) ([]*dep.Node, error) {
+func nodesFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Node, error) {
 	return func(s ...string) ([]*dep.Node, error) {
 		result := []*dep.Node{}
 
-		d, err := dep.ParseCatalogNodes(s...)
+		d, err := dep.NewCatalogNodesQuery(strings.Join(s, ""))
 		if err != nil {
 			return nil, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			return value.([]*dep.Node), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // secretFunc returns or accumulates secret dependencies from Vault.
-func secretFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) (*dep.Secret, error) {
-	return func(s ...string) (*dep.Secret, error) {
+func secretFunc(b *Brain, used, missing *dep.Set) func(string) (*dep.Secret, error) {
+	return func(s string) (*dep.Secret, error) {
 		result := &dep.Secret{}
 
 		if len(s) == 0 {
 			return result, nil
 		}
 
-		d, err := dep.ParseVaultSecret(s...)
+		d, err := dep.NewVaultReadQuery(s)
 		if err != nil {
 			return result, nil
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			result = value.(*dep.Secret)
 			return result, nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // secretsFunc returns or accumulates a list of secret dependencies from Vault.
-func secretsFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) ([]string, error) {
+func secretsFunc(b *Brain, used, missing *dep.Set) func(string) ([]string, error) {
 	return func(s string) ([]string, error) {
 		result := []string{}
 
@@ -274,27 +287,26 @@ func secretsFunc(brain *Brain,
 			return result, nil
 		}
 
-		d, err := dep.ParseVaultSecrets(s)
+		d, err := dep.NewVaultListQuery(s)
 		if err != nil {
 			return result, nil
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			result = value.([]string)
 			return result, nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // serviceFunc returns or accumulates health service dependencies.
-func serviceFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) ([]*dep.HealthService, error) {
+func serviceFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.HealthService, error) {
 	return func(s ...string) ([]*dep.HealthService, error) {
 		result := []*dep.HealthService{}
 
@@ -302,49 +314,47 @@ func serviceFunc(brain *Brain,
 			return result, nil
 		}
 
-		d, err := dep.ParseHealthServices(s...)
+		d, err := dep.NewHealthServiceQuery(strings.Join(s, ""))
 		if err != nil {
 			return nil, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			return value.([]*dep.HealthService), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // servicesFunc returns or accumulates catalog services dependencies.
-func servicesFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(...string) ([]*dep.CatalogService, error) {
-	return func(s ...string) ([]*dep.CatalogService, error) {
-		result := []*dep.CatalogService{}
+func servicesFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.CatalogSnippet, error) {
+	return func(s ...string) ([]*dep.CatalogSnippet, error) {
+		result := []*dep.CatalogSnippet{}
 
-		d, err := dep.ParseCatalogServices(s...)
+		d, err := dep.NewCatalogServicesQuery(strings.Join(s, ""))
 		if err != nil {
 			return nil, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
-		if value, ok := brain.Recall(d); ok {
-			return value.([]*dep.CatalogService), nil
+		if value, ok := b.Recall(d); ok {
+			return value.([]*dep.CatalogSnippet), nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
 	}
 }
 
 // treeFunc returns or accumulates keyPrefix dependencies.
-func treeFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) ([]*dep.KeyPair, error) {
+func treeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -352,15 +362,15 @@ func treeFunc(brain *Brain,
 			return result, nil
 		}
 
-		d, err := dep.ParseStoreKeyPrefix(s)
+		d, err := dep.NewKVListQuery(s)
 		if err != nil {
 			return result, err
 		}
 
-		addDependency(used, d)
+		used.Add(d)
 
 		// Only return non-empty top-level keys
-		if value, ok := brain.Recall(d); ok {
+		if value, ok := b.Recall(d); ok {
 			for _, pair := range value.([]*dep.KeyPair) {
 				parts := strings.Split(pair.Key, "/")
 				if parts[len(parts)-1] != "" {
@@ -370,19 +380,9 @@ func treeFunc(brain *Brain,
 			return result, nil
 		}
 
-		addDependency(missing, d)
+		missing.Add(d)
 
 		return result, nil
-	}
-}
-
-// vaultFunc is deprecated. Use secretFunc instead.
-func vaultFunc(brain *Brain,
-	used, missing map[string]dep.Dependency) func(string) (*dep.Secret, error) {
-	return func(s string) (*dep.Secret, error) {
-		log.Printf("[WARN] the `vault' template function has been deprecated. " +
-			"Please use `secret` instead!")
-		return secretFunc(brain, used, missing)(s)
 	}
 }
 
@@ -436,9 +436,15 @@ func byTag(in interface{}) (map[string][]interface{}, error) {
 
 	switch typed := in.(type) {
 	case nil:
-	case []*dep.CatalogService:
+	case []*dep.CatalogSnippet:
 		for _, s := range typed {
 			for _, t := range s.Tags {
+				m[t] = append(m[t], s)
+			}
+		}
+	case []*dep.CatalogService:
+		for _, s := range typed {
+			for _, t := range s.ServiceTags {
 				m[t] = append(m[t], s)
 			}
 		}
@@ -464,9 +470,40 @@ func contains(v, l interface{}) (bool, error) {
 	return in(l, v)
 }
 
-// env returns the value of the environment variable set
-func env(s string) (string, error) {
-	return os.Getenv(s), nil
+// containsSomeFunc returns functions to implement each of the following:
+//
+// 1. containsAll    - true if (∀x ∈ v then x ∈ l); false otherwise
+// 2. containsAny    - true if (∃x ∈ v such that x ∈ l); false otherwise
+// 3. containsNone   - true if (∀x ∈ v then x ∉ l); false otherwise
+// 2. containsNotall - true if (∃x ∈ v such that x ∉ l); false otherwise
+//
+// ret_true - return true at end of loop for none/all; false for any/notall
+// invert   - invert block test for all/notall
+func containsSomeFunc(ret_true, invert bool) func([]interface{}, interface{}) (bool, error) {
+	return func(v []interface{}, l interface{}) (bool, error) {
+		for i := 0; i < len(v); i++ {
+			if ok, _ := in(l, v[i]); ok != invert {
+				return !ret_true, nil
+			}
+		}
+		return ret_true, nil
+	}
+}
+
+// envFunc returns a function which checks the value of an environment variable.
+// Invokers can specify their own environment, which takes precedences over any
+// real environment variables
+func envFunc(env []string) func(string) (string, error) {
+	return func(s string) (string, error) {
+		for _, e := range env {
+			split := strings.SplitN(e, "=", 2)
+			k, v := split[0], split[1]
+			if k == s {
+				return v, nil
+			}
+		}
+		return os.Getenv(s), nil
+	}
 }
 
 // explode is used to expand a list of keypairs into a deeply-nested hash.
@@ -474,7 +511,7 @@ func explode(pairs []*dep.KeyPair) (map[string]interface{}, error) {
 	m := make(map[string]interface{})
 	for _, pair := range pairs {
 		if err := explodeHelper(m, pair.Key, pair.Value, pair.Key); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "explode")
 		}
 	}
 	return m, nil
@@ -504,7 +541,7 @@ func explodeHelper(m map[string]interface{}, k, v, p string) error {
 	return nil
 }
 
-// in seaches for a given value in a given interface.
+// in searches for a given value in a given interface.
 func in(l, v interface{}) (bool, error) {
 	lv := reflect.ValueOf(l)
 	vv := reflect.ValueOf(v)
@@ -614,7 +651,7 @@ func parseBool(s string) (bool, error) {
 
 	result, err := strconv.ParseBool(s)
 	if err != nil {
-		return false, fmt.Errorf("parseBool: %s", err)
+		return false, errors.Wrap(err, "parseBool")
 	}
 	return result, nil
 }
@@ -627,7 +664,7 @@ func parseFloat(s string) (float64, error) {
 
 	result, err := strconv.ParseFloat(s, 10)
 	if err != nil {
-		return 0, fmt.Errorf("parseFloat: %s", err)
+		return 0, errors.Wrap(err, "parseFloat")
 	}
 	return result, nil
 }
@@ -640,7 +677,7 @@ func parseInt(s string) (int64, error) {
 
 	result, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parseInt: %s", err)
+		return 0, errors.Wrap(err, "parseInt")
 	}
 	return result, nil
 }
@@ -666,7 +703,7 @@ func parseUint(s string) (uint64, error) {
 
 	result, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parseUint: %s", err)
+		return 0, errors.Wrap(err, "parseUint")
 	}
 	return result, nil
 }
@@ -783,7 +820,7 @@ func toLower(s string) (string, error) {
 func toJSON(i interface{}) (string, error) {
 	result, err := json.Marshal(i)
 	if err != nil {
-		return "", fmt.Errorf("toJSON: %s", err)
+		return "", errors.Wrap(err, "toJSON")
 	}
 	return string(bytes.TrimSpace(result)), err
 }
@@ -793,7 +830,7 @@ func toJSON(i interface{}) (string, error) {
 func toJSONPretty(m map[string]interface{}) (string, error) {
 	result, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("toJSONPretty: %s", err)
+		return "", errors.Wrap(err, "toJSONPretty")
 	}
 	return string(bytes.TrimSpace(result)), err
 }
@@ -812,7 +849,7 @@ func toUpper(s string) (string, error) {
 func toYAML(m map[string]interface{}) (string, error) {
 	result, err := yaml.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("toYAML: %s", err)
+		return "", errors.Wrap(err, "toYAML")
 	}
 	return string(bytes.TrimSpace(result)), nil
 }
@@ -822,11 +859,11 @@ func toTOML(m map[string]interface{}) (string, error) {
 	buf := bytes.NewBuffer([]byte{})
 	enc := toml.NewEncoder(buf)
 	if err := enc.Encode(m); err != nil {
-		return "", fmt.Errorf("toTOML: %s", err)
+		return "", errors.Wrap(err, "toTOML")
 	}
 	result, err := ioutil.ReadAll(buf)
 	if err != nil {
-		return "", fmt.Errorf("toTOML: %s", err)
+		return "", errors.Wrap(err, "toTOML")
 	}
 	return string(bytes.TrimSpace(result)), nil
 }
@@ -1004,12 +1041,5 @@ func divide(b, a interface{}) (interface{}, error) {
 		}
 	default:
 		return nil, fmt.Errorf("divide: unknown type for %q (%T)", av, a)
-	}
-}
-
-// addDependency adds the given Dependency to the map.
-func addDependency(m map[string]dep.Dependency, d dep.Dependency) {
-	if _, ok := m[d.HashCode()]; !ok {
-		m[d.HashCode()] = d
 	}
 }

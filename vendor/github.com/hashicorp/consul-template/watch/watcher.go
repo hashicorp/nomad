@@ -38,7 +38,7 @@ type Watcher struct {
 	config *WatcherConfig
 
 	// depViewMap is a map of Templates to Views. Templates are keyed by
-	// HashCode().
+	// their string.
 	depViewMap map[string]*View
 }
 
@@ -86,10 +86,10 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) adding %s", d.Display())
+	log.Printf("[DEBUG] (watcher) adding %s", d)
 
-	if _, ok := w.depViewMap[d.HashCode()]; ok {
-		log.Printf("[DEBUG] (watcher) %s already exists, skipping", d.Display())
+	if _, ok := w.depViewMap[d.String()]; ok {
+		log.Printf("[TRACE] (watcher) %s already exists, skipping", d)
 		return false, nil
 	}
 
@@ -98,9 +98,9 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 		return false, err
 	}
 
-	log.Printf("[DEBUG] (watcher) %s starting", d.Display())
+	log.Printf("[TRACE] (watcher) %s starting", d)
 
-	w.depViewMap[d.HashCode()] = v
+	w.depViewMap[d.String()] = v
 	go v.poll(w.DataCh, w.ErrCh)
 
 	return true, nil
@@ -111,7 +111,7 @@ func (w *Watcher) Watching(d dep.Dependency) bool {
 	w.Lock()
 	defer w.Unlock()
 
-	_, ok := w.depViewMap[d.HashCode()]
+	_, ok := w.depViewMap[d.String()]
 	return ok
 }
 
@@ -122,9 +122,9 @@ func (w *Watcher) ForceWatching(d dep.Dependency, enabled bool) {
 	defer w.Unlock()
 
 	if enabled {
-		w.depViewMap[d.HashCode()] = nil
+		w.depViewMap[d.String()] = nil
 	} else {
-		delete(w.depViewMap, d.HashCode())
+		delete(w.depViewMap, d.String())
 	}
 }
 
@@ -136,16 +136,16 @@ func (w *Watcher) Remove(d dep.Dependency) bool {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) removing %s", d.Display())
+	log.Printf("[DEBUG] (watcher) removing %s", d)
 
-	if view, ok := w.depViewMap[d.HashCode()]; ok {
-		log.Printf("[DEBUG] (watcher) actually removing %s", d.Display())
+	if view, ok := w.depViewMap[d.String()]; ok {
+		log.Printf("[TRACE] (watcher) actually removing %s", d)
 		view.stop()
-		delete(w.depViewMap, d.HashCode())
+		delete(w.depViewMap, d.String())
 		return true
 	}
 
-	log.Printf("[DEBUG] (watcher) %s did not exist, skipping", d.Display())
+	log.Printf("[TRACE] (watcher) %s did not exist, skipping", d)
 	return false
 }
 
@@ -162,13 +162,13 @@ func (w *Watcher) Stop() {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) stopping all views")
+	log.Printf("[DEBUG] (watcher) stopping all views")
 
 	for _, view := range w.depViewMap {
 		if view == nil {
 			continue
 		}
-		log.Printf("[DEBUG] (watcher) stopping %s", view.Dependency.Display())
+		log.Printf("[TRACE] (watcher) stopping %s", view.Dependency)
 		view.stop()
 	}
 
@@ -198,7 +198,7 @@ func (w *Watcher) init() error {
 
 	// Start a watcher for the Vault renew if that config was specified
 	if w.config.RenewVault {
-		vt, err := dep.ParseVaultToken()
+		vt, err := dep.NewVaultTokenQuery()
 		if err != nil {
 			return fmt.Errorf("watcher: %s", err)
 		}

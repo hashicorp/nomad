@@ -4,144 +4,205 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"text/template"
+
+	"github.com/pkg/errors"
 
 	dep "github.com/hashicorp/consul-template/dependency"
 )
 
+var (
+	ErrTemplateContentsAndSource        = errors.New("template: cannot specify both 'source' and 'content'")
+	ErrTemplateMissingContentsAndSource = errors.New("template: must specify exactly one of 'source' or 'content'")
+)
+
 type Template struct {
-	// Path is the path to this template on disk.
-	Path string
-
-	// LeftDelim and RightDelim are the left and right delimiters to use.
-	LeftDelim, RightDelim string
-
-	// Contents is the string contents for the template. It is either given
+	// contents is the string contents for the template. It is either given
 	// during template creation or read from disk when initialized.
+	contents string
+
+	// source is the original location of the template. This may be undefined if
+	// the template was dynamically defined.
+	source string
+
+	// leftDelim and rightDelim are the template delimiters.
+	leftDelim  string
+	rightDelim string
+
+	// hexMD5 stores the hex version of the MD5
+	hexMD5 string
+}
+
+// NewTemplateInput is used as input when creating the template.
+type NewTemplateInput struct {
+	// Source is the location on disk to the file.
+	Source string
+
+	// Contents are the raw template contents.
 	Contents string
 
-	// HexMD5 stores the hex version of the MD5
-	HexMD5 string
+	// LeftDelim and RightDelim are the template delimiters.
+	LeftDelim  string
+	RightDelim string
 }
 
 // NewTemplate creates and parses a new Consul Template template at the given
 // path. If the template does not exist, an error is returned. During
 // initialization, the template is read and is parsed for dependencies. Any
 // errors that occur are returned.
-func NewTemplate(path, contents, leftDelim, rightDelim string) (*Template, error) {
+func NewTemplate(i *NewTemplateInput) (*Template, error) {
+	if i == nil {
+		i = &NewTemplateInput{}
+	}
+
 	// Validate that we are either given the path or the explicit contents
-	pathEmpty, contentsEmpty := path == "", contents == ""
-	if !pathEmpty && !contentsEmpty {
-		return nil, errors.New("Either specify template path or content, not both")
-	} else if pathEmpty && contentsEmpty {
-		return nil, errors.New("Must specify template path or content")
+	if i.Source != "" && i.Contents != "" {
+		return nil, ErrTemplateContentsAndSource
+	} else if i.Source == "" && i.Contents == "" {
+		return nil, ErrTemplateMissingContentsAndSource
 	}
 
-	template := &Template{
-		Path:       path,
-		Contents:   contents,
-		LeftDelim:  leftDelim,
-		RightDelim: rightDelim,
-	}
-	if err := template.init(); err != nil {
-		return nil, err
-	}
+	var t Template
+	t.source = i.Source
+	t.contents = i.Contents
+	t.leftDelim = i.LeftDelim
+	t.rightDelim = i.RightDelim
 
-	return template, nil
-}
-
-// ID returns an identifier for the template
-func (t *Template) ID() string {
-	return t.HexMD5
-}
-
-// Execute evaluates this template in the context of the given brain.
-//
-// The first return value is the list of used dependencies.
-// The second return value is the list of missing dependencies.
-// The third return value is the rendered text.
-// The fourth return value any error that occurs.
-func (t *Template) Execute(brain *Brain) ([]dep.Dependency, []dep.Dependency, []byte, error) {
-	usedMap := make(map[string]dep.Dependency)
-	missingMap := make(map[string]dep.Dependency)
-	name := filepath.Base(t.Path)
-	funcs := funcMap(brain, usedMap, missingMap)
-
-	tmpl, err := template.New(name).
-		Delims(t.LeftDelim, t.RightDelim).
-		Funcs(funcs).
-		Parse(t.Contents)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("template: %s", err)
-	}
-
-	// TODO: accept an io.Writer instead
-	buff := new(bytes.Buffer)
-	if err := tmpl.Execute(buff, nil); err != nil {
-		return nil, nil, nil, fmt.Errorf("template: %s", err)
-	}
-
-	// Update this list of this template's dependencies
-	var used []dep.Dependency
-	for _, dep := range usedMap {
-		used = append(used, dep)
-	}
-
-	// Compile the list of missing dependencies
-	var missing []dep.Dependency
-	for _, dep := range missingMap {
-		missing = append(missing, dep)
-	}
-
-	return used, missing, buff.Bytes(), nil
-}
-
-// init reads the template file and initializes required variables.
-func (t *Template) init() error {
-	// Render the template
-	if t.Path != "" {
-		contents, err := ioutil.ReadFile(t.Path)
+	if i.Source != "" {
+		contents, err := ioutil.ReadFile(i.Source)
 		if err != nil {
-			return err
+			return nil, errors.Wrap(err, "failed to read template")
 		}
-		t.Contents = string(contents)
+		t.contents = string(contents)
 	}
 
 	// Compute the MD5, encode as hex
-	hash := md5.Sum([]byte(t.Contents))
-	t.HexMD5 = hex.EncodeToString(hash[:])
+	hash := md5.Sum([]byte(t.contents))
+	t.hexMD5 = hex.EncodeToString(hash[:])
 
-	return nil
+	return &t, nil
+}
+
+// ID returns the identifier for this template.
+func (t *Template) ID() string {
+	return t.hexMD5
+}
+
+// Contents returns the raw contents of the template.
+func (t *Template) Contents() string {
+	return t.contents
+}
+
+// Source returns the filepath source of this template.
+func (t *Template) Source() string {
+	if t.source == "" {
+		return "(dynamic)"
+	}
+	return t.source
+}
+
+// ExecuteInput is used as input to the template's execute function.
+type ExecuteInput struct {
+	// Brain is the brain where data for the template is stored.
+	Brain *Brain
+
+	// Env is a custom environment provided to the template for envvar resolution.
+	// Values specified here will take precedence over any values in the
+	// environment when using the `env` function.
+	Env []string
+}
+
+// ExecuteResult is the result of the template execution.
+type ExecuteResult struct {
+	// Used is the set of dependencies that were used.
+	Used *dep.Set
+
+	// Missing is the set of dependencies that were missing.
+	Missing *dep.Set
+
+	// Output is the rendered result.
+	Output []byte
+}
+
+// Execute evaluates this template in the provided context.
+func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
+	if i == nil {
+		i = &ExecuteInput{}
+	}
+
+	var used, missing dep.Set
+
+	tmpl := template.New("")
+	tmpl.Delims(t.leftDelim, t.rightDelim)
+	tmpl.Funcs(funcMap(&funcMapInput{
+		t:       tmpl,
+		brain:   i.Brain,
+		env:     i.Env,
+		used:    &used,
+		missing: &missing,
+	}))
+
+	tmpl, err := tmpl.Parse(t.contents)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse")
+	}
+
+	// Execute the template into the writer
+	var b bytes.Buffer
+	if err := tmpl.Execute(&b, nil); err != nil {
+		return nil, errors.Wrap(err, "execute")
+	}
+
+	return &ExecuteResult{
+		Used:    &used,
+		Missing: &missing,
+		Output:  b.Bytes(),
+	}, nil
+}
+
+// funcMapInput is input to the funcMap, which builds the template functions.
+type funcMapInput struct {
+	t       *template.Template
+	brain   *Brain
+	env     []string
+	used    *dep.Set
+	missing *dep.Set
 }
 
 // funcMap is the map of template functions to their respective functions.
-func funcMap(brain *Brain, used, missing map[string]dep.Dependency) template.FuncMap {
+func funcMap(i *funcMapInput) template.FuncMap {
+	var scratch Scratch
+
 	return template.FuncMap{
 		// API functions
-		"datacenters":    datacentersFunc(brain, used, missing),
-		"file":           fileFunc(brain, used, missing),
-		"key":            keyFunc(brain, used, missing),
-		"key_exists":     keyExistsFunc(brain, used, missing),
-		"key_or_default": keyWithDefaultFunc(brain, used, missing),
-		"ls":             lsFunc(brain, used, missing),
-		"node":           nodeFunc(brain, used, missing),
-		"nodes":          nodesFunc(brain, used, missing),
-		"secret":         secretFunc(brain, used, missing),
-		"secrets":        secretsFunc(brain, used, missing),
-		"service":        serviceFunc(brain, used, missing),
-		"services":       servicesFunc(brain, used, missing),
-		"tree":           treeFunc(brain, used, missing),
-		"vault":          vaultFunc(brain, used, missing),
+		"datacenters":  datacentersFunc(i.brain, i.used, i.missing),
+		"file":         fileFunc(i.brain, i.used, i.missing),
+		"key":          keyFunc(i.brain, i.used, i.missing),
+		"keyExists":    keyExistsFunc(i.brain, i.used, i.missing),
+		"keyOrDefault": keyWithDefaultFunc(i.brain, i.used, i.missing),
+		"ls":           lsFunc(i.brain, i.used, i.missing),
+		"node":         nodeFunc(i.brain, i.used, i.missing),
+		"nodes":        nodesFunc(i.brain, i.used, i.missing),
+		"secret":       secretFunc(i.brain, i.used, i.missing),
+		"secrets":      secretsFunc(i.brain, i.used, i.missing),
+		"service":      serviceFunc(i.brain, i.used, i.missing),
+		"services":     servicesFunc(i.brain, i.used, i.missing),
+		"tree":         treeFunc(i.brain, i.used, i.missing),
+
+		// Scratch
+		"scratch": func() *Scratch { return &scratch },
 
 		// Helper functions
 		"byKey":           byKey,
 		"byTag":           byTag,
 		"contains":        contains,
-		"env":             env,
+		"containsAll":     containsSomeFunc(true, true),
+		"containsAny":     containsSomeFunc(false, false),
+		"containsNone":    containsSomeFunc(true, false),
+		"containsNotall":  containsSomeFunc(false, true),
+		"env":             envFunc(i.env),
+		"executeTemplate": executeTemplateFunc(i.t),
 		"explode":         explode,
 		"in":              in,
 		"loop":            loop,
@@ -171,5 +232,8 @@ func funcMap(brain *Brain, used, missing map[string]dep.Dependency) template.Fun
 		"subtract": subtract,
 		"multiply": multiply,
 		"divide":   divide,
+
+		// Deprecated functions
+		"key_or_default": keyWithDefaultFunc(i.brain, i.used, i.missing),
 	}
 }
