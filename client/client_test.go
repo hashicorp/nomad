@@ -679,12 +679,13 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	})
 
 	// Destroy all the allocations
-	c2.allocLock.Lock()
-	for _, ar := range c2.allocs {
+	for _, ar := range c2.getAllocRunners() {
 		ar.Destroy()
+	}
+
+	for _, ar := range c2.getAllocRunners() {
 		<-ar.WaitCh()
 	}
-	c2.allocLock.Unlock()
 }
 
 func TestClient_Init(t *testing.T) {
@@ -804,13 +805,13 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	})
 
 	// Destroy all the allocations
-	c1.allocLock.Lock()
-	for _, ar := range c1.allocs {
+	for _, ar := range c1.getAllocRunners() {
 		ar.Destroy()
+	}
+
+	for _, ar := range c1.getAllocRunners() {
 		<-ar.WaitCh()
 	}
-	c1.allocLock.Unlock()
-
 }
 
 func TestClient_UnarchiveAllocDir(t *testing.T) {
