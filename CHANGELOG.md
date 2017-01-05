@@ -5,10 +5,10 @@ IMPROVEMENTS:
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
     [GH-2081]
+  * driver/docker: Add support for network aliases [GH-1980]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
 
 BUG FIXES:
-  * driver/docker: Add support for network aliases [GH-1980]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
 
 ## 0.5.2 (December 23, 2016)
