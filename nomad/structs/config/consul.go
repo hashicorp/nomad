@@ -98,8 +98,8 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
 	}
-	if b.AutoAdvertise {
-		result.AutoAdvertise = true
+	if !b.AutoAdvertise {
+		result.AutoAdvertise = false
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
