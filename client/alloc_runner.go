@@ -79,6 +79,17 @@ type allocRunnerState struct {
 	AllocDir               *allocdir.AllocDir
 	AllocClientStatus      string
 	AllocClientDescription string
+
+	// Context is deprecated and only used to migrate from older releases.
+	// It will be removed in the future.
+	Context *struct {
+		AllocID  string // unused; included for completeness
+		AllocDir struct {
+			AllocDir  string
+			SharedDir string // unused; included for completeness
+			TaskDirs  map[string]string
+		}
+	} `json:"Context,omitempty"`
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -117,6 +128,16 @@ func (r *AllocRunner) RestoreState() error {
 		return err
 	}
 
+	// #2132 Upgrade path: if snap.AllocDir is nil, try to convert old
+	// Context struct to new AllocDir struct
+	if snap.AllocDir == nil && snap.Context != nil {
+		r.logger.Printf("[DEBUG] client: migrating state snapshot for alloc %q", r.alloc.ID)
+		snap.AllocDir = allocdir.NewAllocDir(snap.Context.AllocDir.AllocDir)
+		for taskName := range snap.Context.AllocDir.TaskDirs {
+			snap.AllocDir.NewTaskDir(taskName)
+		}
+	}
+
 	// Restore fields
 	r.alloc = snap.Alloc
 	r.allocDir = snap.AllocDir
@@ -128,7 +149,6 @@ func (r *AllocRunner) RestoreState() error {
 		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil allocation"))
 	}
 	if r.allocDir == nil {
-		//FIXME Upgrade path?
 		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil alloc dir"))
 	}
 	if e := snapshotErrors.ErrorOrNil(); e != nil {
