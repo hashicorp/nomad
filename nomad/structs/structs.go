@@ -3186,6 +3186,7 @@ func (ta *TaskArtifact) Validate() error {
 }
 
 const (
+	ConstraintBalance       = "balance_datacenter"
 	ConstraintDistinctHosts = "distinct_hosts"
 	ConstraintRegex         = "regexp"
 	ConstraintVersion       = "version"

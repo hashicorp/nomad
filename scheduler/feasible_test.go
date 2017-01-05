@@ -612,6 +612,201 @@ func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
 	}
 }
 
+func TestPropsedAllocConstraint_JobBalance(t *testing.T) {
+	store, ctx := testContext(t)
+
+	n3 := mock.Node()
+	n3.Datacenter = "dc2"
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		n3,
+	}
+
+	for i, node := range nodes {
+		store.UpsertNode(uint64(i), node)
+	}
+
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with balance constraint
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Datacenters: []string{"dc1", "dc2"},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+
+	if len(out) != 3 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestPropsedAllocConstraint_JobBalance_WithRunningJobs(t *testing.T) {
+	store, ctx := testContext(t)
+
+	n3 := mock.Node()
+	n3.Datacenter = "dc2"
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		n3,
+	}
+
+	for i, node := range nodes {
+		store.UpsertNode(uint64(i), node)
+	}
+
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with balance constraint
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Datacenters: []string{"dc1", "dc2"},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup:     tg1.Name,
+			JobID:         job.ID,
+			ID:            structs.GenerateUUID(),
+			DesiredStatus: structs.AllocDesiredStatusRun,
+		},
+
+		// This should be ignored since it's another Job
+		&structs.Allocation{
+			TaskGroup:     tg2.Name,
+			JobID:         "ignore",
+			ID:            structs.GenerateUUID(),
+			DesiredStatus: structs.AllocDesiredStatusRun,
+		},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestPropsedAllocConstraint_JobBalance_WithStoppedJobs(t *testing.T) {
+	store, ctx := testContext(t)
+
+	n3 := mock.Node()
+	n3.Datacenter = "dc2"
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		n3,
+	}
+
+	for i, node := range nodes {
+		store.UpsertNode(uint64(i), node)
+	}
+
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with balance constraint
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Datacenters: []string{"dc1", "dc2"},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup:     tg1.Name,
+			JobID:         job.ID,
+			ID:            structs.GenerateUUID(),
+			DesiredStatus: structs.AllocDesiredStatusRun,
+		},
+	}
+
+	// this allocation should be ignored since it's no longer active
+	plan.NodeAllocation[n3.ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup:     tg2.Name,
+			JobID:         job.ID,
+			ID:            structs.GenerateUUID(),
+			DesiredStatus: structs.AllocDesiredStatusStop,
+		},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+
+	if len(out) != 1 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
+func TestPropsedAllocConstraint_JobBalance_InfeasibleDC(t *testing.T) {
+	store, ctx := testContext(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	for i, node := range nodes {
+		store.UpsertNode(uint64(i), node)
+	}
+
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with balance constraint
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	tg2 := &structs.TaskGroup{Name: "baz"}
+
+	job := &structs.Job{
+		ID:          "foo",
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Datacenters: []string{"dc1", "dc2"},
+		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
+	}
+
+	propsed := NewProposedAllocConstraintIterator(ctx, static)
+	propsed.SetTaskGroup(tg1)
+	propsed.SetJob(job)
+
+	out := collectFeasible(propsed)
+
+	// Should only be able to schedule 1 tg on 2 nodes
+	if len(out) != 2 {
+		t.Fatalf("Bad: %#v", out)
+	}
+}
+
 func collectFeasible(iter FeasibleIterator) (out []*structs.Node) {
 	for {
 		next := iter.Next()

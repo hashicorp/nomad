@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-version"
+	"math"
+
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -157,6 +159,9 @@ type ProposedAllocConstraintIterator struct {
 	// they don't have to be calculated every time Next() is called.
 	tgDistinctHosts  bool
 	jobDistinctHosts bool
+
+	tgBalance  bool
+	jobBalance bool
 }
 
 // NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
@@ -171,11 +176,13 @@ func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *P
 func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
+	iter.tgBalance = iter.hasBalanceConstraint(tg.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
+	iter.jobBalance = iter.hasBalanceConstraint(job.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
@@ -187,18 +194,33 @@ func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constrai
 	return false
 }
 
+func (iter *ProposedAllocConstraintIterator) hasBalanceConstraint(constraints []*structs.Constraint) bool {
+	for _, con := range constraints {
+		if con.Operand == structs.ConstraintBalance {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
 
 		// Hot-path if the option is nil or there are no distinct_hosts constraints.
-		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts || iter.jobBalance || iter.tgBalance) {
 			return option
 		}
 
 		if !iter.satisfiesDistinctHosts(option) {
 			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
+			continue
+		}
+
+		if !iter.satisfiesBalance(option) {
+			iter.ctx.Metrics().FilterNode(option, structs.ConstraintBalance)
 			continue
 		}
 
@@ -232,6 +254,96 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
 			return false
 		}
+	}
+
+	return true
+}
+
+// satisfiesBalance checks if the allocation on this node would make the zones
+// unbalanced, this implies a greater then 1 difference between the lowest, and the
+// highest zone
+func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.Node) bool {
+	// Check if there is no constraint set.
+	if !(iter.jobBalance || iter.tgBalance) {
+		return true
+	}
+
+	// fill the map with all the dc's in the selected datacenter
+	balanceMap := make(map[string]int)
+
+	if len(iter.job.Datacenters) == 0 {
+		iter.ctx.Logger().Print("[ERR] Job needs at least 1 datacenter to use balance")
+		return false
+	}
+
+	for _, dc := range iter.job.Datacenters {
+		balanceMap[dc] = 0
+	}
+
+	// get all the nodes
+	nodeIter, err := iter.ctx.State().Nodes()
+	if err != nil {
+		iter.ctx.Logger().Print("[ERR] Failed to get nodes")
+		return false
+	}
+
+	for {
+		next := nodeIter.Next()
+		if next == nil {
+			break
+		}
+
+		node := next.(*structs.Node)
+
+		// current allocations
+		allocs, err := iter.ctx.State().AllocsByNode(node.ID)
+		if err != nil {
+			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get node allocations: %v", err)
+			return false
+		}
+
+		// proposed allocations
+		proposed, err := iter.ctx.ProposedAllocs(node.ID)
+		if err != nil {
+			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get proposed allocations: %v", err)
+			return false
+		}
+
+		for _, alloc := range proposed {
+			allocs = append(allocs, alloc)
+		}
+
+		for _, alloc := range allocs {
+			jobCollision := alloc.JobID == iter.job.ID
+			taskCollision := alloc.TaskGroup == iter.tg.Name
+
+			// skip jobs not in this job or taskgroup (for jobBalance/tgBalance)
+			if !(jobCollision && (iter.jobBalance || taskCollision)) {
+				continue
+			}
+
+			// skip allocation with DesiredStatus other then running
+			if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+				continue
+			}
+
+			balanceMap[node.Datacenter]++
+		}
+	}
+
+	min := math.MaxInt32
+
+	for _, n := range balanceMap {
+		if n < min {
+			min = n
+		}
+	}
+
+	iter.ctx.Logger().Printf("[DEBUG] Allocs per DC: Current: %d (%s), Lowest: %d", balanceMap[option.Datacenter], option.Datacenter, min)
+
+	// if the current DC is higher then the minium, the node is not eligible
+	if balanceMap[option.Datacenter] > min {
+		return false
 	}
 
 	return true
@@ -328,6 +440,8 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts:
+		return true
+	case structs.ConstraintBalance:
 		return true
 	default:
 		break
