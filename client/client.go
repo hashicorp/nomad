@@ -1784,6 +1784,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	c.allocLock.Lock()
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
+		c.allocLock.Unlock()
 		return nil
 	}
 	c.allocLock.Unlock()
