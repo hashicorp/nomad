@@ -810,10 +810,12 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	c1.allocLock.Lock()
 	for _, ar := range c1.allocs {
 		ar.Destroy()
-		<-ar.WaitCh()
 	}
 	c1.allocLock.Unlock()
 
+	for _, ar := range c1.allocs {
+		<-ar.WaitCh()
+	}
 }
 
 func TestClient_UnarchiveAllocDir(t *testing.T) {
