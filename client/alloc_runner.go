@@ -132,7 +132,7 @@ func (r *AllocRunner) RestoreState() error {
 	// Context struct to new AllocDir struct
 	if snap.AllocDir == nil && snap.Context != nil {
 		r.logger.Printf("[DEBUG] client: migrating state snapshot for alloc %q", r.alloc.ID)
-		snap.AllocDir = allocdir.NewAllocDir(snap.Context.AllocDir.AllocDir)
+		snap.AllocDir = allocdir.NewAllocDir(r.logger, snap.Context.AllocDir.AllocDir)
 		for taskName := range snap.Context.AllocDir.TaskDirs {
 			snap.AllocDir.NewTaskDir(taskName)
 		}
@@ -437,7 +437,7 @@ func (r *AllocRunner) Run() {
 	r.allocDirLock.Lock()
 	if r.allocDir == nil {
 		// Build allocation directory
-		r.allocDir = allocdir.NewAllocDir(filepath.Join(r.config.AllocDir, r.alloc.ID))
+		r.allocDir = allocdir.NewAllocDir(r.logger, filepath.Join(r.config.AllocDir, r.alloc.ID))
 		if err := r.allocDir.Build(); err != nil {
 			r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
 			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))

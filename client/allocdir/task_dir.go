@@ -3,6 +3,7 @@ package allocdir
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -35,13 +36,15 @@ type TaskDir struct {
 	// SecretsDir is the path to secrets/ directory on the host
 	// <task_dir>/secrets/
 	SecretsDir string
+
+	logger *log.Logger
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(allocDir, taskName string) *TaskDir {
+func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
 	return &TaskDir{
 		Dir:            taskDir,
@@ -50,6 +53,7 @@ func newTaskDir(allocDir, taskName string) *TaskDir {
 		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
 		LocalDir:       filepath.Join(taskDir, TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
+		logger:         logger,
 	}
 }
 

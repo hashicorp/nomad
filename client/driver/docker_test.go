@@ -1112,7 +1112,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 	}
 
 	// Build alloc and task directory structure
-	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("failed to build alloc dir: %v", err)
 	}

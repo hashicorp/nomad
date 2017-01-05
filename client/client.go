@@ -1616,7 +1616,7 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 	}
 
 	// If there were no errors then we create the allocdir
-	prevAllocDir := allocdir.NewAllocDir(pathToAllocDir)
+	prevAllocDir := allocdir.NewAllocDir(c.logger, pathToAllocDir)
 	return prevAllocDir, nil
 }
 

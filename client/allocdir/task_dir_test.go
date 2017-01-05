@@ -15,7 +15,7 @@ func TestTaskDir_EmbedNonExistent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -37,7 +37,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {

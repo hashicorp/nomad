@@ -49,6 +49,10 @@ var (
 	}
 )
 
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
+}
+
 // Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
@@ -57,7 +61,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -94,7 +98,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -138,7 +142,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -207,13 +211,13 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(tmp1)
+	d1 := NewAllocDir(testLogger(), tmp1)
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(tmp2)
+	d2 := NewAllocDir(testLogger(), tmp2)
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -269,7 +273,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -311,7 +315,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(tmp)
+	d := NewAllocDir(testLogger(), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}

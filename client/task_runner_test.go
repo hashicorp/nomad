@@ -82,7 +82,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 		return nil

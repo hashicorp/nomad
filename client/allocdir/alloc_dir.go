@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -53,6 +54,8 @@ type AllocDir struct {
 
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]*TaskDir
+
+	logger *log.Logger
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir
@@ -76,17 +79,18 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(allocDir string) *AllocDir {
+func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
 	return &AllocDir{
 		AllocDir:  allocDir,
 		SharedDir: filepath.Join(allocDir, SharedAllocName),
 		TaskDirs:  make(map[string]*TaskDir),
+		logger:    logger,
 	}
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
 func (d *AllocDir) NewTaskDir(name string) *TaskDir {
-	td := newTaskDir(d.AllocDir, name)
+	td := newTaskDir(d.logger, d.AllocDir, name)
 	d.TaskDirs[name] = td
 	return td
 }
