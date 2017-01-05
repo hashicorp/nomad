@@ -579,12 +579,24 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	// Ensure that data from ar1 was moved to ar
 	taskDir = ar1.ctx.AllocDir.TaskDirs[task.Name]
 	taskLocalFile = filepath.Join(taskDir, "local", "local_file")
-	if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
-		t.Fatalf("file %v not found", taskLocalFile)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
+			return false, fmt.Errorf("file %v not found", taskLocalFile)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	dataFile = filepath.Join(ar1.ctx.AllocDir.SharedDir, "data", "data_file")
-	if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
-		t.Fatalf("file %v not found", dataFile)
-	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
+			return false, fmt.Errorf("file %v not found", dataFile)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 }
