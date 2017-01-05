@@ -682,9 +682,12 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c2.allocLock.Lock()
 	for _, ar := range c2.allocs {
 		ar.Destroy()
-		<-ar.WaitCh()
 	}
 	c2.allocLock.Unlock()
+
+	for _, ar := range c2.allocs {
+		<-ar.WaitCh()
+	}
 }
 
 func TestClient_Init(t *testing.T) {
