@@ -9,6 +9,8 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
+// TaskDir contains all of the paths relevant to a task. All paths are on the
+// host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
 	// Dir is the path to Task directory on the host
 	Dir string
