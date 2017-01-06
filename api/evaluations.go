@@ -69,6 +69,7 @@ type Evaluation struct {
 	PreviousEval      string
 	BlockedEval       string
 	FailedTGAllocs    map[string]*AllocationMetric
+	QueuedAllocations map[string]int
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }
