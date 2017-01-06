@@ -40,7 +40,7 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		log.Fatalf("AllocDir.Build() failed: %v", err)
 	}

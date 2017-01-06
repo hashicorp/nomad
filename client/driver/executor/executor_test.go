@@ -34,6 +34,10 @@ var (
 	}
 )
 
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
+}
+
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
@@ -42,7 +46,7 @@ func testExecutorContext(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		log.Fatalf("AllocDir.Build() failed: %v", err)
 	}
