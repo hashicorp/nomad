@@ -1263,40 +1263,40 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	compressed := snappy.Encode(nil, expected)
 	alloc.Job.Payload = compressed
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer ctx.allocDir.Destroy()
+	go ctx.tr.Run()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 
 	// Check that the file was written to disk properly
-	payloadPath := filepath.Join(tr.taskDir, allocdir.TaskLocal, fileName)
+	payloadPath := filepath.Join(ctx.tr.taskDir.LocalDir, fileName)
 	data, err := ioutil.ReadFile(payloadPath)
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
