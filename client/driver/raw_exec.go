@@ -115,16 +115,12 @@ func (d *RawExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
-		d.logger.Printf("[WARN] driver.raw_exec: XXX error decoding config")
 		return nil, err
 	}
-	// Get the tasks local directory.
-	taskName := d.DriverContext.taskName
 
 	// Get the command to be ran
 	command := driverConfig.Command
 	if err := validateCommand(command, "args"); err != nil {
-		d.logger.Printf("[WARN] driver.raw_exec: XXX error validating command")
 		return nil, err
 	}
 
@@ -139,7 +135,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
 	if err != nil {
-		d.logger.Printf("[WARN] driver.raw_exec: XXX error creating executor")
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
@@ -162,8 +157,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
-		d.logger.Printf("[WARN] driver.raw_exec: XXX error launching command: %v", err)
-		d.logger.Printf("[WARN] driver.raw_exec: XXX error launching command: cmd=%q --- args=%q --- user=%q", command, driverConfig.Args, task.User)
 		pluginClient.Kill()
 		return nil, err
 	}
