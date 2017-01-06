@@ -9,7 +9,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 )
 
@@ -41,12 +41,12 @@ func TestExecScriptCheckWithIsolation(t *testing.T) {
 	testutil.ExecCompatible(t)
 
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
-	ctx := testExecutorContext(t)
-	defer ctx.AllocDir.Destroy()
+	ctx, allocDir := testExecutorContextWithChroot(t)
+	defer allocDir.Destroy()
 
 	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = cstructs.DefaultUnpriviledgedUser
+	execCmd.User = dstructs.DefaultUnpriviledgedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 
@@ -63,7 +63,7 @@ func TestExecScriptCheckWithIsolation(t *testing.T) {
 		id:          "foo",
 		cmd:         "/bin/echo",
 		args:        []string{"hello", "world"},
-		taskDir:     ctx.AllocDir.TaskDirs["web"],
+		taskDir:     ctx.TaskDir,
 		FSIsolation: true,
 	}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -67,6 +66,9 @@ type Driver interface {
 
 	// Abilities returns the abilities of the driver
 	Abilities() DriverAbilities
+
+	// FSIsolation returns the method of filesystem isolation used
+	FSIsolation() cstructs.FSIsolation
 }
 
 // DriverAbilities marks the abilities the driver has.
@@ -136,23 +138,23 @@ type DriverHandle interface {
 	Signal(s os.Signal) error
 }
 
-// ExecContext is shared between drivers within an allocation
+// ExecContext is a task's execution context
 type ExecContext struct {
-	// AllocDir contains information about the alloc directory structure.
-	AllocDir *allocdir.AllocDir
+	// TaskDir contains information about the task directory structure.
+	TaskDir *allocdir.TaskDir
 
 	// Alloc ID
 	AllocID string
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext(alloc *allocdir.AllocDir, allocID string) *ExecContext {
-	return &ExecContext{AllocDir: alloc, AllocID: allocID}
+func NewExecContext(td *allocdir.TaskDir, allocID string) *ExecContext {
+	return &ExecContext{TaskDir: td, AllocID: allocID}
 }
 
 // GetTaskEnv converts the alloc dir, the node, task and alloc into a
 // TaskEnvironment.
-func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
+func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 	task *structs.Task, alloc *structs.Allocation, conf *config.Config,
 	vaultToken string) (*env.TaskEnvironment, error) {
 
@@ -162,15 +164,22 @@ func GetTaskEnv(allocDir *allocdir.AllocDir, node *structs.Node,
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 
-	if allocDir != nil {
-		env.SetAllocDir(allocDir.SharedDir)
-		taskdir, ok := allocDir.TaskDirs[task.Name]
-		if !ok {
-			return nil, fmt.Errorf("failed to get task directory for task %q", task.Name)
-		}
-
-		env.SetTaskLocalDir(filepath.Join(taskdir, allocdir.TaskLocal))
-		env.SetSecretsDir(filepath.Join(taskdir, allocdir.TaskSecrets))
+	// Vary paths by filesystem isolation used
+	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())
+	if err != nil {
+		return nil, err
+	}
+	switch drv.FSIsolation() {
+	case cstructs.FSIsolationNone:
+		// Use host paths
+		env.SetAllocDir(taskDir.SharedAllocDir)
+		env.SetTaskLocalDir(taskDir.LocalDir)
+		env.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		env.SetAllocDir(allocdir.SharedAllocContainerPath)
+		env.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		env.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	}
 
 	if task.Resources != nil {

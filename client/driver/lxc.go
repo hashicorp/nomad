@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
@@ -153,6 +152,10 @@ func (d *LxcDriver) Abilities() DriverAbilities {
 	}
 }
 
+func (d *LxcDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationImage
+}
+
 // Fingerprint fingerprints the lxc driver configuration
 func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	enabled := cfg.ReadBoolDefault(lxcConfigOption, true)
@@ -169,9 +172,6 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 }
 
 func (d *LxcDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath)
-	d.taskEnv.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-	d.taskEnv.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	return nil
 }
 
@@ -220,7 +220,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 	c.SetLogLevel(logLevel)
 
-	logFile := filepath.Join(ctx.AllocDir.LogDir(), fmt.Sprintf("%v-lxc.log", task.Name))
+	logFile := filepath.Join(ctx.TaskDir.LogDir, fmt.Sprintf("%v-lxc.log", task.Name))
 	c.SetLogFile(logFile)
 
 	options := lxc.TemplateOptions{
@@ -243,19 +243,10 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	// Bind mount the shared alloc dir and task local dir in the container
-	taskDir, ok := ctx.AllocDir.TaskDirs[task.Name]
-	if !ok {
-		return nil, fmt.Errorf("failed to find task local directory: %v", task.Name)
-	}
-	secretdir, err := ctx.AllocDir.GetSecretDir(task.Name)
-	if err != nil {
-		return nil, fmt.Errorf("faild getting secret path for task: %v", err)
-	}
-	taskLocalDir := filepath.Join(taskDir, allocdir.TaskLocal)
 	mounts := []string{
-		fmt.Sprintf("%s local none rw,bind,create=dir", taskLocalDir),
-		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.AllocDir.SharedDir),
-		fmt.Sprintf("%s secret none rw,bind,create=dir", secretdir),
+		fmt.Sprintf("%s local none rw,bind,create=dir", ctx.TaskDir.LocalDir),
+		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.TaskDir.SharedAllocDir),
+		fmt.Sprintf("%s secrets none rw,bind,create=dir", ctx.TaskDir.SecretsDir),
 	}
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {

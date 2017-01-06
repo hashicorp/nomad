@@ -9,48 +9,70 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
 
-func testExecutorContextWithChroot(t *testing.T) *ExecutorContext {
-	taskEnv := env.NewTaskEnvironment(mock.Node())
-	task, allocDir := mockAllocDir(t)
-	ctx := &ExecutorContext{
-		TaskEnv:  taskEnv,
-		Task:     task,
-		AllocDir: allocDir,
-		ChrootEnv: map[string]string{
-			"/etc/ld.so.cache":  "/etc/ld.so.cache",
-			"/etc/ld.so.conf":   "/etc/ld.so.conf",
-			"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
-			"/lib":              "/lib",
-			"/lib64":            "/lib64",
-			"/usr/lib":          "/usr/lib",
-			"/bin/ls":           "/bin/ls",
-			"/foobar":           "/does/not/exist",
-		},
+// testExecutorContextWithChroot returns an ExecutorContext and AllocDir with
+// chroot. Use testExecutorContext if you don't need a chroot.
+//
+// The caller is responsible for calling AllocDir.Destroy() to cleanup.
+func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
+	chrootEnv := map[string]string{
+		"/etc/ld.so.cache":  "/etc/ld.so.cache",
+		"/etc/ld.so.conf":   "/etc/ld.so.conf",
+		"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
+		"/lib":              "/lib",
+		"/lib64":            "/lib64",
+		"/usr/lib":          "/usr/lib",
+		"/bin/ls":           "/bin/ls",
+		"/bin/echo":         "/bin/echo",
+		"/bin/bash":         "/bin/bash",
+		"/usr/bin/yes":      "/usr/bin/yes",
+		"/foobar":           "/does/not/exist",
 	}
-	return ctx
+
+	taskEnv := env.NewTaskEnvironment(mock.Node())
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(os.TempDir(), alloc.ID))
+	if err := allocDir.Build(); err != nil {
+		log.Fatalf("AllocDir.Build() failed: %v", err)
+	}
+	if err := allocDir.NewTaskDir(task.Name).Build(chrootEnv, cstructs.FSIsolationChroot); err != nil {
+		allocDir.Destroy()
+		log.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
+	}
+	td := allocDir.TaskDirs[task.Name]
+	ctx := &ExecutorContext{
+		TaskEnv: taskEnv,
+		Task:    task,
+		TaskDir: td.Dir,
+		LogDir:  td.LogDir,
+	}
+	return ctx, allocDir
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	testutil.ExecCompatible(t)
 
 	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/", "/etc/"}}
-	ctx := testExecutorContextWithChroot(t)
-	defer ctx.AllocDir.Destroy()
+	ctx, allocDir := testExecutorContextWithChroot(t)
+	defer allocDir.Destroy()
 
 	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = cstructs.DefaultUnpriviledgedUser
+	execCmd.User = dstructs.DefaultUnpriviledgedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 
 	if err := executor.SetContext(ctx); err != nil {
-		t.Fatalf("Unexpected error")
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	ps, err := executor.LaunchCmd(&execCmd)
@@ -103,7 +125,7 @@ usr/
 ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
-	file := filepath.Join(ctx.AllocDir.LogDir(), "web.stdout.0")
+	file := filepath.Join(ctx.LogDir, "web.stdout.0")
 	output, err := ioutil.ReadFile(file)
 	if err != nil {
 		t.Fatalf("Couldn't read file %v", file)

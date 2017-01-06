@@ -20,42 +20,53 @@ var (
 	TaskSecretsContainerPath = filepath.Join("c:\\", TaskSecrets)
 )
 
-func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
+// linkOrCopy is always copies dst to src on Windows.
+func linkOrCopy(src, dst string, perm os.FileMode) error {
 	return fileCopy(src, dst, perm)
 }
 
 // The windows version does nothing currently.
-func (d *AllocDir) mountSharedDir(dir string) error {
+func mountSharedDir(dir string) error {
 	return errors.New("Mount on Windows not supported.")
 }
 
-// createSecretDir creates the secrets dir folder at the given path
-func (d *AllocDir) createSecretDir(dir string) error {
-	return os.MkdirAll(dir, 0777)
-}
-
-// removeSecretDir removes the secrets dir folder
-func (d *AllocDir) removeSecretDir(dir string) error {
-	return os.RemoveAll(dir)
-}
-
 // The windows version does nothing currently.
-func (d *AllocDir) dropDirPermissions(path string) error {
+func linkDir(src, dst string) error {
 	return nil
 }
 
 // The windows version does nothing currently.
-func (d *AllocDir) unmountSharedDir(dir string) error {
+func unlinkDir(dir string) error {
+	return nil
+}
+
+// createSecretDir creates the secrets dir folder at the given path
+func createSecretDir(dir string) error {
+	return os.MkdirAll(dir, 0777)
+}
+
+// removeSecretDir removes the secrets dir folder
+func removeSecretDir(dir string) error {
+	return os.RemoveAll(dir)
+}
+
+// The windows version does nothing currently.
+func dropDirPermissions(path string) error {
+	return nil
+}
+
+// The windows version does nothing currently.
+func unmountSharedDir(dir string) error {
 	return nil
 }
 
 // MountSpecialDirs mounts the dev and proc file system on the chroot of the
 // task. It's a no-op on windows.
-func (d *AllocDir) MountSpecialDirs(taskDir string) error {
+func MountSpecialDirs(taskDir string) error {
 	return nil
 }
 
 // unmountSpecialDirs unmounts the dev and proc file system from the chroot
-func (d *AllocDir) unmountSpecialDirs(taskDir string) error {
+func unmountSpecialDirs(taskDir string) error {
 	return nil
 }

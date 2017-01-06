@@ -1,6 +1,5 @@
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
-// Functions shared between linux/darwin.
 package allocdir
 
 import (
@@ -27,22 +26,9 @@ var (
 	TaskSecretsContainerPath = filepath.Join("/", TaskSecrets)
 )
 
-func (d *AllocDir) linkOrCopy(src, dst string, perm os.FileMode) error {
-	// Avoid link/copy if the file already exists in the chroot
-	// TODO 0.6 clean this up. This was needed because chroot creation fails
-	// when a process restarts.
-	if fileInfo, _ := os.Stat(dst); fileInfo != nil {
-		return nil
-	}
-	// Attempt to hardlink.
-	if err := os.Link(src, dst); err == nil {
-		return nil
-	}
-
-	return fileCopy(src, dst, perm)
-}
-
-func (d *AllocDir) dropDirPermissions(path string) error {
+// dropDirPermissions gives full access to a directory to all users and sets
+// the owner to nobody.
+func dropDirPermissions(path string) error {
 	if err := os.Chmod(path, 0777); err != nil {
 		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
@@ -74,6 +60,7 @@ func (d *AllocDir) dropDirPermissions(path string) error {
 	return nil
 }
 
+// getUid for a user
 func getUid(u *user.User) (int, error) {
 	uid, err := strconv.Atoi(u.Uid)
 	if err != nil {
@@ -83,6 +70,7 @@ func getUid(u *user.User) (int, error) {
 	return uid, nil
 }
 
+// getGid for a user
 func getGid(u *user.User) (int, error) {
 	gid, err := strconv.Atoi(u.Gid)
 	if err != nil {
@@ -90,4 +78,21 @@ func getGid(u *user.User) (int, error) {
 	}
 
 	return gid, nil
+}
+
+// linkOrCopy attempts to hardlink dst to src and fallsback to copying if the
+// hardlink fails.
+func linkOrCopy(src, dst string, perm os.FileMode) error {
+	// Avoid link/copy if the file already exists in the chroot
+	// TODO 0.6 clean this up. This was needed because chroot creation fails
+	// when a process restarts.
+	if fileInfo, _ := os.Stat(dst); fileInfo != nil {
+		return nil
+	}
+	// Attempt to hardlink.
+	if err := os.Link(src, dst); err == nil {
+		return nil
+	}
+
+	return fileCopy(src, dst, perm)
 }

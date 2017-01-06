@@ -17,11 +17,6 @@ func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
 		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
 	}
 
-	// configuring the task dir
-	if err := e.configureTaskDir(); err != nil {
-		return nil, err
-	}
-
 	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
 	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
 	if err != nil {

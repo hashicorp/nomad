@@ -347,19 +347,14 @@ func (d *DockerDriver) Abilities() DriverAbilities {
 	}
 }
 
-func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	// Set environment variables.
-	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath).
-		SetTaskLocalDir(allocdir.TaskLocalContainerPath).SetSecretsDir(allocdir.TaskSecretsContainerPath).Build()
+func (d *DockerDriver) FSIsolation() cstructs.FSIsolation {
+	return cstructs.FSIsolationImage
+}
 
+func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
 	if err != nil {
 		return err
-	}
-
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
 	}
 
 	// Initialize docker API clients
@@ -368,7 +363,7 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 		return fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
-	if err := d.createImage(driverConfig, client, taskDir); err != nil {
+	if err := d.createImage(driverConfig, client, ctx.TaskDir); err != nil {
 		return err
 	}
 
@@ -393,11 +388,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	taskDir, ok := ctx.AllocDir.TaskDirs[d.DriverContext.taskName]
-	if !ok {
-		return nil, fmt.Errorf("Could not find task directory for task: %v", d.DriverContext.taskName)
-	}
-	pluginLogFile := filepath.Join(taskDir, fmt.Sprintf("%s-executor.out", task.Name))
+	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	pluginConfig := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", pluginLogFile),
 	}
@@ -410,8 +401,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		TaskEnv:        d.taskEnv,
 		Task:           task,
 		Driver:         "docker",
-		AllocDir:       ctx.AllocDir,
 		AllocID:        ctx.AllocID,
+		LogDir:         ctx.TaskDir.LogDir,
+		TaskDir:        ctx.TaskDir.Dir,
 		PortLowerBound: d.config.ClientMinPort,
 		PortUpperBound: d.config.ClientMaxPort,
 	}
@@ -604,24 +596,12 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	return true, nil
 }
 
-func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *allocdir.AllocDir,
+func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir *allocdir.TaskDir,
 	task *structs.Task) ([]string, error) {
 
-	shared := alloc.SharedDir
-	taskDir, ok := alloc.TaskDirs[task.Name]
-	if !ok {
-		return nil, fmt.Errorf("Failed to find task local directory: %v", task.Name)
-	}
-	local := filepath.Join(taskDir, allocdir.TaskLocal)
-
-	secret, err := alloc.GetSecretDir(task.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	allocDirBind := fmt.Sprintf("%s:%s", shared, allocdir.SharedAllocContainerPath)
-	taskLocalBind := fmt.Sprintf("%s:%s", local, allocdir.TaskLocalContainerPath)
-	secretDirBind := fmt.Sprintf("%s:%s", secret, allocdir.TaskSecretsContainerPath)
+	allocDirBind := fmt.Sprintf("%s:%s", taskDir.SharedAllocDir, allocdir.SharedAllocContainerPath)
+	taskLocalBind := fmt.Sprintf("%s:%s", taskDir.LocalDir, allocdir.TaskLocalContainerPath)
+	secretDirBind := fmt.Sprintf("%s:%s", taskDir.SecretsDir, allocdir.TaskSecretsContainerPath)
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
@@ -647,7 +627,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, alloc *a
 
 		// Relative paths are always allowed as they mount within a container
 		// Expand path relative to alloc dir
-		parts[0] = filepath.Join(taskDir, parts[0])
+		parts[0] = filepath.Join(taskDir.Dir, parts[0])
 		binds = append(binds, strings.Join(parts, ":"))
 	}
 
@@ -672,7 +652,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, fmt.Errorf("task.Resources is empty")
 	}
 
-	binds, err := d.containerBinds(driverConfig, ctx.AllocDir, task)
+	binds, err := d.containerBinds(driverConfig, ctx.TaskDir, task)
 	if err != nil {
 		return c, err
 	}
@@ -900,7 +880,7 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 
 // createImage creates a docker image either by pulling it from a registry or by
 // loading it from the file system
-func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
+func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) error {
 	image := driverConfig.ImageName
 	repo, tag := docker.ParseRepositoryTag(image)
 	if tag == "" {
@@ -979,10 +959,10 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 }
 
 // loadImage creates an image by loading it from the file system
-func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir string) error {
+func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) error {
 	var errors multierror.Error
 	for _, image := range driverConfig.LoadImages {
-		archive := filepath.Join(taskDir, allocdir.TaskLocal, image)
+		archive := filepath.Join(taskDir.LocalDir, image)
 		d.logger.Printf("[DEBUG] driver.docker: loading image from: %v", archive)
 		f, err := os.Open(archive)
 		if err != nil {

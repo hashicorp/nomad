@@ -16,7 +16,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -51,13 +51,27 @@ func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEve
 	}
 }
 
-func testTaskRunner(restarts bool) (*MockTaskStateUpdater, *TaskRunner) {
-	return testTaskRunnerFromAlloc(restarts, mock.Alloc())
+type taskRunnerTestCtx struct {
+	upd      *MockTaskStateUpdater
+	tr       *TaskRunner
+	allocDir *allocdir.AllocDir
+}
+
+// Cleanup calls Destroy on the task runner and alloc dir
+func (ctx *taskRunnerTestCtx) Cleanup() {
+	ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	ctx.allocDir.Destroy()
+}
+
+func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
+	return testTaskRunnerFromAlloc(t, restarts, mock.Alloc())
 }
 
 // Creates a mock task runner using the first task in the first task group of
 // the passed allocation.
-func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTaskStateUpdater, *TaskRunner) {
+//
+// Callers should defer Cleanup() to cleanup after completion
+func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) *taskRunnerTestCtx {
 	logger := testLogger()
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
@@ -68,50 +82,66 @@ func testTaskRunnerFromAlloc(restarts bool, alloc *structs.Allocation) (*MockTas
 	// we have a mock so that doesn't happen.
 	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
 
-	allocDir := allocdir.NewAllocDir(filepath.Join(conf.AllocDir, alloc.ID))
-	allocDir.Build([]*structs.Task{task})
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	if err := allocDir.Build(); err != nil {
+		t.Fatalf("error building alloc dir: %v", err)
+		return nil
+	}
+
+	//HACK to get FSIsolation and chroot without using AllocRunner,
+	//     TaskRunner, or Drivers
+	fsi := cstructs.FSIsolationImage
+	switch task.Driver {
+	case "raw_exec":
+		fsi = cstructs.FSIsolationNone
+	case "exec", "java":
+		fsi = cstructs.FSIsolationChroot
+	}
+	taskDir := allocDir.NewTaskDir(task.Name)
+	if err := taskDir.Build(config.DefaultChrootEnv, fsi); err != nil {
+		t.Fatalf("error building task dir %q: %v", task.Name, err)
+		return nil
+	}
 
 	vclient := vaultclient.NewMockVaultClient()
-	ctx := driver.NewExecContext(allocDir, alloc.ID)
-	tr := NewTaskRunner(logger, conf, upd.Update, ctx, alloc, task, vclient)
+	tr := NewTaskRunner(logger, conf, upd.Update, taskDir, alloc, task, vclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
-	return upd, tr
+	return &taskRunnerTestCtx{upd, tr, allocDir}
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(false)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunner(t, false)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 }
 
@@ -125,27 +155,26 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 		"start_error_recoverable": true,
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(true, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l < 3 {
+		if l := len(ctx.upd.events); l < 3 {
 			return false, fmt.Errorf("Expect at least three  events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskDriverFailure {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDriverFailure)
+		if ctx.upd.events[1].Type != structs.TaskDriverFailure {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDriverFailure)
 		}
 
-		if upd.events[2].Type != structs.TaskRestarting {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[2].Type, structs.TaskRestarting)
+		if ctx.upd.events[2].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestarting)
 		}
 
 		return true, nil
@@ -156,26 +185,27 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 
 func TestTaskRunner_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	upd, tr := testTaskRunner(true)
-	tr.MarkReceived()
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunner(t, true)
+	ctx.tr.MarkReceived()
+	//FIXME This didn't used to send a kill status update!!!???
+	defer ctx.Cleanup()
 
 	// Change command to ensure we run for a bit
-	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"1000"}
-	go tr.Run()
+	ctx.tr.task.Config["command"] = "/bin/sleep"
+	ctx.tr.task.Config["args"] = []string{"1000"}
+	go ctx.tr.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 2 {
+		if l := len(ctx.upd.events); l != 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -183,52 +213,51 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Make sure we are collecting  afew stats
+	// Make sure we are collecting a few stats
 	time.Sleep(2 * time.Second)
-	stats := tr.LatestResourceUsage()
+	stats := ctx.tr.LatestResourceUsage()
 	if len(stats.Pids) == 0 || stats.ResourceUsage == nil || stats.ResourceUsage.MemoryStats.RSS == 0 {
 		t.Fatalf("expected task runner to have some stats")
 	}
 
 	// Begin the tear down
-	tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 4 {
-		t.Fatalf("should have 4 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[2].Type != structs.TaskKilling {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilling)
+	if ctx.upd.events[2].Type != structs.TaskKilling {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskKilling)
 	}
 
-	if upd.events[3].Type != structs.TaskKilled {
-		t.Fatalf("Third Event was %v; want %v", upd.events[3].Type, structs.TaskKilled)
+	if ctx.upd.events[3].Type != structs.TaskKilled {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilled)
 	}
 }
 
 func TestTaskRunner_Update(t *testing.T) {
 	ctestutil.ExecCompatible(t)
-	_, tr := testTaskRunner(false)
+	ctx := testTaskRunner(t, false)
 
 	// Change command to ensure we run for a bit
-	tr.task.Config["command"] = "/bin/sleep"
-	tr.task.Config["args"] = []string{"100"}
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx.tr.task.Config["command"] = "/bin/sleep"
+	ctx.tr.task.Config["args"] = []string{"100"}
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	// Update the task definition
-	updateAlloc := tr.alloc.Copy()
+	updateAlloc := ctx.tr.alloc.Copy()
 
 	// Update the restart policy
 	newTG := updateAlloc.Job.TaskGroups[0]
@@ -240,7 +269,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	// Update the kill timeout
 	testutil.WaitForResult(func() (bool, error) {
-		if tr.handle == nil {
+		if ctx.tr.handle == nil {
 			return false, fmt.Errorf("task not started")
 		}
 		return true, nil
@@ -248,24 +277,24 @@ func TestTaskRunner_Update(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	oldHandle := tr.handle.ID()
+	oldHandle := ctx.tr.handle.ID()
 	newTask.KillTimeout = time.Hour
 
-	tr.Update(updateAlloc)
+	ctx.tr.Update(updateAlloc)
 
-	// Wait for update to take place
+	// Wait for ctx.upd.te to take place
 	testutil.WaitForResult(func() (bool, error) {
-		if tr.task == newTask {
+		if ctx.tr.task == newTask {
 			return false, fmt.Errorf("We copied the pointer! This would be very bad")
 		}
-		if tr.task.Driver != newTask.Driver {
+		if ctx.tr.task.Driver != newTask.Driver {
 			return false, fmt.Errorf("Task not copied")
 		}
-		if tr.restartTracker.policy.Mode != newMode {
-			return false, fmt.Errorf("restart policy not updated")
+		if ctx.tr.restartTracker.policy.Mode != newMode {
+			return false, fmt.Errorf("restart policy not ctx.upd.ted")
 		}
-		if tr.handle.ID() == oldHandle {
-			return false, fmt.Errorf("handle not updated")
+		if ctx.tr.handle.ID() == oldHandle {
+			return false, fmt.Errorf("handle not ctx.upd.ted")
 		}
 		return true, nil
 	}, func(err error) {
@@ -285,23 +314,24 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Give it a Vault token
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	//FIXME This test didn't used to defer destroy the allocidr ???!!!
+	defer ctx.Cleanup()
 
 	// Wait for the task to be running and then snapshot the state
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 2 {
+		if l := len(ctx.upd.events); l != 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -309,17 +339,12 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	if err := tr.SaveState(); err != nil {
+	if err := ctx.tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Read the token from the file system
-	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
-	if err != nil {
-		t.Fatalf("failed to determine task %s secret dir: %v", err)
-	}
-
-	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	tokenPath := filepath.Join(ctx.tr.taskDir.SecretsDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(tokenPath)
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
@@ -330,8 +355,9 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new task runner
-	tr2 := NewTaskRunner(tr.logger, tr.config, upd.Update,
-		tr.ctx, tr.alloc, &structs.Task{Name: tr.task.Name}, tr.vaultClient)
+	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver}
+	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.upd.Update,
+		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient)
 	tr2.restartTracker = noRestartsTracker()
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -371,48 +397,46 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 4 {
-		t.Fatalf("should have 4 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if upd.events[2].Type != structs.TaskStarted {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskStarted)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 	}
 
-	if upd.events[3].Type != structs.TaskTerminated {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskTerminated)
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 
 	// Check that both files exist.
-	taskDir := tr.ctx.AllocDir.TaskDirs[task.Name]
-	if _, err := os.Stat(filepath.Join(taskDir, f1)); err != nil {
+	if _, err := os.Stat(filepath.Join(ctx.tr.taskDir.Dir, f1)); err != nil {
 		t.Fatalf("%v not downloaded", f1)
 	}
-	if _, err := os.Stat(filepath.Join(taskDir, f2)); err != nil {
+	if _, err := os.Stat(filepath.Join(ctx.tr.taskDir.Dir, f2)); err != nil {
 		t.Fatalf("%v not downloaded", f2)
 	}
 }
@@ -428,7 +452,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
-	// Make the restart policy try one update
+	// Make the restart policy try one ctx.upd.te
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
@@ -436,82 +460,80 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		Mode:     structs.RestartPolicyModeFail,
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(true, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 7 {
-		t.Fatalf("should have 7 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 7 {
+		t.Fatalf("should have 7 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if upd.events[2].Type != structs.TaskArtifactDownloadFailed {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskArtifactDownloadFailed)
+	if ctx.upd.events[2].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskArtifactDownloadFailed)
 	}
 
-	if upd.events[3].Type != structs.TaskRestarting {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskRestarting)
+	if ctx.upd.events[3].Type != structs.TaskRestarting {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskRestarting)
 	}
 
-	if upd.events[4].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[4].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if upd.events[5].Type != structs.TaskArtifactDownloadFailed {
-		t.Fatalf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskArtifactDownloadFailed)
+	if ctx.upd.events[5].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskArtifactDownloadFailed)
 	}
 
-	if upd.events[6].Type != structs.TaskNotRestarting {
-		t.Fatalf("Seventh Event was %v; want %v", upd.events[6].Type, structs.TaskNotRestarting)
+	if ctx.upd.events[6].Type != structs.TaskNotRestarting {
+		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskNotRestarting)
 	}
 }
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
-	_, tr := testTaskRunner(false)
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunner(t, false)
+	defer ctx.Cleanup()
 
-	if err := tr.setTaskEnv(); err != nil {
+	if err := ctx.tr.setTaskEnv(); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
 	// Try to run as root with exec.
-	tr.task.Driver = "exec"
-	tr.task.User = "root"
-	if err := tr.validateTask(); err == nil {
+	ctx.tr.task.Driver = "exec"
+	ctx.tr.task.User = "root"
+	if err := ctx.tr.validateTask(); err == nil {
 		t.Fatalf("expected error running as root with exec")
 	}
 
 	// Try to run a non-blacklisted user with exec.
-	tr.task.Driver = "exec"
-	tr.task.User = "foobar"
-	if err := tr.validateTask(); err != nil {
+	ctx.tr.task.Driver = "exec"
+	ctx.tr.task.User = "foobar"
+	if err := ctx.tr.validateTask(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Try to run as root with docker.
-	tr.task.Driver = "docker"
-	tr.task.User = "root"
-	if err := tr.validateTask(); err != nil {
+	ctx.tr.task.Driver = "docker"
+	ctx.tr.task.User = "root"
+	if err := ctx.tr.validateTask(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -525,67 +547,66 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		"run_for":   "10s",
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(true, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	go func() {
 		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
-		tr.Restart("test", "restart")
+		ctx.tr.Restart("test", "restart")
 		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
-		tr.Kill("test", "restart", false)
+		ctx.tr.Kill("test", "restart", false)
 	}()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 9 {
-		t.Fatalf("should have 9 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 9 {
+		t.Fatalf("should have 9 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskRestartSignal {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskRestartSignal)
+	if ctx.upd.events[2].Type != structs.TaskRestartSignal {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestartSignal)
 	}
 
-	if upd.events[3].Type != structs.TaskKilling {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilling)
+	if ctx.upd.events[3].Type != structs.TaskKilling {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
 	}
 
-	if upd.events[4].Type != structs.TaskKilled {
-		t.Fatalf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskKilled)
+	if ctx.upd.events[4].Type != structs.TaskKilled {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
 	}
 
-	t.Logf("%+v", upd.events[5])
-	if upd.events[5].Type != structs.TaskRestarting {
-		t.Fatalf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskRestarting)
+	t.Logf("%+v", ctx.upd.events[5])
+	if ctx.upd.events[5].Type != structs.TaskRestarting {
+		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskRestarting)
 	}
 
-	if upd.events[6].Type != structs.TaskStarted {
-		t.Fatalf("Seventh Event was %v; want %v", upd.events[7].Type, structs.TaskStarted)
+	if ctx.upd.events[6].Type != structs.TaskStarted {
+		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskStarted)
 	}
-	if upd.events[7].Type != structs.TaskKilling {
-		t.Fatalf("Eighth Event was %v; want %v", upd.events[7].Type, structs.TaskKilling)
+	if ctx.upd.events[7].Type != structs.TaskKilling {
+		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskKilling)
 	}
 
-	if upd.events[8].Type != structs.TaskKilled {
-		t.Fatalf("Nineth Event was %v; want %v", upd.events[8].Type, structs.TaskKilled)
+	if ctx.upd.events[8].Type != structs.TaskKilled {
+		t.Fatalf("Nineth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilled)
 	}
 }
 
@@ -598,49 +619,48 @@ func TestTaskRunner_KillTask(t *testing.T) {
 		"run_for":   "10s",
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		tr.Kill("test", "kill", true)
+		ctx.tr.Kill("test", "kill", true)
 	}()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 4 {
-		t.Fatalf("should have 4 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if !upd.failed {
-		t.Fatalf("TaskState should be failed: %+v", upd)
+	if !ctx.upd.failed {
+		t.Fatalf("TaskState should be failed: %+v", ctx.upd)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskKilling {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskKilling)
+	if ctx.upd.events[2].Type != structs.TaskKilling {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskKilling)
 	}
 
-	if upd.events[3].Type != structs.TaskKilled {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilled)
+	if ctx.upd.events[3].Type != structs.TaskKilled {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilled)
 	}
 }
 
@@ -654,14 +674,13 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 		"signal_error": "test forcing failure",
 	}
 
-	_, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	go tr.Run()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	time.Sleep(100 * time.Millisecond)
-	if err := tr.Signal("test", "test", syscall.SIGINT); err == nil {
+	if err := ctx.tr.Signal("test", "test", syscall.SIGINT); err == nil {
 		t.Fatalf("Didn't receive error")
 	}
 }
@@ -676,10 +695,9 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
 
 	// Control when we get a Vault token
 	token := "1234"
@@ -688,65 +706,59 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
-	tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
+	ctx.tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
 
-	go tr.Run()
+	go ctx.tr.Run()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 		t.Fatalf("premature exit")
 	case <-time.After(1 * time.Second):
 	}
 
-	if len(upd.events) != 1 {
-		t.Fatalf("should have 1 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 1 {
+		t.Fatalf("should have 1 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStatePending {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStatePending)
+	if ctx.upd.state != structs.TaskStatePending {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStatePending)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
 	// Unblock
 	close(waitCh)
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 
 	// Check that the token is on disk
-	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
-	if err != nil {
-		t.Fatalf("failed to determine task %s secret dir: %v", err)
-	}
-
-	// Read the token from the file system
-	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	tokenPath := filepath.Join(ctx.tr.taskDir.SecretsDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(tokenPath)
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
@@ -767,10 +779,9 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
 
 	// Control when we get a Vault token
 	token := "1234"
@@ -783,43 +794,37 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		count++
 		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
 	}
-	tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
-	go tr.Run()
+	ctx.tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
+	go ctx.tr.Run()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 
 	// Check that the token is on disk
-	secretDir, err := tr.ctx.AllocDir.GetSecretDir(task.Name)
-	if err != nil {
-		t.Fatalf("failed to determine task %s secret dir: %v", err)
-	}
-
-	// Read the token from the file system
-	tokenPath := filepath.Join(secretDir, vaultTokenFile)
+	tokenPath := filepath.Join(ctx.tr.taskDir.SecretsDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(tokenPath)
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
@@ -843,28 +848,27 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
 
 	// Error the token derivation
-	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
 	vc.SetDeriveTokenError(alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
-	go tr.Run()
+	go ctx.tr.Run()
 
 	// Wait for the task to start
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 2 {
+		if l := len(ctx.upd.events); l != 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskKilling {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskKilling)
+		if ctx.upd.events[1].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskKilling)
 		}
 
 		return true, nil
@@ -889,58 +893,56 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 		},
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 		t.Fatalf("premature exit")
 	case <-time.After(1 * time.Second):
 	}
 
-	if len(upd.events) != 1 {
-		t.Fatalf("should have 1 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 1 {
+		t.Fatalf("should have 1 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStatePending {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStatePending)
+	if ctx.upd.state != structs.TaskStatePending {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStatePending)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
 	// Unblock
-	tr.UnblockStart("test")
+	ctx.tr.UnblockStart("test")
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 }
 
@@ -975,49 +977,46 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		},
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
+	go ctx.tr.Run()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 4 {
-		t.Fatalf("should have 4 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if upd.events[2].Type != structs.TaskStarted {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskStarted)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 	}
 
-	if upd.events[3].Type != structs.TaskTerminated {
-		t.Fatalf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskTerminated)
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 
 	// Check that both files exist.
-	taskDir := tr.ctx.AllocDir.TaskDirs[task.Name]
-	if _, err := os.Stat(filepath.Join(taskDir, f1)); err != nil {
+	if _, err := os.Stat(filepath.Join(ctx.tr.taskDir.Dir, f1)); err != nil {
 		t.Fatalf("%v not downloaded", f1)
 	}
-	if _, err := os.Stat(filepath.Join(taskDir, allocdir.TaskLocal, "test")); err != nil {
+	if _, err := os.Stat(filepath.Join(ctx.tr.taskDir.LocalDir, "test")); err != nil {
 		t.Fatalf("template not rendered")
 	}
 }
@@ -1039,16 +1038,15 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	_, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
+	go ctx.tr.Run()
 
 	// Wait for a Vault token
 	var token string
 	testutil.WaitForResult(func() (bool, error) {
-		if token = tr.vaultFuture.Get(); token == "" {
+		if token = ctx.tr.vaultFuture.Get(); token == "" {
 			return false, fmt.Errorf("No Vault token")
 		}
 
@@ -1058,13 +1056,13 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	})
 
 	// Error the token renewal
-	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
+	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
 	renewalCh, ok := vc.RenewTokens[token]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
 
-	originalManager := tr.templateManager
+	originalManager := ctx.tr.templateManager
 
 	renewalCh <- fmt.Errorf("Test killing")
 	close(renewalCh)
@@ -1072,12 +1070,12 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	// Wait for a new Vault token
 	var token2 string
 	testutil.WaitForResult(func() (bool, error) {
-		if token2 = tr.vaultFuture.Get(); token2 == "" || token2 == token {
+		if token2 = ctx.tr.vaultFuture.Get(); token2 == "" || token2 == token {
 			return false, fmt.Errorf("No new Vault token")
 		}
 
-		if originalManager == tr.templateManager {
-			return false, fmt.Errorf("Template manager not updated")
+		if originalManager == ctx.tr.templateManager {
+			return false, fmt.Errorf("Template manager not ctx.upd.ted")
 		}
 
 		return true, nil
@@ -1099,24 +1097,23 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.Cleanup()
+	go ctx.tr.Run()
 
 	// Wait for the task to start
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 2 {
+		if l := len(ctx.upd.events); l != 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -1125,8 +1122,8 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	})
 
 	// Error the token renewal
-	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[tr.vaultFuture.Get()]
+	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1136,36 +1133,36 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 
 	// Ensure a restart
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 7 {
-			return false, fmt.Errorf("Expect seven events; got %#v", upd.events)
+		if l := len(ctx.upd.events); l != 7 {
+			return false, fmt.Errorf("Expect seven events; got %#v", ctx.upd.events)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
-		if upd.events[2].Type != structs.TaskRestartSignal {
-			return false, fmt.Errorf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskRestartSignal)
+		if ctx.upd.events[2].Type != structs.TaskRestartSignal {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestartSignal)
 		}
 
-		if upd.events[3].Type != structs.TaskKilling {
-			return false, fmt.Errorf("Fourth Event was %v; want %v", upd.events[3].Type, structs.TaskKilling)
+		if ctx.upd.events[3].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
 		}
 
-		if upd.events[4].Type != structs.TaskKilled {
-			return false, fmt.Errorf("Fifth Event was %v; want %v", upd.events[4].Type, structs.TaskKilled)
+		if ctx.upd.events[4].Type != structs.TaskKilled {
+			return false, fmt.Errorf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
 		}
 
-		if upd.events[5].Type != structs.TaskRestarting {
-			return false, fmt.Errorf("Sixth Event was %v; want %v", upd.events[5].Type, structs.TaskRestarting)
+		if ctx.upd.events[5].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskRestarting)
 		}
 
-		if upd.events[6].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Seventh Event was %v; want %v", upd.events[6].Type, structs.TaskStarted)
+		if ctx.upd.events[6].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -1188,24 +1185,23 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 		ChangeSignal: "SIGUSR1",
 	}
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	// Wait for the task to start
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 2 {
+		if l := len(ctx.upd.events); l != 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -1214,8 +1210,8 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	})
 
 	// Error the token renewal
-	vc := tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[tr.vaultFuture.Get()]
+	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1225,20 +1221,20 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 
 	// Ensure a restart
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(upd.events); l != 3 {
-			return false, fmt.Errorf("Expect three events; got %#v", upd.events)
+		if l := len(ctx.upd.events); l != 3 {
+			return false, fmt.Errorf("Expect three events; got %#v", ctx.upd.events)
 		}
 
-		if upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
-		if upd.events[2].Type != structs.TaskSignaling {
-			return false, fmt.Errorf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskSignaling)
+		if ctx.upd.events[2].Type != structs.TaskSignaling {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskSignaling)
 		}
 
 		return true, nil
@@ -1267,40 +1263,40 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	compressed := snappy.Encode(nil, expected)
 	alloc.Job.Payload = compressed
 
-	upd, tr := testTaskRunnerFromAlloc(false, alloc)
-	tr.MarkReceived()
-	defer tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
-	defer tr.ctx.AllocDir.Destroy()
-	go tr.Run()
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	defer ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	defer ctx.allocDir.Destroy()
+	go ctx.tr.Run()
 
 	select {
-	case <-tr.WaitCh():
+	case <-ctx.tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
 
-	if len(upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", upd.events)
+	if len(ctx.upd.events) != 3 {
+		t.Fatalf("should have 3 updates: %#v", ctx.upd.events)
 	}
 
-	if upd.state != structs.TaskStateDead {
-		t.Fatalf("TaskState %v; want %v", upd.state, structs.TaskStateDead)
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", upd.events[0].Type, structs.TaskReceived)
+	if ctx.upd.events[0].Type != structs.TaskReceived {
+		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 	}
 
-	if upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
 	}
 
 	// Check that the file was written to disk properly
-	payloadPath := filepath.Join(tr.taskDir, allocdir.TaskLocal, fileName)
+	payloadPath := filepath.Join(ctx.tr.taskDir.LocalDir, fileName)
 	data, err := ioutil.ReadFile(payloadPath)
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)

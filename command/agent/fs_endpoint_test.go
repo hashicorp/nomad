@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -449,7 +450,7 @@ func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
 
-	return allocdir.NewAllocDir(dir)
+	return allocdir.NewAllocDir(log.New(os.Stderr, "", log.LstdFlags), dir)
 }
 
 type nopWriteCloser struct {

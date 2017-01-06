@@ -24,11 +24,12 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
+		Driver:    "exec",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
 			"unique.cgroup.mountpoint": "/sys/fs/cgroup",
@@ -49,7 +50,8 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"5"},
@@ -61,14 +63,14 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -77,7 +79,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -92,7 +94,8 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"1000000"},
@@ -104,14 +107,14 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -134,7 +137,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -155,7 +158,8 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 func TestExecDriver_Start_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"2"},
@@ -167,14 +171,14 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -205,7 +209,8 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/bash",
 			"args": []string{
@@ -220,14 +225,14 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -246,7 +251,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(execCtx.AllocDir.SharedDir, file)
+	outputFile := filepath.Join(ctx.AllocDir.SharedDir, file)
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -260,7 +265,8 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "sleep",
+		Name:   "sleep",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"100"},
@@ -273,14 +279,14 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		KillTimeout: 10 * time.Second,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -310,7 +316,8 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 func TestExecDriver_Signal(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "signal",
+		Name:   "signal",
+		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/bash",
 			"args":    []string{"test.sh"},
@@ -323,11 +330,11 @@ func TestExecDriver_Signal(t *testing.T) {
 		KillTimeout: 10 * time.Second,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	testFile := filepath.Join(execCtx.AllocDir.TaskDirs["signal"], "test.sh")
+	testFile := filepath.Join(ctx.ExecCtx.TaskDir.Dir, "test.sh")
 	testData := []byte(`
 at_term() {
     echo 'Terminated.'
@@ -342,10 +349,10 @@ done
 		fmt.Errorf("Failed to write data")
 	}
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -372,7 +379,7 @@ done
 	}
 
 	// Check the log file to see it exited because of the signal
-	outputFile := filepath.Join(execCtx.AllocDir.LogDir(), "signal.stdout.0")
+	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "signal.stdout.0")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -388,8 +395,9 @@ done
 func TestExecDriverUser(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
-		Name: "sleep",
-		User: "alice",
+		Name:   "sleep",
+		Driver: "exec",
+		User:   "alice",
 		Config: map[string]interface{}{
 			"command": "/bin/sleep",
 			"args":    []string{"100"},
@@ -402,14 +410,14 @@ func TestExecDriverUser(t *testing.T) {
 		KillTimeout: 10 * time.Second,
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewExecDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(execCtx, task); err != nil {
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(execCtx, task)
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
 		handle.Kill()
 		t.Fatalf("Should've failed")

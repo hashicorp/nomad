@@ -62,7 +62,6 @@ func copyFile(src, dst string, t *testing.T) {
 	if err := out.Sync(); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
-	return
 }
 
 func testLogger() *log.Logger {
@@ -77,16 +76,46 @@ func testConfig() *config.Config {
 	return conf
 }
 
-func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
-	cfg := testConfig()
-	allocDir := allocdir.NewAllocDir(filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
-	allocDir.Build([]*structs.Task{task})
-	alloc := mock.Alloc()
-	execCtx := NewExecContext(allocDir, alloc.ID)
+type testContext struct {
+	AllocDir  *allocdir.AllocDir
+	DriverCtx *DriverContext
+	ExecCtx   *ExecContext
+}
 
-	taskEnv, err := GetTaskEnv(allocDir, cfg.Node, task, alloc, cfg, "")
+// testDriverContext sets up an alloc dir, task dir, DriverContext, and ExecContext.
+//
+// It is up to the caller to call AllocDir.Destroy to cleanup.
+func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
+	cfg := testConfig()
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
+	if err := allocDir.Build(); err != nil {
+		t.Fatalf("AllocDir.Build() failed: %v", err)
+	}
+	alloc := mock.Alloc()
+
+	// Build a temp driver so we can call FSIsolation and build the task dir
+	tmpdrv, err := NewDriver(task.Driver, NewEmptyDriverContext())
 	if err != nil {
-		return nil, nil
+		allocDir.Destroy()
+		t.Fatalf("NewDriver(%q, nil) failed: %v", task.Driver, err)
+		return nil
+	}
+
+	// Build the task dir
+	td := allocDir.NewTaskDir(task.Name)
+	if err := td.Build(config.DefaultChrootEnv, tmpdrv.FSIsolation()); err != nil {
+		allocDir.Destroy()
+		t.Fatalf("TaskDir.Build(%#v, %q) failed: %v", config.DefaultChrootEnv, tmpdrv.FSIsolation())
+		return nil
+	}
+
+	execCtx := NewExecContext(td, alloc.ID)
+
+	taskEnv, err := GetTaskEnv(td, cfg.Node, task, alloc, cfg, "")
+	if err != nil {
+		allocDir.Destroy()
+		t.Fatalf("GetTaskEnv() failed: %v", err)
+		return nil
 	}
 
 	logger := testLogger()
@@ -94,12 +123,14 @@ func testDriverContexts(task *structs.Task) (*DriverContext, *ExecContext) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
 	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, logger, taskEnv, emitter)
-	return driverCtx, execCtx
+
+	return &testContext{allocDir, driverCtx, execCtx}
 }
 
 func TestDriver_GetTaskEnv(t *testing.T) {
 	task := &structs.Task{
-		Name: "Foo",
+		Name:   "Foo",
+		Driver: "mock_driver",
 		Env: map[string]string{
 			"HELLO": "world",
 			"lorem": "ipsum",
@@ -124,7 +155,9 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
-	env, err := GetTaskEnv(nil, nil, task, alloc, testConfig(), "")
+	conf := testConfig()
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	env, err := GetTaskEnv(allocDir.NewTaskDir(task.Name), nil, task, alloc, conf, "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}

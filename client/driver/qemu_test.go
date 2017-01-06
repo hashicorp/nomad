@@ -18,11 +18,13 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
+		Driver:    "qemu",
 		Resources: structs.DefaultResources(),
 	}
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewQemuDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewQemuDriver(ctx.DriverCtx)
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -44,7 +46,8 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
-		Name: "linux",
+		Name:   "linux",
+		Driver: "qemu",
 		Config: map[string]interface{}{
 			"image_path":  "linux-0.2.img",
 			"accelerator": "tcg",
@@ -69,15 +72,19 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 		},
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewQemuDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewQemuDriver(ctx.DriverCtx)
 
 	// Copy the test image into the task's directory
-	dst, _ := execCtx.AllocDir.TaskDirs[task.Name]
+	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/qemu/linux-0.2.img", filepath.Join(dst, "linux-0.2.img"), t)
 
-	handle, err := d.Start(execCtx, task)
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("Prestart faild: %v", err)
+	}
+
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -91,7 +98,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(execCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -108,8 +115,9 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 func TestQemuDriverUser(t *testing.T) {
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
-		Name: "linux",
-		User: "alice",
+		Name:   "linux",
+		Driver: "qemu",
+		User:   "alice",
 		Config: map[string]interface{}{
 			"image_path":  "linux-0.2.img",
 			"accelerator": "tcg",
@@ -134,11 +142,15 @@ func TestQemuDriverUser(t *testing.T) {
 		},
 	}
 
-	driverCtx, execCtx := testDriverContexts(task)
-	defer execCtx.AllocDir.Destroy()
-	d := NewQemuDriver(driverCtx)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewQemuDriver(ctx.DriverCtx)
 
-	handle, err := d.Start(execCtx, task)
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("Prestart faild: %v", err)
+	}
+
+	handle, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
 		handle.Kill()
 		t.Fatalf("Should've failed")
