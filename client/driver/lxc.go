@@ -34,6 +34,7 @@ const (
 	// containerMonitorIntv is the interval at which the driver checks if the
 	// container is still alive
 	containerMonitorIntv = 2 * time.Second
+	LXC_START_WAIT_TIME  = 5 * time.Second
 )
 
 var (
@@ -201,7 +202,6 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	default:
 		return nil, fmt.Errorf("lxc driver config 'verbosity' can only be either quiet or verbose")
 	}
-	c.SetVerbosity(verbosity)
 
 	var logLevel lxc.LogLevel
 	switch driverConfig.LogLevel {
@@ -218,10 +218,6 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	default:
 		return nil, fmt.Errorf("lxc driver config 'log_level' can only be trace, debug, info, warn or error")
 	}
-	c.SetLogLevel(logLevel)
-
-	logFile := filepath.Join(ctx.AllocDir.LogDir(), fmt.Sprintf("%v-lxc.log", task.Name))
-	c.SetLogFile(logFile)
 
 	options := lxc.TemplateOptions{
 		Template:             driverConfig.Template,
@@ -232,10 +228,13 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		DisableGPGValidation: driverConfig.DisableGPGValidation,
 		ExtraArgs:            driverConfig.TemplateArgs,
 	}
-
 	if err := c.Create(options); err != nil {
 		return nil, fmt.Errorf("unable to create container: %v", err)
 	}
+	c.SetLogLevel(logLevel)
+	logFile := filepath.Join(ctx.AllocDir.LogDir(), fmt.Sprintf("%v-lxc.log", task.Name))
+	c.SetLogFile(logFile)
+	c.SetVerbosity(verbosity)
 
 	// Set the network type to none
 	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
@@ -267,7 +266,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err := c.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start container: %v", err)
 	}
-
+	c.Wait(lxc.RUNNING, LXC_START_WAIT_TIME)
 	// Set the resource limits
 	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
 		return nil, fmt.Errorf("unable to set memory limits: %v", err)
