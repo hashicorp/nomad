@@ -80,6 +80,8 @@ type allocRunnerState struct {
 	AllocClientStatus      string
 	AllocClientDescription string
 
+	// COMPAT: Remove in 0.7.0: removing will break upgrading directly from
+	//         0.5.2, so don't remove in the 0.6 series.
 	// Context is deprecated and only used to migrate from older releases.
 	// It will be removed in the future.
 	Context *struct {
