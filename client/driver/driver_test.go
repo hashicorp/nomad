@@ -130,7 +130,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 func TestDriver_GetTaskEnv(t *testing.T) {
 	task := &structs.Task{
 		Name:   "Foo",
-		Driver: "mock",
+		Driver: "mock_driver",
 		Env: map[string]string{
 			"HELLO": "world",
 			"lorem": "ipsum",
@@ -155,7 +155,9 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
-	env, err := GetTaskEnv(nil, nil, task, alloc, testConfig(), "")
+	conf := testConfig()
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	env, err := GetTaskEnv(allocDir.NewTaskDir(task.Name), nil, task, alloc, conf, "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}

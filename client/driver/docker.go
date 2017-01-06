@@ -352,10 +352,6 @@ func (d *DockerDriver) FSIsolation() cstructs.FSIsolation {
 }
 
 func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	// Set environment variables.
-	d.taskEnv.SetAllocDir(allocdir.SharedAllocContainerPath).
-		SetTaskLocalDir(allocdir.TaskLocalContainerPath).SetSecretsDir(allocdir.TaskSecretsContainerPath).Build()
-
 	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
 	if err != nil {
 		return err

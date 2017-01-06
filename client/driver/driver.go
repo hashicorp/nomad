@@ -164,10 +164,22 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 
-	if taskDir != nil {
+	// Vary paths by filesystem isolation used
+	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())
+	if err != nil {
+		return nil, err
+	}
+	switch drv.FSIsolation() {
+	case cstructs.FSIsolationNone:
+		// Use host paths
 		env.SetAllocDir(taskDir.SharedAllocDir)
 		env.SetTaskLocalDir(taskDir.LocalDir)
 		env.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		env.SetAllocDir(allocdir.SharedAllocContainerPath)
+		env.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		env.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	}
 
 	if task.Resources != nil {
