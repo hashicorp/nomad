@@ -640,7 +640,8 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 
 	expected := []string{"foobar"}
 	task := &structs.Task{
-		Name: "nc-demo",
+		Name:   "nc-demo",
+		Driver: "docker",
 		Config: map[string]interface{}{
 			"image":           "busybox",
 			"load":            []string{"busybox.tar"},
