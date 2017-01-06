@@ -723,10 +723,12 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 
 		// Get the job summary from the fsm state store
-		summary, err := n.state.JobSummaryByID(job.ID)
+		raw, err := n.state.JobSummaryByID(job.ID)
 		if err != nil {
 			return err
 		}
+		summary := raw.Copy()
+		summary.ModifyIndex = index
 
 		// Add the allocations scheduler has made to queued since these
 		// allocations are never getting placed until the scheduler is invoked
@@ -755,6 +757,10 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			if !ok {
 				return fmt.Errorf("task group %q not found while updating queued count", tg)
 			}
+
+			// We add instead of setting here because we want to take into
+			// consideration what the scheduler with a mock planner thinks it
+			// placed. Those should be counted as queued as well
 			tgSummary.Queued += queued
 			summary.Summary[tg] = tgSummary
 		}
@@ -997,7 +1003,7 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 			break
 		}
 
-		jobSummary := raw.(structs.JobSummary)
+		jobSummary := raw.(*structs.JobSummary)
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {
