@@ -19,7 +19,7 @@ func TestArchFingerprint(t *testing.T) {
 	if !ok {
 		t.Fatalf("should apply")
 	}
-	if node.Attributes["arch"] == "" {
+	if node.Attributes["cpu.arch"] == "" {
 		t.Fatalf("missing arch")
 	}
 }
