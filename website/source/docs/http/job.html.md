@@ -155,7 +155,14 @@ region is used; another region can be specified using the `?region=` query param
 
   <dt>Parameters</dt>
   <dd>
-    None
+    <ul>
+      <li>
+        <span class="param">all</span>
+        <span class="param-flags">optional</span>
+        Returns all allocations of job with the given ID including those from
+        past instances of the job.
+      </li>
+    </ul>
   </dd>
 
   <dt>Blocking Queries</dt>
