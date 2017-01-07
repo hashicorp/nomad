@@ -88,6 +88,7 @@ type Allocation struct {
 	PreviousAllocation string
 	CreateIndex        uint64
 	ModifyIndex        uint64
+	AllocModifyIndex   uint64
 	CreateTime         int64
 }
 

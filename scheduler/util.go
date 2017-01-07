@@ -684,8 +684,14 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 	if result != nil {
 		for _, allocations := range result.NodeAllocation {
 			for _, allocation := range allocations {
-				// Ensure that the allocation is newly created
-				if allocation.CreateIndex != result.AllocIndex {
+				// Ensure that the allocation is newly created. We check that
+				// the CreateIndex is equal to the ModifyIndex in order to check
+				// that the allocation was just created. We do not check that
+				// the CreateIndex is equal to the results AllocIndex because
+				// the allocations we get back have gone through the planner's
+				// optimistic snapshot and thus their indexes may not be
+				// correct, but they will be consistent.
+				if allocation.CreateIndex != allocation.ModifyIndex {
 					continue
 				}
 
