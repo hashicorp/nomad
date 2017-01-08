@@ -1,5 +1,8 @@
 ## 0.5.3 (Unreleased) 
 
+__BACKWARDS INCOMPATIBILITIES:__
+  * Client must be run as user with ability to call mount syscall
+
 IMPROVEMENTS:
   * core: Introduce Constructor jobs and Dispatch command/API [GH-2128]
   * cli: Defaulting to showing allocations which belong to currently registered
