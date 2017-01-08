@@ -693,6 +693,26 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 // prestart handles life-cycle tasks that occur before the task has started.
 func (r *TaskRunner) prestart(resultCh chan bool) {
+	// Create a driver so that we can determine the FSIsolation required
+	drv, err := r.createDriver()
+	if err != nil {
+		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+		resultCh <- false
+		return
+	}
+
+	// Build base task directory structure regardless of FS isolation abilities
+	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
+		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+		resultCh <- false
+		return
+	}
 
 	if r.task.Vault != nil {
 		// Wait for the token
@@ -722,6 +742,14 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		renderTo := filepath.Join(r.taskDir.LocalDir, r.task.DispatchInput.File)
 		decoded, err := snappy.Decode(nil, r.alloc.Job.Payload)
 		if err != nil {
+			r.setState(
+				structs.TaskStateDead,
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+			resultCh <- false
+			return
+		}
+
+		if err := os.MkdirAll(filepath.Dir(renderTo), 07777); err != nil {
 			r.setState(
 				structs.TaskStateDead,
 				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
@@ -1063,11 +1091,6 @@ func (r *TaskRunner) startTask() error {
 	if err != nil {
 		return fmt.Errorf("failed to create driver of task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
-	}
-
-	// Build base task directory structure regardless of FS isolation abilities
-	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
-		return fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
 	}
 
 	// Run prestart
