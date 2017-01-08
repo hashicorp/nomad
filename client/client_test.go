@@ -171,8 +171,8 @@ func TestClient_Fingerprint(t *testing.T) {
 	if node.Attributes["kernel.name"] == "" {
 		t.Fatalf("missing kernel.name")
 	}
-	if node.Attributes["arch"] == "" {
-		t.Fatalf("missing arch")
+	if node.Attributes["cpu.arch"] == "" {
+		t.Fatalf("missing cpu arch")
 	}
 }
 
@@ -274,7 +274,7 @@ func TestClient_Fingerprint_WhitelistBlacklistCombination(t *testing.T) {
 	if node.Attributes["cpu.frequency"] == "" {
 		t.Fatalf("missing cpu fingerprint module")
 	}
-	if node.Attributes["arch"] == "" {
+	if node.Attributes["cpu.arch"] == "" {
 		t.Fatalf("missing arch fingerprint module")
 	}
 	// Check remainder _not_ present
