@@ -1055,10 +1055,13 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.CreateIndex = 4
+	alloc2.ModifyIndex = 4
 	alloc3 := mock.Alloc()
 	alloc3.CreateIndex = 3
+	alloc3.ModifyIndex = 5
 	alloc4 := mock.Alloc()
 	alloc4.CreateIndex = 6
+	alloc4.ModifyIndex = 8
 
 	planResult := structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
@@ -1073,7 +1076,7 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 			},
 		},
 		RefreshIndex: 3,
-		AllocIndex:   4,
+		AllocIndex:   16, // Should not be considered
 	}
 
 	queuedAllocs := map[string]int{"web": 2}
