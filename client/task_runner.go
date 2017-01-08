@@ -395,6 +395,27 @@ func (r *TaskRunner) Run() {
 		return
 	}
 
+	// Create a driver so that we can determine the FSIsolation required
+	drv, err := r.createDriver()
+	if err != nil {
+		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+		return
+	}
+
+	// Build base task directory structure regardless of FS isolation abilities.
+	// This needs to happen before we start the Vault manager and call prestart
+	// as both those can write to the task directories
+	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
+		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
+		r.setState(
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+		return
+	}
+
 	// If there is no Vault policy leave the static future created in
 	// NewTaskRunner
 	if r.task.Vault != nil {
@@ -693,27 +714,6 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 // prestart handles life-cycle tasks that occur before the task has started.
 func (r *TaskRunner) prestart(resultCh chan bool) {
-	// Create a driver so that we can determine the FSIsolation required
-	drv, err := r.createDriver()
-	if err != nil {
-		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
-		resultCh <- false
-		return
-	}
-
-	// Build base task directory structure regardless of FS isolation abilities
-	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
-		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
-		resultCh <- false
-		return
-	}
-
 	if r.task.Vault != nil {
 		// Wait for the token
 		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
