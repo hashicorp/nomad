@@ -48,7 +48,8 @@ before the starting the task.
 
 - `destination` `(string: "local/$1")` - Specifies the path to download the
   artifact, relative to the root of the task's directory. If omitted, the
-  default value is to place the binary in `local/`.
+  default value is to place the binary in `local/`. The destination is treated
+  as a directory and source files will be downloaded into that directory path.
 
 - `source` `(string: <required>)` - Specifies the URL of the artifact to download.
  The can be any URL as defined by the [`go-getter`][go-getter] library.
