@@ -25,11 +25,12 @@ func (e *ExecutorPluginCommand) Synopsis() string {
 }
 
 func (e *ExecutorPluginCommand) Run(args []string) int {
-	if len(args) == 0 {
-		e.Ui.Error("log output file isn't provided")
+	if len(args) != 2 {
+		e.Ui.Error("log output file and log level are not provided")
 		return 1
 	}
 	logFileName := args[0]
+	logLevel := args[1]
 	stdo, err := os.OpenFile(logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		e.Ui.Error(err.Error())
@@ -37,7 +38,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 	}
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: driver.HandshakeConfig,
-		Plugins:         driver.GetPluginMap(stdo),
+		Plugins:         driver.GetPluginMap(stdo, logLevel),
 	})
 	return 0
 }

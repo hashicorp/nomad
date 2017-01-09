@@ -198,7 +198,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", pluginLogFile),
+		Cmd: exec.Command(bin, "executor", pluginLogFile, ctx.LogLevel),
 	}
 
 	execIntf, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)

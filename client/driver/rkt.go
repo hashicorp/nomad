@@ -401,7 +401,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", pluginLogFile),
+		Cmd: exec.Command(bin, "executor", pluginLogFile, ctx.LogLevel),
 	}
 
 	execIntf, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)

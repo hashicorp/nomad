@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	"github.com/hashicorp/nomad/client/driver/logging"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -23,7 +22,7 @@ import (
 func createExecutor(config *plugin.ClientConfig, w io.Writer,
 	clientConfig *config.Config) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w)
+	config.Plugins = GetPluginMap(w, clientConfig.LogLevel)
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
 
@@ -45,30 +44,6 @@ func createExecutor(config *plugin.ClientConfig, w io.Writer,
 	}
 	executorPlugin := raw.(executor.Executor)
 	return executorPlugin, executorClient, nil
-}
-
-func createLogCollector(config *plugin.ClientConfig, w io.Writer,
-	clientConfig *config.Config) (logging.LogCollector, *plugin.Client, error) {
-	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w)
-	config.MaxPort = clientConfig.ClientMaxPort
-	config.MinPort = clientConfig.ClientMinPort
-	if config.Cmd != nil {
-		isolateCommand(config.Cmd)
-	}
-
-	syslogClient := plugin.NewClient(config)
-	rpcCLient, err := syslogClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for syslog plugin: %v", err)
-	}
-
-	raw, err := rpcCLient.Dispense("syslogcollector")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the syslog plugin: %v", err)
-	}
-	logCollector := raw.(logging.LogCollector)
-	return logCollector, syslogClient, nil
 }
 
 func consulContext(clientConfig *config.Config, containerID string) *executor.ConsulContext {

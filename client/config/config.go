@@ -149,6 +149,9 @@ type Config struct {
 
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *config.TLSConfig
+
+	// LogLevel is the level of the logs to putout
+	LogLevel string
 }
 
 func (c *Config) Copy() *Config {
@@ -172,6 +175,7 @@ func DefaultConfig() *Config {
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &config.TLSConfig{},
+		LogLevel:                "DEBUG",
 	}
 }
 

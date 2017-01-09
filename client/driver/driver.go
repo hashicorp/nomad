@@ -152,11 +152,18 @@ type ExecContext struct {
 
 	// Alloc ID
 	AllocID string
+
+	// LogLevel is the level of the logs to putout
+	LogLevel string
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext(td *allocdir.TaskDir, allocID string) *ExecContext {
-	return &ExecContext{TaskDir: td, AllocID: allocID}
+func NewExecContext(td *allocdir.TaskDir, allocID string, logLevel string) *ExecContext {
+	return &ExecContext{
+		TaskDir:  td,
+		AllocID:  allocID,
+		LogLevel: logLevel,
+	}
 }
 
 // GetTaskEnv converts the alloc dir, the node, task and alloc into a

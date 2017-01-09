@@ -267,7 +267,7 @@ func (r *TaskRunner) RestoreState() error {
 			return err
 		}
 
-		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID, r.config.LogLevel)
 		handle, err := d.Open(ctx, snap.HandleID)
 
 		// In the case it fails, we relaunch the task in the Run() method.
@@ -1094,7 +1094,7 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	// Run prestart
-	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID, r.config.LogLevel)
 	if err := drv.Prestart(ctx, r.task); err != nil {
 		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)

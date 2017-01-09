@@ -130,7 +130,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", pluginLogFile),
+		Cmd: exec.Command(bin, "executor", pluginLogFile, ctx.LogLevel),
 	}
 
 	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
