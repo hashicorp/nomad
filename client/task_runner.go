@@ -1150,6 +1150,12 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 			ru, err := r.handle.Stats()
 
 			if err != nil {
+				// Check if the driver doesn't implement stats
+				if err.Error() == driver.DriverStatsNotImplemented.Error() {
+					r.logger.Printf("[DEBUG] client: driver for task %q in allocation %q doesn't support stats", r.task.Name, r.alloc.ID)
+					return
+				}
+
 				// We do not log when the plugin is shutdown as this is simply a
 				// race between the stopCollection channel being closed and calling
 				// Stats on the handle.
