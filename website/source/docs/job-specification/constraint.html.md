@@ -114,6 +114,19 @@ constraint {
     }
     ```
 
+- `"balance_datacenter"` - Instructs the scheduler to force an equal spread across
+  all datacenters specified in the Job. When specified as a job constraint, it
+  applies to all groups in the job. When specified as a group constraint, the
+  effect is constrained to that group. Note that the `attribute` parameter should
+  be omitted when using this constraint.
+
+    ```hcl
+    constraint {
+      operator  = "balance_datacenter"
+      value     = "true"
+    }
+    ```
+
 - `"regexp"` - Specifies a regular expression constraint against the attribute.
   The syntax of the regular expressions accepted is the same general syntax used
   by Perl, Python, and many other languages. More precisely, it is the syntax
