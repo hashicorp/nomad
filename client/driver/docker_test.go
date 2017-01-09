@@ -703,14 +703,13 @@ func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["force_pull"] = "nothing"
 
-	driverCtx, execCtx := testDriverContexts(task)
-	driverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
-	driver := NewDockerDriver(driverCtx)
-	if err := driver.Prestart(execCtx, task); err == nil {
-		execCtx.AllocDir.Destroy()
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
+	driver := NewDockerDriver(ctx.DriverCtx)
+
+	if err := driver.Prestart(ctx.ExecCtx, task); err == nil {
 		t.Fatalf("error expected in prestart")
-	} else {
-		execCtx.AllocDir.Destroy()
 	}
 }
 
