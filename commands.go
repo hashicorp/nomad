@@ -126,11 +126,6 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"syslog": func() (cli.Command, error) {
-			return &command.SyslogPluginCommand{
-				Meta: meta,
-			}, nil
-		},
 		"server-force-leave": func() (cli.Command, error) {
 			return &command.ServerForceLeaveCommand{
 				Meta: meta,
