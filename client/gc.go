@@ -184,8 +184,13 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 		}
 
 		// See if we are below thresholds for used disk space and inode usage
-		diskStats := a.statsCollector.Stats().AllocDirStats
+		// TODO(diptanu) figure out why this is nil
+		stats := a.statsCollector.Stats()
+		if stats == nil {
+			break
+		}
 
+		diskStats := stats.AllocDirStats
 		if diskStats == nil {
 			break
 		}

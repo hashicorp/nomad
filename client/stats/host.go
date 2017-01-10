@@ -156,8 +156,8 @@ func (h *HostStatsCollector) Collect() error {
 	hs.Uptime = uptime
 
 	h.hostStatsLock.Lock()
-	defer h.hostStatsLock.Unlock()
 	h.hostStats = hs
+	h.hostStatsLock.Unlock()
 	return nil
 }
 
