@@ -32,7 +32,7 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 		"/bin/ls":           "/bin/ls",
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
-		"/usr/bin/yes":      "/usr/bin/yes",
+		"/bin/sleep":        "/bin/sleep",
 		"/foobar":           "/does/not/exist",
 	}
 

@@ -190,21 +190,23 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 func TestExecutor_ClientCleanup(t *testing.T) {
 	testutil.ExecCompatible(t)
 
-	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "/usr/bin/yes"}}
 	ctx, allocDir := testExecutorContextWithChroot(t)
 	ctx.Task.LogConfig.MaxFiles = 1
 	ctx.Task.LogConfig.MaxFileSizeMB = 300
 	defer allocDir.Destroy()
-
-	execCmd.FSIsolation = true
-	execCmd.ResourceLimits = true
-	execCmd.User = "nobody"
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
 	}
+
+	// Need to run a command which will produce continuous output but not
+	// too quickly to ensure executor.Exit() stops the process.
+	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}}
+	execCmd.FSIsolation = true
+	execCmd.ResourceLimits = true
+	execCmd.User = "nobody"
 
 	ps, err := executor.LaunchCmd(&execCmd)
 	if err != nil {
@@ -213,7 +215,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	if ps.Pid == 0 {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	if err := executor.Exit(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -223,7 +225,10 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error stating stdout file: %v", err)
 	}
-	time.Sleep(1 * time.Second)
+	if finfo.Size() == 0 {
+		t.Fatal("Nothing in stdout; expected at least one byte.")
+	}
+	time.Sleep(2 * time.Second)
 	finfo1, err := os.Stat(file)
 	if err != nil {
 		t.Fatalf("error stating stdout file: %v", err)
