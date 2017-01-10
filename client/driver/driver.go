@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,16 +17,22 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
-// BuiltinDrivers contains the built in registered drivers
-// which are available for allocation handling
-var BuiltinDrivers = map[string]Factory{
-	"docker":   NewDockerDriver,
-	"exec":     NewExecDriver,
-	"raw_exec": NewRawExecDriver,
-	"java":     NewJavaDriver,
-	"qemu":     NewQemuDriver,
-	"rkt":      NewRktDriver,
-}
+var (
+	// BuiltinDrivers contains the built in registered drivers
+	// which are available for allocation handling
+	BuiltinDrivers = map[string]Factory{
+		"docker":   NewDockerDriver,
+		"exec":     NewExecDriver,
+		"raw_exec": NewRawExecDriver,
+		"java":     NewJavaDriver,
+		"qemu":     NewQemuDriver,
+		"rkt":      NewRktDriver,
+	}
+
+	// DriverStatsNotImplemented is the error to be returned if a driver doesn't
+	// implement stats.
+	DriverStatsNotImplemented = errors.New("stats not implemented for driver")
+)
 
 // NewDriver is used to instantiate and return a new driver
 // given the name and a logger

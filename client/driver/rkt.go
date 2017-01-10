@@ -541,7 +541,7 @@ func (h *rktHandle) Kill() error {
 }
 
 func (h *rktHandle) Stats() (*cstructs.TaskResourceUsage, error) {
-	return nil, fmt.Errorf("stats not implemented for rkt")
+	return nil, DriverStatsNotImplemented
 }
 
 func (h *rktHandle) run() {
