@@ -80,7 +80,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/qemu/linux-0.2.img", filepath.Join(dst, "linux-0.2.img"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("Prestart faild: %v", err)
 	}
 
@@ -146,7 +146,7 @@ func TestQemuDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("Prestart faild: %v", err)
 	}
 

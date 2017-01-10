@@ -94,7 +94,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -149,7 +149,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -215,7 +215,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -277,7 +277,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 	dst := ctx.ExecCtx.TaskDir.Dir
 	copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -336,7 +336,7 @@ func TestJavaDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)

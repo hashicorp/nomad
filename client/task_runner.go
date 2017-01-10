@@ -93,6 +93,12 @@ type TaskRunner struct {
 	// Must acquire persistLock when accessing
 	taskDirBuilt bool
 
+	// createdResources are all the resources created by the task driver
+	// across all attempts to start the task.
+	//
+	// Must acquire persistLock when accessing
+	createdResources *driver.CreatedResources
+
 	// payloadRendered tracks whether the payload has been rendered to disk
 	payloadRendered bool
 
@@ -130,7 +136,10 @@ type TaskRunner struct {
 	// waitCh closing marks the run loop as having exited
 	waitCh chan struct{}
 
-	// serialize SaveState calls
+	// persistLock must be acquired when accessing fields stored by
+	// SaveState. SaveState is called asynchronously to TaskRunner.Run by
+	// AllocRunner, so all state fields must be synchronized using this
+	// lock.
 	persistLock sync.Mutex
 }
 
@@ -141,6 +150,7 @@ type taskRunnerState struct {
 	HandleID           string
 	ArtifactDownloaded bool
 	TaskDirBuilt       bool
+	CreatedResources   *driver.CreatedResources
 	PayloadRendered    bool
 }
 
@@ -177,22 +187,23 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
 	tc := &TaskRunner{
-		config:         config,
-		updater:        updater,
-		logger:         logger,
-		restartTracker: restartTracker,
-		alloc:          alloc,
-		task:           task,
-		taskDir:        taskDir,
-		vaultClient:    vaultClient,
-		vaultFuture:    NewTokenFuture().Set(""),
-		updateCh:       make(chan *structs.Allocation, 64),
-		destroyCh:      make(chan struct{}),
-		waitCh:         make(chan struct{}),
-		startCh:        make(chan struct{}, 1),
-		unblockCh:      make(chan struct{}),
-		restartCh:      make(chan *structs.TaskEvent),
-		signalCh:       make(chan SignalEvent),
+		config:           config,
+		updater:          updater,
+		logger:           logger,
+		restartTracker:   restartTracker,
+		alloc:            alloc,
+		task:             task,
+		taskDir:          taskDir,
+		createdResources: driver.NewCreatedResources(),
+		vaultClient:      vaultClient,
+		vaultFuture:      NewTokenFuture().Set(""),
+		updateCh:         make(chan *structs.Allocation, 64),
+		destroyCh:        make(chan struct{}),
+		waitCh:           make(chan struct{}),
+		startCh:          make(chan struct{}, 1),
+		unblockCh:        make(chan struct{}),
+		restartCh:        make(chan *structs.TaskEvent),
+		signalCh:         make(chan SignalEvent),
 	}
 
 	return tc
@@ -237,6 +248,7 @@ func (r *TaskRunner) RestoreState() error {
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 	r.taskDirBuilt = snap.TaskDirBuilt
+	r.createdResources = snap.CreatedResources
 	r.payloadRendered = snap.PayloadRendered
 
 	if err := r.setTaskEnv(); err != nil {
@@ -298,6 +310,7 @@ func (r *TaskRunner) SaveState() error {
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
 		PayloadRendered:    r.payloadRendered,
+		CreatedResources:   r.createdResources,
 	}
 
 	r.handleLock.Lock()
@@ -870,6 +883,8 @@ func (r *TaskRunner) run() {
 			select {
 			case success := <-prestartResultCh:
 				if !success {
+					//FIXME is this necessary?
+					r.cleanup()
 					r.setState(structs.TaskStateDead, nil)
 					return
 				}
@@ -958,6 +973,7 @@ func (r *TaskRunner) run() {
 				running := r.running
 				r.runningLock.Unlock()
 				if !running {
+					r.cleanup()
 					r.setState(structs.TaskStateDead, r.destroyEvent)
 					return
 				}
@@ -976,6 +992,11 @@ func (r *TaskRunner) run() {
 
 				r.killTask(killEvent)
 				close(stopCollection)
+
+				// Wait for handler to exit before calling cleanup
+				<-handleWaitCh
+				r.cleanup()
+
 				r.setState(structs.TaskStateDead, nil)
 				return
 			}
@@ -984,6 +1005,7 @@ func (r *TaskRunner) run() {
 	RESTART:
 		restart := r.shouldRestart()
 		if !restart {
+			r.cleanup()
 			r.setState(structs.TaskStateDead, nil)
 			return
 		}
@@ -994,6 +1016,16 @@ func (r *TaskRunner) run() {
 		handleWaitCh = nil
 		stopCollection = nil
 		r.handleLock.Unlock()
+	}
+}
+
+// cleanup calls Driver.Cleanup when a task is stopping. Errors are logged.
+func (r *TaskRunner) cleanup() {
+	if drv, err := r.createDriver(); err != nil {
+		r.logger.Printf("[WARN] client: error creating driver to cleanup resources: %v", err)
+	} else {
+		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+		drv.Cleanup(ctx, r.createdResources)
 	}
 }
 
@@ -1095,7 +1127,14 @@ func (r *TaskRunner) startTask() error {
 
 	// Run prestart
 	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
-	if err := drv.Prestart(ctx, r.task); err != nil {
+	res, err := drv.Prestart(ctx, r.task)
+
+	// Merge newly created resources into previously created resources
+	r.persistLock.Lock()
+	r.createdResources.Merge(res)
+	r.persistLock.Unlock()
+
+	if err != nil {
 		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
 

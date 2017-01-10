@@ -256,3 +256,42 @@ func TestMapMergeStrStr(t *testing.T) {
 		t.Errorf("\nExpected\n%+v\nGot\n%+v\n", d, c)
 	}
 }
+
+func TestCreatedResources(t *testing.T) {
+	res1 := NewCreatedResources()
+	res1.Add("k1", "v1")
+	res1.Add("k1", "v2")
+	res1.Add("k1", "v1")
+	res1.Add("k2", "v1")
+
+	expected := map[string][]string{
+		"k1": {"v1", "v2"},
+		"k2": {"v1"},
+	}
+	if !reflect.DeepEqual(expected, res1.Resources) {
+		t.Fatalf("1.  %#v != expected %#v", res1.Resources, expected)
+	}
+
+	// Make sure merging nil works
+	var res2 *CreatedResources
+	res1.Merge(res2)
+	if !reflect.DeepEqual(expected, res1.Resources) {
+		t.Fatalf("2.  %#v != expected %#v", res1.Resources, expected)
+	}
+
+	// Make sure a normal merge works
+	res2 = NewCreatedResources()
+	res2.Add("k1", "v3")
+	res2.Add("k2", "v1")
+	res2.Add("k3", "v3")
+	res1.Merge(res2)
+
+	expected = map[string][]string{
+		"k1": {"v1", "v2", "v3"},
+		"k2": {"v1"},
+		"k3": {"v3"},
+	}
+	if !reflect.DeepEqual(expected, res1.Resources) {
+		t.Fatalf("3.  %#v != expected %#v", res1.Resources, expected)
+	}
+}

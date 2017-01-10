@@ -51,6 +51,70 @@ func NewDriver(name string, ctx *DriverContext) (Driver, error) {
 // Factory is used to instantiate a new Driver
 type Factory func(*DriverContext) Driver
 
+// CreatedResources is a map of resources (eg downloaded images) created by a driver
+// that must be cleaned up.
+type CreatedResources struct {
+	Resources map[string][]string
+}
+
+func NewCreatedResources() *CreatedResources {
+	return &CreatedResources{Resources: make(map[string][]string)}
+}
+
+// Add a new resource if it doesn't already exist.
+func (r *CreatedResources) Add(k, v string) {
+	if r.Resources == nil {
+		r.Resources = map[string][]string{k: []string{v}}
+		return
+	}
+	existing, ok := r.Resources[k]
+	if !ok {
+		// Key doesn't exist, create it
+		r.Resources[k] = []string{v}
+		return
+	}
+	for _, item := range existing {
+		if item == v {
+			// resource exists, return
+			return
+		}
+	}
+
+	// Resource type exists but value did not, append it
+	r.Resources[k] = append(existing, v)
+	return
+}
+
+// Merge another CreatedResources into this one. If the other CreatedResources
+// is nil this method is a noop.
+func (r *CreatedResources) Merge(o *CreatedResources) {
+	if o == nil {
+		return
+	}
+
+	for k, v := range o.Resources {
+		// New key
+		if len(r.Resources[k]) == 0 {
+			r.Resources[k] = v
+			continue
+		}
+
+		// Existing key
+	OUTER:
+		for _, item := range v {
+			for _, existing := range r.Resources[k] {
+				if item == existing {
+					// Found it, move on
+					continue OUTER
+				}
+			}
+
+			// New item, append it
+			r.Resources[k] = append(r.Resources[k], item)
+		}
+	}
+}
+
 // Driver is used for execution of tasks. This allows Nomad
 // to support many pluggable implementations of task drivers.
 // Examples could include LXC, Docker, Qemu, etc.
@@ -60,13 +124,21 @@ type Driver interface {
 
 	// Prestart prepares the task environment and performs expensive
 	// intialization steps like downloading images.
-	Prestart(*ExecContext, *structs.Task) error
+	//
+	// CreatedResources may be non-nil even when an error occurs.
+	Prestart(*ExecContext, *structs.Task) (*CreatedResources, error)
 
 	// Start is used to being task execution
 	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
+
+	// Cleanup is called to remove resources which were created for a task
+	// and no longer needed.
+	//
+	// Cleanup should log any errors it encounters.
+	Cleanup(*ExecContext, *CreatedResources)
 
 	// Drivers must validate their configuration
 	Validate(map[string]interface{}) error

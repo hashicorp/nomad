@@ -67,7 +67,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -111,7 +111,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -175,7 +175,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -229,7 +229,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -283,7 +283,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -349,7 +349,7 @@ done
 		fmt.Errorf("Failed to write data")
 	}
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -414,7 +414,7 @@ func TestExecDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)

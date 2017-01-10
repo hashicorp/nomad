@@ -84,15 +84,22 @@ const (
 	// Docker's privileged mode.
 	dockerPrivilegedConfigOption = "docker.privileged.enabled"
 
+	// dockerCleanupImageConfigOption is the key for whether or not to
+	// cleanup images after the task exits.
+	dockerCleanupImageConfigOption  = "docker.cleanup.image"
+	dockerCleanupImageConfigDefault = true
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
+
+	// dockerImageResKey is the CreatedResources key for docker images
+	dockerImageResKey = "image"
 )
 
 type DockerDriver struct {
 	DriverContext
 
-	imageID      string
 	driverConfig *DockerDriverConfig
 }
 
@@ -237,8 +244,6 @@ type DockerHandle struct {
 	client            *docker.Client
 	waitClient        *docker.Client
 	logger            *log.Logger
-	cleanupImage      bool
-	imageID           string
 	containerID       string
 	version           string
 	clkSpeed          float64
@@ -355,35 +360,42 @@ func (d *DockerDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationImage
 }
 
-func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
+func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
 	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Set state needed by Start()
+	d.driverConfig = driverConfig
 
 	// Initialize docker API clients
 	client, _, err := d.dockerClients()
 	if err != nil {
-		return fmt.Errorf("Failed to connect to docker daemon: %s", err)
+		return nil, fmt.Errorf("Failed to connect to docker daemon: %s", err)
 	}
 
-	if err := d.createImage(driverConfig, client, ctx.TaskDir); err != nil {
-		return err
-	}
-
-	image := driverConfig.ImageName
-	// Now that we have the image we can get the image id
-	dockerImage, err := client.InspectImage(image)
+	// Ensure the image is available
+	pulled, err := d.createImage(driverConfig, client, ctx.TaskDir)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed getting image id for %s: %s", image, err)
-		return fmt.Errorf("Failed to determine image id for `%s`: %s", image, err)
+		return nil, err
 	}
-	d.logger.Printf("[DEBUG] driver.docker: identified image %s as %s", image, dockerImage.ID)
+	if pulled {
+		// An image was downloaded, add the ID to created resources
+		dockerImage, err := client.InspectImage(driverConfig.ImageName)
+		if err == nil {
+			res := NewCreatedResources()
+			res.Add(dockerImageResKey, dockerImage.ID)
+			return res, nil
+		}
 
-	// Set state needed by Start()
-	d.imageID = dockerImage.ID
-	d.driverConfig = driverConfig
-	return nil
+		// When an error occurs we leak the image, but this should be
+		// extremely rare. There's no point in returning an error
+		// because the image won't be redownloaded as it now exists.
+		d.logger.Printf("[ERR] driver.docker: failed getting image id for %q: %v", driverConfig.ImageName, err)
+	}
+
+	return nil, nil
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -431,9 +443,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %s: %s", d.imageID, err)
+		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %q: %v", d.driverConfig.ImageName, err)
 		pluginClient.Kill()
-		return nil, fmt.Errorf("Failed to create container configuration for image %s: %s", d.imageID, err)
+		return nil, fmt.Errorf("Failed to create container configuration for image %q: %v", d.driverConfig.ImageName, err)
 	}
 
 	container, rerr := d.createContainer(config)
@@ -445,8 +457,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
-
-	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
 
 	// We don't need to start the container if the container is already running
 	// since we don't create containers which are already present on the host
@@ -471,9 +481,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		waitClient:     waitClient,
 		executor:       exec,
 		pluginClient:   pluginClient,
-		cleanupImage:   cleanupImage,
 		logger:         d.logger,
-		imageID:        d.imageID,
 		containerID:    container.ID,
 		version:        d.config.Version,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
@@ -487,6 +495,25 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	go h.collectStats()
 	go h.run()
 	return h, nil
+}
+
+func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) {
+	if res == nil {
+		// Nothing to cleanup
+		return
+	}
+
+	// If the client should cleanup images and the image was downloaded, remove it
+	cleanupImage := d.config.ReadBoolDefault(dockerCleanupImageConfigOption, dockerCleanupImageConfigDefault)
+	if ids := res.Resources[dockerImageResKey]; cleanupImage && len(ids) > 0 {
+		for _, id := range ids {
+			if err := client.RemoveImage(id); err != nil {
+				d.logger.Printf("[WARN] driver.docker: cleanup failed to remove downloaded image %q: %v", id, err)
+			} else {
+				d.logger.Printf("[DEBUG] driver.docker: cleanup removed downloaded image: %q", id)
+			}
+		}
+	}
 }
 
 // dockerClients creates two *docker.Client, one for long running operations and
@@ -884,33 +911,37 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 
 // createImage creates a docker image either by pulling it from a registry or by
 // loading it from the file system
-func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) error {
+//
+// Returns true if an image was downloaded and should be cleaned up.
+func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) (bool, error) {
 	image := driverConfig.ImageName
 	repo, tag := docker.ParseRepositoryTag(image)
 	if tag == "" {
 		tag = "latest"
 	}
 
-	var dockerImage *docker.Image
-	var err error
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
 	if driverConfig.ForcePull {
 		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s:%s' instead of inspecting local", repo, tag)
 	} else if tag != "latest" {
-		dockerImage, err = client.InspectImage(image)
+		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
+			// Image exists, nothing to do
+			return false, nil
+		}
+	}
+
+	// Load the image if specified
+	if len(driverConfig.LoadImages) > 0 {
+		return false, d.loadImage(driverConfig, client, taskDir)
 	}
 
 	// Download the image
-	if dockerImage == nil {
-		if len(driverConfig.LoadImages) > 0 {
-			return d.loadImage(driverConfig, client, taskDir)
-		}
-
-		return d.pullImage(driverConfig, client, repo, tag)
+	if err := d.pullImage(driverConfig, client, repo, tag); err != nil {
+		return false, err
 	}
-	return err
+	return true, nil
 }
 
 // pullImage creates an image by pulling it from a docker registry
@@ -960,6 +991,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 		d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
 		return d.recoverablePullError(err, driverConfig.ImageName)
 	}
+
 	d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
 	return nil
 }
@@ -1081,8 +1113,6 @@ START:
 }
 
 func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
-	cleanupImage := d.config.ReadBoolDefault("docker.cleanup.image", true)
-
 	// Split the handle
 	pidBytes := []byte(strings.TrimPrefix(handleID, "DOCKER:"))
 	pid := &dockerPID{}
@@ -1138,9 +1168,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		waitClient:     waitClient,
 		executor:       exec,
 		pluginClient:   pluginClient,
-		cleanupImage:   cleanupImage,
 		logger:         d.logger,
-		imageID:        pid.ImageID,
 		containerID:    pid.ContainerID,
 		version:        pid.Version,
 		killTimeout:    pid.KillTimeout,
@@ -1161,7 +1189,6 @@ func (h *DockerHandle) ID() string {
 	// Return a handle to the PID
 	pid := dockerPID{
 		Version:        h.version,
-		ImageID:        h.imageID,
 		ContainerID:    h.containerID,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
@@ -1276,13 +1303,6 @@ func (h *DockerHandle) run() {
 	// Remove the container
 	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
 		h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
-	}
-
-	// Cleanup the image
-	if h.cleanupImage {
-		if err := h.client.RemoveImage(h.imageID); err != nil {
-			h.logger.Printf("[DEBUG] driver.docker: error removing image: %v", err)
-		}
 	}
 
 	// Send the results

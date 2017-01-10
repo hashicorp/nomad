@@ -98,7 +98,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -149,7 +149,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -210,7 +210,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -281,7 +281,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -343,7 +343,7 @@ func TestRktDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -384,7 +384,7 @@ func TestRktTrustPrefix(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -462,7 +462,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)

@@ -79,8 +79,8 @@ func (d *MockDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationNone
 }
 
-func (d *MockDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 // Start starts the mock driver
@@ -123,6 +123,8 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	go h.run()
 	return &h, nil
 }
+
+func (m *MockDriver) Cleanup(*ExecContext, *CreatedResources) {}
 
 // Validate validates the mock driver configuration
 func (m *MockDriver) Validate(map[string]interface{}) error {
