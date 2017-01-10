@@ -105,7 +105,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	td := allocDir.NewTaskDir(task.Name)
 	if err := td.Build(config.DefaultChrootEnv, tmpdrv.FSIsolation()); err != nil {
 		allocDir.Destroy()
-		t.Fatalf("TaskDir.Build(%#v, %q) failed: %v", config.DefaultChrootEnv, tmpdrv.FSIsolation())
+		t.Fatalf("TaskDir.Build(%#v, %q) failed: %v", config.DefaultChrootEnv, tmpdrv.FSIsolation(), err)
 		return nil
 	}
 
