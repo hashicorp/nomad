@@ -127,7 +127,7 @@ Below is a table documenting common node properties:
     <td>See the [task drivers](/docs/drivers/index.html) for property documentation</td>
   </tr>
   <tr>
-    <td><tt>unique.hostname</tt></td>
+    <td><tt>unique.name</tt></td>
     <td>Hostname of the client</td>
   </tr>
   <tr>
