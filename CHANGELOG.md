@@ -9,6 +9,8 @@ IMPROVEMENTS:
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
     [GH-2081]
+  * client: Fixed namespacing for the cpu arch attribute [GH-2161]
+  * client: Don't retrieve Driver Stats if unsupported [GH-2173]
   * driver/docker: Add support for network aliases [GH-1980]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
 
