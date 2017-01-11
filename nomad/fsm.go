@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -723,12 +724,11 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 
 		// Get the job summary from the fsm state store
-		raw, err := n.state.JobSummaryByID(job.ID)
+		originalSummary, err := n.state.JobSummaryByID(job.ID)
 		if err != nil {
 			return err
 		}
-		summary := raw.Copy()
-		summary.ModifyIndex = index
+		summary := originalSummary.Copy()
 
 		// Add the allocations scheduler has made to queued since these
 		// allocations are never getting placed until the scheduler is invoked
@@ -765,8 +765,11 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			summary.Summary[tg] = tgSummary
 		}
 
-		if err := n.state.UpsertJobSummary(index, summary); err != nil {
-			return err
+		if !reflect.DeepEqual(summary, originalSummary) {
+			summary.ModifyIndex = index
+			if err := n.state.UpsertJobSummary(index, summary); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

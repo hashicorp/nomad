@@ -414,30 +414,35 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 			pSummary := existing.Copy()
 			if pSummary.Children != nil {
 
+				modified := false
 				switch job.Status {
 				case structs.JobStatusPending:
 					pSummary.Children.Pending--
 					pSummary.Children.Dead++
+					modified = true
 				case structs.JobStatusRunning:
 					pSummary.Children.Running--
 					pSummary.Children.Dead++
+					modified = true
 				case structs.JobStatusDead:
 				default:
 					return fmt.Errorf("unknown old job status %q", job.Status)
 				}
 
-				// Update the modify index
-				pSummary.ModifyIndex = index
+				if modified {
+					// Update the modify index
+					pSummary.ModifyIndex = index
 
-				watcher.Add(watch.Item{Table: "job_summary"})
-				watcher.Add(watch.Item{JobSummary: job.ParentID})
+					watcher.Add(watch.Item{Table: "job_summary"})
+					watcher.Add(watch.Item{JobSummary: job.ParentID})
 
-				// Insert the summary
-				if err := txn.Insert("job_summary", pSummary); err != nil {
-					return fmt.Errorf("job summary insert failed: %v", err)
-				}
-				if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
-					return fmt.Errorf("index update failed: %v", err)
+					// Insert the summary
+					if err := txn.Insert("job_summary", pSummary); err != nil {
+						return fmt.Errorf("job summary insert failed: %v", err)
+					}
+					if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+						return fmt.Errorf("index update failed: %v", err)
+					}
 				}
 			}
 		}
