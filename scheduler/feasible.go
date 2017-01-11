@@ -260,7 +260,7 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 }
 
 // satisfiesBalance checks if the allocation on this node would make the zones
-// unbalanced, this implies a greater then 1 difference between the lowest, and the
+// unbalanced, this implies a greater than 1 difference between the lowest, and the
 // highest zone
 func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.Node) bool {
 	// Check if there is no constraint set.
@@ -268,13 +268,13 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 		return true
 	}
 
-	// fill the map with all the dc's in the selected datacenter
-	balanceMap := make(map[string]int)
-
 	if len(iter.job.Datacenters) == 0 {
 		iter.ctx.Logger().Print("[ERR] Job needs at least 1 datacenter to use balance")
 		return false
 	}
+
+	// fill the map with all the dc's in the selected datacenter
+	balanceMap := make(map[string]int)
 
 	for _, dc := range iter.job.Datacenters {
 		balanceMap[dc] = 0
@@ -295,13 +295,6 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 
 		node := next.(*structs.Node)
 
-		// current allocations
-		allocs, err := iter.ctx.State().AllocsByNode(node.ID)
-		if err != nil {
-			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get node allocations: %v", err)
-			return false
-		}
-
 		// proposed allocations
 		proposed, err := iter.ctx.ProposedAllocs(node.ID)
 		if err != nil {
@@ -310,10 +303,6 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 		}
 
 		for _, alloc := range proposed {
-			allocs = append(allocs, alloc)
-		}
-
-		for _, alloc := range allocs {
 			jobCollision := alloc.JobID == iter.job.ID
 			taskCollision := alloc.TaskGroup == iter.tg.Name
 
@@ -322,7 +311,7 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 				continue
 			}
 
-			// skip allocation with DesiredStatus other then running
+			// skip allocation with DesiredStatus other than running
 			if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 				continue
 			}
@@ -339,9 +328,7 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 		}
 	}
 
-	iter.ctx.Logger().Printf("[DEBUG] Allocs per DC: Current: %d (%s), Lowest: %d", balanceMap[option.Datacenter], option.Datacenter, min)
-
-	// if the current DC is higher then the minium, the node is not eligible
+	// if the current DC is higher than the minium, the node is not eligible
 	if balanceMap[option.Datacenter] > min {
 		return false
 	}
