@@ -350,6 +350,11 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 			n.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
 			n.blockedEvals.Block(eval)
+		} else if eval.Status == structs.EvalStatusComplete &&
+			len(eval.FailedTGAllocs) == 0 {
+			// If we have a successful evaluation for a node, untrack any
+			// blocked evaluation
+			n.blockedEvals.Untrack(eval.JobID)
 		}
 	}
 	return nil

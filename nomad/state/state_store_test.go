@@ -1340,6 +1340,74 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	notify.verify(t)
 }
 
+func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create two blocked evals for the same job
+	j := "test-job"
+	b1, b2 := mock.Eval(), mock.Eval()
+	b1.JobID = j
+	b1.Status = structs.EvalStatusBlocked
+	b2.JobID = j
+	b2.Status = structs.EvalStatusBlocked
+
+	err := state.UpsertEvals(999, []*structs.Evaluation{b1, b2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create one complete and successful eval for the job
+	eval := mock.Eval()
+	eval.JobID = j
+	eval.Status = structs.EvalStatusComplete
+
+	notify := setupNotifyTest(
+		state,
+		watch.Item{Table: "evals"},
+		watch.Item{Eval: b1.ID},
+		watch.Item{Eval: b2.ID},
+		watch.Item{Eval: eval.ID},
+		watch.Item{EvalJob: eval.JobID})
+
+	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.EvalByID(eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval, out) {
+		t.Fatalf("bad: %#v %#v", eval, out)
+	}
+
+	index, err := state.Index("evals")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	// Get b1/b2 and check they are cancelled
+	out1, err := state.EvalByID(b1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out2, err := state.EvalByID(b2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out1.Status != structs.EvalStatusCancelled || out2.Status != structs.EvalStatusCancelled {
+		t.Fatalf("bad: %#v %#v", out1, out2)
+	}
+
+	notify.verify(t)
+}
+
 func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	state := testStateStore(t)
 	eval := mock.Eval()

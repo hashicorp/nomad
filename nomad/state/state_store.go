@@ -672,7 +672,7 @@ func (s *StateStore) PeriodicLaunches() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// UpsertEvaluation is used to upsert an evaluation
+// UpsertEvals is used to upsert a set of evaluations
 func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -685,7 +685,7 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	for _, eval := range evals {
 		watcher.Add(watch.Item{Eval: eval.ID})
 		watcher.Add(watch.Item{EvalJob: eval.JobID})
-		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+		if err := s.nestedUpsertEval(txn, watcher, index, eval); err != nil {
 			return err
 		}
 
@@ -703,7 +703,7 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 }
 
 // nestedUpsertEvaluation is used to nest an evaluation upsert within a transaction
-func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *structs.Evaluation) error {
+func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, watcher watch.Items, index uint64, eval *structs.Evaluation) error {
 	// Lookup the evaluation
 	existing, err := txn.First("evals", "id", eval.ID)
 	if err != nil {
@@ -748,6 +748,37 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 			if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 				return fmt.Errorf("index update failed: %v", err)
 			}
+		}
+	}
+
+	// Check if the job has any blocked evaluations and cancel them
+	if eval.Status == structs.EvalStatusComplete && len(eval.FailedTGAllocs) == 0 {
+		// Get the blocked evaluation for a job if it exists
+		iter, err := txn.Get("evals", "job", eval.JobID, structs.EvalStatusBlocked)
+		if err != nil {
+			return fmt.Errorf("failed to get blocked evals for job %q", eval.JobID, err)
+		}
+
+		var blocked []*structs.Evaluation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			blocked = append(blocked, raw.(*structs.Evaluation))
+		}
+
+		// Go through and update the evals
+		for _, eval := range blocked {
+			newEval := eval.Copy()
+			newEval.Status = structs.EvalStatusCancelled
+			newEval.StatusDescription = fmt.Sprintf("evaluation %q successful", newEval.ID)
+			newEval.ModifyIndex = index
+			if err := txn.Insert("evals", newEval); err != nil {
+				return fmt.Errorf("eval insert failed: %v", err)
+			}
+
+			watcher.Add(watch.Item{Eval: newEval.ID})
 		}
 	}
 
@@ -855,7 +886,7 @@ func (s *StateStore) EvalsByJob(jobID string) ([]*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
 	// Get an iterator over the node allocations
-	iter, err := txn.Get("evals", "job", jobID)
+	iter, err := txn.Get("evals", "job_prefix", jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -1603,7 +1634,7 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
-	evals, err := txn.Get("evals", "job", job.ID)
+	evals, err := txn.Get("evals", "job_prefix", job.ID)
 	if err != nil {
 		return "", err
 	}
