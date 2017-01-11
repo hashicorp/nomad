@@ -1305,8 +1305,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 				if _, ok := pulledAllocs[desiredID]; !ok {
 					// We didn't get everything we wanted. Do not update the
 					// MinQueryIndex, sleep and then retry.
+					wait := c.retryIntv(2 * time.Second)
 					select {
-					case <-time.After(2 * time.Second):
+					case <-time.After(wait):
 						// Wait for the server we contact to receive the
 						// allocations
 						continue
