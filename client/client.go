@@ -1274,14 +1274,13 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			}
 		}
 
-		c.logger.Printf("[DEBUG] client: updated allocations at index %d (pulled %d) (filtered %d)",
-			resp.Index, len(pull), len(filtered))
-
 		// Pull the allocations that passed filtering.
 		allocsResp.Allocs = nil
+		var pulledAllocs map[string]*structs.Allocation
 		if len(pull) != 0 {
 			// Pull the allocations that need to be updated.
 			allocsReq.AllocIDs = pull
+			allocsReq.MinQueryIndex = resp.Index - 1
 			allocsResp = structs.AllocsGetResponse{}
 			if err := c.RPC("Alloc.GetAllocs", &allocsReq, &allocsResp); err != nil {
 				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
@@ -1296,6 +1295,28 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 				}
 			}
 
+			// Ensure that we received all the allocations we wanted
+			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
+			for _, alloc := range allocsResp.Allocs {
+				pulledAllocs[alloc.ID] = alloc
+			}
+
+			for _, desiredID := range pull {
+				if _, ok := pulledAllocs[desiredID]; !ok {
+					// We didn't get everything we wanted. Do not update the
+					// MinQueryIndex, sleep and then retry.
+					wait := c.retryIntv(2 * time.Second)
+					select {
+					case <-time.After(wait):
+						// Wait for the server we contact to receive the
+						// allocations
+						continue
+					case <-c.shutdownCh:
+						return
+					}
+				}
+			}
+
 			// Check for shutdown
 			select {
 			case <-c.shutdownCh:
@@ -1304,19 +1325,18 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			}
 		}
 
+		c.logger.Printf("[DEBUG] client: updated allocations at index %d (total %d) (pulled %d) (filtered %d)",
+			resp.Index, len(resp.Allocs), len(allocsResp.Allocs), len(filtered))
+
 		// Update the query index.
 		if resp.Index > req.MinQueryIndex {
 			req.MinQueryIndex = resp.Index
 		}
 
 		// Push the updates.
-		pulled := make(map[string]*structs.Allocation, len(allocsResp.Allocs))
-		for _, alloc := range allocsResp.Allocs {
-			pulled[alloc.ID] = alloc
-		}
 		update := &allocUpdates{
 			filtered: filtered,
-			pulled:   pulled,
+			pulled:   pulledAllocs,
 		}
 		select {
 		case updates <- update:

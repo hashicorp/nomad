@@ -248,8 +248,10 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 	// Lookup the allocs
 	get := &structs.AllocsGetRequest{
-		AllocIDs:     []string{alloc.ID, alloc2.ID},
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		AllocIDs: []string{alloc.ID, alloc2.ID},
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
 	}
 	var resp structs.AllocsGetResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err != nil {
@@ -270,5 +272,59 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	}
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err == nil {
 		t.Fatalf("expect error")
+	}
+}
+
+func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the allocs
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+
+	// First create an unrelated alloc
+	time.AfterFunc(100*time.Millisecond, func() {
+		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
+		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Create the alloc we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
+		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the allocs
+	get := &structs.AllocsGetRequest{
+		AllocIDs: []string{alloc1.ID, alloc2.ID},
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.AllocsGetResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Allocs) != 2 {
+		t.Fatalf("bad: %#v", resp.Allocs)
 	}
 }
