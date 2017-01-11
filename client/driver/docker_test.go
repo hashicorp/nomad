@@ -699,6 +699,35 @@ func TestDockerDriver_Labels(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["force_pull"] = "nothing"
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
+	driver := NewDockerDriver(ctx.DriverCtx)
+
+	if err := driver.Prestart(ctx.ExecCtx, task); err == nil {
+		t.Fatalf("error expected in prestart")
+	}
+}
+
+func TestDockerDriver_ForcePull(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["force_pull"] = "true"
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	_, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestDockerDriver_DNS(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
