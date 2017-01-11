@@ -5,6 +5,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 IMPROVEMENTS:
   * core: Introduce Constructor jobs and Dispatch command/API [GH-2128]
+  * core: Cancel blocked evals upon successful one for job [GH-2155]
   * cli: Defaulting to showing allocations which belong to currently registered
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
