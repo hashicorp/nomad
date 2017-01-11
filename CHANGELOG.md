@@ -13,6 +13,7 @@ IMPROVEMENTS:
   * client: Fixed namespacing for the cpu arch attribute [GH-2161]
   * client: Don't retrieve Driver Stats if unsupported [GH-2173]
   * driver/docker: Add support for network aliases [GH-1980]
+  * driver/docker: Add `force_pull` option to force downloading an image [GH-2147]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
 
 BUG FIXES:
