@@ -986,14 +986,23 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			ServerAddress: driverConfig.Auth[0].ServerAddress,
 		}
 	}
-
-	if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
+	authConfigFile := d.config.Read("docker.auth.config")
+	d.logger.Printf("[DEBUG]: ALEX: auth config file %q", authConfigFile)
+	if authConfigFile != "" {
 		if f, err := os.Open(authConfigFile); err == nil {
 			defer f.Close()
 			var authConfigurations *docker.AuthConfigurations
 			if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
 				return fmt.Errorf("Failed to create docker auth object: %v", err)
 			}
+
+			// https://github.com/docker/docker/blob/109c26bd7482280946e356b33f17f4d82112dff3/cli/command/image/pull.go#L44
+			// 1. convert the auth config to docker type
+			// 2. https://github.com/docker/docker/blob/109c26bd7482280946e356b33f17f4d82112dff3/cli/command/image/pull.go#L45
+			// 3. https://github.com/docker/docker/blob/109c26bd7482280946e356b33f17f4d82112dff3/cli/command/image/pull.go#L69
+			// 4. https://github.com/docker/docker/blob/master/registry/config.go#L324
+			// 5. https://github.com/docker/docker/blob/master/registry/auth.go#L226
+			// 6. Convert auth config back
 
 			authConfigurationKey := ""
 			if driverConfig.SSL {
