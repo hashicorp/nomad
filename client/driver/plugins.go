@@ -2,7 +2,6 @@ package driver
 
 import (
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"strings"
@@ -22,16 +21,13 @@ func GetPluginMap(w io.Writer, logLevel string) map[string]plugin.Plugin {
 	filter := &logutils.LevelFilter{
 		Levels:   []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERR"},
 		MinLevel: logutils.LogLevel(strings.ToUpper(logLevel)),
-		Writer:   ioutil.Discard,
+		Writer:   w,
 	}
 
-	e.logger = log.New(filter, "", log.LstdFlags)
+	e.logger = log.New(filter, "", log.LstdFlags|log.Lmicroseconds)
 
-	s := new(SyslogCollectorPlugin)
-	s.logger = log.New(w, "", log.LstdFlags)
 	return map[string]plugin.Plugin{
-		"executor":        e,
-		"syslogcollector": s,
+		"executor": e,
 	}
 }
 

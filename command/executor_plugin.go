@@ -1,12 +1,14 @@
 package command
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/hashicorp/nomad/client/driver"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
 type ExecutorPluginCommand struct {
@@ -25,20 +27,23 @@ func (e *ExecutorPluginCommand) Synopsis() string {
 }
 
 func (e *ExecutorPluginCommand) Run(args []string) int {
-	if len(args) != 2 {
-		e.Ui.Error("log output file and log level are not provided")
+	if len(args) != 1 {
+		e.Ui.Error("json configuration not provided")
 		return 1
 	}
-	logFileName := args[0]
-	logLevel := args[1]
-	stdo, err := os.OpenFile(logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	config := args[0]
+	var executorConfig dstructs.ExecutorConfig
+	if err := json.Unmarshal([]byte(config), &executorConfig); err != nil {
+		return 1
+	}
+	stdo, err := os.OpenFile(executorConfig.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		e.Ui.Error(err.Error())
 		return 1
 	}
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: driver.HandshakeConfig,
-		Plugins:         driver.GetPluginMap(stdo, logLevel),
+		Plugins:         driver.GetPluginMap(stdo, executorConfig.LogLevel),
 	})
 	return 0
 }

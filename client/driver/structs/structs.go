@@ -55,3 +55,13 @@ type CheckResult struct {
 	// Err is the error that a check returned
 	Err error
 }
+
+// ExecutorConfig is the config that Nomad passes to the executor
+type ExecutorConfig struct {
+
+	// LogFile is the file to which Executor logs
+	LogFile string
+
+	// LogLevel is the level of the logs to putout
+	LogLevel string
+}
