@@ -89,11 +89,12 @@ func (t *TaskDir) Build(chroot map[string]string, fsi cstructs.FSIsolation) erro
 		}
 	}
 
-	// Always link the shared task directory even though image based
-	// filesystem isolalation doesn't require it. This way we have a
-	// consistent task dir.
-	if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
-		return fmt.Errorf("Failed to mount shared directory for task: %v", err)
+	// Only link alloc dir into task dir for no and chroot fs isolation.
+	// Image based isolation will bind the shared alloc dir in the driver.
+	if fsi == cstructs.FSIsolationNone || fsi == cstructs.FSIsolationChroot {
+		if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
+			return fmt.Errorf("Failed to mount shared directory for task: %v", err)
+		}
 	}
 
 	// Create the secret directory

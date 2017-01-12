@@ -150,11 +150,11 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td1.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td2.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -224,12 +224,12 @@ func TestAllocDir_Move(t *testing.T) {
 	defer d2.Destroy()
 
 	td1 := d1.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td1.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
 	td2 := d2.NewTaskDir(t1.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td2.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
@@ -322,7 +322,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	defer d.Destroy()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 
