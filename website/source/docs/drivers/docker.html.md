@@ -151,9 +151,6 @@ The `docker` driver supports the following configuration in the job spec:
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
-* `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
-  repository. The default value is `true`.
-
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).

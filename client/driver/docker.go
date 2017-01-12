@@ -139,7 +139,6 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
-	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
@@ -167,9 +166,6 @@ func (c *DockerDriverConfig) Validate() error {
 // config
 func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*DockerDriverConfig, error) {
 	var dconf DockerDriverConfig
-
-	// Default to SSL
-	dconf.SSL = true
 
 	if err := mapstructure.WeakDecode(task.Config, &dconf); err != nil {
 		return nil, err
