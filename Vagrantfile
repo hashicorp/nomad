@@ -64,6 +64,9 @@ bash scripts/install_rkt_vagrant.sh
 bash scripts/install_consul.sh
 bash scripts/install_vault.sh
 
+# Set hostname's IP to made advertisement Just Work
+sudo sed -i -e "s/.*nomad.*/$(ip route get 1 | awk '{print $NF;exit}') nomad/" /etc/hosts
+
 # CD into the nomad working directory when we login to the VM
 grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
 SCRIPT
