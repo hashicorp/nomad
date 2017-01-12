@@ -383,16 +383,17 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedR
 	if pulled {
 		// An image was downloaded, add the ID to created resources
 		dockerImage, err := client.InspectImage(driverConfig.ImageName)
-		if err == nil {
-			res := NewCreatedResources()
-			res.Add(dockerImageResKey, dockerImage.ID)
-			return res, nil
+		if err != nil {
+			// When an error occurs we leak the image, but this should be
+			// extremely rare. There's no point in returning an error
+			// because the image won't be redownloaded as it now exists.
+			d.logger.Printf("[ERR] driver.docker: failed getting image id for %q: %v", driverConfig.ImageName, err)
+			return nil, nil
 		}
 
-		// When an error occurs we leak the image, but this should be
-		// extremely rare. There's no point in returning an error
-		// because the image won't be redownloaded as it now exists.
-		d.logger.Printf("[ERR] driver.docker: failed getting image id for %q: %v", driverConfig.ImageName, err)
+		res := NewCreatedResources()
+		res.Add(dockerImageResKey, dockerImage.ID)
+		return res, nil
 	}
 
 	return nil, nil
