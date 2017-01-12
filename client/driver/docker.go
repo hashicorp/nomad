@@ -315,6 +315,7 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"auth": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
+			// COMPAT: Remove in 0.6.0. SSL is no longer needed
 			"ssl": &fields.FieldSchema{
 				Type: fields.TypeBool,
 			},
