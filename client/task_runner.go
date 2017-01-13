@@ -883,7 +883,6 @@ func (r *TaskRunner) run() {
 			select {
 			case success := <-prestartResultCh:
 				if !success {
-					//FIXME is this necessary?
 					r.cleanup()
 					r.setState(structs.TaskStateDead, nil)
 					return
@@ -1021,12 +1020,45 @@ func (r *TaskRunner) run() {
 
 // cleanup calls Driver.Cleanup when a task is stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
-	if drv, err := r.createDriver(); err != nil {
-		r.logger.Printf("[WARN] client: error creating driver to cleanup resources: %v", err)
-	} else {
-		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
-		drv.Cleanup(ctx, r.createdResources)
+	drv, err := r.createDriver()
+	if err != nil {
+		r.logger.Printf("[ERR] client: error creating driver to cleanup resources: %v", err)
+		return
 	}
+
+	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	attempts := 1
+	for ; len(r.createdResources.Resources) > 0; attempts++ {
+		for k, items := range r.createdResources.Resources {
+			var retry []string
+			for _, v := range items {
+				if err := drv.Cleanup(ctx, k, v); err != nil {
+					r.logger.Printf("[WARN] client: error cleaning up resource %s:%s for task %q (attempt %d): %v", k, v, r.task.Name, attempts, err)
+					retry = append(retry, v)
+					continue
+				}
+			}
+
+			if len(retry) > 0 {
+				// At least one cleanup failed; keep it alive for retrying
+				r.createdResources.Resources[k] = retry
+			} else {
+				// No failures, remove resource
+				delete(r.createdResources.Resources, k)
+			}
+		}
+
+		// Retry 3 times with sleeps between
+		if attempts > 3 {
+			break
+		}
+		time.Sleep(time.Duration(attempts) * time.Second)
+	}
+
+	if len(r.createdResources.Resources) > 0 {
+		r.logger.Printf("[ERR] client: error cleaning up resources for task %q after %d attempts", r.task.Name, attempts)
+	}
+	return
 }
 
 // shouldRestart returns if the task should restart. If the return value is

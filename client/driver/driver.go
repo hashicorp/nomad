@@ -137,8 +137,9 @@ type Driver interface {
 	// Cleanup is called to remove resources which were created for a task
 	// and no longer needed.
 	//
-	// Cleanup should log any errors it encounters.
-	Cleanup(*ExecContext, *CreatedResources)
+	// Cleanup is called once for every value for every key in
+	// CreatedResources. Errors will cause Cleanup to be retried.
+	Cleanup(ctx *ExecContext, key, value string) error
 
 	// Drivers must validate their configuration
 	Validate(map[string]interface{}) error

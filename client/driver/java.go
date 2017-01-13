@@ -260,7 +260,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return h, nil
 }
 
-func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) {}
+func (d *JavaDriver) Cleanup(*ExecContext, string, string) error { return nil }
 
 // cgroupsMounted returns true if the cgroups are mounted on a system otherwise
 // returns false

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -62,6 +63,8 @@ type MockDriverConfig struct {
 type MockDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+
+	cleanupFailNum int
 }
 
 // NewMockDriver is a factory method which returns a new Mock Driver
@@ -124,7 +127,14 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return &h, nil
 }
 
-func (m *MockDriver) Cleanup(*ExecContext, *CreatedResources) {}
+func (m *MockDriver) Cleanup(ctx *ExecContext, k, v string) error {
+	n, _ := strconv.Atoi(m.config.Options["cleanup_fail_num"])
+	if k == m.config.Options["cleanup_fail_on"] && m.cleanupFailNum < n {
+		m.cleanupFailNum++
+		return fmt.Errorf("mock_driver failure on %q call %d/%d", k, m.cleanupFailNum, n)
+	}
+	return nil
+}
 
 // Validate validates the mock driver configuration
 func (m *MockDriver) Validate(map[string]interface{}) error {

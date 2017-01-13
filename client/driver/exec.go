@@ -173,7 +173,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return h, nil
 }
 
-func (d *ExecDriver) Cleanup(*ExecContext, *CreatedResources) {}
+func (d *ExecDriver) Cleanup(*ExecContext, string, string) error { return nil }
 
 type execId struct {
 	Version         string

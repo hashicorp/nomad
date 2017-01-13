@@ -341,7 +341,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	return h, nil
 }
 
-func (d *QemuDriver) Cleanup(*ExecContext, *CreatedResources) {}
+func (d *QemuDriver) Cleanup(*ExecContext, string, string) error { return nil }
 
 func (h *qemuHandle) ID() string {
 	id := qemuId{
