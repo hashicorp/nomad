@@ -4,8 +4,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/logutils"
 )
 
 var HandshakeConfig = plugin.HandshakeConfig{
@@ -14,15 +16,18 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 }
 
-func GetPluginMap(w io.Writer) map[string]plugin.Plugin {
+func GetPluginMap(w io.Writer, logLevel string) map[string]plugin.Plugin {
 	e := new(ExecutorPlugin)
-	e.logger = log.New(w, "", log.LstdFlags)
+	filter := &logutils.LevelFilter{
+		Levels:   []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERR"},
+		MinLevel: logutils.LogLevel(strings.ToUpper(logLevel)),
+		Writer:   w,
+	}
 
-	s := new(SyslogCollectorPlugin)
-	s.logger = log.New(w, "", log.LstdFlags)
+	e.logger = log.New(filter, "", log.LstdFlags|log.Lmicroseconds)
+
 	return map[string]plugin.Plugin{
-		"executor":        e,
-		"syslogcollector": s,
+		"executor": e,
 	}
 }
 

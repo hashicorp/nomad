@@ -156,7 +156,10 @@ type ExecContext struct {
 
 // NewExecContext is used to create a new execution context
 func NewExecContext(td *allocdir.TaskDir, allocID string) *ExecContext {
-	return &ExecContext{TaskDir: td, AllocID: allocID}
+	return &ExecContext{
+		TaskDir: td,
+		AllocID: allocID,
+	}
 }
 
 // GetTaskEnv converts the alloc dir, the node, task and alloc into a

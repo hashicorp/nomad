@@ -22,7 +22,6 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -191,17 +190,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		args = append(args, driverConfig.Args...)
 	}
 
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
-
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
-	pluginConfig := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", pluginLogFile),
+	executorConfig := &dstructs.ExecutorConfig{
+		LogFile:  pluginLogFile,
+		LogLevel: d.config.LogLevel,
 	}
 
-	execIntf, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	execIntf, pluginClient, err := createExecutor(d.config.LogOutput, d.config, executorConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +280,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: id.PluginConfig.PluginConfig(),
 	}
-	exec, pluginClient, err := createExecutor(pluginConfig, d.config.LogOutput, d.config)
+	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
 		merrs := new(multierror.Error)
 		merrs.Errors = append(merrs.Errors, err)

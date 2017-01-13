@@ -559,7 +559,7 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 	for pid, np := range pids {
 		p, err := process.NewProcess(int32(pid))
 		if err != nil {
-			e.logger.Printf("[DEBUG] executor: unable to create new process with pid: %v", pid)
+			e.logger.Printf("[TRACE] executor: unable to create new process with pid: %v", pid)
 			continue
 		}
 		ms := &cstructs.MemoryStats{}
