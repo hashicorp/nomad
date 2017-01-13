@@ -91,6 +91,23 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 	return &resp, nil
 }
 
+func (n *Nodes) GC(nodeID string, q *QueryOptions) error {
+	node, _, err := n.client.Nodes().Info(nodeID, q)
+	if err != nil {
+		return err
+	}
+	if node.HTTPAddr == "" {
+		return fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
+	}
+	client, err := NewClient(n.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
+	if err != nil {
+		return err
+	}
+	var resp struct{}
+	_, err = client.query("/v1/client/gc", &resp, nil)
+	return err
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                string
