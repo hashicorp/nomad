@@ -101,6 +101,7 @@ type DockerDriver struct {
 	DriverContext
 
 	driverConfig *DockerDriverConfig
+	imageID      string
 }
 
 type DockerDriverAuth struct {
@@ -394,6 +395,7 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedR
 
 	res := NewCreatedResources()
 	res.Add(dockerImageResKey, dockerImage.ID)
+	d.imageID = dockerImage.ID
 	return res, nil
 }
 
@@ -1042,7 +1044,8 @@ CREATE:
 		return container, nil
 	}
 
-	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q (attempt %d): %v", config.Name, attempted+1, createErr)
+	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q from image %q (ID: %q) (attempt %d): %v",
+		config.Name, d.driverConfig.ImageName, d.imageID, attempted+1, createErr)
 	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
