@@ -465,6 +465,15 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 				CaCert:  &config.VaultConfig.TLSCaFile,
 				CaPath:  &config.VaultConfig.TLSCaPath,
 			}
+		} else {
+			conf.Vault.SSL = &ctconf.SSLConfig{
+				Enabled: &f,
+				Verify:  &f,
+				Cert:    &emptyStr,
+				Key:     &emptyStr,
+				CaCert:  &emptyStr,
+				CaPath:  &emptyStr,
+			}
 		}
 	}
 
