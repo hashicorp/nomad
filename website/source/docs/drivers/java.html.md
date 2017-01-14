@@ -29,7 +29,14 @@ task "webservice" {
 
 The `java` driver supports the following configuration in the job spec:
 
-* `jar_path` - The path to the downloaded Jar. In most cases this will just be
+* `class` - (Optional) The name of the class to run. If `jar_path` is specified
+  and the manifest specifies a main class, this is optional. If shipping classes
+  rather than a Jar, please specify the class to run and the `class_path`.
+
+* `class_path` - (Optional) The `class_path` specifies the clath path used by
+  Java to lookup classes and Jars.
+
+* `jar_path` - (Optional) The path to the downloaded Jar. In most cases this will just be
   the name of the Jar. However, if the supplied artifact is an archive that
   contains the Jar in a subfolder, the path will need to be the relative path
   (`subdir/from_archive/my.jar`).
@@ -59,6 +66,30 @@ task "web" {
   # mechanism to ship the Jar to be run.
   artifact {
     source = "https://internal.file.server/hello.jar"
+
+    options {
+      checksum = "md5:123445555555555"
+    }
+  }
+}
+```
+
+A simple config block to run a Java class:
+
+```hcl
+task "web" {
+  driver = "java"
+
+  config {
+    class       = "Hello"
+    class_path  = "${NOMAD_TASK_DIR}"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+
+  # Specifying an artifact is required with the "java" driver. This is the
+  # mechanism to ship the Jar to be run.
+  artifact {
+    source = "https://internal.file.server/Hello.class"
 
     options {
       checksum = "md5:123445555555555"

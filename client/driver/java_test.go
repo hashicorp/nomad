@@ -349,3 +349,70 @@ func TestJavaDriverUser(t *testing.T) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
+
+func TestJavaDriver_Start_Wait_Class(t *testing.T) {
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
+	ctestutils.JavaCompatible(t)
+	task := &structs.Task{
+		Name:   "demo-app",
+		Driver: "java",
+		Config: map[string]interface{}{
+			"class_path": "${NOMAD_TASK_DIR}",
+			"class":      "Hello",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	ctx := testDriverContexts(t, task)
+	//defer ctx.AllocDir.Destroy()
+	d := NewJavaDriver(ctx.DriverCtx)
+
+	// Copy the test jar into the task's directory
+	dst := ctx.ExecCtx.TaskDir.LocalDir
+	copyFile("./test-resources/java/Hello.class", filepath.Join(dst, "Hello.class"), t)
+
+	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	handle, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Task should terminate quickly
+	select {
+	case res := <-handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		// expect the timeout b/c it's a long lived process
+		break
+	}
+
+	// Get the stdout of the process and assrt that it's not empty
+	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
+	fInfo, err := os.Stat(stdout)
+	if err != nil {
+		t.Fatalf("failed to get stdout of process: %v", err)
+	}
+	if fInfo.Size() == 0 {
+		t.Fatalf("stdout of process is empty")
+	}
+
+	// need to kill long lived process
+	err = handle.Kill()
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
+}

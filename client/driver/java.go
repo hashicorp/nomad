@@ -18,6 +18,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -40,9 +41,11 @@ type JavaDriver struct {
 }
 
 type JavaDriverConfig struct {
-	JarPath string   `mapstructure:"jar_path"`
-	JvmOpts []string `mapstructure:"jvm_options"`
-	Args    []string `mapstructure:"args"`
+	Class     string   `mapstructure:"class"`
+	ClassPath string   `mapstructure:"class_path"`
+	JarPath   string   `mapstructure:"jar_path"`
+	JvmOpts   []string `mapstructure:"jvm_options"`
+	Args      []string `mapstructure:"args"`
 }
 
 // javaHandle is returned from Start/Open as a handle to the PID
@@ -70,9 +73,14 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
+			"class": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"class_path": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"jar_path": &fields.FieldSchema{
-				Type:     fields.TypeString,
-				Required: true,
+				Type: fields.TypeString,
 			},
 			"jvm_options": &fields.FieldSchema{
 				Type: fields.TypeArray,
@@ -94,10 +102,6 @@ func (d *JavaDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
 	}
-}
-
-func (d *JavaDriver) FSIsolation() cstructs.FSIsolation {
-	return cstructs.FSIsolationChroot
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
@@ -167,25 +171,59 @@ func (d *JavaDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
 	return nil
 }
 
-func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDriverConfig, error) {
 	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
 	}
 
-	if driverConfig.JarPath == "" {
-		return nil, fmt.Errorf("jar_path must be specified")
+	// Interpolate everything
+	driverConfig.Class = env.ReplaceEnv(driverConfig.Class)
+	driverConfig.ClassPath = env.ReplaceEnv(driverConfig.ClassPath)
+	driverConfig.JarPath = env.ReplaceEnv(driverConfig.JarPath)
+	driverConfig.JvmOpts = env.ParseAndReplace(driverConfig.JvmOpts)
+	driverConfig.Args = env.ParseAndReplace(driverConfig.Args)
+
+	// Validate
+	jarSpecified := driverConfig.JarPath != ""
+	classSpecified := driverConfig.Class != ""
+	if !jarSpecified && !classSpecified {
+		return nil, fmt.Errorf("jar_path or class must be specified")
+	}
+
+	return &driverConfig, nil
+}
+
+func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+	driverConfig, err := NewJavaDriverConfig(task, d.taskEnv)
+	if err != nil {
+		return nil, err
 	}
 
 	args := []string{}
+
 	// Look for jvm options
 	if len(driverConfig.JvmOpts) != 0 {
 		d.logger.Printf("[DEBUG] driver.java: found JVM options: %s", driverConfig.JvmOpts)
 		args = append(args, driverConfig.JvmOpts...)
 	}
 
-	// Build the argument list.
-	args = append(args, "-jar", driverConfig.JarPath)
+	// Add the classpath
+	if driverConfig.ClassPath != "" {
+		args = append(args, "-cp", driverConfig.ClassPath)
+	}
+
+	// Add the jar
+	if driverConfig.JarPath != "" {
+		args = append(args, "-jar", driverConfig.JarPath)
+	}
+
+	// Add the class
+	if driverConfig.Class != "" {
+		args = append(args, driverConfig.Class)
+	}
+
+	// Add any args
 	if len(driverConfig.Args) != 0 {
 		args = append(args, driverConfig.Args...)
 	}
