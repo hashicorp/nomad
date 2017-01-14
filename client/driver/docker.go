@@ -444,9 +444,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 
 	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %q: %v", d.driverConfig.ImageName, err)
+		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 		pluginClient.Kill()
-		return nil, fmt.Errorf("Failed to create container configuration for image %q: %v", d.driverConfig.ImageName, err)
+		return nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 	}
 
 	container, err := d.createContainer(config)
@@ -723,7 +723,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	config := &docker.Config{
-		Image:     driverConfig.ImageName,
+		Image:     d.imageID,
 		Hostname:  driverConfig.Hostname,
 		User:      task.User,
 		Tty:       driverConfig.TTY,
