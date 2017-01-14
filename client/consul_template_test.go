@@ -19,6 +19,12 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+const (
+	// TestTaskName is the name of the injected task. It should appear in the
+	// environment variable $NOMAD_TASK_NAME
+	TestTaskName = "test-task"
+)
+
 // MockTaskHooks is a mock of the TaskHooks interface useful for testing
 type MockTaskHooks struct {
 	Restarts  int
@@ -105,7 +111,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	}
 
 	// Build the task environment
-	harness.taskEnv = env.NewTaskEnvironment(harness.node)
+	harness.taskEnv = env.NewTaskEnvironment(harness.node).SetTaskName(TestTaskName)
 
 	// Make a tempdir
 	d, err := ioutil.TempDir("", "")
@@ -301,6 +307,40 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 
 	if s := string(raw); s != content {
 		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
+	}
+}
+
+func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
+	// Make a template that will render immediately
+	content := `Hello Nomad Task: {{env "NOMAD_TASK_NAME"}}`
+	expected := fmt.Sprintf("Hello Nomad Task: %s", TestTaskName)
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: content,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
+	}
+
+	if s := string(raw); s != expected {
+		t.Fatalf("Unexpected template data; got %q, want %q", s, expected)
 	}
 }
 
