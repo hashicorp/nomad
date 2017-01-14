@@ -513,10 +513,10 @@
 			"revisionTime": "2017-01-13T23:20:51Z"
 		},
 		{
-			"checksumSHA1": "1ioVPkGIVei92yBS2M07A3rBxPI=",
+			"checksumSHA1": "DtjuCLwZmI1QjzsRGWZU+tnedC8=",
 			"path": "github.com/hashicorp/consul-template/dependency",
-			"revision": "81e8f468004caef5755e1073fe39ff48203a89b6",
-			"revisionTime": "2017-01-13T23:20:51Z"
+			"revision": "d6391c0e0c526ad3596401cda740531f17f7ad3a",
+			"revisionTime": "2017-01-14T21:20:18Z"
 		},
 		{
 			"checksumSHA1": "efWxWe8blQflfYZFU1WSIks2Tbw=",

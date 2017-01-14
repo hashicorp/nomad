@@ -1,8 +1,10 @@
 package dependency
 
+import "time"
+
 var (
 	// VaultDefaultLeaseDuration is the default lease duration in seconds.
-	VaultDefaultLeaseDuration = 5 * 60
+	VaultDefaultLeaseDuration = 5 * time.Minute
 )
 
 // Secret is a vault secret.
@@ -20,7 +22,7 @@ type Secret struct {
 // leaseDurationOrDefault returns a value or the default lease duration.
 func leaseDurationOrDefault(d int) int {
 	if d == 0 {
-		return VaultDefaultLeaseDuration
+		return int(VaultDefaultLeaseDuration.Nanoseconds() / 1000000000)
 	}
 	return d
 }

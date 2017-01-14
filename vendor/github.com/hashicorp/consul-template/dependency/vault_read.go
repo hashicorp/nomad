@@ -52,7 +52,7 @@ func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 	if opts.WaitIndex != 0 && d.secret != nil && d.secret.LeaseDuration != 0 {
 		dur := time.Duration(d.secret.LeaseDuration/2.0) * time.Second
 		if dur == 0 {
-			dur = time.Duration(VaultDefaultLeaseDuration)
+			dur = VaultDefaultLeaseDuration
 		}
 
 		log.Printf("[TRACE] %s: long polling for %s", d, dur)
@@ -105,8 +105,7 @@ func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 
 	// The secret could be nil if it does not exist.
 	if vaultSecret == nil {
-		log.Printf("[WARN] %s: returned nil (does the secret exist?)", d)
-		return respWithMetadata(nil)
+		return nil, nil, fmt.Errorf("%s: no secret exists at %s", d, d.path)
 	}
 
 	// Print any warnings.

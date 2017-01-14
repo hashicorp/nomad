@@ -20,8 +20,7 @@ var (
 type VaultListQuery struct {
 	stopCh chan struct{}
 
-	path   string
-	secret *Secret
+	path string
 }
 
 // NewVaultListQuery creates a new datacenter dependency.
@@ -50,11 +49,7 @@ func (d *VaultListQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 
 	// If this is not the first query, poll to simulate blocking-queries.
 	if opts.WaitIndex != 0 {
-		dur := time.Duration(d.secret.LeaseDuration/2.0) * time.Second
-		if dur == 0 {
-			dur = time.Duration(VaultDefaultLeaseDuration)
-		}
-
+		dur := VaultDefaultLeaseDuration
 		log.Printf("[TRACE] %s: long polling for %s", d, dur)
 
 		select {
@@ -100,14 +95,6 @@ func (d *VaultListQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 		result[i] = typed
 	}
 	sort.Strings(result)
-
-	d.secret = &Secret{
-		RequestID:     secret.RequestID,
-		LeaseID:       secret.LeaseID,
-		LeaseDuration: secret.LeaseDuration,
-		Renewable:     secret.Renewable,
-		Data:          secret.Data,
-	}
 
 	log.Printf("[TRACE] %s: returned %d results", d, len(result))
 
