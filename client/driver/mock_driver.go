@@ -127,13 +127,22 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	return &h, nil
 }
 
-func (m *MockDriver) Cleanup(ctx *ExecContext, k, v string) error {
-	n, _ := strconv.Atoi(m.config.Options["cleanup_fail_num"])
-	if k == m.config.Options["cleanup_fail_on"] && m.cleanupFailNum < n {
-		m.cleanupFailNum++
-		return fmt.Errorf("mock_driver failure on %q call %d/%d", k, m.cleanupFailNum, n)
+// Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for
+// Config.Options["cleanup_fail_num"] times. For failures it will return a
+// recoverable error.
+func (m *MockDriver) Cleanup(ctx *ExecContext, res *CreatedResources) error {
+	var err error
+	failn, _ := strconv.Atoi(m.config.Options["cleanup_fail_num"])
+	failk := m.config.Options["cleanup_fail_on"]
+	for k := range res.Resources {
+		if k == failk && m.cleanupFailNum < failn {
+			m.cleanupFailNum++
+			err = structs.NewRecoverableError(fmt.Errorf("mock_driver failure on %q call %d/%d", k, m.cleanupFailNum, failn), true)
+		} else {
+			delete(res.Resources, k)
+		}
 	}
-	return nil
+	return err
 }
 
 // Validate validates the mock driver configuration

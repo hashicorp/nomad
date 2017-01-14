@@ -456,7 +456,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	return h, nil
 }
 
-func (d *RktDriver) Cleanup(*ExecContext, string, string) error { return nil }
+func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
 	// Parse the handle

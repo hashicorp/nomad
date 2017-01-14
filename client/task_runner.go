@@ -95,9 +95,8 @@ type TaskRunner struct {
 
 	// createdResources are all the resources created by the task driver
 	// across all attempts to start the task.
-	//
-	// Must acquire persistLock when accessing
-	createdResources *driver.CreatedResources
+	createdResources     *driver.CreatedResources
+	createdResourcesLock sync.Mutex
 
 	// payloadRendered tracks whether the payload has been rendered to disk
 	payloadRendered bool
@@ -304,13 +303,17 @@ func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 
+	r.createdResourcesLock.Lock()
+	res := r.createdResources.Copy()
+	r.createdResourcesLock.Unlock()
+
 	snap := taskRunnerState{
 		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
 		PayloadRendered:    r.payloadRendered,
-		CreatedResources:   r.createdResources,
+		CreatedResources:   res,
 	}
 
 	r.handleLock.Lock()
@@ -1026,27 +1029,24 @@ func (r *TaskRunner) cleanup() {
 		return
 	}
 
+	r.createdResourcesLock.Lock()
+	res := r.createdResources.Copy()
+	r.createdResourcesLock.Unlock()
+
 	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
 	attempts := 1
-	for ; len(r.createdResources.Resources) > 0; attempts++ {
-		for k, items := range r.createdResources.Resources {
-			var retry []string
-			for _, v := range items {
-				if err := drv.Cleanup(ctx, k, v); err != nil {
-					r.logger.Printf("[WARN] client: error cleaning up resource %s:%s for task %q (attempt %d): %v", k, v, r.task.Name, attempts, err)
-					retry = append(retry, v)
-					continue
-				}
-			}
-
-			if len(retry) > 0 {
-				// At least one cleanup failed; keep it alive for retrying
-				r.createdResources.Resources[k] = retry
-			} else {
-				// No failures, remove resource
-				delete(r.createdResources.Resources, k)
-			}
+	var cleanupErr error
+	for retry := true; retry; attempts++ {
+		retry = false
+		if cleanupErr = drv.Cleanup(ctx, res); cleanupErr != nil {
+			retry = structs.IsRecoverable(cleanupErr)
 		}
+
+		// Copy current createdResources state in case SaveState is
+		// called between retries
+		r.createdResourcesLock.Lock()
+		r.createdResources = res.Copy()
+		r.createdResourcesLock.Unlock()
 
 		// Retry 3 times with sleeps between
 		if attempts > 3 {
@@ -1055,8 +1055,8 @@ func (r *TaskRunner) cleanup() {
 		time.Sleep(time.Duration(attempts) * time.Second)
 	}
 
-	if len(r.createdResources.Resources) > 0 {
-		r.logger.Printf("[ERR] client: error cleaning up resources for task %q after %d attempts", r.task.Name, attempts)
+	if cleanupErr != nil {
+		r.logger.Printf("[ERR] client: error cleaning up resources for task %q after %d attempts: %v", r.task.Name, attempts, cleanupErr)
 	}
 	return
 }

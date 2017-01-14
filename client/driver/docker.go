@@ -52,7 +52,7 @@ var (
 
 	// recoverableErrTimeouts returns a recoverable error if the error was due
 	// to timeouts
-	recoverableErrTimeouts = func(err error) *structs.RecoverableError {
+	recoverableErrTimeouts = func(err error) error {
 		r := false
 		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
 			strings.Contains(err.Error(), "EOF") {
@@ -449,12 +449,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, fmt.Errorf("Failed to create container configuration for image %q: %v", d.driverConfig.ImageName, err)
 	}
 
-	container, rerr := d.createContainer(config)
-	if rerr != nil {
-		d.logger.Printf("[ERR] driver.docker: failed to create container: %s", rerr)
+	container, err := d.createContainer(config)
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: failed to create container: %s", err)
 		pluginClient.Kill()
-		rerr.Err = fmt.Sprintf("Failed to create container: %s", rerr.Err)
-		return nil, rerr
+		if rerr, ok := err.(*structs.RecoverableError); ok {
+			rerr.Err = fmt.Sprintf("Failed to create container: %s", rerr.Err)
+			return nil, rerr
+		}
+		return nil, err
 	}
 
 	d.logger.Printf("[INFO] driver.docker: created container %s", container.ID)
@@ -498,14 +501,27 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	return h, nil
 }
 
-func (d *DockerDriver) Cleanup(_ *ExecContext, key, value string) error {
-	switch key {
-	case dockerImageResKey:
-		return d.cleanupImage(value)
-	default:
-		d.logger.Printf("[WARN] driver.docker: unknown resource to cleanup: %q -> %q", key, value)
-		return nil
+func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
+	retry := false
+	var merr multierror.Error
+	for key, resources := range res.Resources {
+		switch key {
+		case dockerImageResKey:
+			for _, value := range resources {
+				if err := d.cleanupImage(value); err != nil {
+					if structs.IsRecoverable(err) {
+						// This will be retried so put it back into the map
+						res.Add(key, value)
+						retry = true
+					}
+					merr.Errors = append(merr.Errors, err)
+				}
+			}
+		default:
+			d.logger.Printf("[WARN] driver.docker: unknown resource to cleanup: %q", key)
+		}
 	}
+	return structs.NewRecoverableError(merr.ErrorOrNil(), retry)
 }
 
 // cleanupImage removes a Docker image. No error is returned if the image
@@ -526,8 +542,8 @@ func (d *DockerDriver) cleanupImage(id string) error {
 			d.logger.Printf("[DEBUG] driver.docker: unable to cleanup image %q: still in use", id)
 			return nil
 		}
-		d.logger.Printf("[WARN] driver.docker: cleanup failed to remove downloaded image %q: %v", id, err)
-		return err
+		// Retry on unknown errors
+		return structs.NewRecoverableError(err, true)
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: cleanup removed downloaded image: %q", id)
@@ -1035,7 +1051,7 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
-func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, *structs.RecoverableError) {
+func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
 CREATE:
@@ -1108,7 +1124,7 @@ CREATE:
 
 // startContainer starts the passed container. It attempts to handle any
 // transient Docker errors.
-func (d *DockerDriver) startContainer(c *docker.Container) *structs.RecoverableError {
+func (d *DockerDriver) startContainer(c *docker.Container) error {
 	// Start a container
 	attempted := 0
 START:

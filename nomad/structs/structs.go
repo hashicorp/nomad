@@ -4049,7 +4049,7 @@ type RecoverableError struct {
 
 // NewRecoverableError is used to wrap an error and mark it as recoverable or
 // not.
-func NewRecoverableError(e error, recoverable bool) *RecoverableError {
+func NewRecoverableError(e error, recoverable bool) error {
 	if e == nil {
 		return nil
 	}
@@ -4062,4 +4062,13 @@ func NewRecoverableError(e error, recoverable bool) *RecoverableError {
 
 func (r *RecoverableError) Error() string {
 	return r.Err
+}
+
+// IsRecoverable returns true if error is a RecoverableError with
+// Recoverable=true. Otherwise false is returned.
+func IsRecoverable(e error) bool {
+	if re, ok := e.(*RecoverableError); ok {
+		return re.Recoverable
+	}
+	return false
 }

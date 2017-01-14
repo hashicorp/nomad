@@ -85,6 +85,19 @@ func (r *CreatedResources) Add(k, v string) {
 	return
 }
 
+// Copy returns a new deep copy of CreatedResrouces.
+func (r *CreatedResources) Copy() *CreatedResources {
+	newr := CreatedResources{
+		Resources: make(map[string][]string, len(r.Resources)),
+	}
+	for k, v := range r.Resources {
+		newv := make([]string, len(v))
+		copy(newv, v)
+		newr.Resources[k] = newv
+	}
+	return &newr
+}
+
 // Merge another CreatedResources into this one. If the other CreatedResources
 // is nil this method is a noop.
 func (r *CreatedResources) Merge(o *CreatedResources) {
@@ -137,9 +150,10 @@ type Driver interface {
 	// Cleanup is called to remove resources which were created for a task
 	// and no longer needed.
 	//
-	// Cleanup is called once for every value for every key in
-	// CreatedResources. Errors will cause Cleanup to be retried.
-	Cleanup(ctx *ExecContext, key, value string) error
+	// If Cleanup returns a recoverable error it may be retried. On retry
+	// it will be passed the same CreatedResources, so all successfully
+	// cleaned up resources should be removed.
+	Cleanup(*ExecContext, *CreatedResources) error
 
 	// Drivers must validate their configuration
 	Validate(map[string]interface{}) error

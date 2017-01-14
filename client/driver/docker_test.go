@@ -1304,7 +1304,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	}
 
 	// Cleanup
-	if err := driver.Cleanup(tctx.ExecCtx, dockerImageResKey, res.Resources[dockerImageResKey][0]); err != nil {
+	if err := driver.Cleanup(tctx.ExecCtx, res.Copy()); err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
 	}
 
@@ -1315,7 +1315,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	// The image doesn't exist which shouldn't be an error when calling
 	// Cleanup, so call it again to make sure.
-	if err := driver.Cleanup(tctx.ExecCtx, dockerImageResKey, res.Resources[dockerImageResKey][0]); err != nil {
+	if err := driver.Cleanup(tctx.ExecCtx, res.Copy()); err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
 	}
 }

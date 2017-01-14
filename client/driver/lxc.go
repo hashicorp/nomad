@@ -286,7 +286,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	return &handle, nil
 }
 
-func (d *LxcDriver) Cleanup(*ExecContext, string, string) error { return nil }
+func (d *LxcDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 // Open creates the driver to monitor an existing LXC container
 func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {

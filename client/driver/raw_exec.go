@@ -182,7 +182,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	return h, nil
 }
 
-func (d *RawExecDriver) Cleanup(*ExecContext, string, string) error { return nil }
+func (d *RawExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type rawExecId struct {
 	Version        string
