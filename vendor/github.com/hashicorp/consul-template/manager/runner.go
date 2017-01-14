@@ -109,12 +109,6 @@ type Runner struct {
 // RenderEvent captures the time and events that occurred for a template
 // rendering.
 type RenderEvent struct {
-	// DidRender determines if the Template was actually written to disk. In dry
-	// mode, this will always be false, since templates are not written to disk
-	// in dry mode. A template is only rendered to disk if all dependencies are
-	// satisfied and the template is not already in place with the same contents.
-	DidRender bool
-
 	// Missing is the list of dependencies that we do not yet have data for, but
 	// are contained in the watcher. This is different from unwatched dependencies,
 	// which includes dependencies the watcher has not yet started querying for
@@ -146,6 +140,18 @@ type RenderEvent struct {
 	// not have actually rendered if the file was already present or if an error
 	// occurred when trying to write the file.
 	WouldRender bool
+
+	// LastWouldRender marks the last time the template would have rendered.
+	LastWouldRender time.Time
+
+	// DidRender determines if the Template was actually written to disk. In dry
+	// mode, this will always be false, since templates are not written to disk
+	// in dry mode. A template is only rendered to disk if all dependencies are
+	// satisfied and the template is not already in place with the same contents.
+	DidRender bool
+
+	// LastDidRender marks the last time the template was written to disk.
+	LastDidRender time.Time
 }
 
 // NewRunner accepts a slice of TemplateConfigs and returns a pointer to the new
@@ -485,10 +491,18 @@ func (r *Runner) Run() error {
 	for _, tmpl := range r.templates {
 		log.Printf("[DEBUG] (runner) checking template %s", tmpl.ID())
 
+		// Grab the last event
+		lastEvent := r.renderEvents[tmpl.ID()]
+
 		// Create the event
 		event := &RenderEvent{
 			Template:        tmpl,
 			TemplateConfigs: r.templateConfigsFor(tmpl),
+		}
+
+		if lastEvent != nil {
+			event.LastWouldRender = lastEvent.LastWouldRender
+			event.LastDidRender = lastEvent.LastDidRender
 		}
 
 		// Check if we are currently the leader instance
@@ -604,6 +618,8 @@ func (r *Runner) Run() error {
 				return errors.Wrap(err, "error rendering "+templateConfig.Display())
 			}
 
+			renderTime := time.Now().UTC()
+
 			// If we would have rendered this template (but we did not because the
 			// contents were the same or something), we should consider this template
 			// rendered even though the contents on disk have not been updated. We
@@ -612,6 +628,7 @@ func (r *Runner) Run() error {
 			if result.WouldRender {
 				// This event would have rendered
 				event.WouldRender = true
+				event.LastWouldRender = renderTime
 
 				// Record that at least one template would have been rendered.
 				wouldRenderAny = true
@@ -624,6 +641,7 @@ func (r *Runner) Run() error {
 
 				// This event did render
 				event.DidRender = true
+				event.LastDidRender = renderTime
 
 				// Record that at least one template was rendered.
 				renderedAny = true
