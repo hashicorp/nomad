@@ -1,135 +1,129 @@
 package dependency
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"sync"
+	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
-// File represents a local file dependency.
-type File struct {
-	sync.Mutex
-	mutex    sync.RWMutex
-	rawKey   string
-	lastStat os.FileInfo
-	stopped  bool
-	stopCh   chan struct{}
+var (
+	// Ensure implements
+	_ Dependency = (*FileQuery)(nil)
+
+	// FileQuerySleepTime is the amount of time to sleep between queries, since
+	// the fsnotify library is not compatible with solaris and other OSes yet.
+	FileQuerySleepTime = 2 * time.Second
+)
+
+// FileQuery represents a local file dependency.
+type FileQuery struct {
+	stopCh chan struct{}
+
+	path string
+	stat os.FileInfo
+}
+
+// NewFileQuery creates a file dependency from the given path.
+func NewFileQuery(s string) (*FileQuery, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("file: invalid format: %q", s)
+	}
+
+	return &FileQuery{
+		path:   s,
+		stopCh: make(chan struct{}, 1),
+	}, nil
 }
 
 // Fetch retrieves this dependency and returns the result or any errors that
 // occur in the process.
-func (d *File) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
-	d.Lock()
-	if d.stopped {
-		defer d.Unlock()
-		return nil, nil, ErrStopped
-	}
-	d.Unlock()
-
-	var err error
-	var newStat os.FileInfo
-	var data []byte
-
-	dataCh := make(chan struct{})
-	go func() {
-		log.Printf("[DEBUG] (%s) querying file", d.Display())
-		newStat, err = d.watch()
-		close(dataCh)
-	}()
+func (d *FileQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+	log.Printf("[TRACE] %s: READ %s", d, d.path)
 
 	select {
 	case <-d.stopCh:
-		return nil, nil, ErrStopped
-	case <-dataCh:
-	}
+		log.Printf("[TRACE] %s: stopped", d)
+		return "", nil, ErrStopped
+	case r := <-d.watch(d.stat):
+		if r.err != nil {
+			return "", nil, errors.Wrap(r.err, d.String())
+		}
 
-	if err != nil {
-		return nil, nil, fmt.Errorf("file: error watching: %s", err)
-	}
+		log.Printf("[TRACE] %s: reported change", d)
 
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-	d.lastStat = newStat
+		data, err := ioutil.ReadFile(d.path)
+		if err != nil {
+			return "", nil, errors.Wrap(err, d.String())
+		}
 
-	if data, err = ioutil.ReadFile(d.rawKey); err == nil {
+		d.stat = r.stat
 		return respWithMetadata(string(data))
 	}
-	return nil, nil, fmt.Errorf("file: error reading: %s", err)
 }
 
 // CanShare returns a boolean if this dependency is shareable.
-func (d *File) CanShare() bool {
+func (d *FileQuery) CanShare() bool {
 	return false
 }
 
-// HashCode returns a unique identifier.
-func (d *File) HashCode() string {
-	return fmt.Sprintf("StoreKeyPrefix|%s", d.rawKey)
-}
-
-// Display prints the human-friendly output.
-func (d *File) Display() string {
-	return fmt.Sprintf(`"file(%s)"`, d.rawKey)
-}
-
 // Stop halts the dependency's fetch function.
-func (d *File) Stop() {
-	d.Lock()
-	defer d.Unlock()
+func (d *FileQuery) Stop() {
+	close(d.stopCh)
+}
 
-	if !d.stopped {
-		close(d.stopCh)
-		d.stopped = true
-	}
+// String returns the human-friendly version of this dependency.
+func (d *FileQuery) String() string {
+	return fmt.Sprintf("file(%s)", d.path)
+}
+
+// Type returns the type of this dependency.
+func (d *FileQuery) Type() Type {
+	return TypeLocal
+}
+
+type watchResult struct {
+	stat os.FileInfo
+	err  error
 }
 
 // watch watchers the file for changes
-func (d *File) watch() (os.FileInfo, error) {
-	for {
-		stat, err := os.Stat(d.rawKey)
-		if err != nil {
-			return nil, err
+func (d *FileQuery) watch(lastStat os.FileInfo) <-chan *watchResult {
+	ch := make(chan *watchResult, 1)
+
+	go func(lastStat os.FileInfo) {
+		for {
+			stat, err := os.Stat(d.path)
+			if err != nil {
+				select {
+				case <-d.stopCh:
+					return
+				case ch <- &watchResult{err: err}:
+					return
+				}
+			}
+
+			changed := lastStat == nil ||
+				lastStat.Size() != stat.Size() ||
+				lastStat.ModTime() != stat.ModTime()
+
+			if changed {
+				select {
+				case <-d.stopCh:
+					return
+				case ch <- &watchResult{stat: stat}:
+					return
+				}
+			}
+
+			time.Sleep(FileQuerySleepTime)
 		}
+	}(lastStat)
 
-		changed := func(d *File, stat os.FileInfo) bool {
-			d.mutex.RLock()
-			defer d.mutex.RUnlock()
-
-			if d.lastStat == nil {
-				return true
-			}
-			if d.lastStat.Size() != stat.Size() {
-				return true
-			}
-
-			if d.lastStat.ModTime() != stat.ModTime() {
-				return true
-			}
-
-			return false
-		}(d, stat)
-
-		if changed {
-			return stat, nil
-		}
-		time.Sleep(3 * time.Second)
-	}
-}
-
-// ParseFile creates a file dependency from the given path.
-func ParseFile(s string) (*File, error) {
-	if len(s) == 0 {
-		return nil, errors.New("cannot specify empty file dependency")
-	}
-
-	kd := &File{
-		rawKey: s,
-		stopCh: make(chan struct{}),
-	}
-
-	return kd, nil
+	return ch
 }

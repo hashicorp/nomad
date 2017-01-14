@@ -18,40 +18,70 @@ const (
 // View is a representation of a Dependency and the most recent data it has
 // received from Consul.
 type View struct {
-	// Dependency is the dependency that is associated with this View
-	Dependency dep.Dependency
+	// dependency is the dependency that is associated with this View
+	dependency dep.Dependency
 
-	// config is the configuration for the watcher that created this view and
-	// contains important information about how this view should behave when
-	// polling including retry functions and handling stale queries.
-	config *WatcherConfig
+	// clients is the list of clients to communicate upstream. This is passed
+	// directly to the dependency.
+	clients *dep.ClientSet
 
-	// Data is the most-recently-received data from Consul for this View
+	// data is the most-recently-received data from Consul for this View. It is
+	// accompanied by a series of locks and booleans to ensure consistency.
 	dataLock     sync.RWMutex
 	data         interface{}
 	receivedData bool
 	lastIndex    uint64
 
+	// maxStale is the maximum amount of time to allow a query to be stale.
+	maxStale time.Duration
+
+	// once determines if this view should receive data exactly once.
+	once bool
+
+	// retryFunc is the function to invoke on failure to determine if a retry
+	// should be attempted.
+	retryFunc RetryFunc
+
 	// stopCh is used to stop polling on this View
 	stopCh chan struct{}
 }
 
-// NewView creates a new view object from the given Consul API client and
-// Dependency. If an error occurs, it will be returned.
-func NewView(config *WatcherConfig, d dep.Dependency) (*View, error) {
-	if config == nil {
-		return nil, fmt.Errorf("view: missing config")
-	}
+// NewViewInput is used as input to the NewView function.
+type NewViewInput struct {
+	// Dependency is the dependency to associate with the new view.
+	Dependency dep.Dependency
 
-	if d == nil {
-		return nil, fmt.Errorf("view: missing dependency")
-	}
+	// Clients is the list of clients to communicate upstream. This is passed
+	// directly to the dependency.
+	Clients *dep.ClientSet
 
+	// MaxStale is the maximum amount a time a query response is allowed to be
+	// stale before forcing a read from the leader.
+	MaxStale time.Duration
+
+	// Once indicates this view should poll for data exactly one time.
+	Once bool
+
+	// RetryFunc is a function which dictates how this view should retry on
+	// upstream errors.
+	RetryFunc RetryFunc
+}
+
+// NewView constructs a new view with the given inputs.
+func NewView(i *NewViewInput) (*View, error) {
 	return &View{
-		Dependency: d,
-		config:     config,
-		stopCh:     make(chan struct{}),
+		dependency: i.Dependency,
+		clients:    i.Clients,
+		maxStale:   i.MaxStale,
+		once:       i.Once,
+		retryFunc:  i.RetryFunc,
+		stopCh:     make(chan struct{}, 1),
 	}, nil
+}
+
+// Dependency returns the dependency attached to this View.
+func (v *View) Dependency() dep.Dependency {
+	return v.dependency
 }
 
 // Data returns the most-recently-received data from Consul for this View.
@@ -75,8 +105,7 @@ func (v *View) DataAndLastIndex() (interface{}, uint64) {
 // function to be fired in a goroutine, but then halted even if the fetch
 // function is in the middle of a blocking query.
 func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
-	defaultRetry := v.config.RetryFunc(1 * time.Second)
-	currentRetry := defaultRetry
+	var retries int
 
 	for {
 		doneCh, fetchErrCh := make(chan struct{}, 1), make(chan error, 1)
@@ -86,37 +115,47 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 		case <-doneCh:
 			// Reset the retry to avoid exponentially incrementing retries when we
 			// have some successful requests
-			currentRetry = defaultRetry
+			retries = 0
 
-			log.Printf("[INFO] (view) %s received data", v.display())
+			log.Printf("[TRACE] (view) %s received data", v.dependency)
 			select {
 			case <-v.stopCh:
+				return
 			case viewCh <- v:
 			}
 
 			// If we are operating in once mode, do not loop - we received data at
 			// least once which is the API promise here.
-			if v.config.Once {
+			if v.once {
 				return
 			}
 		case err := <-fetchErrCh:
-			log.Printf("[ERR] (view) %s %s", v.display(), err)
+			if v.retryFunc != nil {
+				retry, sleep := v.retryFunc(retries)
+				if retry {
+					log.Printf("[WARN] (view) %s (retry attempt %d after %q)",
+						err, retries+1, sleep)
+					select {
+					case <-time.After(sleep):
+						retries++
+						continue
+					case <-v.stopCh:
+						return
+					}
+				}
+			}
+
+			log.Printf("[ERR] (view) %s (exceeded maximum retries)", err)
 
 			// Push the error back up to the watcher
 			select {
 			case <-v.stopCh:
+				return
 			case errCh <- err:
+				return
 			}
-
-			// Sleep and retry
-			if v.config.RetryFunc != nil {
-				currentRetry = v.config.RetryFunc(currentRetry)
-			}
-			log.Printf("[INFO] (view) %s errored, retrying in %s", v.display(), currentRetry)
-			time.Sleep(currentRetry)
-			continue
 		case <-v.stopCh:
-			log.Printf("[DEBUG] (view) %s stopping poll (received on view stopCh)", v.display())
+			log.Printf("[TRACE] (view) %s stopping poll (received on view stopCh)", v.dependency)
 			return
 		}
 	}
@@ -128,10 +167,10 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 // result of doneCh and errCh. It is assumed that only one instance of fetch
 // is running per View and therefore no locking or mutexes are used.
 func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
-	log.Printf("[DEBUG] (view) %s starting fetch", v.display())
+	log.Printf("[TRACE] (view) %s starting fetch", v.dependency)
 
 	var allowStale bool
-	if v.config.MaxStale != 0 {
+	if v.maxStale != 0 {
 		allowStale = true
 	}
 
@@ -144,48 +183,44 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 		default:
 		}
 
-		opts := &dep.QueryOptions{
+		data, rm, err := v.dependency.Fetch(v.clients, &dep.QueryOptions{
 			AllowStale: allowStale,
 			WaitTime:   defaultWaitTime,
 			WaitIndex:  v.lastIndex,
-		}
-		data, rm, err := v.Dependency.Fetch(v.config.Clients, opts)
+		})
 		if err != nil {
-			// ErrStopped is returned by a dependency when it prematurely stopped
-			// because the upstream process asked for a reload or termination. The
-			// most likely cause is that the view was stopped due to a configuration
-			// reload or process interrupt, so we do not want to propagate this error
-			// to the runner, but we want to stop the fetch routine for this view.
-			if err != dep.ErrStopped {
+			if err == dep.ErrStopped {
+				log.Printf("[TRACE] (view) %s reported stop", v.dependency)
+			} else {
 				errCh <- err
 			}
 			return
 		}
 
 		if rm == nil {
-			errCh <- fmt.Errorf("consul returned nil response metadata; this " +
-				"should never happen and is probably a bug in consul-template")
+			errCh <- fmt.Errorf("received nil response metadata - this is a bug " +
+				"and should be reported")
 			return
 		}
 
-		if allowStale && rm.LastContact > v.config.MaxStale {
+		if allowStale && rm.LastContact > v.maxStale {
 			allowStale = false
-			log.Printf("[DEBUG] (view) %s stale data (last contact exceeded max_stale)", v.display())
+			log.Printf("[TRACE] (view) %s stale data (last contact exceeded max_stale)", v.dependency)
 			continue
 		}
 
-		if v.config.MaxStale != 0 {
+		if v.maxStale != 0 {
 			allowStale = true
 		}
 
 		if rm.LastIndex == v.lastIndex {
-			log.Printf("[DEBUG] (view) %s no new data (index was the same)", v.display())
+			log.Printf("[TRACE] (view) %s no new data (index was the same)", v.dependency)
 			continue
 		}
 
 		v.dataLock.Lock()
 		if rm.LastIndex < v.lastIndex {
-			log.Printf("[DEBUG] (view) %s had a lower index, resetting", v.display())
+			log.Printf("[TRACE] (view) %s had a lower index, resetting", v.dependency)
 			v.lastIndex = 0
 			v.dataLock.Unlock()
 			continue
@@ -193,13 +228,13 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 		v.lastIndex = rm.LastIndex
 
 		if v.receivedData && reflect.DeepEqual(data, v.data) {
-			log.Printf("[DEBUG] (view) %s no new data (contents were the same)", v.display())
+			log.Printf("[TRACE] (view) %s no new data (contents were the same)", v.dependency)
 			v.dataLock.Unlock()
 			continue
 		}
 
-		if data == nil {
-			log.Printf("[DEBUG](view) %s data was not present", v.display())
+		if data == nil && rm.Block {
+			log.Printf("[TRACE] (view) %s asked for blocking query", v.dependency)
 			v.dataLock.Unlock()
 			continue
 		}
@@ -213,13 +248,8 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 	}
 }
 
-// display returns a string that represents this view.
-func (v *View) display() string {
-	return v.Dependency.Display()
-}
-
 // stop halts polling of this view.
 func (v *View) stop() {
-	v.Dependency.Stop()
+	v.dependency.Stop()
 	close(v.stopCh)
 }

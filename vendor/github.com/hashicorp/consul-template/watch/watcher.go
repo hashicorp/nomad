@@ -1,77 +1,105 @@
 package watch
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	dep "github.com/hashicorp/consul-template/dependency"
+	"github.com/pkg/errors"
 )
-
-// RetryFunc is a function that defines the retry for a given watcher. The
-// function parameter is the current retry (which might be nil), and the
-// return value is the new retry. In this way, you can build complex retry
-// functions that are based off the previous values.
-type RetryFunc func(time.Duration) time.Duration
-
-// DefaultRetryFunc is the default return function, which just echos whatever
-// duration it was given.
-var DefaultRetryFunc RetryFunc = func(t time.Duration) time.Duration {
-	return t
-}
 
 // dataBufferSize is the default number of views to process in a batch.
 const dataBufferSize = 2048
+
+type RetryFunc func(int) (bool, time.Duration)
 
 // Watcher is a top-level manager for views that poll Consul for data.
 type Watcher struct {
 	sync.Mutex
 
-	// DataCh is the chan where Views will be published.
-	DataCh chan *View
+	// clients is the collection of API clients to talk to upstreams.
+	clients *dep.ClientSet
 
-	// ErrCh is the chan where any errors will be published.
-	ErrCh chan error
+	// dataCh is the chan where Views will be published.
+	dataCh chan *View
 
-	// config is the internal configuration of this watcher.
-	config *WatcherConfig
+	// errCh is the chan where any errors will be published.
+	errCh chan error
 
 	// depViewMap is a map of Templates to Views. Templates are keyed by
-	// HashCode().
+	// their string.
 	depViewMap map[string]*View
+
+	// maxStale specifies the maximum staleness of a query response.
+	maxStale time.Duration
+
+	// once signals if this watcher should tell views to retrieve data exactly
+	// one time intead of polling infinitely.
+	once bool
+
+	// retryFuncs specifies the different ways to retry based on the upstream.
+	retryFuncConsul  RetryFunc
+	retryFuncDefault RetryFunc
+	retryFuncVault   RetryFunc
 }
 
-// WatcherConfig is the configuration for a particular Watcher.
-type WatcherConfig struct {
-	// Client is the mechanism for communicating with the Consul API.
+type NewWatcherInput struct {
+	// Clients is the client set to communicate with upstreams.
 	Clients *dep.ClientSet
 
-	// Once is used to determine if the views should poll for data exactly once.
-	Once bool
-
-	// MaxStale is the maximum staleness of a query. If specified, Consul will
-	// distribute work among all servers instead of just the leader. Specifying
-	// this option assumes the use of AllowStale.
+	// MaxStale is the maximum staleness of a query.
 	MaxStale time.Duration
 
-	// RetryFunc is a RetryFunc that represents the way retrys and backoffs
-	// should occur.
-	RetryFunc RetryFunc
+	// Once specifies this watcher should tell views to poll exactly once.
+	Once bool
 
-	// RenewVault determines if the watcher should renew the Vault token as a
-	// background job.
+	// RenewVault indicates if this watcher should renew Vault tokens.
 	RenewVault bool
+
+	// RetryFuncs specify the different ways to retry based on the upstream.
+	RetryFuncConsul  RetryFunc
+	RetryFuncDefault RetryFunc
+	RetryFuncVault   RetryFunc
 }
 
 // NewWatcher creates a new watcher using the given API client.
-func NewWatcher(config *WatcherConfig) (*Watcher, error) {
-	watcher := &Watcher{config: config}
-	if err := watcher.init(); err != nil {
-		return nil, err
+func NewWatcher(i *NewWatcherInput) (*Watcher, error) {
+	w := &Watcher{
+		clients:          i.Clients,
+		depViewMap:       make(map[string]*View),
+		dataCh:           make(chan *View, dataBufferSize),
+		errCh:            make(chan error),
+		maxStale:         i.MaxStale,
+		once:             i.Once,
+		retryFuncConsul:  i.RetryFuncConsul,
+		retryFuncDefault: i.RetryFuncDefault,
+		retryFuncVault:   i.RetryFuncVault,
 	}
 
-	return watcher, nil
+	// Start a watcher for the Vault renew if that config was specified
+	if i.RenewVault {
+		vt, err := dep.NewVaultTokenQuery()
+		if err != nil {
+			return nil, errors.Wrap(err, "watcher")
+		}
+		if _, err := w.Add(vt); err != nil {
+			return nil, errors.Wrap(err, "watcher")
+		}
+	}
+
+	return w, nil
+}
+
+// DataCh returns a read-only channel of Views which is populated when a view
+// receives data from its upstream.
+func (w *Watcher) DataCh() <-chan *View {
+	return w.dataCh
+}
+
+// ErrCh returns a read-only channel of errors returned by the upstream.
+func (w *Watcher) ErrCh() <-chan error {
+	return w.errCh
 }
 
 // Add adds the given dependency to the list of monitored depedencies
@@ -86,22 +114,39 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) adding %s", d.Display())
+	log.Printf("[DEBUG] (watcher) adding %s", d)
 
-	if _, ok := w.depViewMap[d.HashCode()]; ok {
-		log.Printf("[DEBUG] (watcher) %s already exists, skipping", d.Display())
+	if _, ok := w.depViewMap[d.String()]; ok {
+		log.Printf("[TRACE] (watcher) %s already exists, skipping", d)
 		return false, nil
 	}
 
-	v, err := NewView(w.config, d)
-	if err != nil {
-		return false, err
+	// Choose the correct retry function based off of the dependency's type.
+	var retryFunc RetryFunc
+	switch d.Type() {
+	case dep.TypeConsul:
+		retryFunc = w.retryFuncConsul
+	case dep.TypeVault:
+		retryFunc = w.retryFuncVault
+	default:
+		retryFunc = w.retryFuncDefault
 	}
 
-	log.Printf("[DEBUG] (watcher) %s starting", d.Display())
+	v, err := NewView(&NewViewInput{
+		Dependency: d,
+		Clients:    w.clients,
+		MaxStale:   w.maxStale,
+		Once:       w.once,
+		RetryFunc:  retryFunc,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "watcher")
+	}
 
-	w.depViewMap[d.HashCode()] = v
-	go v.poll(w.DataCh, w.ErrCh)
+	log.Printf("[TRACE] (watcher) %s starting", d)
+
+	w.depViewMap[d.String()] = v
+	go v.poll(w.dataCh, w.errCh)
 
 	return true, nil
 }
@@ -111,7 +156,7 @@ func (w *Watcher) Watching(d dep.Dependency) bool {
 	w.Lock()
 	defer w.Unlock()
 
-	_, ok := w.depViewMap[d.HashCode()]
+	_, ok := w.depViewMap[d.String()]
 	return ok
 }
 
@@ -122,9 +167,9 @@ func (w *Watcher) ForceWatching(d dep.Dependency, enabled bool) {
 	defer w.Unlock()
 
 	if enabled {
-		w.depViewMap[d.HashCode()] = nil
+		w.depViewMap[d.String()] = nil
 	} else {
-		delete(w.depViewMap, d.HashCode())
+		delete(w.depViewMap, d.String())
 	}
 }
 
@@ -136,16 +181,16 @@ func (w *Watcher) Remove(d dep.Dependency) bool {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) removing %s", d.Display())
+	log.Printf("[DEBUG] (watcher) removing %s", d)
 
-	if view, ok := w.depViewMap[d.HashCode()]; ok {
-		log.Printf("[DEBUG] (watcher) actually removing %s", d.Display())
+	if view, ok := w.depViewMap[d.String()]; ok {
+		log.Printf("[TRACE] (watcher) actually removing %s", d)
 		view.stop()
-		delete(w.depViewMap, d.HashCode())
+		delete(w.depViewMap, d.String())
 		return true
 	}
 
-	log.Printf("[DEBUG] (watcher) %s did not exist, skipping", d.Display())
+	log.Printf("[TRACE] (watcher) %s did not exist, skipping", d)
 	return false
 }
 
@@ -162,13 +207,13 @@ func (w *Watcher) Stop() {
 	w.Lock()
 	defer w.Unlock()
 
-	log.Printf("[INFO] (watcher) stopping all views")
+	log.Printf("[DEBUG] (watcher) stopping all views")
 
 	for _, view := range w.depViewMap {
 		if view == nil {
 			continue
 		}
-		log.Printf("[DEBUG] (watcher) stopping %s", view.Dependency.Display())
+		log.Printf("[TRACE] (watcher) stopping %s", view.Dependency())
 		view.stop()
 	}
 
@@ -176,36 +221,5 @@ func (w *Watcher) Stop() {
 	w.depViewMap = make(map[string]*View)
 
 	// Close any idle TCP connections
-	w.config.Clients.Stop()
-}
-
-// init sets up the initial values for the watcher.
-func (w *Watcher) init() error {
-	if w.config == nil {
-		return fmt.Errorf("watcher: missing config")
-	}
-
-	if w.config.RetryFunc == nil {
-		w.config.RetryFunc = DefaultRetryFunc
-	}
-
-	// Setup the channels
-	w.DataCh = make(chan *View, dataBufferSize)
-	w.ErrCh = make(chan error)
-
-	// Setup our map of dependencies to views
-	w.depViewMap = make(map[string]*View)
-
-	// Start a watcher for the Vault renew if that config was specified
-	if w.config.RenewVault {
-		vt, err := dep.ParseVaultToken()
-		if err != nil {
-			return fmt.Errorf("watcher: %s", err)
-		}
-		if _, err := w.Add(vt); err != nil {
-			return fmt.Errorf("watcher: %s", err)
-		}
-	}
-
-	return nil
+	w.clients.Stop()
 }
