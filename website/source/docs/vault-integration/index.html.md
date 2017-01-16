@@ -40,7 +40,7 @@ Vault policies.
 Vault's [Token Authentication Backend][auth] supports a concept called "roles".
 Roles allow policies to be grouped together and token creation to be delegated
 to a trusted service such as Nomad. By creating a role, the set of policies that
-tasks managed by Nomad can acess may be limited compared to giving Nomad a root
+tasks managed by Nomad can access may be limited compared to giving Nomad a root
 token.
 
 When given a non-root token, Nomad queries the token to determine the role it
