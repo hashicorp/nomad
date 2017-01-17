@@ -67,6 +67,27 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceU
 	return &resp, err
 }
 
+func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
+	node, _, err := a.client.Nodes().Info(alloc.NodeID, q)
+	if err != nil {
+		return err
+	}
+	if node.Status == "down" {
+		return NodeDownErr
+	}
+	if node.HTTPAddr == "" {
+		return fmt.Errorf("http addr of the node where alloc %q is running is not advertised", alloc.ID)
+	}
+	client, err := NewClient(a.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
+	if err != nil {
+		return err
+	}
+
+	var resp struct{}
+	_, err = client.query("/v1/client/allocation"+alloc.ID+"/gc", &resp, nil)
+	return err
+}
+
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                 string
