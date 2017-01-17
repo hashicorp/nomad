@@ -521,8 +521,8 @@
 		{
 			"checksumSHA1": "efWxWe8blQflfYZFU1WSIks2Tbw=",
 			"path": "github.com/hashicorp/consul-template/manager",
-			"revision": "4b35cc8bdd61e1a7387f7974c8e8ac8ebe9b9376",
-			"revisionTime": "2017-01-14T21:20:18Z"
+			"revision": "7c612ca82dcd04029034dc93fa780b330d0d556f",
+			"revisionTime": "2017-01-17T17:45:35Z"
 		},
 		{
 			"checksumSHA1": "oskgb0WteBKOItG8NNDduM7E/D0=",
