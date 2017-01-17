@@ -145,12 +145,20 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 		handle2.Kill()
 		t.Fatalf("expected handle2 to be nil")
 	}
+
 	// Test if the userpid is still present
-	userProc, err := os.FindProcess(id.UserPid)
+	userProc, _ := os.FindProcess(id.UserPid)
 
-	err = userProc.Signal(syscall.Signal(0))
+	for retry := 3; retry > 0; retry-- {
+		if err = userProc.Signal(syscall.Signal(0)); err != nil {
+			// Process is gone as expected; exit
+			return
+		}
 
-	if err == nil {
+		// Killing processes is async; wait and check again
+		time.Sleep(time.Second)
+	}
+	if err = userProc.Signal(syscall.Signal(0)); err == nil {
 		t.Fatalf("expected user process to die")
 	}
 }
