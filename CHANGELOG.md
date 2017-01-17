@@ -14,6 +14,7 @@ IMPROVEMENTS:
   * client: Don't retrieve Driver Stats if unsupported [GH-2173]
   * driver/docker: Add support for network aliases [GH-1980]
   * driver/docker: Add `force_pull` option to force downloading an image [GH-2147]
+  * driver/java: Support setting class_path and class name. [GH-2199]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
 
 BUG FIXES:
