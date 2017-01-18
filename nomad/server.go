@@ -574,7 +574,7 @@ func (s *Server) setupBootstrapHandler() error {
 // setupConsulSyncer creates Server-mode consul.Syncer which periodically
 // executes callbacks on a fixed interval.
 func (s *Server) setupConsulSyncer() error {
-	if s.config.ConsulConfig.ServerAutoJoin {
+	if s.config.ConsulConfig.ServerAutoJoin != nil && *s.config.ConsulConfig.ServerAutoJoin {
 		if err := s.setupBootstrapHandler(); err != nil {
 			return err
 		}

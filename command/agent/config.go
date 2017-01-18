@@ -14,6 +14,7 @@ import (
 	"time"
 
 	client "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -452,7 +453,7 @@ func DevConfig() *Config {
 	conf.DevMode = true
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Consul.AutoAdvertise = true
+	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
 	if runtime.GOOS == "darwin" {
 		conf.Client.NetworkInterface = "lo0"
 	} else if runtime.GOOS == "linux" {

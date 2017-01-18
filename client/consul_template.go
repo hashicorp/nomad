@@ -420,10 +420,10 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 		conf.Token = config.ConsulConfig.Token
 		set([]string{"consul", "token"})
 
-		if config.ConsulConfig.EnableSSL {
+		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
 			conf.SSL = &ctconf.SSLConfig{
 				Enabled: true,
-				Verify:  config.ConsulConfig.VerifySSL,
+				Verify:  *config.ConsulConfig.VerifySSL,
 				Cert:    config.ConsulConfig.CertFile,
 				Key:     config.ConsulConfig.KeyFile,
 				CaCert:  config.ConsulConfig.CAFile,

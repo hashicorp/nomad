@@ -174,7 +174,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.HeartbeatGrace = dur
 	}
 
-	if a.config.Consul.AutoAdvertise && a.config.Consul.ServerServiceName == "" {
+	if *a.config.Consul.AutoAdvertise && a.config.Consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
@@ -273,7 +273,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 	conf.Revision = a.config.Revision
 
-	if a.config.Consul.AutoAdvertise && a.config.Consul.ClientServiceName == "" {
+	if *a.config.Consul.AutoAdvertise && a.config.Consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
 
@@ -318,7 +318,7 @@ func (a *Agent) setupServer() error {
 	httpCheckAddr := a.config.normalizedAddrs.HTTP
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
-	if a.config.Consul.ChecksUseAdvertise {
+	if *a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
@@ -326,7 +326,7 @@ func (a *Agent) setupServer() error {
 
 	// Create the Nomad Server services for Consul
 	// TODO re-introduce HTTP/S checks when Consul 0.7.1 comes out
-	if a.config.Consul.AutoAdvertise {
+	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
@@ -439,14 +439,14 @@ func (a *Agent) setupClient() error {
 
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP
-	if a.config.Consul.ChecksUseAdvertise {
+	if *a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 
 	// Create the Nomad Client  services for Consul
 	// TODO think how we can re-introduce HTTP/S checks when Consul 0.7.1 comes
 	// out
-	if a.config.Consul.AutoAdvertise {
+	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
