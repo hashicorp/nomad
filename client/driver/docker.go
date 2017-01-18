@@ -390,7 +390,7 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedR
 		// extremely rare. There's no point in returning an error
 		// because the image won't be redownloaded as it now exists.
 		d.logger.Printf("[ERR] driver.docker: failed getting image id for %q: %v", driverConfig.ImageName, err)
-		return nil, nil
+		return nil, err
 	}
 
 	res := NewCreatedResources()
