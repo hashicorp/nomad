@@ -257,7 +257,7 @@ func TestMapMergeStrStr(t *testing.T) {
 	}
 }
 
-func TestCreatedResources(t *testing.T) {
+func TestCreatedResources_AddMerge(t *testing.T) {
 	res1 := NewCreatedResources()
 	res1.Add("k1", "v1")
 	res1.Add("k1", "v2")
@@ -293,5 +293,43 @@ func TestCreatedResources(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expected, res1.Resources) {
 		t.Fatalf("3.  %#v != expected %#v", res1.Resources, expected)
+	}
+}
+
+func TestCreatedResources_CopyRemove(t *testing.T) {
+	res1 := NewCreatedResources()
+	res1.Add("k1", "v1")
+	res1.Add("k1", "v2")
+	res1.Add("k1", "v3")
+	res1.Add("k2", "v1")
+
+	// Assert Copy creates a deep copy
+	res2 := res1.Copy()
+
+	if !reflect.DeepEqual(res1, res2) {
+		t.Fatalf("%#v != %#v", res1, res2)
+	}
+
+	// Assert removing v1 from k1 returns true and updates Resources slice
+	if removed := res2.Remove("k1", "v1"); !removed {
+		t.Fatalf("expected v1 to be removed: %#v", res2)
+	}
+
+	if expected := []string{"v2", "v3"}; !reflect.DeepEqual(expected, res2.Resources["k1"]) {
+		t.Fatalf("unpexpected list for k1: %#v", res2.Resources["k1"])
+	}
+
+	// Assert removing the only value from a key removes the key
+	if removed := res2.Remove("k2", "v1"); !removed {
+		t.Fatalf("expected v1 to be removed from k2: %#v", res2.Resources)
+	}
+
+	if _, found := res2.Resources["k2"]; found {
+		t.Fatalf("k2 should have been removed from Resources: %#v", res2.Resources)
+	}
+
+	// Make sure res1 wasn't updated
+	if reflect.DeepEqual(res1, res2) {
+		t.Fatalf("res1 should not equal res2: #%v", res1)
 	}
 }

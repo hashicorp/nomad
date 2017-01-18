@@ -504,19 +504,18 @@ func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
 	for key, resources := range res.Resources {
 		switch key {
 		case dockerImageResKey:
-			// Remove and only add back images that failed to be
-			// removed in a retryable way
-			delete(res.Resources, key)
 			for _, value := range resources {
-				if err := d.cleanupImage(value); err != nil {
+				err := d.cleanupImage(value)
+				if err != nil {
 					if structs.IsRecoverable(err) {
 						retry = true
 					}
 					merr.Errors = append(merr.Errors, err)
-
-					// Re-add all failures to the map
-					res.Add(key, value)
+					continue
 				}
+
+				// Remove cleaned image from resources
+				res.Remove(dockerImageResKey, value)
 			}
 		default:
 			d.logger.Printf("[WARN] driver.docker: unknown resource to cleanup: %q", key)

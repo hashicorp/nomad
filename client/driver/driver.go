@@ -85,6 +85,23 @@ func (r *CreatedResources) Add(k, v string) {
 	return
 }
 
+// Remove a resource. Return true if removed, otherwise false.
+//
+// Removes the entire key if the needle is the last value in the list.
+func (r *CreatedResources) Remove(k, needle string) bool {
+	haystack := r.Resources[k]
+	for i, item := range haystack {
+		if item == needle {
+			r.Resources[k] = append(haystack[:i], haystack[i+1:]...)
+			if len(r.Resources[k]) == 0 {
+				delete(r.Resources, k)
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // Copy returns a new deep copy of CreatedResrouces.
 func (r *CreatedResources) Copy() *CreatedResources {
 	newr := CreatedResources{
