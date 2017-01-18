@@ -86,7 +86,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 }
 
 // Test that task dirs for image based isolation don't require root.
-func TestTaskDir_NonRoot(t *testing.T) {
+func TestTaskDir_NonRoot_Image(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
@@ -106,4 +106,33 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	if err := td.Build(nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
+}
+
+// Test that task dirs with no isolation don't require root.
+func TestTaskDir_NonRoot(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("test should be run as non-root user")
+	}
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(testLogger(), tmp)
+	defer d.Destroy()
+	td := d.NewTaskDir(t1.Name)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
+
+	if err := td.Build(nil, cstructs.FSIsolationNone); err != nil {
+		t.Fatalf("TaskDir.Build failed: %v", err)
+	}
+
+	// ${TASK_DIR}/alloc should not exist!
+	if _, err = os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
+		t.Fatalf("Expected a NotExist error for shared alloc dir in task dir: %q", td.SharedTaskDir)
+	}
+
 }
