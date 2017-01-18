@@ -504,6 +504,9 @@ func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
 	for key, resources := range res.Resources {
 		switch key {
 		case dockerImageResKey:
+			// Remove and only add back images that failed to be
+			// removed in a retryable way
+			delete(res.Resources, key)
 			for _, value := range resources {
 				if err := d.cleanupImage(value); err != nil {
 					if structs.IsRecoverable(err) {

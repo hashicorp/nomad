@@ -1304,8 +1304,14 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	}
 
 	// Cleanup
-	if err := driver.Cleanup(tctx.ExecCtx, res.Copy()); err != nil {
+	rescopy := res.Copy()
+	if err := driver.Cleanup(tctx.ExecCtx, rescopy); err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
+	}
+
+	// Make sure rescopy is updated
+	if len(rescopy.Resources) > 0 {
+		t.Errorf("Cleanup should have cleared resource map: %#v", rescopy.Resources)
 	}
 
 	// Ensure image was removed
