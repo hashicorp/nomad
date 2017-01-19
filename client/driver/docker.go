@@ -518,7 +518,7 @@ func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
 				res.Remove(dockerImageResKey, value)
 			}
 		default:
-			d.logger.Printf("[WARN] driver.docker: unknown resource to cleanup: %q", key)
+			d.logger.Printf("[ERR] driver.docker: unknown resource to cleanup: %q", key)
 		}
 	}
 	return structs.NewRecoverableError(merr.ErrorOrNil(), retry)
