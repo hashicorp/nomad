@@ -1038,9 +1038,11 @@ func (r *TaskRunner) cleanup() {
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
 		retry = false
-		if cleanupErr = drv.Cleanup(ctx, res); cleanupErr != nil {
-			retry = structs.IsRecoverable(cleanupErr)
+		cleanupErr = drv.Cleanup(ctx, res)
+		if cleanupErr == nil {
+			return
 		}
+		retry = structs.IsRecoverable(cleanupErr)
 
 		// Copy current createdResources state in case SaveState is
 		// called between retries
