@@ -7,7 +7,7 @@ type Regions struct {
 	client *Client
 }
 
-// Regions returns a handle on the allocs endpoints.
+// Regions returns a handle on the regions endpoints.
 func (c *Client) Regions() *Regions {
 	return &Regions{client: c}
 }
