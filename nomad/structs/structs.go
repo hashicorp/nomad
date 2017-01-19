@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
@@ -763,11 +764,11 @@ func (n *Node) Copy() *Node {
 	}
 	nn := new(Node)
 	*nn = *n
-	nn.Attributes = CopyMapStringString(nn.Attributes)
+	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
-	nn.Links = CopyMapStringString(nn.Links)
-	nn.Meta = CopyMapStringString(nn.Meta)
+	nn.Links = helper.CopyMapStringString(nn.Links)
+	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	return nn
 }
 
@@ -1183,7 +1184,7 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = CopySliceString(nj.Datacenters)
+	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 
 	if j.TaskGroups != nil {
@@ -1195,7 +1196,7 @@ func (j *Job) Copy() *Job {
 	}
 
 	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = CopyMapStringString(nj.Meta)
+	nj.Meta = helper.CopyMapStringString(nj.Meta)
 	nj.Constructor = nj.Constructor.Copy()
 	return nj
 }
@@ -1309,7 +1310,7 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 		return nil
 	}
 
-	meta := CopyMapStringString(task.Meta)
+	meta := helper.CopyMapStringString(task.Meta)
 	if meta == nil {
 		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
 	}
@@ -1660,7 +1661,7 @@ func (d *ConstructorConfig) Validate() error {
 	}
 
 	// Check that the meta configurations are disjoint sets
-	disjoint, offending := SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	disjoint, offending := helper.SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
 	if !disjoint {
 		multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
 	}
@@ -1680,8 +1681,8 @@ func (d *ConstructorConfig) Copy() *ConstructorConfig {
 	}
 	nd := new(ConstructorConfig)
 	*nd = *d
-	nd.MetaOptional = CopySliceString(nd.MetaOptional)
-	nd.MetaRequired = CopySliceString(nd.MetaRequired)
+	nd.MetaOptional = helper.CopySliceString(nd.MetaOptional)
+	nd.MetaRequired = helper.CopySliceString(nd.MetaRequired)
 	return nd
 }
 
@@ -1850,7 +1851,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.Tasks = tasks
 	}
 
-	ntg.Meta = CopyMapStringString(ntg.Meta)
+	ntg.Meta = helper.CopyMapStringString(ntg.Meta)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -2113,7 +2114,7 @@ func (s *Service) Copy() *Service {
 	}
 	ns := new(Service)
 	*ns = *s
-	ns.Tags = CopySliceString(ns.Tags)
+	ns.Tags = helper.CopySliceString(ns.Tags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -2295,7 +2296,7 @@ func (t *Task) Copy() *Task {
 	}
 	nt := new(Task)
 	*nt = *t
-	nt.Env = CopyMapStringString(nt.Env)
+	nt.Env = helper.CopyMapStringString(nt.Env)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -2309,7 +2310,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
-	nt.Meta = CopyMapStringString(nt.Meta)
+	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchInput = nt.DispatchInput.Copy()
 
 	if t.Artifacts != nil {
@@ -2979,7 +2980,7 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	}
 	nta := new(TaskArtifact)
 	*nta = *ta
-	nta.GetterOptions = CopyMapStringString(ta.GetterOptions)
+	nta.GetterOptions = helper.CopyMapStringString(ta.GetterOptions)
 	return nta
 }
 
@@ -3531,12 +3532,12 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 	na := new(AllocMetric)
 	*na = *a
-	na.NodesAvailable = CopyMapStringInt(na.NodesAvailable)
-	na.ClassFiltered = CopyMapStringInt(na.ClassFiltered)
-	na.ConstraintFiltered = CopyMapStringInt(na.ConstraintFiltered)
-	na.ClassExhausted = CopyMapStringInt(na.ClassExhausted)
-	na.DimensionExhausted = CopyMapStringInt(na.DimensionExhausted)
-	na.Scores = CopyMapStringFloat64(na.Scores)
+	na.NodesAvailable = helper.CopyMapStringInt(na.NodesAvailable)
+	na.ClassFiltered = helper.CopyMapStringInt(na.ClassFiltered)
+	na.ConstraintFiltered = helper.CopyMapStringInt(na.ConstraintFiltered)
+	na.ClassExhausted = helper.CopyMapStringInt(na.ClassExhausted)
+	na.DimensionExhausted = helper.CopyMapStringInt(na.DimensionExhausted)
+	na.Scores = helper.CopyMapStringFloat64(na.Scores)
 	return na
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/nomad/scheduler"
@@ -116,7 +117,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			// If we are given a root token it can access all policies
 			if !lib.StrContains(allowedPolicies, "root") {
 				flatPolicies := structs.VaultPoliciesSet(policies)
-				subset, offending := structs.SliceStringIsSubset(allowedPolicies, flatPolicies)
+				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
 				if !subset {
 					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
 						strings.Join(offending, ", "))
@@ -218,7 +219,7 @@ func setImplicitConstraints(j *structs.Job) {
 		}
 
 		// Flatten the signals
-		required := structs.MapStringStringSliceValueSet(tgSignals)
+		required := helper.MapStringStringSliceValueSet(tgSignals)
 		sigConstraint := getSignalConstraint(required)
 
 		found := false
@@ -899,8 +900,8 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		keys[k] = struct{}{}
 	}
 
-	required := structs.SliceStringToSet(job.Constructor.MetaRequired)
-	optional := structs.SliceStringToSet(job.Constructor.MetaOptional)
+	required := helper.SliceStringToSet(job.Constructor.MetaRequired)
+	optional := helper.SliceStringToSet(job.Constructor.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})

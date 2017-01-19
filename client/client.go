@@ -238,7 +238,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	c.configLock.RUnlock()
 
 	// Setup Consul discovery if enabled
-	if c.configCopy.ConsulConfig.ClientAutoJoin {
+	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
 		go c.consulDiscovery()
 		if len(c.servers.all()) == 0 {
 			// No configured servers; trigger discovery manually

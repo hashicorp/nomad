@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -158,9 +159,9 @@ func (c *Config) Copy() *Config {
 	nc := new(Config)
 	*nc = *c
 	nc.Node = nc.Node.Copy()
-	nc.Servers = structs.CopySliceString(nc.Servers)
-	nc.Options = structs.CopyMapStringString(nc.Options)
-	nc.GloballyReservedPorts = structs.CopySliceInt(c.GloballyReservedPorts)
+	nc.Servers = helper.CopySliceString(nc.Servers)
+	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.GloballyReservedPorts = helper.CopySliceInt(c.GloballyReservedPorts)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc
