@@ -30,6 +30,13 @@ type VaultConfig struct {
 	// lifetime.
 	Token string `mapstructure:"token"`
 
+	// Role sets the role in which to create tokens from. The Token given to
+	// Nomad does not have to be created from this role but must have "update"
+	// capability on "auth/token/create/<create_from_role>". If this value is
+	// unset and the token is created from a role, the value is defaulted to the
+	// role the token is from.
+	Role string `mapstructure:"create_from_role"`
+
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
@@ -98,6 +105,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 
 	if b.Token != "" {
 		result.Token = b.Token
+	}
+	if b.Role != "" {
+		result.Role = b.Role
 	}
 	if b.TaskTokenTTL != "" {
 		result.TaskTokenTTL = b.TaskTokenTTL

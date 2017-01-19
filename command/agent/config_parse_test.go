@@ -129,6 +129,7 @@ func TestConfig_Parse(t *testing.T) {
 					Addr:                 "127.0.0.1:9500",
 					AllowUnauthenticated: &trueValue,
 					Enabled:              &falseValue,
+					Role:                 "test_role",
 					TLSCaFile:            "/path/to/ca/file",
 					TLSCaPath:            "/path/to/ca",
 					TLSCertFile:          "/path/to/cert/file",

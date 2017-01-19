@@ -47,6 +47,42 @@ const (
 	// vaultRevocationIntv is the interval at which Vault tokens that failed
 	// initial revocation are retried
 	vaultRevocationIntv = 5 * time.Minute
+
+	// vaultCapabilitiesLookupPath is the path to lookup the capabilities of
+	// ones token.
+	vaultCapabilitiesLookupPath = "/sys/capabilities-self"
+
+	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
+	// token on the the path.
+	vaultCapabilitiesCapability = "update"
+
+	// vaultTokenLookupPath is the path used to lookup a token
+	vaultTokenLookupPath = "auth/token/lookup"
+
+	// vaultTokenLookupCapability is the expected capability Nomad's
+	// Vault token should have on the path
+	vaultTokenLookupCapability = "update"
+
+	// vaultTokenRevokePath is the path used to revoke a token
+	vaultTokenRevokePath = "/auth/token/revoke-accessor/*"
+
+	// vaultTokenRevokeCapability is the expected capability Nomad's
+	// Vault token should have on the path
+	vaultTokenRevokeCapability = "update"
+
+	// vaultRoleLookupPath is the path to lookup a role
+	vaultRoleLookupPath = "auth/token/roles/%s"
+
+	// vaultRoleLookupCapability is the the expected capability Nomad's Vault
+	// token should have on the path
+	vaultRoleLookupCapability = "read"
+
+	// vaultRoleCreatePath is the path to create a token from a role
+	vaultTokenRoleCreatePath = "auth/token/create/%s"
+
+	// vaultTokenRoleCreateCapability is the the expected capability Nomad's Vault
+	// token should have on the path
+	vaultTokenRoleCreateCapability = "update"
 )
 
 var (
@@ -478,7 +514,7 @@ func (v *vaultClient) renew() error {
 func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 	createPath := "auth/token/create"
 	if !v.tokenData.Root {
-		createPath = fmt.Sprintf("auth/token/create/%s", v.tokenData.Role)
+		createPath = fmt.Sprintf("auth/token/create/%s", v.getRole())
 	}
 
 	return func(operation, path string) string {
@@ -516,7 +552,27 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 	}
 
+	data.Root = root
+	v.tokenData = &data
+
+	// The criteria that must be met for the token to be valid are as follows:
+	// 1) If token is non-root or is but has a creation ttl
+	//   a) The token must be renewable
+	//   b) Token must have a non-zero TTL
+	// 2) Must have update capability for "auth/token/lookup/" (used to verify incoming tokens)
+	// 3) Must have update capability for "/auth/token/revoke-accessor/" (used to revoke unneeded tokens)
+	// 4) If configured to create tokens against a role:
+	//   a) Must have read capability for "auth/token/roles/<role_name" (Can just attemp a read)
+	//   b) Must have update capability for path "auth/token/create/<role_name>"
+	//   c) Role must:
+	//     1) Not allow orphans
+	//     2) Must allow tokens to be renewed
+	//     3) Must not have an explicit max TTL
+	//     4) Must have non-zero period
+	// 5) If not configured against a role, the token must be root
+
 	var mErr multierror.Error
+	role := v.getRole()
 	if !root {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
@@ -534,7 +590,7 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 
 		// There must be a valid role since we aren't root
-		if data.Role == "" {
+		if role == "" {
 			multierror.Append(&mErr, fmt.Errorf("token role name must be set when not using a root token"))
 		}
 
@@ -548,16 +604,96 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 	}
 
+	// Check we have the correct capabilities
+	if err := v.validateCapabilities(role, root); err != nil {
+		multierror.Append(&mErr, err)
+	}
+
 	// If given a role validate it
-	if data.Role != "" {
-		if err := v.validateRole(data.Role); err != nil {
+	if role != "" {
+		if err := v.validateRole(role); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}
 
-	data.Root = root
-	v.tokenData = &data
 	return mErr.ErrorOrNil()
+}
+
+// getRole returns the role name to be used when creating tokens
+func (v *vaultClient) getRole() string {
+	if v.config.Role != "" {
+		return v.config.Role
+	}
+
+	return v.tokenData.Role
+}
+
+// validateCapabilities checks that Nomad's Vault token has the correct
+// capabilities.
+func (v *vaultClient) validateCapabilities(role string, root bool) error {
+	// Check if the token can lookup capabilities.
+	var mErr multierror.Error
+	_, err := v.hasCapability(vaultCapabilitiesLookupPath, vaultCapabilitiesCapability)
+	if err != nil {
+		// Check if there is a permission denied
+		if vaultUnrecoverableError.MatchString(err.Error()) {
+			// Since we can't read permissions, we just log a warning that we
+			// can't tell if the Vault token will work
+			msg := fmt.Sprintf("Can not lookup token capabilities. "+
+				"As such certain operations may fail in the future. "+
+				"Please give Nomad a Vault token with %q on %q",
+				vaultCapabilitiesCapability, vaultCapabilitiesLookupPath)
+			v.logger.Printf("[WARN] vault: %s", msg)
+			return nil
+		} else {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	// verify is a helper function that verifies the token has the capability on
+	// the given path and adds an issue to the error
+	verify := func(path, capability string) {
+		ok, err := v.hasCapability(path, capability)
+		if err != nil {
+			multierror.Append(&mErr, err)
+		} else if !ok {
+			multierror.Append(&mErr, fmt.Errorf("token doesn't have %q capability on %q", capability, path))
+		}
+	}
+
+	// Check if we are verifying incoming tokens
+	if !v.config.AllowsUnauthenticated() {
+		verify(vaultTokenLookupPath, vaultTokenLookupCapability)
+	}
+
+	// Verify we can revoke tokens
+	verify(vaultTokenRevokePath, vaultTokenRevokeCapability)
+
+	// If we are using a role verify the capability
+	if role != "" {
+		// Verify we can read the role
+		verify(fmt.Sprintf(vaultRoleLookupPath, role), vaultRoleLookupCapability)
+
+		// Verify we can create from the role
+		verify(fmt.Sprintf(vaultTokenRoleCreatePath, role), vaultTokenRoleCreateCapability)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// hasCapability takes a path and returns whether the token has the required
+// capability at the given path.
+func (v *vaultClient) hasCapability(path string, required string) (bool, error) {
+	caps, err := v.client.Sys().CapabilitiesSelf(path)
+	if err != nil {
+		return false, err
+	}
+	for _, c := range caps {
+		if c == required {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // validateRole contacts Vault and checks that the given Vault role is valid for
@@ -684,7 +820,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		secret, err = v.auth.Create(req)
 	} else {
 		// Make the token using the role
-		secret, err = v.auth.CreateWithRole(req, v.tokenData.Role)
+		secret, err = v.auth.CreateWithRole(req, v.getRole())
 	}
 
 	// Determine whether it is unrecoverable

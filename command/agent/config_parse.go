@@ -710,6 +710,7 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		"ca_file",
 		"ca_path",
 		"cert_file",
+		"create_from_role",
 		"key_file",
 		"tls_server_name",
 		"tls_skip_verify",
