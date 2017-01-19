@@ -2500,10 +2500,13 @@ func validateServices(t *Task) error {
 			outer := fmt.Errorf("service[%d] %+q validation failed: %s", i, service.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
-		if _, ok := knownServices[service.Name]; ok {
+
+		// Ensure that services with the same name are not being registered for
+		// the same port
+		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q is duplicate", service.Name))
 		}
-		knownServices[service.Name] = struct{}{}
+		knownServices[service.Name+service.PortLabel] = struct{}{}
 
 		if service.PortLabel != "" {
 			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)

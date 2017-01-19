@@ -509,10 +509,21 @@ func TestTask_Validate_Services(t *testing.T) {
 	}
 
 	s2 := &Service{
-		Name: "service-name",
+		Name:      "service-name",
+		PortLabel: "bar",
+	}
+
+	s3 := &Service{
+		Name:      "service-A",
+		PortLabel: "a",
+	}
+	s4 := &Service{
+		Name:      "service-A",
+		PortLabel: "b",
 	}
 
 	ephemeralDisk := DefaultEphemeralDisk()
+	ephemeralDisk.SizeMB = 200
 	task := &Task{
 		Name:   "web",
 		Driver: "docker",
@@ -523,14 +534,33 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 		Services: []*Service{s1, s2},
 	}
-	ephemeralDisk.SizeMB = 200
+
+	task1 := &Task{
+		Name:      "web",
+		Driver:    "docker",
+		Resources: DefaultResources(),
+		Services:  []*Service{s3, s4},
+		LogConfig: DefaultLogConfig(),
+	}
+	task1.Resources.Networks = []*NetworkResource{
+		&NetworkResource{
+			MBits: 10,
+			DynamicPorts: []Port{
+				Port{
+					Label: "a",
+					Value: 1000,
+				},
+				Port{
+					Label: "b",
+					Value: 2000,
+				},
+			},
+		},
+	}
 
 	err := task.Validate(ephemeralDisk)
 	if err == nil {
 		t.Fatal("expected an error")
-	}
-	if !strings.Contains(err.Error(), "referenced by services service-name does not exist") {
-		t.Fatalf("err: %s", err)
 	}
 
 	if !strings.Contains(err.Error(), "service \"service-name\" is duplicate") {
@@ -547,6 +577,10 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "cannot be less than") {
 		t.Fatalf("err: %v", err)
+	}
+
+	if err = task1.Validate(ephemeralDisk); err != nil {
+		t.Fatalf("err : %v", err)
 	}
 }
 
