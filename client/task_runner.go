@@ -1162,9 +1162,9 @@ func (r *TaskRunner) startTask() error {
 	res, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
-	r.persistLock.Lock()
+	r.createdResourcesLock.Lock()
 	r.createdResources.Merge(res)
-	r.persistLock.Unlock()
+	r.createdResourcesLock.Unlock()
 
 	if err != nil {
 		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
