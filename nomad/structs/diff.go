@@ -130,9 +130,8 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		diff.Objects = append(diff.Objects, pDiff)
 	}
 
-	// Constructor diff
-	// Vault diff
-	if cDiff := constructorDiff(j.Constructor, other.Constructor, contextual); cDiff != nil {
+	// ParameterizedJob diff
+	if cDiff := parameterizedJobDiff(j.ParameterizedJob, other.ParameterizedJob, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
 	}
 
@@ -641,20 +640,21 @@ func vaultDiff(old, new *Vault, contextual bool) *ObjectDiff {
 	return diff
 }
 
-// constructorDiff returns the diff of two constructor objects. If contextual
-// diff is enabled, all fields will be returned, even if no diff occurred.
-func constructorDiff(old, new *ConstructorConfig, contextual bool) *ObjectDiff {
-	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Constructor"}
+// parameterizedJobDiff returns the diff of two parameterized job objects. If
+// contextual diff is enabled, all fields will be returned, even if no diff
+// occurred.
+func parameterizedJobDiff(old, new *ParameterizedJobConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ParameterizedJob"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if old == nil {
-		old = &ConstructorConfig{}
+		old = &ParameterizedJobConfig{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	} else if new == nil {
-		new = &ConstructorConfig{}
+		new = &ParameterizedJobConfig{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
 	} else {

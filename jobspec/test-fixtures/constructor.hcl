@@ -1,5 +1,5 @@
-job "constructor" {
-    constructor {
+job "parameterized_job" {
+    parameterized_job {
         payload = "required"
         meta_keys {
             required = ["foo", "bar"]

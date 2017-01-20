@@ -274,7 +274,7 @@ type JobSummaryRequest struct {
 	QueryOptions
 }
 
-// JobDispatchRequest is used to dispatch a job based on a constructor job
+// JobDispatchRequest is used to dispatch a job based on a parameterized job
 type JobDispatchRequest struct {
 	JobID   string
 	Payload []byte
@@ -1131,8 +1131,9 @@ type Job struct {
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
-	// Constructor is used to specify the job as a constructor job for dispatching.
-	Constructor *ConstructorConfig
+	// ParameterizedJob is used to specify the job as a parameterized job
+	// for dispatching.
+	ParameterizedJob *ParameterizedJobConfig
 
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte
@@ -1171,8 +1172,8 @@ func (j *Job) Canonicalize() {
 		tg.Canonicalize(j)
 	}
 
-	if j.Constructor != nil {
-		j.Constructor.Canonicalize()
+	if j.ParameterizedJob != nil {
+		j.ParameterizedJob.Canonicalize()
 	}
 }
 
@@ -1197,7 +1198,7 @@ func (j *Job) Copy() *Job {
 
 	nj.Periodic = nj.Periodic.Copy()
 	nj.Meta = helper.CopyMapStringString(nj.Meta)
-	nj.Constructor = nj.Constructor.Copy()
+	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
 	return nj
 }
 
@@ -1272,13 +1273,13 @@ func (j *Job) Validate() error {
 		}
 	}
 
-	if j.IsConstructor() {
+	if j.IsParameterized() {
 		if j.Type != JobTypeBatch {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Constructor job can only be used with %q scheduler", JobTypeBatch))
+				fmt.Errorf("Parameterized job can only be used with %q scheduler", JobTypeBatch))
 		}
 
-		if err := j.Constructor.Validate(); err != nil {
+		if err := j.ParameterizedJob.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -1354,9 +1355,9 @@ func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
 }
 
-// IsConstructor returns whether a job is constructor job.
-func (j *Job) IsConstructor() bool {
-	return j.Constructor != nil
+// IsParameterized returns whether a job is parameterized job.
+func (j *Job) IsParameterized() bool {
+	return j.ParameterizedJob != nil
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -1635,13 +1636,13 @@ const (
 	DispatchPayloadOptional  = "optional"
 	DispatchPayloadRequired  = "required"
 
-	// DispatchLaunchSuffic is the string appended to the constructor job's ID
+	// DispatchLaunchSuffix is the string appended to the parameterized job's ID
 	// when dispatching instances of it.
-	DispatchLaunchSuffic = "/dispatch-"
+	DispatchLaunchSuffix = "/dispatch-"
 )
 
-// ConstructorConfig is used to configure the constructor job
-type ConstructorConfig struct {
+// ParameterizedJobConfig is used to configure the parameterized job
+type ParameterizedJobConfig struct {
 	// Payload configure the payload requirements
 	Payload string
 
@@ -1652,7 +1653,7 @@ type ConstructorConfig struct {
 	MetaOptional []string `mapstructure:"optional"`
 }
 
-func (d *ConstructorConfig) Validate() error {
+func (d *ParameterizedJobConfig) Validate() error {
 	var mErr multierror.Error
 	switch d.Payload {
 	case DispatchPayloadOptional, DispatchPayloadRequired, DispatchPayloadForbidden:
@@ -1669,17 +1670,17 @@ func (d *ConstructorConfig) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-func (d *ConstructorConfig) Canonicalize() {
+func (d *ParameterizedJobConfig) Canonicalize() {
 	if d.Payload == "" {
 		d.Payload = DispatchPayloadOptional
 	}
 }
 
-func (d *ConstructorConfig) Copy() *ConstructorConfig {
+func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 	if d == nil {
 		return nil
 	}
-	nd := new(ConstructorConfig)
+	nd := new(ParameterizedJobConfig)
 	*nd = *d
 	nd.MetaOptional = helper.CopySliceString(nd.MetaOptional)
 	nd.MetaRequired = helper.CopySliceString(nd.MetaRequired)
@@ -1687,10 +1688,10 @@ func (d *ConstructorConfig) Copy() *ConstructorConfig {
 }
 
 // DispatchedID returns an ID appropriate for a job dispatched against a
-// particular constructor
+// particular parameterized job
 func DispatchedID(templateID string, t time.Time) string {
 	u := GenerateUUID()[:8]
-	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffic, t.Unix(), u)
+	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
 // DispatchInputConfig configures how a task gets its input from a job dispatch

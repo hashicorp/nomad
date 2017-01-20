@@ -539,15 +539,15 @@ func TestParse(t *testing.T) {
 		},
 
 		{
-			"constructor.hcl",
+			"parameterized_job.hcl",
 			&structs.Job{
-				ID:       "constructor",
-				Name:     "constructor",
+				ID:       "parameterized_job",
+				Name:     "parameterized_job",
 				Type:     "service",
 				Priority: 50,
 				Region:   "global",
 
-				Constructor: &structs.ConstructorConfig{
+				ParameterizedJob: &structs.ParameterizedJobConfig{
 					Payload:      "required",
 					MetaRequired: []string{"foo", "bar"},
 					MetaOptional: []string{"baz", "bam"},
