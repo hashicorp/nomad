@@ -371,14 +371,14 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	//defer ctx.AllocDir.Destroy()
+	defer ctx.AllocDir.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
 	dst := ctx.ExecCtx.TaskDir.LocalDir
 	copyFile("./test-resources/java/Hello.class", filepath.Join(dst, "Hello.class"), t)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
