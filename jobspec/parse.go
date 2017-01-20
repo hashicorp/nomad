@@ -105,7 +105,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "update")
 	delete(m, "periodic")
 	delete(m, "vault")
-	delete(m, "parameterized_job")
+	delete(m, "parameterized")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -134,7 +134,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"datacenters",
-		"parameterized_job",
+		"parameterized",
 		"group",
 		"id",
 		"meta",
@@ -174,9 +174,9 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	}
 
 	// If we have a parameterized definition, then parse that
-	if o := listVal.Filter("parameterized_job"); len(o.Items) > 0 {
+	if o := listVal.Filter("parameterized"); len(o.Items) > 0 {
 		if err := parseParameterizedJob(&result.ParameterizedJob, o); err != nil {
-			return multierror.Prefix(err, "parameterized_job ->")
+			return multierror.Prefix(err, "parameterized ->")
 		}
 	}
 
@@ -1248,7 +1248,7 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'parameterized_job' block allowed per job")
+		return fmt.Errorf("only one 'parameterized' block allowed per job")
 	}
 
 	// Get our resource object
@@ -1280,7 +1280,7 @@ func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.Ob
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
 		listVal = ot.List
 	} else {
-		return fmt.Errorf("parameterized_job block should be an object")
+		return fmt.Errorf("parameterized block should be an object")
 	}
 
 	// Parse the meta block

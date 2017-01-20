@@ -1,5 +1,5 @@
 job "parameterized_job" {
-    parameterized_job {
+    parameterized {
         payload = "required"
         meta_keys {
             required = ["foo", "bar"]
