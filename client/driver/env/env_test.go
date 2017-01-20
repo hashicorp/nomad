@@ -137,10 +137,13 @@ func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 
 func TestEnvironment_AsList(t *testing.T) {
 	n := mock.Node()
+	a := mock.Alloc()
 	env := NewTaskEnvironment(n).
 		SetNetworks(networks).
 		SetPortMap(portMap).
-		SetTaskMeta(map[string]string{"foo": "baz"}).Build()
+		SetTaskMeta(map[string]string{"foo": "baz"}).
+		SetAlloc(a).
+		SetTaskName("taskA").Build()
 
 	act := env.EnvList()
 	exp := []string{
@@ -153,11 +156,16 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_META_FOO=baz",
+		"NOMAD_ADDR_web_main=192.168.0.100:5000",
+		"NOMAD_ADDR_web_http=192.168.0.100:2000",
+		"NOMAD_TASK_NAME=taskA",
 	}
+	allocID := fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID)
+	exp = append(exp, allocID)
 	sort.Strings(act)
 	sort.Strings(exp)
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
+		t.Fatalf("env.List() returned %v;\n want %v", act, exp)
 	}
 }
 

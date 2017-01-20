@@ -101,6 +101,7 @@ type TaskEnvironment struct {
 	VaultToken       string
 	InjectVaultToken bool
 	JobName          string
+	Alloc            *structs.Allocation
 
 	// taskEnv is the variables that will be set in the tasks environment
 	TaskEnv map[string]string
@@ -191,6 +192,28 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.JobName != "" {
 		t.TaskEnv[JobName] = t.JobName
+	}
+
+	// Build the addr of the other tasks
+	if t.Alloc != nil {
+		for taskName, resources := range t.Alloc.TaskResources {
+			if taskName == t.TaskName {
+				continue
+			}
+			for _, nw := range resources.Networks {
+				ports := make([]*structs.Port, 0, len(nw.ReservedPorts)+len(nw.DynamicPorts))
+				for _, port := range nw.ReservedPorts {
+					ports = append(ports, &port)
+				}
+				for _, port := range nw.DynamicPorts {
+					ports = append(ports, &port)
+				}
+				for _, p := range ports {
+					key := fmt.Sprintf("%s%s_%s", AddrPrefix, taskName, p.Label)
+					t.TaskEnv[key] = fmt.Sprintf("%s:%d", nw.IP, p.Value)
+				}
+			}
+		}
 	}
 
 	// Build the node
@@ -393,6 +416,7 @@ func (t *TaskEnvironment) SetAlloc(alloc *structs.Allocation) *TaskEnvironment {
 	t.AllocId = alloc.ID
 	t.AllocName = alloc.Name
 	t.AllocIndex = alloc.Index()
+	t.Alloc = alloc
 	return t
 }
 
