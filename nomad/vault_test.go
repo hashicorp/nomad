@@ -34,11 +34,52 @@ path "auth/token/roles/test" {
 	capabilities = ["read"]
 }
 
-path "auth/token/revoke-accessor/*" {
+path "auth/token/revoke-accessor" {
 	capabilities = ["update"]
 }
 `
 )
+
+// defaultTestVaultRoleAndToken creates a test Vault role and returns a token
+// created in that role
+func defaultTestVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+	d := make(map[string]interface{}, 2)
+	d["allowed_policies"] = "auth"
+	d["period"] = rolePeriod
+	return testVaultRoleAndToken(v, t, d, []string{"auth"})
+}
+
+// testVaultRoleAndToken creates a test Vault role with the specified data after
+// creating the auth policy. It then returns a token created in that role with
+// the passed policies
+func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, data map[string]interface{}, policies []string) string {
+	// Build the auth policy
+	sys := v.Client.Sys()
+	if err := sys.PutPolicy("auth", authPolicy); err != nil {
+		t.Fatalf("failed to create auth policy: %v", err)
+	}
+
+	// Build a role
+	l := v.Client.Logical()
+	l.Write("auth/token/roles/test", data)
+
+	// Create a new token with the role
+	a := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: policies,
+	}
+	s, err := a.CreateWithRole(&req, "test")
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	// Get the client token
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	return s.Auth.ClientToken
+}
 
 func TestVaultClient_BadConfig(t *testing.T) {
 	conf := &config.VaultConfig{}
@@ -102,7 +143,7 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 		"renewable":        true,
 		"explicit_max_ttl": 10,
 	}
-	v.Config.Token = testVaultRoleAndToken(v, t, data)
+	v.Config.Token = testVaultRoleAndToken(v, t, data, nil)
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
@@ -201,46 +242,6 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	if client.tokenData == nil || len(client.tokenData.Policies) != 2 {
 		t.Fatalf("unexpected token: %v", client.tokenData)
 	}
-}
-
-// defaultTestVaultRoleAndToken creates a test Vault role and returns a token
-// created in that role
-func defaultTestVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
-	d := make(map[string]interface{}, 2)
-	d["allowed_policies"] = "auth"
-	d["period"] = rolePeriod
-	return testVaultRoleAndToken(v, t, d)
-}
-
-// testVaultRoleAndToken creates a test Vault role with the specified data and
-// returns a token created in that role
-func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, data map[string]interface{}) string {
-	// Build the auth policy
-	sys := v.Client.Sys()
-	if err := sys.PutPolicy("auth", authPolicy); err != nil {
-		t.Fatalf("failed to create auth policy: %v", err)
-	}
-
-	// Build a role
-	l := v.Client.Logical()
-	l.Write("auth/token/roles/test", data)
-
-	// Create a new token with the role
-	a := v.Client.Auth().Token()
-	req := vapi.TokenCreateRequest{
-		Policies: []string{"auth"},
-	}
-	s, err := a.CreateWithRole(&req, "test")
-	if err != nil {
-		t.Fatalf("failed to create child token: %v", err)
-	}
-
-	// Get the client token
-	if s == nil || s.Auth == nil {
-		t.Fatalf("bad secret response: %+v", s)
-	}
-
-	return s.Auth.ClientToken
 }
 
 func TestVaultClient_RenewalLoop(t *testing.T) {
@@ -848,15 +849,14 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	}
 
 	// Lookup the token and make sure we get an error
+	if purged != 2 {
+		t.Fatalf("Expected purged 2; got %d", purged)
+	}
 	if s, err := auth.Lookup(t1.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
 	}
 	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
-	}
-
-	if purged != 2 {
-		t.Fatalf("Expected purged 2; got %d", purged)
 	}
 }
 

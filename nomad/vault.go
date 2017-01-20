@@ -56,7 +56,7 @@ const (
 	vaultTokenLookupPath = "auth/token/lookup"
 
 	// vaultTokenRevokePath is the path used to revoke a token
-	vaultTokenRevokePath = "auth/token/revoke-accessor/*"
+	vaultTokenRevokePath = "auth/token/revoke-accessor"
 
 	// vaultRoleLookupPath is the path to lookup a role
 	vaultRoleLookupPath = "auth/token/roles/%s"
