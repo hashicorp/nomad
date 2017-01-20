@@ -53,7 +53,8 @@ var (
 	recoverableErrTimeouts = func(err error) *structs.RecoverableError {
 		r := false
 		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
-			strings.Contains(err.Error(), "EOF") {
+			strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "no such image") {
 			r = true
 		}
 		return structs.NewRecoverableError(err, r)
