@@ -25,6 +25,21 @@ func (c *TokenAuth) Create(opts *TokenCreateRequest) (*Secret, error) {
 	return ParseSecret(resp.Body)
 }
 
+func (c *TokenAuth) CreateOrphan(opts *TokenCreateRequest) (*Secret, error) {
+	r := c.c.NewRequest("POST", "/v1/auth/token/create-orphan")
+	if err := r.SetJSONBody(opts); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.c.RawRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return ParseSecret(resp.Body)
+}
+
 func (c *TokenAuth) CreateWithRole(opts *TokenCreateRequest, roleName string) (*Secret, error) {
 	r := c.c.NewRequest("POST", "/v1/auth/token/create/"+roleName)
 	if err := r.SetJSONBody(opts); err != nil {
@@ -41,7 +56,12 @@ func (c *TokenAuth) CreateWithRole(opts *TokenCreateRequest, roleName string) (*
 }
 
 func (c *TokenAuth) Lookup(token string) (*Secret, error) {
-	r := c.c.NewRequest("GET", "/v1/auth/token/lookup/"+token)
+	r := c.c.NewRequest("POST", "/v1/auth/token/lookup")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"token": token,
+	}); err != nil {
+		return nil, err
+	}
 
 	resp, err := c.c.RawRequest(r)
 	if err != nil {
@@ -53,8 +73,12 @@ func (c *TokenAuth) Lookup(token string) (*Secret, error) {
 }
 
 func (c *TokenAuth) LookupAccessor(accessor string) (*Secret, error) {
-	r := c.c.NewRequest("POST", "/v1/auth/token/lookup-accessor/"+accessor)
-
+	r := c.c.NewRequest("POST", "/v1/auth/token/lookup-accessor")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"accessor": accessor,
+	}); err != nil {
+		return nil, err
+	}
 	resp, err := c.c.RawRequest(r)
 	if err != nil {
 		return nil, err
@@ -77,10 +101,11 @@ func (c *TokenAuth) LookupSelf() (*Secret, error) {
 }
 
 func (c *TokenAuth) Renew(token string, increment int) (*Secret, error) {
-	r := c.c.NewRequest("PUT", "/v1/auth/token/renew/"+token)
-
-	body := map[string]interface{}{"increment": increment}
-	if err := r.SetJSONBody(body); err != nil {
+	r := c.c.NewRequest("PUT", "/v1/auth/token/renew")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"token":     token,
+		"increment": increment,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +138,12 @@ func (c *TokenAuth) RenewSelf(increment int) (*Secret, error) {
 // RevokeAccessor revokes a token associated with the given accessor
 // along with all the child tokens.
 func (c *TokenAuth) RevokeAccessor(accessor string) error {
-	r := c.c.NewRequest("POST", "/v1/auth/token/revoke-accessor/"+accessor)
+	r := c.c.NewRequest("POST", "/v1/auth/token/revoke-accessor")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"accessor": accessor,
+	}); err != nil {
+		return err
+	}
 	resp, err := c.c.RawRequest(r)
 	if err != nil {
 		return err
@@ -126,7 +156,13 @@ func (c *TokenAuth) RevokeAccessor(accessor string) error {
 // RevokeOrphan revokes a token without revoking the tree underneath it (so
 // child tokens are orphaned rather than revoked)
 func (c *TokenAuth) RevokeOrphan(token string) error {
-	r := c.c.NewRequest("PUT", "/v1/auth/token/revoke-orphan/"+token)
+	r := c.c.NewRequest("PUT", "/v1/auth/token/revoke-orphan")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"token": token,
+	}); err != nil {
+		return err
+	}
+
 	resp, err := c.c.RawRequest(r)
 	if err != nil {
 		return err
@@ -136,7 +172,9 @@ func (c *TokenAuth) RevokeOrphan(token string) error {
 	return nil
 }
 
-// RevokeSelf revokes the token making the call
+// RevokeSelf revokes the token making the call. The `token` parameter is kept
+// for backwards compatibility but is ignored; only the client's set token has
+// an effect.
 func (c *TokenAuth) RevokeSelf(token string) error {
 	r := c.c.NewRequest("PUT", "/v1/auth/token/revoke-self")
 	resp, err := c.c.RawRequest(r)
@@ -152,7 +190,13 @@ func (c *TokenAuth) RevokeSelf(token string) error {
 // the entire tree underneath -- all of its child tokens, their child tokens,
 // etc.
 func (c *TokenAuth) RevokeTree(token string) error {
-	r := c.c.NewRequest("PUT", "/v1/auth/token/revoke/"+token)
+	r := c.c.NewRequest("PUT", "/v1/auth/token/revoke")
+	if err := r.SetJSONBody(map[string]interface{}{
+		"token": token,
+	}); err != nil {
+		return err
+	}
+
 	resp, err := c.c.RawRequest(r)
 	if err != nil {
 		return err

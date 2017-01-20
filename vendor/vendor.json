@@ -774,10 +774,10 @@
 			"revisionTime": "2016-08-21T23:40:57Z"
 		},
 		{
-			"checksumSHA1": "JH8wmQ8cWdn7mYu1T7gJ3IMIrec=",
+			"checksumSHA1": "31yBeS6U3xm7VJ7ZvDxRgBxXP0A=",
 			"path": "github.com/hashicorp/vault/api",
-			"revision": "182ba68a9589d4cef95234134aaa498a686e3de3",
-			"revisionTime": "2016-08-21T23:40:57Z"
+			"revision": "f4adc7fa960ed8e828f94bc6785bcdbae8d1b263",
+			"revisionTime": "2016-12-16T21:07:16Z"
 		},
 		{
 			"checksumSHA1": "5lR6EdY0ARRdKAq3hZcL38STD8Q=",
