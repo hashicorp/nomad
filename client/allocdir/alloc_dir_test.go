@@ -106,11 +106,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td1.Build(nil, cstructs.FSIsolationChroot); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationNone); err != nil {
+	if err := td2.Build(nil, cstructs.FSIsolationChroot); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -126,11 +126,12 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 		taskFile := filepath.Join(td.SharedTaskDir, filename)
 		act, err := ioutil.ReadFile(taskFile)
 		if err != nil {
-			t.Fatalf("Failed to read shared alloc file from task dir: %v", err)
+			t.Errorf("Failed to read shared alloc file from task dir: %v", err)
+			continue
 		}
 
 		if !bytes.Equal(act, contents) {
-			t.Fatalf("Incorrect data read from task dir: want %v; got %v", contents, act)
+			t.Errorf("Incorrect data read from task dir: want %v; got %v", contents, act)
 		}
 	}
 }

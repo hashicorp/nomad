@@ -89,9 +89,11 @@ func (t *TaskDir) Build(chroot map[string]string, fsi cstructs.FSIsolation) erro
 		}
 	}
 
-	// Only link alloc dir into task dir for no and chroot fs isolation.
+	// Only link alloc dir into task dir for chroot fs isolation.
 	// Image based isolation will bind the shared alloc dir in the driver.
-	if fsi == cstructs.FSIsolationNone || fsi == cstructs.FSIsolationChroot {
+	// If there's no isolation the task will use the host path to the
+	// shared alloc dir.
+	if fsi == cstructs.FSIsolationChroot {
 		if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
 			return fmt.Errorf("Failed to mount shared directory for task: %v", err)
 		}
