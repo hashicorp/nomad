@@ -52,42 +52,42 @@ const (
 	// ones token.
 	vaultCapabilitiesLookupPath = "/sys/capabilities-self"
 
-	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
-	// token on the the path.
-	vaultCapabilitiesCapability = "update"
-
 	// vaultTokenLookupPath is the path used to lookup a token
 	vaultTokenLookupPath = "auth/token/lookup"
 
-	// vaultTokenLookupCapability is the expected capability Nomad's
-	// Vault token should have on the path
-	vaultTokenLookupCapability = "update"
-
 	// vaultTokenRevokePath is the path used to revoke a token
-	vaultTokenRevokePath = "/auth/token/revoke-accessor/*"
-
-	// vaultTokenRevokeCapability is the expected capability Nomad's
-	// Vault token should have on the path
-	vaultTokenRevokeCapability = "update"
+	vaultTokenRevokePath = "auth/token/revoke-accessor/*"
 
 	// vaultRoleLookupPath is the path to lookup a role
 	vaultRoleLookupPath = "auth/token/roles/%s"
 
-	// vaultRoleLookupCapability is the the expected capability Nomad's Vault
-	// token should have on the path
-	vaultRoleLookupCapability = "read"
-
 	// vaultRoleCreatePath is the path to create a token from a role
 	vaultTokenRoleCreatePath = "auth/token/create/%s"
-
-	// vaultTokenRoleCreateCapability is the the expected capability Nomad's Vault
-	// token should have on the path
-	vaultTokenRoleCreateCapability = "update"
 )
 
 var (
 	// vaultUnrecoverableError matches unrecoverable errors
 	vaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
+
+	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
+	// token on the the path.
+	vaultCapabilitiesCapability = []string{"update", "root"}
+
+	// vaultTokenLookupCapability is the expected capability Nomad's
+	// Vault token should have on the path
+	vaultTokenLookupCapability = []string{"update", "root"}
+
+	// vaultTokenRevokeCapability is the expected capability Nomad's
+	// Vault token should have on the path
+	vaultTokenRevokeCapability = []string{"update", "root"}
+
+	// vaultRoleLookupCapability is the the expected capability Nomad's Vault
+	// token should have on the path
+	vaultRoleLookupCapability = []string{"read", "root"}
+
+	// vaultTokenRoleCreateCapability is the the expected capability Nomad's Vault
+	// token should have on the path
+	vaultTokenRoleCreateCapability = []string{"update", "root"}
 )
 
 // VaultClient is the Servers interface for interfacing with Vault
@@ -533,7 +533,7 @@ func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 func (v *vaultClient) parseSelfToken() error {
 	// Get the initial lease duration
 	auth := v.client.Auth().Token()
-	self, err := auth.LookupSelf()
+	self, err := auth.Lookup(v.client.Token())
 	if err != nil {
 		return fmt.Errorf("failed to lookup Vault periodic token: %v", err)
 	}
@@ -633,7 +633,7 @@ func (v *vaultClient) getRole() string {
 func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	// Check if the token can lookup capabilities.
 	var mErr multierror.Error
-	_, err := v.hasCapability(vaultCapabilitiesLookupPath, vaultCapabilitiesCapability)
+	_, _, err := v.hasCapability(vaultCapabilitiesLookupPath, vaultCapabilitiesCapability)
 	if err != nil {
 		// Check if there is a permission denied
 		if vaultUnrecoverableError.MatchString(err.Error()) {
@@ -650,14 +650,15 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 		}
 	}
 
-	// verify is a helper function that verifies the token has the capability on
-	// the given path and adds an issue to the error
-	verify := func(path, capability string) {
-		ok, err := v.hasCapability(path, capability)
+	// verify is a helper function that verifies the token has one of the
+	// capabilities on the given path and adds an issue to the error
+	verify := func(path string, requiredCaps []string) {
+		ok, caps, err := v.hasCapability(path, requiredCaps)
 		if err != nil {
 			multierror.Append(&mErr, err)
 		} else if !ok {
-			multierror.Append(&mErr, fmt.Errorf("token doesn't have %q capability on %q", capability, path))
+			multierror.Append(&mErr,
+				fmt.Errorf("token must have one of the following capabilities %v on %q; has %v", requiredCaps, path, caps))
 		}
 	}
 
@@ -681,19 +682,22 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	return mErr.ErrorOrNil()
 }
 
-// hasCapability takes a path and returns whether the token has the required
-// capability at the given path.
-func (v *vaultClient) hasCapability(path string, required string) (bool, error) {
+// hasCapability takes a path and returns whether the token has at least one of
+// the required capabilities on the given path. It also returns the set of
+// capabilities the token does have as well as any error that occured.
+func (v *vaultClient) hasCapability(path string, required []string) (bool, []string, error) {
 	caps, err := v.client.Sys().CapabilitiesSelf(path)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	for _, c := range caps {
-		if c == required {
-			return true, nil
+		for _, r := range required {
+			if c == r {
+				return true, caps, nil
+			}
 		}
 	}
-	return false, nil
+	return false, caps, nil
 }
 
 // validateRole contacts Vault and checks that the given Vault role is valid for

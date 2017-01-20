@@ -26,15 +26,15 @@ const (
 	capabilities = ["create", "update"]
 }
 
-path "auth/token/lookup/*" {
-	capabilities = ["read"]
+path "auth/token/lookup" {
+	capabilities = ["update"]
 }
 
 path "auth/token/roles/test" {
 	capabilities = ["read"]
 }
 
-path "/auth/token/revoke-accessor/*" {
+path "auth/token/revoke-accessor/*" {
 	capabilities = ["update"]
 }
 `
@@ -227,7 +227,9 @@ func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, data map[string]
 
 	// Create a new token with the role
 	a := v.Client.Auth().Token()
-	req := vapi.TokenCreateRequest{}
+	req := vapi.TokenCreateRequest{
+		Policies: []string{"auth"},
+	}
 	s, err := a.CreateWithRole(&req, "test")
 	if err != nil {
 		t.Fatalf("failed to create child token: %v", err)
