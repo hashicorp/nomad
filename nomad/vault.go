@@ -52,6 +52,9 @@ const (
 	// ones token.
 	vaultCapabilitiesLookupPath = "/sys/capabilities-self"
 
+	// vaultTokenRenewPath is the path used to renew our token
+	vaultTokenRenewPath = "auth/token/renew-self"
+
 	// vaultTokenLookupPath is the path used to lookup a token
 	vaultTokenLookupPath = "auth/token/lookup"
 
@@ -73,6 +76,11 @@ var (
 	// token on the the path. The token must have at least one of the
 	// capabilities.
 	vaultCapabilitiesCapability = []string{"update", "root"}
+
+	// vaultTokenRenewCapability is the expected capability Nomad's
+	// Vault token should have on the path. The token must have at least one of
+	// the capabilities.
+	vaultTokenRenewCapability = []string{"update", "root"}
 
 	// vaultTokenLookupCapability is the expected capability Nomad's
 	// Vault token should have on the path. The token must have at least one of
@@ -458,7 +466,7 @@ func (v *vaultClient) renewalLoop() {
 
 			// Set base values and add some backoff
 
-			v.logger.Printf("[DEBUG] vault: got error or bad auth, so backing off: %v", err)
+			v.logger.Printf("[WARN] vault: got error or bad auth, so backing off: %v", err)
 			switch {
 			case backoff < 5:
 				backoff = 5
@@ -673,6 +681,9 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	if !v.config.AllowsUnauthenticated() {
 		verify(vaultTokenLookupPath, vaultTokenLookupCapability)
 	}
+
+	// Verify we can renew our selves tokens
+	verify(vaultTokenRenewPath, vaultTokenRenewCapability)
 
 	// Verify we can revoke tokens
 	verify(vaultTokenRevokePath, vaultTokenRevokeCapability)
