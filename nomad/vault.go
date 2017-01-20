@@ -70,23 +70,28 @@ var (
 	vaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
 
 	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
-	// token on the the path.
+	// token on the the path. The token must have at least one of the
+	// capabilities.
 	vaultCapabilitiesCapability = []string{"update", "root"}
 
 	// vaultTokenLookupCapability is the expected capability Nomad's
-	// Vault token should have on the path
+	// Vault token should have on the path. The token must have at least one of
+	// the capabilities.
 	vaultTokenLookupCapability = []string{"update", "root"}
 
 	// vaultTokenRevokeCapability is the expected capability Nomad's
-	// Vault token should have on the path
+	// Vault token should have on the path. The token must have at least one of
+	// the capabilities.
 	vaultTokenRevokeCapability = []string{"update", "root"}
 
 	// vaultRoleLookupCapability is the the expected capability Nomad's Vault
-	// token should have on the path
+	// token should have on the path. The token must have at least one of the
+	// capabilities.
 	vaultRoleLookupCapability = []string{"read", "root"}
 
 	// vaultTokenRoleCreateCapability is the the expected capability Nomad's Vault
-	// token should have on the path
+	// token should have on the path. The token must have at least one of the
+	// capabilities.
 	vaultTokenRoleCreateCapability = []string{"update", "root"}
 )
 
@@ -552,6 +557,7 @@ func (v *vaultClient) parseSelfToken() error {
 		}
 	}
 
+	// Store the token data
 	data.Root = root
 	v.tokenData = &data
 
@@ -641,7 +647,8 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 			// can't tell if the Vault token will work
 			msg := fmt.Sprintf("Can not lookup token capabilities. "+
 				"As such certain operations may fail in the future. "+
-				"Please give Nomad a Vault token with %q on %q",
+				"Please give Nomad a Vault token with one of the following "+
+				"capabilities %q on %q so that the required capabilities can be verified",
 				vaultCapabilitiesCapability, vaultCapabilitiesLookupPath)
 			v.logger.Printf("[WARN] vault: %s", msg)
 			return nil
@@ -658,7 +665,7 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 			multierror.Append(&mErr, err)
 		} else if !ok {
 			multierror.Append(&mErr,
-				fmt.Errorf("token must have one of the following capabilities %v on %q; has %v", requiredCaps, path, caps))
+				fmt.Errorf("token must have one of the following capabilities %q on %q; has %v", requiredCaps, path, caps))
 		}
 	}
 
