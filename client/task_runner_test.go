@@ -1305,3 +1305,53 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		t.Fatalf("Bad; got %v; want %v", string(data), string(expected))
 	}
 }
+
+func TestTaskRunner_CleanupOK(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	key := "ERR"
+
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.config.Options = map[string]string{
+		"cleanup_fail_on":  key,
+		"cleanup_fail_num": "1",
+	}
+	ctx.tr.MarkReceived()
+
+	ctx.tr.createdResources.Resources[key] = []string{"x", "y"}
+	ctx.tr.createdResources.Resources["foo"] = []string{"z"}
+
+	defer ctx.Cleanup()
+	ctx.tr.Run()
+
+	// Since we only failed once, createdResources should be empty
+	if len(ctx.tr.createdResources.Resources) > 0 {
+		t.Fatalf("expected all created resources to be removed: %#v", ctx.tr.createdResources.Resources)
+	}
+}
+
+func TestTaskRunner_CleanupFail(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	key := "ERR"
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.config.Options = map[string]string{
+		"cleanup_fail_on":  key,
+		"cleanup_fail_num": "5",
+	}
+	ctx.tr.MarkReceived()
+
+	ctx.tr.createdResources.Resources[key] = []string{"x"}
+	ctx.tr.createdResources.Resources["foo"] = []string{"y", "z"}
+
+	defer ctx.Cleanup()
+	ctx.tr.Run()
+
+	// Since we failed > 3 times, the failed key should remain
+	expected := map[string][]string{key: {"x"}}
+	if !reflect.DeepEqual(expected, ctx.tr.createdResources.Resources) {
+		t.Fatalf("expected %#v but found: %#v", expected, ctx.tr.createdResources.Resources)
+	}
+}

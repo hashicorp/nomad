@@ -77,7 +77,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -126,7 +126,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -180,7 +180,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -233,7 +233,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -286,7 +286,7 @@ func TestRawExecDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)
@@ -335,7 +335,7 @@ done
 		fmt.Errorf("Failed to write data")
 	}
 
-	if err := d.Prestart(ctx.ExecCtx, task); err != nil {
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
 	handle, err := d.Start(ctx.ExecCtx, task)

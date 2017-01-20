@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1537,5 +1538,23 @@ func TestDispatchInputConfig_Validate(t *testing.T) {
 	d.File = "../../../haha"
 	if err := d.Validate(); err == nil {
 		t.Fatalf("bad: %v", err)
+	}
+}
+
+func TestIsRecoverable(t *testing.T) {
+	if IsRecoverable(nil) {
+		t.Errorf("nil should not be recoverable")
+	}
+	if IsRecoverable(NewRecoverableError(nil, true)) {
+		t.Errorf("NewRecoverableError(nil, true) should not be recoverable")
+	}
+	if IsRecoverable(fmt.Errorf("i promise im recoverable")) {
+		t.Errorf("Custom errors should not be recoverable")
+	}
+	if IsRecoverable(NewRecoverableError(fmt.Errorf(""), false)) {
+		t.Errorf("Explicitly unrecoverable errors should not be recoverable")
+	}
+	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
+		t.Errorf("Explicitly recoverable errors *should* be recoverable")
 	}
 }

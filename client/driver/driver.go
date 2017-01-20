@@ -51,6 +51,100 @@ func NewDriver(name string, ctx *DriverContext) (Driver, error) {
 // Factory is used to instantiate a new Driver
 type Factory func(*DriverContext) Driver
 
+// CreatedResources is a map of resources (eg downloaded images) created by a driver
+// that must be cleaned up.
+type CreatedResources struct {
+	Resources map[string][]string
+}
+
+func NewCreatedResources() *CreatedResources {
+	return &CreatedResources{Resources: make(map[string][]string)}
+}
+
+// Add a new resource if it doesn't already exist.
+func (r *CreatedResources) Add(k, v string) {
+	if r.Resources == nil {
+		r.Resources = map[string][]string{k: []string{v}}
+		return
+	}
+	existing, ok := r.Resources[k]
+	if !ok {
+		// Key doesn't exist, create it
+		r.Resources[k] = []string{v}
+		return
+	}
+	for _, item := range existing {
+		if item == v {
+			// resource exists, return
+			return
+		}
+	}
+
+	// Resource type exists but value did not, append it
+	r.Resources[k] = append(existing, v)
+	return
+}
+
+// Remove a resource. Return true if removed, otherwise false.
+//
+// Removes the entire key if the needle is the last value in the list.
+func (r *CreatedResources) Remove(k, needle string) bool {
+	haystack := r.Resources[k]
+	for i, item := range haystack {
+		if item == needle {
+			r.Resources[k] = append(haystack[:i], haystack[i+1:]...)
+			if len(r.Resources[k]) == 0 {
+				delete(r.Resources, k)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// Copy returns a new deep copy of CreatedResrouces.
+func (r *CreatedResources) Copy() *CreatedResources {
+	newr := CreatedResources{
+		Resources: make(map[string][]string, len(r.Resources)),
+	}
+	for k, v := range r.Resources {
+		newv := make([]string, len(v))
+		copy(newv, v)
+		newr.Resources[k] = newv
+	}
+	return &newr
+}
+
+// Merge another CreatedResources into this one. If the other CreatedResources
+// is nil this method is a noop.
+func (r *CreatedResources) Merge(o *CreatedResources) {
+	if o == nil {
+		return
+	}
+
+	for k, v := range o.Resources {
+		// New key
+		if len(r.Resources[k]) == 0 {
+			r.Resources[k] = v
+			continue
+		}
+
+		// Existing key
+	OUTER:
+		for _, item := range v {
+			for _, existing := range r.Resources[k] {
+				if item == existing {
+					// Found it, move on
+					continue OUTER
+				}
+			}
+
+			// New item, append it
+			r.Resources[k] = append(r.Resources[k], item)
+		}
+	}
+}
+
 // Driver is used for execution of tasks. This allows Nomad
 // to support many pluggable implementations of task drivers.
 // Examples could include LXC, Docker, Qemu, etc.
@@ -60,13 +154,23 @@ type Driver interface {
 
 	// Prestart prepares the task environment and performs expensive
 	// intialization steps like downloading images.
-	Prestart(*ExecContext, *structs.Task) error
+	//
+	// CreatedResources may be non-nil even when an error occurs.
+	Prestart(*ExecContext, *structs.Task) (*CreatedResources, error)
 
 	// Start is used to being task execution
 	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
+
+	// Cleanup is called to remove resources which were created for a task
+	// and no longer needed.
+	//
+	// If Cleanup returns a recoverable error it may be retried. On retry
+	// it will be passed the same CreatedResources, so all successfully
+	// cleaned up resources should be removed.
+	Cleanup(*ExecContext, *CreatedResources) error
 
 	// Drivers must validate their configuration
 	Validate(map[string]interface{}) error

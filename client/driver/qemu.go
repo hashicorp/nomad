@@ -136,8 +136,8 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *QemuDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
@@ -335,6 +335,8 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	go h.run()
 	return h, nil
 }
+
+func (d *QemuDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 func (h *qemuHandle) ID() string {
 	id := qemuId{

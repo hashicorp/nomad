@@ -92,8 +92,8 @@ func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *ExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -166,6 +166,8 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	go h.run()
 	return h, nil
 }
+
+func (d *ExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type execId struct {
 	Version         string

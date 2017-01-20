@@ -171,8 +171,8 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	return true, nil
 }
 
-func (d *LxcDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 // Start starts the LXC Driver
@@ -285,6 +285,8 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	return &handle, nil
 }
+
+func (d *LxcDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 // Open creates the driver to monitor an existing LXC container
 func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {

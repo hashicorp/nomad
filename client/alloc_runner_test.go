@@ -405,6 +405,10 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Ensure ar1 doesn't recreate the state file
+	ar.persistLock.Lock()
+	defer ar.persistLock.Unlock()
+
 	// Ensure both alloc runners don't destroy
 	ar.destroy = true
 

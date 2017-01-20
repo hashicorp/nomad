@@ -106,8 +106,8 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 	return false, nil
 }
 
-func (d *RawExecDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -176,6 +176,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	go h.run()
 	return h, nil
 }
+
+func (d *RawExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type rawExecId struct {
 	Version        string

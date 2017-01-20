@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -62,6 +63,8 @@ type MockDriverConfig struct {
 type MockDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+
+	cleanupFailNum int
 }
 
 // NewMockDriver is a factory method which returns a new Mock Driver
@@ -79,8 +82,8 @@ func (d *MockDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationNone
 }
 
-func (d *MockDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 // Start starts the mock driver
@@ -122,6 +125,24 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	m.logger.Printf("[DEBUG] driver.mock: starting task %q", task.Name)
 	go h.run()
 	return &h, nil
+}
+
+// Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for
+// Config.Options["cleanup_fail_num"] times. For failures it will return a
+// recoverable error.
+func (m *MockDriver) Cleanup(ctx *ExecContext, res *CreatedResources) error {
+	var err error
+	failn, _ := strconv.Atoi(m.config.Options["cleanup_fail_num"])
+	failk := m.config.Options["cleanup_fail_on"]
+	for k := range res.Resources {
+		if k == failk && m.cleanupFailNum < failn {
+			m.cleanupFailNum++
+			err = structs.NewRecoverableError(fmt.Errorf("mock_driver failure on %q call %d/%d", k, m.cleanupFailNum, failn), true)
+		} else {
+			delete(res.Resources, k)
+		}
+	}
+	return err
 }
 
 // Validate validates the mock driver configuration

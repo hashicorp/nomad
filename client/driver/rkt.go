@@ -207,8 +207,8 @@ func (d *RktDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 // Run an existing Rkt image.
@@ -450,6 +450,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	go h.run()
 	return h, nil
 }
+
+func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
 	// Parse the handle

@@ -167,8 +167,8 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *JavaDriver) Prestart(ctx *ExecContext, task *structs.Task) error {
-	return nil
+func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+	return nil, nil
 }
 
 func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDriverConfig, error) {
@@ -292,6 +292,8 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	go h.run()
 	return h, nil
 }
+
+func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 // cgroupsMounted returns true if the cgroups are mounted on a system otherwise
 // returns false
