@@ -310,9 +310,11 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 		env.SetVaultToken(vaultToken, task.Vault.Env)
 	}
 
-	// Set the host environment variables.
-	filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	env.AppendHostEnvvars(filter)
+	// Set the host environment variables for non-image based drivers
+	if drv.FSIsolation() != cstructs.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		env.AppendHostEnvvars(filter)
+	}
 
 	return env.Build(), nil
 }

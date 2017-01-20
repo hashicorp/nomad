@@ -17,6 +17,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * client: Fix issue where allocations weren't pulled for several minutes. This
     manifested as slow starts, delayed kills, etc [GH-2177]
+  * driver: Fix image based drivers (eg docker) having host env vars set [GH-2211]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
 
 ## 0.5.2 (December 23, 2016)

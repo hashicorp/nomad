@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -127,10 +128,12 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	return &testContext{allocDir, driverCtx, execCtx}
 }
 
-func TestDriver_GetTaskEnv(t *testing.T) {
+// setupTaskEnv creates a test env for GetTaskEnv testing. Returns task dir,
+// expected env, and actual env.
+func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]string, map[string]string) {
 	task := &structs.Task{
 		Name:   "Foo",
-		Driver: "mock_driver",
+		Driver: driver,
 		Env: map[string]string{
 			"HELLO": "world",
 			"lorem": "ipsum",
@@ -157,7 +160,8 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	alloc.Name = "Bar"
 	conf := testConfig()
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
-	env, err := GetTaskEnv(allocDir.NewTaskDir(task.Name), nil, task, alloc, conf, "")
+	taskDir := allocDir.NewTaskDir(task.Name)
+	env, err := GetTaskEnv(taskDir, nil, task, alloc, conf, "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
@@ -195,6 +199,16 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 	}
 
 	act := env.EnvMap()
+	return taskDir, exp, act
+}
+
+func TestDriver_GetTaskEnv_None(t *testing.T) {
+	taskDir, exp, act := setupTaskEnv(t, "raw_exec")
+
+	// raw_exec should use host alloc dir path
+	exp[env.AllocDir] = taskDir.SharedAllocDir
+	exp[env.TaskLocalDir] = taskDir.LocalDir
+	exp[env.SecretsDir] = taskDir.SecretsDir
 
 	// Since host env vars are included only ensure expected env vars are present
 	for expk, expv := range exp {
@@ -206,6 +220,67 @@ func TestDriver_GetTaskEnv(t *testing.T) {
 		if v != expv {
 			t.Errorf("Expected %s=%q but found %q", expk, expv, v)
 		}
+	}
+
+	// Make sure common host env vars are included.
+	for _, envvar := range [...]string{"PATH", "HOME", "USER"} {
+		if exp := os.Getenv(envvar); act[envvar] != exp {
+			t.Errorf("Expected envvar %s=%q  !=  %q", envvar, exp, act[envvar])
+		}
+	}
+}
+
+func TestDriver_GetTaskEnv_Chroot(t *testing.T) {
+	_, exp, act := setupTaskEnv(t, "exec")
+
+	exp[env.AllocDir] = allocdir.SharedAllocContainerPath
+	exp[env.TaskLocalDir] = allocdir.TaskLocalContainerPath
+	exp[env.SecretsDir] = allocdir.TaskSecretsContainerPath
+
+	// Since host env vars are included only ensure expected env vars are present
+	for expk, expv := range exp {
+		v, ok := act[expk]
+		if !ok {
+			t.Errorf("%q not found in task env", expk)
+			continue
+		}
+		if v != expv {
+			t.Errorf("Expected %s=%q but found %q", expk, expv, v)
+		}
+	}
+
+	// Make sure common host env vars are included.
+	for _, envvar := range [...]string{"PATH", "HOME", "USER"} {
+		if exp := os.Getenv(envvar); act[envvar] != exp {
+			t.Errorf("Expected envvar %s=%q  !=  %q", envvar, exp, act[envvar])
+		}
+	}
+}
+
+// TestDriver_GetTaskEnv_Image ensures host environment variables are not set
+// for image based drivers. See #2211
+func TestDriver_GetTaskEnv_Image(t *testing.T) {
+	_, exp, act := setupTaskEnv(t, "docker")
+
+	exp[env.AllocDir] = allocdir.SharedAllocContainerPath
+	exp[env.TaskLocalDir] = allocdir.TaskLocalContainerPath
+	exp[env.SecretsDir] = allocdir.TaskSecretsContainerPath
+
+	// Since host env vars are excluded expected and actual maps should be equal
+	for expk, expv := range exp {
+		v, ok := act[expk]
+		delete(act, expk)
+		if !ok {
+			t.Errorf("Env var %s missing. Expected %s=%q", expk, expk, expv)
+			continue
+		}
+		if v != expv {
+			t.Errorf("Env var %s=%q -- Expected %q", expk, v, expk)
+		}
+	}
+	// Any remaining env vars are unexpected
+	for actk, actv := range act {
+		t.Errorf("Env var %s=%q is unexpected", actk, actv)
 	}
 }
 
