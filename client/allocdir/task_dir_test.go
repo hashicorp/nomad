@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // Test that building a chroot will skip nonexistent directories.
@@ -80,5 +82,28 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
 			t.Fatalf("File %v not embeded: %v", f, err)
 		}
+	}
+}
+
+// Test that task dirs for image based isolation don't require root.
+func TestTaskDir_NonRoot(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("test should be run as non-root user")
+	}
+	tmp, err := ioutil.TempDir("", "AllocDir")
+	if err != nil {
+		t.Fatalf("Couldn't create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d := NewAllocDir(testLogger(), tmp)
+	defer d.Destroy()
+	td := d.NewTaskDir(t1.Name)
+	if err := d.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
+
+	if err := td.Build(nil, cstructs.FSIsolationImage); err != nil {
+		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
 }

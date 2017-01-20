@@ -1,8 +1,5 @@
 ## 0.5.3 (Unreleased) 
 
-__BACKWARDS INCOMPATIBILITIES:__
-  * Client must be run as user with ability to call mount syscall
-
 IMPROVEMENTS:
   * core: Introduce Parameterized Jobs and Dispatch command/API [GH-2128]
   * core: Cancel blocked evals upon successful one for job [GH-2155]
