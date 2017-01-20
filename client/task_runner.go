@@ -1037,11 +1037,7 @@ func (r *TaskRunner) cleanup() {
 	attempts := 1
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
-		retry = false
 		cleanupErr = drv.Cleanup(ctx, res)
-		if cleanupErr == nil {
-			return
-		}
 		retry = structs.IsRecoverable(cleanupErr)
 
 		// Copy current createdResources state in case SaveState is
@@ -1051,7 +1047,7 @@ func (r *TaskRunner) cleanup() {
 		r.createdResourcesLock.Unlock()
 
 		// Retry 3 times with sleeps between
-		if attempts > 3 {
+		if !retry || attempts > 3 {
 			break
 		}
 		time.Sleep(time.Duration(attempts) * time.Second)
