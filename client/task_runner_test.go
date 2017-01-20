@@ -1256,7 +1256,7 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	task.DispatchInput = &structs.DispatchInputConfig{
 		File: fileName,
 	}
-	alloc.Job.Constructor = &structs.ConstructorConfig{}
+	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 	// Add an encrypted payload
 	expected := []byte("hello world")

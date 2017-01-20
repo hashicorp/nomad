@@ -1479,8 +1479,8 @@ func TestVault_Validate(t *testing.T) {
 	}
 }
 
-func TestConstructorConfig_Validate(t *testing.T) {
-	d := &ConstructorConfig{
+func TestParameterizedJobConfig_Validate(t *testing.T) {
+	d := &ParameterizedJobConfig{
 		Payload: "foo",
 	}
 
@@ -1497,9 +1497,9 @@ func TestConstructorConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestConstructorConfig_Validate_NonBatch(t *testing.T) {
+func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	job := testJob()
-	job.Constructor = &ConstructorConfig{
+	job.ParameterizedJob = &ParameterizedJobConfig{
 		Payload: DispatchPayloadOptional,
 	}
 	job.Type = JobTypeSystem
@@ -1509,8 +1509,8 @@ func TestConstructorConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
-func TestConstructorConfig_Canonicalize(t *testing.T) {
-	d := &ConstructorConfig{}
+func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
+	d := &ParameterizedJobConfig{}
 	d.Canonicalize()
 	if d.Payload != DispatchPayloadOptional {
 		t.Fatalf("Canonicalize failed")

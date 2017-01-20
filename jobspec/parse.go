@@ -105,7 +105,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 	delete(m, "update")
 	delete(m, "periodic")
 	delete(m, "vault")
-	delete(m, "constructor")
+	delete(m, "parameterized")
 
 	// Set the ID and name to the object key
 	result.ID = obj.Keys[0].Token.Value().(string)
@@ -134,7 +134,7 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"datacenters",
-		"constructor",
+		"parameterized",
 		"group",
 		"id",
 		"meta",
@@ -173,10 +173,10 @@ func parseJob(result *structs.Job, list *ast.ObjectList) error {
 		}
 	}
 
-	// If we have a constructor definition, then parse that
-	if o := listVal.Filter("constructor"); len(o.Items) > 0 {
-		if err := parseConstructor(&result.Constructor, o); err != nil {
-			return multierror.Prefix(err, "constructor ->")
+	// If we have a parameterized definition, then parse that
+	if o := listVal.Filter("parameterized"); len(o.Items) > 0 {
+		if err := parseParameterizedJob(&result.ParameterizedJob, o); err != nil {
+			return multierror.Prefix(err, "parameterized ->")
 		}
 	}
 
@@ -1245,10 +1245,10 @@ func parseVault(result *structs.Vault, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseConstructor(result **structs.ConstructorConfig, list *ast.ObjectList) error {
+func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'constructor' block allowed per job")
+		return fmt.Errorf("only one 'parameterized' block allowed per job")
 	}
 
 	// Get our resource object
@@ -1270,8 +1270,8 @@ func parseConstructor(result **structs.ConstructorConfig, list *ast.ObjectList) 
 		return err
 	}
 
-	// Build the constructor block
-	var d structs.ConstructorConfig
+	// Build the parameterized job block
+	var d structs.ParameterizedJobConfig
 	if err := mapstructure.WeakDecode(m, &d); err != nil {
 		return err
 	}
@@ -1280,7 +1280,7 @@ func parseConstructor(result **structs.ConstructorConfig, list *ast.ObjectList) 
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
 		listVal = ot.List
 	} else {
-		return fmt.Errorf("constructor block should be an object")
+		return fmt.Errorf("parameterized block should be an object")
 	}
 
 	// Parse the meta block

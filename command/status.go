@@ -133,14 +133,14 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if it is periodic or a constructor job
+	// Check if it is periodic or a parameterized job
 	sJob, err := convertApiJob(job)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
 	}
 	periodic := sJob.IsPeriodic()
-	constructor := sJob.IsConstructor()
+	parameterized := sJob.IsParameterized()
 
 	// Format the job info
 	basic := []string{
@@ -151,7 +151,7 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Status|%s", job.Status),
 		fmt.Sprintf("Periodic|%v", periodic),
-		fmt.Sprintf("Constructor|%v", constructor),
+		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
 	if periodic {
@@ -175,8 +175,8 @@ func (c *StatusCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
-	} else if constructor {
-		if err := c.outputConstructorInfo(client, job); err != nil {
+	} else if parameterized {
+		if err := c.outputParameterizedInfo(client, job); err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
@@ -229,16 +229,16 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	return nil
 }
 
-// outputConstructorInfo prints information about the passed constructor job. If a
+// outputParameterizedInfo prints information about a parameterized job. If a
 // request fails, an error is returned.
-func (c *StatusCommand) outputConstructorInfo(client *api.Client, job *api.Job) error {
-	// Output constructor details
-	c.Ui.Output(c.Colorize().Color("\n[bold]Constructor[reset]"))
-	constructor := make([]string, 3)
-	constructor[0] = fmt.Sprintf("Payload|%s", job.Constructor.Payload)
-	constructor[1] = fmt.Sprintf("Required Metadata|%v", strings.Join(job.Constructor.MetaRequired, ", "))
-	constructor[2] = fmt.Sprintf("Optional Metadata|%v", strings.Join(job.Constructor.MetaOptional, ", "))
-	c.Ui.Output(formatKV(constructor))
+func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job) error {
+	// Output parameterized job details
+	c.Ui.Output(c.Colorize().Color("\n[bold]Parameterized Job[reset]"))
+	parameterizedJob := make([]string, 3)
+	parameterizedJob[0] = fmt.Sprintf("Payload|%s", job.ParameterizedJob.Payload)
+	parameterizedJob[1] = fmt.Sprintf("Required Metadata|%v", strings.Join(job.ParameterizedJob.MetaRequired, ", "))
+	parameterizedJob[2] = fmt.Sprintf("Optional Metadata|%v", strings.Join(job.ParameterizedJob.MetaOptional, ", "))
+	c.Ui.Output(formatKV(parameterizedJob))
 
 	// Output the summary
 	if err := c.outputJobSummary(client, job); err != nil {
@@ -246,14 +246,14 @@ func (c *StatusCommand) outputConstructorInfo(client *api.Client, job *api.Job) 
 	}
 
 	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", job.ID, structs.DispatchLaunchSuffic)
+	prefix := fmt.Sprintf("%s%s", job.ID, structs.DispatchLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
 	}
 
 	if len(children) == 0 {
-		c.Ui.Output("\nNo dispatched instances of constructor job found")
+		c.Ui.Output("\nNo dispatched instances of parameterized job found")
 		return nil
 	}
 
@@ -381,10 +381,10 @@ func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error
 	}
 
 	periodic := sJob.IsPeriodic()
-	constructor := sJob.IsConstructor()
+	parameterizedJob := sJob.IsParameterized()
 
 	// Print the summary
-	if !periodic && !constructor {
+	if !periodic && !parameterizedJob {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
 		summaries := make([]string, len(summary.Summary)+1)
 		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
@@ -404,11 +404,11 @@ func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error
 		c.Ui.Output(formatList(summaries))
 	}
 
-	// Always display the summary if we are periodic or a constructor job
-	// but only display if the summary is non-zero on normal jobs
-	if summary.Children != nil && (constructor || periodic || summary.Children.Sum() > 0) {
-		if constructor {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Dispatched Job Summary[reset]"))
+	// Always display the summary if we are periodic or parameterized, but
+	// only display if the summary is non-zero on normal jobs
+	if summary.Children != nil && (parameterizedJob || periodic || summary.Children.Sum() > 0) {
+		if parameterizedJob {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Parameterized Job Summary[reset]"))
 		} else {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Children Job Summary[reset]"))
 		}

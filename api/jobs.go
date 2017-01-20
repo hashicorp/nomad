@@ -213,8 +213,8 @@ type PeriodicConfig struct {
 	ProhibitOverlap bool
 }
 
-// ConstructorConfig is used to configure the constructor job
-type ConstructorConfig struct {
+// ParameterizedJobConfig is used to configure the parameterized job.
+type ParameterizedJobConfig struct {
 	Payload      string
 	MetaRequired []string
 	MetaOptional []string
@@ -234,7 +234,7 @@ type Job struct {
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
-	Constructor       *ConstructorConfig
+	ParameterizedJob  *ParameterizedJobConfig
 	Payload           []byte
 	Meta              map[string]string
 	VaultToken        string

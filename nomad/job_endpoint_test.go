@@ -278,7 +278,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Register_Constructor(t *testing.T) {
+func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -286,10 +286,10 @@ func TestJobEndpoint_Register_Constructor(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request for a constructor job.
+	// Create the register request for a parameterized job.
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	job.Constructor = &structs.ConstructorConfig{}
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -317,7 +317,7 @@ func TestJobEndpoint_Register_Constructor(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 	if resp.EvalID != "" {
-		t.Fatalf("Register created an eval for a constructor job")
+		t.Fatalf("Register created an eval for a parameterized job")
 	}
 }
 
@@ -786,7 +786,7 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Evaluate_Constructor(t *testing.T) {
+func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -797,7 +797,7 @@ func TestJobEndpoint_Evaluate_Constructor(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	job.Constructor = &structs.ConstructorConfig{}
+	job.ParameterizedJob = &structs.ParameterizedJoConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -1004,7 +1004,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Deregister_Constructor(t *testing.T) {
+func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1015,7 +1015,7 @@ func TestJobEndpoint_Deregister_Constructor(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	job.Constructor = &structs.ConstructorConfig{}
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	reg := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -1051,7 +1051,7 @@ func TestJobEndpoint_Deregister_Constructor(t *testing.T) {
 	}
 
 	if resp.EvalID != "" {
-		t.Fatalf("Deregister created an eval for a constructor job")
+		t.Fatalf("Deregister created an eval for a parameterized job")
 	}
 }
 
@@ -1893,33 +1893,33 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	// No requirements
 	d1 := mock.Job()
 	d1.Type = structs.JobTypeBatch
-	d1.Constructor = &structs.ConstructorConfig{}
+	d1.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 	// Require input data
 	d2 := mock.Job()
 	d2.Type = structs.JobTypeBatch
-	d2.Constructor = &structs.ConstructorConfig{
+	d2.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadRequired,
 	}
 
 	// Disallow input data
 	d3 := mock.Job()
 	d3.Type = structs.JobTypeBatch
-	d3.Constructor = &structs.ConstructorConfig{
+	d3.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadForbidden,
 	}
 
 	// Require meta
 	d4 := mock.Job()
 	d4.Type = structs.JobTypeBatch
-	d4.Constructor = &structs.ConstructorConfig{
+	d4.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaRequired: []string{"foo", "bar"},
 	}
 
 	// Optional meta
 	d5 := mock.Job()
 	d5.Type = structs.JobTypeBatch
-	d5.Constructor = &structs.ConstructorConfig{
+	d5.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaOptional: []string{"foo", "bar"},
 	}
 
@@ -1953,89 +1953,89 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	}
 
 	type testCase struct {
-		name        string
-		constructor *structs.Job
-		dispatchReq *structs.JobDispatchRequest
-		err         bool
-		errStr      string
+		name             string
+		parameterizedJob *structs.Job
+		dispatchReq      *structs.JobDispatchRequest
+		err              bool
+		errStr           string
 	}
 	cases := []testCase{
 		{
-			name:        "optional input data w/ data",
-			constructor: d1,
-			dispatchReq: reqInputDataNoMeta,
-			err:         false,
+			name:             "optional input data w/ data",
+			parameterizedJob: d1,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
 		},
 		{
-			name:        "optional input data w/o data",
-			constructor: d1,
-			dispatchReq: reqNoInputNoMeta,
-			err:         false,
+			name:             "optional input data w/o data",
+			parameterizedJob: d1,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
 		},
 		{
-			name:        "require input data w/ data",
-			constructor: d2,
-			dispatchReq: reqInputDataNoMeta,
-			err:         false,
+			name:             "require input data w/ data",
+			parameterizedJob: d2,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
 		},
 		{
-			name:        "require input data w/o data",
-			constructor: d2,
-			dispatchReq: reqNoInputNoMeta,
-			err:         true,
-			errStr:      "not provided but required",
+			name:             "require input data w/o data",
+			parameterizedJob: d2,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "not provided but required",
 		},
 		{
-			name:        "disallow input data w/o data",
-			constructor: d3,
-			dispatchReq: reqNoInputNoMeta,
-			err:         false,
+			name:             "disallow input data w/o data",
+			parameterizedJob: d3,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
 		},
 		{
-			name:        "disallow input data w/ data",
-			constructor: d3,
-			dispatchReq: reqInputDataNoMeta,
-			err:         true,
-			errStr:      "provided but forbidden",
+			name:             "disallow input data w/ data",
+			parameterizedJob: d3,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              true,
+			errStr:           "provided but forbidden",
 		},
 		{
-			name:        "require meta w/ meta",
-			constructor: d4,
-			dispatchReq: reqInputDataMeta,
-			err:         false,
+			name:             "require meta w/ meta",
+			parameterizedJob: d4,
+			dispatchReq:      reqInputDataMeta,
+			err:              false,
 		},
 		{
-			name:        "require meta w/o meta",
-			constructor: d4,
-			dispatchReq: reqNoInputNoMeta,
-			err:         true,
-			errStr:      "did not provide required meta keys",
+			name:             "require meta w/o meta",
+			parameterizedJob: d4,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "did not provide required meta keys",
 		},
 		{
-			name:        "optional meta w/ meta",
-			constructor: d5,
-			dispatchReq: reqNoInputDataMeta,
-			err:         false,
+			name:             "optional meta w/ meta",
+			parameterizedJob: d5,
+			dispatchReq:      reqNoInputDataMeta,
+			err:              false,
 		},
 		{
-			name:        "optional meta w/o meta",
-			constructor: d5,
-			dispatchReq: reqNoInputNoMeta,
-			err:         false,
+			name:             "optional meta w/o meta",
+			parameterizedJob: d5,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              false,
 		},
 		{
-			name:        "optional meta w/ bad meta",
-			constructor: d5,
-			dispatchReq: reqBadMeta,
-			err:         true,
-			errStr:      "unpermitted metadata keys",
+			name:             "optional meta w/ bad meta",
+			parameterizedJob: d5,
+			dispatchReq:      reqBadMeta,
+			err:              true,
+			errStr:           "unpermitted metadata keys",
 		},
 		{
-			name:        "optional input w/ too big of input",
-			constructor: d1,
-			dispatchReq: reqInputDataTooLarge,
-			err:         true,
-			errStr:      "Payload exceeds maximum size",
+			name:             "optional input w/ too big of input",
+			parameterizedJob: d1,
+			dispatchReq:      reqInputDataTooLarge,
+			err:              true,
+			errStr:           "Payload exceeds maximum size",
 		},
 	}
 
@@ -2050,7 +2050,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Create the register request
 			regReq := &structs.JobRegisterRequest{
-				Job:          tc.constructor,
+				Job:          tc.parameterizedJob,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 
@@ -2061,7 +2061,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			}
 
 			// Now try to dispatch
-			tc.dispatchReq.JobID = tc.constructor.ID
+			tc.dispatchReq.JobID = tc.parameterizedJob.ID
 			tc.dispatchReq.WriteRequest = structs.WriteRequest{Region: "global"}
 
 			var dispatchResp structs.JobDispatchResponse
@@ -2088,7 +2088,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				if out.CreateIndex != dispatchResp.JobCreateIndex {
 					t.Fatalf("index mis-match")
 				}
-				if out.ParentID != tc.constructor.ID {
+				if out.ParentID != tc.parameterizedJob.ID {
 					t.Fatalf("bad parent ID")
 				}
 

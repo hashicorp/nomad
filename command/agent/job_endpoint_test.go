@@ -577,10 +577,10 @@ func TestHTTP_JobPlan(t *testing.T) {
 
 func TestHTTP_JobDispatch(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
-		// Create the constructor job
+		// Create the parameterized job
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
-		job.Constructor = &structs.ConstructorConfig{}
+		job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 		args := structs.JobRegisterRequest{
 			Job:          job,

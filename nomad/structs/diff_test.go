@@ -878,10 +878,10 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
-			// Constructor added
+			// Parameterized Job added
 			Old: &Job{},
 			New: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadRequired,
 					MetaOptional: []string{"foo"},
 					MetaRequired: []string{"bar"},
@@ -892,7 +892,7 @@ func TestJobDiff(t *testing.T) {
 				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeAdded,
-						Name: "Constructor",
+						Name: "ParameterizedJob",
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
@@ -932,9 +932,9 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
-			// Constructor deleted
+			// Parameterized Job deleted
 			Old: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadRequired,
 					MetaOptional: []string{"foo"},
 					MetaRequired: []string{"bar"},
@@ -946,7 +946,7 @@ func TestJobDiff(t *testing.T) {
 				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeDeleted,
-						Name: "Constructor",
+						Name: "ParameretizedJob",
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
@@ -986,16 +986,16 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
-			// Constructor edited
+			// Parameterized Job edited
 			Old: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadRequired,
 					MetaOptional: []string{"foo"},
 					MetaRequired: []string{"bar"},
 				},
 			},
 			New: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadOptional,
 					MetaOptional: []string{"bam"},
 					MetaRequired: []string{"bang"},
@@ -1006,7 +1006,7 @@ func TestJobDiff(t *testing.T) {
 				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeEdited,
-						Name: "Constructor",
+						Name: "ParameterizedJob",
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
@@ -1058,17 +1058,17 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
-			// Constructor edited with context
+			// Parameterized Job edited with context
 			Contextual: true,
 			Old: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadRequired,
 					MetaOptional: []string{"foo"},
 					MetaRequired: []string{"bar"},
 				},
 			},
 			New: &Job{
-				Constructor: &ConstructorConfig{
+				ParameterizedJob: &ParameterizedJobConfig{
 					Payload:      DispatchPayloadOptional,
 					MetaOptional: []string{"foo"},
 					MetaRequired: []string{"bar"},
@@ -1079,7 +1079,7 @@ func TestJobDiff(t *testing.T) {
 				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeEdited,
-						Name: "Constructor",
+						Name: "ParameterizedJob",
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
