@@ -946,7 +946,7 @@ func TestJobDiff(t *testing.T) {
 				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeDeleted,
-						Name: "ParameretizedJob",
+						Name: "ParameterizedJob",
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
