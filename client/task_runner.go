@@ -1168,7 +1168,7 @@ func (r *TaskRunner) startTask() error {
 		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
 
-		r.logger.Printf("[WARN] client: %v", wrapped)
+		r.logger.Printf("[WARN] client: error from prestart: %v", wrapped)
 
 		if rerr, ok := err.(*structs.RecoverableError); ok {
 			return structs.NewRecoverableError(wrapped, rerr.Recoverable)

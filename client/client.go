@@ -1214,6 +1214,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	}
 	var allocsResp structs.AllocsGetResponse
 
+OUTER:
 	for {
 		// Get the allocation modify index map, blocking for updates. We will
 		// use this to determine exactly what allocations need to be downloaded
@@ -1263,11 +1264,19 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		var pull []string
 		filtered := make(map[string]struct{})
 		runners := c.getAllocRunners()
+		var pullIndex uint64
 		for allocID, modifyIndex := range resp.Allocs {
 			// Pull the allocation if we don't have an alloc runner for the
 			// allocation or if the alloc runner requires an updated allocation.
 			runner, ok := runners[allocID]
+
 			if !ok || runner.shouldUpdate(modifyIndex) {
+				// Only pull allocs that are required. Filtered
+				// allocs might be at a higher index, so ignore
+				// it.
+				if modifyIndex > pullIndex {
+					pullIndex = modifyIndex
+				}
 				pull = append(pull, allocID)
 			} else {
 				filtered[allocID] = struct{}{}
@@ -1280,7 +1289,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		if len(pull) != 0 {
 			// Pull the allocations that need to be updated.
 			allocsReq.AllocIDs = pull
-			allocsReq.MinQueryIndex = resp.Index - 1
+			allocsReq.MinQueryIndex = pullIndex - 1
 			allocsResp = structs.AllocsGetResponse{}
 			if err := c.RPC("Alloc.GetAllocs", &allocsReq, &allocsResp); err != nil {
 				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
@@ -1310,7 +1319,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 					case <-time.After(wait):
 						// Wait for the server we contact to receive the
 						// allocations
-						continue
+						continue OUTER
 					case <-c.shutdownCh:
 						return
 					}
