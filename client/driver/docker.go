@@ -118,8 +118,8 @@ type DockerLoggingOpts struct {
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImages       []string            `mapstructure:"load"`               // LoadImage is array of paths to image archive files
-	Command          string              `mapstructure:"command"`            // The Command/Entrypoint to run when the container starts up
-	Args             []string            `mapstructure:"args"`               // The arguments to the Command/Entrypoint
+	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
+	Args             []string            `mapstructure:"args"`               // The arguments to the Command
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
@@ -868,8 +868,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	d.taskEnv.Build()
 	parsedArgs := d.taskEnv.ParseAndReplace(driverConfig.Args)
 
-	// If the user specified a custom command to run as their entrypoint, we'll
-	// inject it here.
+	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
 		// Validate command
 		if err := validateCommand(driverConfig.Command, "args"); err != nil {
