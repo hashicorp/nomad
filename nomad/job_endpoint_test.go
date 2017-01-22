@@ -797,7 +797,7 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	job.ParameterizedJob = &structs.ParameterizedJoConfig{}
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job:          job,
 		WriteRequest: structs.WriteRequest{Region: "global"},
