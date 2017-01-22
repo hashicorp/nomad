@@ -47,6 +47,12 @@ vault {
 - `enabled` `(bool: false)` - Specifies if the Vault integration should be
   activated.
 
+- `create_from_role` `(string: "")` - Specifies the role to create tokens from.
+  The token given to Nomad does not have to be created from this role but must
+  have "update" capability on "auth/token/create/<create_from_role>" path in
+  Vault. If this value is unset and the token is created from a role, the value
+  is defaulted to the role the token is from.
+
 - `task_token_ttl` `(string: "")` - Specifies the TTL of created tokens when
   using a root token. This is specified using a label suffix like "30s" or "1h".
 

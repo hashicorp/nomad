@@ -69,7 +69,7 @@ when creating the role with the Vault endpoint `/auth/token/roles/<role_name>`:
     ```hcl
     # Allow creating tokens under the role
     path "auth/token/create/nomad-server" {
-        capabilities = ["create", "update"]
+        capabilities = ["update"]
     }
 
     # Allow looking up the role

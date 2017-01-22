@@ -1,6 +1,6 @@
 # Allow creating tokens under the role
 path "auth/token/create/nomad-server" {
-  capabilities = ["create", "update"]
+  capabilities = ["update"]
 }
 
 # Allow looking up the role
