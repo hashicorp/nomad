@@ -526,8 +526,9 @@ func (v *vaultClient) renew() error {
 // getWrappingFn returns an appropriate wrapping function for Nomad Servers
 func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 	createPath := "auth/token/create"
-	if !v.tokenData.Root {
-		createPath = fmt.Sprintf("auth/token/create/%s", v.getRole())
+	role := v.getRole()
+	if role != "" {
+		createPath = fmt.Sprintf("auth/token/create/%s", role)
 	}
 
 	return func(operation, path string) string {
@@ -733,10 +734,11 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Read and parse the fields
 	var data struct {
-		ExplicitMaxTtl int `mapstructure:"explicit_max_ttl"`
-		Orphan         bool
-		Period         int
-		Renewable      bool
+		ExplicitMaxTtl     int `mapstructure:"explicit_max_ttl"`
+		Orphan             bool
+		Period             int
+		Renewable          bool
+		DisallowedPolicies []string `mapstructure:"disallowed_policies"`
 	}
 	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
@@ -758,6 +760,12 @@ func (v *vaultClient) validateRole(role string) error {
 
 	if data.Period == 0 {
 		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
+	}
+
+	for _, d := range data.DisallowedPolicies {
+		if d == "default" {
+			multierror.Append(&mErr, fmt.Errorf("Role can not disallow allow default policy"))
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -837,7 +845,8 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// token or a role based token
 	var secret *vapi.Secret
 	var err error
-	if v.tokenData.Root {
+	role := v.getRole()
+	if v.tokenData.Root && role == "" {
 		req.Period = v.childTTL
 		secret, err = v.auth.Create(req)
 	} else {
