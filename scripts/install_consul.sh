@@ -2,7 +2,7 @@
 
 set -ex
 
-CONSUL_VERSION="0.7.0"
+CONSUL_VERSION="0.7.2"
 CURDIR=`pwd`
 
 echo Fetching Consul...
