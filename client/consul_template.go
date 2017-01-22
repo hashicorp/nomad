@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -261,8 +262,12 @@ WAIT:
 
 			if restart || len(signals) != 0 {
 				if splay != 0 {
+					ns := splay.Nanoseconds()
+					offset := rand.Int63n(ns)
+					t := time.Duration(offset)
+
 					select {
-					case <-time.After(time.Duration(splay)):
+					case <-time.After(t):
 					case <-tm.shutdownCh:
 						return
 					}
