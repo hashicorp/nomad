@@ -9,6 +9,7 @@ IMPROVEMENTS:
     [GH-2081]
   * client: Fixed namespacing for the cpu arch attribute [GH-2161]
   * client: Don't retrieve Driver Stats if unsupported [GH-2173]
+  * discovery: Register service with duplicate names on different ports [GH-2208]
   * driver/docker: Add support for network aliases [GH-1980]
   * driver/docker: Add `force_pull` option to force downloading an image [GH-2147]
   * driver/java: Support setting class_path and class name. [GH-2199]
@@ -19,6 +20,8 @@ BUG FIXES:
     manifested as slow starts, delayed kills, etc [GH-2177]
   * driver: Fix image based drivers (eg docker) having host env vars set [GH-2211]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
+  * template: Fix splay being used as a wait and instead randomize the delay
+    from 0 seconds to splay duration [GH-2227]
 
 ## 0.5.2 (December 23, 2016)
 
