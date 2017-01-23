@@ -97,7 +97,8 @@ It is also possible to use heredocs for multi-line templates, like:
 template {
   data = <<EOH
   ---
-    key: {{ key "service/my-key" }}
+    id: {{ env "NOMAD_ALLOC_ID" }}-{{ env "NOMAD_ALLOC_INDEX" }}
+    service_key: {{ key "service/my-key" }}
   EOH
 
   destination = "local/file.yml"
