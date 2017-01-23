@@ -52,7 +52,8 @@ before the starting the task.
   as a directory and source files will be downloaded into that directory path.
 
 - `source` `(string: <required>)` - Specifies the URL of the artifact to download.
- The can be any URL as defined by the [`go-getter`][go-getter] library.
+  Only `http`, `https`, and `s3` URLs are supported. See [`go-getter`][go-getter]
+  for details.
 
 - `options` `(map<string|string>: nil)` - Specifies configuration parameters to
   fetch the artifact. The key-value pairs map directly to parameters appended to
