@@ -39,8 +39,10 @@ job "docs" {
 }
 ```
 
-Nomad utilizes a tool called [Consul Template][ct]. For a full list of the
-API template functions, please refer to the [Consul Template README][ct].
+Nomad utilizes a tool called [Consul Template][ct]. The environment variables
+available in templates include [Nomad's runtime environment][env]. For a full
+list of the API template functions, please refer to the [Consul Template
+README][ct].
 
 ## `template` Parameters
 
@@ -132,3 +134,4 @@ options](/docs/agent/config.html#options):
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
+[env]: /docs/runtime/environment.html "Nomad Runtime Environment"
