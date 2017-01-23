@@ -182,7 +182,6 @@ WAIT:
 
 			for _, event := range events {
 				// This template hasn't been rendered
-				// XXX I don't think I have enough info for this
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
