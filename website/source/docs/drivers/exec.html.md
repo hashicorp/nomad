@@ -125,5 +125,10 @@ machine:
 ]
 ```
 
+Nomad will copy these directories into the job's chroot, so make sure you have
+enough disk space. Also take into consideration that allocations are not
+removed immediately after a job has completed, so you might need some margin if
+you run many batch jobs.
+
 This list is configurable through the agent client
 [configuration file](/docs/agent/configuration/client.html#chroot_env).
