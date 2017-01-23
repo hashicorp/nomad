@@ -477,5 +477,6 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 		}
 	}
 
+	conf.Finalize()
 	return conf, nil
 }
