@@ -58,6 +58,9 @@ const (
 	// vaultTokenLookupPath is the path used to lookup a token
 	vaultTokenLookupPath = "auth/token/lookup"
 
+	// vaultTokenLookupSelfPath is the path used to lookup self token
+	vaultTokenLookupSelfPath = "auth/token/lookup-self"
+
 	// vaultTokenRevokePath is the path used to revoke a token
 	vaultTokenRevokePath = "auth/token/revoke-accessor"
 
@@ -86,6 +89,11 @@ var (
 	// Vault token should have on the path. The token must have at least one of
 	// the capabilities.
 	vaultTokenLookupCapability = []string{"update", "root"}
+
+	// vaultTokenLookupSelfCapability is the expected capability Nomad's
+	// Vault token should have on the path. The token must have at least one of
+	// the capabilities.
+	vaultTokenLookupSelfCapability = []string{"update", "root"}
 
 	// vaultTokenRevokeCapability is the expected capability Nomad's
 	// Vault token should have on the path. The token must have at least one of
@@ -547,10 +555,18 @@ func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 func (v *vaultClient) parseSelfToken() error {
 	// Get the initial lease duration
 	auth := v.client.Auth().Token()
-	self, err := auth.Lookup(v.client.Token())
+	var self *vapi.Secret
+
+	// Try looking up the token using the self endpoint
+	secret, err := auth.LookupSelf()
 	if err != nil {
-		return fmt.Errorf("failed to lookup Vault periodic token: %v", err)
+		// Try looking up our token directly
+		self, err = auth.Lookup(v.client.Token())
+		if err != nil {
+			return fmt.Errorf("failed to lookup Vault periodic token: %v", err)
+		}
 	}
+	self = secret
 
 	// Read and parse the fields
 	var data tokenData
@@ -734,11 +750,10 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Read and parse the fields
 	var data struct {
-		ExplicitMaxTtl     int `mapstructure:"explicit_max_ttl"`
-		Orphan             bool
-		Period             int
-		Renewable          bool
-		DisallowedPolicies []string `mapstructure:"disallowed_policies"`
+		ExplicitMaxTtl int `mapstructure:"explicit_max_ttl"`
+		Orphan         bool
+		Period         int
+		Renewable      bool
 	}
 	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
@@ -760,12 +775,6 @@ func (v *vaultClient) validateRole(role string) error {
 
 	if data.Period == 0 {
 		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
-	}
-
-	for _, d := range data.DisallowedPolicies {
-		if d == "default" {
-			multierror.Append(&mErr, fmt.Errorf("Role can not disallow allow default policy"))
-		}
 	}
 
 	return mErr.ErrorOrNil()
