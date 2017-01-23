@@ -598,20 +598,24 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 }
 
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"1000"}
+	task.Driver = "mock_driver"
+	task.KillTimeout = 10 * time.Millisecond
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
 	task2 := ar.alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task2.Name = "task 2"
-	task2.Config = map[string]interface{}{"command": "invalidBinaryToFail"}
+	task2.Driver = "mock_driver"
+	task2.Config = map[string]interface{}{
+		"start_error": "fail task please",
+	}
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
 	ar.alloc.TaskResources[task2.Name] = task2.Resources
-	//t.Logf("%#v", ar.alloc.Job.TaskGroups[0])
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -628,11 +632,20 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if len(state1.Events) < 3 {
+		if len(state1.Events) < 2 {
+			// At least have a received and destroyed
 			return false, fmt.Errorf("Unexpected number of events")
 		}
-		if lastE := state1.Events[len(state1.Events)-3]; lastE.Type != structs.TaskSiblingFailed {
-			return false, fmt.Errorf("got last event %v; want %v", lastE.Type, structs.TaskSiblingFailed)
+
+		found := false
+		for _, e := range state1.Events {
+			if e.Type != structs.TaskSiblingFailed {
+				found = true
+			}
+		}
+
+		if !found {
+			return false, fmt.Errorf("Did not find event %v", structs.TaskSiblingFailed)
 		}
 
 		// Task Two should be failed
