@@ -1,6 +1,7 @@
 ## 0.5.3 (Unreleased) 
 
 IMPROVEMENTS:
+  * api: Added APIs for requesting GC of allocations [GH-2192]
   * core: Introduce Parameterized Jobs and Dispatch command/API [GH-2128]
   * core: Cancel blocked evals upon successful one for job [GH-2155]
   * api/client: Plain text log streaming suitable for viewing logs in a browser
@@ -9,11 +10,16 @@ IMPROVEMENTS:
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
     [GH-2081]
-  * client: Fixed namespacing for the cpu arch attribute [GH-2161]
   * client: Don't retrieve Driver Stats if unsupported [GH-2173]
+  * client: Filter log lines in the executor based on client's log level
+    [GH-2172]
+  * client: Added environment variables to discover addresses of sibling tasks
+    in an allocation [GH-2223]
   * discovery: Register service with duplicate names on different ports [GH-2208]
   * driver/docker: Add support for network aliases [GH-1980]
   * driver/docker: Add `force_pull` option to force downloading an image [GH-2147]
+  * driver/docker: Retry when image is not found while creating a container
+    [GH-2222]
   * driver/java: Support setting class_path and class name. [GH-2199]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
   * template: The template block supports keyOrDefault [GH-2209]
@@ -25,6 +31,7 @@ IMPROVEMENTS:
     `create_from_role` setting [GH-2226]
 
 BUG FIXES:
+  * client: Fixed namespacing for the cpu arch attribute [GH-2161]
   * client: Fix issue where allocations weren't pulled for several minutes. This
     manifested as slow starts, delayed kills, etc [GH-2177]
   * client: Fix a panic that would occur with a racy alloc migration
