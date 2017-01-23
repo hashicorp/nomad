@@ -1,18 +1,12 @@
 package manager
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +17,7 @@ import (
 	"github.com/hashicorp/consul-template/watch"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mattn/go-shellwords"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -54,9 +49,9 @@ type Runner struct {
 	outStream, errStream io.Writer
 	inStream             io.Reader
 
-	// ctemplatesMap is a map of each template ID to the ConfigTemplates
+	// ctemplatesMap is a map of each template ID to the TemplateConfigs
 	// that made it.
-	ctemplatesMap map[string][]*config.ConfigTemplate
+	ctemplatesMap map[string]config.TemplateConfigs
 
 	// templates is the list of calculated templates.
 	templates []*template.Template
@@ -72,6 +67,9 @@ type Runner struct {
 
 	// dependencies is the list of dependencies this runner is watching.
 	dependencies map[string]dep.Dependency
+
+	// dependenciesLock is a lock around touching the dependencies map.
+	dependenciesLock sync.Mutex
 
 	// watcher is the watcher this runner is using.
 	watcher *watch.Watcher
@@ -94,19 +92,69 @@ type Runner struct {
 
 	// dedup is the deduplication manager if enabled
 	dedup *DedupManager
+
+	// Env represents a custom set of environment variables to populate the
+	// template and command runtime with. These environment variables will be
+	// available in both the command's environment as well as the template's
+	// environment.
+	Env map[string]string
+
+	// stopLock is the lock around checking if the runner can be stopped
+	stopLock sync.Mutex
+
+	// stopped is a boolean of whether the runner is stopped
+	stopped bool
 }
 
 // RenderEvent captures the time and events that occurred for a template
 // rendering.
 type RenderEvent struct {
+	// Missing is the list of dependencies that we do not yet have data for, but
+	// are contained in the watcher. This is different from unwatched dependencies,
+	// which includes dependencies the watcher has not yet started querying for
+	// data.
+	MissingDeps *dep.Set
+
+	// Template is the template attempting to be rendered.
+	Template *template.Template
+
+	// TemplateConfigs is the list of template configs that correspond to this
+	// template.
+	TemplateConfigs []*config.TemplateConfig
+
+	// Unwatched is the list of dependencies that are not present in the watcher.
+	// This value may change over time due to the n-pass evaluation.
+	UnwatchedDeps *dep.Set
+
+	// UpdatedAt is the last time this render event was updated.
+	UpdatedAt time.Time
+
+	// Used is the full list of dependencies seen in the template. Because of
+	// the n-pass evaluation, this number can change over time. The dependecnies
+	// in this list may or may not have data. This just contains the list of all
+	// dependencies parsed out of the template with the current data.
+	UsedDeps *dep.Set
+
+	// WouldRender determines if the template would have been rendered. A template
+	// would have been rendered if all the dependencies are satisfied, but may
+	// not have actually rendered if the file was already present or if an error
+	// occurred when trying to write the file.
+	WouldRender bool
+
 	// LastWouldRender marks the last time the template would have rendered.
 	LastWouldRender time.Time
+
+	// DidRender determines if the Template was actually written to disk. In dry
+	// mode, this will always be false, since templates are not written to disk
+	// in dry mode. A template is only rendered to disk if all dependencies are
+	// satisfied and the template is not already in place with the same contents.
+	DidRender bool
 
 	// LastDidRender marks the last time the template was written to disk.
 	LastDidRender time.Time
 }
 
-// NewRunner accepts a slice of ConfigTemplates and returns a pointer to the new
+// NewRunner accepts a slice of TemplateConfigs and returns a pointer to the new
 // Runner and any error that occurred during creation.
 func NewRunner(config *config.Config, dry, once bool) (*Runner, error) {
 	log.Printf("[INFO] (runner) creating new runner (dry: %v, once: %v)", dry, once)
@@ -167,19 +215,19 @@ func (r *Runner) Start() {
 				continue NEXT_Q
 			}
 
-			for _, c := range r.configTemplatesFor(t) {
-				if c.Wait.IsActive() {
+			for _, c := range r.templateConfigsFor(t) {
+				if *c.Wait.Enabled {
 					log.Printf("[DEBUG] (runner) enabling template-specific quiescence for %q", t.ID())
 					r.quiescenceMap[t.ID()] = newQuiescence(
-						r.quiescenceCh, c.Wait.Min, c.Wait.Max, t)
+						r.quiescenceCh, *c.Wait.Min, *c.Wait.Max, t)
 					continue NEXT_Q
 				}
 			}
 
-			if r.config.Wait.IsActive() {
+			if *r.config.Wait.Enabled {
 				log.Printf("[DEBUG] (runner) enabling global quiescence for %q", t.ID())
 				r.quiescenceMap[t.ID()] = newQuiescence(
-					r.quiescenceCh, r.config.Wait.Min, r.config.Wait.Max, t)
+					r.quiescenceCh, *r.config.Wait.Min, *r.config.Wait.Max, t)
 				continue NEXT_Q
 			}
 		}
@@ -189,19 +237,40 @@ func (r *Runner) Start() {
 			log.Printf("[WARN] (runner) watching %d dependencies - watching this "+
 				"many dependencies could DDoS your consul cluster", r.watcher.Size())
 		} else {
-			log.Printf("[INFO] (runner) watching %d dependencies", r.watcher.Size())
+			log.Printf("[DEBUG] (runner) watching %d dependencies", r.watcher.Size())
 		}
 
 		if r.allTemplatesRendered() {
 			// If an exec command was given and a command is not currently running,
 			// spawn the child process for supervision.
-			if r.config.Exec.Command != "" {
+			if config.StringPresent(r.config.Exec.Command) {
+				// Lock the child because we are about to check if it exists.
+				r.childLock.Lock()
+
 				if r.child == nil {
-					if err := r.spawnChild(); err != nil {
+					env := r.config.Exec.Env.Copy()
+					env.Custom = append(r.childEnv(), env.Custom...)
+					child, err := spawnChild(&spawnChildInput{
+						Stdin:        r.inStream,
+						Stdout:       r.outStream,
+						Stderr:       r.errStream,
+						Command:      config.StringVal(r.config.Exec.Command),
+						Env:          env.Env(),
+						ReloadSignal: config.SignalVal(r.config.Exec.ReloadSignal),
+						KillSignal:   config.SignalVal(r.config.Exec.KillSignal),
+						KillTimeout:  config.TimeDurationVal(r.config.Exec.KillTimeout),
+						Splay:        config.TimeDurationVal(r.config.Exec.Splay),
+					})
+					if err != nil {
 						r.ErrCh <- err
+						r.childLock.Unlock()
 						return
 					}
+					r.child = child
 				}
+
+				// Unlock the child, we are done now.
+				r.childLock.Unlock()
 
 				// It's possible that we didn't start a process, in which case no
 				// channel is returned. If we did get a new exitCh, that means a child
@@ -240,9 +309,9 @@ func (r *Runner) Start() {
 
 	OUTER:
 		select {
-		case view := <-r.watcher.DataCh:
+		case view := <-r.watcher.DataCh():
 			// Receive this update
-			r.Receive(view.Dependency, view.Data())
+			r.Receive(view.Dependency(), view.Data())
 
 			// Drain all dependency data. Given a large number of dependencies, it is
 			// feasible that we have data for more than one of them. Instead of
@@ -255,8 +324,8 @@ func (r *Runner) Start() {
 			// more information about this optimization and the entire backstory.
 			for {
 				select {
-				case view := <-r.watcher.DataCh:
-					r.Receive(view.Dependency, view.Data())
+				case view := <-r.watcher.DataCh():
+					r.Receive(view.Dependency(), view.Data())
 				default:
 					break OUTER
 				}
@@ -269,34 +338,16 @@ func (r *Runner) Start() {
 			log.Printf("[INFO] (runner) watcher triggered by de-duplication manager")
 			break OUTER
 
-		case err := <-r.watcher.ErrCh:
-			// If this is our own internal error, see if we should hard exit.
-			if derr, ok := err.(*dep.FetchError); ok {
-				log.Printf("[DEBUG] (runner) detected custom error type")
-				if derr.ShouldExit() {
-					log.Printf("[DEBUG] (runner) custom error asked for hard exit")
-					r.ErrCh <- derr.OriginalError()
-					return
-				}
-			}
-
-			// Intentionally do not send the error back up to the runner. Eventually,
-			// once Consul API implements errwrap and multierror, we can check the
-			// "type" of error and conditionally alert back.
-			//
-			// if err.Contains(Something) {
-			//   errCh <- err
-			// }
+		case err := <-r.watcher.ErrCh():
+			// Push the error back up the stack
 			log.Printf("[ERR] (runner) watcher reported error: %s", err)
-			if r.once {
-				r.ErrCh <- err
-				return
-			}
+			r.ErrCh <- err
+			return
 
 		case tmpl := <-r.quiescenceCh:
 			// Remove the quiescence for this template from the map. This will force
 			// the upcoming Run call to actually evaluate and render the template.
-			log.Printf("[INFO] (runner) received template %q from quiescence", tmpl.ID())
+			log.Printf("[DEBUG] (runner) received template %q from quiescence", tmpl.ID())
 			delete(r.quiescenceMap, tmpl.ID())
 
 		case c := <-childExitCh:
@@ -309,8 +360,8 @@ func (r *Runner) Start() {
 			return
 		}
 
-		// If we got this far, that means we got new data or one of the timers fired,
-		// so attempt to re-render.
+		// If we got this far, that means we got new data or one of the timers
+		// fired, so attempt to re-render.
 		if err := r.Run(); err != nil {
 			r.ErrCh <- err
 			return
@@ -320,6 +371,13 @@ func (r *Runner) Start() {
 
 // Stop halts the execution of this runner and its subprocesses.
 func (r *Runner) Stop() {
+	r.stopLock.Lock()
+	defer r.stopLock.Unlock()
+
+	if r.stopped {
+		return
+	}
+
 	log.Printf("[INFO] (runner) stopping")
 	r.stopDedup()
 	r.stopWatcher()
@@ -329,6 +387,8 @@ func (r *Runner) Stop() {
 		log.Printf("[WARN] (runner) could not remove pid at %q: %s",
 			r.config.PidFile, err)
 	}
+
+	r.stopped = true
 
 	close(r.DoneCh)
 }
@@ -356,8 +416,6 @@ func (r *Runner) stopDedup() {
 	if r.dedup != nil {
 		log.Printf("[DEBUG] (runner) stopping de-duplication manager")
 		r.dedup.Stop()
-	} else {
-		log.Printf("[DEBUG] (runner) de-duplication manager is not running")
 	}
 }
 
@@ -365,8 +423,6 @@ func (r *Runner) stopWatcher() {
 	if r.watcher != nil {
 		log.Printf("[DEBUG] (runner) stopping watcher")
 		r.watcher.Stop()
-	} else {
-		log.Printf("[DEBUG] (runner) watcher is not running")
 	}
 }
 
@@ -377,8 +433,6 @@ func (r *Runner) stopChild() {
 	if r.child != nil {
 		log.Printf("[DEBUG] (runner) stopping child process")
 		r.child.Stop()
-	} else {
-		log.Printf("[DEBUG] (runner) child is not running")
 	}
 }
 
@@ -387,6 +441,9 @@ func (r *Runner) stopChild() {
 // is "renderable" (i.e. all its Dependencies have been downloaded at least
 // once).
 func (r *Runner) Receive(d dep.Dependency, data interface{}) {
+	r.dependenciesLock.Lock()
+	defer r.dependenciesLock.Unlock()
+
 	// Just because we received data, it does not mean that we are actually
 	// watching for that data. How is that possible you may ask? Well, this
 	// Runner's data channel is pooled, meaning it accepts multiple data views
@@ -400,8 +457,8 @@ func (r *Runner) Receive(d dep.Dependency, data interface{}) {
 	//     https://github.com/hashicorp/consul-template/issues/198
 	//
 	// and by "little" bug, I mean really big bug.
-	if _, ok := r.dependencies[d.HashCode()]; ok {
-		log.Printf("[DEBUG] (runner) receiving dependency %s", d.Display())
+	if _, ok := r.dependencies[d.String()]; ok {
+		log.Printf("[DEBUG] (runner) receiving dependency %s", d)
 		r.brain.Remember(d, data)
 	}
 }
@@ -425,14 +482,28 @@ func (r *Runner) Signal(s os.Signal) error {
 // Please note that all templates are rendered **and then** any commands are
 // executed.
 func (r *Runner) Run() error {
-	log.Printf("[INFO] (runner) running")
+	log.Printf("[INFO] (runner) initiating run")
 
 	var wouldRenderAny, renderedAny bool
-	var commands []*config.ConfigTemplate
+	var commands []*config.TemplateConfig
 	depsMap := make(map[string]dep.Dependency)
 
 	for _, tmpl := range r.templates {
 		log.Printf("[DEBUG] (runner) checking template %s", tmpl.ID())
+
+		// Grab the last event
+		lastEvent := r.renderEvents[tmpl.ID()]
+
+		// Create the event
+		event := &RenderEvent{
+			Template:        tmpl,
+			TemplateConfigs: r.templateConfigsFor(tmpl),
+		}
+
+		if lastEvent != nil {
+			event.LastWouldRender = lastEvent.LastWouldRender
+			event.LastDidRender = lastEvent.LastDidRender
+		}
 
 		// Check if we are currently the leader instance
 		isLeader := true
@@ -456,38 +527,44 @@ func (r *Runner) Run() error {
 		// Attempt to render the template, returning any missing dependencies and
 		// the rendered contents. If there are any missing dependencies, the
 		// contents cannot be rendered or trusted!
-		used, missing, contents, err := tmpl.Execute(r.brain)
+		result, err := tmpl.Execute(&template.ExecuteInput{
+			Brain: r.brain,
+			Env:   r.childEnv(),
+		})
 		if err != nil {
-			return err
+			return errors.Wrap(err, tmpl.Source())
 		}
 
+		// Grab the list of used and missing dependencies.
+		missing, used := result.Missing, result.Used
+
 		// Add the dependency to the list of dependencies for this runner.
-		for _, d := range used {
+		for _, d := range used.List() {
 			// If we've taken over leadership for a template, we may have data
 			// that is cached, but not have the watcher. We must treat this as
 			// missing so that we create the watcher and re-run the template.
 			if isLeader && !r.watcher.Watching(d) {
-				missing = append(missing, d)
+				missing.Add(d)
 			}
-			if _, ok := depsMap[d.HashCode()]; !ok {
-				depsMap[d.HashCode()] = d
+			if _, ok := depsMap[d.String()]; !ok {
+				depsMap[d.String()] = d
 			}
 		}
 
 		// Diff any missing dependencies the template reported with dependencies
 		// the watcher is watching.
-		var unwatched []dep.Dependency
-		for _, d := range missing {
+		unwatched := new(dep.Set)
+		for _, d := range missing.List() {
 			if !r.watcher.Watching(d) {
-				unwatched = append(unwatched, d)
+				unwatched.Add(d)
 			}
 		}
 
 		// If there are unwatched dependencies, start the watcher and move onto the
 		// next one.
-		if len(unwatched) > 0 {
-			log.Printf("[INFO] (runner) was not watching %d dependencies", len(unwatched))
-			for _, d := range unwatched {
+		if l := unwatched.Len(); l > 0 {
+			log.Printf("[DEBUG] (runner) was not watching %d dependencies", l)
+			for _, d := range unwatched.List() {
 				// If we are deduplicating, we must still handle non-sharable
 				// dependencies, since those will be ignored.
 				if isLeader || !d.CanShare() {
@@ -499,17 +576,22 @@ func (r *Runner) Run() error {
 
 		// If the template is missing data for some dependencies then we are not
 		// ready to render and need to move on to the next one.
-		if len(missing) > 0 {
-			log.Printf("[INFO] (runner) missing data for %d dependencies", len(missing))
+		if l := missing.Len(); l > 0 {
+			log.Printf("[DEBUG] (runner) missing data for %d dependencies", l)
 			continue
 		}
 
 		// Trigger an update of the de-duplicaiton manager
 		if r.dedup != nil && isLeader {
-			if err := r.dedup.UpdateDeps(tmpl, used); err != nil {
+			if err := r.dedup.UpdateDeps(tmpl, used.List()); err != nil {
 				log.Printf("[ERR] (runner) failed to update dependency data for de-duplication: %v", err)
 			}
 		}
+
+		// Update event information with dependencies.
+		event.MissingDeps = missing
+		event.UnwatchedDeps = unwatched
+		event.UsedDeps = used
 
 		// If quiescence is activated, start/update the timers and loop back around.
 		// We do not want to render the templates yet.
@@ -518,29 +600,35 @@ func (r *Runner) Run() error {
 			continue
 		}
 
-		// For each configuration template that is tied to this template, attempt to
+		// For each template configuration that is tied to this template, attempt to
 		// render it to disk and accumulate commands for later use.
-		for _, ctemplate := range r.configTemplatesFor(tmpl) {
-			log.Printf("[DEBUG] (runner) checking ctemplate %+v", ctemplate)
+		for _, templateConfig := range r.templateConfigsFor(tmpl) {
+			log.Printf("[DEBUG] (runner) rendering %s", templateConfig.Display())
 
 			// Render the template, taking dry mode into account
-			wouldRender, didRender, err := r.render(contents, ctemplate.Destination, ctemplate.Perms, ctemplate.Backup)
+			result, err := Render(&RenderInput{
+				Backup:    config.BoolVal(templateConfig.Backup),
+				Contents:  result.Output,
+				Dry:       r.dry,
+				DryStream: r.outStream,
+				Path:      config.StringVal(templateConfig.Destination),
+				Perms:     config.FileModeVal(templateConfig.Perms),
+			})
 			if err != nil {
-				log.Printf("[DEBUG] (runner) error rendering %s", tmpl.ID())
-				return err
+				return errors.Wrap(err, "error rendering "+templateConfig.Display())
 			}
 
-			log.Printf("[DEBUG] (runner) wouldRender: %t, didRender: %t", wouldRender, didRender)
+			renderTime := time.Now().UTC()
 
 			// If we would have rendered this template (but we did not because the
 			// contents were the same or something), we should consider this template
 			// rendered even though the contents on disk have not been updated. We
 			// will not fire commands unless the template was _actually_ rendered to
 			// disk though.
-			if wouldRender {
-				// Make a note that we have rendered this template (required for once
-				// mode and just generally nice for debugging purposes).
-				r.markRenderTime(tmpl.ID(), false)
+			if result.WouldRender {
+				// This event would have rendered
+				event.WouldRender = true
+				event.LastWouldRender = renderTime
 
 				// Record that at least one template would have been rendered.
 				wouldRenderAny = true
@@ -548,12 +636,15 @@ func (r *Runner) Run() error {
 
 			// If we _actually_ rendered the template to disk, we want to run the
 			// appropriate commands.
-			if didRender {
+			if result.DidRender {
+				log.Printf("[INFO] (runner) rendered %s", templateConfig.Display())
+
+				// This event did render
+				event.DidRender = true
+				event.LastDidRender = renderTime
+
 				// Record that at least one template was rendered.
 				renderedAny = true
-
-				// Store the render time
-				r.markRenderTime(tmpl.ID(), true)
 
 				if !r.dry {
 					// If the template was rendered (changed) and we are not in dry-run mode,
@@ -562,16 +653,30 @@ func (r *Runner) Run() error {
 					// Future-self Q&A: Why not use a map for the commands instead of an
 					// array with an expensive lookup option? Well I'm glad you asked that
 					// future-self! One of the API promises is that commands are executed
-					// in the order in which they are provided in the ConfigTemplate
+					// in the order in which they are provided in the TemplateConfig
 					// definitions. If we inserted commands into a map, we would lose that
 					// relative ordering and people would be unhappy.
-					if ctemplate.Command != "" && !commandExists(ctemplate, commands) {
-						log.Printf("[DEBUG] (runner) appending command: %s", ctemplate.Command)
-						commands = append(commands, ctemplate)
+					// if config.StringPresent(ctemplate.Command)
+					if c := config.StringVal(templateConfig.Exec.Command); c != "" {
+						existing := findCommand(templateConfig, commands)
+						if existing != nil {
+							log.Printf("[DEBUG] (runner) skipping command %q from %s (already appended from %s)",
+								c, templateConfig.Display(), existing.Display())
+						} else {
+							log.Printf("[DEBUG] (runner) appending command %q from %s",
+								c, templateConfig.Display())
+							commands = append(commands, templateConfig)
+						}
 					}
 				}
 			}
 		}
+
+		// Send updated render event
+		r.renderEventsLock.Lock()
+		event.UpdatedAt = time.Now().UTC()
+		r.renderEvents[tmpl.ID()] = event
+		r.renderEventsLock.Unlock()
 	}
 
 	// Check if we need to deliver any rendered signals
@@ -590,11 +695,24 @@ func (r *Runner) Run() error {
 	// ensures all commands execute at least once.
 	var errs []error
 	for _, t := range commands {
-		log.Printf("[DEBUG] (runner) running command: `%s`, timeout: %s",
-			t.Command, t.CommandTimeout)
-		if err := r.execute(t.Command, t.CommandTimeout); err != nil {
-			log.Printf("[ERR] (runner) error running command: %s", err)
-			errs = append(errs, err)
+		command := config.StringVal(t.Exec.Command)
+		log.Printf("[INFO] (runner) executing command %q from %s", command, t.Display())
+		env := t.Exec.Env.Copy()
+		env.Custom = append(r.childEnv(), env.Custom...)
+		if _, err := spawnChild(&spawnChildInput{
+			Stdin:        r.inStream,
+			Stdout:       r.outStream,
+			Stderr:       r.errStream,
+			Command:      command,
+			Env:          env.Env(),
+			Timeout:      config.TimeDurationVal(t.Exec.Timeout),
+			ReloadSignal: config.SignalVal(t.Exec.ReloadSignal),
+			KillSignal:   config.SignalVal(t.Exec.KillSignal),
+			KillTimeout:  config.TimeDurationVal(t.Exec.KillTimeout),
+			Splay:        config.TimeDurationVal(t.Exec.Splay),
+		}); err != nil {
+			s := fmt.Sprintf("failed to execute command %q from %s", command, t.Display())
+			errs = append(errs, errors.Wrap(err, s))
 		}
 	}
 
@@ -624,18 +742,16 @@ func (r *Runner) Run() error {
 // init() creates the Runner's underlying data structures and returns an error
 // if any problems occur.
 func (r *Runner) init() error {
-	// Ensure we have default vaults
-	conf := config.DefaultConfig()
-	conf.Merge(r.config)
-	r.config = conf
+	// Ensure default configuration values
+	r.config = config.DefaultConfig().Merge(r.config)
+	r.config.Finalize()
 
 	// Print the final config for debugging
-	result, err := json.MarshalIndent(r.config, "", "  ")
+	result, err := json.Marshal(r.config)
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] (runner) final config (tokens suppressed):\n\n%s\n\n",
-		result)
+	log.Printf("[DEBUG] (runner) final config: %s", result)
 
 	// Create the clientset
 	clients, err := newClientSet(r.config)
@@ -650,16 +766,21 @@ func (r *Runner) init() error {
 	}
 	r.watcher = watcher
 
-	numTemplates := len(r.config.ConfigTemplates)
+	numTemplates := len(*r.config.Templates)
 	templates := make([]*template.Template, 0, numTemplates)
-	ctemplatesMap := make(map[string][]*config.ConfigTemplate)
+	ctemplatesMap := make(map[string]config.TemplateConfigs)
 
-	// Iterate over each ConfigTemplate, creating a new Template resource for each
+	// Iterate over each TemplateConfig, creating a new Template resource for each
 	// entry. Templates are parsed and saved, and a map of templates to their
 	// config templates is kept so templates can lookup their commands and output
 	// destinations.
-	for _, ctmpl := range r.config.ConfigTemplates {
-		tmpl, err := template.NewTemplate(ctmpl.Source, ctmpl.EmbeddedTemplate, ctmpl.LeftDelim, ctmpl.RightDelim)
+	for _, ctmpl := range *r.config.Templates {
+		tmpl, err := template.NewTemplate(&template.NewTemplateInput{
+			Source:     config.StringVal(ctmpl.Source),
+			Contents:   config.StringVal(ctmpl.Contents),
+			LeftDelim:  config.StringVal(ctmpl.LeftDelim),
+			RightDelim: config.StringVal(ctmpl.RightDelim),
+		})
 		if err != nil {
 			return err
 		}
@@ -669,7 +790,7 @@ func (r *Runner) init() error {
 		}
 
 		if _, ok := ctemplatesMap[tmpl.ID()]; !ok {
-			ctemplatesMap[tmpl.ID()] = make([]*config.ConfigTemplate, 0, 1)
+			ctemplatesMap[tmpl.ID()] = make([]*config.TemplateConfig, 0, 1)
 		}
 		ctemplatesMap[tmpl.ID()] = append(ctemplatesMap[tmpl.ID()], ctmpl)
 	}
@@ -695,12 +816,11 @@ func (r *Runner) init() error {
 	r.quiescenceMap = make(map[string]*quiescence)
 	r.quiescenceCh = make(chan *template.Template)
 
-	// Setup the dedup manager if needed. This is
-	if r.config.Deduplicate.Enabled {
+	if *r.config.Dedup.Enabled {
 		if r.once {
 			log.Printf("[INFO] (runner) disabling de-duplication in once mode")
 		} else {
-			r.dedup, err = NewDedupManager(r.config, clients, r.brain, r.templates)
+			r.dedup, err = NewDedupManager(r.config.Dedup, clients, r.brain, r.templates)
 			if err != nil {
 				return err
 			}
@@ -716,34 +836,37 @@ func (r *Runner) init() error {
 // At the end of this function, the given depsMap is converted to a slice and
 // stored on the runner.
 func (r *Runner) diffAndUpdateDeps(depsMap map[string]dep.Dependency) {
+	r.dependenciesLock.Lock()
+	defer r.dependenciesLock.Unlock()
+
 	// Diff and up the list of dependencies, stopping any unneeded watchers.
-	log.Printf("[INFO] (runner) diffing and updating dependencies")
+	log.Printf("[DEBUG] (runner) diffing and updating dependencies")
 
 	for key, d := range r.dependencies {
 		if _, ok := depsMap[key]; !ok {
-			log.Printf("[DEBUG] (runner) %s is no longer needed", d.Display())
+			log.Printf("[DEBUG] (runner) %s is no longer needed", d)
 			r.watcher.Remove(d)
 			r.brain.Forget(d)
 		} else {
-			log.Printf("[DEBUG] (runner) %s is still needed", d.Display())
+			log.Printf("[DEBUG] (runner) %s is still needed", d)
 		}
 	}
 
 	r.dependencies = depsMap
 }
 
-// ConfigTemplateFor returns the ConfigTemplate for the given Template
-func (r *Runner) configTemplatesFor(tmpl *template.Template) []*config.ConfigTemplate {
+// TemplateConfigFor returns the TemplateConfig for the given Template
+func (r *Runner) templateConfigsFor(tmpl *template.Template) []*config.TemplateConfig {
 	return r.ctemplatesMap[tmpl.ID()]
 }
 
-// ConfigTemplateMapping returns a mapping between the template ID and the set
-// of ConfigTemplate represented by the template ID
-func (r *Runner) ConfigTemplateMapping() map[string][]config.ConfigTemplate {
-	m := make(map[string][]config.ConfigTemplate, len(r.ctemplatesMap))
+// TemplateConfigMapping returns a mapping between the template ID and the set
+// of TemplateConfig represented by the template ID
+func (r *Runner) TemplateConfigMapping() map[string][]config.TemplateConfig {
+	m := make(map[string][]config.TemplateConfig, len(r.ctemplatesMap))
 
 	for id, set := range r.ctemplatesMap {
-		ctmpls := make([]config.ConfigTemplate, len(set))
+		ctmpls := make([]config.TemplateConfig, len(set))
 		m[id] = ctmpls
 		for i, ctmpl := range set {
 			ctmpls[i] = *ctmpl
@@ -768,169 +891,65 @@ func (r *Runner) allTemplatesRendered() bool {
 	return true
 }
 
-// markRenderTime stores the render time for the given template. If didRender is
-// true, it stores the time for the template having been rendered, otherwise it
-// stores it as would have been rendered.
-func (r *Runner) markRenderTime(tmplID string, didRender bool) {
-	r.renderEventsLock.Lock()
-	defer r.renderEventsLock.Unlock()
+// childEnv creates a map of environment variables for child processes to have
+// access to configurations in Consul Template's configuration.
+func (r *Runner) childEnv() []string {
+	var m = make(map[string]string)
 
-	// Get the current time
-	now := time.Now()
-
-	// Create the event for the template ID if it is the first time
-	event, ok := r.renderEvents[tmplID]
-	if !ok {
-		event = &RenderEvent{}
-		r.renderEvents[tmplID] = event
+	if config.StringPresent(r.config.Consul.Address) {
+		m["CONSUL_HTTP_ADDR"] = config.StringVal(r.config.Consul.Address)
 	}
 
-	if didRender {
-		event.LastDidRender = now
-	} else {
-		event.LastWouldRender = now
-	}
-}
-
-// Render accepts a Template and a destination on disk. The first return
-// parameter is a boolean that indicates if the template would have been
-// rendered. Since this function is idempotent (meaning it does not write the
-// template if the contents are the same), it is possible that a template is
-// renderable, but never actually rendered because the contents are already
-// present on disk in the correct state. In this situation, we want to inform
-// the parent that the template would have been rendered, but was not. The
-// second return value indicates if the template was actually committed to disk.
-// By the associative property, if the second return value is true, the first
-// return value must also be true (but not necessarily the other direction). The
-// second return value indicates whether the caller should take action given a
-// template on disk has changed.
-//
-// No template exists on disk: true, true, nil
-// Template exists, but contents are different: true, true, nil
-// Template exists, but contents are the same: true, false, nil
-func (r *Runner) render(contents []byte, dest string, perms os.FileMode, backup bool) (bool, bool, error) {
-	existingContents, err := ioutil.ReadFile(dest)
-	if err != nil && !os.IsNotExist(err) {
-		return false, false, err
+	if config.BoolVal(r.config.Consul.Auth.Enabled) {
+		m["CONSUL_HTTP_AUTH"] = r.config.Consul.Auth.String()
 	}
 
-	if bytes.Equal(contents, existingContents) {
-		return true, false, nil
+	m["CONSUL_HTTP_SSL"] = strconv.FormatBool(config.BoolVal(r.config.Consul.SSL.Enabled))
+	m["CONSUL_HTTP_SSL_VERIFY"] = strconv.FormatBool(config.BoolVal(r.config.Consul.SSL.Verify))
+
+	if config.StringPresent(r.config.Vault.Address) {
+		m["VAULT_ADDR"] = config.StringVal(r.config.Vault.Address)
 	}
 
-	if r.dry {
-		fmt.Fprintf(r.outStream, "> %s\n%s", dest, contents)
-	} else {
-		if err := atomicWrite(dest, contents, perms, backup); err != nil {
-			return false, false, err
-		}
+	if !config.BoolVal(r.config.Vault.SSL.Verify) {
+		m["VAULT_SKIP_VERIFY"] = "true"
 	}
 
-	return true, true, nil
-}
-
-// execute accepts a command string and runs that command string on the current
-// system.
-func (r *Runner) execute(command string, timeout time.Duration) error {
-	var shell, flag string
-	if runtime.GOOS == "windows" {
-		shell, flag = "cmd", "/C"
-	} else {
-		shell, flag = "/bin/sh", "-c"
+	if config.StringPresent(r.config.Vault.SSL.Cert) {
+		m["VAULT_CLIENT_CERT"] = config.StringVal(r.config.Vault.SSL.Cert)
 	}
 
-	// Copy the current environment as well as some custom environment variables
-	// that are read by other Consul tools (like Consul's HTTP address). This
-	// allows the user to specify these values once (in the Consul Template config
-	// or command line), instead of in multiple places.
-	var customEnv = make(map[string]string)
-
-	if r.config.Consul != "" {
-		customEnv["CONSUL_HTTP_ADDR"] = r.config.Consul
+	if config.StringPresent(r.config.Vault.SSL.Key) {
+		m["VAULT_CLIENT_KEY"] = config.StringVal(r.config.Vault.SSL.Key)
 	}
 
-	if r.config.Token != "" {
-		customEnv["CONSUL_HTTP_TOKEN"] = r.config.Token
+	if config.StringPresent(r.config.Vault.SSL.CaPath) {
+		m["VAULT_CAPATH"] = config.StringVal(r.config.Vault.SSL.CaPath)
 	}
 
-	if r.config.Auth.Enabled {
-		customEnv["CONSUL_HTTP_AUTH"] = r.config.Auth.String()
+	if config.StringPresent(r.config.Vault.SSL.CaCert) {
+		m["VAULT_CACERT"] = config.StringVal(r.config.Vault.SSL.CaCert)
 	}
 
-	customEnv["CONSUL_HTTP_SSL"] = strconv.FormatBool(r.config.SSL.Enabled)
-	customEnv["CONSUL_HTTP_SSL_VERIFY"] = strconv.FormatBool(r.config.SSL.Verify)
-
-	if r.config.Vault.Address != "" {
-		customEnv["VAULT_ADDR"] = r.config.Vault.Address
+	if config.StringPresent(r.config.Vault.SSL.ServerName) {
+		m["VAULT_TLS_SERVER_NAME"] = config.StringVal(r.config.Vault.SSL.ServerName)
 	}
 
-	if !r.config.Vault.SSL.Verify {
-		customEnv["VAULT_SKIP_VERIFY"] = "true"
+	// Append runner-supplied env (this is supplied programatically).
+	for k, v := range r.Env {
+		m[k] = v
 	}
 
-	if r.config.Vault.SSL.Cert != "" {
-		customEnv["VAULT_CLIENT_CERT"] = r.config.Vault.SSL.Cert
+	e := make([]string, 0, len(m))
+	for k, v := range m {
+		e = append(e, k+"="+v)
 	}
-
-	if r.config.Vault.SSL.Key != "" {
-		customEnv["VAULT_CLIENT_KEY"] = r.config.Vault.SSL.Key
-	}
-
-	if r.config.Vault.SSL.CaPath != "" {
-		customEnv["VAULT_CAPATH"] = r.config.Vault.SSL.CaPath
-	}
-
-	if r.config.Vault.SSL.CaCert != "" {
-		customEnv["VAULT_CACERT"] = r.config.Vault.SSL.CaCert
-	}
-
-	if r.config.Vault.SSL.ServerName != "" {
-		customEnv["VAULT_TLS_SERVER_NAME"] = r.config.Vault.SSL.ServerName
-	}
-
-	currentEnv := os.Environ()
-	cmdEnv := make([]string, len(currentEnv), len(currentEnv)+len(customEnv))
-	copy(cmdEnv, currentEnv)
-	for k, v := range customEnv {
-		cmdEnv = append(cmdEnv, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// Create and invoke the command
-	cmd := exec.Command(shell, flag, command)
-	cmd.Stdout = r.outStream
-	cmd.Stderr = r.errStream
-	cmd.Env = cmdEnv
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case <-time.After(timeout):
-		if cmd.Process != nil {
-			if err := cmd.Process.Kill(); err != nil {
-				return fmt.Errorf("failed to kill %q in %s: %s",
-					command, timeout, err)
-			}
-		}
-		<-done // Allow the goroutine to finish
-		return fmt.Errorf(
-			"command %q\n"+
-				"did not return for %s - if your command does not return, please\n"+
-				"make sure to background it",
-			command, timeout)
-	case err := <-done:
-		return err
-	}
+	return e
 }
 
 // storePid is used to write out a PID file to disk.
 func (r *Runner) storePid() error {
-	path := r.config.PidFile
+	path := config.StringVal(r.config.PidFile)
 	if path == "" {
 		return nil
 	}
@@ -953,7 +972,7 @@ func (r *Runner) storePid() error {
 
 // deletePid is used to remove the PID on exit.
 func (r *Runner) deletePid() error {
-	path := r.config.PidFile
+	path := config.StringVal(r.config.PidFile)
 	if path == "" {
 		return nil
 	}
@@ -975,39 +994,52 @@ func (r *Runner) deletePid() error {
 	return nil
 }
 
-// spawnChild creates a new child process and stores it on the runner object.
-func (r *Runner) spawnChild() error {
-	r.childLock.Lock()
-	defer r.childLock.Unlock()
+// spawnChildInput is used as input to spawn a child process.
+type spawnChildInput struct {
+	Stdin        io.Reader
+	Stdout       io.Writer
+	Stderr       io.Writer
+	Command      string
+	Timeout      time.Duration
+	Env          []string
+	ReloadSignal os.Signal
+	KillSignal   os.Signal
+	KillTimeout  time.Duration
+	Splay        time.Duration
+}
 
+// spawnChild spawns a child process with the given inputs and returns the
+// resulting child.
+func spawnChild(i *spawnChildInput) (*child.Child, error) {
 	p := shellwords.NewParser()
 	p.ParseEnv = true
 	p.ParseBacktick = true
-	args, err := p.Parse(r.config.Exec.Command)
+	args, err := p.Parse(i.Command)
 	if err != nil {
-		return err
+		return nil, errors.Wrap(err, "failed parsing command")
 	}
 
 	child, err := child.New(&child.NewInput{
-		Stdin:        r.inStream,
-		Stdout:       r.outStream,
-		Stderr:       r.errStream,
+		Stdin:        i.Stdin,
+		Stdout:       i.Stdout,
+		Stderr:       i.Stderr,
 		Command:      args[0],
 		Args:         args[1:],
-		ReloadSignal: r.config.Exec.ReloadSignal,
-		KillSignal:   r.config.Exec.KillSignal,
-		KillTimeout:  r.config.Exec.KillTimeout,
-		Splay:        r.config.Exec.Splay,
+		Env:          i.Env,
+		Timeout:      i.Timeout,
+		ReloadSignal: i.ReloadSignal,
+		KillSignal:   i.KillSignal,
+		KillTimeout:  i.KillTimeout,
+		Splay:        i.Splay,
 	})
 	if err != nil {
-		return fmt.Errorf("error creating child: %s", err)
+		return nil, errors.Wrap(err, "error creating child")
 	}
-	r.child = child
 
-	if err := r.child.Start(); err != nil {
-		return fmt.Errorf("error starting child: %s", err)
+	if err := child.Start(); err != nil {
+		return nil, errors.Wrap(err, "child")
 	}
-	return nil
+	return child, nil
 }
 
 // quiescence is an internal representation of a single template's quiescence
@@ -1062,138 +1094,50 @@ func (q *quiescence) tick() {
 	}
 }
 
-// atomicWrite accepts a destination path and the template contents. It writes
-// the template contents to a TempFile on disk, returning if any errors occur.
-//
-// If the parent destination directory does not exist, it will be created
-// automatically with permissions 0755. To use a different permission, create
-// the directory first or use `chmod` in a Command.
-//
-// If the destination path exists, all attempts will be made to preserve the
-// existing file permissions. If those permissions cannot be read, an error is
-// returned. If the file does not exist, it will be created automatically with
-// permissions 0644. To use a different permission, create the destination file
-// first or use `chmod` in a Command.
-//
-// If no errors occur, the Tempfile is "renamed" (moved) to the destination
-// path.
-func atomicWrite(path string, contents []byte, perms os.FileMode, backup bool) error {
-	parent := filepath.Dir(path)
-	if _, err := os.Stat(parent); os.IsNotExist(err) {
-		if err := os.MkdirAll(parent, 0755); err != nil {
-			return err
+// findCommand searches the list of template configs for the given command and
+// returns it if it exists.
+func findCommand(c *config.TemplateConfig, templates []*config.TemplateConfig) *config.TemplateConfig {
+	needle := config.StringVal(c.Exec.Command)
+	for _, t := range templates {
+		if needle == config.StringVal(t.Exec.Command) {
+			return t
 		}
 	}
-
-	f, err := ioutil.TempFile(parent, "")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-
-	if _, err := f.Write(contents); err != nil {
-		return err
-	}
-
-	if err := f.Sync(); err != nil {
-		return err
-	}
-
-	if err := f.Close(); err != nil {
-		return err
-	}
-
-	if err := os.Chmod(f.Name(), perms); err != nil {
-		return err
-	}
-
-	// If we got this far, it means we are about to save the file. Copy the
-	// current contents of the file onto disk (if it exists) so we have a backup.
-	if backup {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			if err := copyFile(path, path+".bak"); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := os.Rename(f.Name(), path); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// copyFile copies the file at src to the path at dst. Any errors that occur
-// are returned.
-func copyFile(src, dst string) error {
-	s, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-
-	stat, err := s.Stat()
-	if err != nil {
-		return err
-	}
-
-	d, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, stat.Mode())
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(d, s); err != nil {
-		d.Close()
-		return err
-	}
-	return d.Close()
-}
-
-// Checks if a ConfigTemplate with the given data exists in the list of Config
-// Templates.
-func commandExists(c *config.ConfigTemplate, templates []*config.ConfigTemplate) bool {
-	needle := strings.TrimSpace(c.Command)
-	for _, t := range templates {
-		if needle == strings.TrimSpace(t.Command) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // newClientSet creates a new client set from the given config.
-func newClientSet(config *config.Config) (*dep.ClientSet, error) {
+func newClientSet(c *config.Config) (*dep.ClientSet, error) {
 	clients := dep.NewClientSet()
 
 	if err := clients.CreateConsulClient(&dep.CreateConsulClientInput{
-		Address:      config.Consul,
-		Token:        config.Token,
-		AuthEnabled:  config.Auth.Enabled,
-		AuthUsername: config.Auth.Username,
-		AuthPassword: config.Auth.Password,
-		SSLEnabled:   config.SSL.Enabled,
-		SSLVerify:    config.SSL.Verify,
-		SSLCert:      config.SSL.Cert,
-		SSLKey:       config.SSL.Key,
-		SSLCACert:    config.SSL.CaCert,
-		SSLCAPath:    config.SSL.CaPath,
-		ServerName:   config.SSL.ServerName,
+		Address:      config.StringVal(c.Consul.Address),
+		Token:        config.StringVal(c.Consul.Token),
+		AuthEnabled:  config.BoolVal(c.Consul.Auth.Enabled),
+		AuthUsername: config.StringVal(c.Consul.Auth.Username),
+		AuthPassword: config.StringVal(c.Consul.Auth.Password),
+		SSLEnabled:   config.BoolVal(c.Consul.SSL.Enabled),
+		SSLVerify:    config.BoolVal(c.Consul.SSL.Verify),
+		SSLCert:      config.StringVal(c.Consul.SSL.Cert),
+		SSLKey:       config.StringVal(c.Consul.SSL.Key),
+		SSLCACert:    config.StringVal(c.Consul.SSL.CaCert),
+		SSLCAPath:    config.StringVal(c.Consul.SSL.CaPath),
+		ServerName:   config.StringVal(c.Consul.SSL.ServerName),
 	}); err != nil {
 		return nil, fmt.Errorf("runner: %s", err)
 	}
 
 	if err := clients.CreateVaultClient(&dep.CreateVaultClientInput{
-		Address:     config.Vault.Address,
-		Token:       config.Vault.Token,
-		UnwrapToken: config.Vault.UnwrapToken,
-		SSLEnabled:  config.Vault.SSL.Enabled,
-		SSLVerify:   config.Vault.SSL.Verify,
-		SSLCert:     config.Vault.SSL.Cert,
-		SSLKey:      config.Vault.SSL.Key,
-		SSLCACert:   config.Vault.SSL.CaCert,
-		SSLCAPath:   config.Vault.SSL.CaPath,
-		ServerName:  config.Vault.SSL.ServerName,
+		Address:     config.StringVal(c.Vault.Address),
+		Token:       config.StringVal(c.Vault.Token),
+		UnwrapToken: config.BoolVal(c.Vault.UnwrapToken),
+		SSLEnabled:  config.BoolVal(c.Vault.SSL.Enabled),
+		SSLVerify:   config.BoolVal(c.Vault.SSL.Verify),
+		SSLCert:     config.StringVal(c.Vault.SSL.Cert),
+		SSLKey:      config.StringVal(c.Vault.SSL.Key),
+		SSLCACert:   config.StringVal(c.Vault.SSL.CaCert),
+		SSLCAPath:   config.StringVal(c.Vault.SSL.CaPath),
+		ServerName:  config.StringVal(c.Vault.SSL.ServerName),
 	}); err != nil {
 		return nil, fmt.Errorf("runner: %s", err)
 	}
@@ -1202,21 +1146,22 @@ func newClientSet(config *config.Config) (*dep.ClientSet, error) {
 }
 
 // newWatcher creates a new watcher.
-func newWatcher(config *config.Config, clients *dep.ClientSet, once bool) (*watch.Watcher, error) {
-	log.Printf("[INFO] (runner) creating Watcher")
+func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Watcher, error) {
+	log.Printf("[INFO] (runner) creating watcher")
 
-	watcher, err := watch.NewWatcher(&watch.WatcherConfig{
-		Clients:  clients,
-		Once:     once,
-		MaxStale: config.MaxStale,
-		RetryFunc: func(current time.Duration) time.Duration {
-			return config.Retry
-		},
-		RenewVault: config.Vault.Token != "" && config.Vault.RenewToken,
+	w, err := watch.NewWatcher(&watch.NewWatcherInput{
+		Clients:         clients,
+		MaxStale:        config.TimeDurationVal(c.MaxStale),
+		Once:            once,
+		RenewVault:      config.StringPresent(c.Vault.Token) && config.BoolVal(c.Vault.RenewToken),
+		RetryFuncConsul: watch.RetryFunc(c.Consul.Retry.RetryFunc()),
+		// TODO: Add a sane default retry - right now this only affects "local"
+		// dependencies like reading a file from disk.
+		RetryFuncDefault: nil,
+		RetryFuncVault:   watch.RetryFunc(c.Vault.Retry.RetryFunc()),
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "runner")
 	}
-
-	return watcher, err
+	return w, nil
 }

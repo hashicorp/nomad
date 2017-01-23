@@ -11,8 +11,8 @@ import (
 type Brain struct {
 	sync.RWMutex
 
-	// data is the map of individual dependencies (by HashCode()) and the most
-	// recent data for that dependency.
+	// data is the map of individual dependencies and the most recent data for
+	// that dependency.
 	data map[string]interface{}
 
 	// receivedData is an internal tracker of which dependencies have stored data
@@ -36,8 +36,8 @@ func (b *Brain) Remember(d dep.Dependency, data interface{}) {
 	b.Lock()
 	defer b.Unlock()
 
-	b.data[d.HashCode()] = data
-	b.receivedData[d.HashCode()] = struct{}{}
+	b.data[d.String()] = data
+	b.receivedData[d.String()] = struct{}{}
 }
 
 // Recall gets the current value for the given dependency in the Brain.
@@ -46,11 +46,11 @@ func (b *Brain) Recall(d dep.Dependency) (interface{}, bool) {
 	defer b.RUnlock()
 
 	// If we have not received data for this dependency, return now.
-	if _, ok := b.receivedData[d.HashCode()]; !ok {
+	if _, ok := b.receivedData[d.String()]; !ok {
 		return nil, false
 	}
 
-	return b.data[d.HashCode()], true
+	return b.data[d.String()], true
 }
 
 // ForceSet is used to force set the value of a dependency
@@ -69,6 +69,6 @@ func (b *Brain) Forget(d dep.Dependency) {
 	b.Lock()
 	defer b.Unlock()
 
-	delete(b.data, d.HashCode())
-	delete(b.receivedData, d.HashCode())
+	delete(b.data, d.String())
+	delete(b.receivedData, d.String())
 }

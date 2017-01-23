@@ -12,7 +12,6 @@ import (
 	ctconf "github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/consul-template/watch"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -337,20 +336,23 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 	}
 
 	// Set the config
-	flat := make([]*ctconf.ConfigTemplate, 0, len(ctmplMapping))
+	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(ctmplMapping)))
 	for ctmpl := range ctmplMapping {
 		local := ctmpl
 		flat = append(flat, &local)
 	}
-	runnerConfig.ConfigTemplates = flat
+	runnerConfig.Templates = &flat
 
 	runner, err := manager.NewRunner(runnerConfig, false, false)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// Set Nomad's environment variables
+	runner.Env = taskEnv.Build().EnvMap()
+
 	// Build the lookup
-	idMap := runner.ConfigTemplateMapping()
+	idMap := runner.TemplateConfigMapping()
 	lookup := make(map[string][]*structs.Template, len(idMap))
 	for id, ctmpls := range idMap {
 		for _, ctmpl := range ctmpls {
@@ -365,13 +367,11 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 
 // parseTemplateConfigs converts the tasks templates into consul-templates
 func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
-	taskEnv *env.TaskEnvironment, allowAbs bool) (map[ctconf.ConfigTemplate]*structs.Template, error) {
+	taskEnv *env.TaskEnvironment, allowAbs bool) (map[ctconf.TemplateConfig]*structs.Template, error) {
 	// Build the task environment
-	// TODO Should be able to inject the Nomad env vars into Consul-template for
-	// rendering
 	taskEnv.Build()
 
-	ctmpls := make(map[ctconf.ConfigTemplate]*structs.Template, len(tmpls))
+	ctmpls := make(map[ctconf.TemplateConfig]*structs.Template, len(tmpls))
 	for _, tmpl := range tmpls {
 		var src, dest string
 		if tmpl.SourcePath != "" {
@@ -389,15 +389,13 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 			dest = filepath.Join(taskDir, taskEnv.ReplaceEnv(tmpl.DestPath))
 		}
 
-		ct := ctconf.ConfigTemplate{
-			Source:           src,
-			Destination:      dest,
-			EmbeddedTemplate: tmpl.EmbeddedTmpl,
-			Perms:            ctconf.DefaultFilePerms,
-			Wait:             &watch.Wait{},
-		}
+		ct := ctconf.DefaultTemplateConfig()
+		ct.Source = &src
+		ct.Destination = &dest
+		ct.Contents = &tmpl.EmbeddedTmpl
+		ct.Finalize()
 
-		ctmpls[ct] = tmpl
+		ctmpls[*ct] = tmpl
 	}
 
 	return ctmpls, nil
@@ -406,34 +404,30 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 // runnerConfig returns a consul-template runner configuration, setting the
 // Vault and Consul configurations based on the clients configs.
 func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, error) {
-	conf := &ctconf.Config{}
+	conf := ctconf.DefaultConfig()
 
-	set := func(keys []string) {
-		for _, k := range keys {
-			conf.Set(k)
-		}
-	}
+	t, f := true, false
 
+	// Force faster retries
 	if testRetryRate != 0 {
-		conf.Retry = testRetryRate
-		conf.Set("retry")
+		rate := testRetryRate
+		conf.Consul.Retry.Backoff = &rate
 	}
 
 	// Setup the Consul config
 	if config.ConsulConfig != nil {
-		conf.Consul = config.ConsulConfig.Addr
-		conf.Token = config.ConsulConfig.Token
-		set([]string{"consul", "token"})
+		conf.Consul.Address = &config.ConsulConfig.Addr
+		conf.Consul.Token = &config.ConsulConfig.Token
 
 		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
-			conf.SSL = &ctconf.SSLConfig{
-				Enabled: true,
-				Verify:  *config.ConsulConfig.VerifySSL,
-				Cert:    config.ConsulConfig.CertFile,
-				Key:     config.ConsulConfig.KeyFile,
-				CaCert:  config.ConsulConfig.CAFile,
+			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
+			conf.Consul.SSL = &ctconf.SSLConfig{
+				Enabled: &t,
+				Verify:  &verify,
+				Cert:    &config.ConsulConfig.CertFile,
+				Key:     &config.ConsulConfig.KeyFile,
+				CaCert:  &config.ConsulConfig.CAFile,
 			}
-			set([]string{"ssl", "ssl.enabled", "ssl.verify", "ssl.cert", "ssl.key", "ssl.ca_cert"})
 		}
 
 		if config.ConsulConfig.Auth != "" {
@@ -442,42 +436,46 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 				return nil, fmt.Errorf("Failed to parse Consul Auth config")
 			}
 
-			conf.Auth = &ctconf.AuthConfig{
-				Enabled:  true,
-				Username: parts[0],
-				Password: parts[1],
+			conf.Consul.Auth = &ctconf.AuthConfig{
+				Enabled:  &t,
+				Username: &parts[0],
+				Password: &parts[1],
 			}
-
-			set([]string{"auth", "auth.username", "auth.password", "auth.enabled"})
 		}
 	}
 
 	// Setup the Vault config
 	// Always set these to ensure nothing is picked up from the environment
-	conf.Vault = &ctconf.VaultConfig{
-		RenewToken: false,
-	}
-	set([]string{"vault", "vault.token", "vault.renew_token"})
+	emptyStr := ""
+	conf.Vault.RenewToken = &f
+	conf.Vault.Token = &emptyStr
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
-		conf.Vault.Address = config.VaultConfig.Addr
-		conf.Vault.Token = vaultToken
-		set([]string{"vault.address"})
+		conf.Vault.Address = &config.VaultConfig.Addr
+		conf.Vault.Token = &vaultToken
 
 		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
-			verify := config.VaultConfig.TLSSkipVerify == nil || !*config.VaultConfig.TLSSkipVerify
+			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
+			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled: true,
-				Verify:  !verify,
-				Cert:    config.VaultConfig.TLSCertFile,
-				Key:     config.VaultConfig.TLSKeyFile,
-				CaCert:  config.VaultConfig.TLSCaFile,
-				CaPath:  config.VaultConfig.TLSCaPath,
+				Enabled: &t,
+				Verify:  &verify,
+				Cert:    &config.VaultConfig.TLSCertFile,
+				Key:     &config.VaultConfig.TLSKeyFile,
+				CaCert:  &config.VaultConfig.TLSCaFile,
+				CaPath:  &config.VaultConfig.TLSCaPath,
 			}
-
-			set([]string{"vault.ssl", "vault.ssl.enabled", "vault.ssl.verify",
-				"vault.ssl.cert", "vault.ssl.key", "vault.ssl.ca_cert"})
+		} else {
+			conf.Vault.SSL = &ctconf.SSLConfig{
+				Enabled: &f,
+				Verify:  &f,
+				Cert:    &emptyStr,
+				Key:     &emptyStr,
+				CaCert:  &emptyStr,
+				CaPath:  &emptyStr,
+			}
 		}
 	}
 
+	conf.Finalize()
 	return conf, nil
 }
