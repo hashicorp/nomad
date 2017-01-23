@@ -32,8 +32,8 @@ func NewVaultReadQuery(s string) (*VaultReadQuery, error) {
 	}
 
 	return &VaultReadQuery{
-		path:   s,
 		stopCh: make(chan struct{}, 1),
+		path:   s,
 	}, nil
 }
 

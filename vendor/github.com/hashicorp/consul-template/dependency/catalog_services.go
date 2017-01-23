@@ -45,7 +45,8 @@ func NewCatalogServicesQuery(s string) (*CatalogServicesQuery, error) {
 
 	m := regexpMatch(CatalogServicesQueryRe, s)
 	return &CatalogServicesQuery{
-		dc: m["dc"],
+		stopCh: make(chan struct{}, 1),
+		dc:     m["dc"],
 	}, nil
 }
 

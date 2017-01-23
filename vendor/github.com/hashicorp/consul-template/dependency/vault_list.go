@@ -32,8 +32,8 @@ func NewVaultListQuery(s string) (*VaultListQuery, error) {
 	}
 
 	return &VaultListQuery{
-		path:   s,
 		stopCh: make(chan struct{}, 1),
+		path:   s,
 	}, nil
 }
 
@@ -70,29 +70,33 @@ func (d *VaultListQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 		return nil, nil, errors.Wrap(err, d.String())
 	}
 
+	var result []string
+
 	// The secret could be nil if it does not exist.
 	if secret == nil || secret.Data == nil {
-		return respWithMetadata([]string{})
+		log.Printf("[TRACE] %s: no data", d)
+		return respWithMetadata(result)
 	}
 
 	// This is a weird thing that happened once...
 	keys, ok := secret.Data["keys"]
 	if !ok {
-		return respWithMetadata([]string{})
+		log.Printf("[TRACE] %s: no keys", d)
+		return respWithMetadata(result)
 	}
 
 	list, ok := keys.([]interface{})
 	if !ok {
+		log.Printf("[TRACE] %s: not list", d)
 		return nil, nil, fmt.Errorf("%s: unexpected response", d)
 	}
 
-	result := make([]string, len(list))
-	for i, v := range list {
+	for _, v := range list {
 		typed, ok := v.(string)
 		if !ok {
 			return nil, nil, fmt.Errorf("%s: non-string in list", d)
 		}
-		result[i] = typed
+		result = append(result, typed)
 	}
 	sort.Strings(result)
 

@@ -37,10 +37,10 @@ func NewVaultWriteQuery(s string, d map[string]interface{}) (*VaultWriteQuery, e
 	}
 
 	return &VaultWriteQuery{
+		stopCh:   make(chan struct{}, 1),
 		path:     s,
 		data:     d,
 		dataHash: sha1Map(d),
-		stopCh:   make(chan struct{}, 1),
 	}, nil
 }
 

@@ -48,9 +48,9 @@ func NewKVListQuery(s string) (*KVListQuery, error) {
 
 	m := regexpMatch(KVListQueryRe, s)
 	return &KVListQuery{
+		stopCh: make(chan struct{}, 1),
 		dc:     m["dc"],
 		prefix: m["prefix"],
-		stopCh: make(chan struct{}, 1),
 	}, nil
 }
 

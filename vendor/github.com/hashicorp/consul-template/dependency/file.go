@@ -36,8 +36,8 @@ func NewFileQuery(s string) (*FileQuery, error) {
 	}
 
 	return &FileQuery{
-		path:   s,
 		stopCh: make(chan struct{}, 1),
+		path:   s,
 	}, nil
 }
 

@@ -76,20 +76,23 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 		Datacenter: d.dc,
 	})
 
-	if d.name == "" {
+	// Grab the name
+	name := d.name
+
+	if name == "" {
 		log.Printf("[TRACE] %s: getting local agent name", d)
-		name, err := clients.Consul().Agent().NodeName()
+		var err error
+		name, err = clients.Consul().Agent().NodeName()
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, d.String())
 		}
-		d.name = name
 	}
 
 	log.Printf("[TRACE] %s: GET %s", d, &url.URL{
-		Path:     "/v1/catalog/node/" + d.name,
+		Path:     "/v1/catalog/node/" + name,
 		RawQuery: opts.String(),
 	})
-	node, qm, err := clients.Consul().Catalog().Node(d.name, opts.ToConsulOpts())
+	node, qm, err := clients.Consul().Catalog().Node(name, opts.ToConsulOpts())
 	if err != nil {
 		return nil, nil, errors.Wrap(err, d.String())
 	}
@@ -102,7 +105,7 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 	}
 
 	if node == nil {
-		log.Printf("[WARN] %s: no node exists with the name %q", d, d.name)
+		log.Printf("[WARN] %s: no node exists with the name %q", d, name)
 		var node CatalogNode
 		return &node, rm, nil
 	}

@@ -34,9 +34,9 @@ func NewKVKeysQuery(s string) (*KVKeysQuery, error) {
 
 	m := regexpMatch(KVKeysQueryRe, s)
 	return &KVKeysQuery{
+		stopCh: make(chan struct{}, 1),
 		dc:     m["dc"],
 		prefix: m["prefix"],
-		stopCh: make(chan struct{}, 1),
 	}, nil
 }
 
