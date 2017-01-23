@@ -27,6 +27,9 @@ BUG FIXES:
     ignored [GH-2159]
   * driver: Fix image based drivers (eg docker) having host env vars set [GH-2211]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
+  * driver/docker: Fix parsing of Docker Auth Configurations. New parsing is
+    in-line with Docker itself. Also log debug message if auth lookup failed
+    [GH-2190]
   * template: Fix splay being used as a wait and instead randomize the delay
     from 0 seconds to splay duration [GH-2227]
 
