@@ -18,6 +18,8 @@ IMPROVEMENTS:
 BUG FIXES:
   * client: Fix issue where allocations weren't pulled for several minutes. This
     manifested as slow starts, delayed kills, etc [GH-2177]
+  * config: Fix merging of Consul options which caused auto_adverise to be
+    ignored [GH-2159]
   * driver: Fix image based drivers (eg docker) having host env vars set [GH-2211]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
   * template: Fix splay being used as a wait and instead randomize the delay
