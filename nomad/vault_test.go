@@ -21,24 +21,128 @@ import (
 )
 
 const (
-	// authPolicy is a policy that allows token creation operations
-	authPolicy = `path "auth/token/create/test" {
-	capabilities = ["create", "update"]
+	// nomadRoleManagementPolicy is a policy that allows nomad to manage tokens
+	nomadRoleManagementPolicy = `
+path "auth/token/renew-self" {
+	capabilities = ["update"]
 }
 
-path "auth/token/lookup/*" {
-	capabilities = ["read"]
+path "auth/token/lookup" {
+	capabilities = ["update"]
 }
 
 path "auth/token/roles/test" {
 	capabilities = ["read"]
 }
 
-path "/auth/token/revoke-accessor/*" {
+path "auth/token/revoke-accessor" {
 	capabilities = ["update"]
 }
 `
+
+	// tokenLookupPolicy allows a token to be looked up
+	tokenLookupPolicy = `
+path "auth/token/lookup" {
+	capabilities = ["update"]
+}
+`
+
+	// nomadRoleCreatePolicy gives the ability to create the role and derive tokens
+	// from the test role
+	nomadRoleCreatePolicy = `
+path "auth/token/create/test" {
+	capabilities = ["create", "update"]
+}
+`
+
+	// secretPolicy gives access to the secret mount
+	secretPolicy = `
+path "secret/*" {
+	capabilities = ["create", "read", "update", "delete", "list"]
+}
+`
 )
+
+// defaultTestVaultWhitelistRoleAndToken creates a test Vault role and returns a token
+// created in that role
+func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+	vaultPolicies := map[string]string{
+		"nomad-role-create":     nomadRoleCreatePolicy,
+		"nomad-role-management": nomadRoleManagementPolicy,
+	}
+	d := make(map[string]interface{}, 2)
+	d["allowed_policies"] = "nomad-role-create,nomad-role-management"
+	d["period"] = rolePeriod
+	return testVaultRoleAndToken(v, t, vaultPolicies, d,
+		[]string{"nomad-role-create", "nomad-role-management"})
+}
+
+// defaultTestVaultBlacklistRoleAndToken creates a test Vault role using
+// disallowed_policies and returns a token created in that role
+func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+	vaultPolicies := map[string]string{
+		"nomad-role-create":     nomadRoleCreatePolicy,
+		"nomad-role-management": nomadRoleManagementPolicy,
+		"secrets":               secretPolicy,
+	}
+
+	// Create the role
+	d := make(map[string]interface{}, 2)
+	d["disallowed_policies"] = "nomad-role-create"
+	d["period"] = rolePeriod
+	testVaultRoleAndToken(v, t, vaultPolicies, d, []string{"default"})
+
+	// Create a token that can use the role
+	a := v.Client.Auth().Token()
+	req := &vapi.TokenCreateRequest{
+		Policies: []string{"nomad-role-create", "nomad-role-management"},
+	}
+	s, err := a.Create(req)
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	return s.Auth.ClientToken
+}
+
+// testVaultRoleAndToken writes the vaultPolicies to vault and then creates a
+// test role with the passed data. After that it derives a token from the role
+// with the tokenPolicies
+func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, vaultPolicies map[string]string,
+	data map[string]interface{}, tokenPolicies []string) string {
+	// Write the policies
+	sys := v.Client.Sys()
+	for p, data := range vaultPolicies {
+		if err := sys.PutPolicy(p, data); err != nil {
+			t.Fatalf("failed to create %q policy: %v", p, err)
+		}
+	}
+
+	// Build a role
+	l := v.Client.Logical()
+	l.Write("auth/token/roles/test", data)
+
+	// Create a new token with the role
+	a := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: tokenPolicies,
+	}
+	s, err := a.CreateWithRole(&req, "test")
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	// Get the client token
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	return s.Auth.ClientToken
+}
 
 func TestVaultClient_BadConfig(t *testing.T) {
 	conf := &config.VaultConfig{}
@@ -96,13 +200,17 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
+	vaultPolicies := map[string]string{
+		"nomad-role-create":     nomadRoleCreatePolicy,
+		"nomad-role-management": nomadRoleManagementPolicy,
+	}
 	data := map[string]interface{}{
 		"allowed_policies": "default,root",
 		"orphan":           true,
 		"renewable":        true,
 		"explicit_max_ttl": 10,
 	}
-	v.Config.Token = testVaultRoleAndToken(v, t, data)
+	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
@@ -135,6 +243,59 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 		t.Fatalf("Expect orphan error")
 	}
 	if !strings.Contains(errStr, "explicit max ttl") {
+		t.Fatalf("Expect explicit max ttl error")
+	}
+}
+
+func TestVaultClient_ValidateToken(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	vaultPolicies := map[string]string{
+		"nomad-role-create": nomadRoleCreatePolicy,
+		"token-lookup":      tokenLookupPolicy,
+	}
+	data := map[string]interface{}{
+		"allowed_policies": "token-lookup,nomad-role-create",
+		"period":           10,
+	}
+	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, []string{"token-lookup", "nomad-role-create"})
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	// Wait for an error
+	var conn bool
+	var connErr error
+	testutil.WaitForResult(func() (bool, error) {
+		conn, connErr = client.ConnectionEstablished()
+		if conn {
+			return false, fmt.Errorf("Should not connect")
+		}
+
+		if connErr == nil {
+			return false, fmt.Errorf("expect an error")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("bad: %v", err)
+	})
+
+	errStr := connErr.Error()
+	if !strings.Contains(errStr, vaultTokenRevokePath) {
+		t.Fatalf("Expect orphan error")
+	}
+	if !strings.Contains(errStr, fmt.Sprintf(vaultRoleLookupPath, "test")) {
+		t.Fatalf("Expect explicit max ttl error")
+	}
+	if !strings.Contains(errStr, "token must have one of the following") {
 		t.Fatalf("Expect explicit max ttl error")
 	}
 }
@@ -176,7 +337,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	defer v2.Stop()
 
 	// Set the configs token in a new test role
-	v2.Config.Token = defaultTestVaultRoleAndToken(v2, t, 20)
+	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	client, err := NewVaultClient(v.Config, logger, nil)
@@ -198,47 +359,9 @@ func TestVaultClient_SetConfig(t *testing.T) {
 
 	waitForConnection(client, t)
 
-	if client.tokenData == nil || len(client.tokenData.Policies) != 2 {
+	if client.tokenData == nil || len(client.tokenData.Policies) != 3 {
 		t.Fatalf("unexpected token: %v", client.tokenData)
 	}
-}
-
-// defaultTestVaultRoleAndToken creates a test Vault role and returns a token
-// created in that role
-func defaultTestVaultRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
-	d := make(map[string]interface{}, 2)
-	d["allowed_policies"] = "auth"
-	d["period"] = rolePeriod
-	return testVaultRoleAndToken(v, t, d)
-}
-
-// testVaultRoleAndToken creates a test Vault role with the specified data and
-// returns a token created in that role
-func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, data map[string]interface{}) string {
-	// Build the auth policy
-	sys := v.Client.Sys()
-	if err := sys.PutPolicy("auth", authPolicy); err != nil {
-		t.Fatalf("failed to create auth policy: %v", err)
-	}
-
-	// Build a role
-	l := v.Client.Logical()
-	l.Write("auth/token/roles/test", data)
-
-	// Create a new token with the role
-	a := v.Client.Auth().Token()
-	req := vapi.TokenCreateRequest{}
-	s, err := a.CreateWithRole(&req, "test")
-	if err != nil {
-		t.Fatalf("failed to create child token: %v", err)
-	}
-
-	// Get the client token
-	if s == nil || s.Auth == nil {
-		t.Fatalf("bad secret response: %+v", s)
-	}
-
-	return s.Auth.ClientToken
 }
 
 func TestVaultClient_RenewalLoop(t *testing.T) {
@@ -246,7 +369,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -386,7 +509,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	client, err := NewVaultClient(v.Config, logger, nil)
@@ -409,7 +532,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 		t.Fatalf("failed to parse policies: %v", err)
 	}
 
-	expected := []string{"auth", "default"}
+	expected := []string{"default", "nomad-role-create", "nomad-role-management"}
 	if !reflect.DeepEqual(policies, expected) {
 		t.Fatalf("Unexpected policies; got %v; want %v", policies, expected)
 	}
@@ -543,12 +666,12 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 	}
 }
 
-func TestVaultClient_CreateToken_Role(t *testing.T) {
+func TestVaultClient_CreateToken_Whitelist_Role(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -590,12 +713,110 @@ func TestVaultClient_CreateToken_Role(t *testing.T) {
 	}
 }
 
+func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Create the test role
+	defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	// Target the test role
+	v.Config.Role = "test"
+
+	// Start the client
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	s, err := client.CreateToken(context.Background(), a, task.Name)
+	if err != nil {
+		t.Fatalf("CreateToken failed: %v", err)
+	}
+
+	// Ensure that created secret is a wrapped token
+	if s == nil || s.WrapInfo == nil {
+		t.Fatalf("Bad secret: %#v", s)
+	}
+
+	d, err := time.ParseDuration(vaultTokenCreateTTL)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if s.WrapInfo.WrappedAccessor == "" {
+		t.Fatalf("Bad accessor: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.Token == "" {
+		t.Fatalf("Bad token: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.TTL != int(d.Seconds()) {
+		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
+	}
+}
+
+func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultBlacklistRoleAndToken(v, t, 5)
+	v.Config.Role = "test"
+
+	// Start the client
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create an allocation that requires a Vault policy
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"secrets"}}
+
+	s, err := client.CreateToken(context.Background(), a, task.Name)
+	if err != nil {
+		t.Fatalf("CreateToken failed: %v", err)
+	}
+
+	// Ensure that created secret is a wrapped token
+	if s == nil || s.WrapInfo == nil {
+		t.Fatalf("Bad secret: %#v", s)
+	}
+
+	d, err := time.ParseDuration(vaultTokenCreateTTL)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if s.WrapInfo.WrappedAccessor == "" {
+		t.Fatalf("Bad accessor: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.Token == "" {
+		t.Fatalf("Bad token: %v", s.WrapInfo.WrappedAccessor)
+	} else if s.WrapInfo.TTL != int(d.Seconds()) {
+		t.Fatalf("Bad ttl: %v", s.WrapInfo.WrappedAccessor)
+	}
+}
+
 func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	defaultTestVaultRoleAndToken(v, t, 5)
+	defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 	v.Config.Token = "foo-bar"
 
 	// Start the client
@@ -634,7 +855,7 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -796,7 +1017,7 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	purged := 0
 	purge := func(accessors []*structs.VaultAccessor) error {
@@ -846,15 +1067,14 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	}
 
 	// Lookup the token and make sure we get an error
+	if purged != 2 {
+		t.Fatalf("Expected purged 2; got %d", purged)
+	}
 	if s, err := auth.Lookup(t1.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
 	}
 	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
-	}
-
-	if purged != 2 {
-		t.Fatalf("Expected purged 2; got %d", purged)
 	}
 }
 

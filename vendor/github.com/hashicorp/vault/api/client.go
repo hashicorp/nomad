@@ -48,7 +48,7 @@ type Config struct {
 	redirectSetup sync.Once
 
 	// MaxRetries controls the maximum number of times to retry when a 5xx error
-	// occurs. Set to 0 or less to disable retrying.
+	// occurs. Set to 0 or less to disable retrying. Defaults to 0.
 	MaxRetries int
 }
 
@@ -99,12 +99,10 @@ func DefaultConfig() *Config {
 		config.Address = v
 	}
 
-	config.MaxRetries = pester.DefaultClient.MaxRetries
-
 	return config
 }
 
-// ConfigureTLS takes a set of TLS configurations and applies those to the HTTP client.
+// ConfigureTLS takes a set of TLS configurations and applies those to the the HTTP client.
 func (c *Config) ConfigureTLS(t *TLSConfig) error {
 
 	if c.HttpClient == nil {
@@ -289,6 +287,11 @@ func (c *Client) SetAddress(addr string) error {
 	return nil
 }
 
+// Address returns the Vault URL the client is configured to connect to
+func (c *Client) Address() string {
+	return c.addr.String()
+}
+
 // SetWrappingLookupFunc sets a lookup function that returns desired wrap TTLs
 // for a given operation and path
 func (c *Client) SetWrappingLookupFunc(lookupFunc WrappingLookupFunc) {
@@ -327,17 +330,19 @@ func (c *Client) NewRequest(method, path string) *Request {
 		Params:      make(map[string][]string),
 	}
 
+	var lookupPath string
+	switch {
+	case strings.HasPrefix(path, "/v1/"):
+		lookupPath = strings.TrimPrefix(path, "/v1/")
+	case strings.HasPrefix(path, "v1/"):
+		lookupPath = strings.TrimPrefix(path, "v1/")
+	default:
+		lookupPath = path
+	}
 	if c.wrappingLookupFunc != nil {
-		var lookupPath string
-		switch {
-		case strings.HasPrefix(path, "/v1/"):
-			lookupPath = strings.TrimPrefix(path, "/v1/")
-		case strings.HasPrefix(path, "v1/"):
-			lookupPath = strings.TrimPrefix(path, "v1/")
-		default:
-			lookupPath = path
-		}
 		req.WrapTTL = c.wrappingLookupFunc(method, lookupPath)
+	} else {
+		req.WrapTTL = DefaultWrappingLookupFunc(method, lookupPath)
 	}
 
 	return req
