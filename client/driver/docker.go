@@ -57,7 +57,11 @@ var (
 	recoverableErrTimeouts = func(err error) error {
 		r := false
 		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
-			strings.Contains(err.Error(), "EOF") {
+			strings.Contains(err.Error(), "EOF") ||
+			// TODO Remove when we implement global co-ordination among docker
+			// drivers to not remove images which are in use by instances of
+			// other drivers
+			strings.Contains(err.Error(), "no such image") {
 			r = true
 		}
 		return structs.NewRecoverableError(err, r)
