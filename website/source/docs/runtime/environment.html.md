@@ -84,6 +84,10 @@ environment variables.
     <td>`VAULT_TOKEN`</td>
     <td>The task's Vault token. See [Vault Integration](/docs/vault-integration/index.html) for more details</td>
   </tr>
+  <tr>
+    <td>`NOMAD_ADDR_<task>_<label`></td>
+    <td>The allocated address, given as IP:Port, for each task, port label</td>
+  </tr>
 </table>
 
 ## Task Identifiers
