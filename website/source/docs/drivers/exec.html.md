@@ -125,10 +125,10 @@ machine:
 ]
 ```
 
-Nomad will copy these directories into the job's chroot, so make sure you have
-enough disk space. Also take into consideration that allocations are not
-removed immediately after a job has completed, so you might need some margin if
-you run many batch jobs.
+The task's chroot is populated by linking or copying the data from the host into
+the chroot. Note that this can take considerable disk space. Since Nomad v0.5.3,
+the client manages garbage collection locally which mitigates any issue this may
+create.
 
 This list is configurable through the agent client
 [configuration file](/docs/agent/configuration/client.html#chroot_env).
