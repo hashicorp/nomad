@@ -86,13 +86,27 @@ func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, 
 		"secrets":               secretPolicy,
 	}
 
-	// XXX if root is included it works but if not it doesn't. Seems like a
-	// Vault bug
+	// Create the role
 	d := make(map[string]interface{}, 2)
-	d["disallowed_policies"] = "nomad-role-create,root"
+	d["disallowed_policies"] = "nomad-role-create"
 	d["period"] = rolePeriod
-	return testVaultRoleAndToken(v, t, vaultPolicies, d,
-		[]string{"default", "nomad-role-create", "nomad-role-management"})
+	testVaultRoleAndToken(v, t, vaultPolicies, d, []string{"default"})
+
+	// Create a token that can use the role
+	a := v.Client.Auth().Token()
+	req := &vapi.TokenCreateRequest{
+		Policies: []string{"nomad-role-create", "nomad-role-management"},
+	}
+	s, err := a.Create(req)
+	if err != nil {
+		t.Fatalf("failed to create child token: %v", err)
+	}
+
+	if s == nil || s.Auth == nil {
+		t.Fatalf("bad secret response: %+v", s)
+	}
+
+	return s.Auth.ClientToken
 }
 
 // testVaultRoleAndToken writes the vaultPolicies to vault and then creates a
@@ -755,6 +769,7 @@ func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
 
 	// Set the configs token in a new test role
 	v.Config.Token = defaultTestVaultBlacklistRoleAndToken(v, t, 5)
+	v.Config.Role = "test"
 
 	// Start the client
 	logger := log.New(os.Stderr, "", log.LstdFlags)
