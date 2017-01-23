@@ -14,10 +14,15 @@ IMPROVEMENTS:
   * driver/docker: Add `force_pull` option to force downloading an image [GH-2147]
   * driver/java: Support setting class_path and class name. [GH-2199]
   * telemetry: Prefix gauge values with node name instead of hostname [GH-2098]
+  * template: The template block supports keyOrDefault [GH-2209]
+  * template: The template block can now interpolate Nomad environment variables
+    [GH-2209]
 
 BUG FIXES:
   * client: Fix issue where allocations weren't pulled for several minutes. This
     manifested as slow starts, delayed kills, etc [GH-2177]
+  * client: Fix a panic that would occur with a racy alloc migration
+    cancellation [GH-2231]
   * config: Fix merging of Consul options which caused auto_adverise to be
     ignored [GH-2159]
   * driver: Fix image based drivers (eg docker) having host env vars set [GH-2211]
