@@ -17,6 +17,10 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 
+	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -135,7 +139,6 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
-	SSL              bool                `mapstructure:"ssl"`                // Flag indicating repository is served via https
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
@@ -163,9 +166,6 @@ func (c *DockerDriverConfig) Validate() error {
 // config
 func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*DockerDriverConfig, error) {
 	var dconf DockerDriverConfig
-
-	// Default to SSL
-	dconf.SSL = true
 
 	if err := mapstructure.WeakDecode(task.Config, &dconf); err != nil {
 		return nil, err
@@ -315,6 +315,7 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"auth": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
+			// COMPAT: Remove in 0.6.0. SSL is no longer needed
 			"ssl": &fields.FieldSchema{
 				Type: fields.TypeBool,
 			},
@@ -985,29 +986,17 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			Email:         driverConfig.Auth[0].Email,
 			ServerAddress: driverConfig.Auth[0].ServerAddress,
 		}
-	}
+	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
+		authOptionsPtr, err := authOptionFrom(authConfigFile, repo)
+		if err != nil {
+			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
+			return fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+		}
 
-	if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-		if f, err := os.Open(authConfigFile); err == nil {
-			defer f.Close()
-			var authConfigurations *docker.AuthConfigurations
-			if authConfigurations, err = docker.NewAuthConfigurations(f); err != nil {
-				return fmt.Errorf("Failed to create docker auth object: %v", err)
-			}
-
-			authConfigurationKey := ""
-			if driverConfig.SSL {
-				authConfigurationKey += "https://"
-			}
-
-			authConfigurationKey += strings.Split(driverConfig.ImageName, "/")[0]
-			if authConfiguration, ok := authConfigurations.Configs[authConfigurationKey]; ok {
-				authOptions = authConfiguration
-			} else {
-				d.logger.Printf("[INFO] Failed to find docker auth with key %s", authConfigurationKey)
-			}
-		} else {
-			return fmt.Errorf("Failed to open auth config file: %v, error: %v", authConfigFile, err)
+		authOptions = *authOptionsPtr
+		if authOptions.Email == "" && authOptions.Password == "" &&
+			authOptions.ServerAddress == "" && authOptions.Username == "" {
+			d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 		}
 	}
 
@@ -1403,4 +1392,42 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 	}
 
 	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
+}
+
+// authOptionFrom takes the Docker auth config file and the repo being pulled
+// and returns an AuthConfiguration or an error if the file/repo could not be
+// parsed or looked up.
+func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
+	name, err := reference.ParseNamed(repo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse named repo %q: %v", err)
+	}
+
+	repoInfo, err := registry.ParseRepositoryInfo(name)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse repository: %v", err)
+	}
+
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+	}
+	defer f.Close()
+
+	cfile := new(configfile.ConfigFile)
+	if err := cfile.LoadFromReader(f); err != nil {
+		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+	}
+
+	dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+
+	// Convert to Api version
+	apiAuthConfig := &docker.AuthConfiguration{
+		Username:      dockerAuthConfig.Username,
+		Password:      dockerAuthConfig.Password,
+		Email:         dockerAuthConfig.Email,
+		ServerAddress: dockerAuthConfig.ServerAddress,
+	}
+
+	return apiAuthConfig, nil
 }

@@ -152,7 +152,7 @@ The `docker` driver supports the following configuration in the job spec:
   to use.
 
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
-  repository. The default value is `true`.
+  repository. The default value is `true`. **Deprecated as of 0.5.3**
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
