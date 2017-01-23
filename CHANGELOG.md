@@ -17,6 +17,10 @@ IMPROVEMENTS:
   * template: The template block supports keyOrDefault [GH-2209]
   * template: The template block can now interpolate Nomad environment variables
     [GH-2209]
+  * vault: Improve validation of the Vault token given to Nomad servers
+    [GH-2226]
+  * vault: Support setting the Vault role to derive tokens from with
+    `create_from_role` setting [GH-2226]
 
 BUG FIXES:
   * client: Fix issue where allocations weren't pulled for several minutes. This
