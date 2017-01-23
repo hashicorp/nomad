@@ -1330,3 +1330,54 @@ func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 	dst := filepath.Join(taskDir.LocalDir, image)
 	copyFile(filepath.Join("./test-resources/docker", image), dst, t)
 }
+
+func TestDockerDriver_AuthConfiguration(t *testing.T) {
+	path := "./test-resources/docker/auth.json"
+	cases := []struct {
+		Repo       string
+		AuthConfig *docker.AuthConfiguration
+	}{
+		{
+			Repo:       "lolwhat.com/what:1337",
+			AuthConfig: &docker.AuthConfiguration{},
+		},
+		{
+			Repo: "redis:3.2",
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "test",
+				Password:      "1234",
+				Email:         "",
+				ServerAddress: "https://index.docker.io/v1/",
+			},
+		},
+		{
+			Repo: "quay.io/redis:3.2",
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "test",
+				Password:      "5678",
+				Email:         "",
+				ServerAddress: "quay.io",
+			},
+		},
+		{
+			Repo: "other.io/redis:3.2",
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "test",
+				Password:      "abcd",
+				Email:         "",
+				ServerAddress: "https://other.io/v1/",
+			},
+		},
+	}
+
+	for i, c := range cases {
+		act, err := authOptionFrom(path, c.Repo)
+		if err != nil {
+			t.Fatalf("Test %d failed: %v", i+1, err)
+		}
+
+		if !reflect.DeepEqual(act, c.AuthConfig) {
+			t.Fatalf("Test %d failed: Unexpected auth config: got %+v; want %+v", i+1, act, c.AuthConfig)
+		}
+	}
+}

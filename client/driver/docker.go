@@ -986,8 +986,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			Email:         driverConfig.Auth[0].Email,
 			ServerAddress: driverConfig.Auth[0].ServerAddress,
 		}
-	}
-	if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
+	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
 		authOptionsPtr, err := authOptionFrom(authConfigFile, repo)
 		if err != nil {
 			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
@@ -995,6 +994,10 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 		}
 
 		authOptions = *authOptionsPtr
+		if authOptions.Email == "" && authOptions.Password == "" &&
+			authOptions.ServerAddress == "" && authOptions.Username == "" {
+			d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
+		}
 	}
 
 	d.emitEvent("Downloading image %s:%s", repo, tag)
@@ -1391,7 +1394,7 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }
 
-// authOptionsFrom takes the Docker auth config file and the repo being pulled
+// authOptionFrom takes the Docker auth config file and the repo being pulled
 // and returns an AuthConfiguration or an error if the file/repo could not be
 // parsed or looked up.
 func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
