@@ -1409,6 +1409,7 @@ func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
 	}
+	defer f.Close()
 
 	cfile := new(configfile.ConfigFile)
 	if err := cfile.LoadFromReader(f); err != nil {
