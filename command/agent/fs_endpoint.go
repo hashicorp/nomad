@@ -740,6 +740,10 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		if plain, err = strconv.ParseBool(plainStr); err != nil {
 			return nil, fmt.Errorf("Failed to parse plain field to boolean: %v", err)
 		}
+
+		if plain {
+			follow = false
+		}
 	}
 
 	logType = q.Get("type")
