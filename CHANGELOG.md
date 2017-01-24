@@ -3,6 +3,8 @@
 IMPROVEMENTS:
   * core: Introduce Parameterized Jobs and Dispatch command/API [GH-2128]
   * core: Cancel blocked evals upon successful one for job [GH-2155]
+  * api/client: Plain text log streaming suitable for viewing logs in a browser
+    [GH-2235]
   * cli: Defaulting to showing allocations which belong to currently registered
     job [GH-2032]
   * client: Garbage collect Allocation Runners to free up disk resouces
