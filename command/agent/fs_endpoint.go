@@ -289,11 +289,7 @@ func NewStreamFramer(out io.WriteCloser, plainTxt bool, heartbeatRate, batchWind
 	enc := codec.NewEncoder(out, jsonHandle)
 
 	// Create the heartbeat and flush ticker
-	var heartbeat *time.Ticker
-	if !plainTxt {
-		heartbeat = time.NewTicker(heartbeatRate)
-	}
-
+	heartbeat := time.NewTicker(heartbeatRate)
 	flusher := time.NewTicker(batchWindow)
 
 	return &StreamFramer{
@@ -313,9 +309,7 @@ func NewStreamFramer(out io.WriteCloser, plainTxt bool, heartbeatRate, batchWind
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
 	close(s.shutdownCh)
-	if s.heartbeat != nil {
-		s.heartbeat.Stop()
-	}
+	s.heartbeat.Stop()
 	s.flusher.Stop()
 	running := s.running
 	s.l.Unlock()
@@ -357,11 +351,6 @@ func (s *StreamFramer) run() {
 		s.l.Unlock()
 	}()
 
-	var heartbeat <-chan time.Time
-	if s.heartbeat != nil {
-		heartbeat = s.heartbeat.C
-	}
-
 OUTER:
 	for {
 		select {
@@ -383,7 +372,7 @@ OUTER:
 			if err != nil {
 				return
 			}
-		case <-heartbeat:
+		case <-s.heartbeat.C:
 			// Send a heartbeat frame
 			if err = s.send(HeartbeatStreamFrame); err != nil {
 				return
