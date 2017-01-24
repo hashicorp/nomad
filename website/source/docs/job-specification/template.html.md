@@ -39,8 +39,8 @@ job "docs" {
 }
 ```
 
-Nomad utilizes a tool called [Consul Template][ct]. The environment variables
-available in templates include [Nomad's runtime environment][env]. For a full
+Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
+template can reference [Nomad's runtime environment variables][env]. For a full
 list of the API template functions, please refer to the [Consul Template
 README][ct].
 
@@ -99,7 +99,8 @@ It is also possible to use heredocs for multi-line templates, like:
 template {
   data = <<EOH
   ---
-    id: {{ env "NOMAD_ALLOC_ID" }}-{{ env "NOMAD_ALLOC_INDEX" }}
+    bind_port:   {{ env "NOMAD_PORT_db" }}
+    scratch_dir: {{ env "NOMAD_TASK_DIR" }}
     service_key: {{ key "service/my-key" }}
   EOH
 
