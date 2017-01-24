@@ -69,7 +69,10 @@ job "docs" {
   [which drivers][user_drivers] are allowed to run tasks as
   [certain users][user_blacklist].
 
-- `template` <code>([Template][]: nil)</code> - Specifies template rendering configuration for Consul-Template.
+- `template` <code>([Template][]: nil)</code> - Specifies the set of templates
+  to render for the task. Templates can be used to inject both static and
+  dynamic configuration with data populated from environment variables, Consul
+  and Vault.
 
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by the task. This overrides any `vault` block set at the `group` or

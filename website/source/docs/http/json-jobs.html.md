@@ -123,6 +123,7 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
               {
                 "SourcePath": "local/config.conf.tpl",
                 "DestPath": "local/config.conf",
+                "EmbeddedTmpl": "",
                 "ChangeMode": "signal",
                 "ChangeSignal": "SIGUSR1",
                 "Splay": 5000000000
@@ -386,7 +387,9 @@ The `Task` object supports the following keys:
          * `Args`: Additional arguments to the `command` for script based health
            checks.
 
-* `Templates` - Array of `Template` objects which describe renderable templates.
+* `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
+  Templates can be used to inject both static and dynamic configuration with
+  data populated from environment variables, Consul and Vault.
 
 * `User` - Set the user that will run the task. It defaults to the same user
   the Nomad client is being run as. This can only be set on Linux platforms.
@@ -603,22 +606,46 @@ Virtual hosted based style
 
 ### Template
 
-Nomad allows runtime template rendering, that could be used for populating configs using Nomad Consul KV data, Nomad runtime variables or Vault data.
-Consul-Template is utilized for template rendering.
+The `Template` block instantiates an instance of a template renderer. This
+creates a convenient way to ship configuration files that are populated from
+environment variables, Consul data, Vault secrets, or just general
+configurations within a Nomad task.
+
+Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
+template can reference [Nomad's runtime environment variables][env]. For a full
+list of the API template functions, please refer to the [Consul Template
+README][ct].
+
 
 `Template` object supports following attributes:
 
-* `SourcePath` - Specifies the path to the template to be rendered. Mutally exclusive with `EmbeddedTmpl` attribute.
+* `SourcePath` - Specifies the path to the template to be rendered. `SourcePath`
+  is mutually exclusive with `EmbeddedTmpl` attribute. The source can be fetched
+  using an [`Artifact`](#artifact) resource. The template must exist on the
+  machine prior to starting the task; it is not possible to reference a template
+  inside of a Docker container, for example.
 
-* `EmbeddedTmpl` -  Specifies the raw template to execute. Mutally exclusive with `SourcePath` attribute.
+* `EmbeddedTmpl` -  Specifies the raw template to execute. One of `SourcePath`
+  or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
+  templates, but we recommend using `SourcePath` for larger templates.
 
-* `DestPath` - Specifies the location where the resulting template should be rendered, relative to the task directory.
+* `DestPath` - Specifies the location where the resulting template should be
+  rendered, relative to the task directory.
 
-* `ChangeMode` - Specifies the behavior Nomad should take if the rendered template changes. The possible values are: `noop`, `restart`, `signal`
+- `ChangeMode` - Specifies the behavior Nomad should take if the rendered
+  template changes. The default value is `"restart"`. The possible values are:
 
-* `ChangeSignal` - Specifies the signal to send to the task as a string like "SIGUSR1" or "SIGINT". This option is required if the `change_mode` is `signal`.
+  - `"noop"` - take no action (continue running the task)
+  - `"restart"` - restart the task
+  - `"signal"` - send a configurable signal to the task
 
-* `Splay` - Specifies a random amount of time to wait between 0ms and the given splay value before invoking the change mode. Should be specified in nanoseconds.
+* `ChangeSignal` - Specifies the signal to send to the task as a string like
+  "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
+  `signal`.
+
+* `Splay` - Specifies a random amount of time to wait between 0ms and the given
+  splay value before invoking the change mode. Should be specified in
+  nanoseconds.
 
 
 ```json
@@ -627,6 +654,7 @@ Consul-Template is utilized for template rendering.
     {
       "SourcePath": "local/config.conf.tpl",
       "DestPath": "local/config.conf",
+      "EmbeddedTmpl": "",
       "ChangeMode": "signal",
       "ChangeSignal": "SIGUSR1",
       "Splay": 5000000000
@@ -635,3 +663,6 @@ Consul-Template is utilized for template rendering.
 }
 
 ```
+
+[ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+[env]: /docs/runtime/environment.html "Nomad Runtime Environment"

@@ -5,8 +5,8 @@ sidebar_current: "docs-job-specification-template"
 description: |-
   The "template" block instantiates an instance of a template renderer. This
   creates a convenient way to ship configuration files that are populated from
-  Consul data, Vault secrets, or just general configurations within a Nomad
-  task.
+  environment variables, Consul data, Vault secrets, or just general
+  configurations within a Nomad task.
 ---
 
 # `template` Stanza
@@ -22,7 +22,8 @@ description: |-
 
 The `template` block instantiates an instance of a template renderer. This
 creates a convenient way to ship configuration files that are populated from
-Consul data, Vault secrets, or just general configurations within a Nomad task.
+environment variables, Consul data, Vault secrets, or just general
+configurations within a Nomad task.
 
 ```hcl
 job "docs" {
