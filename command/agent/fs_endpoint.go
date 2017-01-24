@@ -255,6 +255,7 @@ func (s *StreamFrame) IsCleared() bool {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
+	// plainTxt determines whether we frame or just send plain text data.
 	plainTxt bool
 
 	out     io.WriteCloser
@@ -283,8 +284,11 @@ type StreamFramer struct {
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
-// the passed output.
-func NewStreamFramer(out io.WriteCloser, plainTxt bool, heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
+// the passed output. If plainTxt is set we do not frame and just batch plain
+// text data.
+func NewStreamFramer(out io.WriteCloser, plainTxt bool,
+	heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
+
 	// Create a JSON encoder
 	enc := codec.NewEncoder(out, jsonHandle)
 
