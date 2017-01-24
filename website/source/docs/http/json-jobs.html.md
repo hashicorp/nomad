@@ -119,6 +119,15 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
               "MaxFiles":10,
               "MaxFileSizeMB":10
             },
+            "Templates":[
+              {
+                "SourcePath": "local/config.conf.tpl",
+                "DestPath": "local/config.conf",
+                "ChangeMode": "signal",
+                "ChangeSignal": "SIGUSR1",
+                "Splay": 5000000000
+              }
+            ],
             "Artifacts":[
               {
                 "GetterSource":"http://foo.com/artifact.tar.gz",
@@ -377,6 +386,7 @@ The `Task` object supports the following keys:
          * `Args`: Additional arguments to the `command` for script based health
            checks.
 
+* `Templates` - Array of `Template` objects which describe renderable templates.
 
 * `User` - Set the user that will run the task. It defaults to the same user
   the Nomad client is being run as. This can only be set on Linux platforms.
@@ -589,4 +599,39 @@ Virtual hosted based style
     }
   ]
 }
+```
+
+### Template
+
+Nomad allows runtime template rendering, that could be used for populating configs using Nomad Consul KV data, Nomad runtime variables or Vault data.
+Consul-Template is utilized for template rendering.
+
+`Template` object supports following attributes:
+
+* `SourcePath` - Specifies the path to the template to be rendered. Mutally exclusive with `EmbeddedTmpl` attribute.
+
+* `EmbeddedTmpl` -  Specifies the raw template to execute. Mutally exclusive with `SourcePath` attribute.
+
+* `DestPath` - Specifies the location where the resulting template should be rendered, relative to the task directory.
+
+* `ChangeMode` - Specifies the behavior Nomad should take if the rendered template changes. The possible values are: `noop`, `restart`, `signal`
+
+* `ChangeSignal` - Specifies the signal to send to the task as a string like "SIGUSR1" or "SIGINT". This option is required if the `change_mode` is `signal`.
+
+* `Splay` - Specifies a random amount of time to wait between 0ms and the given splay value before invoking the change mode. Should be specified in nanoseconds.
+
+
+```json
+{
+  "Templates": [
+    {
+      "SourcePath": "local/config.conf.tpl",
+      "DestPath": "local/config.conf",
+      "ChangeMode": "signal",
+      "ChangeSignal": "SIGUSR1",
+      "Splay": 5000000000
+    }
+  ]
+}
+
 ```
