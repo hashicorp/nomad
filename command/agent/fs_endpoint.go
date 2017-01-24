@@ -255,6 +255,9 @@ func (s *StreamFrame) IsCleared() bool {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
+	// plainTxt determines whether we frame or just send plain text data.
+	plainTxt bool
+
 	out     io.WriteCloser
 	enc     *codec.Encoder
 	encLock sync.Mutex
@@ -281,8 +284,11 @@ type StreamFramer struct {
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
-// the passed output.
-func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
+// the passed output. If plainTxt is set we do not frame and just batch plain
+// text data.
+func NewStreamFramer(out io.WriteCloser, plainTxt bool,
+	heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
+
 	// Create a JSON encoder
 	enc := codec.NewEncoder(out, jsonHandle)
 
@@ -291,6 +297,7 @@ func NewStreamFramer(out io.WriteCloser, heartbeatRate, batchWindow time.Duratio
 	flusher := time.NewTicker(batchWindow)
 
 	return &StreamFramer{
+		plainTxt:   plainTxt,
 		out:        out,
 		enc:        enc,
 		frameSize:  frameSize,
@@ -390,6 +397,10 @@ OUTER:
 func (s *StreamFramer) send(f *StreamFrame) error {
 	s.encLock.Lock()
 	defer s.encLock.Unlock()
+	if s.plainTxt {
+		_, err := io.Copy(s.out, bytes.NewReader(f.Data))
+		return err
+	}
 	return s.enc.Encode(f)
 }
 
@@ -549,7 +560,7 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	output := ioutils.NewWriteFlusher(resp)
 
 	// Create the framer
-	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer := NewStreamFramer(output, false, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
 	framer.Run()
 	defer framer.Destroy()
 
@@ -697,7 +708,7 @@ OUTER:
 //           applied. Defaults to "start".
 func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, task, logType string
-	var follow bool
+	var plain, follow bool
 	var err error
 
 	q := req.URL.Query()
@@ -710,8 +721,16 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		return nil, taskNotPresentErr
 	}
 
-	if follow, err = strconv.ParseBool(q.Get("follow")); err != nil {
-		return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
+	if followStr := q.Get("follow"); followStr != "" {
+		if follow, err = strconv.ParseBool(followStr); err != nil {
+			return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
+		}
+	}
+
+	if plainStr := q.Get("plain"); plainStr != "" {
+		if plain, err = strconv.ParseBool(plainStr); err != nil {
+			return nil, fmt.Errorf("Failed to parse plain field to boolean: %v", err)
+		}
 	}
 
 	logType = q.Get("type")
@@ -747,15 +766,15 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	return nil, s.logs(follow, offset, origin, task, logType, fs, output)
+	return nil, s.logs(follow, plain, offset, origin, task, logType, fs, output)
 }
 
-func (s *HTTPServer) logs(follow bool, offset int64,
+func (s *HTTPServer) logs(follow, plain bool, offset int64,
 	origin, task, logType string,
 	fs allocdir.AllocDirFS, output io.WriteCloser) error {
 
 	// Create the framer
-	framer := NewStreamFramer(output, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer := NewStreamFramer(output, plain, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
 	framer.Run()
 	defer framer.Destroy()
 
