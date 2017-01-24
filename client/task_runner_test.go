@@ -878,6 +878,10 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 }
 
 func TestTaskRunner_Template_Block(t *testing.T) {
+	testRetryRate = 2 * time.Second
+	defer func() {
+		testRetryRate = 0
+	}()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
