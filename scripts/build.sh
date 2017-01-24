@@ -19,8 +19,8 @@ GIT_DIRTY="$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)"
 # XC_ARCH=${XC_ARCH:-"386 amd64"}
 # XC_OS=${XC_OS:-linux}
 
-XC_ARCH=${XC_ARCH:-"386 amd64"}
-XC_OS=${XC_OS:-"linux"}
+XC_ARCH=${XC_ARCH:-"amd64 386"}
+XC_OS=${XC_OS:-"darwin windows"}
 XC_EXCLUDE=${XC_EXCLUDE:-"!darwin/arm !darwin/386"}
 
 # Delete the old dir
@@ -47,22 +47,6 @@ gox \
     .
 
 echo ""
-if pkg-config --exists lxc; then
-    echo "==> Building linux_amd64-lxc..."
-    go build \
-        -tags lxc \
-        -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
-        -o "pkg/linux_amd64-lxc/nomad"
-else
-    if [[ "${NOMAD_DEV}" ]]; then
-	 # No lxc in dev mode is no problem
-        echo "LXC not installed; skipping"
-    else
-	# Require LXC for release mode
-	echo "LXC not installed; install lxc-dev to build release binaries"
-	exit 1
-    fi
-fi
 
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}
