@@ -721,21 +721,15 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		return nil, taskNotPresentErr
 	}
 
-	followStr := q.Get("follow")
-	if followStr != "" {
+	if followStr := q.Get("follow"); followStr != "" {
 		if follow, err = strconv.ParseBool(followStr); err != nil {
 			return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
 		}
 	}
 
-	plainStr := q.Get("plain")
-	if plainStr != "" {
+	if plainStr := q.Get("plain"); plainStr != "" {
 		if plain, err = strconv.ParseBool(plainStr); err != nil {
 			return nil, fmt.Errorf("Failed to parse plain field to boolean: %v", err)
-		}
-
-		if plain {
-			follow = false
 		}
 	}
 

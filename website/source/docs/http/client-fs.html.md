@@ -229,9 +229,8 @@ allocation was placed.
       </li>
       <li>
         <span class="param">plain</span>
-        A boolean of whether to return just the plain text without framing. If
-        set, follow is automatically unset. This can be usef when viewing logs
-        in a browser.
+        A boolean of whether to return just the plain text without framing.
+        This can be usef when viewing logs in a browser.
       </li>
     </ul>
   </dd>
