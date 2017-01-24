@@ -177,6 +177,8 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"NOMAD_PORT_two":                "443",
 		"NOMAD_HOST_PORT_two":           "443",
 		"NOMAD_ADDR_admin":              "1.2.3.4:8081",
+		"NOMAD_ADDR_web_main":           "192.168.0.100:5000",
+		"NOMAD_ADDR_web_http":           "192.168.0.100:2000",
 		"NOMAD_IP_admin":                "1.2.3.4",
 		"NOMAD_PORT_admin":              "8081",
 		"NOMAD_HOST_PORT_admin":         "8081",
