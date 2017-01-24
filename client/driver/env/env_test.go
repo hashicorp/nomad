@@ -138,6 +138,7 @@ func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 func TestEnvironment_AsList(t *testing.T) {
 	n := mock.Node()
 	a := mock.Alloc()
+	a.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
 	env := NewTaskEnvironment(n).
 		SetNetworks(networks).
 		SetPortMap(portMap).
