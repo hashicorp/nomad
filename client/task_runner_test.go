@@ -679,7 +679,25 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 	go ctx.tr.Run()
 	defer ctx.Cleanup()
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(ctx.upd.events); l < 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	if err := ctx.tr.Signal("test", "test", syscall.SIGINT); err == nil {
 		t.Fatalf("Didn't receive error")
 	}
