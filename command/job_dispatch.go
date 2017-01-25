@@ -32,6 +32,12 @@ General Options:
 
 Dispatch Options:
 
+  -meta <key>=<value>
+    Meta takes a key/value pair seperated by "=". The metadata key will be
+    injected into the job's metadata. The flag can be provided more than
+    once to inject multiple metadata key/value pairs. Arbitrary injection is not
+    allowed. The parameterized job must allow the key to be injected.
+    
   -detach
     Return immediately instead of entering monitor mode. After job dispatch,
     the evaluation ID will be printed to the screen, which can be used to
