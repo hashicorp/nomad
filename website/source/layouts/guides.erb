@@ -2,59 +2,21 @@
   <% content_for :sidebar do %>
     <div class="docs-sidebar hidden-print affix-top" role="complementary">
       <ul class="nav docs-sidenav">
-        <li<%= sidebar_current("docs-installing") %>>
-          <a href="/docs/install/index.html">Guide One</a>
+        <li<%= sidebar_current("guides-installing") %>>
+          <a href="/guides/index.html">Guide One</a>
         </li>
 
-        <li<%= sidebar_current("docs-cluster") %>>
-          <a href="/docs/cluster/bootstrapping.html">A Group of guides</a>
+        <li<%= sidebar_current("some-guides") %>>
+          <a href="/guides/some-guides/group.html">A Group of guides</a>
           <ul class="nav">
-            <li<%= sidebar_current("docs-cluster-automatic") %>>
-              <a href="/docs/cluster/automatic.html">Automatic</a>
+            <li<%= sidebar_current("guides-some-guides-one") %>>
+              <a href="/guides/some-guides/one.html">Guide one</a>
             </li>
-            <li<%= sidebar_current("docs-cluster-manual") %>>
-              <a href="/docs/cluster/manual.html">Manual</a>
+            <li<%= sidebar_current("guides-some-guides-two") %>>
+              <a href="/guides/some-guides/two.html">Guide two</a>
             </li>
-            <li<%= sidebar_current("docs-cluster-federation") %>>
-              <a href="/docs/cluster/federation.html">Federation</a>
-            </li>
-            <li<%= sidebar_current("docs-cluster-requirements") %>>
-              <a href="/docs/cluster/requirements.html">Requirements</a>
-            </li>
-          </ul>
-        </li>
-
-        <li<%= sidebar_current("docs-operating-a-job") %>>
-          <a href="/docs/operating-a-job/index.html">A second group of guides</a>
-          <ul class="nav">
-            <li<%= sidebar_current("docs-operating-a-job-configuring-tasks") %>>
-              <a href="/docs/operating-a-job/configuring-tasks.html">Configuring Tasks</a>
-            </li>
-            <li<%= sidebar_current("docs-operating-a-job-submitting-jobs") %>>
-              <a href="/docs/operating-a-job/submitting-jobs.html">Submitting Jobs</a>
-            </li>
-            <li<%= sidebar_current("docs-operating-a-job-inspecting-state") %>>
-              <a href="/docs/operating-a-job/inspecting-state.html">Inspecting State</a>
-            </li>
-            <li<%= sidebar_current("docs-operating-a-job-accessing-logs") %>>
-              <a href="/docs/operating-a-job/accessing-logs.html">Accessing Logs</a>
-            </li>
-            <li<%= sidebar_current("docs-operating-a-job-resource-utilization") %>>
-              <a href="/docs/operating-a-job/resource-utilization.html">Resource Utilization</a>
-            </li>
-            <li<%= sidebar_current("docs-operating-a-job-updating") %>>
-              <a href="/docs/operating-a-job/update-strategies/index.html">Update Strategies</a>
-              <ul class="nav">
-                <li<%= sidebar_current("docs-operating-a-job-updating-rolling-upgrades") %>>
-                  <a href="/docs/operating-a-job/update-strategies/rolling-upgrades.html">Rolling Upgrades</a>
-                </li>
-                <li<%= sidebar_current("docs-operating-a-job-updating-blue-green-deployments") %>>
-                  <a href="/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html">Blue/Green &amp; Canary</a>
-                </li>
-                <li<%= sidebar_current("docs-operating-a-job-updating-handling-signals") %>>
-                  <a href="/docs/operating-a-job/update-strategies/handling-signals.html">Handling Signals</a>
-                </li>
-              </ul>
+            <li<%= sidebar_current("guides-some-guides-three") %>>
+              <a href="/guides/some-guides/three.html">Guide three</a>
             </li>
           </ul>
         </li>
