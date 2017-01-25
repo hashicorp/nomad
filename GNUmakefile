@@ -14,7 +14,7 @@ GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 all: test
 
 dev: format generate
-	@NOMAD_DEV=1 sh -c "'$(PWD)/scripts/build.sh'"
+	@scripts/build-dev.sh
 
 bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
@@ -45,8 +45,7 @@ format:
 generate:
 	@echo "--> Running go generate"
 	@go generate $(PACKAGES)
-	@sed -e 's|github.com/hashicorp/nomad/vendor/github.com/ugorji/go/codec|github.com/ugorji/go/codec|' nomad/structs/structs.generated.go >> structs.gen.tmp
-	@mv structs.gen.tmp nomad/structs/structs.generated.go
+	@sed -i -e 's|github.com/hashicorp/nomad/vendor/github.com/ugorji/go/codec|github.com/ugorji/go/codec|' nomad/structs/structs.generated.go
 
 vet:
 	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \

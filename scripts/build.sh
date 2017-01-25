@@ -29,12 +29,6 @@ rm -f bin/*
 rm -rf pkg/*
 mkdir -p bin/
 
-# If its dev mode, only build for ourself
-if [[ "${NOMAD_DEV}" ]]; then
-    XC_OS=$(go env GOOS)
-    XC_ARCH=$(go env GOARCH)
-fi
-
 # Build!
 echo "==> Building..."
 gox \
@@ -47,16 +41,13 @@ gox \
     .
 
 echo ""
-if pkg-config --exists lxc; then
-    echo "==> Building linux_amd64-lxc..."
-    go build \
-        -tags lxc \
-        -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
-        -o "pkg/linux_amd64-lxc/nomad"
-else
-    if [[ "${NOMAD_DEV}" ]]; then
-	 # No lxc in dev mode is no problem
-        echo "LXC not installed; skipping"
+if [[ $(uname) == "Linux" ]]; then
+    if pkg-config --exists lxc; then
+        echo "==> Building linux_amd64-lxc..."
+        go build \
+            -tags lxc \
+            -ldflags "-X main.GitCommit='${GIT_COMMIT}${GIT_DIRTY}+lxc'" \
+            -o "pkg/linux_amd64-lxc/nomad"
     else
 	# Require LXC for release mode
 	echo "LXC not installed; install lxc-dev to build release binaries"
@@ -82,18 +73,16 @@ for F in $(find ${DEV_PLATFORM} -mindepth 1 -maxdepth 1 -type f); do
     cp ${F} ${MAIN_GOPATH}/bin/
 done
 
-if [[ "x${NOMAD_DEV}" == "x" ]]; then
-    # Zip and copy to the dist dir
-    echo "==> Packaging..."
-    for PLATFORM in $(find ./pkg -mindepth 1 -maxdepth 1 -type d); do
-        OSARCH=$(basename ${PLATFORM})
-        echo "--> ${OSARCH}"
+# Zip and copy to the dist dir
+echo "==> Packaging..."
+for PLATFORM in $(find ./pkg -mindepth 1 -maxdepth 1 -type d); do
+    OSARCH=$(basename ${PLATFORM})
+    echo "--> ${OSARCH}"
 
-        pushd $PLATFORM >/dev/null 2>&1
-        zip ../${OSARCH}.zip ./*
-        popd >/dev/null 2>&1
-    done
-fi
+    pushd $PLATFORM >/dev/null 2>&1
+    zip ../${OSARCH}.zip ./*
+    popd >/dev/null 2>&1
+done
 
 # Done!
 echo
