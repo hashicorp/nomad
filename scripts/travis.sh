@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-export PING_SLEEP=30
+export PING_SLEEP=60
 bash -c "while true; do echo \$(date) - building ...; sleep $PING_SLEEP; done" &
 PING_LOOP_PID=$!
 
