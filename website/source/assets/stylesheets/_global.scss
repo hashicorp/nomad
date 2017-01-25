@@ -83,8 +83,8 @@ pre {
 }
 
 //fixed grid below 992 to prevent smaller responsive sizes
-@media (max-width: 992px) {
+@media (min-width: 768px) and (max-width: 992px) {
   .container{
-    max-width: 970px;
+    width: 100%;
   }
 }
