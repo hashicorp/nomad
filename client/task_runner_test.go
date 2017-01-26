@@ -536,7 +536,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "0",
-		"run_for":   "10s",
+		"run_for":   "100s",
 	}
 
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
