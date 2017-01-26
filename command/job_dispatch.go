@@ -51,7 +51,7 @@ Dispatch Options:
 }
 
 func (c *JobDispatchCommand) Synopsis() string {
-	return "Dispatch an instance of a parametereized job"
+	return "Dispatch an instance of a parameterized job"
 }
 
 func (c *JobDispatchCommand) Run(args []string) int {
