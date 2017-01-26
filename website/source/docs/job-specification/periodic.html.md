@@ -35,6 +35,10 @@ job "docs" {
 The periodic expression is always evaluated in the **UTC timezone** to ensure
 consistent evaluation when Nomad spans multiple time zones.
 
+## `periodic` Requirements
+
+ - The job's [scheduler type][batch-type] must be `batch`.
+
 ## `periodic` Parameters
 
 - `cron` `(string: <required>)` - Specifies a cron expression configuring the
@@ -60,4 +64,5 @@ periodic {
 }
 ```
 
+[batch-type]: /docs/job-specification/job.html#type "Batch scheduler type"
 [cron]: https://github.com/gorhill/cronexpr#implementation "List of cron expressions"

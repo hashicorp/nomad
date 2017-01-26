@@ -1232,7 +1232,7 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		"run_for":   "1s",
 	}
 	fileName := "test"
-	task.DispatchInput = &structs.DispatchInputConfig{
+	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: fileName,
 	}
 	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}

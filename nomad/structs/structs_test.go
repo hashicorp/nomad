@@ -1518,8 +1518,8 @@ func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 	}
 }
 
-func TestDispatchInputConfig_Validate(t *testing.T) {
-	d := &DispatchInputConfig{
+func TestDispatchPayloadConfig_Validate(t *testing.T) {
+	d := &DispatchPayloadConfig{
 		File: "foo",
 	}
 

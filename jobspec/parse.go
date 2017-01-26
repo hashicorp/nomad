@@ -564,7 +564,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			"artifact",
 			"config",
 			"constraint",
-			"dispatch_input",
+			"dispatch_payload",
 			"driver",
 			"env",
 			"kill_timeout",
@@ -587,7 +587,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 		delete(m, "artifact")
 		delete(m, "config")
 		delete(m, "constraint")
-		delete(m, "dispatch_input")
+		delete(m, "dispatch_payload")
 		delete(m, "env")
 		delete(m, "logs")
 		delete(m, "meta")
@@ -747,10 +747,10 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			t.Vault = v
 		}
 
-		// If we have a dispatch_input block parse that
-		if o := listVal.Filter("dispatch_input"); len(o.Items) > 0 {
+		// If we have a dispatch_payload block parse that
+		if o := listVal.Filter("dispatch_payload"); len(o.Items) > 0 {
 			if len(o.Items) > 1 {
-				return fmt.Errorf("only one dispatch_input block is allowed in a task. Number of dispatch_input blocks found: %d", len(o.Items))
+				return fmt.Errorf("only one dispatch_payload block is allowed in a task. Number of dispatch_payload blocks found: %d", len(o.Items))
 			}
 			var m map[string]interface{}
 			dispatchBlock := o.Items[0]
@@ -760,15 +760,15 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 				"file",
 			}
 			if err := checkHCLKeys(dispatchBlock.Val, valid); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', dispatch_input ->", n))
+				return multierror.Prefix(err, fmt.Sprintf("'%s', dispatch_payload ->", n))
 			}
 
 			if err := hcl.DecodeObject(&m, dispatchBlock.Val); err != nil {
 				return err
 			}
 
-			t.DispatchInput = &structs.DispatchInputConfig{}
-			if err := mapstructure.WeakDecode(m, t.DispatchInput); err != nil {
+			t.DispatchPayload = &structs.DispatchPayloadConfig{}
+			if err := mapstructure.WeakDecode(m, t.DispatchPayload); err != nil {
 				return err
 			}
 		}
@@ -1259,12 +1259,11 @@ func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.Ob
 		return err
 	}
 
-	delete(m, "meta")
-
 	// Check for invalid keys
 	valid := []string{
 		"payload",
-		"meta_keys",
+		"meta_required",
+		"meta_optional",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
@@ -1274,37 +1273,6 @@ func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.Ob
 	var d structs.ParameterizedJobConfig
 	if err := mapstructure.WeakDecode(m, &d); err != nil {
 		return err
-	}
-
-	var listVal *ast.ObjectList
-	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return fmt.Errorf("parameterized block should be an object")
-	}
-
-	// Parse the meta block
-	if metaList := listVal.Filter("meta_keys"); len(metaList.Items) > 0 {
-		// Get our resource object
-		o := metaList.Items[0]
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o.Val); err != nil {
-			return err
-		}
-
-		// Check for invalid keys
-		valid := []string{
-			"optional",
-			"required",
-		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
-			return err
-		}
-
-		if err := mapstructure.WeakDecode(m, &d); err != nil {
-			return err
-		}
 	}
 
 	*result = &d
