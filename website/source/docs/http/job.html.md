@@ -274,6 +274,11 @@ region is used; another region can be specified using the `?region=` query param
     ```javascript
     {
       "JobID": "example",
+      "Children": {
+        "Dead": 0,
+        "Running": 7,
+        "Pending": 2
+      },
       "Summary": {
         "cache": {
           "Queued": 0,
