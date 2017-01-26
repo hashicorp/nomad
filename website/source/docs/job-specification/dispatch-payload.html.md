@@ -39,7 +39,7 @@ job "docs" {
 ## `dispatch_payload` Parameters
 
 - `file` `(string: "")` - Specifies the file name to write the content of
-  dispatch payload to. The file is written to a [task's local
+  dispatch payload to. The file is written relative to the [task's local
   directory][localdir].
 
 ## `dispatch_payload` Examples

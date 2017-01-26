@@ -66,10 +66,10 @@ job "docs" {
 
 ## `parameterized` Parameters
 
-- `meta_optional` `([]string: nil)` - Specifies the set of metadata keys that
+- `meta_optional` `(array<string>: nil)` - Specifies the set of metadata keys that
    may be provided when dispatching against the job.
 
-- `meta_required` `([]string: nil)` - Specifies the set of metadata keys that
+- `meta_required` `(array<string>: nil)` - Specifies the set of metadata keys that
   must be provided when dispatching against the job.
 
 - `payload` `(string: "optional")` - Specifies the requirement of providing a

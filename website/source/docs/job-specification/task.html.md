@@ -37,6 +37,9 @@ job "docs" {
   constraints on the task. This can be provided multiple times to define
   additional constraints.
 
+- `dispatch_payload` <code>([DispatchPayload][]: nil)</code> - Configures the
+  task to have access to dispatch payloads.
+
 - `driver` - Specifies the task driver that should be used to run the
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
@@ -163,6 +166,7 @@ task "server" {
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[dispatchpayload]: /docs/job-specification/dispatch-payload.html "Nomad dispatch_payload Job Specification"
 [env]: /docs/job-specification/env.html "Nomad env Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
