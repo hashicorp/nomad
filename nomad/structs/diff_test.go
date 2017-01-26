@@ -904,11 +904,11 @@ func TestJobDiff(t *testing.T) {
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeAdded,
-								Name: "OptionalMeta",
+								Name: "MetaOptional",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "OptionalMeta",
+										Name: "MetaOptional",
 										Old:  "",
 										New:  "foo",
 									},
@@ -916,11 +916,11 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "RequiredMeta",
+								Name: "MetaRequired",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "RequiredMeta",
+										Name: "MetaRequired",
 										Old:  "",
 										New:  "bar",
 									},
@@ -958,11 +958,11 @@ func TestJobDiff(t *testing.T) {
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeDeleted,
-								Name: "OptionalMeta",
+								Name: "MetaOptional",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,
-										Name: "OptionalMeta",
+										Name: "MetaOptional",
 										Old:  "foo",
 										New:  "",
 									},
@@ -970,11 +970,11 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
-								Name: "RequiredMeta",
+								Name: "MetaRequired",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,
-										Name: "RequiredMeta",
+										Name: "MetaRequired",
 										Old:  "bar",
 										New:  "",
 									},
@@ -1018,17 +1018,17 @@ func TestJobDiff(t *testing.T) {
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeEdited,
-								Name: "OptionalMeta",
+								Name: "MetaOptional",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "OptionalMeta",
+										Name: "MetaOptional",
 										Old:  "",
 										New:  "bam",
 									},
 									{
 										Type: DiffTypeDeleted,
-										Name: "OptionalMeta",
+										Name: "MetaOptional",
 										Old:  "foo",
 										New:  "",
 									},
@@ -1036,17 +1036,17 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeEdited,
-								Name: "RequiredMeta",
+								Name: "MetaRequired",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "RequiredMeta",
+										Name: "MetaRequired",
 										Old:  "",
 										New:  "bang",
 									},
 									{
 										Type: DiffTypeDeleted,
-										Name: "RequiredMeta",
+										Name: "MetaRequired",
 										Old:  "bar",
 										New:  "",
 									},
@@ -1091,11 +1091,11 @@ func TestJobDiff(t *testing.T) {
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeNone,
-								Name: "OptionalMeta",
+								Name: "MetaOptional",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeNone,
-										Name: "OptionalMeta",
+										Name: "MetaOptional",
 										Old:  "foo",
 										New:  "foo",
 									},
@@ -1103,11 +1103,11 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
-								Name: "RequiredMeta",
+								Name: "MetaRequired",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeNone,
-										Name: "RequiredMeta",
+										Name: "MetaRequired",
 										Old:  "bar",
 										New:  "bar",
 									},

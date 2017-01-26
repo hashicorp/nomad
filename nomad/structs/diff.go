@@ -667,11 +667,11 @@ func parameterizedJobDiff(old, new *ParameterizedJobConfig, contextual bool) *Ob
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Meta diffs
-	if optionalDiff := stringSetDiff(old.MetaOptional, new.MetaOptional, "OptionalMeta", contextual); optionalDiff != nil {
+	if optionalDiff := stringSetDiff(old.MetaOptional, new.MetaOptional, "MetaOptional", contextual); optionalDiff != nil {
 		diff.Objects = append(diff.Objects, optionalDiff)
 	}
 
-	if requiredDiff := stringSetDiff(old.MetaRequired, new.MetaRequired, "RequiredMeta", contextual); requiredDiff != nil {
+	if requiredDiff := stringSetDiff(old.MetaRequired, new.MetaRequired, "MetaRequired", contextual); requiredDiff != nil {
 		diff.Objects = append(diff.Objects, requiredDiff)
 	}
 
