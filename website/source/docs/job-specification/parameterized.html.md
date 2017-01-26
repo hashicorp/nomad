@@ -54,8 +54,8 @@ programming languages.
 job "docs" {
   parameterized {
     payload       = "required"
-    required_meta = ["dispatcher_email"]
-    optional_meta = ["pager_email"]
+    meta_required = ["dispatcher_email"]
+    meta_optional = ["pager_email"]
   }
 }
 ```
@@ -66,6 +66,12 @@ job "docs" {
 
 ## `parameterized` Parameters
 
+- `meta_optional` `([]string: nil)` - Specifies the set of metadata keys that
+   may be provided when dispatching against the job.
+
+- `meta_required` `([]string: nil)` - Specifies the set of metadata keys that
+  must be provided when dispatching against the job.
+
 - `payload` `(string: "optional")` - Specifies the requirement of providing a
   payload when dispatching against the parameterized job. The options for this
   field are:
@@ -75,12 +81,6 @@ job "docs" {
   - `"required"` - A payload must be provided when dispatching against the job.
 
   - `"forbidden"` - A payload is forbidden when dispatching against the job.
-
-- `required_meta` `([]string: nil)` - Specifies the set of metadata keys that
-  must be provided when dispatching against the job.
-
-- `optional_meta` `([]string: nil)` - Specifies the set of metadata keys that
-   may be provided when dispatching against the job.
 
 ## `parameterized` Examples
 
@@ -98,7 +98,7 @@ job "video-encode" {
 
   parameterized {
     payload       = "required"
-    required_meta = ["dispatcher_email"]
+    meta_required = ["dispatcher_email"]
   }
     
   group "encode" {
@@ -132,7 +132,7 @@ job "email-blast" {
 
   parameterized {
     payload       = "forbidden"
-    required_meta = ["CAMPAIGN_ID"]
+    meta_required = ["CAMPAIGN_ID"]
   }
     
   group "emails" {

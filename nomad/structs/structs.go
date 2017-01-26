@@ -1647,10 +1647,10 @@ type ParameterizedJobConfig struct {
 	Payload string
 
 	// MetaRequired is metadata keys that must be specified by the dispatcher
-	MetaRequired []string `mapstructure:"required"`
+	MetaRequired []string `mapstructure:"meta_required"`
 
 	// MetaOptional is metadata keys that may be specified by the dispatcher
-	MetaOptional []string `mapstructure:"optional"`
+	MetaOptional []string `mapstructure:"meta_optional"`
 }
 
 func (d *ParameterizedJobConfig) Validate() error {

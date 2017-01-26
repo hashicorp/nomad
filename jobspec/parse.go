@@ -1259,12 +1259,11 @@ func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.Ob
 		return err
 	}
 
-	delete(m, "meta")
-
 	// Check for invalid keys
 	valid := []string{
 		"payload",
-		"meta_keys",
+		"meta_required",
+		"meta_optional",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
@@ -1274,37 +1273,6 @@ func parseParameterizedJob(result **structs.ParameterizedJobConfig, list *ast.Ob
 	var d structs.ParameterizedJobConfig
 	if err := mapstructure.WeakDecode(m, &d); err != nil {
 		return err
-	}
-
-	var listVal *ast.ObjectList
-	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return fmt.Errorf("parameterized block should be an object")
-	}
-
-	// Parse the meta block
-	if metaList := listVal.Filter("meta_keys"); len(metaList.Items) > 0 {
-		// Get our resource object
-		o := metaList.Items[0]
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o.Val); err != nil {
-			return err
-		}
-
-		// Check for invalid keys
-		valid := []string{
-			"optional",
-			"required",
-		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
-			return err
-		}
-
-		if err := mapstructure.WeakDecode(m, &d); err != nil {
-			return err
-		}
 	}
 
 	*result = &d
