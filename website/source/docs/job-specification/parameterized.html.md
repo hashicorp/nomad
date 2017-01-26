@@ -157,4 +157,4 @@ job "email-blast" {
 [dispatch command]: /docs/commands/job-dispatch.html "Nomad Job Dispatch Command"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
-[dispatch_payload]: /docs/job-specification/dispatch-payload.html "Nomad dispatch_payload Job Specification"
+[dispatch_payload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"

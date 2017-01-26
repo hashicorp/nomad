@@ -166,7 +166,7 @@ task "server" {
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
-[dispatchpayload]: /docs/job-specification/dispatch-payload.html "Nomad dispatch_payload Job Specification"
+[dispatchpayload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"
 [env]: /docs/job-specification/env.html "Nomad env Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
