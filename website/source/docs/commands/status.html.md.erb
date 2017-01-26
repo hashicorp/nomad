@@ -54,26 +54,28 @@ Short view of a specific job:
 
 ```
 $ nomad status -short job1
-ID          = job1
-Name        = Test Job
-Type        = service
-Priority    = 3
-Datacenters = dc1,dc2,dc3
-Status      = pending
-Periodic    = false
+ID            = job1
+Name          = Test Job
+Type          = service
+Priority      = 3
+Datacenters   = dc1,dc2,dc3
+Status        = pending
+Periodic      = false
+Parameterized = false
 ```
 
 Full status information of a job:
 
 ```
 $ nomad status example
-ID          = example
-Name        = example
-Type        = service
-Priority    = 50
-Datacenters = dc1
-Status      = running
-Periodic    = false
+ID            = example
+Name          = example
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
@@ -84,17 +86,71 @@ ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
 24cfd201  81efc2fa  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
 ```
 
+Full status information of a perodic job:
+
+```
+ID                   = example
+Name                 = example
+Type                 = batch
+Priority             = 50
+Datacenters          = dc1
+Status               = running
+Periodic             = true
+Parameterized        = false
+Next Periodic Launch = 01/26/17 06:19:46 UTC (1s from now)
+
+Children Job Summary
+Pending  Running  Dead
+0        5        0
+
+Previously Launched Jobs
+ID                           Status
+example/periodic-1485411581  running
+example/periodic-1485411582  running
+example/periodic-1485411583  running
+example/periodic-1485411584  running
+example/periodic-1485411585  running
+```
+
+Full status information of a parameterized job:
+
+```
+ID            = example
+Name          = example
+Type          = batch
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = true
+
+Parameterized Job
+Payload           = required
+Required Metadata = foo
+Optional Metadata = bar
+
+Parameterized Job Summary
+Pending  Running  Dead
+0        2        0
+
+Dispatched Jobs
+ID                                    Status
+example/dispatch-1485411496-58f24d2d  running
+example/dispatch-1485411499-fa2ee40e  running
+```
+
 Full status information of a job with placement failures:
 
 ```
 $ nomad status example
-ID          = example
-Name        = example
-Type        = service
-Priority    = 50
-Datacenters = dc1
-Status      = running
-Periodic    = false
+ID            = example
+Name          = example
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
@@ -120,13 +176,14 @@ become availables so that it can place the remaining allocations.
 
 ```
 $ nomad status -evals example
-ID          = example
-Name        = example
-Type        = service
-Priority    = 50
-Datacenters = dc1
-Status      = running
-Periodic    = false
+ID            = example
+Name          = example
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
@@ -152,5 +209,3 @@ b82f58b6  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CD
 ed3665f5  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
 24cfd201  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
 ```
-
-TODO: CRON AND DISPATCH
