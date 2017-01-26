@@ -375,8 +375,8 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, lDiff)
 	}
 
-	// Dispatch Input diff
-	dDiff := primitiveObjectDiff(t.DispatchInput, other.DispatchInput, nil, "DispatchInput", contextual)
+	// Dispatch payload diff
+	dDiff := primitiveObjectDiff(t.DispatchPayload, other.DispatchPayload, nil, "DispatchPayload", contextual)
 	if dDiff != nil {
 		diff.Objects = append(diff.Objects, dDiff)
 	}

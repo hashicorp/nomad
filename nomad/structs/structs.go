@@ -1694,22 +1694,22 @@ func DispatchedID(templateID string, t time.Time) string {
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
-// DispatchInputConfig configures how a task gets its input from a job dispatch
-type DispatchInputConfig struct {
+// DispatchPayloadConfig configures how a task gets its input from a job dispatch
+type DispatchPayloadConfig struct {
 	// File specifies a relative path to where the input data should be written
 	File string
 }
 
-func (d *DispatchInputConfig) Copy() *DispatchInputConfig {
+func (d *DispatchPayloadConfig) Copy() *DispatchPayloadConfig {
 	if d == nil {
 		return nil
 	}
-	nd := new(DispatchInputConfig)
+	nd := new(DispatchPayloadConfig)
 	*nd = *d
 	return nd
 }
 
-func (d *DispatchInputConfig) Validate() error {
+func (d *DispatchPayloadConfig) Validate() error {
 	// Verify the destination doesn't escape
 	escaped, err := PathEscapesAllocDir("task/local/", d.File)
 	if err != nil {
@@ -2272,8 +2272,8 @@ type Task struct {
 	// Resources is the resources needed by this task
 	Resources *Resources
 
-	// DispatchInput configures how the task retrieves its input from a dispatch
-	DispatchInput *DispatchInputConfig
+	// DispatchPayload configures how the task retrieves its input from a dispatch
+	DispatchPayload *DispatchPayloadConfig
 
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
@@ -2312,7 +2312,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
-	nt.DispatchInput = nt.DispatchInput.Copy()
+	nt.DispatchPayload = nt.DispatchPayload.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -2477,10 +2477,10 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
-	// Validate the dispatch input block if there
-	if t.DispatchInput != nil {
-		if err := t.DispatchInput.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Input validation failed: %v", err))
+	// Validate the dispatch payload block if there
+	if t.DispatchPayload != nil {
+		if err := t.DispatchPayload.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Payload validation failed: %v", err))
 		}
 	}
 

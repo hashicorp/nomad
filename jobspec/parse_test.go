@@ -571,7 +571,7 @@ func TestParse(t *testing.T) {
 									MaxFiles:      10,
 									MaxFileSizeMB: 10,
 								},
-								DispatchInput: &structs.DispatchInputConfig{
+								DispatchPayload: &structs.DispatchPayloadConfig{
 									File: "foo/bar",
 								},
 							},

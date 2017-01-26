@@ -753,9 +753,9 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 
 	// If the job is a dispatch job and there is a payload write it to disk
 	requirePayload := len(r.alloc.Job.Payload) != 0 &&
-		(r.task.DispatchInput != nil && r.task.DispatchInput.File != "")
+		(r.task.DispatchPayload != nil && r.task.DispatchPayload.File != "")
 	if !r.payloadRendered && requirePayload {
-		renderTo := filepath.Join(r.taskDir.LocalDir, r.task.DispatchInput.File)
+		renderTo := filepath.Join(r.taskDir.LocalDir, r.task.DispatchPayload.File)
 		decoded, err := snappy.Decode(nil, r.alloc.Job.Payload)
 		if err != nil {
 			r.setState(

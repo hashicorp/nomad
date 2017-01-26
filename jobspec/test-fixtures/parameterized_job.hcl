@@ -11,7 +11,7 @@ job "parameterized_job" {
             driver = "docker"
             resources {}
 
-            dispatch_input {
+            dispatch_payload {
                 file = "foo/bar"
             }
         }
