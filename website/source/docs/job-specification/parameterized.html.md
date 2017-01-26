@@ -35,7 +35,8 @@ metadata may be injected into the job. These inputs to the parameterized job act
 like arguments to a function. The job consumes them to change it's behavior,
 without exposing the implementation details to the caller. 
 
-To that end, tasks within the job can add a [`dispatch_input`][dispatch_input] stanza that
+To that end, tasks within the job can add a
+[`dispatch_payload`][dispatch_payload] stanza that
 defines where on the filesystem this payload gets written to. An example payload
 would be a task's JSON configuration.
 
@@ -114,7 +115,7 @@ job "video-encode" {
         args = ["-config=${NOMAD_TASK_DIR}/config.json"]
       }
       
-      dispatch_input {
+      dispatch_payload {
         file = "config.json"
       }
     }
@@ -156,4 +157,4 @@ job "email-blast" {
 [dispatch command]: /docs/commands/job-dispatch.html "Nomad Job Dispatch Command"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
-[dispatch_input]: /docs/job-specification/dispatch-input.html "Nomad dispatch_input Job Specification"
+[dispatch_payload]: /docs/job-specification/dispatch-payload.html "Nomad dispatch_payload Job Specification"
