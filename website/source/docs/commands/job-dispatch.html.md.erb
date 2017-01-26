@@ -14,10 +14,14 @@ description: >
    page.](https://releases.hashicorp.com/nomad/0.5.3-rc1/)
 
 The `job dispatch` command is used to create new instances of a [parameterized
-job](TODO). The parameterized job captures a job's configuration and runtime
+job]. The parameterized job captures a job's configuration and runtime
 requirements in a generic way and `dispatch` is used to provide the input for
 the job to run against. One can think of the parameterized job as a function
 definition and dispatch is used to invoke the function.
+
+Each time a job is dispatched, a unique job ID is generated. This allows a
+caller to track the status of the job, much like a future or promise in some
+programming languages.
 
 ## Usage
 
@@ -104,3 +108,5 @@ $ nomad job dispatch -detach video-encode video-config.json
 Dispatched Job ID = example/dispatch-1485380684-c37b3dba
 Evaluation ID     = d9034c4e
 ```
+
+[parameterized job]: /docs/job-specification/parameterized.html "Nomad parameterized Job Specification"
