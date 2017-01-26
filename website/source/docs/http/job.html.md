@@ -137,7 +137,6 @@ region is used; another region can be specified using the `?region=` query param
     "ModifyIndex": 14
     }
     ```
-
   </dd>
 </dl>
 
@@ -327,6 +326,52 @@ region is used; another region can be specified using the `?region=` query param
     "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
     "EvalCreateIndex": 35,
     "JobModifyIndex": 34,
+    }
+    ```
+
+  </dd>
+</dl>
+
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Dispatch a new instance of a parameterized job.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>PUT or POST</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/job/<ID>/dispatch`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    <ul>
+      <li>
+        <span class="param">Payload</span>
+        <span class="param-flags">optional</span>
+        A `[]byte` array encoded as a base64 string.
+      </li>
+      <li>
+        <span class="param">Meta</span>
+        <span class="param-flags">optional</span>
+        A `map[string]string` of metadata keys to their values.
+      </li>
+    </ul>
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+    {
+    "KnownLeader": false,
+    "LastContact": 0,
+    "Index": 13,
+    "JobCreateIndex": 12,
+    "EvalCreateIndex": 13,
+    "EvalID": "e5f55fac-bc69-119d-528a-1fc7ade5e02c",
+    "DispatchedJobID": "example/dispatch-1485408778-81644024"
     }
     ```
 
