@@ -375,8 +375,8 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, lDiff)
 	}
 
-	// Dispatch Input diff
-	dDiff := primitiveObjectDiff(t.DispatchInput, other.DispatchInput, nil, "DispatchInput", contextual)
+	// Dispatch payload diff
+	dDiff := primitiveObjectDiff(t.DispatchPayload, other.DispatchPayload, nil, "DispatchPayload", contextual)
 	if dDiff != nil {
 		diff.Objects = append(diff.Objects, dDiff)
 	}
@@ -667,11 +667,11 @@ func parameterizedJobDiff(old, new *ParameterizedJobConfig, contextual bool) *Ob
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Meta diffs
-	if optionalDiff := stringSetDiff(old.MetaOptional, new.MetaOptional, "OptionalMeta", contextual); optionalDiff != nil {
+	if optionalDiff := stringSetDiff(old.MetaOptional, new.MetaOptional, "MetaOptional", contextual); optionalDiff != nil {
 		diff.Objects = append(diff.Objects, optionalDiff)
 	}
 
-	if requiredDiff := stringSetDiff(old.MetaRequired, new.MetaRequired, "RequiredMeta", contextual); requiredDiff != nil {
+	if requiredDiff := stringSetDiff(old.MetaRequired, new.MetaRequired, "MetaRequired", contextual); requiredDiff != nil {
 		diff.Objects = append(diff.Objects, requiredDiff)
 	}
 

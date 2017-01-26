@@ -536,7 +536,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "0",
-		"run_for":   "10s",
+		"run_for":   "100s",
 	}
 
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
@@ -1232,7 +1232,7 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		"run_for":   "1s",
 	}
 	fileName := "test"
-	task.DispatchInput = &structs.DispatchInputConfig{
+	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: fileName,
 	}
 	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}
