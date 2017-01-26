@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 )
 
