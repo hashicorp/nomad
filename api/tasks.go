@@ -141,28 +141,28 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
-// DispatchInputConfig configures how a task gets its input from a job dispatch
-type DispatchInputConfig struct {
+// DispatchPayloadConfig configures how a task gets its input from a job dispatch
+type DispatchPayloadConfig struct {
 	File string
 }
 
 // Task is a single process in a task group.
 type Task struct {
-	Name          string
-	Driver        string
-	User          string
-	Config        map[string]interface{}
-	Constraints   []*Constraint
-	Env           map[string]string
-	Services      []Service
-	Resources     *Resources
-	Meta          map[string]string
-	KillTimeout   time.Duration
-	LogConfig     *LogConfig
-	Artifacts     []*TaskArtifact
-	Vault         *Vault
-	Templates     []*Template
-	DispatchInput *DispatchInputConfig
+	Name            string
+	Driver          string
+	User            string
+	Config          map[string]interface{}
+	Constraints     []*Constraint
+	Env             map[string]string
+	Services        []Service
+	Resources       *Resources
+	Meta            map[string]string
+	KillTimeout     time.Duration
+	LogConfig       *LogConfig
+	Artifacts       []*TaskArtifact
+	Vault           *Vault
+	Templates       []*Template
+	DispatchPayload *DispatchPayloadConfig
 }
 
 // TaskArtifact is used to download artifacts before running a task.

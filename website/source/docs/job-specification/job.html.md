@@ -42,6 +42,10 @@ job "docs" {
     "my-key" = "my-value"
   }
 
+  parameterized {
+    # ...
+  }
+
   periodic {
     # ...
   }
@@ -74,12 +78,15 @@ job "docs" {
 - `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
-- `group` <code>([Group][group]: <required>)</code> - Specifies the start of a
+- `group` <code>([Group][group]: \<required\>)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
   groups. Group names must be unique within the job file.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
+
+- `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
+  the job as a paramterized job such that it can be dispatched against.
 
 - `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
   at fixed times, dates or intervals.
@@ -215,6 +222,7 @@ $ VAULT_TOKEN="..." nomad run example.nomad
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[parameterized]: /docs/job-specification/parameterized.html "Nomad parameterized Job Specification"
 [periodic]: /docs/job-specification/periodic.html "Nomad periodic Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
