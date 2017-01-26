@@ -219,11 +219,12 @@ The `Job` object supports the following keys:
 
   * `Payload` - Specifies the requirement of providing a payload when
     dispatching against the parameterized job. The options for this field are
-    "optional", "required" and "forbidden"
+    "optional", "required" and "forbidden". The default value is "optional".
 
 * `Payload` - The payload may not be set when submitting a job but may appear in
   a dispatched job. The `Payload` will be a base64 encoded string containing the
-  payload that the job was dispatched with.
+  payload that the job was dispatched with. The `payload` has a **maximum size
+  of 16 KiB**.
 
 * `Priority` - Specifies the job priority which is used to prioritize
   scheduling and access to resources. Must be between 1 and 100 inclusively,

@@ -355,7 +355,7 @@ region is used; another region can be specified using the `?region=` query param
       <li>
         <span class="param">Payload</span>
         <span class="param-flags">optional</span>
-        A `[]byte` array encoded as a base64 string.
+        A `[]byte` array encoded as a base64 string with a maximum size of 16KiB.
       </li>
       <li>
         <span class="param">Meta</span>

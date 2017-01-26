@@ -33,10 +33,11 @@ General Options:
 Dispatch Options:
 
   -meta <key>=<value>
-    Meta takes a key/value pair seperated by "=". The metadata key will be
-    injected into the job's metadata. The flag can be provided more than
-    once to inject multiple metadata key/value pairs. Arbitrary injection is not
-    allowed. The parameterized job must allow the key to be injected.
+	Meta takes a key/value pair seperated by "=". The metadata key will be
+	merged into the job's metadata. The job may define a default value for the
+	key which is overriden when dispatching. The flag can be provided more than
+	once to inject multiple metadata key/value pairs. Arbitrary keys are not
+	allowed. The parameterized job must allow the key to be merged.
     
   -detach
     Return immediately instead of entering monitor mode. After job dispatch,

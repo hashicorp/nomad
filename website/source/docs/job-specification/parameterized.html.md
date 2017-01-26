@@ -73,7 +73,8 @@ job "docs" {
   must be provided when dispatching against the job.
 
 - `payload` `(string: "optional")` - Specifies the requirement of providing a
-  payload when dispatching against the parameterized job. The options for this
+  payload when dispatching against the parameterized job. The **maximum size of a
+  `payload` is 16 KiB**. The options for this
   field are:
 
   - `"optional"` - A payload is optional when dispatching against the job.
