@@ -965,6 +965,66 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	}
 }
 
+// This test ensures parameterized and periodic jobs don't get GCd
+func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert a parameterized job.
+	state := s1.fsm.State()
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Status = structs.JobStatusRunning
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload: structs.DispatchPayloadRequired,
+	}
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert a periodic job.
+	job2 := mock.PeriodicJob()
+	if err := state.UpsertJob(1001, job2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobForceGC, 1002)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should still exist
+	out, err := state.JobByID(job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("bad: %v", out)
+	}
+
+	outE, err := state.JobByID(job2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outE == nil {
+		t.Fatalf("bad: %v", outE)
+	}
+}
+
 func TestCoreScheduler_PartitionReap(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
