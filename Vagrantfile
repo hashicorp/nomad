@@ -14,9 +14,10 @@ sudo apt-get update
 # Install base dependencies
 sudo apt-get install -y build-essential curl git-core mercurial bzr \
      libpcre3-dev pkg-config zip default-jre qemu silversearcher-ag jq htop \
-     vim unzip liblxc1 lxc-dev tree \
-     gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \  # arm64
-     libc6-dev-i386 linux-libc-dev:i386                 \  # i386
+     vim unzip tree \
+     liblxc1 lxc-dev lxc-templates                      \ # lxc
+     gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \ # arm64
+     libc6-dev-i386 linux-libc-dev:i386                 \ # i386
      gcc-5-arm-linux-gnueabi gcc-5-multilib-arm-linux-gnueabi binutils-arm-linux-gnueabi # arm
 
 # Setup go, for development of Nomad
