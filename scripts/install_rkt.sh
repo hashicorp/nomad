@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 RKT_VERSION="v1.18.0"
 CMD="cp"
@@ -14,7 +14,7 @@ if [ ! -d "rkt-${RKT_VERSION}" ]; then
     printf "rkt-%s/ doesn't exist\n" "${RKT_VERSION}"
     if [ ! -f "rkt-${RKT_VERSION}.tar.gz" ]; then
         printf "Fetching rkt-%s.tar.gz\n" "${RKT_VERSION}"
-        wget https://github.com/coreos/rkt/releases/download/$RKT_VERSION/rkt-$RKT_VERSION.tar.gz
+        wget -q https://github.com/coreos/rkt/releases/download/$RKT_VERSION/rkt-$RKT_VERSION.tar.gz
         tar xzvf rkt-$RKT_VERSION.tar.gz
     fi
 fi

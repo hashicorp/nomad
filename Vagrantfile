@@ -8,17 +8,19 @@ DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
 GO_VERSION="1.7.5"
 
+export DEBIAN_FRONTEND=noninteractive
+
 sudo dpkg --add-architecture i386
 sudo apt-get update
 
 # Install base dependencies
-sudo apt-get install -y build-essential curl git-core mercurial bzr \
-     libpcre3-dev pkg-config zip default-jre qemu silversearcher-ag jq htop \
-     vim unzip tree \
-     liblxc1 lxc-dev lxc-templates                      \ # lxc
-     gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \ # arm64
-     libc6-dev-i386 linux-libc-dev:i386                 \ # i386
-     gcc-5-arm-linux-gnueabi gcc-5-multilib-arm-linux-gnueabi binutils-arm-linux-gnueabi # arm
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential curl git-core mercurial bzr \
+     libpcre3-dev pkg-config zip default-jre qemu silversearcher-ag \
+     jq htop vim unzip tree                             \
+     liblxc1 lxc-dev lxc-templates                      \
+     gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+     libc6-dev-i386 linux-libc-dev:i386                 \
+     gcc-5-arm-linux-gnueabi gcc-5-multilib-arm-linux-gnueabi binutils-arm-linux-gnueabi
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
@@ -28,12 +30,16 @@ SRCPATH="/opt/gopath"
 ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
 
 # Install Go
-cd /tmp
-wget -q https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${ARCH}.tar.gz
-tar -xf go${GO_VERSION}.linux-${ARCH}.tar.gz
-sudo mv go $SRCROOT
-sudo chmod 775 $SRCROOT
-sudo chown ubuntu:ubuntu $SRCROOT
+if [[ $(go version) == "go version go${GO_VERSION} linux/${ARCH}" ]]; then
+    echo "Go ${GO_VERSION} ${ARCH} already installed; Skipping"
+else
+    cd /tmp
+    wget -q https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${ARCH}.tar.gz
+    tar -xf go${GO_VERSION}.linux-${ARCH}.tar.gz
+    sudo mv go $SRCROOT
+    sudo chmod 775 $SRCROOT
+    sudo chown ubuntu:ubuntu $SRCROOT
+fi
 
 # Setup the GOPATH; even though the shared folder spec gives the working
 # directory the right user/group, we need to set it properly on the
@@ -52,10 +58,14 @@ sudo chmod 0755 /etc/profile.d/gopath.sh
 source /etc/profile.d/gopath.sh
 
 # Install Docker
-echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
-sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-sudo apt-get update
-sudo apt-get install -y docker-engine
+if [[ -f /etc/apt/sources.list.d/docker.list ]]; then
+    echo "Docker repository already installed; Skipping"
+else
+    echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
+    sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+    sudo apt-get update
+fi
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-engine
 
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
