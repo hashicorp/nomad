@@ -771,7 +771,7 @@ func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
 	}
 
 	if strings.Contains(version, "v0.6.4") {
-		t.SkipNow()
+		t.Skipf("Vault has a regression in v0.6.4 that this test hits")
 	}
 
 	v := testutil.NewTestVault(t).Start()
