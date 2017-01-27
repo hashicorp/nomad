@@ -8,9 +8,20 @@ DEFAULT_CPU_COUNT = 2
 $script = <<SCRIPT
 GO_VERSION="1.7.4"
 
-# Install Prereq Packages
 sudo apt-get update
-sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu gcc-4.8-arm-linux-gnueabihf libc6-dev-i386 silversearcher-ag jq htop vim unzip liblxc1 lxc-dev
+
+# Install base dependencies
+sudo apt-get install -y build-essential curl git-core mercurial bzr libpcre3-dev pkg-config zip default-jre qemu silversearcher-ag jq htop vim unzip liblxc1 lxc-dev tree
+
+# Install cross-compilation dependencies
+# ARM64 / Aarch64 compiler
+sudo apt-get install -y gcc-4.8-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+# ARM hard-float (32bit) compiler
+sudo apt-get install -y gcc-4.8-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+
+# i386 dependencies
+sudo apt-get install -y libc6-dev-i386 linux-libc-dev:i386
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
