@@ -123,3 +123,11 @@ func getPort() uint64 {
 	vaultPortOffset += 1
 	return p
 }
+
+// VaultVersion returns the Vault version as a string or an error if it couldn't
+// be determined
+func VaultVersion() (string, error) {
+	cmd := exec.Command("vault", "version")
+	out, err := cmd.Output()
+	return string(out), err
+}
