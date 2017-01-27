@@ -764,6 +764,16 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
+	// Need to skip if test is 0.6.4
+	version, err := testutil.VaultVersion()
+	if err != nil {
+		t.Fatalf("failed to determine version: %v", err)
+	}
+
+	if strings.Contains(version, "v0.6.4") {
+		t.SkipNow()
+	}
+
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
