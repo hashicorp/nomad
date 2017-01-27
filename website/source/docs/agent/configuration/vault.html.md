@@ -119,6 +119,11 @@ vault {
   # should set the VAULT_TOKEN environment variable when starting the Nomad
   # agent 
   token       = "debecfdc-9ed7-ea22-c6ee-948f22cdd474"
+
+  # Setting the create_from_role option causes Nomad to create tokens for tasks
+  # via the provided role. This allows the role to manage what policies are
+  # allowed and disallowed for use by tasks.
+  create_from_role = "nomad-server"
 }
 ```
 

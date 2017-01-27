@@ -1,7 +1,7 @@
 {
-  "allowed_policies": "nomad-server",
+  "disallowed_policies": "nomad-server",
   "explicit_max_ttl": 0,
-  "name": "nomad-server",
+  "name": "nomad-cluster",
   "orphan": false,
   "period": 259200,
   "renewable": true
