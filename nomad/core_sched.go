@@ -192,6 +192,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 		// The Evaluation GC should not handle batch jobs since those need to be
 		// garbage collected in one shot
+		// XXX believe there is a bug that if a batch job gets stopped, there is no
+		// way for it to GC the eval/allocs
 		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
 		if err != nil {
 			return err

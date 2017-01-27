@@ -1,7 +1,6 @@
 package config
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strings"
@@ -121,7 +120,7 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.EnableSSL = b.EnableSSL
 	}
 	if b.VerifySSL != nil {
-		result.VerifySSL = b.EnableSSL
+		result.VerifySSL = b.VerifySSL
 	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
@@ -180,19 +179,13 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		if c.VerifySSL != nil {
 			tlsConfig.InsecureSkipVerify = !*c.VerifySSL
 		}
+
 		tlsClientCfg, err := consul.SetupTLSConfig(&tlsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
 		}
 		config.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsClientCfg,
-		}
-	}
-	if c.EnableSSL != nil && !*c.VerifySSL {
-		config.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
 		}
 	}
 
