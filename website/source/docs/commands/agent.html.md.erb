@@ -65,6 +65,7 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-vault-token=<token>`: The Vault token used to derive tokens. Only needs to
   be set on Servers. Overrides the Vault token read from the VAULT_TOKEN
   environment variable.
+* `-vault-create-from-role=<role>`: The role name to create tokens for tasks from.
 * `-vault-ca-file=<path>`: Path to a PEM-encoded CA cert file used to verify the
   Vault server SSL certificate.
 * `-vault-ca-path=<path>`: Path to a directory of PEM-encoded CA cert files used
