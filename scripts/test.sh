@@ -14,7 +14,7 @@ trap "rm -rf $TEMPDIR" EXIT HUP INT QUIT TERM
 
 # Build the Nomad binary for the API tests
 echo "--> Building nomad"
-echo go build -i -tags "$GOTEST_TAGS" -o $TEMPDIR/nomad
+echo go build -i -tags \"$GOTEST_TAGS\" -o $TEMPDIR/nomad
 go build -i -tags "$GOTEST_TAGS" -o $TEMPDIR/nomad || exit 1
 
 # Run the tests
