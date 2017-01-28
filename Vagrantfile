@@ -93,7 +93,7 @@ def configureVM(vmCfg, vmParams={
                   numCPUs: DEFAULT_CPU_COUNT,
                 }
                )
-  vmCfg.vm.box = "ubuntu/xenial64" # 16.04 LTS
+  vmCfg.vm.box = "bento/ubuntu-16.04" # 16.04 LTS
 
   vmCfg.vm.provision "shell", inline: $script, privileged: false
   vmCfg.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
@@ -105,7 +105,6 @@ def configureVM(vmCfg, vmParams={
   memory = 2048
 
   vmCfg.vm.provider "parallels" do |p, o|
-    o.vm.box = "parallels/ubuntu-16.04"
     p.memory = memory
     p.cpus = cpus
   end
