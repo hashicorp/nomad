@@ -5,7 +5,7 @@ set -e
 CONSUL_VERSION="0.7.3"
 CURDIR=`pwd`
 
-if [[ $(consul version | head -n 1 | cut -d ' ' -f 2) == "v$CONSUL_VERSION" ]]; then
+if [[ $(which consul >/dev/null && consul version | head -n 1 | cut -d ' ' -f 2) == "v$CONSUL_VERSION" ]]; then
     echo "Consul v$CONSUL_VERSION already installed; Skipping"
     exit
 fi

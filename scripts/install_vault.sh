@@ -5,7 +5,7 @@ set -e
 VAULT_VERSION="0.6.4"
 CURDIR=`pwd`
 
-if [[ $(vault version | cut -d ' ' -f 2) == "v$VAULT_VERSION" ]]; then
+if [[ $(which vault >/dev/null && vault version | cut -d ' ' -f 2) == "v$VAULT_VERSION" ]]; then
     echo "Vault v$VAULT_VERSION already installed; Skipping"
     exit
 fi

@@ -10,16 +10,16 @@ if [ ! -v DEST_DIR ]; then
 	CMD="sudo cp"
 fi
 
-if [ ! -d "rkt-${RKT_VERSION}" ]; then
-    printf "rkt-%s/ doesn't exist\n" "${RKT_VERSION}"
-    if [ ! -f "rkt-${RKT_VERSION}.tar.gz" ]; then
-        printf "Fetching rkt-%s.tar.gz\n" "${RKT_VERSION}"
-        wget -q https://github.com/coreos/rkt/releases/download/$RKT_VERSION/rkt-$RKT_VERSION.tar.gz
-        tar xzvf rkt-$RKT_VERSION.tar.gz
-    fi
-fi
+if [[ $(which rkt >/dev/null && rkt version | head -n 1) == "rkt Version: 1.18.0" ]]; then
+    echo "rkt installed; Skipping"
+else
+    printf "Fetching rkt-%s.tar.gz\n" "${RKT_VERSION}"
+    cd /tmp
+    wget -q https://github.com/coreos/rkt/releases/download/$RKT_VERSION/rkt-$RKT_VERSION.tar.gz -O rkt.tar.gz
+    tar xzf rkt.tar.gz
 
-$CMD rkt-$RKT_VERSION/rkt $DEST_DIR
-$CMD rkt-$RKT_VERSION/*.aci $DEST_DIR
+    $CMD rkt-$RKT_VERSION/rkt $DEST_DIR
+    $CMD rkt-$RKT_VERSION/*.aci $DEST_DIR
+fi
 
 rkt version
