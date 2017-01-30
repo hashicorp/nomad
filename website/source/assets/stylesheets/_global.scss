@@ -88,3 +88,9 @@ pre {
     width: 100%;
   }
 }
+
+@media (min-width: 768px) and (max-width: 800px) {
+  #header .navbar-nav a {
+    font-size: 12px !important;
+  }
+}
