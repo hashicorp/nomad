@@ -180,7 +180,7 @@ documentation for all possible fields and more complete documentation.
 * `renewable` - Specifies whether created tokens are renewable. **Must be set to
   `true`**. This allows Nomad to renew tokens for tasks.
 
-The above [`nomad-cluster` token role](/data/vault/nomad-cluster-role.hcl) is
+The above [`nomad-cluster` token role](/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
 
 ```
