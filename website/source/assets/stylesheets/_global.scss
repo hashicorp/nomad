@@ -89,6 +89,7 @@ pre {
   }
 }
 
+//guarantees nav list fits at tablet viewport size 
 @media (min-width: 768px) and (max-width: 800px) {
   #header .navbar-nav a {
     font-size: 12px !important;
