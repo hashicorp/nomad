@@ -1,4 +1,4 @@
-## 0.5.3 (Unreleased) 
+## 0.5.3 (January 30, 2017) 
 
 IMPROVEMENTS:
   * core: Introduce parameterized jobs and dispatch command/API [GH-2128]
