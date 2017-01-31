@@ -116,6 +116,7 @@ def configureVM(vmCfg, vmParams={
 
   ["vmware_fusion", "vmware_workstation"].each do |p|
     vmCfg.vm.provider p do |v|
+      v.enable_vmrun_ip_lookup = false
       v.gui = false
       v.memory = memory
       v.cpus = cpus
