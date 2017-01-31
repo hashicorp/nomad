@@ -51,7 +51,9 @@ vault {
   The token given to Nomad does not have to be created from this role but must
   have "update" capability on "auth/token/create/<create_from_role>" path in
   Vault. If this value is unset and the token is created from a role, the value
-  is defaulted to the role the token is from.
+  is defaulted to the role the token is from. This is largely for backwards
+  compatibility. It is recommended to set the `create_from_role` field if Nomad
+  is deriving child tokens from a role.
 
 - `task_token_ttl` `(string: "")` - Specifies the TTL of created tokens when
   using a root token. This is specified using a label suffix like "30s" or "1h".
@@ -117,6 +119,11 @@ vault {
   # should set the VAULT_TOKEN environment variable when starting the Nomad
   # agent 
   token       = "debecfdc-9ed7-ea22-c6ee-948f22cdd474"
+
+  # Setting the create_from_role option causes Nomad to create tokens for tasks
+  # via the provided role. This allows the role to manage what policies are
+  # allowed and disallowed for use by tasks.
+  create_from_role = "nomad-server"
 }
 ```
 

@@ -70,7 +70,7 @@ func TestResetHeartbeatTimerLocked(t *testing.T) {
 		t.Fatalf("missing timer")
 	}
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(time.Duration(testutil.TestMultiplier()*10) * time.Millisecond)
 
 	if _, ok := s1.heartbeatTimers["foo"]; ok {
 		t.Fatalf("timer should be gone")
@@ -99,7 +99,7 @@ func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	renew := time.Now()
 
 	// Watch for invalidation
-	for time.Now().Sub(renew) < 20*time.Millisecond {
+	for time.Now().Sub(renew) < time.Duration(testutil.TestMultiplier()*20)*time.Millisecond {
 		s1.heartbeatTimersLock.Lock()
 		_, ok := s1.heartbeatTimers["foo"]
 		s1.heartbeatTimersLock.Unlock()

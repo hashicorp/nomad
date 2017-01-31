@@ -120,6 +120,7 @@ func (c *Command) readConfig() *Config {
 	}), "vault-allow-unauthenticated", "")
 	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
@@ -933,6 +934,9 @@ Vault Options:
     The Vault token used to derive tokens from Vault on behalf of clients.
     This only needs to be set on Servers. Overrides the Vault token read from
     the VAULT_TOKEN environment variable.
+
+  -vault-create-from-role=<role>
+    The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
     Whether to allow jobs to be sumbitted that request Vault Tokens but do not

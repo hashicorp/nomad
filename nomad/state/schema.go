@@ -149,9 +149,10 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	// The job is GCable if it is batch and it is not periodic
+	// The job is GCable if it is batch, it is not periodic and is not a
+	// parameterized job.
 	periodic := j.Periodic != nil && j.Periodic.Enabled
-	gcable := j.Type == structs.JobTypeBatch && !periodic
+	gcable := j.Type == structs.JobTypeBatch && !periodic && !j.IsParameterized()
 	return gcable, nil
 }
 

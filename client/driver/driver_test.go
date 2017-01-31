@@ -158,6 +158,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
+	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
 	conf := testConfig()
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	taskDir := allocDir.NewTaskDir(task.Name)

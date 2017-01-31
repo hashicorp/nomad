@@ -104,6 +104,10 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 
 // Copy returns a new deep copy of CreatedResrouces.
 func (r *CreatedResources) Copy() *CreatedResources {
+	if r == nil {
+		return nil
+	}
+
 	newr := CreatedResources{
 		Resources: make(map[string][]string, len(r.Resources)),
 	}
@@ -165,7 +169,8 @@ type Driver interface {
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
 
 	// Cleanup is called to remove resources which were created for a task
-	// and no longer needed.
+	// and no longer needed. Cleanup is not called if CreatedResources is
+	// nil.
 	//
 	// If Cleanup returns a recoverable error it may be retried. On retry
 	// it will be passed the same CreatedResources, so all successfully

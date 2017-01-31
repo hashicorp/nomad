@@ -591,9 +591,6 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	unblock := make(chan struct{})
 	for i := 0; i < numRequests; i++ {
 		go func() {
-			// Ensure all the goroutines are made
-			time.Sleep(10 * time.Millisecond)
-
 			// Lookup ourselves
 			_, err := client.LookupToken(ctx, v.Config.Token)
 			if err != nil {
@@ -607,7 +604,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 
 			// Cancel the context
 			cancel()
-			time.AfterFunc(1*time.Second, func() { close(unblock) })
+			close(unblock)
 		}()
 	}
 
@@ -618,9 +615,15 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	}
 
 	desired := numRequests - 1
-	if cancels != desired {
-		t.Fatalf("Incorrect number of cancels; got %d; want %d", cancels, desired)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		if cancels != desired {
+			return false, fmt.Errorf("Incorrect number of cancels; got %d; want %d", cancels, desired)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Connection not established")
+	})
 }
 
 func TestVaultClient_CreateToken_Root(t *testing.T) {
@@ -764,6 +767,16 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
+	// Need to skip if test is 0.6.4
+	version, err := testutil.VaultVersion()
+	if err != nil {
+		t.Fatalf("failed to determine version: %v", err)
+	}
+
+	if strings.Contains(version, "v0.6.4") {
+		t.Skipf("Vault has a regression in v0.6.4 that this test hits")
+	}
+
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 

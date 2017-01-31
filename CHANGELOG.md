@@ -1,9 +1,10 @@
-## 0.5.3 (Unreleased) 
+## 0.5.3 (January 30, 2017) 
 
 IMPROVEMENTS:
-  * api: Added APIs for requesting GC of allocations [GH-2192]
-  * core: Introduce Parameterized Jobs and Dispatch command/API [GH-2128]
+  * core: Introduce parameterized jobs and dispatch command/API [GH-2128]
   * core: Cancel blocked evals upon successful one for job [GH-2155]
+  * api: Added APIs for requesting GC of allocations [GH-2192]
+  * api: Job summary endpoint includes summary status for child jobs [GH-2128]
   * api/client: Plain text log streaming suitable for viewing logs in a browser
     [GH-2235]
   * cli: Defaulting to showing allocations which belong to currently registered

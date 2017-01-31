@@ -47,18 +47,16 @@ README][ct].
 
 ## `template` Parameters
 
-- `source` `(string: "")` - Specifies the path to the template to be rendered.
-  One of `source` or `data` must be specified, but not both. This source can
-  optionally be fetched using an [`artifact`][artifact] resource. This template
-  must exist on the machine prior to starting the task; it is not possible to
-  reference a template inside of a Docker container, for example.
-
-- `destination` `(string: <required>)` - Specifies the location where the
-  resulting template should be rendered, relative to the task directory.
+- `change_signal` `(string: "")` - Specifies the signal to send to the task as a
+  string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
+  `change_mode` is `signal`.
 
 - `data` `(string: "")` - Specifies the raw template to execute. One of `source`
   or `data` must be specified, but not both. This is useful for smaller
   templates, but we recommend using `source` for larger templates.
+
+- `destination` `(string: <required>)` - Specifies the location where the
+  resulting template should be rendered, relative to the task directory.
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
   if the rendered template changes. The possible values are:
@@ -67,9 +65,11 @@ README][ct].
   - `"restart"` - restart the task
   - `"signal"` - send a configurable signal to the task
 
-- `change_signal` `(string: "")` - Specifies the signal to send to the task as a
-  string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
-  `change_mode` is `signal`.
+- `source` `(string: "")` - Specifies the path to the template to be rendered.
+  One of `source` or `data` must be specified, but not both. This source can
+  optionally be fetched using an [`artifact`][artifact] resource. This template
+  must exist on the machine prior to starting the task; it is not possible to
+  reference a template inside of a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0ms and the given splay value before invoking the change mode. This is

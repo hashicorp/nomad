@@ -111,6 +111,28 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	return &taskRunnerTestCtx{upd, tr, allocDir}
 }
 
+// testWaitForTaskToStart waits for the task to or fails the test
+func testWaitForTaskToStart(t *testing.T, ctx *taskRunnerTestCtx) {
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		if l := len(ctx.upd.events); l < 2 {
+			return false, fmt.Errorf("Expect two events; got %v", l)
+		}
+
+		if ctx.upd.events[0].Type != structs.TaskReceived {
+			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
+		}
+
+		if ctx.upd.events[1].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestTaskRunner_SimpleRun(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	ctx := testTaskRunner(t, false)
@@ -195,23 +217,8 @@ func TestTaskRunner_Destroy(t *testing.T) {
 	ctx.tr.task.Config["args"] = []string{"1000"}
 	go ctx.tr.Run()
 
-	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
-		}
-
-		if ctx.upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-		}
-
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// Wait for the task to start
+	testWaitForTaskToStart(t, ctx)
 
 	// Make sure we are collecting a few stats
 	time.Sleep(2 * time.Second)
@@ -282,7 +289,7 @@ func TestTaskRunner_Update(t *testing.T) {
 
 	ctx.tr.Update(updateAlloc)
 
-	// Wait for ctx.upd.te to take place
+	// Wait for ctx.update to take place
 	testutil.WaitForResult(func() (bool, error) {
 		if ctx.tr.task == newTask {
 			return false, fmt.Errorf("We copied the pointer! This would be very bad")
@@ -321,23 +328,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Wait for the task to be running and then snapshot the state
-	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
-		}
-
-		if ctx.upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-		}
-
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	testWaitForTaskToStart(t, ctx)
 
 	if err := ctx.tr.SaveState(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -509,6 +500,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 }
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
+	ctestutil.ExecCompatible(t)
 	ctx := testTaskRunner(t, false)
 	defer ctx.Cleanup()
 
@@ -544,7 +536,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "0",
-		"run_for":   "10s",
+		"run_for":   "100s",
 	}
 
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
@@ -552,11 +544,25 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	go ctx.tr.Run()
 	defer ctx.Cleanup()
 
+	// Wait for it to start
 	go func() {
-		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
+		testWaitForTaskToStart(t, ctx)
 		ctx.tr.Restart("test", "restart")
-		time.Sleep(time.Duration(testutil.TestMultiplier()*300) * time.Millisecond)
-		ctx.tr.Kill("test", "restart", false)
+
+		// Wait for it to restart then kill
+		go func() {
+			// Wait for the task to start again
+			testutil.WaitForResult(func() (bool, error) {
+				if len(ctx.upd.events) != 7 {
+					t.Fatalf("task %q in alloc %q should have 7 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
+				}
+
+				return true, nil
+			}, func(err error) {
+				t.Fatalf("err: %v", err)
+			})
+			ctx.tr.Kill("test", "restart", false)
+		}()
 	}()
 
 	select {
@@ -566,7 +572,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 9 {
-		t.Fatalf("should have 9 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 9 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -593,7 +599,6 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
 	}
 
-	t.Logf("%+v", ctx.upd.events[5])
 	if ctx.upd.events[5].Type != structs.TaskRestarting {
 		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskRestarting)
 	}
@@ -625,7 +630,7 @@ func TestTaskRunner_KillTask(t *testing.T) {
 	defer ctx.Cleanup()
 
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		testWaitForTaskToStart(t, ctx)
 		ctx.tr.Kill("test", "kill", true)
 	}()
 
@@ -680,23 +685,7 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Wait for the task to start
-	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l < 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
-		}
-
-		if ctx.upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-		}
-
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	testWaitForTaskToStart(t, ctx)
 
 	if err := ctx.tr.Signal("test", "test", syscall.SIGINT); err == nil {
 		t.Fatalf("Didn't receive error")
@@ -1125,23 +1114,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	go ctx.tr.Run()
 
 	// Wait for the task to start
-	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
-		}
-
-		if ctx.upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-		}
-
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
 	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
@@ -1213,23 +1186,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Wait for the task to start
-	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
-		}
-
-		if ctx.upd.events[0].Type != structs.TaskReceived {
-			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-		}
-
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
 	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
@@ -1275,7 +1232,7 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		"run_for":   "1s",
 	}
 	fileName := "test"
-	task.DispatchInput = &structs.DispatchInputConfig{
+	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: fileName,
 	}
 	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}
@@ -1325,6 +1282,27 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	}
 	if !reflect.DeepEqual(data, expected) {
 		t.Fatalf("Bad; got %v; want %v", string(data), string(expected))
+	}
+}
+
+// TestTaskRunner_CleanupNil ensures TaskRunner doesn't call Driver.Cleanup if
+// no resources were created.
+func TestTaskRunner_CleanupNil(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+
+	ctx.tr.createdResources = nil
+
+	defer ctx.Cleanup()
+	ctx.tr.Run()
+
+	// Since we only failed once, createdResources should be empty
+	if ctx.tr.createdResources != nil {
+		t.Fatalf("createdResources should still be nil: %v", ctx.tr.createdResources)
 	}
 }
 

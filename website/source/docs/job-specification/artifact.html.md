@@ -51,14 +51,14 @@ before the starting the task.
   default value is to place the binary in `local/`. The destination is treated
   as a directory and source files will be downloaded into that directory path.
 
-- `source` `(string: <required>)` - Specifies the URL of the artifact to download.
-  Only `http`, `https`, and `s3` URLs are supported. See [`go-getter`][go-getter]
-  for details.
-
 - `options` `(map<string|string>: nil)` - Specifies configuration parameters to
   fetch the artifact. The key-value pairs map directly to parameters appended to
   the supplied `source` URL. Please see the [`go-getter`
   documentation][go-getter] for a complete list of options and examples
+
+- `source` `(string: <required>)` - Specifies the URL of the artifact to download.
+  Only `http`, `https`, and `s3` URLs are supported. See [`go-getter`][go-getter]
+  for details.
 
 ## `artifact` Examples
 
