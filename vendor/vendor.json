@@ -811,15 +811,15 @@
 			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/coordinate",
-			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
-			"revisionTime": "2016-06-09T00:18:40Z"
+			"revision": "b9642a47e6139e50548b6f14588a1a3c0839660a",
+			"revisionTime": "2016-09-14T16:26:25Z"
 		},
 		{
-			"checksumSHA1": "jgQHuXL6QZLht/1dIYfSytPKWr4=",
+			"checksumSHA1": "vLyudzMEdik8IpRY1H2vRa2PeLU=",
 			"comment": "v0.7.0-18-gc4c55f1",
 			"path": "github.com/hashicorp/serf/serf",
-			"revision": "6c4672d66fc6312ddde18399262943e21175d831",
-			"revisionTime": "2016-06-09T00:18:40Z"
+			"revision": "b9642a47e6139e50548b6f14588a1a3c0839660a",
+			"revisionTime": "2016-09-14T16:26:25Z"
 		},
 		{
 			"checksumSHA1": "eGzvBRMFD6ZB3A6uO750np7Om/E=",
