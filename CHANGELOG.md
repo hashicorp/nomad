@@ -1,3 +1,8 @@
+## 0.5.4 (January 31, 2017)
+
+BUG FIXES:
+  * client: Fix panic when upgrading to 0.5.3 [GH-2256]
+
 ## 0.5.3 (January 30, 2017) 
 
 IMPROVEMENTS:
