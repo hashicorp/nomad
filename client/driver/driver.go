@@ -104,6 +104,10 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 
 // Copy returns a new deep copy of CreatedResrouces.
 func (r *CreatedResources) Copy() *CreatedResources {
+	if r == nil {
+		return nil
+	}
+
 	newr := CreatedResources{
 		Resources: make(map[string][]string, len(r.Resources)),
 	}
