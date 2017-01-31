@@ -1033,6 +1033,11 @@ func (r *TaskRunner) cleanup() {
 	res := r.createdResources.Copy()
 	r.createdResourcesLock.Unlock()
 
+	if res == nil {
+		// No created resources to cleanup
+		return
+	}
+
 	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
 	attempts := 1
 	var cleanupErr error
