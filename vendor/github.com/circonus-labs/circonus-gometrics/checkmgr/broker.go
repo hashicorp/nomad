@@ -24,8 +24,7 @@ func init() {
 // Get Broker to use when creating a check
 func (cm *CheckManager) getBroker() (*api.Broker, error) {
 	if cm.brokerID != 0 {
-		cid := fmt.Sprintf("/broker/%d", cm.brokerID)
-		broker, err := cm.apih.FetchBroker(api.CIDType(&cid))
+		broker, err := cm.apih.FetchBrokerByID(cm.brokerID)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +60,7 @@ func (cm *CheckManager) getBrokerCN(broker *api.Broker, submissionURL api.URLTyp
 	cn := ""
 
 	for _, detail := range broker.Details {
-		if *detail.IP == host {
+		if detail.IP == host {
 			cn = detail.CN
 			break
 		}
@@ -78,34 +77,31 @@ func (cm *CheckManager) getBrokerCN(broker *api.Broker, submissionURL api.URLTyp
 // Select a broker for use when creating a check, if a specific broker
 // was not specified.
 func (cm *CheckManager) selectBroker() (*api.Broker, error) {
-	var brokerList *[]api.Broker
+	var brokerList []api.Broker
 	var err error
 
 	if len(cm.brokerSelectTag) > 0 {
-		filter := api.SearchFilterType{
-			"f__tags_has": cm.brokerSelectTag,
-		}
-		brokerList, err = cm.apih.SearchBrokers(nil, &filter)
+		brokerList, err = cm.apih.FetchBrokerListByTag(cm.brokerSelectTag)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		brokerList, err = cm.apih.FetchBrokers()
+		brokerList, err = cm.apih.FetchBrokerList()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if len(*brokerList) == 0 {
+	if len(brokerList) == 0 {
 		return nil, fmt.Errorf("zero brokers found")
 	}
 
 	validBrokers := make(map[string]api.Broker)
 	haveEnterprise := false
 
-	for _, broker := range *brokerList {
+	for _, broker := range brokerList {
 		if cm.isValidBroker(&broker) {
-			validBrokers[broker.CID] = broker
+			validBrokers[broker.Cid] = broker
 			if broker.Type == "enterprise" {
 				haveEnterprise = true
 			}
@@ -121,7 +117,7 @@ func (cm *CheckManager) selectBroker() (*api.Broker, error) {
 	}
 
 	if len(validBrokers) == 0 {
-		return nil, fmt.Errorf("found %d broker(s), zero are valid", len(*brokerList))
+		return nil, fmt.Errorf("found %d broker(s), zero are valid", len(brokerList))
 	}
 
 	validBrokerKeys := reflect.ValueOf(validBrokers).MapKeys()
@@ -150,8 +146,8 @@ func (cm *CheckManager) brokerSupportsCheckType(checkType CheckTypeType, details
 
 // Is the broker valid (active, supports check type, and reachable)
 func (cm *CheckManager) isValidBroker(broker *api.Broker) bool {
-	var brokerHost string
-	var brokerPort string
+	brokerHost := ""
+	brokerPort := ""
 	valid := false
 	for _, detail := range broker.Details {
 
@@ -172,45 +168,49 @@ func (cm *CheckManager) isValidBroker(broker *api.Broker) bool {
 		}
 
 		if detail.ExternalPort != 0 {
-			brokerPort = strconv.Itoa(int(detail.ExternalPort))
+			brokerPort = strconv.Itoa(detail.ExternalPort)
 		} else {
-			if *detail.Port != 0 {
-				brokerPort = strconv.Itoa(int(*detail.Port))
+			if detail.Port != 0 {
+				brokerPort = strconv.Itoa(detail.Port)
 			} else {
 				brokerPort = "43191"
 			}
 		}
 
-		if detail.ExternalHost != nil && *detail.ExternalHost != "" {
-			brokerHost = *detail.ExternalHost
+		if detail.ExternalHost != "" {
+			brokerHost = detail.ExternalHost
 		} else {
-			brokerHost = *detail.IP
+			brokerHost = detail.IP
 		}
 
-		if brokerHost == "trap.noit.circonus.net" && brokerPort != "443" {
+		// broker must be reachable and respond within designated time
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", brokerHost, brokerPort), cm.brokerMaxResponseTime)
+		if err != nil {
+			if detail.CN != "trap.noit.circonus.net" {
+				if cm.Debug {
+					cm.Log.Printf("[DEBUG] Broker '%s' unable to connect, %v\n", broker.Name, err)
+				}
+				continue // not able to reach the broker (or respone slow enough for it to be considered not usable)
+			}
+			// if circonus trap broker, try port 443
 			brokerPort = "443"
-		}
-
-		retries := 5
-		for attempt := 1; attempt <= retries; attempt++ {
-			// broker must be reachable and respond within designated time
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", brokerHost, brokerPort), cm.brokerMaxResponseTime)
-			if err == nil {
-				conn.Close()
-				valid = true
-				break
+			conn, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%s", detail.CN, brokerPort), cm.brokerMaxResponseTime)
+			if err != nil {
+				if cm.Debug {
+					cm.Log.Printf("[DEBUG] Broker '%s' unable to connect %v\n", broker.Name, err)
+				}
+				continue // not able to reach the broker on 443 either (or respone slow enough for it to be considered not usable)
 			}
+		}
+		conn.Close()
 
-			cm.Log.Printf("[WARN] Broker '%s' unable to connect, %v. Retrying in 2 seconds, attempt %d of %d.", broker.Name, err, attempt, retries)
-			time.Sleep(2 * time.Second)
+		if cm.Debug {
+			cm.Log.Printf("[DEBUG] Broker '%s' is valid\n", broker.Name)
 		}
 
-		if valid {
-			if cm.Debug {
-				cm.Log.Printf("[DEBUG] Broker '%s' is valid\n", broker.Name)
-			}
-			break
-		}
+		valid = true
+		break
+
 	}
 	return valid
 }

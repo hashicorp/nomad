@@ -58,16 +58,14 @@ type Config struct {
 	// API, Check and Broker configuration options
 	CheckManager checkmgr.Config
 
-	// how frequenly to submit metrics to Circonus, default 10 seconds.
-	// Set to 0 to disable automatic flushes and call Flush manually.
+	// how frequenly to submit metrics to Circonus, default 10 seconds
 	Interval string
 }
 
 // CirconusMetrics state
 type CirconusMetrics struct {
-	Log   *log.Logger
-	Debug bool
-
+	Log             *log.Logger
+	Debug           bool
 	resetCounters   bool
 	resetGauges     bool
 	resetHistograms bool
@@ -101,14 +99,9 @@ type CirconusMetrics struct {
 
 // NewCirconusMetrics returns a CirconusMetrics instance
 func NewCirconusMetrics(cfg *Config) (*CirconusMetrics, error) {
-	return New(cfg)
-}
-
-// New returns a CirconusMetrics instance
-func New(cfg *Config) (*CirconusMetrics, error) {
 
 	if cfg == nil {
-		return nil, errors.New("invalid configuration (nil)")
+		return nil, errors.New("Invalid configuration (nil).")
 	}
 
 	cm := &CirconusMetrics{
@@ -121,107 +114,83 @@ func New(cfg *Config) (*CirconusMetrics, error) {
 		textFuncs:    make(map[string]func() string),
 	}
 
-	// Logging
-	{
-		cm.Debug = cfg.Debug
-		cm.Log = cfg.Log
+	cm.Debug = cfg.Debug
+	cm.Log = cfg.Log
 
-		if cm.Debug && cm.Log == nil {
-			cm.Log = log.New(os.Stderr, "", log.LstdFlags)
-		}
-		if cm.Log == nil {
-			cm.Log = log.New(ioutil.Discard, "", log.LstdFlags)
-		}
+	if cm.Debug && cfg.Log == nil {
+		cm.Log = log.New(os.Stderr, "", log.LstdFlags)
+	}
+	if cm.Log == nil {
+		cm.Log = log.New(ioutil.Discard, "", log.LstdFlags)
 	}
 
-	// Flush Interval
-	{
-		fi := defaultFlushInterval
-		if cfg.Interval != "" {
-			fi = cfg.Interval
-		}
-
-		dur, err := time.ParseDuration(fi)
-		if err != nil {
-			return nil, err
-		}
-		cm.flushInterval = dur
+	fi := defaultFlushInterval
+	if cfg.Interval != "" {
+		fi = cfg.Interval
 	}
 
-	// metric resets
+	dur, err := time.ParseDuration(fi)
+	if err != nil {
+		return nil, err
+	}
+	cm.flushInterval = dur
+
+	var setting bool
 
 	cm.resetCounters = true
 	if cfg.ResetCounters != "" {
-		setting, err := strconv.ParseBool(cfg.ResetCounters)
-		if err != nil {
-			return nil, err
+		if setting, err = strconv.ParseBool(cfg.ResetCounters); err == nil {
+			cm.resetCounters = setting
 		}
-		cm.resetCounters = setting
 	}
 
 	cm.resetGauges = true
 	if cfg.ResetGauges != "" {
-		setting, err := strconv.ParseBool(cfg.ResetGauges)
-		if err != nil {
-			return nil, err
+		if setting, err = strconv.ParseBool(cfg.ResetGauges); err == nil {
+			cm.resetGauges = setting
 		}
-		cm.resetGauges = setting
 	}
 
 	cm.resetHistograms = true
 	if cfg.ResetHistograms != "" {
-		setting, err := strconv.ParseBool(cfg.ResetHistograms)
-		if err != nil {
-			return nil, err
+		if setting, err = strconv.ParseBool(cfg.ResetHistograms); err == nil {
+			cm.resetHistograms = setting
 		}
-		cm.resetHistograms = setting
 	}
 
 	cm.resetText = true
 	if cfg.ResetText != "" {
-		setting, err := strconv.ParseBool(cfg.ResetText)
-		if err != nil {
-			return nil, err
+		if setting, err = strconv.ParseBool(cfg.ResetText); err == nil {
+			cm.resetText = setting
 		}
-		cm.resetText = setting
 	}
 
-	// check manager
-	{
-		cfg.CheckManager.Debug = cm.Debug
-		cfg.CheckManager.Log = cm.Log
+	cfg.CheckManager.Debug = cm.Debug
+	cfg.CheckManager.Log = cm.Log
 
-		check, err := checkmgr.New(&cfg.CheckManager)
-		if err != nil {
-			return nil, err
-		}
-		cm.check = check
+	check, err := checkmgr.NewCheckManager(&cfg.CheckManager)
+	if err != nil {
+		return nil, err
 	}
+	cm.check = check
 
-	// start background initialization
-	cm.check.Initialize()
-
-	// if automatic flush is enabled, start it.
-	// note: submit will jettison metrics until initialization has completed.
-	if cm.flushInterval > time.Duration(0) {
-		go func() {
-			for _ = range time.NewTicker(cm.flushInterval).C {
-				cm.Flush()
-			}
-		}()
+	if _, err := cm.check.GetTrap(); err != nil {
+		return nil, err
 	}
 
 	return cm, nil
 }
 
-// Start deprecated NOP, automatic flush is started in New if flush interval > 0.
+// Start initializes the CirconusMetrics instance based on
+// configuration settings and sets the httptrap check url to
+// which metrics should be sent. It then starts a perdiodic
+// submission process of all metrics collected.
 func (m *CirconusMetrics) Start() {
-	return
-}
-
-// Ready returns true or false indicating if the check is ready to accept metrics
-func (m *CirconusMetrics) Ready() bool {
-	return m.check.IsReady()
+	go func() {
+		for _ = range time.NewTicker(m.flushInterval).C {
+			m.Flush()
+		}
+	}()
 }
 
 // Flush metrics kicks off the process of sending metrics to Circonus
