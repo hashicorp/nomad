@@ -151,6 +151,18 @@ type Config struct {
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *config.TLSConfig
 
+	// GCInterval is the time interval at which the client triggers garbage
+	// collection
+	GCInterval time.Duration
+
+	// GCDiskUsageThreshold is the disk usage threshold beyond which the Nomad
+	// client triggers GC of terminal allocations
+	GCDiskUsageThreshold float64
+
+	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
+	// client triggers GC of the terminal allocations
+	GCInodeUsageThreshold float64
+
 	// LogLevel is the level of the logs to putout
 	LogLevel string
 }
@@ -177,6 +189,9 @@ func DefaultConfig() *Config {
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &config.TLSConfig{},
 		LogLevel:                "DEBUG",
+		GCInterval:              1 * time.Minute,
+		GCDiskUsageThreshold:    80,
+		GCInodeUsageThreshold:   70,
 	}
 }
 
