@@ -554,7 +554,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 			// Wait for the task to start again
 			testutil.WaitForResult(func() (bool, error) {
 				if len(ctx.upd.events) != 7 {
-					t.Fatalf("should have 7 ctx.updates: %#v", ctx.upd.events)
+					t.Fatalf("task %q in alloc %q should have 7 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
 				}
 
 				return true, nil
