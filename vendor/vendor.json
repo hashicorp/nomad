@@ -774,10 +774,10 @@
 			"revision": "0dc08b1671f34c4250ce212759ebd880f743d883"
 		},
 		{
-			"checksumSHA1": "Ozk/S4U1x/OllNP2SsMYJjCl/gs=",
+			"checksumSHA1": "hSoH77pX3FyU6kkYqOOYmf3r55Y=",
 			"path": "github.com/hashicorp/memberlist",
-			"revision": "7ad712f5f34ec40aebe6ca47756d07898486a8d2",
-			"revisionTime": "2016-09-15T13:02:55Z"
+			"revision": "9800c50ab79c002353852a9b1095e9591b161513",
+			"revisionTime": "2016-12-13T23:44:46Z"
 		},
 		{
 			"path": "github.com/hashicorp/net-rpc-msgpackrpc",

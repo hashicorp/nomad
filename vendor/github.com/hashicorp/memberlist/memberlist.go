@@ -496,7 +496,7 @@ func (m *Memberlist) SendTo(to net.Addr, msg []byte) error {
 	buf = append(buf, msg...)
 
 	// Send the message
-	return m.rawSendMsgUDP(to, buf)
+	return m.rawSendMsgUDP(to, nil, buf)
 }
 
 // SendToUDP is used to directly send a message to another node, without
@@ -513,7 +513,7 @@ func (m *Memberlist) SendToUDP(to *Node, msg []byte) error {
 
 	// Send the message
 	destAddr := &net.UDPAddr{IP: to.Addr, Port: int(to.Port)}
-	return m.rawSendMsgUDP(destAddr, buf)
+	return m.rawSendMsgUDP(destAddr, to, buf)
 }
 
 // SendToTCP is used to directly send a message to another node, without
