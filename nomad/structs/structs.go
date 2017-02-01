@@ -4054,7 +4054,7 @@ type RecoverableError struct {
 
 // NewRecoverableError is used to wrap an error and mark it as recoverable or
 // not.
-func NewRecoverableError(e error, recoverable bool) error {
+func NewRecoverableError(e error, recoverable bool) *RecoverableError {
 	if e == nil {
 		return nil
 	}
