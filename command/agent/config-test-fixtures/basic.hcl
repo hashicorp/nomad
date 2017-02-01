@@ -53,6 +53,9 @@ client {
         data_points = 35
         collection_interval = "5s"
     }
+    gc_interval = "6s"
+    gc_disk_usage_threshold = 82
+    gc_inode_usage_threshold = 91
 }
 server {
 	enabled = true
