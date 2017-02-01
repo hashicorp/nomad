@@ -83,6 +83,15 @@ client {
  [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with
  "client", like `"/opt/nomad/client"`. This must be an absolute path.
 
+- `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
+  attempts to garbage collect terminal allocation directories. 
+
+- `gc_disk_usage_threshold` `(float: 80)` - Specifies the disk usage percent which
+  Nomad tries to maintain by garbage collecting terminal allocations.
+
+- `gc_inode_usage_threshold` `(float: 70)` - Specifies the inode usage percent
+  which Nomad tries to maintain by garbage collecting terminal allocations.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec.html) implement file
