@@ -2589,6 +2589,9 @@ type Template struct {
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
 	Splay time.Duration `mapstructure:"splay"`
+
+	// Perms is the permission the file should be written out with.
+	Perms string `mapstructure:"perms"`
 }
 
 // DefaultTemplate returns a default template.
@@ -2596,6 +2599,7 @@ func DefaultTemplate() *Template {
 	return &Template{
 		ChangeMode: TemplateChangeModeRestart,
 		Splay:      5 * time.Second,
+		Perms:      "0644",
 	}
 }
 
@@ -2649,6 +2653,13 @@ func (t *Template) Validate() error {
 	// Verify the splay is positive
 	if t.Splay < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Must specify positive splay value"))
+	}
+
+	// Verify the permissions
+	if t.Perms != "" {
+		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
+			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
+		}
 	}
 
 	return mErr.ErrorOrNil()

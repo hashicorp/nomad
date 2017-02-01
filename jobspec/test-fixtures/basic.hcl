@@ -145,6 +145,7 @@ job "binstore-storagelocker" {
       template {
         source = "bar"
         destination = "bar"
+        perms = "777"
       }
     }
 

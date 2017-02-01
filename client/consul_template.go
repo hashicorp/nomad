@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -393,6 +394,16 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 		ct.Source = &src
 		ct.Destination = &dest
 		ct.Contents = &tmpl.EmbeddedTmpl
+
+		// Set the permissions
+		if tmpl.Perms != "" {
+			v, err := strconv.ParseUint(tmpl.Perms, 8, 12)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q as octal: %v", tmpl.Perms, err)
+			}
+			m := os.FileMode(v)
+			ct.Perms = &m
+		}
 		ct.Finalize()
 
 		ctmpls[*ct] = tmpl

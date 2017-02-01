@@ -733,6 +733,27 @@ func TestTemplate_Validate(t *testing.T) {
 			},
 			Fail: false,
 		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Perms:      "0444",
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Perms:      "zza",
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"as octal",
+			},
+		},
 	}
 
 	for i, c := range cases {

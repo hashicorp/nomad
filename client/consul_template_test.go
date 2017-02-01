@@ -310,6 +310,40 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 	}
 }
 
+func TestTaskTemplateManager_Permissions(t *testing.T) {
+	// Make a template that will render immediately
+	content := "hello, world!"
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: content,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+		Perms:        "777",
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Failed to stat file: %v", err)
+	}
+
+	if m := fi.Mode(); m != os.ModePerm {
+		t.Fatalf("Got mode %v; want %v", m, os.ModePerm)
+	}
+}
+
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 	// Make a template that will render immediately
 	content := `Hello Nomad Task: {{env "NOMAD_TASK_NAME"}}`

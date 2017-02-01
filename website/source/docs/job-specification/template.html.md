@@ -47,6 +47,13 @@ README][ct].
 
 ## `template` Parameters
 
+- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
+  if the rendered template changes. The possible values are:
+
+  - `"noop"` - take no action (continue running the task)
+  - `"restart"` - restart the task
+  - `"signal"` - send a configurable signal to the task
+
 - `change_signal` `(string: "")` - Specifies the signal to send to the task as a
   string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
   `change_mode` is `signal`.
@@ -58,12 +65,8 @@ README][ct].
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the task directory.
 
-- `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
-  if the rendered template changes. The possible values are:
-
-  - `"noop"` - take no action (continue running the task)
-  - `"restart"` - restart the task
-  - `"signal"` - send a configurable signal to the task
+- `perms` `(string: "666")` - Specifies the rendered templates permissions. File
+  permissions are given as octal of the unix file permissions rwxrwxrwx.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
   One of `source` or `data` must be specified, but not both. This source can

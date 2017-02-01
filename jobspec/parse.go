@@ -854,13 +854,13 @@ func parseTemplates(result *[]*structs.Template, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
 		// Check for invalid keys
 		valid := []string{
-			"source",
-			"destination",
-			"data",
 			"change_mode",
 			"change_signal",
+			"data",
+			"destination",
+			"perms",
+			"source",
 			"splay",
-			"once",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
