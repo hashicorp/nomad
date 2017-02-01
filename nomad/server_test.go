@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -135,4 +136,28 @@ func TestServer_Regions(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestServer_Reload_Vault(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.Region = "region1"
+	})
+	defer s1.Shutdown()
+
+	if s1.vault.Running() {
+		t.Fatalf("Vault client should not be running")
+	}
+
+	tr := true
+	config := s1.config
+	config.VaultConfig.Enabled = &tr
+	config.VaultConfig.Token = structs.GenerateUUID()
+
+	if err := s1.Reload(config); err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+
+	if !s1.vault.Running() {
+		t.Fatalf("Vault client should be running")
+	}
 }

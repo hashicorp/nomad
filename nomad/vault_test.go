@@ -364,6 +364,40 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	}
 }
 
+// Test that we can disable vault
+func TestVaultClient_SetConfig_Disable(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	if client.tokenData == nil || len(client.tokenData.Policies) != 1 {
+		t.Fatalf("unexpected token: %v", client.tokenData)
+	}
+
+	// Disable vault
+	f := false
+	config := config.VaultConfig{
+		Enabled: &f,
+	}
+
+	// Update the config
+	if err := client.SetConfig(&config); err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	if client.Enabled() || client.Running() {
+		t.Fatalf("SetConfig should have stopped client")
+	}
+}
+
 func TestVaultClient_RenewalLoop(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()

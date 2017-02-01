@@ -601,6 +601,18 @@ func (c *Command) handleReload(config *Config) *Config {
 		// Keep the current log level
 		newConf.LogLevel = config.LogLevel
 	}
+
+	if s := c.agent.Server(); s != nil {
+		sconf, err := convertServerConfig(newConf, c.logOutput)
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+		} else {
+			if err := s.Reload(sconf); err != nil {
+				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
+			}
+		}
+	}
+
 	return newConf
 }
 

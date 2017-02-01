@@ -132,6 +132,9 @@ type VaultClient interface {
 
 	// Stop is used to stop token renewal
 	Stop()
+
+	// Running returns whether the Vault client is running
+	Running() bool
 }
 
 // PurgeVaultAccessor is called to remove VaultAccessors from the system. If
@@ -254,6 +257,12 @@ func (v *vaultClient) Stop() {
 	}
 }
 
+func (v *vaultClient) Running() bool {
+	v.l.Lock()
+	defer v.l.Unlock()
+	return v.running
+}
+
 // SetActive activates or de-activates the Vault client. When active, token
 // creation/lookup/revocation operation are allowed. All queued revocations are
 // cancelled if set un-active as it is assumed another instances is taking over
@@ -298,10 +307,8 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	v.l.Lock()
 	defer v.l.Unlock()
 
-	// Store the new config
-	v.config = config
-
-	if v.config.IsEnabled() {
+	// Kill any background routintes
+	if v.running {
 		// Stop accepting any new request
 		v.connEstablished = false
 
@@ -309,16 +316,23 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 		v.tomb.Kill(nil)
 		v.tomb.Wait()
 		v.tomb = &tomb.Tomb{}
+		v.running = false
+	}
 
+	// Store the new config
+	v.config = config
+
+	// Check if we should relaunch
+	if v.config.IsEnabled() {
 		// Rebuild the client
 		if err := v.buildClient(); err != nil {
-			v.l.Unlock()
 			return err
 		}
 
 		// Launch the required goroutines
 		v.tomb.Go(wrapNilError(v.establishConnection))
 		v.tomb.Go(wrapNilError(v.revokeDaemon))
+		v.running = true
 	}
 
 	return nil

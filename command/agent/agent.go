@@ -88,56 +88,56 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	return a, nil
 }
 
-// serverConfig is used to generate a new server configuration struct
-// for initializing a nomad server.
-func (a *Agent) serverConfig() (*nomad.Config, error) {
-	conf := a.config.NomadConfig
+// convertServerConfig takes an agent config and log output and returns a Nomad
+// Config.
+func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Config, error) {
+	conf := agentConfig.NomadConfig
 	if conf == nil {
 		conf = nomad.DefaultConfig()
 	}
-	conf.LogOutput = a.logOutput
-	conf.DevMode = a.config.DevMode
-	conf.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
-	if a.config.Region != "" {
-		conf.Region = a.config.Region
+	conf.LogOutput = logOutput
+	conf.DevMode = agentConfig.DevMode
+	conf.Build = fmt.Sprintf("%s%s", agentConfig.Version, agentConfig.VersionPrerelease)
+	if agentConfig.Region != "" {
+		conf.Region = agentConfig.Region
 	}
-	if a.config.Datacenter != "" {
-		conf.Datacenter = a.config.Datacenter
+	if agentConfig.Datacenter != "" {
+		conf.Datacenter = agentConfig.Datacenter
 	}
-	if a.config.NodeName != "" {
-		conf.NodeName = a.config.NodeName
+	if agentConfig.NodeName != "" {
+		conf.NodeName = agentConfig.NodeName
 	}
-	if a.config.Server.BootstrapExpect > 0 {
-		if a.config.Server.BootstrapExpect == 1 {
+	if agentConfig.Server.BootstrapExpect > 0 {
+		if agentConfig.Server.BootstrapExpect == 1 {
 			conf.Bootstrap = true
 		} else {
-			atomic.StoreInt32(&conf.BootstrapExpect, int32(a.config.Server.BootstrapExpect))
+			atomic.StoreInt32(&conf.BootstrapExpect, int32(agentConfig.Server.BootstrapExpect))
 		}
 	}
-	if a.config.DataDir != "" {
-		conf.DataDir = filepath.Join(a.config.DataDir, "server")
+	if agentConfig.DataDir != "" {
+		conf.DataDir = filepath.Join(agentConfig.DataDir, "server")
 	}
-	if a.config.Server.DataDir != "" {
-		conf.DataDir = a.config.Server.DataDir
+	if agentConfig.Server.DataDir != "" {
+		conf.DataDir = agentConfig.Server.DataDir
 	}
-	if a.config.Server.ProtocolVersion != 0 {
-		conf.ProtocolVersion = uint8(a.config.Server.ProtocolVersion)
+	if agentConfig.Server.ProtocolVersion != 0 {
+		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
 	}
-	if a.config.Server.NumSchedulers != 0 {
-		conf.NumSchedulers = a.config.Server.NumSchedulers
+	if agentConfig.Server.NumSchedulers != 0 {
+		conf.NumSchedulers = agentConfig.Server.NumSchedulers
 	}
-	if len(a.config.Server.EnabledSchedulers) != 0 {
-		conf.EnabledSchedulers = a.config.Server.EnabledSchedulers
+	if len(agentConfig.Server.EnabledSchedulers) != 0 {
+		conf.EnabledSchedulers = agentConfig.Server.EnabledSchedulers
 	}
 
 	// Set up the bind addresses
-	rpcAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.RPC)
+	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", a.config.normalizedAddrs.RPC, err)
+		return nil, fmt.Errorf("Failed to parse RPC address %q: %v", agentConfig.normalizedAddrs.RPC, err)
 	}
-	serfAddr, err := net.ResolveTCPAddr("tcp", a.config.normalizedAddrs.Serf)
+	serfAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.Serf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", a.config.normalizedAddrs.Serf, err)
+		return nil, fmt.Errorf("Failed to parse Serf address %q: %v", agentConfig.normalizedAddrs.Serf, err)
 	}
 	conf.RPCAddr.Port = rpcAddr.Port
 	conf.RPCAddr.IP = rpcAddr.IP
@@ -145,20 +145,20 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 	conf.SerfConfig.MemberlistConfig.BindAddr = serfAddr.IP.String()
 
 	// Set up the advertise addresses
-	rpcAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.RPC)
+	rpcAddr, err = net.ResolveTCPAddr("tcp", agentConfig.AdvertiseAddrs.RPC)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse RPC advertise address %q: %v", a.config.AdvertiseAddrs.RPC, err)
+		return nil, fmt.Errorf("Failed to parse RPC advertise address %q: %v", agentConfig.AdvertiseAddrs.RPC, err)
 	}
-	serfAddr, err = net.ResolveTCPAddr("tcp", a.config.AdvertiseAddrs.Serf)
+	serfAddr, err = net.ResolveTCPAddr("tcp", agentConfig.AdvertiseAddrs.Serf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", a.config.AdvertiseAddrs.Serf, err)
+		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", agentConfig.AdvertiseAddrs.Serf, err)
 	}
 	conf.RPCAdvertise = rpcAddr
 	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
 	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
 
 	// Set up gc threshold and heartbeat grace period
-	if gcThreshold := a.config.Server.NodeGCThreshold; gcThreshold != "" {
+	if gcThreshold := agentConfig.Server.NodeGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
 			return nil, err
@@ -166,7 +166,7 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.NodeGCThreshold = dur
 	}
 
-	if heartbeatGrace := a.config.Server.HeartbeatGrace; heartbeatGrace != "" {
+	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != "" {
 		dur, err := time.ParseDuration(heartbeatGrace)
 		if err != nil {
 			return nil, err
@@ -174,18 +174,24 @@ func (a *Agent) serverConfig() (*nomad.Config, error) {
 		conf.HeartbeatGrace = dur
 	}
 
-	if *a.config.Consul.AutoAdvertise && a.config.Consul.ServerServiceName == "" {
+	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
 	// Add the Consul and Vault configs
-	conf.ConsulConfig = a.config.Consul
-	conf.VaultConfig = a.config.Vault
+	conf.ConsulConfig = agentConfig.Consul
+	conf.VaultConfig = agentConfig.Vault
 
 	// Set the TLS config
-	conf.TLSConfig = a.config.TLSConfig
+	conf.TLSConfig = agentConfig.TLSConfig
 
 	return conf, nil
+}
+
+// serverConfig is used to generate a new server configuration struct
+// for initializing a nomad server.
+func (a *Agent) serverConfig() (*nomad.Config, error) {
+	return convertServerConfig(a.config, a.logOutput)
 }
 
 // clientConfig is used to generate a new client configuration struct
