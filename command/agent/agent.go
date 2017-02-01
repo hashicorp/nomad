@@ -8,17 +8,18 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -30,6 +31,10 @@ const (
 	serverRpcCheckTimeout   = 3 * time.Second
 	serverSerfCheckInterval = 10 * time.Second
 	serverSerfCheckTimeout  = 3 * time.Second
+
+	// roles used in identifying Consul entries for Nomad agents
+	consulRoleServer = "server"
+	consulRoleClient = "client"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -42,8 +47,12 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	// consulSyncer registers the Nomad agent with the Consul Agent
-	consulSyncer *consul.Syncer
+	// consulService is Nomad's custom Consul client for managing services
+	// and checks.
+	consulService *consul.ServiceClient
+
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	consulCatalog consul.CatalogAPI
 
 	client *client.Client
 
@@ -63,8 +72,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
-	if err := a.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("Failed to initialize Consul syncer task: %v", err)
+	if err := a.setupConsul(config.Consul); err != nil {
+		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
 	if err := a.setupServer(); err != nil {
 		return nil, err
@@ -75,15 +84,6 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
-
-	// The Nomad Agent runs the consul.Syncer regardless of whether or not the
-	// Agent is running in Client or Server mode (or both), and regardless of
-	// the consul.auto_advertise parameter. The Client and Server both reuse the
-	// same consul.Syncer instance. This Syncer task periodically executes
-	// callbacks that update Consul. The reason the Syncer is always running is
-	// because one of the callbacks is attempts to self-bootstrap Nomad using
-	// information found in Consul.
-	go a.consulSyncer.Run()
 
 	return a, nil
 }
@@ -339,7 +339,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
+	server, err := nomad.NewServer(conf, a.consulCatalog, a.logger)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -405,14 +405,16 @@ func (a *Agent) setupServer() error {
 
 		// Add the http port check if TLS isn't enabled
 		// TODO Add TLS check when Consul 0.7.1 comes out.
-		consulServices := map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(rpcServ):  rpcServ,
-			consul.GenerateServiceKey(serfServ): serfServ,
+		consulServices := []*structs.Service{
+			rpcServ,
+			serfServ,
 		}
 		if !conf.TLSConfig.EnableHTTP {
-			consulServices[consul.GenerateServiceKey(httpServ)] = httpServ
+			consulServices = append(consulServices, httpServ)
 		}
-		a.consulSyncer.SetServices(consul.ServerDomain, consulServices)
+		if err := a.consulService.RegisterAgent(consulRoleServer, consulServices); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -462,7 +464,7 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf, a.consulSyncer, a.logger)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
@@ -495,9 +497,9 @@ func (a *Agent) setupClient() error {
 			},
 		}
 		if !conf.TLSConfig.EnableHTTP {
-			a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
-				consul.GenerateServiceKey(httpServ): httpServ,
-			})
+			if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -612,8 +614,8 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
-	if err := a.consulSyncer.Shutdown(); err != nil {
-		a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
+	if err := a.consulService.Shutdown(); err != nil {
+		a.logger.Printf("[ERR] agent: shutting down Consul client failed: %v", err)
 	}
 
 	a.logger.Println("[INFO] agent: shutdown complete")
@@ -659,46 +661,22 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-// setupConsulSyncer creates the Consul tasks used by this Nomad Agent
-// (either Client or Server mode).
-func (a *Agent) setupConsulSyncer() error {
-	var err error
-	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, a.shutdownCh, a.logger)
+// setupConsul creates the Consul client and starts its main Run loop.
+func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
+	apiConf, err := consulConfig.ApiConfig()
+	if err != nil {
+		return err
+	}
+	client, err := api.NewClient(apiConf)
 	if err != nil {
 		return err
 	}
 
-	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {
-		host, port, err := net.SplitHostPort(portLabel)
-		if err != nil {
-			p, err := strconv.Atoi(port)
-			if err != nil {
-				return "", 0
-			}
-			return "", p
-		}
+	// Create Consul Catalog client for service discovery.
+	a.consulCatalog = client.Catalog()
 
-		// If the addr for the service is ":port", then we fall back
-		// to Nomad's default address resolution protocol.
-		//
-		// TODO(sean@): This should poll Consul to figure out what
-		// its advertise address is and use that in order to handle
-		// the case where there is something funky like NAT on this
-		// host.  For now we just use the BindAddr if set, otherwise
-		// we fall back to a loopback addr.
-		if host == "" {
-			if a.config.BindAddr != "" {
-				host = a.config.BindAddr
-			} else {
-				host = "127.0.0.1"
-			}
-		}
-		p, err := strconv.Atoi(port)
-		if err != nil {
-			return host, 0
-		}
-		return host, p
-	})
-
+	// Create Consul Service client for service advertisement and checks.
+	a.consulService = consul.NewServiceClient(client.Agent(), a.logger)
+	go a.consulService.Run()
 	return nil
 }

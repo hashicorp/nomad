@@ -106,7 +106,7 @@ does not automatically enable service discovery.
     ~> **Caveat:** The command must be the path to the command on disk, and no
     shell exists by default. That means operators like `||` or `&&` are not
     available. Additionally, all arguments must be supplied via the `args`
-    parameter. The achieve the behavior of shell operators, specify the command
+    parameter. To achieve the behavior of shell operators, specify the command
     as a shell, like `/bin/bash` and then use `args` to run the check.
 
 - `initial_status` `(string: <enum>)` - Specifies the originating status of the

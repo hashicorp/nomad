@@ -3,6 +3,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -232,6 +233,11 @@ func (m *MockDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *mockDriverHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
+}
+
+func (h *mockDriverHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	h.logger.Printf("[DEBUG] driver.mock: Exec(%q, %q)", cmd, args)
+	return []byte(fmt.Sprintf("Exec(%q, %q)", cmd, args)), 0, nil
 }
 
 // TODO Implement when we need it.

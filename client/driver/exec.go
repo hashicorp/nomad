@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -163,9 +164,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		version:         d.config.Version,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
-	}
-	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
-		d.logger.Printf("[ERR] driver.exec: error registering services with consul for task: %q: %v", task.Name, err)
+		taskDir:         ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -222,9 +221,7 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		maxKillTimeout:  id.MaxKillTimeout,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
-	}
-	if err := exec.SyncServices(consulContext(d.config, "")); err != nil {
-		d.logger.Printf("[ERR] driver.exec: error registering services with consul: %v", err)
+		taskDir:         ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -258,6 +255,10 @@ func (h *execHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *execHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return execChroot(ctx, h.taskDir.Dir, cmd, args)
 }
 
 func (h *execHandle) Signal(s os.Signal) error {
@@ -305,11 +306,6 @@ func (h *execHandle) run() {
 				h.logger.Printf("[ERR] driver.exec: destroying resource container failed: %v", e)
 			}
 		}
-	}
-
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.exec: failed to deregister services: %v", err)
 	}
 
 	// Exit the executor

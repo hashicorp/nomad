@@ -273,10 +273,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: error registering services for task: %q: %v", task.Name, err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -321,9 +317,6 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
 	}
 	go h.run()
 	return h, nil
@@ -401,11 +394,6 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: failed to deregister services: %v", err)
-	}
 
 	// Exit the executor
 	h.executor.Exit()

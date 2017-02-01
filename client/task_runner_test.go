@@ -104,7 +104,8 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	}
 
 	vclient := vaultclient.NewMockVaultClient()
-	tr := NewTaskRunner(logger, conf, upd.Update, taskDir, alloc, task, vclient)
+	cclient := newMockConsulServiceClient()
+	tr := NewTaskRunner(logger, conf, upd.Update, taskDir, alloc, task, vclient, cclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -366,7 +367,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	// Create a new task runner
 	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver}
 	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.upd.Update,
-		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient)
+		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient, ctx.tr.consul)
 	tr2.restartTracker = noRestartsTracker()
 	if err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)

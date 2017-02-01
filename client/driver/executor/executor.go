@@ -23,10 +23,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/stats"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -56,36 +54,9 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
-	SyncServices(ctx *ConsulContext) error
-	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
 	Signal(s os.Signal) error
-}
-
-// ConsulContext holds context to configure the Consul client and run checks
-type ConsulContext struct {
-	// ConsulConfig contains the configuration information for talking
-	// with this Nomad Agent's Consul Agent.
-	ConsulConfig *config.ConsulConfig
-
-	// ContainerID is the ID of the container
-	ContainerID string
-
-	// TLSCert is the cert which docker client uses while interactng with the docker
-	// daemon over TLS
-	TLSCert string
-
-	// TLSCa is the CA which the docker client uses while interacting with the docker
-	// daeemon over TLS
-	TLSCa string
-
-	// TLSKey is the TLS key which the docker client uses while interacting with
-	// the docker daemon
-	TLSKey string
-
-	// DockerEndpoint is the endpoint of the docker daemon
-	DockerEndpoint string
 }
 
 // ExecutorContext holds context to configure the command user
@@ -196,8 +167,6 @@ type UniversalExecutor struct {
 
 	resConCtx resourceContainerContext
 
-	consulSyncer   *consul.Syncer
-	consulCtx      *ConsulContext
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
@@ -224,7 +193,7 @@ func NewExecutor(logger *log.Logger) Executor {
 
 // Version returns the api version of the executor
 func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: "1.0.0"}, nil
+	return &ExecutorVersion{Version: "1.1.0"}, nil
 }
 
 // SetContext is used to set the executors context and should be the first call
@@ -377,26 +346,7 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 		e.lre.FileSize = fileSize
 	}
 	e.rotatorLock.Unlock()
-
-	// Re-syncing task with Consul agent
-	if e.consulSyncer != nil {
-		e.interpolateServices(e.ctx.Task)
-		domain := consul.NewExecutorDomain(e.ctx.AllocID, task.Name)
-		serviceMap := generateServiceKeys(e.ctx.AllocID, task.Services)
-		e.consulSyncer.SetServices(domain, serviceMap)
-	}
 	return nil
-}
-
-// generateServiceKeys takes a list of interpolated Nomad Services and returns a map
-// of ServiceKeys to Nomad Services.
-func generateServiceKeys(allocID string, services []*structs.Service) map[consul.ServiceKey]*structs.Service {
-	keys := make(map[consul.ServiceKey]*structs.Service, len(services))
-	for _, service := range services {
-		key := consul.GenerateServiceKey(service)
-		keys[key] = service
-	}
-	return keys
 }
 
 func (e *UniversalExecutor) wait() {
@@ -464,10 +414,6 @@ func (e *UniversalExecutor) Exit() error {
 		e.lro.Close()
 	}
 
-	if e.consulSyncer != nil {
-		e.consulSyncer.Shutdown()
-	}
-
 	// If the executor did not launch a process, return.
 	if e.command == nil {
 		return nil
@@ -510,38 +456,6 @@ func (e *UniversalExecutor) ShutDown() error {
 	}
 	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-	return nil
-}
-
-// SyncServices syncs the services of the task that the executor is running with
-// Consul
-func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
-	e.logger.Printf("[INFO] executor: registering services")
-	e.consulCtx = ctx
-	if e.consulSyncer == nil {
-		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.shutdownCh, e.logger)
-		if err != nil {
-			return err
-		}
-		e.consulSyncer = cs
-		go e.consulSyncer.Run()
-	}
-	e.interpolateServices(e.ctx.Task)
-	e.consulSyncer.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
-	domain := consul.NewExecutorDomain(e.ctx.AllocID, e.ctx.Task.Name)
-	serviceMap := generateServiceKeys(e.ctx.AllocID, e.ctx.Task.Services)
-	e.consulSyncer.SetServices(domain, serviceMap)
-	return nil
-}
-
-// DeregisterServices removes the services of the task that the executor is
-// running from Consul
-func (e *UniversalExecutor) DeregisterServices() error {
-	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
-	if e.consulSyncer != nil {
-		return e.consulSyncer.Shutdown()
 	}
 	return nil
 }
@@ -675,66 +589,6 @@ func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
 	}
 
 	return net.Listen("unix", path)
-}
-
-// createCheckMap creates a map of checks that the executor will handle on it's
-// own
-func (e *UniversalExecutor) createCheckMap() map[string]struct{} {
-	checks := map[string]struct{}{
-		"script": struct{}{},
-	}
-	return checks
-}
-
-// createCheck creates NomadCheck from a ServiceCheck
-func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID string) (consul.Check, error) {
-	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
-		return &DockerScriptCheck{
-			id:          checkID,
-			interval:    check.Interval,
-			timeout:     check.Timeout,
-			containerID: e.consulCtx.ContainerID,
-			logger:      e.logger,
-			cmd:         check.Command,
-			args:        check.Args,
-		}, nil
-	}
-
-	if check.Type == structs.ServiceCheckScript && (e.ctx.Driver == "exec" ||
-		e.ctx.Driver == "raw_exec" || e.ctx.Driver == "java") {
-		return &ExecScriptCheck{
-			id:          checkID,
-			interval:    check.Interval,
-			timeout:     check.Timeout,
-			cmd:         check.Command,
-			args:        check.Args,
-			taskDir:     e.ctx.TaskDir,
-			FSIsolation: e.command.FSIsolation,
-		}, nil
-
-	}
-	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
-}
-
-// interpolateServices interpolates tags in a service and checks with values from the
-// task's environment.
-func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
-	e.ctx.TaskEnv.Build()
-	for _, service := range task.Services {
-		for _, check := range service.Checks {
-			check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
-			check.Type = e.ctx.TaskEnv.ReplaceEnv(check.Type)
-			check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
-			check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
-			check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
-			check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
-			check.PortLabel = e.ctx.TaskEnv.ReplaceEnv(check.PortLabel)
-			check.InitialStatus = e.ctx.TaskEnv.ReplaceEnv(check.InitialStatus)
-		}
-		service.Name = e.ctx.TaskEnv.ReplaceEnv(service.Name)
-		service.PortLabel = e.ctx.TaskEnv.ReplaceEnv(service.PortLabel)
-		service.Tags = e.ctx.TaskEnv.ParseAndReplace(service.Tags)
-	}
 }
 
 // collectPids collects the pids of the child processes that the executor is

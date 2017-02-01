@@ -33,11 +33,6 @@ type LaunchCmdArgs struct {
 	Cmd *executor.ExecCommand
 }
 
-// SyncServicesArgs wraps the consul context for the purposes of RPC
-type SyncServicesArgs struct {
-	Ctx *executor.ConsulContext
-}
-
 func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
 	var ps *executor.ProcessState
 	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd}, &ps)
@@ -74,10 +69,6 @@ func (e *ExecutorRPC) UpdateLogConfig(logConfig *structs.LogConfig) error {
 
 func (e *ExecutorRPC) UpdateTask(task *structs.Task) error {
 	return e.client.Call("Plugin.UpdateTask", task, new(interface{}))
-}
-
-func (e *ExecutorRPC) SyncServices(ctx *executor.ConsulContext) error {
-	return e.client.Call("Plugin.SyncServices", SyncServicesArgs{Ctx: ctx}, new(interface{}))
 }
 
 func (e *ExecutorRPC) DeregisterServices() error {
@@ -149,12 +140,9 @@ func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) er
 	return e.Impl.UpdateTask(args)
 }
 
-func (e *ExecutorRPCServer) SyncServices(args SyncServicesArgs, resp *interface{}) error {
-	return e.Impl.SyncServices(args.Ctx)
-}
-
 func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {
-	return e.Impl.DeregisterServices()
+	// In 0.6 this is a noop. Goes away in 0.7.
+	return nil
 }
 
 func (e *ExecutorRPCServer) Version(args interface{}, version *executor.ExecutorVersion) error {

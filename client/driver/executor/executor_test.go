@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -256,31 +255,6 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 	exp := os.FileMode(0755)
 	if act != exp {
 		t.Fatalf("expected permissions %v; got %v", exp, act)
-	}
-}
-
-func TestExecutorInterpolateServices(t *testing.T) {
-	task := mock.Job().TaskGroups[0].Tasks[0]
-	// Make a fake exececutor
-	ctx, allocDir := testExecutorContext(t)
-	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
-
-	executor.(*UniversalExecutor).ctx = ctx
-	executor.(*UniversalExecutor).interpolateServices(task)
-	expectedTags := []string{"pci:true", "datacenter:dc1"}
-	if !reflect.DeepEqual(task.Services[0].Tags, expectedTags) {
-		t.Fatalf("expected: %v, actual: %v", expectedTags, task.Services[0].Tags)
-	}
-
-	expectedCheckCmd := "/usr/local/check-table-mysql"
-	expectedCheckArgs := []string{"5.6"}
-	if !reflect.DeepEqual(task.Services[0].Checks[0].Command, expectedCheckCmd) {
-		t.Fatalf("expected: %v, actual: %v", expectedCheckCmd, task.Services[0].Checks[0].Command)
-	}
-
-	if !reflect.DeepEqual(task.Services[0].Checks[0].Args, expectedCheckArgs) {
-		t.Fatalf("expected: %v, actual: %v", expectedCheckArgs, task.Services[0].Checks[0].Args)
 	}
 }
 

@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -278,5 +281,66 @@ func TestExecDriverUser(t *testing.T) {
 	msg := "user alice"
 	if !strings.Contains(err.Error(), msg) {
 		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
+
+// TestExecDriver_HandlerExec ensures the exec driver's handle properly executes commands inside the chroot.
+func TestExecDriver_HandlerExec(t *testing.T) {
+	ctestutils.ExecCompatible(t)
+	task := &structs.Task{
+		Name:   "sleep",
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/sleep",
+			"args":    []string{"9000"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewExecDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	handle, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Exec a command that should work
+	out, code, err := handle.(consul.ScriptExecutor).Exec(context.TODO(), "/usr/bin/stat", []string{"/alloc"})
+	if err != nil {
+		t.Fatalf("error exec'ing stat: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected `stat /alloc` to succeed but exit code was: %d", code)
+	}
+	if expected := 100; len(out) < expected {
+		t.Fatalf("expected at least %d bytes of output but found %d:\n%s", expected, len(out), out)
+	}
+
+	// Exec a command that should fail
+	out, code, err = handle.(consul.ScriptExecutor).Exec(context.TODO(), "/usr/bin/stat", []string{"lkjhdsaflkjshowaisxmcvnlia"})
+	if err != nil {
+		t.Fatalf("error exec'ing stat: %v", err)
+	}
+	if code == 0 {
+		t.Fatalf("expected `stat` to fail but exit code was: %d", code)
+	}
+	if expected := "No such file or directory"; !bytes.Contains(out, []byte(expected)) {
+		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	if err := handle.Kill(); err != nil {
+		t.Fatalf("error killing exec handle: %v", err)
 	}
 }

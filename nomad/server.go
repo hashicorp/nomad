@@ -63,6 +63,14 @@ const (
 	// raftRemoveGracePeriod is how long we wait to allow a RemovePeer
 	// to replicate to gracefully leave the cluster.
 	raftRemoveGracePeriod = 5 * time.Second
+
+	// defaultConsulDiscoveryInterval is how often to poll Consul for new
+	// servers if there is no leader.
+	defaultConsulDiscoveryInterval time.Duration = 9 * time.Second
+
+	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
+	// new servers if there is no leader and the last Consul query failed.
+	defaultConsulDiscoveryIntervalRetry time.Duration = 3 * time.Second
 )
 
 // Server is Nomad server which manages the job queues,
@@ -136,8 +144,8 @@ type Server struct {
 	heartbeatTimers     map[string]*time.Timer
 	heartbeatTimersLock sync.Mutex
 
-	// consulSyncer advertises this Nomad Agent with Consul
-	consulSyncer *consul.Syncer
+	// consulCatalog is used for discovering other Nomad Servers via Consul
+	consulCatalog consul.CatalogAPI
 
 	// vault is the client for communicating with Vault.
 	vault VaultClient
@@ -167,7 +175,7 @@ type endpoints struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logger) (*Server, error) {
 	// Check the protocol version
 	if err := config.CheckVersion(); err != nil {
 		return nil, err
@@ -212,20 +220,20 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 
 	// Create the server
 	s := &Server{
-		config:       config,
-		consulSyncer: consulSyncer,
-		connPool:     NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:       logger,
-		rpcServer:    rpc.NewServer(),
-		peers:        make(map[string][]*serverParts),
-		localPeers:   make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:  make(chan serf.Member, 32),
-		eventCh:      make(chan serf.Event, 256),
-		evalBroker:   evalBroker,
-		blockedEvals: blockedEvals,
-		planQueue:    planQueue,
-		rpcTLS:       incomingTLS,
-		shutdownCh:   make(chan struct{}),
+		config:        config,
+		consulCatalog: consulCatalog,
+		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:        logger,
+		rpcServer:     rpc.NewServer(),
+		peers:         make(map[string][]*serverParts),
+		localPeers:    make(map[raft.ServerAddress]*serverParts),
+		reconcileCh:   make(chan serf.Member, 32),
+		eventCh:       make(chan serf.Event, 256),
+		evalBroker:    evalBroker,
+		blockedEvals:  blockedEvals,
+		planQueue:     planQueue,
+		rpcTLS:        incomingTLS,
+		shutdownCh:    make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -542,8 +550,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		s.logger.Printf("[DEBUG] server.nomad: lost contact with Nomad quorum, falling back to Consul for server list")
 
-		consulCatalog := s.consulSyncer.ConsulClient().Catalog()
-		dcs, err := consulCatalog.Datacenters()
+		dcs, err := s.consulCatalog.Datacenters()
 		if err != nil {
 			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
 			return fmt.Errorf("server.nomad: unable to query Consul datacenters: %v", err)
@@ -570,7 +577,7 @@ func (s *Server) setupBootstrapHandler() error {
 				Near:       "_agent",
 				WaitTime:   consul.DefaultQueryWaitDuration,
 			}
-			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagSerf, consulOpts)
+			consulServices, _, err := s.consulCatalog.Service(nomadServerServiceName, consul.ServiceTagSerf, consulOpts)
 			if err != nil {
 				err := fmt.Errorf("failed to query service %q in Consul datacenter %q: %v", nomadServerServiceName, dc, err)
 				s.logger.Printf("[WARN] server.nomad: %v", err)
@@ -618,7 +625,28 @@ func (s *Server) setupBootstrapHandler() error {
 		return nil
 	}
 
-	s.consulSyncer.AddPeriodicHandler("Nomad Server Fallback Server Handler", bootstrapFn)
+	// Hacky replacement for old ConsulSyncer Periodic Handler.
+	go func() {
+		lastOk := true
+		sync := time.NewTimer(0)
+		for {
+			select {
+			case <-sync.C:
+				d := defaultConsulDiscoveryInterval
+				if err := bootstrapFn(); err != nil {
+					// Only log if it worked last time
+					if lastOk {
+						lastOk = false
+						s.logger.Printf("[ERR] consul: error looking up Nomad servers: %v", err)
+					}
+					d = defaultConsulDiscoveryIntervalRetry
+				}
+				sync.Reset(d)
+			case <-s.shutdownCh:
+				return
+			}
+		}
+	}()
 	return nil
 }
 

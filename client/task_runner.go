@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -61,6 +62,7 @@ type TaskRunner struct {
 	logger         *log.Logger
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
+	consul         ConsulServiceAPI
 
 	// running marks whether the task is running
 	running     bool
@@ -173,7 +175,7 @@ type SignalEvent struct {
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, taskDir *allocdir.TaskDir,
 	alloc *structs.Allocation, task *structs.Task,
-	vaultClient vaultclient.VaultClient) *TaskRunner {
+	vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI) *TaskRunner {
 
 	// Merge in the task resources
 	task.Resources = alloc.TaskResources[task.Name]
@@ -195,6 +197,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		task:             task,
 		taskDir:          taskDir,
 		createdResources: driver.NewCreatedResources(),
+		consul:           consulClient,
 		vaultClient:      vaultClient,
 		vaultFuture:      NewTokenFuture().Set(""),
 		updateCh:         make(chan *structs.Allocation, 64),
@@ -289,6 +292,19 @@ func (r *TaskRunner) RestoreState() error {
 				r.task.Name, r.alloc.ID, err)
 			return nil
 		}
+
+		//FIXME is there a better place to do this? used to be in executor
+		// Prepare services
+		interpolateServices(r.getTaskEnv(), r.task)
+
+		// Ensure the service is registered
+		scriptExec, _ := handle.(consul.ScriptExecutor)
+		if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
+			//FIXME What to do if this fails?
+			r.logger.Printf("[WARN] client: failed to register services and checks for task %q alloc %q: %v",
+				r.task.Name, r.alloc.ID, err)
+		}
+
 		r.handleLock.Lock()
 		r.handle = handle
 		r.handleLock.Unlock()
@@ -1220,7 +1236,41 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
+
+	//FIXME is there a better place to do this? used to be in executor
+	// Prepare services
+	interpolateServices(r.getTaskEnv(), r.task)
+
+	// RegisterTask properly handles scriptExec being nil, so it just
+	// ignore the ok value.
+	scriptExec, _ := handle.(consul.ScriptExecutor)
+	if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
+		//FIXME handle errors?!
+		//FIXME could break into prepare & submit steps as only preperation can error...
+		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
+	}
+
 	return nil
+}
+
+// interpolateServices interpolates tags in a service and checks with values from the
+// task's environment.
+func interpolateServices(taskEnv *env.TaskEnvironment, task *structs.Task) {
+	for _, service := range task.Services {
+		for _, check := range service.Checks {
+			check.Name = taskEnv.ReplaceEnv(check.Name)
+			check.Type = taskEnv.ReplaceEnv(check.Type)
+			check.Command = taskEnv.ReplaceEnv(check.Command)
+			check.Args = taskEnv.ParseAndReplace(check.Args)
+			check.Path = taskEnv.ReplaceEnv(check.Path)
+			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
+			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
+			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+		}
+		service.Name = taskEnv.ReplaceEnv(service.Name)
+		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
+		service.Tags = taskEnv.ParseAndReplace(service.Tags)
+	}
 }
 
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
@@ -1335,13 +1385,16 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
-	// Update will update resources and store the new kill timeout.
 	var mErr multierror.Error
+	var scriptExec consul.ScriptExecutor
 	r.handleLock.Lock()
 	if r.handle != nil {
+		// Update will update resources and store the new kill timeout.
 		if err := r.handle.Update(updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
+		// Not all drivers support Exec (eg QEMU)
+		scriptExec, _ = r.handle.(consul.ScriptExecutor)
 	}
 	r.handleLock.Unlock()
 
@@ -1350,9 +1403,21 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		r.restartTracker.SetPolicy(tg.RestartPolicy)
 	}
 
+	// Deregister the old service+checks
+	r.consul.RemoveTask(r.alloc.ID, r.task)
+
 	// Store the updated alloc.
 	r.alloc = update
 	r.task = updatedTask
+
+	//FIXME is there a better place to do this? used to be in executor
+	// Prepare services
+	interpolateServices(r.getTaskEnv(), r.task)
+
+	// Register the new service+checks
+	if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("error registering updated task with consul: %v", err))
+	}
 	return mErr.ErrorOrNil()
 }
 
@@ -1361,6 +1426,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 // given limit. It returns whether the task was destroyed and the error
 // associated with the last kill attempt.
 func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
+	// Remove from Consul
+	r.consul.RemoveTask(r.alloc.ID, r.task)
+
 	// Cap the number of times we attempt to kill the task.
 	for i := 0; i < killFailureLimit; i++ {
 		if err = r.handle.Kill(); err != nil {
