@@ -944,7 +944,9 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	// setErr is a helper for setting the recoverable error on the reply and
 	// logging it
 	setErr := func(e error, recoverable bool) {
-		if e == nil { return }
+		if e == nil {
+			return
+		}
 		reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
 		n.srv.logger.Printf("[ERR] nomad.client: DeriveVaultToken failed (recoverable %v): %v", recoverable, e)
 	}
