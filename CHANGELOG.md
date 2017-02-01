@@ -1,3 +1,8 @@
+## 0.5.5 (Unreleased)
+
+BUG FIXES:
+  * server: Fix panic on upgrade to 0.5.3 or 0.5.4 [GH-2266]
+
 ## 0.5.4 (January 31, 2017)
 
 IMPROVEMENTS:
