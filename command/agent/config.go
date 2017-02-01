@@ -901,6 +901,15 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
+	if b.GCInterval != 0 {
+		result.GCInterval = b.GCInterval
+	}
+	if b.GCDiskUsageThreshold != 0 {
+		result.GCDiskUsageThreshold = b.GCDiskUsageThreshold
+	}
+	if b.GCInodeUsageThreshold != 0 {
+		result.GCInodeUsageThreshold = b.GCInodeUsageThreshold
+	}
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)

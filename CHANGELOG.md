@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
+  * client: Apply GC related configurations properly [GH-2273]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
