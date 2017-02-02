@@ -65,8 +65,8 @@ README][ct].
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the task directory.
 
-- `perms` `(string: "666")` - Specifies the rendered templates permissions. File
-  permissions are given as octal of the unix file permissions rwxrwxrwx.
+- `perms` `(string: "666")` - Specifies the rendered template's permissions.
+  File permissions are given as octal of the unix file permissions rwxrwxrwx.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
   One of `source` or `data` must be specified, but not both. This source can
