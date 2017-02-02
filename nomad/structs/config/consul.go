@@ -93,7 +93,7 @@ func DefaultConsulConfig() *ConsulConfig {
 
 // Merge merges two Consul Configurations together.
 func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
-	result := *a
+	result := a.Copy()
 
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
@@ -102,7 +102,7 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.ClientServiceName = b.ClientServiceName
 	}
 	if b.AutoAdvertise != nil {
-		result.AutoAdvertise = b.AutoAdvertise
+		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
@@ -117,10 +117,10 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.Auth = b.Auth
 	}
 	if b.EnableSSL != nil {
-		result.EnableSSL = b.EnableSSL
+		result.EnableSSL = helper.BoolToPtr(*b.EnableSSL)
 	}
 	if b.VerifySSL != nil {
-		result.VerifySSL = b.VerifySSL
+		result.VerifySSL = helper.BoolToPtr(*b.VerifySSL)
 	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
@@ -132,12 +132,15 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.KeyFile = b.KeyFile
 	}
 	if b.ServerAutoJoin != nil {
-		result.ServerAutoJoin = b.ServerAutoJoin
+		result.ServerAutoJoin = helper.BoolToPtr(*b.ServerAutoJoin)
 	}
 	if b.ClientAutoJoin != nil {
-		result.ClientAutoJoin = b.ServerAutoJoin
+		result.ClientAutoJoin = helper.BoolToPtr(*b.ClientAutoJoin)
 	}
-	return &result
+	if b.ChecksUseAdvertise != nil {
+		result.ChecksUseAdvertise = helper.BoolToPtr(*b.ChecksUseAdvertise)
+	}
+	return result
 }
 
 // ApiConfig() returns a usable Consul config that can be passed directly to
@@ -200,5 +203,26 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 
 	nc := new(ConsulConfig)
 	*nc = *c
+
+	// Copy the bools
+	if nc.AutoAdvertise != nil {
+		nc.AutoAdvertise = helper.BoolToPtr(*nc.AutoAdvertise)
+	}
+	if nc.ChecksUseAdvertise != nil {
+		nc.ChecksUseAdvertise = helper.BoolToPtr(*nc.ChecksUseAdvertise)
+	}
+	if nc.EnableSSL != nil {
+		nc.EnableSSL = helper.BoolToPtr(*nc.EnableSSL)
+	}
+	if nc.VerifySSL != nil {
+		nc.VerifySSL = helper.BoolToPtr(*nc.VerifySSL)
+	}
+	if nc.ServerAutoJoin != nil {
+		nc.ServerAutoJoin = helper.BoolToPtr(*nc.ServerAutoJoin)
+	}
+	if nc.ClientAutoJoin != nil {
+		nc.ClientAutoJoin = helper.BoolToPtr(*nc.ClientAutoJoin)
+	}
+
 	return nc
 }
