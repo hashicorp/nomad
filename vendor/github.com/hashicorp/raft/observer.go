@@ -6,21 +6,20 @@ import (
 
 // Observation is sent along the given channel to observers when an event occurs.
 type Observation struct {
+	// Raft holds the Raft instance generating the observation.
 	Raft *Raft
+	// Data holds observation-specific data. Possible types are
+	// *RequestVoteRequest and RaftState.
 	Data interface{}
-}
-
-// LeaderObservation is used for the data when leadership changes.
-type LeaderObservation struct {
-	leader string
 }
 
 // nextObserverId is used to provide a unique ID for each observer to aid in
 // deregistration.
-var nextObserverId uint64
+var nextObserverID uint64
 
-// FilterFn is a function that can be registered in order to filter observations
-// by returning false.
+// FilterFn is a function that can be registered in order to filter observations.
+// The function reports whether the observation should be included - if
+// it returns false, the observation will be filtered out.
 type FilterFn func(o *Observation) bool
 
 // Observer describes what to do with a given observation.
@@ -44,14 +43,19 @@ type Observer struct {
 	numDropped  uint64
 }
 
-// Create a new observer with the specified channel, blocking behavior, and
-// filter (filter can be nil).
+// NewObserver creates a new observer that can be registered
+// to make observations on a Raft instance. Observations
+// will be sent on the given channel if they satisfy the
+// given filter.
+//
+// If blocking is true, the observer will block when it can't
+// send on the channel, otherwise it may discard events.
 func NewObserver(channel chan Observation, blocking bool, filter FilterFn) *Observer {
 	return &Observer{
 		channel:  channel,
 		blocking: blocking,
 		filter:   filter,
-		id:       atomic.AddUint64(&nextObserverId, 1),
+		id:       atomic.AddUint64(&nextObserverID, 1),
 	}
 }
 
@@ -65,21 +69,21 @@ func (or *Observer) GetNumDropped() uint64 {
 	return atomic.LoadUint64(&or.numDropped)
 }
 
-// Register a new observer.
+// RegisterObserver registers a new observer.
 func (r *Raft) RegisterObserver(or *Observer) {
 	r.observersLock.Lock()
 	defer r.observersLock.Unlock()
 	r.observers[or.id] = or
 }
 
-// Deregister an observer.
+// DeregisterObserver deregisters an observer.
 func (r *Raft) DeregisterObserver(or *Observer) {
 	r.observersLock.Lock()
 	defer r.observersLock.Unlock()
 	delete(r.observers, or.id)
 }
 
-// Send an observation to every observer.
+// observe sends an observation to every observer.
 func (r *Raft) observe(o interface{}) {
 	// In general observers should not block. But in any case this isn't
 	// disastrous as we only hold a read lock, which merely prevents
