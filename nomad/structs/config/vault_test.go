@@ -10,6 +10,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 	c1 := &VaultConfig{
 		Enabled:              &falseValue,
 		Token:                "1",
+		Role:                 "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
@@ -24,6 +25,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 	c2 := &VaultConfig{
 		Enabled:              &trueValue,
 		Token:                "2",
+		Role:                 "2",
 		AllowUnauthenticated: &falseValue,
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
@@ -38,6 +40,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 	e := &VaultConfig{
 		Enabled:              &trueValue,
 		Token:                "2",
+		Role:                 "2",
 		AllowUnauthenticated: &falseValue,
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
