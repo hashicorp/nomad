@@ -179,6 +179,7 @@ type Template struct {
 	ChangeMode   string
 	ChangeSignal string
 	Splay        time.Duration
+	Perms        string
 }
 
 type Vault struct {

@@ -170,6 +170,7 @@ func TestParse(t *testing.T) {
 										ChangeMode:   "foo",
 										ChangeSignal: "foo",
 										Splay:        10 * time.Second,
+										Perms:        "0644",
 									},
 									{
 										SourcePath:   "bar",
@@ -177,6 +178,7 @@ func TestParse(t *testing.T) {
 										ChangeMode:   structs.TemplateChangeModeRestart,
 										ChangeSignal: "",
 										Splay:        5 * time.Second,
+										Perms:        "777",
 									},
 								},
 							},

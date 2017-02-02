@@ -3544,6 +3544,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
+						Perms:        "0644",
 					},
 					{
 						SourcePath:   "foo2",
@@ -3552,6 +3553,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
 						Splay:        2,
+						Perms:        "0666",
 					},
 				},
 			},
@@ -3564,6 +3566,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
+						Perms:        "0644",
 					},
 					{
 						SourcePath:   "foo3",
@@ -3572,6 +3575,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
+						Perms:        "0776",
 					},
 				},
 			},
@@ -3605,6 +3609,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EmbeddedTmpl",
 								Old:  "",
 								New:  "baz3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Perms",
+								Old:  "",
+								New:  "0776",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -3646,6 +3656,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "EmbeddedTmpl",
 								Old:  "baz2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Perms",
+								Old:  "0666",
 								New:  "",
 							},
 							{
