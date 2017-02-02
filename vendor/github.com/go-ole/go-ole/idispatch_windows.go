@@ -180,17 +180,14 @@ func invoke(disp *IDispatch, dispid int32, dispatch int16, params ...interface{}
 	if hr != 0 {
 		err = NewErrorWithSubError(hr, BstrToString(excepInfo.bstrDescription), excepInfo)
 	}
-	for _, varg := range vargs {
+	for i, varg := range vargs {
+		n := len(params) - i - 1
 		if varg.VT == VT_BSTR && varg.Val != 0 {
 			SysFreeString(((*int16)(unsafe.Pointer(uintptr(varg.Val)))))
 		}
-		/*
-			if varg.VT == (VT_BSTR|VT_BYREF) && varg.Val != 0 {
-				*(params[n].(*string)) = LpOleStrToString((*uint16)(unsafe.Pointer(uintptr(varg.Val))))
-				println(*(params[n].(*string)))
-				fmt.Fprintln(os.Stderr, *(params[n].(*string)))
-			}
-		*/
+		if varg.VT == (VT_BSTR|VT_BYREF) && varg.Val != 0 {
+			*(params[n].(*string)) = LpOleStrToString(*(**uint16)(unsafe.Pointer(uintptr(varg.Val))))
+		}
 	}
 	return
 }

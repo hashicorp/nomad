@@ -484,9 +484,11 @@
 			"revision": "6ec4abd8f8d587536da56f730858f0e27aeb4126"
 		},
 		{
+			"checksumSHA1": "wDZdTaY9JiqqqnF4c3pHP71nWmk=",
 			"comment": "v1.2.0-4-g5005588",
 			"path": "github.com/go-ole/go-ole",
-			"revision": "50055884d646dd9434f16bbb5c9801749b9bafe4"
+			"revision": "5e9c030faf78847db7aa77e3661b9cc449de29b7",
+			"revisionTime": "2016-11-16T06:46:58Z"
 		},
 		{
 			"comment": "v1.2.0-4-g5005588",
