@@ -1,7 +1,9 @@
 ## 0.5.5 (Unreleased)
 
 BUG FIXES:
-  * server: Fix panic on upgrade to 0.5.3 or 0.5.4 [GH-2266]
+  * server: Fix panic when forwarding Vault derivation requests from non-leader
+    servers [GH-2267]
+  * client: Fix race condition with deriving vault tokens [GH-2275]
 
 ## 0.5.4 (January 31, 2017)
 
