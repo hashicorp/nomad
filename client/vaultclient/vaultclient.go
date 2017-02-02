@@ -224,6 +224,13 @@ func (c *vaultClient) Stop() {
 	close(c.stopCh)
 }
 
+// unlockAndUnset is used to unset the vault token on the client and release the
+// lock. Helper method for deferring a call that does both.
+func (c *vaultClient) unlockAndUnset() {
+	c.client.SetToken("")
+	c.lock.Unlock()
+}
+
 // DeriveToken takes in an allocation and a set of tasks and for each of the
 // task, it derives a vault token from nomad server and unwraps it using vault.
 // The return value is a map containing all the unwrapped tokens indexed by the
@@ -235,6 +242,12 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	if !c.running {
 		return nil, fmt.Errorf("vault client is not running")
 	}
+
+	c.lock.Lock()
+	defer c.unlockAndUnset()
+
+	// Use the token supplied to interact with vault
+	c.client.SetToken("")
 
 	return c.tokenDeriver(alloc, taskNames, c.client)
 }
@@ -253,13 +266,10 @@ func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error)
 	}
 
 	c.lock.Lock()
-	defer c.lock.Unlock()
+	defer c.unlockAndUnset()
 
 	// Use the token supplied to interact with vault
 	c.client.SetToken(token)
-
-	// Reset the token before returning
-	defer c.client.SetToken("")
 
 	// Read the consul ACL token and return the secret directly
 	return c.client.Logical().Read(path)
@@ -377,9 +387,6 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	var renewalErr error
 	leaseDuration := req.increment
 	if req.isToken {
-		// Reset the token in the API client before returning
-		defer c.client.SetToken("")
-
 		// Set the token in the API client to the one that needs
 		// renewal
 		c.client.SetToken(req.id)
@@ -394,6 +401,9 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			// Don't set this if renewal fails
 			leaseDuration = renewResp.Auth.LeaseDuration
 		}
+
+		// Reset the token in the API client before returning
+		c.client.SetToken("")
 	} else {
 		// Renew the secret
 		renewResp, err := c.client.Sys().Renew(req.id, req.increment)
