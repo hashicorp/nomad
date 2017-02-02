@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -358,7 +357,7 @@ func (s *Server) Leave() error {
 	s.left = true
 
 	// Check the number of known peers
-	numPeers, err := s.numOtherPeers()
+	numPeers, err := s.numPeers()
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: failed to check raft peers: %v", err)
 		return err
@@ -369,7 +368,7 @@ func (s *Server) Leave() error {
 	// not the leader, then we should issue our leave intention and wait to be removed
 	// for some sane period of time.
 	isLeader := s.IsLeader()
-	if isLeader && numPeers > 0 {
+	if isLeader && numPeers > 1 {
 		future := s.raft.RemovePeer(s.raftTransport.LocalAddr())
 		if err := future.Error(); err != nil && err != raft.ErrUnknownPeer {
 			s.logger.Printf("[ERR] nomad: failed to remove ourself as raft peer: %v", err)
@@ -390,7 +389,7 @@ func (s *Server) Leave() error {
 		limit := time.Now().Add(raftRemoveGracePeriod)
 		for numPeers > 0 && time.Now().Before(limit) {
 			// Update the number of peers
-			numPeers, err = s.numOtherPeers()
+			numPeers, err = s.numPeers()
 			if err != nil {
 				s.logger.Printf("[ERR] nomad: failed to check raft peers: %v", err)
 				break
@@ -490,7 +489,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// This Nomad Server has not been bootstrapped, reach
 			// out to Consul if our peer list is less than
 			// `bootstrap_expect`.
-			raftPeers, err := s.raftPeers.Peers()
+			raftPeers, err := s.numPeers()
 			if err != nil {
 				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
@@ -828,15 +827,15 @@ func (s *Server) setupWorkers() error {
 	return nil
 }
 
-// numOtherPeers is used to check on the number of known peers
-// excluding the local node
-func (s *Server) numOtherPeers() (int, error) {
-	peers, err := s.raftPeers.Peers()
-	if err != nil {
+// numPeers is used to check on the number of known peers, including the local
+// node.
+func (s *Server) numPeers() (int, error) {
+	future := s.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
 		return 0, err
 	}
-	otherPeers := raft.ExcludePeer(peers, s.raftTransport.LocalAddr())
-	return len(otherPeers), nil
+	configuration := future.Configuration()
+	return len(configuration.Servers), nil
 }
 
 // IsLeader checks if this server is the cluster leader
@@ -961,11 +960,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"serf":    s.serf.Stats(),
 		"runtime": RuntimeStats(),
 	}
-	if peers, err := s.raftPeers.Peers(); err == nil {
-		stats["raft"]["raft_peers"] = strings.Join(peers, ",")
-	} else {
-		s.logger.Printf("[DEBUG] server: error getting raft peers: %v", err)
-	}
+
 	return stats
 }
 

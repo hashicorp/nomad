@@ -53,7 +53,7 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 		return err
 	}
 
-	peers, err := s.srv.raftPeers.Peers()
+	peers, err := s.srv.numPeers()
 	if err != nil {
 		return err
 	}

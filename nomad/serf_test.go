@@ -162,7 +162,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	// should still have no peers (because s2 is in expect=2 mode)
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
-			p, _ := s.raftPeers.Peers()
+			p, _ := s.numPeers()
 			if len(p) != 0 {
 				return false, fmt.Errorf("%d", len(p))
 			}

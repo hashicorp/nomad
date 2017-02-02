@@ -266,6 +266,11 @@ func DefaultConfig() *Config {
 
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
+
+	// Enable interoperability with unversioned Raft library, and don't
+	// start using new ID-based features yet.
+	c.RaftConfig.ProtocolVersion = 1
+
 	return c
 }
 
