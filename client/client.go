@@ -646,7 +646,7 @@ func (c *Client) nodeID() (id, secret string, err error) {
 
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return hostID, nil
+		return hostID, structs.GenerateUUID(), nil
 	}
 
 	// Attempt to read existing ID
