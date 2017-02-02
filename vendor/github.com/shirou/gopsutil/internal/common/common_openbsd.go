@@ -1,4 +1,4 @@
-// +build freebsd openbsd
+// +build openbsd
 
 package common
 

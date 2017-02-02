@@ -80,7 +80,34 @@ func (p *Process) Name() (string, error) {
 	return common.IntToString(k.Proc.P_comm[:]), nil
 }
 func (p *Process) Exe() (string, error) {
-	return "", common.ErrNotImplementedError
+	lsof_bin, err := exec.LookPath("lsof")
+	if err != nil {
+		return "", err
+	}
+
+	awk_bin, err := exec.LookPath("awk")
+	if err != nil {
+		return "", err
+	}
+
+	sed_bin, err := exec.LookPath("sed")
+	if err != nil {
+		return "", err
+	}
+
+	lsof := exec.Command(lsof_bin, "-p", strconv.Itoa(int(p.Pid)), "-Fn")
+	awk := exec.Command(awk_bin, "NR==3{print}")
+	sed := exec.Command(sed_bin, "s/n\\//\\//")
+
+	output, _, err := common.Pipeline(lsof, awk, sed)
+
+	if err != nil {
+		return "", err
+	}
+
+	ret := strings.TrimSpace(string(output))
+
+	return ret, nil
 }
 
 // Cmdline returns the command line arguments of the process as a string with

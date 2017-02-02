@@ -57,7 +57,7 @@ func perCPUTimes() ([]TimesStat, error) {
 	// copy the cpuload array to a []byte buffer
 	// where we can binary.Read the data
 	size := int(ncpu) * binary.Size(cpu_ticks)
-	buf := C.GoBytes(unsafe.Pointer(cpuload), C.int(size))
+	buf := (*[1 << 30]byte)(unsafe.Pointer(cpuload))[:size:size]
 
 	bbuf := bytes.NewBuffer(buf)
 

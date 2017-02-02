@@ -5,7 +5,6 @@ package cpu
 import (
 	"fmt"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/StackExchange/wmi"
@@ -83,23 +82,5 @@ func Info() ([]InfoStat, error) {
 		ret = append(ret, cpu)
 	}
 
-	return ret, nil
-}
-
-func Percent(interval time.Duration, percpu bool) ([]float64, error) {
-	var ret []float64
-	var dst []Win32_Processor
-	q := wmi.CreateQuery(&dst, "")
-	err := wmi.Query(q, &dst)
-	if err != nil {
-		return ret, err
-	}
-	for _, l := range dst {
-		// use range but windows can only get one percent.
-		if l.LoadPercentage == nil {
-			continue
-		}
-		ret = append(ret, float64(*l.LoadPercentage))
-	}
 	return ret, nil
 }

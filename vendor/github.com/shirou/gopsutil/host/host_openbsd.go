@@ -1,4 +1,4 @@
-// +build freebsd
+// +build openbsd
 
 package host
 
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	UTNameSize = 16 /* see MAXLOGNAME in <sys/param.h> */
+	UTNameSize = 32 /* see MAXLOGNAME in <sys/param.h> */
 	UTLineSize = 8
 	UTHostSize = 16
 )
@@ -27,7 +27,7 @@ const (
 func Info() (*InfoStat, error) {
 	ret := &InfoStat{
 		OS:             runtime.GOOS,
-		PlatformFamily: "freebsd",
+		PlatformFamily: "openbsd",
 	}
 
 	hostname, err := os.Hostname()
@@ -40,13 +40,16 @@ func Info() (*InfoStat, error) {
 		ret.Platform = platform
 		ret.PlatformFamily = family
 		ret.PlatformVersion = version
-		ret.KernelVersion = version
 	}
-
 	system, role, err := Virtualization()
 	if err == nil {
 		ret.VirtualizationSystem = system
 		ret.VirtualizationRole = role
+	}
+
+	procs, err := process.Pids()
+	if err == nil {
+		ret.Procs = uint64(len(procs))
 	}
 
 	boot, err := BootTime()
@@ -55,35 +58,19 @@ func Info() (*InfoStat, error) {
 		ret.Uptime = uptime(boot)
 	}
 
-	procs, err := process.Pids()
-	if err == nil {
-		ret.Procs = uint64(len(procs))
-	}
-
-	values, err := common.DoSysctrl("kern.hostuuid")
-	if err == nil && len(values) == 1 && values[0] != "" {
-		ret.HostID = values[0]
-	}
-
 	return ret, nil
 }
 
 func BootTime() (uint64, error) {
-	if cachedBootTime != 0 {
-		return cachedBootTime, nil
-	}
-	values, err := common.DoSysctrl("kern.boottime")
+	val, err := common.DoSysctrl("kern.boottime")
 	if err != nil {
 		return 0, err
 	}
-	// ex: { sec = 1392261637, usec = 627534 } Thu Feb 13 12:20:37 2014
-	v := strings.Replace(values[2], ",", "", 1)
 
-	boottime, err := strconv.ParseUint(v, 10, 64)
+	boottime, err := strconv.ParseUint(val[0], 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	cachedBootTime = boottime
 
 	return boottime, nil
 }
@@ -98,50 +85,6 @@ func Uptime() (uint64, error) {
 		return 0, err
 	}
 	return uptime(boot), nil
-}
-
-func Users() ([]UserStat, error) {
-	utmpfile := "/var/run/utx.active"
-	if !common.PathExists(utmpfile) {
-		utmpfile = "/var/run/utmp" // before 9.0
-		return getUsersFromUtmp(utmpfile)
-	}
-
-	var ret []UserStat
-	file, err := os.Open(utmpfile)
-	if err != nil {
-		return ret, err
-	}
-
-	buf, err := ioutil.ReadAll(file)
-	if err != nil {
-		return ret, err
-	}
-
-	entrySize := sizeOfUtmpx
-	count := len(buf) / entrySize
-
-	for i := 0; i < count; i++ {
-		b := buf[i*sizeOfUtmpx : (i+1)*sizeOfUtmpx]
-		var u Utmpx
-		br := bytes.NewReader(b)
-		err := binary.Read(br, binary.LittleEndian, &u)
-		if err != nil || u.Type != 4 {
-			continue
-		}
-		sec := (binary.LittleEndian.Uint32(u.Tv.Sec[:])) / 2 // TODO:
-		user := UserStat{
-			User:     common.IntToString(u.User[:]),
-			Terminal: common.IntToString(u.Line[:]),
-			Host:     common.IntToString(u.Host[:]),
-			Started:  int(sec),
-		}
-
-		ret = append(ret, user)
-	}
-
-	return ret, nil
-
 }
 
 func PlatformInformation() (string, string, string, error) {
@@ -173,9 +116,9 @@ func Virtualization() (string, string, error) {
 	return system, role, nil
 }
 
-// before 9.0
-func getUsersFromUtmp(utmpfile string) ([]UserStat, error) {
+func Users() ([]UserStat, error) {
 	var ret []UserStat
+	utmpfile := "/var/run/utmp"
 	file, err := os.Open(utmpfile)
 	if err != nil {
 		return ret, err

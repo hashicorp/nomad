@@ -1,4 +1,4 @@
-// +build linux freebsd darwin
+// +build linux freebsd openbsd darwin
 
 package process
 
@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -31,15 +32,22 @@ func getTerminalMap() (map[uint64]string, error) {
 		}
 	}
 
+	var ptsnames []string
 	ptsd, err := os.Open("/dev/pts")
 	if err != nil {
-		return nil, err
+		ptsnames, _ = filepath.Glob("/dev/ttyp*")
+		if ptsnames == nil {
+			return nil, err
+		}
 	}
-	defer ptsd.Close()
-
-	ptsnames, err := ptsd.Readdirnames(-1)
-	for _, ptsname := range ptsnames {
-		termfiles = append(termfiles, "/dev/pts/"+ptsname)
+	if ptsnames == nil {
+		defer ptsd.Close()
+		ptsnames, err = ptsd.Readdirnames(-1)
+		for _, ptsname := range ptsnames {
+			termfiles = append(termfiles, "/dev/pts/"+ptsname)
+		}
+	} else {
+		termfiles = ptsnames
 	}
 
 	for _, name := range termfiles {

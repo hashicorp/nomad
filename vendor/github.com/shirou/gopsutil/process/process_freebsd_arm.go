@@ -22,7 +22,7 @@ const (
 
 const (
 	sizeOfKinfoVmentry = 0x488
-	sizeOfKinfoProc    = 0x300
+	sizeOfKinfoProc    = 0x440
 )
 
 const (
@@ -43,13 +43,13 @@ type (
 )
 
 type Timespec struct {
-	Sec  int32
-	Nsec int32
+	Sec  int64
+	Nsec int64
 }
 
 type Timeval struct {
-	Sec  int32
-	Usec int32
+	Sec  int64
+	Usec int64
 }
 
 type Rusage struct {
@@ -72,8 +72,8 @@ type Rusage struct {
 }
 
 type Rlimit struct {
-	Cur int64
-	Max int64
+	Cur int32
+	Max int32
 }
 
 type KinfoProc struct {
@@ -141,7 +141,7 @@ type KinfoProc struct {
 	Emul         [17]int8
 	Loginclass   [18]int8
 	Sparestrings [50]int8
-	Spareints    [7]int32
+	Spareints    [4]int32
 	Flag2        int32
 	Fibnum       int32
 	Cr_flags     uint32
@@ -155,10 +155,10 @@ type KinfoProc struct {
 	Kstack       int32
 	Udata        int32
 	Tdaddr       int32 /* thread */
-	Spareptrs    [6]int32
-	Sparelongs   [12]int32
-	Sflag        int32
-	Tdflags      int32
+	Spareptrs    [6]int64
+	Sparelongs   [12]int64
+	Sflag        int64
+	Tdflags      int64
 }
 
 type Priority struct {
