@@ -73,16 +73,18 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `net` - (Optional) A list of networks to be used by the containers
 
-* `port_map` - (Optional) A key/value map of port to be used by the container.
-   port name in the image manifest file needs to be specified for the value. For example:
+* `port_map` - (Optional) A key/value map of ports used by the container. The
+   value is the port name specified in the image manifest file.  When running
+   Docker images with rkt the port names will be of the form `${PORT}-tcp`. See
+   [networking](#networking) below for more details.
 
-   ```
+   ```hcl
     port_map {
+            # If running a Docker image that exposes port 8080
             app = "8080-tcp"
     }
    ```
-
-   See below for more details.
+   
 
 * `debug` - (Optional) Enable rkt command debug option.
 
