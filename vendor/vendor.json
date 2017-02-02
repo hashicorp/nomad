@@ -200,28 +200,34 @@
 			"revisionTime": "2016-07-17T15:07:09Z"
 		},
 		{
-			"checksumSHA1": "szvY4u7TlXkrQ3PW8wmyJaIFy0U=",
+			"checksumSHA1": "vhCArnFcQRM84iZcfMXka+2OzrE=",
 			"path": "github.com/circonus-labs/circonus-gometrics",
-			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
-			"revisionTime": "2016-11-09T19:23:37Z"
+			"revision": "a2c28f079ec3d4fdc17ed577cca75bee88a2da25",
+			"revisionTime": "2017-01-31T13:03:52Z"
 		},
 		{
-			"checksumSHA1": "WUE6oF152uN5FcLmmq+nO3Yl7pU=",
+			"checksumSHA1": "sInms3AjZrjG/WCRcmS/NSzLUT4=",
 			"path": "github.com/circonus-labs/circonus-gometrics/api",
-			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
-			"revisionTime": "2016-11-09T19:23:37Z"
+			"revision": "a2c28f079ec3d4fdc17ed577cca75bee88a2da25",
+			"revisionTime": "2017-01-31T13:03:52Z"
 		},
 		{
-			"checksumSHA1": "beRBHHy2+V6Ht4cACIMmZOCnzgg=",
+			"checksumSHA1": "bQhz/fcyZPmuHSH2qwC4ZtATy5c=",
+			"path": "github.com/circonus-labs/circonus-gometrics/api/config",
+			"revision": "a2c28f079ec3d4fdc17ed577cca75bee88a2da25",
+			"revisionTime": "2017-01-31T13:03:52Z"
+		},
+		{
+			"checksumSHA1": "6hvd+YFb1eWFkc3pVcnOPPa2OVw=",
 			"path": "github.com/circonus-labs/circonus-gometrics/checkmgr",
-			"revision": "d17a8420c36e800fcb46bbd4d2a15b93c68605ea",
-			"revisionTime": "2016-11-09T19:23:37Z"
+			"revision": "a2c28f079ec3d4fdc17ed577cca75bee88a2da25",
+			"revisionTime": "2017-01-31T13:03:52Z"
 		},
 		{
-			"checksumSHA1": "C4Z7+l5GOpOCW5DcvNYzheGvQRE=",
+			"checksumSHA1": "VbfeVqeOM+dTNxCmpvmYS0LwQn0=",
 			"path": "github.com/circonus-labs/circonusllhist",
-			"revision": "365d370cc1459bdcaceda3499453668373dea1d0",
-			"revisionTime": "2016-11-10T00:26:50Z"
+			"revision": "7d649b46cdc2cd2ed102d350688a75a4fd7778c6",
+			"revisionTime": "2016-11-21T13:51:53Z"
 		},
 		{
 			"path": "github.com/davecgh/go-spew/spew",
@@ -288,14 +294,14 @@
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
-			"revisionTime": "2016-05-28T10:48:36Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
 		},
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
@@ -330,14 +336,14 @@
 		{
 			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
 			"path": "github.com/docker/docker/pkg/promise",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
 			"path": "github.com/docker/docker/pkg/promise",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
+			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
 			"checksumSHA1": "lThih54jzz9A4zHKEFb9SIV3Ed0=",
@@ -648,8 +654,10 @@
 			"revision": "e4b2dc34c0f698ee04750bf2035d8b9384233e1b"
 		},
 		{
+			"checksumSHA1": "Uzyon2091lmwacNsl1hCytjhHtg=",
 			"path": "github.com/hashicorp/go-cleanhttp",
-			"revision": "875fb671b3ddc66f8e2f0acc33829c8cb989a38d"
+			"revision": "ad28ea4487f05916463e2423a55166280e8254b5",
+			"revisionTime": "2016-04-07T17:41:26Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-getter",

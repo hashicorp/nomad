@@ -1285,6 +1285,27 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	}
 }
 
+// TestTaskRunner_CleanupNil ensures TaskRunner doesn't call Driver.Cleanup if
+// no resources were created.
+func TestTaskRunner_CleanupNil(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+
+	ctx.tr.createdResources = nil
+
+	defer ctx.Cleanup()
+	ctx.tr.Run()
+
+	// Since we only failed once, createdResources should be empty
+	if ctx.tr.createdResources != nil {
+		t.Fatalf("createdResources should still be nil: %v", ctx.tr.createdResources)
+	}
+}
+
 func TestTaskRunner_CleanupOK(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]

@@ -197,6 +197,18 @@ type ClientConfig struct {
 	// be used to target a certain utilization or to prevent Nomad from using a
 	// particular set of ports.
 	Reserved *Resources `mapstructure:"reserved"`
+
+	// GCInterval is the time interval at which the client triggers garbage
+	// collection
+	GCInterval time.Duration `mapstructure:"gc_interval"`
+
+	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
+	// client triggers GC of the terminal allocations
+	GCDiskUsageThreshold float64 `mapstructure:"gc_disk_usage_threshold"`
+
+	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
+	// client triggers GC of the terminal allocations
+	GCInodeUsageThreshold float64 `mapstructure:"gc_inode_usage_threshold"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -465,6 +477,9 @@ func DevConfig() *Config {
 	conf.Client.Options = map[string]string{
 		"driver.docker.volumes": "true",
 	}
+	conf.Client.GCInterval = 10 * time.Minute
+	conf.Client.GCDiskUsageThreshold = 99
+	conf.Client.GCInodeUsageThreshold = 99
 
 	return conf
 }
@@ -487,11 +502,14 @@ func DefaultConfig() *Config {
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
-			Enabled:        false,
-			MaxKillTimeout: "30s",
-			ClientMinPort:  14000,
-			ClientMaxPort:  14512,
-			Reserved:       &Resources{},
+			Enabled:               false,
+			MaxKillTimeout:        "30s",
+			ClientMinPort:         14000,
+			ClientMaxPort:         14512,
+			Reserved:              &Resources{},
+			GCInterval:            1 * time.Minute,
+			GCInodeUsageThreshold: 70,
+			GCDiskUsageThreshold:  80,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
