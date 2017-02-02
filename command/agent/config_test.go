@@ -197,6 +197,9 @@ func TestConfig_Merge(t *testing.T) {
 				ReservedPorts:       "2,10-30,55",
 				ParsedReservedPorts: []int{1, 2, 3},
 			},
+			GCInterval:            6 * time.Second,
+			GCDiskUsageThreshold:  71,
+			GCInodeUsageThreshold: 86,
 		},
 		Server: &ServerConfig{
 			Enabled:           true,
