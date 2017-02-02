@@ -70,6 +70,9 @@ func TestConfig_Parse(t *testing.T) {
 						ReservedPorts:       "1,100,10-12",
 						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
 					},
+					GCInterval:            6 * time.Second,
+					GCDiskUsageThreshold:  82,
+					GCInodeUsageThreshold: 91,
 				},
 				Server: &ServerConfig{
 					Enabled:           true,

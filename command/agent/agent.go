@@ -288,6 +288,11 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.TLSConfig = a.config.TLSConfig
 	conf.Node.TLSEnabled = conf.TLSConfig.EnableHTTP
 
+	// Set the GC related configs
+	conf.GCInterval = a.config.Client.GCInterval
+	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
+	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
+
 	return conf, nil
 }
 

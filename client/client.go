@@ -225,10 +225,18 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
 
-	// Add the stats collector and the garbage collector
+	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(logger, c.config.AllocDir)
 	c.hostStatsCollector = statsCollector
-	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, cfg.Node.Reserved.DiskMB)
+
+	// Add the garbage collector
+	gcConfig := &GCConfig{
+		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
+		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
+		Interval:            cfg.GCInterval,
+		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
+	}
+	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, gcConfig)
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {

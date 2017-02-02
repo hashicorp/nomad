@@ -12,18 +12,6 @@ import (
 )
 
 const (
-	// diskUsageThreshold is the percent of used disk space beyond which Nomad
-	// GCs terminated allocations
-	diskUsageThreshold = 80
-
-	// gcInterval is the interval at which Nomad runs the garbage collector
-	gcInterval = 1 * time.Minute
-
-	// inodeUsageThreshold is the percent of inode usage that Nomad tries to
-	// maintain, whenever we are over it we will attempt to GC terminal
-	// allocations
-	inodeUsageThreshold = 70
-
 	// MB is a constant which converts values in bytes to MB
 	MB = 1024 * 1024
 )
@@ -134,22 +122,30 @@ func (i *IndexedGCAllocPQ) Length() int {
 	return len(i.heap)
 }
 
+// GCConfig allows changing the behaviour of the garbage collector
+type GCConfig struct {
+	DiskUsageThreshold  float64
+	InodeUsageThreshold float64
+	Interval            time.Duration
+	ReservedDiskMB      int
+}
+
 // AllocGarbageCollector garbage collects terminated allocations on a node
 type AllocGarbageCollector struct {
 	allocRunners   *IndexedGCAllocPQ
 	statsCollector stats.NodeStatsCollector
-	reservedDiskMB int
+	config         *GCConfig
 	logger         *log.Logger
 	shutdownCh     chan struct{}
 }
 
 // NewAllocGarbageCollector returns a garbage collector for terminated
 // allocations on a node.
-func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStatsCollector, reservedDiskMB int) *AllocGarbageCollector {
+func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStatsCollector, config *GCConfig) *AllocGarbageCollector {
 	gc := &AllocGarbageCollector{
 		allocRunners:   NewIndexedGCAllocPQ(),
 		statsCollector: statsCollector,
-		reservedDiskMB: reservedDiskMB,
+		config:         config,
 		logger:         logger,
 		shutdownCh:     make(chan struct{}),
 	}
@@ -159,7 +155,7 @@ func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStats
 }
 
 func (a *AllocGarbageCollector) run() {
-	ticker := time.NewTicker(gcInterval)
+	ticker := time.NewTicker(a.config.Interval)
 	for {
 		select {
 		case <-ticker.C:
@@ -195,8 +191,8 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 			break
 		}
 
-		if diskStats.UsedPercent <= diskUsageThreshold &&
-			diskStats.InodesUsedPercent <= inodeUsageThreshold {
+		if diskStats.UsedPercent <= a.config.DiskUsageThreshold &&
+			diskStats.InodesUsedPercent <= a.config.InodeUsageThreshold {
 			break
 		}
 
@@ -266,10 +262,10 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 	// we don't need to garbage collect terminated allocations
 	if hostStats := a.statsCollector.Stats(); hostStats != nil {
 		var availableForAllocations uint64
-		if hostStats.AllocDirStats.Available < uint64(a.reservedDiskMB*MB) {
+		if hostStats.AllocDirStats.Available < uint64(a.config.ReservedDiskMB*MB) {
 			availableForAllocations = 0
 		} else {
-			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.reservedDiskMB*MB)
+			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.config.ReservedDiskMB*MB)
 		}
 		if uint64(totalResource.DiskMB*MB) < availableForAllocations {
 			return nil
