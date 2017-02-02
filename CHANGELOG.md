@@ -1,5 +1,11 @@
 ## 0.5.5 (Unreleased)
 
+IMPROVEMENTS:
+  * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
+  * server/vault: Vault Client on Server handles SIGHUP to reload configs
+    [GH-2270]
+  * template: Permissions can be set on template destination file [GH-2262]
+
 BUG FIXES:
   * server: Fix panic when forwarding Vault derivation requests from non-leader
     servers [GH-2267]
