@@ -2,6 +2,8 @@
 
 IMPROVEMENTS:
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
+  * client: Reproducible Node ID on OSes that provide system-level UUID
+    [GH-2277]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
   * template: Permissions can be set on template destination file [GH-2262]
