@@ -662,8 +662,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the Consul Configuration
 	if result.Consul == nil && b.Consul != nil {
-		consulConfig := *b.Consul
-		result.Consul = &consulConfig
+		result.Consul = b.Consul.Copy()
 	} else if b.Consul != nil {
 		result.Consul = result.Consul.Merge(b.Consul)
 	}
