@@ -57,11 +57,11 @@ func SwapMemory() (*SwapMemoryStat, error) {
 		u = ((total_v - free_v) / total_v) * 100.0
 	}
 
-	// vm.swapusage shows "M", multiply 1000
+	// vm.swapusage shows "M", multiply 1024 * 1024 to convert bytes.
 	ret = &SwapMemoryStat{
-		Total:       uint64(total_v * 1000),
-		Used:        uint64(used_v * 1000),
-		Free:        uint64(free_v * 1000),
+		Total:       uint64(total_v * 1024 * 1024),
+		Used:        uint64(used_v * 1024 * 1024),
+		Free:        uint64(free_v * 1024 * 1024),
 		UsedPercent: u,
 	}
 

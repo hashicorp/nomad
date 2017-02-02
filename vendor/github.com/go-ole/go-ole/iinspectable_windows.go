@@ -30,7 +30,7 @@ func (v *IInspectable) GetIids() (iids []*GUID, err error) {
 	slicehdr := reflect.SliceHeader{Data: array, Len: int(byteCount), Cap: int(byteCount)}
 	byteSlice := *(*[]byte)(unsafe.Pointer(&slicehdr))
 	reader := bytes.NewReader(byteSlice)
-	for i, _ := range iids {
+	for i := range iids {
 		guid := GUID{}
 		err = binary.Read(reader, binary.LittleEndian, &guid)
 		if err != nil {

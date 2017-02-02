@@ -3,11 +3,13 @@
 package process
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,10 +22,14 @@ import (
 	"github.com/shirou/gopsutil/net"
 )
 
-var ErrorNoChildren = errors.New("process does not have children")
+var (
+	ErrorNoChildren = errors.New("process does not have children")
+	PageSize        = uint64(os.Getpagesize())
+)
 
 const (
-	PrioProcess = 0 // linux/resource.h
+	PrioProcess = 0   // linux/resource.h
+	ClockTicks  = 100 // C.sysconf(C._SC_CLK_TCK)
 )
 
 // MemoryInfoExStat is different between OSes
@@ -194,7 +200,7 @@ func (p *Process) IOnice() (int32, error) {
 
 // Rlimit returns Resource Limits.
 func (p *Process) Rlimit() ([]RlimitStat, error) {
-	return nil, common.ErrNotImplementedError
+	return p.fillFromLimits()
 }
 
 // IOCounters returns IO Counters.
@@ -403,6 +409,111 @@ func (p *Process) MemoryMaps(grouped bool) (*[]MemoryMapsStat, error) {
 ** Internal functions
 **/
 
+func limitToInt(val string) (int32, error) {
+	if val == "unlimited" {
+		return math.MaxInt32, nil
+	} else {
+		res, err := strconv.ParseInt(val, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+		return int32(res), nil
+	}
+}
+
+// Get num_fds from /proc/(pid)/limits
+func (p *Process) fillFromLimits() ([]RlimitStat, error) {
+	pid := p.Pid
+	limitsFile := common.HostProc(strconv.Itoa(int(pid)), "limits")
+	d, err := os.Open(limitsFile)
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+
+	var limitStats []RlimitStat
+
+	limitsScanner := bufio.NewScanner(d)
+	for limitsScanner.Scan() {
+		var statItem RlimitStat
+
+		str := strings.Fields(limitsScanner.Text())
+
+		// Remove the header line
+		if strings.Contains(str[len(str)-1], "Units") {
+			continue
+		}
+
+		// Assert that last item is a Hard limit
+		statItem.Hard, err = limitToInt(str[len(str)-1])
+		if err != nil {
+			// On error remove last item an try once again since it can be unit or header line
+			str = str[:len(str)-1]
+			statItem.Hard, err = limitToInt(str[len(str)-1])
+			if err != nil {
+				return nil, err
+			}
+		}
+		// Remove last item from string
+		str = str[:len(str)-1]
+
+		//Now last item is a Soft limit
+		statItem.Soft, err = limitToInt(str[len(str)-1])
+		if err != nil {
+			return nil, err
+		}
+		// Remove last item from string
+		str = str[:len(str)-1]
+
+		//The rest is a stats name
+		resourceName := strings.Join(str, " ")
+		switch resourceName {
+		case "Max cpu time":
+			statItem.Resource = RLIMIT_CPU
+		case "Max file size":
+			statItem.Resource = RLIMIT_FSIZE
+		case "Max data size":
+			statItem.Resource = RLIMIT_DATA
+		case "Max stack size":
+			statItem.Resource = RLIMIT_STACK
+		case "Max core file size":
+			statItem.Resource = RLIMIT_CORE
+		case "Max resident set":
+			statItem.Resource = RLIMIT_RSS
+		case "Max processes":
+			statItem.Resource = RLIMIT_NPROC
+		case "Max open files":
+			statItem.Resource = RLIMIT_NOFILE
+		case "Max locked memory":
+			statItem.Resource = RLIMIT_MEMLOCK
+		case "Max address space":
+			statItem.Resource = RLIMIT_AS
+		case "Max file locks":
+			statItem.Resource = RLIMIT_LOCKS
+		case "Max pending signals":
+			statItem.Resource = RLIMIT_SIGPENDING
+		case "Max msgqueue size":
+			statItem.Resource = RLIMIT_MSGQUEUE
+		case "Max nice priority":
+			statItem.Resource = RLIMIT_NICE
+		case "Max realtime priority":
+			statItem.Resource = RLIMIT_RTPRIO
+		case "Max realtime timeout":
+			statItem.Resource = RLIMIT_RTTIME
+		default:
+			continue
+		}
+
+		limitStats = append(limitStats, statItem)
+	}
+
+	if err := limitsScanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return limitStats, nil
+}
+
 // Get num_fds from /proc/(pid)/fd
 func (p *Process) fillFromfd() (int32, []*OpenFilesStat, error) {
 	pid := p.Pid
@@ -609,6 +720,18 @@ func (p *Process) fillFromStatus() error {
 		switch strings.TrimRight(tabParts[0], ":") {
 		case "Name":
 			p.name = strings.Trim(value, " \t")
+			if len(p.name) >= 15 {
+				cmdlineSlice, err := p.CmdlineSlice()
+				if err != nil {
+					return err
+				}
+				if len(cmdlineSlice) > 0 {
+					extendedName := filepath.Base(cmdlineSlice[0])
+					if strings.HasPrefix(extendedName, p.name) {
+						p.name = extendedName
+					}
+				}
+			}
 		case "State":
 			p.status = value[0:1]
 		case "PPid", "Ppid":

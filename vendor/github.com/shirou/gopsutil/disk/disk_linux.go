@@ -328,6 +328,10 @@ func IOCounters() (map[string]IOCountersStat, error) {
 		if err != nil {
 			return ret, err
 		}
+		weightedIO, err := strconv.ParseUint((fields[13]), 10, 64)
+		if err != nil {
+			return ret, err
+		}
 		d := IOCountersStat{
 			ReadBytes:        rbytes * SectorSize,
 			WriteBytes:       wbytes * SectorSize,
@@ -339,6 +343,7 @@ func IOCounters() (map[string]IOCountersStat, error) {
 			WriteTime:        wtime,
 			IopsInProgress:   iopsInProgress,
 			IoTime:           iotime,
+			WeightedIO:       weightedIO,
 		}
 		if d == empty {
 			continue

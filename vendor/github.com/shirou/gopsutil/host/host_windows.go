@@ -91,11 +91,15 @@ func bootTime(up uint64) uint64 {
 }
 
 func BootTime() (uint64, error) {
+	if cachedBootTime != 0 {
+		return cachedBootTime, nil
+	}
 	up, err := Uptime()
 	if err != nil {
 		return 0, err
 	}
-	return bootTime(up), nil
+	cachedBootTime = bootTime(up)
+	return cachedBootTime, nil
 }
 
 func PlatformInformation() (platform string, family string, version string, err error) {

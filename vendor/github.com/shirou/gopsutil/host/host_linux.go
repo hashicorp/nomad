@@ -86,6 +86,9 @@ func Info() (*InfoStat, error) {
 
 // BootTime returns the system boot time expressed in seconds since the epoch.
 func BootTime() (uint64, error) {
+	if cachedBootTime != 0 {
+		return cachedBootTime, nil
+	}
 	filename := common.HostProc("stat")
 	lines, err := common.ReadLines(filename)
 	if err != nil {
@@ -101,7 +104,8 @@ func BootTime() (uint64, error) {
 			if err != nil {
 				return 0, err
 			}
-			return uint64(b), nil
+			cachedBootTime = uint64(b)
+			return cachedBootTime, nil
 		}
 	}
 

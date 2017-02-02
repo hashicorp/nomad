@@ -13,6 +13,12 @@ func Connections(kind string) ([]ConnectionStat, error) {
 	return ConnectionsPid(kind, 0)
 }
 
+// Return a list of network connections opened returning at most `max`
+// connections for each running process.
+func ConnectionsMax(kind string, max int) ([]ConnectionStat, error) {
+	return []ConnectionStat{}, common.ErrNotImplementedError
+}
+
 // Return a list of network connections opened by a process.
 func ConnectionsPid(kind string, pid int32) ([]ConnectionStat, error) {
 	var ret []ConnectionStat
@@ -65,4 +71,9 @@ func ConnectionsPid(kind string, pid int32) ([]ConnectionStat, error) {
 	}
 
 	return ret, nil
+}
+
+// Return up to `max` network connections opened by a process.
+func ConnectionsPidMax(kind string, pid int32, max int) ([]ConnectionStat, error) {
+	return []ConnectionStat{}, common.ErrNotImplementedError
 }

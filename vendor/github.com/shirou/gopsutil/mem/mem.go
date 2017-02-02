@@ -54,6 +54,10 @@ type VirtualMemoryStat struct {
 	Writeback    uint64 `json:"writeback"`
 	Dirty        uint64 `json:"dirty"`
 	WritebackTmp uint64 `json:"writebacktmp"`
+	Shared       uint64 `json:"shared"`
+	Slab         uint64 `json:"slab"`
+	PageTables   uint64 `json:"pagetables"`
+	SwapCached   uint64 `json:"swapcached"`
 }
 
 type SwapMemoryStat struct {

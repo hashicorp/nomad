@@ -308,9 +308,20 @@ func (p *Process) Suspend() error {
 func (p *Process) Resume() error {
 	return common.ErrNotImplementedError
 }
+
 func (p *Process) Terminate() error {
-	return common.ErrNotImplementedError
+	// PROCESS_TERMINATE = 0x0001
+	proc := w32.OpenProcess(0x0001, false, uint32(p.Pid))
+	ret := w32.TerminateProcess(proc, 0)
+	w32.CloseHandle(proc)
+
+	if ret == false {
+		return syscall.GetLastError()
+	} else {
+		return nil
+	}
 }
+
 func (p *Process) Kill() error {
 	return common.ErrNotImplementedError
 }
