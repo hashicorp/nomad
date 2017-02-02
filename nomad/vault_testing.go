@@ -137,3 +137,4 @@ func (v *TestVaultClient) RevokeTokens(ctx context.Context, accessors []*structs
 func (v *TestVaultClient) Stop()                                      {}
 func (v *TestVaultClient) SetActive(enabled bool)                     {}
 func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error { return nil }
+func (v *TestVaultClient) Running() bool                              { return true }

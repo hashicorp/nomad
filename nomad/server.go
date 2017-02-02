@@ -411,6 +411,24 @@ func (s *Server) Leave() error {
 	return nil
 }
 
+// Reload handles a config reload. Not all config fields can handle a reload.
+func (s *Server) Reload(config *Config) error {
+	if config == nil {
+		return fmt.Errorf("Reload given a nil config")
+	}
+
+	var mErr multierror.Error
+
+	// Handle the Vault reload. Vault should never be nil but just guard.
+	if s.vault != nil {
+		if err := s.vault.SetConfig(config.VaultConfig); err != nil {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // setupBootstrapHandler() creates the closure necessary to support a Consul
 // fallback handler.
 func (s *Server) setupBootstrapHandler() error {
