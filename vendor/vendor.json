@@ -36,8 +36,10 @@
 			"revision": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
 		},
 		{
+			"checksumSHA1": "9NR0rrcAT5J76C5xMS4AVksS9o0=",
 			"path": "github.com/StackExchange/wmi",
-			"revision": "f3e2bae1e0cb5aef83e319133eabfee30013a4a5"
+			"revision": "e54cbda6595d7293a7a468ccf9525f6bc8887f99",
+			"revisionTime": "2016-08-11T21:45:55Z"
 		},
 		{
 			"path": "github.com/armon/circbuf",
