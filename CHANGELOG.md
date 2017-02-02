@@ -10,6 +10,7 @@ BUG FIXES:
   * server: Fix panic when forwarding Vault derivation requests from non-leader
     servers [GH-2267]
   * client: Fix race condition with deriving vault tokens [GH-2275]
+  * config: Fix Consul Config Merging/Copying [GH-2278]
 
 ## 0.5.4 (January 31, 2017)
 
