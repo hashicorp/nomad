@@ -341,6 +341,9 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"client_min_port",
 		"reserved",
 		"stats",
+		"gc_interval",
+		"gc_disk_usage_threshold",
+		"gc_inode_usage_threshold",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -358,7 +361,15 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "stats")
 
 	var config ClientConfig
-	if err := mapstructure.WeakDecode(m, &config); err != nil {
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &config,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
 		return err
 	}
 

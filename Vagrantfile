@@ -38,14 +38,14 @@ else
     tar -xf go${GO_VERSION}.linux-${ARCH}.tar.gz
     sudo mv go $SRCROOT
     sudo chmod 775 $SRCROOT
-    sudo chown ubuntu:ubuntu $SRCROOT
+    sudo chown vagrant:vagrant $SRCROOT
 fi
 
 # Setup the GOPATH; even though the shared folder spec gives the working
 # directory the right user/group, we need to set it properly on the
 # parent path to allow subsequent "go get" commands to work.
 sudo mkdir -p $SRCPATH
-sudo chown -R ubuntu:ubuntu $SRCPATH 2>/dev/null || true
+sudo chown -R vagrant:vagrant $SRCPATH 2>/dev/null || true
 # ^^ silencing errors here because we expect this to fail for the shared folder
 
 cat <<EOF >/tmp/gopath.sh
@@ -70,8 +70,8 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-engine
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
 
-# Make sure we can actually use docker as the ubuntu user
-sudo usermod -aG docker ubuntu
+# Make sure we can actually use docker as the vagrant user
+sudo usermod -aG docker vagrant
 
 # Setup Nomad for development
 cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
@@ -93,6 +93,7 @@ def configureVM(vmCfg, vmParams={
                   numCPUs: DEFAULT_CPU_COUNT,
                 }
                )
+  # When updating make sure to use a box that supports VMWare and VirtualBox
   vmCfg.vm.box = "bento/ubuntu-16.04" # 16.04 LTS
 
   vmCfg.vm.provision "shell", inline: $script, privileged: false
@@ -116,6 +117,7 @@ def configureVM(vmCfg, vmParams={
 
   ["vmware_fusion", "vmware_workstation"].each do |p|
     vmCfg.vm.provider p do |v|
+      v.enable_vmrun_ip_lookup = false
       v.gui = false
       v.memory = memory
       v.cpus = cpus

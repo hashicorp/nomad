@@ -131,6 +131,10 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 // Config.Options["cleanup_fail_num"] times. For failures it will return a
 // recoverable error.
 func (m *MockDriver) Cleanup(ctx *ExecContext, res *CreatedResources) error {
+	if res == nil {
+		panic("Cleanup should not be called with nil *CreatedResources")
+	}
+
 	var err error
 	failn, _ := strconv.Atoi(m.config.Options["cleanup_fail_num"])
 	failk := m.config.Options["cleanup_fail_on"]
