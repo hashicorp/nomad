@@ -1031,8 +1031,10 @@
 			"revisionTime": "2016-08-29T23:42:49Z"
 		},
 		{
+			"checksumSHA1": "Nve7SpDmjsv6+rhkXAkfg/UQx94=",
 			"path": "github.com/shirou/w32",
-			"revision": "ada3ba68f000aa1b58580e45c9d308fe0b7fc5c5"
+			"revision": "bb4de0191aa41b5507caa14b0650cdbddcd9280b",
+			"revisionTime": "2016-09-30T03:27:40Z"
 		},
 		{
 			"checksumSHA1": "tHm2SMtuRfrwh6NnnymsuoJ6e0Q=",
