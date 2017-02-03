@@ -898,7 +898,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.ClientMinPort != 0 {
 		result.ClientMinPort = b.ClientMinPort
 	}
-	if b.Reserved != nil {
+	if result.Reserved == nil && b.Reserved != nil {
+		reserved := *b.Reserved
+		result.Reserved = &reserved
+	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
 	if b.GCInterval != 0 {
