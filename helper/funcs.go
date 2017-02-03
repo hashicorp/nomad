@@ -1,5 +1,20 @@
 package helper
 
+import "regexp"
+
+// validUUID is used to check if a given string looks like a UUID
+var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
+
+// IsUUID returns true if the given string is a valid UUID.
+func IsUUID(str string) bool {
+	const uuidLen = 36
+	if len(str) != uuidLen {
+		return false
+	}
+
+	return validUUID.MatchString(str)
+}
+
 // boolToPtr returns the pointer to a boolean
 func BoolToPtr(b bool) *bool {
 	return &b
