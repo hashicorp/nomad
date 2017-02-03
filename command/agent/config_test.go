@@ -20,7 +20,21 @@ var (
 )
 
 func TestConfig_Merge(t *testing.T) {
+	c0 := &Config{}
+
 	c1 := &Config{
+		Telemetry:      &Telemetry{},
+		Client:         &ClientConfig{},
+		Server:         &ServerConfig{},
+		Ports:          &Ports{},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
+		Atlas:          &AtlasConfig{},
+		Vault:          &config.VaultConfig{},
+		Consul:         &config.ConsulConfig{},
+	}
+
+	c2 := &Config{
 		Region:                    "global",
 		Datacenter:                "dc1",
 		NodeName:                  "node1",
@@ -136,7 +150,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 	}
 
-	c2 := &Config{
+	c3 := &Config{
 		Region:                    "region2",
 		Datacenter:                "dc2",
 		NodeName:                  "node2",
@@ -271,9 +285,11 @@ func TestConfig_Merge(t *testing.T) {
 		},
 	}
 
-	result := c1.Merge(c2)
-	if !reflect.DeepEqual(result, c2) {
-		t.Fatalf("bad:\n%#v\n%#v", result, c2)
+	result := c0.Merge(c1)
+	result = result.Merge(c2)
+	result = result.Merge(c3)
+	if !reflect.DeepEqual(result, c3) {
+		t.Fatalf("bad:\n%#v\n%#v", result, c3)
 	}
 }
 
