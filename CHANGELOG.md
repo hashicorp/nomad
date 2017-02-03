@@ -10,10 +10,11 @@ IMPROVEMENTS:
   * template: Permissions can be set on template destination file [GH-2262]
 
 BUG FIXES:
-  * server: Fix panic when forwarding Vault derivation requests from non-leader
-    servers [GH-2267]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * config: Fix Consul Config Merging/Copying [GH-2278]
+  * config: Fix Client reserved resource merging panic [GH-2281]
+  * server: Fix panic when forwarding Vault derivation requests from non-leader
+    servers [GH-2267]
 
 ## 0.5.4 (January 31, 2017)
 
