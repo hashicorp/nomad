@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -636,7 +637,7 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 func (c *Client) nodeID() (id, secret string, err error) {
 	var hostID string
 	hostInfo, err := host.Info()
-	if err == nil && hostInfo.HostID != "" {
+	if err == nil && helper.IsUUID(hostInfo.HostID) {
 		hostID = hostInfo.HostID
 	} else {
 		// Generate a random hostID if no constant ID is available on
