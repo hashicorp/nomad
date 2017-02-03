@@ -94,12 +94,14 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
+		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
+		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer s2.Shutdown()
@@ -110,14 +112,14 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-		if peers != 1 {
+		if peers != 2 {
 			return false, fmt.Errorf("bad: %#v", peers)
 		}
 		peers, err = s2.numPeers()
 		if err != nil {
 			return false, err
 		}
-		if peers != 1 {
+		if peers != 2 {
 			return false, fmt.Errorf("bad: %#v", peers)
 		}
 		if len(s1.localPeers) != 2 {
@@ -163,7 +165,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
 			p, _ := s.numPeers()
-			if p != 0 {
+			if p != 1 {
 				return false, fmt.Errorf("%d", p)
 			}
 		}
