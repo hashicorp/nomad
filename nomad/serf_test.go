@@ -106,14 +106,14 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	testJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
-		peers, err := s1.numOtherPeers()
+		peers, err := s1.numPeers()
 		if err != nil {
 			return false, err
 		}
 		if peers != 1 {
 			return false, fmt.Errorf("bad: %#v", peers)
 		}
-		peers, err = s2.numOtherPeers()
+		peers, err = s2.numPeers()
 		if err != nil {
 			return false, err
 		}
@@ -163,8 +163,8 @@ func TestNomad_BadExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
 			p, _ := s.numPeers()
-			if len(p) != 0 {
-				return false, fmt.Errorf("%d", len(p))
+			if p != 0 {
+				return false, fmt.Errorf("%d", p)
 			}
 		}
 		return true, nil
