@@ -1,8 +1,10 @@
 package nomad
 
 import (
+	"strings"
 	"sync/atomic"
 
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -65,7 +67,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 		// Check if a local peer
 		if parts.Region == s.config.Region {
-			s.localPeers[parts.Addr.String()] = parts
+			s.localPeers[raft.ServerAddress(parts.Addr.String())] = parts
 		}
 		s.peerLock.Unlock()
 
@@ -78,6 +80,9 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 // maybeBootsrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
+	// Bootstrap can only be done if there are no committed logs, remove our
+	// expectations of bootstrapping. This is slightly cheaper than the full
+	// check that BootstrapCluster will do, so this is a good pre-filter.
 	var index uint64
 	var err error
 	if s.raftStore != nil {
@@ -127,9 +132,22 @@ func (s *Server) maybeBootstrap() {
 	}
 
 	// Update the peer set
-	s.logger.Printf("[INFO] nomad: Attempting bootstrap with nodes: %v", addrs)
-	if err := s.raft.SetPeers(addrs).Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to bootstrap peers: %v", err)
+	// Attempt a live bootstrap!
+	var configuration raft.Configuration
+	for _, addr := range addrs {
+		// TODO (alexdadgar) - This will need to be updated once we support
+		// node IDs.
+		server := raft.Server{
+			ID:      raft.ServerID(addr),
+			Address: raft.ServerAddress(addr),
+		}
+		configuration.Servers = append(configuration.Servers, server)
+	}
+	s.logger.Printf("[INFO] nomad: Found expected number of peers (%s), attempting to bootstrap cluster...",
+		strings.Join(addrs, ","))
+	future := s.raft.BootstrapCluster(configuration)
+	if err := future.Error(); err != nil {
+		s.logger.Printf("[ERR] nomad: Failed to bootstrap cluster: %v", err)
 	}
 
 	// Bootstrapping complete, don't enter this again
@@ -167,7 +185,7 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 
 		// Check if local peer
 		if parts.Region == s.config.Region {
-			delete(s.localPeers, parts.Addr.String())
+			delete(s.localPeers, raft.ServerAddress(parts.Addr.String()))
 		}
 		s.peerLock.Unlock()
 	}

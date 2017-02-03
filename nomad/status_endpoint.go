@@ -38,7 +38,7 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 		return err
 	}
 
-	leader := s.srv.raft.Leader()
+	leader := string(s.srv.raft.Leader())
 	if leader != "" {
 		*reply = leader
 	} else {
@@ -53,12 +53,14 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 		return err
 	}
 
-	peers, err := s.srv.numPeers()
-	if err != nil {
+	future := s.srv.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
 		return err
 	}
 
-	*reply = peers
+	for _, server := range future.Configuration().Servers {
+		*reply = append(*reply, string(server.Address))
+	}
 	return nil
 }
 

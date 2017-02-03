@@ -213,7 +213,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 		logger:       logger,
 		rpcServer:    rpc.NewServer(),
 		peers:        make(map[string][]*serverParts),
-		localPeers:   make(map[string]*serverParts),
+		localPeers:   make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:  make(chan serf.Member, 32),
 		eventCh:      make(chan serf.Event, 256),
 		evalBroker:   evalBroker,
@@ -364,14 +364,18 @@ func (s *Server) Leave() error {
 		return err
 	}
 
+	// TODO (alexdadgar) - This will need to be updated once we support node
+	// IDs.
+	addr := s.raftTransport.LocalAddr()
+
 	// If we are the current leader, and we have any other peers (cluster has multiple
 	// servers), we should do a RemovePeer to safely reduce the quorum size. If we are
 	// not the leader, then we should issue our leave intention and wait to be removed
 	// for some sane period of time.
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
-		future := s.raft.RemovePeer(s.raftTransport.LocalAddr())
-		if err := future.Error(); err != nil && err != raft.ErrUnknownPeer {
+		future := s.raft.RemovePeer(addr)
+		if err := future.Error(); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to remove ourself as raft peer: %v", err)
 		}
 	}
@@ -387,25 +391,46 @@ func (s *Server) Leave() error {
 	// We must wait to allow the raft replication to take place, otherwise
 	// an immediate shutdown could cause a loss of quorum.
 	if !isLeader {
+		left := false
 		limit := time.Now().Add(raftRemoveGracePeriod)
-		for numPeers > 0 && time.Now().Before(limit) {
-			// Update the number of peers
-			numPeers, err = s.numPeers()
-			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to check raft peers: %v", err)
-				break
-			}
-
-			// Avoid the sleep if we are done
-			if numPeers == 0 {
-				break
-			}
-
-			// Sleep a while and check again
+		for !left && time.Now().Before(limit) {
+			// Sleep a while before we check.
 			time.Sleep(50 * time.Millisecond)
+
+			// Get the latest configuration.
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
+				break
+			}
+
+			// See if we are no longer included.
+			left = true
+			for _, server := range future.Configuration().Servers {
+				if server.Address == addr {
+					left = false
+					break
+				}
+			}
 		}
-		if numPeers != 0 {
-			s.logger.Printf("[WARN] nomad: failed to leave raft peer set gracefully, timeout")
+
+		// TODO (alexdadgar) With the old Raft library we used to force the
+		// peers set to empty when a graceful leave occurred. This would
+		// keep voting spam down if the server was restarted, but it was
+		// dangerous because the peers was inconsistent with the logs and
+		// snapshots, so it wasn't really safe in all cases for the server
+		// to become leader. This is now safe, but the log spam is noisy.
+		// The next new version of the library will have a "you are not a
+		// peer stop it" behavior that should address this. We will have
+		// to evaluate during the RC period if this interim situation is
+		// not too confusing for operators.
+
+		// TODO (alexdadgar) When we take a later new version of the Raft
+		// library it won't try to complete replication, so this peer
+		// may not realize that it has been removed. Need to revisit this
+		// and the warning here.
+		if !left {
+			s.logger.Printf("[WARN] nomad: failed to leave raft configuration gracefully, timeout")
 		}
 	}
 	return nil
@@ -507,13 +532,13 @@ func (s *Server) setupBootstrapHandler() error {
 		}
 		consulQueryCount++
 
-		s.logger.Printf("[DEBUG] server.consul: lost contact with Nomad quorum, falling back to Consul for server list")
+		s.logger.Printf("[DEBUG] server.nomad: lost contact with Nomad quorum, falling back to Consul for server list")
 
 		consulCatalog := s.consulSyncer.ConsulClient().Catalog()
 		dcs, err := consulCatalog.Datacenters()
 		if err != nil {
 			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
-			return fmt.Errorf("server.consul: unable to query Consul datacenters: %v", err)
+			return fmt.Errorf("server.nomad: unable to query Consul datacenters: %v", err)
 		}
 		if len(dcs) > 2 {
 			// Query the local DC first, then shuffle the
@@ -540,7 +565,7 @@ func (s *Server) setupBootstrapHandler() error {
 			consulServices, _, err := consulCatalog.Service(nomadServerServiceName, consul.ServiceTagSerf, consulOpts)
 			if err != nil {
 				err := fmt.Errorf("failed to query service %q in Consul datacenter %q: %v", nomadServerServiceName, dc, err)
-				s.logger.Printf("[WARN] server.consul: %v", err)
+				s.logger.Printf("[WARN] server.nomad: %v", err)
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
@@ -568,7 +593,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// Log the error and return nil so future handlers
 			// can attempt to register the `nomad` service.
 			pollInterval := peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor)
-			s.logger.Printf("[TRACE] server.consul: no Nomad Servers advertising service %+q in Consul datacenters %+q, sleeping for %v", nomadServerServiceName, dcs, pollInterval)
+			s.logger.Printf("[TRACE] server.nomad: no Nomad Servers advertising service %+q in Consul datacenters %+q, sleeping for %v", nomadServerServiceName, dcs, pollInterval)
 			peersTimeout.Reset(pollInterval)
 			return nil
 		}
@@ -580,7 +605,7 @@ func (s *Server) setupBootstrapHandler() error {
 		}
 
 		peersTimeout.Reset(maxStaleLeadership)
-		s.logger.Printf("[INFO] server.consul: successfully contacted %d Nomad Servers", numServersContacted)
+		s.logger.Printf("[INFO] server.nomad: successfully contacted %d Nomad Servers", numServersContacted)
 
 		return nil
 	}
@@ -669,7 +694,7 @@ func (s *Server) setupRaft() error {
 	defer func() {
 		if s.raft == nil && s.raftStore != nil {
 			if err := s.raftStore.Close(); err != nil {
-				s.logger.Printf("[ERR] consul: failed to close Raft store: %v", err)
+				s.logger.Printf("[ERR] nomad: failed to close Raft store: %v", err)
 			}
 		}
 	}()
@@ -758,15 +783,15 @@ func (s *Server) setupRaft() error {
 				if err := os.Remove(peersFile); err != nil {
 					return fmt.Errorf("failed to delete peers.json, please delete manually (see peers.info for details): %v", err)
 				}
-				s.logger.Printf("[INFO] consul: deleted peers.json file (see peers.info for details)")
+				s.logger.Printf("[INFO] nomad: deleted peers.json file (see peers.info for details)")
 			}
 		} else if _, err := os.Stat(peersFile); err == nil {
-			s.logger.Printf("[INFO] consul: found peers.json file, recovering Raft configuration...")
+			s.logger.Printf("[INFO] nomad: found peers.json file, recovering Raft configuration...")
 			configuration, err := raft.ReadPeersJSON(peersFile)
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
-			tmpFsm, err := NewFSM(s.tombstoneGC, s.config.LogOutput)
+			tmpFsm, err := NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}
@@ -777,7 +802,7 @@ func (s *Server) setupRaft() error {
 			if err := os.Remove(peersFile); err != nil {
 				return fmt.Errorf("recovery failed to delete peers.json, please delete manually (see peers.info for details): %v", err)
 			}
-			s.logger.Printf("[INFO] consul: deleted peers.json file after successful recovery")
+			s.logger.Printf("[INFO] nomad: deleted peers.json file after successful recovery")
 		}
 	}
 
@@ -1003,7 +1028,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"nomad": map[string]string{
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
-			"leader_addr":   s.raft.Leader(),
+			"leader_addr":   string(s.raft.Leader()),
 			"bootstrap":     fmt.Sprintf("%v", s.config.Bootstrap),
 			"known_regions": toString(uint64(len(s.peers))),
 		},

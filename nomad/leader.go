@@ -576,7 +576,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	// log entries.
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("[ERR] consul: failed to get raft configuration: %v", err)
+		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
 		return err
 	}
 	for _, server := range configFuture.Configuration().Servers {
@@ -607,7 +607,7 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 	// log entries.
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("[ERR] consul: failed to get raft configuration: %v", err)
+		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
 		return err
 	}
 	for _, server := range configFuture.Configuration().Servers {
