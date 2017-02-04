@@ -989,44 +989,44 @@
 		{
 			"checksumSHA1": "zW2k8E1gkuySzTz2eXuSEDhpffY=",
 			"path": "github.com/shirou/gopsutil/cpu",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "EHW4AH6SCfTJGTrnqZ56PiOrJ7o=",
 			"path": "github.com/shirou/gopsutil/disk",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
-			"checksumSHA1": "j1sK6Ka83ypdYZzmuU+nTPXLPT0=",
+			"checksumSHA1": "j5cGmi4mFeXmsLpSTiakU/k7aOc=",
 			"path": "github.com/shirou/gopsutil/host",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "hz9RxkaV3Tnju2eiHBWO/Yv7n5c=",
 			"path": "github.com/shirou/gopsutil/internal/common",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "XQwjGKI51Y3aQ3/jNyRh9Gnprgg=",
 			"path": "github.com/shirou/gopsutil/mem",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "OSvOZs5uK5iolCOeS46nB2InVy8=",
 			"path": "github.com/shirou/gopsutil/net",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "JX0bRK/BdKVfbm4XOxMducVdY58=",
 			"path": "github.com/shirou/gopsutil/process",
-			"revision": "77b5d0080adb6f028e457906f1944d9fcca34442",
-			"revisionTime": "2017-02-02T00:16:45Z"
+			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
+			"revisionTime": "2017-02-04T05:36:48Z"
 		},
 		{
 			"checksumSHA1": "Nve7SpDmjsv6+rhkXAkfg/UQx94=",
