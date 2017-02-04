@@ -143,5 +143,11 @@ vault {
 
 The key difference is that the token is not necessary on the client.
 
+## `vault` Configuration Reloads
+
+The Vault configuration can be reloaded on servers. This can be useful if a new
+token needs to be given to the servers without having to restart them. A reload
+can be accomplished by sending the process a `SIGHUP` signal.
+
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
 [nomad-vault]: /docs/vault-integration/index.html "Nomad Vault Integration"
