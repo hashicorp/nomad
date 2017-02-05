@@ -116,7 +116,7 @@ DNS for resolution. Using [Consul](https://www.consul.io) provides a way to avoi
 coding addresses and resolving them on demand.
 
 While a client is running, it is performing heartbeating with servers to
-maintain liveness. If the hearbeats fail, the servers assume the client node
+maintain liveness. If the heartbeats fail, the servers assume the client node
 has failed, and stop assigning new tasks while migrating existing tasks.
 It is impossible to distinguish between a network failure and an agent crash,
 so both cases are handled the same. Once the network recovers or a crashed agent
