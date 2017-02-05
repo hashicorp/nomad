@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -50,6 +51,12 @@ type nomadFSM struct {
 	logger             *log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
+
+	// stateLock is only used to protect outside callers to State() from
+	// racing with Restore(), which is called by Raft (it puts in a totally
+	// new state store). Everything internal here is synchronized by the
+	// Raft side, so doesn't need to lock this.
+	stateLock sync.RWMutex
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -92,6 +99,8 @@ func (n *nomadFSM) Close() error {
 
 // State is used to return a handle to the current state
 func (n *nomadFSM) State() *state.StateStore {
+	n.stateLock.RLock()
+	defer n.stateLock.RUnlock()
 	return n.state
 }
 
@@ -677,6 +686,18 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			return fmt.Errorf("error reconciling summaries: %v", err)
 		}
 	}
+
+	// External code might be calling State(), so we need to synchronize
+	// here to make sure we swap in the new state store atomically.
+	n.stateLock.Lock()
+	stateOld := n.state
+	n.state = newState
+	n.stateLock.Unlock()
+
+	// Signal that the old state store has been abandoned. This is required
+	// because we don't operate on it any more, we just throw it away, so
+	// blocking queries won't see any changes and need to be woken up.
+	stateOld.Abandon()
 
 	return nil
 }

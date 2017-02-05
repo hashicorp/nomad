@@ -29,6 +29,10 @@ type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
 	watch  *stateWatch
+
+	// abandonCh is used to signal watchers that this state store has been
+	// abandoned (usually during a restore). This is only ever closed.
+	abandonCh chan struct{}
 }
 
 // NewStateStore is used to create a new state store
@@ -41,9 +45,10 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger: log.New(logOutput, "", log.LstdFlags),
-		db:     db,
-		watch:  newStateWatch(),
+		logger:    log.New(logOutput, "", log.LstdFlags),
+		db:        db,
+		watch:     newStateWatch(),
+		abandonCh: make(chan struct{}),
 	}
 	return s, nil
 }
@@ -80,9 +85,16 @@ func (s *StateStore) Watch(items watch.Items, notify chan struct{}) {
 	s.watch.watch(items, notify)
 }
 
-// StopWatch unsubscribes a channel from a set of watch items.
-func (s *StateStore) StopWatch(items watch.Items, notify chan struct{}) {
-	s.watch.stopWatch(items, notify)
+// AbandonCh returns a channel you can wait on to know if the state store was
+// abandoned.
+func (s *StateStore) AbandonCh() <-chan struct{} {
+	return s.abandonCh
+}
+
+// Abandon is used to signal that the given state store has been abandoned.
+// Calling this more than one time will panic.
+func (s *StateStore) Abandon() {
+	close(s.abandonCh)
 }
 
 // UpsertJobSummary upserts a job summary into the state store.
