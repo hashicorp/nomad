@@ -39,10 +39,10 @@ if [[ $(uname) == "Linux" ]]; then
     CC="aarch64-linux-gnu-gcc-5"  GOOS=linux GOARCH="arm64" CGO_ENABLED=1 go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm64/nomad"
 
     echo "==> Building windows 386..."
-    CGO_ENABLED=1 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad"
+    CGO_ENABLED=1 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
 
     echo "==> Building windows amd64..."
-    CGO_ENABLED=1 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad"
+    CGO_ENABLED=1 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
 elif [[ $(uname) == "Darwin" ]]; then
     echo "==> Building darwin amd64..."
     CGO_ENABLED=1 GOARCH="amd64" GOOS="darwin"  go build -ldflags "-X $LDFLAG" -o "pkg/darwin_amd64/nomad"
