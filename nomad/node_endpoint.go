@@ -952,7 +952,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	}
 
 	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
-		setErr(err, err == structs.ErrNoLeader)
+		setErr(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
 		return nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
