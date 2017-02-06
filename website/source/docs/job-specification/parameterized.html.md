@@ -6,7 +6,7 @@ description: |-
     A parameterized job is used to encapsulate a set of work that can be carried
     out on various inputs much like a function definition. When the
     `parameterized` stanza is added to a job, the job acts as a function to the
-    cluster as a whole. 
+    cluster as a whole.
 ---
 
 # `parameterized` Stanza
@@ -22,7 +22,7 @@ description: |-
 
 A parameterized job is used to encapsulate a set of work that can be carried out
 on various inputs much like a function definition. When the `parameterized`
-stanza is added to a job, the job acts as a function to the cluster as a whole. 
+stanza is added to a job, the job acts as a function to the cluster as a whole.
 
 The `parameterized` stanza allows job operators to configure a job that carries
 out a particular action, define its resource requirements and configure how
@@ -33,7 +33,7 @@ dispatch`][dispatch command] or the equivalent HTTP APIs are
 used. When dispatching against a parameterized job, an opaque payload and
 metadata may be injected into the job. These inputs to the parameterized job act
 like arguments to a function. The job consumes them to change it's behavior,
-without exposing the implementation details to the caller. 
+without exposing the implementation details to the caller.
 
 To that end, tasks within the job can add a
 [`dispatch_payload`][dispatch_payload] stanza that
@@ -94,16 +94,17 @@ metadata:
 
 ```hcl
 job "video-encode" {
-  ... 
+  # ...
+
   type = "batch"
 
   parameterized {
     payload       = "required"
     meta_required = ["dispatcher_email"]
   }
-    
+
   group "encode" {
-    ...
+    # ...
 
     task "ffmpeg" {
       driver = "exec"
@@ -115,7 +116,7 @@ job "video-encode" {
         # the created task upon startup
         args = ["-config=${NOMAD_TASK_DIR}/config.json"]
       }
-      
+
       dispatch_payload {
         file = "config.json"
       }
@@ -128,16 +129,17 @@ job "video-encode" {
 
 ```hcl
 job "email-blast" {
-  ... 
+  # ...
+
   type = "batch"
 
   parameterized {
     payload       = "forbidden"
     meta_required = ["CAMPAIGN_ID"]
   }
-    
+
   group "emails" {
-    ...
+    # ...
 
     task "emailer" {
       driver = "exec"
