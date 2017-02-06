@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -108,6 +110,48 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, err
 	}
 	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Ensure request method is POST or PUT
+	if !(req.Method == "POST" || req.Method == "PUT") {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var validateRequest api.JobValidateRequest
+	if err := decodeBody(req, &validateRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if validateRequest.Job == nil {
+		return nil, CodedError(400, "Job must be specified")
+	}
+
+	job := s.apiJobToStructJob(validateRequest.Job)
+	args := structs.JobValidateRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region: validateRequest.Region,
+		},
+	}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.JobValidateResponse
+	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
+
+		// Fall back to do local validation
+		args.Job.Canonicalize()
+		if vErr := args.Job.Validate(); vErr != nil {
+			if merr, ok := err.(*multierror.Error); ok {
+				for _, err := range merr.Errors {
+					out.ValidationErrors = append(out.ValidationErrors, err.Error())
+				}
+			}
+		} else {
+			out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
+		}
+	}
+
 	return out, nil
 }
 
@@ -309,4 +353,203 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+func (s *HTTPServer) apiJobToStructJob(job *api.Job) *structs.Job {
+	job.Canonicalize()
+
+	j := &structs.Job{
+		Region:            *job.Region,
+		ID:                *job.ID,
+		ParentID:          *job.ID,
+		Name:              *job.Name,
+		Type:              *job.Type,
+		Priority:          *job.Priority,
+		AllAtOnce:         *job.AllAtOnce,
+		Datacenters:       job.Datacenters,
+		Payload:           job.Payload,
+		Meta:              job.Meta,
+		VaultToken:        *job.VaultToken,
+		Status:            *job.Status,
+		StatusDescription: *job.StatusDescription,
+		CreateIndex:       *job.CreateIndex,
+		ModifyIndex:       *job.ModifyIndex,
+		JobModifyIndex:    *job.ModifyIndex,
+	}
+
+	j.Constraints = make([]*structs.Constraint, len(job.Constraints))
+	for i, c := range job.Constraints {
+		j.Constraints[i] = &structs.Constraint{
+			LTarget: c.LTarget,
+			RTarget: c.RTarget,
+			Operand: c.Operand,
+		}
+	}
+	if job.Update != nil {
+		j.Update = structs.UpdateStrategy{
+			Stagger:     job.Update.Stagger,
+			MaxParallel: job.Update.MaxParallel,
+		}
+	}
+	if job.Periodic != nil {
+		j.Periodic = &structs.PeriodicConfig{
+			Enabled:         j.Periodic.Enabled,
+			Spec:            j.Periodic.Spec,
+			SpecType:        j.Periodic.SpecType,
+			ProhibitOverlap: j.Periodic.ProhibitOverlap,
+		}
+	}
+	if job.ParameterizedJob != nil {
+		j.ParameterizedJob = &structs.ParameterizedJobConfig{
+			Payload:      job.ParameterizedJob.Payload,
+			MetaRequired: job.ParameterizedJob.MetaRequired,
+			MetaOptional: job.ParameterizedJob.MetaOptional,
+		}
+	}
+
+	j.TaskGroups = make([]*structs.TaskGroup, len(job.TaskGroups))
+	for i, taskGroup := range job.TaskGroups {
+		tg := &structs.TaskGroup{}
+		s.apiTgToStructsTG(taskGroup, tg)
+		j.TaskGroups[i] = tg
+	}
+
+	return j
+}
+
+func (s *HTTPServer) apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+	tg.Name = *taskGroup.Name
+	tg.Count = *taskGroup.Count
+	tg.Meta = taskGroup.Meta
+	tg.Constraints = make([]*structs.Constraint, len(taskGroup.Constraints))
+	for k, constraint := range taskGroup.Constraints {
+		tg.Constraints[k] = &structs.Constraint{
+			LTarget: constraint.LTarget,
+			RTarget: constraint.RTarget,
+			Operand: constraint.Operand,
+		}
+	}
+	tg.RestartPolicy = &structs.RestartPolicy{
+		Attempts: taskGroup.RestartPolicy.Attempts,
+		Interval: taskGroup.RestartPolicy.Interval,
+		Delay:    taskGroup.RestartPolicy.Delay,
+		Mode:     taskGroup.RestartPolicy.Mode,
+	}
+	tg.EphemeralDisk = &structs.EphemeralDisk{
+		Sticky:  *taskGroup.EphemeralDisk.Sticky,
+		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
+		Migrate: *taskGroup.EphemeralDisk.Migrate,
+	}
+	tg.Meta = taskGroup.Meta
+	tg.Tasks = make([]*structs.Task, len(taskGroup.Tasks))
+	for l, task := range taskGroup.Tasks {
+		t := &structs.Task{}
+		s.apiTaskToStructsTask(task, t)
+		tg.Tasks[l] = t
+	}
+}
+
+func (s *HTTPServer) apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
+	structsTask.Name = apiTask.Driver
+	structsTask.Driver = apiTask.Driver
+	structsTask.User = apiTask.User
+	structsTask.Config = apiTask.Config
+	structsTask.Constraints = make([]*structs.Constraint, len(apiTask.Constraints))
+	for i, constraint := range apiTask.Constraints {
+		structsTask.Constraints[i] = &structs.Constraint{
+			LTarget: constraint.LTarget,
+			RTarget: constraint.RTarget,
+			Operand: constraint.Operand,
+		}
+	}
+	structsTask.Env = apiTask.Env
+	structsTask.Services = make([]*structs.Service, len(apiTask.Services))
+	for i, service := range apiTask.Services {
+		structsTask.Services[i] = &structs.Service{
+			Name:      service.Name,
+			PortLabel: service.PortLabel,
+			Tags:      service.Tags,
+		}
+		structsTask.Services[i].Checks = make([]*structs.ServiceCheck, len(service.Checks))
+		for j, check := range service.Checks {
+			structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
+				Name:          check.Name,
+				Type:          check.Type,
+				Command:       check.Command,
+				Args:          check.Args,
+				Path:          check.Path,
+				Protocol:      check.Protocol,
+				PortLabel:     check.PortLabel,
+				Interval:      check.Interval,
+				Timeout:       check.Timeout,
+				InitialStatus: check.InitialStatus,
+			}
+		}
+	}
+	structsTask.Resources = &structs.Resources{
+		CPU:      *apiTask.Resources.CPU,
+		MemoryMB: *apiTask.Resources.MemoryMB,
+		IOPS:     *apiTask.Resources.IOPS,
+	}
+	structsTask.Resources.Networks = make([]*structs.NetworkResource, len(apiTask.Resources.Networks))
+	for i, nw := range apiTask.Resources.Networks {
+		structsTask.Resources.Networks[i] = &structs.NetworkResource{
+			CIDR:  nw.CIDR,
+			IP:    nw.IP,
+			MBits: nw.MBits,
+		}
+		structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, len(structsTask.Resources.Networks[i].DynamicPorts))
+		structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, len(structsTask.Resources.Networks[i].ReservedPorts))
+		for j, dp := range nw.DynamicPorts {
+			structsTask.Resources.Networks[i].DynamicPorts[j] = structs.Port{
+				Label: dp.Label,
+				Value: dp.Value,
+			}
+		}
+		for j, rp := range nw.ReservedPorts {
+			structsTask.Resources.Networks[i].ReservedPorts[j] = structs.Port{
+				Label: rp.Label,
+				Value: rp.Value,
+			}
+		}
+	}
+	structsTask.Meta = apiTask.Meta
+	structsTask.KillTimeout = apiTask.KillTimeout
+	structsTask.LogConfig = &structs.LogConfig{
+		MaxFiles:      *apiTask.LogConfig.MaxFiles,
+		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
+	}
+	structsTask.Artifacts = make([]*structs.TaskArtifact, len(apiTask.Artifacts))
+	for k, ta := range apiTask.Artifacts {
+		structsTask.Artifacts[k] = &structs.TaskArtifact{
+			GetterSource:  *ta.GetterSource,
+			GetterOptions: ta.GetterOptions,
+			RelativeDest:  *ta.RelativeDest,
+		}
+	}
+	if apiTask.Vault != nil {
+		structsTask.Vault = &structs.Vault{
+			Policies:     apiTask.Vault.Policies,
+			Env:          *apiTask.Vault.Env,
+			ChangeMode:   *apiTask.Vault.ChangeMode,
+			ChangeSignal: *apiTask.Vault.ChangeSignal,
+		}
+	}
+	structsTask.Templates = make([]*structs.Template, len(apiTask.Templates))
+	for i, template := range apiTask.Templates {
+		structsTask.Templates[i] = &structs.Template{
+			SourcePath:   *template.SourcePath,
+			DestPath:     *template.DestPath,
+			EmbeddedTmpl: *template.EmbeddedTmpl,
+			ChangeMode:   *template.ChangeMode,
+			ChangeSignal: *template.ChangeSignal,
+			Splay:        *template.Splay,
+			Perms:        *template.Perms,
+		}
+	}
+	if apiTask.DispatchPayload != nil {
+		structsTask.DispatchPayload = &structs.DispatchPayloadConfig{
+			File: apiTask.DispatchPayload.File,
+		}
+	}
 }

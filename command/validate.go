@@ -43,17 +43,26 @@ func (c *ValidateCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.StructJob(args[0])
+	job, err := c.JobGetter.ApiJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 
-	// Initialize any fields that need to be.
-	job.Canonicalize()
+	// Get the HTTP client
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 255
+	}
+
+	// Force the region to be that of the job.
+	if r := job.Region; r != nil {
+		client.SetRegion(*r)
+	}
 
 	// Check that the job is valid
-	if err := job.Validate(); err != nil {
+	if _, _, err := client.Jobs().Validate(job, nil); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
 		return 1
 	}

@@ -215,7 +215,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	for _, child := range children {
 		// Ensure that we are only showing jobs whose parent is the requested
 		// job.
-		if child.ParentID != job.ID {
+		if child.ParentID != *job.ID {
 			continue
 		}
 
@@ -262,7 +262,7 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 	for _, child := range children {
 		// Ensure that we are only showing jobs whose parent is the requested
 		// job.
-		if child.ParentID != job.ID {
+		if child.ParentID != *job.ID {
 			continue
 		}
 
@@ -282,13 +282,13 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	var evals, allocs []string
 
 	// Query the allocations
-	jobAllocs, _, err := client.Jobs().Allocations(job.ID, c.allAllocs, nil)
+	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}
 
 	// Query the evaluations
-	jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
+	jobEvals, _, err := client.Jobs().Evaluations(*job.ID, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
@@ -366,7 +366,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 // where appropriate
 func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
 	// Query the summary
-	summary, _, err := client.Jobs().Summary(job.ID, nil)
+	summary, _, err := client.Jobs().Summary(*job.ID, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job summary: %s", err)
 	}

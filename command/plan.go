@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
 )
@@ -99,25 +98,9 @@ func (c *PlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.StructJob(args[0])
+	job, err := c.JobGetter.ApiJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
-		return 255
-	}
-
-	// Initialize any fields that need to be.
-	job.Canonicalize()
-
-	// Check that the job is valid
-	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
-		return 255
-	}
-
-	// Convert it to something we can use
-	apiJob, err := convertStructJob(job)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 255
 	}
 
@@ -129,12 +112,12 @@ func (c *PlanCommand) Run(args []string) int {
 	}
 
 	// Force the region to be that of the job.
-	if r := job.Region; r != "" {
-		client.SetRegion(r)
+	if r := job.Region; r != nil {
+		client.SetRegion(*r)
 	}
 
 	// Submit the job
-	resp, _, err := client.Jobs().Plan(apiJob, diff, nil)
+	resp, _, err := client.Jobs().Plan(job, diff, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255
@@ -179,7 +162,7 @@ func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
+func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
 	var rolling *api.Evaluation
 	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
@@ -192,7 +175,7 @@ func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
 		out = "[bold][green]- All tasks successfully allocated.[reset]\n"
 	} else {
 		// Change the output depending on if we are a system job or not
-		if job.Type == "system" {
+		if job.Type != nil && *job.Type == "system" {
 			out = "[bold][yellow]- WARNING: Failed to place allocations on all nodes.[reset]\n"
 		} else {
 			out = "[bold][yellow]- WARNING: Failed to place all allocations.[reset]\n"

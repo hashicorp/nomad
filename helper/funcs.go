@@ -1,6 +1,9 @@
 package helper
 
-import "regexp"
+import (
+	"regexp"
+	"time"
+)
 
 // validUUID is used to check if a given string looks like a UUID
 var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
@@ -18,6 +21,26 @@ func IsUUID(str string) bool {
 // boolToPtr returns the pointer to a boolean
 func BoolToPtr(b bool) *bool {
 	return &b
+}
+
+// IntToPtr returns the pointer to an int
+func IntToPtr(i int) *int {
+	return &i
+}
+
+// UintToPtr returns the pointer to an uint
+func Uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+
+// StringToPtr returns the pointer to a string
+func StringToPtr(str string) *string {
+	return &str
+}
+
+// TimeToPtr returns the pointer to a time stamp
+func TimeToPtr(t time.Duration) *time.Duration {
+	return &t
 }
 
 // MapStringStringSliceValueSet returns the set of values in a map[string][]string

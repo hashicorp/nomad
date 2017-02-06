@@ -11,6 +11,7 @@ import (
 	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -487,10 +488,10 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	// Get Resources
 	var cpu, mem, disk, iops int
 	for _, alloc := range runningAllocs {
-		cpu += alloc.Resources.CPU
-		mem += alloc.Resources.MemoryMB
-		disk += alloc.Resources.DiskMB
-		iops += alloc.Resources.IOPS
+		cpu += *alloc.Resources.CPU
+		mem += *alloc.Resources.MemoryMB
+		disk += *alloc.Resources.DiskMB
+		iops += *alloc.Resources.IOPS
 	}
 
 	resources := make([]string, 2)
@@ -499,9 +500,9 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 		cpu,
 		total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
-		humanize.IBytes(uint64(total.MemoryMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(total.DiskMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
 		iops,
 		total.IOPS)
 
@@ -518,10 +519,10 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	if res == nil {
 		res = &api.Resources{}
 	}
-	total.CPU = r.CPU - res.CPU
-	total.MemoryMB = r.MemoryMB - res.MemoryMB
-	total.DiskMB = r.DiskMB - res.DiskMB
-	total.IOPS = r.IOPS - res.IOPS
+	total.CPU = helper.IntToPtr(*r.CPU - *res.CPU)
+	total.MemoryMB = helper.IntToPtr(*r.MemoryMB - *res.MemoryMB)
+	total.DiskMB = helper.IntToPtr(*r.DiskMB - *res.DiskMB)
+	total.IOPS = helper.IntToPtr(*r.IOPS - *res.IOPS)
 	return total
 }
 
@@ -550,7 +551,7 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 		math.Floor(cpu),
 		total.CPU,
 		humanize.IBytes(mem),
-		humanize.IBytes(uint64(total.MemoryMB*bytesPerMegabyte)))
+		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)))
 
 	return resources, nil
 }

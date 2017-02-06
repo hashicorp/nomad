@@ -2,6 +2,8 @@ package api
 
 import (
 	"time"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 // MemoryStats holds memory usage related stats
@@ -84,15 +86,35 @@ type Service struct {
 
 // EphemeralDisk is an ephemeral disk object
 type EphemeralDisk struct {
-	Sticky  bool
-	Migrate bool
-	SizeMB  int `mapstructure:"size"`
+	Sticky  *bool
+	Migrate *bool
+	SizeMB  *int `mapstructure:"size"`
+}
+
+func DefaultEphemeralDisk() *EphemeralDisk {
+	return &EphemeralDisk{
+		Sticky:  helper.BoolToPtr(false),
+		Migrate: helper.BoolToPtr(false),
+		SizeMB:  helper.IntToPtr(300),
+	}
+}
+
+func (e *EphemeralDisk) Canonicalize() {
+	if e.Sticky == nil {
+		e.Sticky = helper.BoolToPtr(false)
+	}
+	if e.Migrate == nil {
+		e.Migrate = helper.BoolToPtr(false)
+	}
+	if e.SizeMB == nil {
+		e.SizeMB = helper.IntToPtr(300)
+	}
 }
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name          string
-	Count         int
+	Name          *string
+	Count         *int
 	Constraints   []*Constraint
 	Tasks         []*Task
 	RestartPolicy *RestartPolicy
@@ -103,8 +125,43 @@ type TaskGroup struct {
 // NewTaskGroup creates a new TaskGroup.
 func NewTaskGroup(name string, count int) *TaskGroup {
 	return &TaskGroup{
-		Name:  name,
-		Count: count,
+		Name:  helper.StringToPtr(name),
+		Count: helper.IntToPtr(count),
+	}
+}
+
+func (g *TaskGroup) Canonicalize(jobType string) {
+	if g.Name == nil {
+		g.Name = helper.StringToPtr("")
+	}
+	if g.Count == nil {
+		g.Count = helper.IntToPtr(1)
+	}
+	for _, t := range g.Tasks {
+		t.Canonicalize()
+	}
+	if g.EphemeralDisk == nil {
+		g.EphemeralDisk = DefaultEphemeralDisk()
+	} else {
+		g.EphemeralDisk.Canonicalize()
+	}
+	if g.RestartPolicy == nil {
+		switch jobType {
+		case "service", "system":
+			g.RestartPolicy = &RestartPolicy{
+				Delay:    15 * time.Second,
+				Attempts: 2,
+				Interval: 1 * time.Minute,
+				Mode:     "delay",
+			}
+		default:
+			g.RestartPolicy = &RestartPolicy{
+				Delay:    15 * time.Second,
+				Attempts: 15,
+				Interval: 7 * 24 * time.Hour,
+				Mode:     "delay",
+			}
+		}
 	}
 }
 
@@ -137,8 +194,24 @@ func (g *TaskGroup) RequireDisk(disk *EphemeralDisk) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      int
-	MaxFileSizeMB int
+	MaxFiles      *int
+	MaxFileSizeMB *int
+}
+
+func DefaultLogConfig() *LogConfig {
+	return &LogConfig{
+		MaxFiles:      helper.IntToPtr(10),
+		MaxFileSizeMB: helper.IntToPtr(10),
+	}
+}
+
+func (l *LogConfig) Canonicalize() {
+	if l.MaxFiles == nil {
+		l.MaxFiles = helper.IntToPtr(10)
+	}
+	if l.MaxFileSizeMB == nil {
+		l.MaxFileSizeMB = helper.IntToPtr(10)
+	}
 }
 
 // DispatchPayloadConfig configures how a task gets its input from a job dispatch
@@ -166,28 +239,79 @@ type Task struct {
 	Leader          *bool
 }
 
+func (t *Task) Canonicalize() {
+	if t.LogConfig == nil {
+		t.LogConfig = DefaultLogConfig()
+	} else {
+		t.LogConfig.Canonicalize()
+	}
+	if t.Vault != nil {
+		t.Vault.Canonicalize()
+	}
+	for _, artifact := range t.Artifacts {
+		artifact.Canonicalize()
+	}
+	for _, tmpl := range t.Templates {
+		tmpl.Canonicalize()
+	}
+
+	min := MinResources()
+	min.Merge(t.Resources)
+	t.Resources = min
+}
+
 // TaskArtifact is used to download artifacts before running a task.
 type TaskArtifact struct {
-	GetterSource  string
+	GetterSource  *string
 	GetterOptions map[string]string
-	RelativeDest  string
+	RelativeDest  *string
+}
+
+func (a *TaskArtifact) Canonicalize() {
+	if a.RelativeDest == nil {
+		a.RelativeDest = helper.StringToPtr("local/")
+	}
 }
 
 type Template struct {
-	SourcePath   string
-	DestPath     string
-	EmbeddedTmpl string
-	ChangeMode   string
-	ChangeSignal string
-	Splay        time.Duration
-	Perms        string
+	SourcePath   *string
+	DestPath     *string
+	EmbeddedTmpl *string
+	ChangeMode   *string
+	ChangeSignal *string
+	Splay        *time.Duration
+	Perms        *string
+}
+
+func (tmpl *Template) Canonicalize() {
+	if tmpl.ChangeMode == nil {
+		tmpl.ChangeMode = helper.StringToPtr("restart")
+	}
+	if tmpl.Splay == nil {
+		tmpl.Splay = helper.TimeToPtr(5 * time.Second)
+	}
+	if tmpl.Perms == nil {
+		tmpl.Perms = helper.StringToPtr("0644")
+	}
 }
 
 type Vault struct {
 	Policies     []string
-	Env          bool
-	ChangeMode   string
-	ChangeSignal string
+	Env          *bool
+	ChangeMode   *string
+	ChangeSignal *string
+}
+
+func (v *Vault) Canonicalize() {
+	if v.Env == nil {
+		v.Env = helper.BoolToPtr(true)
+	}
+	if v.ChangeMode == nil {
+		v.ChangeMode = helper.StringToPtr("restart")
+	}
+	if v.ChangeSignal == nil {
+		v.ChangeSignal = helper.StringToPtr("sighup")
+	}
 }
 
 // NewTask creates and initializes a new Task.
