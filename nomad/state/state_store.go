@@ -899,7 +899,6 @@ func (s *StateStore) Evals(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // UpdateAllocsFromClient is used to update an allocation based on input
-
 // from a client. While the schedulers are the authority on the allocation for
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
@@ -939,8 +938,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	exist := existing.(*structs.Allocation)
 
 	// Copy everything from the existing allocation
-	copyAlloc := new(structs.Allocation)
-	*copyAlloc = *exist
+	copyAlloc := exist.Copy()
 
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
