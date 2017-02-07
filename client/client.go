@@ -666,7 +666,7 @@ func (c *Client) nodeID() (id, secret string, err error) {
 
 	// Use existing ID if any
 	if len(idBuf) != 0 {
-		id = string(idBuf)
+		id = strings.ToLower(string(idBuf))
 	} else {
 		id = hostID
 
