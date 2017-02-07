@@ -372,6 +372,7 @@ func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan str
 	// Do an exact lookup
 	if indexSchema.Unique && val != nil && indexSchema.Name == index {
 		watch, obj, ok := indexTxn.GetWatch(val)
+		fmt.Printf("XXX watch %p\n", watch)
 		if !ok {
 			return watch, nil, nil
 		}

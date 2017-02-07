@@ -1477,6 +1477,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 func (s *StateStore) setJobStatuses(index uint64, txn *memdb.Txn,
 	jobs map[string]string, evalDelete bool) error {
 	for job, forceStatus := range jobs {
+		fmt.Printf("XXX set job status: %s\n", job)
 		existing, err := txn.First("jobs", "id", job)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
@@ -1520,8 +1521,10 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 
 	// Fast-path if nothing has changed.
 	if oldStatus == newStatus {
+		fmt.Printf("XXX no status change: %s\n", job.ID)
 		return nil
 	}
+	fmt.Printf("XXX status change: %s\n", job.ID)
 
 	// Copy and update the existing job
 	updated := job.Copy()
@@ -1537,12 +1540,14 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 	}
 
 	// Update the children summary
+	fmt.Printf("XXX updated ParentID: %s\n", updated.ParentID)
 	if updated.ParentID != "" {
 		// Try to update the summary of the parent job summary
-		summaryRaw, err := txn.First("job_summary", "id", updated.ParentID)
+		watchCh, summaryRaw, err := txn.FirstWatch("job_summary", "id", updated.ParentID)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
 		}
+		fmt.Printf("XXX parent watch: %p\n", watchCh)
 
 		// Only continue if the summary exists. It could not exist if the parent
 		// job was removed
@@ -1799,6 +1804,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			return fmt.Errorf("index update failed: %v", err)
 		}
 
+		fmt.Printf("XXX summary changed: %#v\n", jobSummary)
 		if err := txn.Insert("job_summary", jobSummary); err != nil {
 			return fmt.Errorf("updating job summary failed: %v", err)
 		}

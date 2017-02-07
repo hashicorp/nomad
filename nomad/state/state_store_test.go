@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -2099,10 +2100,25 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	}
 
 	// Create watchsets so we can test that update fires the watch
+	fmt.Printf("***** XXX START child.ID, parent.ID: %s, %s\n", child.ID, parent.ID)
 	ws := memdb.NewWatchSet()
-	if _, err := state.JobSummaryByID(ws, parent.ID); err != nil {
+	summary, err := state.JobSummaryByID(ws, parent.ID)
+	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 1 || summary.Children.Dead != 0 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+	fmt.Printf("***** XXX END   child.ID, parent.ID: %s, %s\n", child.ID, parent.ID)
 
 	// Create the delta updates
 	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStateRunning}}
@@ -2113,18 +2129,20 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 	}
+	fmt.Printf("***** XXX START UpdateAllocsFromClient\n")
 	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update})
+	fmt.Printf("***** XXX END   UpdateAllocsFromClient\n")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// XXX why is this failing
-	//if !watchFired(ws) {
-	//t.Fatalf("bad")
-	//}
+	//	if !watchFired(ws) {
+	//		t.Fatalf("bad")
+	//	}
 
 	ws = memdb.NewWatchSet()
-	summary, err := state.JobSummaryByID(ws, parent.ID)
+	summary, err = state.JobSummaryByID(ws, parent.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

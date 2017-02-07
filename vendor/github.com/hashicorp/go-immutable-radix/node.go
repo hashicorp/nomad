@@ -2,6 +2,7 @@ package iradix
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 )
 
@@ -116,6 +117,7 @@ func (n *Node) GetWatch(k []byte) (<-chan struct{}, interface{}, bool) {
 		// Check for key exhaustion
 		if len(search) == 0 {
 			if n.isLeaf() {
+				fmt.Printf("XXX from leaf: %v\n", n.leaf.val)
 				return n.leaf.mutateCh, n.leaf.val, true
 			}
 			break
@@ -137,6 +139,7 @@ func (n *Node) GetWatch(k []byte) (<-chan struct{}, interface{}, bool) {
 			break
 		}
 	}
+	fmt.Printf("XXX from prefix\n")
 	return watch, nil, false
 }
 
