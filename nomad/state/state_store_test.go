@@ -2098,32 +2098,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Create watchsets so we can test that update fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.JobSummaryByID(ws, parent.ID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Create the delta updates
-	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStateRunning}}
-	update := &structs.Allocation{
-		ID:           alloc.ID,
-		ClientStatus: structs.AllocClientStatusRunning,
-		TaskStates:   ts,
-		JobID:        alloc.JobID,
-		TaskGroup:    alloc.TaskGroup,
-	}
-	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// XXX why is this failing
-	//if !watchFired(ws) {
-	//t.Fatalf("bad")
-	//}
-
-	ws = memdb.NewWatchSet()
 	summary, err := state.JobSummaryByID(ws, parent.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -2138,6 +2113,48 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		t.Fatalf("nil children summary")
 	}
 	if summary.Children.Pending != 0 || summary.Children.Running != 1 || summary.Children.Dead != 0 {
+		t.Fatalf("bad children summary: %v", summary.Children)
+	}
+
+	// Create watchsets so we can test that update fires the watch
+	ws = memdb.NewWatchSet()
+	if _, err := state.JobSummaryByID(ws, parent.ID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create the delta updates
+	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStateRunning}}
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusComplete,
+		TaskStates:   ts,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+	}
+	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	summary, err = state.JobSummaryByID(ws, parent.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if summary == nil {
+		t.Fatalf("nil summary")
+	}
+	if summary.JobID != parent.ID {
+		t.Fatalf("bad summary id: %v", parent.ID)
+	}
+	if summary.Children == nil {
+		t.Fatalf("nil children summary")
+	}
+	if summary.Children.Pending != 0 || summary.Children.Running != 0 || summary.Children.Dead != 1 {
 		t.Fatalf("bad children summary: %v", summary.Children)
 	}
 
