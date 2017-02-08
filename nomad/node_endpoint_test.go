@@ -862,7 +862,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		NodeID: node2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.SingleNodeResponse

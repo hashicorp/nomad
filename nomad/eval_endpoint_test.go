@@ -86,7 +86,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 		EvalID: eval2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.SingleEvalResponse
@@ -592,7 +592,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 		EvalID: alloc2.EvalID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.EvalAllocationsResponse

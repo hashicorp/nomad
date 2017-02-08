@@ -371,6 +371,9 @@ RUN_QUERY:
 	// abandon channel goes with the state that the caller is using to
 	// build watches.
 	state = s.fsm.State()
+	snap, _ := state.Snapshot()
+	state = &snap.StateStore
+	// XXX Ask james
 
 	// We can skip all watch tracking if this isn't a blocking query.
 	var ws memdb.WatchSet

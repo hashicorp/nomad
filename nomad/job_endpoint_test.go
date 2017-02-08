@@ -1307,7 +1307,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	start := time.Now()
@@ -1441,7 +1441,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp.Index, 100)
 	}
 	if len(resp.Jobs) != 1 || resp.Jobs[0].ID != job.ID {
-		t.Fatalf("bad: %#v", resp.Jobs)
+		t.Fatalf("bad: %#v", resp)
 	}
 
 	// Job deletion triggers watches
@@ -1465,7 +1465,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 200)
 	}
 	if len(resp2.Jobs) != 0 {
-		t.Fatalf("bad: %#v", resp2.Jobs)
+		t.Fatalf("bad: %#v", resp2)
 	}
 }
 
@@ -1541,7 +1541,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.JobAllocationsResponse
@@ -1629,7 +1629,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.JobEvaluationsResponse
