@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -132,7 +133,8 @@ func TestInvalidateHeartbeat(t *testing.T) {
 	s1.invalidateHeartbeat(node.ID)
 
 	// Check it is updated
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

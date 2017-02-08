@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
@@ -72,7 +72,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		if err != nil {
 			return err
 		}
-		job, err := snap.JobByID(args.Job.ID)
+		ws := memdb.NewWatchSet()
+		job, err := snap.JobByID(ws, args.Job.ID)
 		if err != nil {
 			return err
 		}
@@ -257,15 +258,9 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{JobSummary: args.JobID}),
-		run: func() error {
-			snap, err := j.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for job summary
-			out, err := snap.JobSummaryByID(args.JobID)
+			out, err := state.JobSummaryByID(ws, args.JobID)
 			if err != nil {
 				return err
 			}
@@ -276,7 +271,7 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the job_summary table
-				index, err := snap.Index("job_summary")
+				index, err := state.Index("job_summary")
 				if err != nil {
 					return err
 				}
@@ -307,7 +302,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	job, err := snap.JobByID(args.JobID)
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, args.JobID)
 	if err != nil {
 		return err
 	}
@@ -368,7 +364,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	if err != nil {
 		return err
 	}
-	job, err := snap.JobByID(args.JobID)
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, args.JobID)
 	if err != nil {
 		return err
 	}
@@ -432,15 +429,9 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Job: args.JobID}),
-		run: func() error {
-
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the job
-			snap, err := j.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			out, err := snap.JobByID(args.JobID)
+			out, err := state.JobByID(ws, args.JobID)
 			if err != nil {
 				return err
 			}
@@ -451,7 +442,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
-				index, err := snap.Index("jobs")
+				index, err := state.Index("jobs")
 				if err != nil {
 					return err
 				}
@@ -477,18 +468,14 @@ func (j *Job) List(args *structs.JobListRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Table: "jobs"}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture all the jobs
-			snap, err := j.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
+			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = snap.JobsByIDPrefix(prefix)
+				iter, err = state.JobsByIDPrefix(ws, prefix)
 			} else {
-				iter, err = snap.Jobs()
+				iter, err = state.Jobs(ws)
 			}
 			if err != nil {
 				return err
@@ -501,7 +488,7 @@ func (j *Job) List(args *structs.JobListRequest,
 					break
 				}
 				job := raw.(*structs.Job)
-				summary, err := snap.JobSummaryByID(job.ID)
+				summary, err := state.JobSummaryByID(ws, job.ID)
 				if err != nil {
 					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 				}
@@ -510,7 +497,7 @@ func (j *Job) List(args *structs.JobListRequest,
 			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table
-			index, err := snap.Index("jobs")
+			index, err := state.Index("jobs")
 			if err != nil {
 				return err
 			}
@@ -535,14 +522,9 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{AllocJob: args.JobID}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the allocations
-			snap, err := j.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			allocs, err := snap.AllocsByJob(args.JobID, args.AllAllocs)
+			allocs, err := state.AllocsByJob(ws, args.JobID, args.AllAllocs)
 			if err != nil {
 				return err
 			}
@@ -556,7 +538,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 			}
 
 			// Use the last index that affected the allocs table
-			index, err := snap.Index("allocs")
+			index, err := state.Index("allocs")
 			if err != nil {
 				return err
 			}
@@ -582,21 +564,16 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{EvalJob: args.JobID}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the evals
-			snap, err := j.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-
-			reply.Evaluations, err = snap.EvalsByJob(args.JobID)
+			var err error
+			reply.Evaluations, err = state.EvalsByJob(ws, args.JobID)
 			if err != nil {
 				return err
 			}
 
 			// Use the last index that affected the evals table
-			index, err := snap.Index("evals")
+			index, err := state.Index("evals")
 			if err != nil {
 				return err
 			}
@@ -641,7 +618,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Get the original job
-	oldJob, err := snap.JobByID(args.Job.ID)
+	ws := memdb.NewWatchSet()
+	oldJob, err := snap.JobByID(ws, args.Job.ID)
 	if err != nil {
 		return err
 	}
@@ -797,7 +775,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if err != nil {
 		return err
 	}
-	parameterizedJob, err := snap.JobByID(args.JobID)
+	ws := memdb.NewWatchSet()
+	parameterizedJob, err := snap.JobByID(ws, args.JobID)
 	if err != nil {
 		return err
 	}

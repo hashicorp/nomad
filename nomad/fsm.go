@@ -5,9 +5,11 @@ import (
 	"io"
 	"log"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -50,6 +52,12 @@ type nomadFSM struct {
 	logger             *log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
+
+	// stateLock is only used to protect outside callers to State() from
+	// racing with Restore(), which is called by Raft (it puts in a totally
+	// new state store). Everything internal here is synchronized by the
+	// Raft side, so doesn't need to lock this.
+	stateLock sync.RWMutex
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -92,6 +100,8 @@ func (n *nomadFSM) Close() error {
 
 // State is used to return a handle to the current state
 func (n *nomadFSM) State() *state.StateStore {
+	n.stateLock.RLock()
+	defer n.stateLock.RUnlock()
 	return n.state
 }
 
@@ -203,7 +213,8 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	// Unblock evals for the nodes computed node class if it is in a ready
 	// state.
 	if req.Status == structs.NodeStatusReady {
-		node, err := n.state.NodeByID(req.NodeID)
+		ws := memdb.NewWatchSet()
+		node, err := n.state.NodeByID(ws, req.NodeID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", req.NodeID, err)
 			return err
@@ -256,13 +267,16 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		return err
 	}
 
+	// Create a watch set
+	ws := memdb.NewWatchSet()
+
 	// If it is periodic, record the time it was inserted. This is necessary for
 	// recovering during leader election. It is possible that from the time it
 	// is added to when it was suppose to launch, leader election occurs and the
 	// job was not launched. In this case, we use the insertion time to
 	// determine if a launch was missed.
 	if req.Job.IsPeriodic() {
-		prevLaunch, err := n.state.PeriodicLaunchByID(req.Job.ID)
+		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Job.ID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
 			return err
@@ -282,7 +296,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// Check if the parent job is periodic and mark the launch time.
 	parentID := req.Job.ParentID
 	if parentID != "" {
-		parent, err := n.state.JobByID(parentID)
+		parent, err := n.state.JobByID(ws, parentID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID(%v) lookup for parent failed: %v", parentID, err)
 			return err
@@ -435,9 +449,12 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return nil
 	}
 
+	// Create a watch set
+	ws := memdb.NewWatchSet()
+
 	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
-		if existing, _ := n.state.AllocByID(alloc.ID); existing != nil {
+		if existing, _ := n.state.AllocByID(ws, alloc.ID); existing != nil {
 			alloc.JobID = existing.JobID
 			alloc.TaskGroup = existing.TaskGroup
 		}
@@ -455,7 +472,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		if alloc.ClientStatus == structs.AllocClientStatusComplete ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
 			nodeID := alloc.NodeID
-			node, err := n.state.NodeByID(nodeID)
+			node, err := n.state.NodeByID(ws, nodeID)
 			if err != nil || node == nil {
 				n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", nodeID, err)
 				return err
@@ -531,7 +548,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	if err != nil {
 		return err
 	}
-	n.state = newState
 
 	// Start the state restore
 	restore, err := newState.Restore()
@@ -660,7 +676,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// summaries if they were not present previously. When users upgrade to 0.5
 	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
 	// remove this block.
-	index, err := n.state.Index("job_summary")
+	index, err := newState.Index("job_summary")
 	if err != nil {
 		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
 	}
@@ -669,14 +685,26 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// we will have to create them
 	if index == 0 {
 		// query the latest index
-		latestIndex, err := n.state.LatestIndex()
+		latestIndex, err := newState.LatestIndex()
 		if err != nil {
 			return fmt.Errorf("unable to query latest index: %v", index)
 		}
-		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
+		if err := newState.ReconcileJobSummaries(latestIndex); err != nil {
 			return fmt.Errorf("error reconciling summaries: %v", err)
 		}
 	}
+
+	// External code might be calling State(), so we need to synchronize
+	// here to make sure we swap in the new state store atomically.
+	n.stateLock.Lock()
+	stateOld := n.state
+	n.state = newState
+	n.stateLock.Unlock()
+
+	// Signal that the old state store has been abandoned. This is required
+	// because we don't operate on it any more, we just throw it away, so
+	// blocking queries won't see any changes and need to be woken up.
+	stateOld.Abandon()
 
 	return nil
 }
@@ -685,7 +713,8 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 // created a Job Summary during the snap shot restore
 func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	// Get all the jobs
-	iter, err := n.state.Jobs()
+	ws := memdb.NewWatchSet()
+	iter, err := n.state.Jobs(ws)
 	if err != nil {
 		return err
 	}
@@ -729,7 +758,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 
 		// Get the job summary from the fsm state store
-		originalSummary, err := n.state.JobSummaryByID(job.ID)
+		originalSummary, err := n.state.JobSummaryByID(ws, job.ID)
 		if err != nil {
 			return err
 		}
@@ -865,7 +894,8 @@ func (s *nomadSnapshot) persistIndexes(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the nodes
-	nodes, err := s.snap.Nodes()
+	ws := memdb.NewWatchSet()
+	nodes, err := s.snap.Nodes(ws)
 	if err != nil {
 		return err
 	}
@@ -892,7 +922,8 @@ func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
-	jobs, err := s.snap.Jobs()
+	ws := memdb.NewWatchSet()
+	jobs, err := s.snap.Jobs(ws)
 	if err != nil {
 		return err
 	}
@@ -919,7 +950,8 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the evaluations
-	evals, err := s.snap.Evals()
+	ws := memdb.NewWatchSet()
+	evals, err := s.snap.Evals(ws)
 	if err != nil {
 		return err
 	}
@@ -946,7 +978,8 @@ func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the allocations
-	allocs, err := s.snap.Allocs()
+	ws := memdb.NewWatchSet()
+	allocs, err := s.snap.Allocs(ws)
 	if err != nil {
 		return err
 	}
@@ -973,7 +1006,8 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
-	launches, err := s.snap.PeriodicLaunches()
+	ws := memdb.NewWatchSet()
+	launches, err := s.snap.PeriodicLaunches(ws)
 	if err != nil {
 		return err
 	}
@@ -1000,7 +1034,8 @@ func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
-	summaries, err := s.snap.JobSummaries()
+	ws := memdb.NewWatchSet()
+	summaries, err := s.snap.JobSummaries(ws)
 	if err != nil {
 		return err
 	}
@@ -1024,7 +1059,8 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
-	accessors, err := s.snap.VaultAccessors()
+	ws := memdb.NewWatchSet()
+	accessors, err := s.snap.VaultAccessors(ws)
 	if err != nil {
 		return err
 	}

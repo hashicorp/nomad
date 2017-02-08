@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -191,7 +192,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 // a leadership transition takes place.
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
-	iter, err := s.fsm.State().Evals()
+	ws := memdb.NewWatchSet()
+	iter, err := s.fsm.State().Evals(ws)
 	if err != nil {
 		return fmt.Errorf("failed to get evaluations: %v", err)
 	}
@@ -216,8 +218,9 @@ func (s *Server) restoreEvals() error {
 // revoked.
 func (s *Server) restoreRevokingAccessors() error {
 	// An accessor should be revoked if its allocation or node is terminal
+	ws := memdb.NewWatchSet()
 	state := s.fsm.State()
-	iter, err := state.VaultAccessors()
+	iter, err := state.VaultAccessors(ws)
 	if err != nil {
 		return fmt.Errorf("failed to get vault accessors: %v", err)
 	}
@@ -232,7 +235,7 @@ func (s *Server) restoreRevokingAccessors() error {
 		va := raw.(*structs.VaultAccessor)
 
 		// Check the allocation
-		alloc, err := state.AllocByID(va.AllocID)
+		alloc, err := state.AllocByID(ws, va.AllocID)
 		if err != nil {
 			return fmt.Errorf("failed to lookup allocation: %v", va.AllocID, err)
 		}
@@ -243,7 +246,7 @@ func (s *Server) restoreRevokingAccessors() error {
 		}
 
 		// Check the node
-		node, err := state.NodeByID(va.NodeID)
+		node, err := state.NodeByID(ws, va.NodeID)
 		if err != nil {
 			return fmt.Errorf("failed to lookup node %q: %v", va.NodeID, err)
 		}
@@ -269,7 +272,8 @@ func (s *Server) restoreRevokingAccessors() error {
 // dispatcher is maintained only by the leader, so it must be restored anytime a
 // leadership transition takes place.
 func (s *Server) restorePeriodicDispatcher() error {
-	iter, err := s.fsm.State().JobsByPeriodic(true)
+	ws := memdb.NewWatchSet()
+	iter, err := s.fsm.State().JobsByPeriodic(ws, true)
 	if err != nil {
 		return fmt.Errorf("failed to get periodic jobs: %v", err)
 	}
@@ -282,7 +286,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// If the periodic job has never been launched before, launch will hold
 		// the time the periodic job was added. Otherwise it has the last launch
 		// time of the periodic job.
-		launch, err := s.fsm.State().PeriodicLaunchByID(job.ID)
+		launch, err := s.fsm.State().PeriodicLaunchByID(ws, job.ID)
 		if err != nil || launch == nil {
 			return fmt.Errorf("failed to get periodic launch time: %v", err)
 		}

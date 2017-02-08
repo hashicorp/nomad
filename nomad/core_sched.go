@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -67,7 +68,8 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 // jobGC is used to garbage collect eligible jobs.
 func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	// Get all the jobs eligible for garbage collection.
-	iter, err := c.snap.JobsByGC(true)
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.JobsByGC(ws, true)
 	if err != nil {
 		return err
 	}
@@ -99,7 +101,8 @@ OUTER:
 			continue
 		}
 
-		evals, err := c.snap.EvalsByJob(job.ID)
+		ws := memdb.NewWatchSet()
+		evals, err := c.snap.EvalsByJob(ws, job.ID)
 		if err != nil {
 			c.srv.logger.Printf("[ERR] sched.core: failed to get evals for job %s: %v", job.ID, err)
 			continue
@@ -163,7 +166,8 @@ OUTER:
 // evalGC is used to garbage collect old evaluations
 func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
-	iter, err := c.snap.Evals()
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.Evals(ws)
 	if err != nil {
 		return err
 	}
@@ -227,6 +231,9 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		return false, nil, nil
 	}
 
+	// Create a watchset
+	ws := memdb.NewWatchSet()
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
@@ -237,7 +244,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		}
 
 		// Check if the job is running
-		job, err := c.snap.JobByID(eval.JobID)
+		job, err := c.snap.JobByID(ws, eval.JobID)
 		if err != nil {
 			return false, nil, err
 		}
@@ -249,7 +256,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	// Get the allocations by eval
-	allocs, err := c.snap.AllocsByEval(eval.ID)
+	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
 	if err != nil {
 		c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for eval %s: %v",
 			eval.ID, err)
@@ -336,7 +343,8 @@ func (c *CoreScheduler) partitionReap(evals, allocs []string) []*structs.EvalDel
 // nodeGC is used to garbage collect old nodes
 func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
-	iter, err := c.snap.Nodes()
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.Nodes(ws)
 	if err != nil {
 		return err
 	}
@@ -374,7 +382,8 @@ OUTER:
 		}
 
 		// Get the allocations by node
-		allocs, err := c.snap.AllocsByNode(node.ID)
+		ws := memdb.NewWatchSet()
+		allocs, err := c.snap.AllocsByNode(ws, node.ID)
 		if err != nil {
 			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for node %s: %v",
 				eval.ID, err)

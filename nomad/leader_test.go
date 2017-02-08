@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -406,7 +407,8 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	last, err := s1.fsm.State().PeriodicLaunchByID(job.ID)
+	ws := memdb.NewWatchSet()
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -457,7 +459,8 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	}
 
 	// Check that an eval was made.
-	last, err := s1.fsm.State().PeriodicLaunchByID(job.ID)
+	ws := memdb.NewWatchSet()
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -508,7 +511,8 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 	// Wait updated evaluation
 	state := s1.fsm.State()
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.EvalByID(eval.ID)
+		ws := memdb.NewWatchSet()
+		out, err := state.EvalByID(ws, eval.ID)
 		if err != nil {
 			return false, err
 		}
@@ -535,7 +539,8 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	// Wait for the evaluation to marked as cancelled
 	state := s1.fsm.State()
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.EvalByID(eval2.ID)
+		ws := memdb.NewWatchSet()
+		out, err := state.EvalByID(ws, eval2.ID)
 		if err != nil {
 			return false, err
 		}

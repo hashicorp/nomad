@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,7 +40,8 @@ func TestJobEndpoint_Register(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -56,7 +58,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(resp.EvalID)
+	eval, err := state.EvalByID(ws, resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -185,7 +187,8 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -200,7 +203,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(resp.EvalID)
+	eval, err := state.EvalByID(ws, resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -257,7 +260,8 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -306,7 +310,8 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -365,7 +370,8 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -421,7 +427,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
-	out, err = state.JobByID(job.ID)
+	out, err = state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -498,7 +504,8 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -621,7 +628,8 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -664,7 +672,7 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	}
 
 	// Check for the job in the FSM
-	out, err = state.JobByID(job2.ID)
+	out, err = state.JobByID(ws, job2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -719,7 +727,8 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 
 	// Lookup the evaluation
 	state := s1.fsm.State()
-	eval, err := state.EvalByID(resp.EvalID)
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -859,8 +868,9 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 
 	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -869,7 +879,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(resp2.EvalID)
+	eval, err := state.EvalByID(ws, resp2.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -924,7 +934,8 @@ func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 
 	// Lookup the evaluation
 	state := s1.fsm.State()
-	eval, err := state.EvalByID(resp2.EvalID)
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp2.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -991,7 +1002,8 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1042,7 +1054,8 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1294,7 +1307,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	start := time.Now()
@@ -1428,7 +1441,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp.Index, 100)
 	}
 	if len(resp.Jobs) != 1 || resp.Jobs[0].ID != job.ID {
-		t.Fatalf("bad: %#v", resp.Jobs)
+		t.Fatalf("bad: %#v", resp)
 	}
 
 	// Job deletion triggers watches
@@ -1452,7 +1465,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 200)
 	}
 	if len(resp2.Jobs) != 0 {
-		t.Fatalf("bad: %#v", resp2.Jobs)
+		t.Fatalf("bad: %#v", resp2)
 	}
 }
 
@@ -1528,7 +1541,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.JobAllocationsResponse
@@ -1616,7 +1629,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.JobEvaluationsResponse
@@ -1782,7 +1795,8 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1837,7 +1851,8 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2078,7 +2093,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 
 				state := s1.fsm.State()
-				out, err := state.JobByID(dispatchResp.DispatchedJobID)
+				ws := memdb.NewWatchSet()
+				out, err := state.JobByID(ws, dispatchResp.DispatchedJobID)
 				if err != nil {
 					t.Fatalf("err: %v", err)
 				}
@@ -2093,7 +2109,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 
 				// Lookup the evaluation
-				eval, err := state.EvalByID(dispatchResp.EvalID)
+				eval, err := state.EvalByID(ws, dispatchResp.EvalID)
 				if err != nil {
 					t.Fatalf("err: %v", err)
 				}

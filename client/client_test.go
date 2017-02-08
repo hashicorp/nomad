@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
@@ -477,7 +478,8 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	state.UpsertAllocs(101, []*structs.Allocation{alloc})
 
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.AllocByID(alloc.ID)
+		ws := memdb.NewWatchSet()
+		out, err := state.AllocByID(ws, alloc.ID)
 		if err != nil {
 			return false, err
 		}
@@ -724,7 +726,8 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	// Wait for the node to be ready
 	state := s1.State()
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.NodeByID(c1.Node().ID)
+		ws := memdb.NewWatchSet()
+		out, err := state.NodeByID(ws, c1.Node().ID)
 		if err != nil {
 			return false, err
 		}
@@ -753,7 +756,8 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {
-		out, err := state.AllocByID(alloc.ID)
+		ws := memdb.NewWatchSet()
+		out, err := state.AllocByID(ws, alloc.ID)
 		if err != nil {
 			return false, err
 		}

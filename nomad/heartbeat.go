@@ -5,6 +5,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -19,7 +20,8 @@ func (s *Server) initializeHeartbeatTimers() error {
 	}
 
 	// Get an iterator over nodes
-	iter, err := snap.Nodes()
+	ws := memdb.NewWatchSet()
+	iter, err := snap.Nodes(ws)
 	if err != nil {
 		return err
 	}

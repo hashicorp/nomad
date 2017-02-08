@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -397,7 +398,8 @@ func TestWorker_UpdateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := s1.fsm.State().EvalByID(eval2.ID)
+	ws := memdb.NewWatchSet()
+	out, err := s1.fsm.State().EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -443,7 +445,8 @@ func TestWorker_CreateEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	out, err := s1.fsm.State().EvalByID(eval2.ID)
+	ws := memdb.NewWatchSet()
+	out, err := s1.fsm.State().EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -512,7 +515,8 @@ func TestWorker_ReblockEval(t *testing.T) {
 	}
 
 	// Check that the eval was updated
-	eval, err := s1.fsm.State().EvalByID(eval2.ID)
+	ws := memdb.NewWatchSet()
+	eval, err := s1.fsm.State().EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

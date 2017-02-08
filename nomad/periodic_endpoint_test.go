@@ -3,6 +3,7 @@ package nomad
 import (
 	"testing"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,7 +43,8 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(resp.EvalID)
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

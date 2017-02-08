@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -446,7 +447,8 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 
 	// Update the evaluation if the queued jobs is not same as what is
 	// recorded in the job summary
-	summary, err := w.srv.fsm.state.JobSummaryByID(eval.JobID)
+	ws := memdb.NewWatchSet()
+	summary, err := w.srv.fsm.state.JobSummaryByID(ws, eval.JobID)
 	if err != nil {
 		return fmt.Errorf("couldn't retreive job summary: %v", err)
 	}

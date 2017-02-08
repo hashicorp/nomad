@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -86,8 +87,9 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		return false, err
 	}
 
+	ws := memdb.NewWatchSet()
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
-	iter, err := state.JobsByIDPrefix(prefix)
+	iter, err := state.JobsByIDPrefix(ws, prefix)
 	if err != nil {
 		return false, err
 	}
@@ -102,7 +104,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		}
 
 		// Get the childs evaluations.
-		evals, err := state.EvalsByJob(child.ID)
+		evals, err := state.EvalsByJob(ws, child.ID)
 		if err != nil {
 			return false, err
 		}
@@ -113,7 +115,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 				return true, nil
 			}
 
-			allocs, err := state.AllocsByEval(eval.ID)
+			allocs, err := state.AllocsByEval(ws, eval.ID)
 			if err != nil {
 				return false, err
 			}

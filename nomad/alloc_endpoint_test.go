@@ -197,7 +197,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 	// Create the alloc we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -209,7 +209,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 		AllocID: alloc2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 50,
+			MinQueryIndex: 150,
 		},
 	}
 	var resp structs.SingleAllocResponse

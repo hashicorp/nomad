@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"reflect"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -228,8 +229,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 	}
 
 	// Scan the nodes
+	ws := memdb.NewWatchSet()
 	var out []*structs.Node
-	iter, err := state.Nodes()
+	iter, err := state.Nodes(ws)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -301,7 +303,8 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 			continue
 		}
 
-		node, err := state.NodeByID(alloc.NodeID)
+		ws := memdb.NewWatchSet()
+		node, err := state.NodeByID(ws, alloc.NodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -452,6 +455,7 @@ func setStatus(logger *log.Logger, planner Planner,
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
 
+	ws := memdb.NewWatchSet()
 	n := len(updates)
 	inplaceCount := 0
 	for i := 0; i < n; i++ {
@@ -471,7 +475,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		}
 
 		// Get the existing node
-		node, err := ctx.State().NodeByID(update.Alloc.NodeID)
+		node, err := ctx.State().NodeByID(ws, update.Alloc.NodeID)
 		if err != nil {
 			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v",
 				eval, update.Alloc.NodeID, err)

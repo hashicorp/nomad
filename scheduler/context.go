@@ -4,6 +4,7 @@ import (
 	"log"
 	"regexp"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -107,7 +108,8 @@ func (e *EvalContext) Reset() {
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
 	// Get the existing allocations that are non-terminal
-	existingAlloc, err := e.state.AllocsByNodeTerminal(nodeID, false)
+	ws := memdb.NewWatchSet()
+	existingAlloc, err := e.state.AllocsByNodeTerminal(ws, nodeID, false)
 	if err != nil {
 		return nil, err
 	}
