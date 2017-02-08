@@ -5,8 +5,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/watch"
 )
 
 // Alloc endpoint is used for manipulating allocations
@@ -25,18 +25,14 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Table: "allocs"}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture all the allocations
-			snap, err := a.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
+			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = snap.AllocsByIDPrefix(prefix)
+				iter, err = state.AllocsByIDPrefix(ws, prefix)
 			} else {
-				iter, err = snap.Allocs()
+				iter, err = state.Allocs(ws)
 			}
 			if err != nil {
 				return err
@@ -54,7 +50,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			reply.Allocations = allocs
 
 			// Use the last index that affected the jobs table
-			index, err := snap.Index("allocs")
+			index, err := state.Index("allocs")
 			if err != nil {
 				return err
 			}
@@ -79,14 +75,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Alloc: args.AllocID}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Lookup the allocation
-			snap, err := a.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			out, err := snap.AllocByID(args.AllocID)
+			out, err := state.AllocByID(ws, args.AllocID)
 			if err != nil {
 				return err
 			}
@@ -97,7 +88,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the allocs table
-				index, err := snap.Index("allocs")
+				index, err := state.Index("allocs")
 				if err != nil {
 					return err
 				}
@@ -119,12 +110,6 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	// Build the watch
-	items := make([]watch.Item, 0, len(args.AllocIDs))
-	for _, allocID := range args.AllocIDs {
-		items = append(items, watch.Item{Alloc: allocID})
-	}
-
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
 	// Setup the blocking query. We wait for at least one of the requested
@@ -133,18 +118,12 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(items...),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Lookup the allocation
-			snap, err := a.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-
 			thresholdMet := false
 			maxIndex := uint64(0)
 			for i, alloc := range args.AllocIDs {
-				out, err := snap.AllocByID(alloc)
+				out, err := state.AllocByID(ws, alloc)
 				if err != nil {
 					return err
 				}
@@ -173,7 +152,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 				reply.Index = maxIndex
 			} else {
 				// Use the last index that affected the nodes table
-				index, err := snap.Index("allocs")
+				index, err := state.Index("allocs")
 				if err != nil {
 					return err
 				}

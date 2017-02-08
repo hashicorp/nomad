@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
 )
@@ -333,7 +332,6 @@ type queryFn func(memdb.WatchSet, *state.StateStore) error
 type blockingOptions struct {
 	queryOpts *structs.QueryOptions
 	queryMeta *structs.QueryMeta
-	watch     watch.Items
 	run       queryFn
 }
 
@@ -376,7 +374,7 @@ RUN_QUERY:
 
 	// We can skip all watch tracking if this isn't a blocking query.
 	var ws memdb.WatchSet
-	if queryOpts.MinQueryIndex > 0 {
+	if opts.queryOpts.MinQueryIndex > 0 {
 		ws = memdb.NewWatchSet()
 
 		// This channel will be closed if a snapshot is restored and the
@@ -385,12 +383,11 @@ RUN_QUERY:
 	}
 
 	// Block up to the timeout if we didn't see anything fresh.
-	err := fn(ws, state)
+	err := opts.run(ws, state)
 
 	// Check for minimum query time
 	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
 		if expired := ws.Watch(timeout.C); !expired {
-			// XXX James can do this behavior too
 			goto RUN_QUERY
 		}
 	}

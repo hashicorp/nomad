@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -87,7 +88,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 func (s *SystemScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
-	s.job, err = s.state.JobByID(s.eval.JobID)
+	ws := memdb.NewWatchSet()
+	s.job, err = s.state.JobByID(ws, s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
@@ -178,7 +180,8 @@ func (s *SystemScheduler) process() (bool, error) {
 // existing allocations and node status to update the allocations.
 func (s *SystemScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(s.eval.JobID, true)
+	ws := memdb.NewWatchSet()
+	allocs, err := s.state.AllocsByJob(ws, s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)

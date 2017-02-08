@@ -6,8 +6,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/watch"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
@@ -33,14 +33,9 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Eval: args.EvalID}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the job
-			snap, err := e.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			out, err := snap.EvalByID(args.EvalID)
+			out, err := state.EvalByID(ws, args.EvalID)
 			if err != nil {
 				return err
 			}
@@ -51,7 +46,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
-				index, err := snap.Index("evals")
+				index, err := state.Index("evals")
 				if err != nil {
 					return err
 				}
@@ -190,7 +185,9 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	if err != nil {
 		return err
 	}
-	out, err := snap.EvalByID(eval.ID)
+
+	ws := memdb.NewWatchSet()
+	out, err := snap.EvalByID(ws, eval.ID)
 	if err != nil {
 		return err
 	}
@@ -233,7 +230,9 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 	if err != nil {
 		return err
 	}
-	out, err := snap.EvalByID(eval.ID)
+
+	ws := memdb.NewWatchSet()
+	out, err := snap.EvalByID(ws, eval.ID)
 	if err != nil {
 		return err
 	}
@@ -280,18 +279,14 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{Table: "evals"}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Scan all the evaluations
-			snap, err := e.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
+			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = snap.EvalsByIDPrefix(prefix)
+				iter, err = state.EvalsByIDPrefix(ws, prefix)
 			} else {
-				iter, err = snap.Evals()
+				iter, err = state.Evals(ws)
 			}
 			if err != nil {
 				return err
@@ -309,7 +304,7 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			reply.Evaluations = evals
 
 			// Use the last index that affected the jobs table
-			index, err := snap.Index("evals")
+			index, err := state.Index("evals")
 			if err != nil {
 				return err
 			}
@@ -334,14 +329,9 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		watch:     watch.NewItems(watch.Item{AllocEval: args.EvalID}),
-		run: func() error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the allocations
-			snap, err := e.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			allocs, err := snap.AllocsByEval(args.EvalID)
+			allocs, err := state.AllocsByEval(ws, args.EvalID)
 			if err != nil {
 				return err
 			}
@@ -355,7 +345,7 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 			}
 
 			// Use the last index that affected the allocs table
-			index, err := snap.Index("allocs")
+			index, err := state.Index("allocs")
 			if err != nil {
 				return err
 			}

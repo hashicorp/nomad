@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -183,7 +184,8 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 func (s *GenericScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
-	s.job, err = s.state.JobByID(s.eval.JobID)
+	ws := memdb.NewWatchSet()
+	s.job, err = s.state.JobByID(ws, s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
@@ -354,7 +356,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Lookup the allocations by JobID
-	allocs, err := s.state.AllocsByJob(s.eval.JobID, true)
+	ws := memdb.NewWatchSet()
+	allocs, err := s.state.AllocsByJob(ws, s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)
@@ -513,7 +516,8 @@ func (s *GenericScheduler) findPreferredNode(allocTuple *allocTuple) (node *stru
 		}
 		if taskGroup.EphemeralDisk.Sticky == true {
 			var preferredNode *structs.Node
-			preferredNode, err = s.state.NodeByID(allocTuple.Alloc.NodeID)
+			ws := memdb.NewWatchSet()
+			preferredNode, err = s.state.NodeByID(ws, allocTuple.Alloc.NodeID)
 			if preferredNode.Ready() {
 				node = preferredNode
 			}

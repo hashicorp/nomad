@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -322,7 +323,8 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	}
 
 	// Get the node itself
-	node, err := snap.NodeByID(nodeID)
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, nodeID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get node '%s': %v", nodeID, err)
 	}
@@ -335,7 +337,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	}
 
 	// Get the existing allocations that are non-terminal
-	existingAlloc, err := snap.AllocsByNodeTerminal(nodeID, false)
+	existingAlloc, err := snap.AllocsByNodeTerminal(ws, nodeID, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get existing allocations for '%s': %v", nodeID, err)
 	}

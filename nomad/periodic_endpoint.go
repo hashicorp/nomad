@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,7 +31,9 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	if err != nil {
 		return err
 	}
-	job, err := snap.JobByID(args.JobID)
+
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, args.JobID)
 	if err != nil {
 		return err
 	}

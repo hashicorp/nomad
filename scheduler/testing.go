@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -159,7 +160,8 @@ func (h *Harness) ReblockEval(eval *structs.Evaluation) error {
 	defer h.planLock.Unlock()
 
 	// Check that the evaluation was already blocked.
-	old, err := h.State.EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	old, err := h.State.EvalByID(ws, eval.ID)
 	if err != nil {
 		return err
 	}
