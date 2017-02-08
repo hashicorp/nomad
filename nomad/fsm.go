@@ -548,7 +548,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	if err != nil {
 		return err
 	}
-	n.state = newState
 
 	// Start the state restore
 	restore, err := newState.Restore()

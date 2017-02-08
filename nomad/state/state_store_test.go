@@ -4039,6 +4039,17 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 	}
 }
 
+func TestStateStore_Abandon(t *testing.T) {
+	s := testStateStore(t)
+	abandonCh := s.AbandonCh()
+	s.Abandon()
+	select {
+	case <-abandonCh:
+	default:
+		t.Fatalf("bad")
+	}
+}
+
 // watchFired is a helper for unit tests that returns if the given watch set
 // fired (it doesn't care which watch actually fired). This uses a fixed
 // timeout since we already expect the event happened before calling this and

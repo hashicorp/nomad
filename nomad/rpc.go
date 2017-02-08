@@ -367,13 +367,13 @@ RUN_QUERY:
 	// Increment the rpc query counter
 	metrics.IncrCounter([]string{"nomad", "rpc", "query"}, 1)
 
-	// Operate on a consistent set of state. This makes sure that the
-	// abandon channel goes with the state that the caller is using to
-	// build watches.
+	// We capture the state store and its abandon channel but pass a snapshot to
+	// the blocking query function. We operate on the snapshot to allow separate
+	// calls to the state store not all wrapped within the same transaction.
 	state = s.fsm.State()
+	abandonCh := state.AbandonCh()
 	snap, _ := state.Snapshot()
-	state = &snap.StateStore
-	// XXX Ask james
+	stateSnap := &snap.StateStore
 
 	// We can skip all watch tracking if this isn't a blocking query.
 	var ws memdb.WatchSet
@@ -382,11 +382,11 @@ RUN_QUERY:
 
 		// This channel will be closed if a snapshot is restored and the
 		// whole state store is abandoned.
-		ws.Add(state.AbandonCh())
+		ws.Add(abandonCh)
 	}
 
 	// Block up to the timeout if we didn't see anything fresh.
-	err := opts.run(ws, state)
+	err := opts.run(ws, stateSnap)
 
 	// Check for minimum query time
 	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {

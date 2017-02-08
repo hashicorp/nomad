@@ -1004,11 +1004,25 @@ func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 
 	// Try to restore on a new FSM
 	fsm2 := testFSM(t)
+	snap, err = fsm2.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer snap.Release()
+
+	abandonCh := fsm2.State().AbandonCh()
 
 	// Do a restore
 	if err := fsm2.Restore(sink); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	select {
+	case <-abandonCh:
+	default:
+		t.Fatalf("bad")
+	}
+
 	return fsm2
 }
 
