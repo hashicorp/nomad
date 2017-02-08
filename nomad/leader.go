@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -553,6 +554,12 @@ func (s *Server) reconcileJobSummaries() error {
 
 // addRaftPeer is used to add a new Raft peer when a Nomad server joins
 func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
+	// Do not join ourselfs
+	if m.Name == s.config.NodeName {
+		s.logger.Printf("[DEBUG] nomad: adding self (%q) as raft peer skipped", m.Name)
+		return nil
+	}
+
 	// Check for possibility of multiple bootstrap nodes
 	if parts.Bootstrap {
 		members := s.serf.Members()
@@ -565,9 +572,26 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		}
 	}
 
+	// TODO (alexdadgar) - This will need to be changed once we support node IDs.
+	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
+
+	// See if it's already in the configuration. It's harmless to re-add it
+	// but we want to avoid doing that if possible to prevent useless Raft
+	// log entries.
+	configFuture := s.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
+		return err
+	}
+	for _, server := range configFuture.Configuration().Servers {
+		if server.Address == raft.ServerAddress(addr) {
+			return nil
+		}
+	}
+
 	// Attempt to add as a peer
-	future := s.raft.AddPeer(parts.Addr.String())
-	if err := future.Error(); err != nil && err != raft.ErrKnownPeer {
+	addFuture := s.raft.AddPeer(raft.ServerAddress(addr))
+	if err := addFuture.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
 		return err
 	} else if err == nil {
@@ -579,14 +603,31 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 // removeRaftPeer is used to remove a Raft peer when a Nomad server leaves
 // or is reaped
 func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
-	// Attempt to remove as peer
-	future := s.raft.RemovePeer(parts.Addr.String())
-	if err := future.Error(); err != nil && err != raft.ErrUnknownPeer {
+	// TODO (alexdadgar) - This will need to be changed once we support node IDs.
+	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
+
+	// See if it's already in the configuration. It's harmless to re-remove it
+	// but we want to avoid doing that if possible to prevent useless Raft
+	// log entries.
+	configFuture := s.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
+		return err
+	}
+	for _, server := range configFuture.Configuration().Servers {
+		if server.Address == raft.ServerAddress(addr) {
+			goto REMOVE
+		}
+	}
+	return nil
+
+REMOVE:
+	// Attempt to remove as a peer.
+	future := s.raft.RemovePeer(raft.ServerAddress(addr))
+	if err := future.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
 			parts, err)
 		return err
-	} else if err == nil {
-		s.logger.Printf("[INFO] nomad: removed server '%s' as peer", m.Name)
 	}
 	return nil
 }

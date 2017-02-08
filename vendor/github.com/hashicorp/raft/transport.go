@@ -31,27 +31,27 @@ type Transport interface {
 	Consumer() <-chan RPC
 
 	// LocalAddr is used to return our local address to distinguish from our peers.
-	LocalAddr() string
+	LocalAddr() ServerAddress
 
 	// AppendEntriesPipeline returns an interface that can be used to pipeline
 	// AppendEntries requests.
-	AppendEntriesPipeline(target string) (AppendPipeline, error)
+	AppendEntriesPipeline(target ServerAddress) (AppendPipeline, error)
 
 	// AppendEntries sends the appropriate RPC to the target node.
-	AppendEntries(target string, args *AppendEntriesRequest, resp *AppendEntriesResponse) error
+	AppendEntries(target ServerAddress, args *AppendEntriesRequest, resp *AppendEntriesResponse) error
 
 	// RequestVote sends the appropriate RPC to the target node.
-	RequestVote(target string, args *RequestVoteRequest, resp *RequestVoteResponse) error
+	RequestVote(target ServerAddress, args *RequestVoteRequest, resp *RequestVoteResponse) error
 
 	// InstallSnapshot is used to push a snapshot down to a follower. The data is read from
 	// the ReadCloser and streamed to the client.
-	InstallSnapshot(target string, args *InstallSnapshotRequest, resp *InstallSnapshotResponse, data io.Reader) error
+	InstallSnapshot(target ServerAddress, args *InstallSnapshotRequest, resp *InstallSnapshotResponse, data io.Reader) error
 
-	// EncodePeer is used to serialize a peer name.
-	EncodePeer(string) []byte
+	// EncodePeer is used to serialize a peer's address.
+	EncodePeer(ServerAddress) []byte
 
-	// DecodePeer is used to deserialize a peer name.
-	DecodePeer([]byte) string
+	// DecodePeer is used to deserialize a peer's address.
+	DecodePeer([]byte) ServerAddress
 
 	// SetHeartbeatHandler is used to setup a heartbeat handler
 	// as a fast-pass. This is to avoid head-of-line blocking from
@@ -60,14 +60,19 @@ type Transport interface {
 	SetHeartbeatHandler(cb func(rpc RPC))
 }
 
-// Close() lives in a separate interface as unfortunately it wasn't in the
+// WithClose is an interface that a transport may provide which
+// allows a transport to be shut down cleanly when a Raft instance
+// shuts down.
+//
+// It is defined separately from Transport as unfortunately it wasn't in the
 // original interface specification.
 type WithClose interface {
-	// Permanently close a transport, stop all go-routines etc
+	// Close permanently closes a transport, stopping
+	// any associated goroutines and freeing other resources.
 	Close() error
 }
 
-// Loopback transport is an interface that provides a loopback transport suitable for testing
+// LoopbackTransport is an interface that provides a loopback transport suitable for testing
 // e.g. InmemTransport. It's there so we don't have to rewrite tests.
 type LoopbackTransport interface {
 	Transport // Embedded transport reference
@@ -79,9 +84,9 @@ type LoopbackTransport interface {
 // disconnection. Unless the transport is a loopback transport, the transport specified to
 // "Connect" is likely to be nil.
 type WithPeers interface {
-	Connect(peer string, t Transport) // Connect a peer
-	Disconnect(peer string)           // Disconnect a given peer
-	DisconnectAll()                   // Disconnect all peers, possibly to reconnect them later
+	Connect(peer ServerAddress, t Transport) // Connect a peer
+	Disconnect(peer ServerAddress)           // Disconnect a given peer
+	DisconnectAll()                          // Disconnect all peers, possibly to reconnect them later
 }
 
 // AppendPipeline is used for pipelining AppendEntries requests. It is used
@@ -96,14 +101,24 @@ type AppendPipeline interface {
 	// response futures when they are ready.
 	Consumer() <-chan AppendFuture
 
-	// Closes pipeline and cancels all inflight RPCs
+	// Close closes the pipeline and cancels all inflight RPCs
 	Close() error
 }
 
 // AppendFuture is used to return information about a pipelined AppendEntries request.
 type AppendFuture interface {
 	Future
+
+	// Start returns the time that the append request was started.
+	// It is always OK to call this method.
 	Start() time.Time
+
+	// Request holds the parameters of the AppendEntries call.
+	// It is always OK to call this method.
 	Request() *AppendEntriesRequest
+
+	// Response holds the results of the AppendEntries call.
+	// This method must only be called after the Error
+	// method returns, and will only be valid on success.
 	Response() *AppendEntriesResponse
 }

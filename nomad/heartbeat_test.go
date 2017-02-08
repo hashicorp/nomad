@@ -200,8 +200,8 @@ func TestServer_HeartbeatTTL_Failover(t *testing.T) {
 	testJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
-		peers, _ := s1.raftPeers.Peers()
-		return len(peers) == 3, nil
+		peers, _ := s1.numPeers()
+		return peers == 3, nil
 	}, func(err error) {
 		t.Fatalf("should have 3 peers")
 	})
