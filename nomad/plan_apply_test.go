@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -88,7 +89,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Verify our optimistic snapshot is updated
-	if out, err := snap.AllocByID(alloc.ID); err != nil || out == nil {
+	ws := memdb.NewWatchSet()
+	if out, err := snap.AllocByID(ws, alloc.ID); err != nil || out == nil {
 		t.Fatalf("bad: %v %v", out, err)
 	}
 
@@ -102,7 +104,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err := s1.fsm.State().AllocByID(alloc.ID)
+	out, err := s1.fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -141,7 +143,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Check that our optimistic view is updated
-	if out, _ := snap.AllocByID(allocEvict.ID); out.DesiredStatus != structs.AllocDesiredStatusEvict {
+	if out, _ := snap.AllocByID(ws, allocEvict.ID); out.DesiredStatus != structs.AllocDesiredStatusEvict {
 		t.Fatalf("bad: %#v", out)
 	}
 
@@ -155,7 +157,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().AllocByID(alloc.ID)
+	out, err = s1.fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -167,7 +169,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().AllocByID(alloc2.ID)
+	out, err = s1.fsm.State().AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

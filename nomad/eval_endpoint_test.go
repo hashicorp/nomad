@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -314,7 +315,8 @@ func TestEvalEndpoint_Update(t *testing.T) {
 	}
 
 	// Ensure updated
-	outE, err := s1.fsm.State().EvalByID(eval2.ID)
+	ws := memdb.NewWatchSet()
+	outE, err := s1.fsm.State().EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -361,7 +363,8 @@ func TestEvalEndpoint_Create(t *testing.T) {
 	}
 
 	// Ensure created
-	outE, err := s1.fsm.State().EvalByID(eval1.ID)
+	ws := memdb.NewWatchSet()
+	outE, err := s1.fsm.State().EvalByID(ws, eval1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -397,7 +400,8 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 	}
 
 	// Ensure deleted
-	outE, err := s1.fsm.State().EvalByID(eval1.ID)
+	ws := memdb.NewWatchSet()
+	outE, err := s1.fsm.State().EvalByID(ws, eval1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

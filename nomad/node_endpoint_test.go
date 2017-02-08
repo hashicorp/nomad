@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -38,7 +39,8 @@ func TestClientEndpoint_Register(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -85,7 +87,8 @@ func TestClientEndpoint_Register_NoSecret(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -161,7 +164,8 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -215,7 +219,8 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	}
 
 	// Check for the node in the FSM
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -276,7 +281,8 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -384,7 +390,8 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	}
 
 	evalID := resp.EvalIDs[0]
-	eval, err := state.EvalByID(evalID)
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, evalID)
 	if err != nil {
 		t.Fatalf("could not get eval %v", evalID)
 	}
@@ -394,7 +401,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	}
 
 	// Check for the node in the FSM
-	out, err := state.NodeByID(node.ID)
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -490,7 +497,8 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	}
 
 	evalID := resp2.EvalIDs[0]
-	eval, err := state.EvalByID(evalID)
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, evalID)
 	if err != nil {
 		t.Fatalf("could not get eval %v", evalID)
 	}
@@ -506,7 +514,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	}
 
 	// Check for the node in the FSM
-	out, err := state.NodeByID(node.ID)
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -627,7 +635,8 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -683,11 +692,12 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 
 	// Wait for the scheduler to create an allocation
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, err := s1.fsm.state.AllocsByJob(job.ID, true)
+		ws := memdb.NewWatchSet()
+		allocs, err := s1.fsm.state.AllocsByJob(ws, job.ID, true)
 		if err != nil {
 			return false, err
 		}
-		allocs1, err := s1.fsm.state.AllocsByJob(job1.ID, true)
+		allocs1, err := s1.fsm.state.AllocsByJob(ws, job1.ID, true)
 		if err != nil {
 			return false, err
 		}
@@ -719,7 +729,8 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 
 	// Ensure that the allocation has transitioned to lost
 	testutil.WaitForResult(func() (bool, error) {
-		summary, err := s1.fsm.state.JobSummaryByID(job.ID)
+		ws := memdb.NewWatchSet()
+		summary, err := s1.fsm.state.JobSummaryByID(ws, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -739,7 +750,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary, summary)
 		}
 
-		summary1, err := s1.fsm.state.JobSummaryByID(job1.ID)
+		summary1, err := s1.fsm.state.JobSummaryByID(ws, job1.ID)
 		if err != nil {
 			return false, err
 		}
@@ -1289,7 +1300,8 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	}
 
 	// Lookup the alloc
-	out, err := state.AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1344,7 +1356,8 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	}
 
 	// Lookup the alloc
-	out, err := state.AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1415,7 +1428,8 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	}
 
 	// Lookup the alloc
-	out, err := state.AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1460,9 +1474,10 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 
 	// Lookup the evaluations
+	ws := memdb.NewWatchSet()
 	evalByType := make(map[string]*structs.Evaluation, 2)
 	for _, id := range ids {
-		eval, err := state.EvalByID(id)
+		eval, err := state.EvalByID(ws, id)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1559,7 +1574,8 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	}
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(ids[0])
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, ids[0])
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1936,7 +1952,8 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	}
 
 	// Check the state store and ensure that we created a VaultAccessor
-	va, err := state.VaultAccessor(accessor)
+	ws := memdb.NewWatchSet()
+	va, err := state.VaultAccessor(ws, accessor)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}

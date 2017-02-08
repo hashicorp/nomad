@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -63,7 +64,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -71,7 +73,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -79,7 +81,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		t.Fatalf("bad: %v", outA)
 	}
 
-	outA2, err := state.AllocByID(alloc2.ID)
+	outA2, err := state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -154,7 +156,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	}
 
 	// Nothing should be gone
-	out, err := state.EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -162,7 +165,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -170,7 +173,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("bad: %v", outA)
 	}
 
-	outA2, err := state.AllocByID(alloc2.ID)
+	outA2, err := state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -178,7 +181,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("bad: %v", outA2)
 	}
 
-	outB, err := state.JobByID(job.ID)
+	outB, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -251,7 +254,8 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	}
 
 	// Should not be gone
-	out, err := state.EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -259,7 +263,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc3.ID)
+	outA, err := state.AllocByID(ws, alloc3.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -268,7 +272,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	}
 
 	// Should be gone
-	outB, err := state.AllocByID(alloc.ID)
+	outB, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -276,7 +280,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		t.Fatalf("bad: %v", outB)
 	}
 
-	outC, err := state.AllocByID(alloc2.ID)
+	outC, err := state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -328,7 +332,8 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -336,7 +341,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -381,7 +386,8 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -434,7 +440,8 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -489,7 +496,8 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	}
 
 	// Should still be here
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -530,7 +538,8 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	}
 
 	// Should be gone
-	out, err := state.NodeByID(node.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -589,7 +598,8 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	}
 
 	// Should still exist
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -597,7 +607,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err := state.EvalByID(eval.ID)
+	outE, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -605,7 +615,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 		t.Fatalf("bad: %v", outE)
 	}
 
-	outE2, err := state.EvalByID(eval2.ID)
+	outE2, err := state.EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -635,7 +645,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	}
 
 	// Should not still exist
-	out, err = state.JobByID(job.ID)
+	out, err = state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -643,7 +653,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err = state.EvalByID(eval.ID)
+	outE, err = state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -651,7 +661,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 		t.Fatalf("bad: %v", outE)
 	}
 
-	outE2, err = state.EvalByID(eval2.ID)
+	outE2, err = state.EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -724,7 +734,8 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	}
 
 	// Should still exist
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -732,7 +743,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -740,7 +751,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		t.Fatalf("bad: %v", outA)
 	}
 
-	outA2, err := state.AllocByID(alloc2.ID)
+	outA2, err := state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -770,7 +781,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	}
 
 	// Should not still exist
-	out, err = state.JobByID(job.ID)
+	out, err = state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -778,7 +789,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outA, err = state.AllocByID(alloc.ID)
+	outA, err = state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -786,7 +797,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		t.Fatalf("bad: %v", outA)
 	}
 
-	outA2, err = state.AllocByID(alloc2.ID)
+	outA2, err = state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -866,7 +877,8 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	}
 
 	// Should still exist
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -874,7 +886,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err := state.EvalByID(eval.ID)
+	outE, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -882,7 +894,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 		t.Fatalf("bad: %v", outE)
 	}
 
-	outE2, err := state.EvalByID(eval2.ID)
+	outE2, err := state.EvalByID(ws, eval2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -890,14 +902,14 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 		t.Fatalf("bad: %v", outE2)
 	}
 
-	outA, err := state.AllocByID(alloc.ID)
+	outA, err := state.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if outA == nil {
 		t.Fatalf("bad: %v", outA)
 	}
-	outA2, err := state.AllocByID(alloc2.ID)
+	outA2, err := state.AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -948,7 +960,8 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	}
 
 	// Shouldn't still exist
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -956,7 +969,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err := state.EvalByID(eval.ID)
+	outE, err := state.EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1008,7 +1021,8 @@ func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
 	}
 
 	// Should still exist
-	out, err := state.JobByID(job.ID)
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1016,7 +1030,7 @@ func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err := state.JobByID(job2.ID)
+	outE, err := state.JobByID(ws, job2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

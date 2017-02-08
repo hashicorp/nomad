@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -92,7 +93,8 @@ func TestFSM_UpsertNode(t *testing.T) {
 	}
 
 	// Verify we are registered
-	n, err := fsm.State().NodeByID(req.Node.ID)
+	ws := memdb.NewWatchSet()
+	n, err := fsm.State().NodeByID(ws, req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -153,7 +155,8 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().NodeByID(req.Node.ID)
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -200,7 +203,8 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	}
 
 	// Verify the status is ready.
-	node, err = fsm.State().NodeByID(req.Node.ID)
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -252,7 +256,8 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	node, err = fsm.State().NodeByID(req.Node.ID)
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -279,7 +284,8 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	jobOut, err := fsm.State().JobByID(req.Job.ID)
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -296,7 +302,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify the launch time was tracked.
-	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -339,7 +345,8 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	jobOut, err := fsm.State().JobByID(req.Job.ID)
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -353,7 +360,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic launch table.
-	launchOut, err := fsm.State().PeriodicLaunchByID(req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -380,7 +387,8 @@ func TestFSM_UpdateEval(t *testing.T) {
 	}
 
 	// Verify we are registered
-	eval, err := fsm.State().EvalByID(req.Evals[0].ID)
+	ws := memdb.NewWatchSet()
+	eval, err := fsm.State().EvalByID(ws, req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -421,7 +429,8 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -474,7 +483,8 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -529,7 +539,8 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().EvalByID(eval.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().EvalByID(ws, eval.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -584,7 +595,8 @@ func TestFSM_DeleteEval(t *testing.T) {
 	}
 
 	// Verify we are NOT registered
-	eval, err = fsm.State().EvalByID(req.Evals[0].ID)
+	ws := memdb.NewWatchSet()
+	eval, err = fsm.State().EvalByID(ws, req.Evals[0].ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -612,7 +624,8 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -640,7 +653,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	}
 
 	// Verify we are evicted
-	out, err = fsm.State().AllocByID(alloc.ID)
+	out, err = fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -671,7 +684,8 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -708,7 +722,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 
 	// Verify we are evicted
-	out, err = fsm.State().AllocByID(alloc.ID)
+	out, err = fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -743,7 +757,8 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -808,7 +823,8 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	}
 
 	// Verify we are updated
-	out, err := fsm.State().AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -818,7 +834,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", clientAlloc, out)
 	}
 
-	out, err = fsm.State().AllocByID(alloc2.ID)
+	out, err = fsm.State().AllocByID(ws, alloc2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -868,7 +884,8 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out, err := fsm.State().AllocByID(alloc.ID)
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -899,7 +916,8 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	}
 
 	// Verify we are registered
-	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	ws := memdb.NewWatchSet()
+	out1, err := fsm.State().VaultAccessor(ws, va.Accessor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -909,7 +927,7 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	if out1.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", out1.CreateIndex)
 	}
-	out2, err := fsm.State().VaultAccessor(va2.Accessor)
+	out2, err := fsm.State().VaultAccessor(ws, va2.Accessor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -953,7 +971,8 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	out1, err := fsm.State().VaultAccessor(va.Accessor)
+	ws := memdb.NewWatchSet()
+	out1, err := fsm.State().VaultAccessor(ws, va.Accessor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1005,8 +1024,9 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.NodeByID(node1.ID)
-	out2, _ := state2.NodeByID(node2.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.NodeByID(ws, node1.ID)
+	out2, _ := state2.NodeByID(ws, node2.ID)
 	if !reflect.DeepEqual(node1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
 	}
@@ -1025,10 +1045,11 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	state.UpsertJob(1001, job2)
 
 	// Verify the contents
+	ws := memdb.NewWatchSet()
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobByID(job1.ID)
-	out2, _ := state2.JobByID(job2.ID)
+	out1, _ := state2.JobByID(ws, job1.ID)
+	out2, _ := state2.JobByID(ws, job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -1049,8 +1070,9 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.EvalByID(eval1.ID)
-	out2, _ := state2.EvalByID(eval2.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.EvalByID(ws, eval1.ID)
+	out2, _ := state2.EvalByID(ws, eval2.ID)
 	if !reflect.DeepEqual(eval1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, eval1)
 	}
@@ -1073,8 +1095,9 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.AllocByID(alloc1.ID)
-	out2, _ := state2.AllocByID(alloc2.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.AllocByID(ws, alloc1.ID)
+	out2, _ := state2.AllocByID(ws, alloc2.ID)
 	if !reflect.DeepEqual(alloc1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
 	}
@@ -1099,8 +1122,9 @@ func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.AllocByID(alloc1.ID)
-	out2, _ := state2.AllocByID(alloc2.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.AllocByID(ws, alloc1.ID)
+	out2, _ := state2.AllocByID(ws, alloc2.ID)
 	alloc1.SharedResources = &structs.Resources{DiskMB: 150}
 	alloc2.SharedResources = &structs.Resources{DiskMB: 150}
 
@@ -1167,8 +1191,9 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.PeriodicLaunchByID(launch1.ID)
-	out2, _ := state2.PeriodicLaunchByID(launch2.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.PeriodicLaunchByID(ws, launch1.ID)
+	out2, _ := state2.PeriodicLaunchByID(ws, launch2.ID)
 	if !reflect.DeepEqual(launch1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -1184,17 +1209,18 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 
 	job1 := mock.Job()
 	state.UpsertJob(1000, job1)
-	js1, _ := state.JobSummaryByID(job1.ID)
+	ws := memdb.NewWatchSet()
+	js1, _ := state.JobSummaryByID(ws, job1.ID)
 
 	job2 := mock.Job()
 	state.UpsertJob(1001, job2)
-	js2, _ := state.JobSummaryByID(job2.ID)
+	js2, _ := state.JobSummaryByID(ws, job2.ID)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobSummaryByID(job1.ID)
-	out2, _ := state2.JobSummaryByID(job2.ID)
+	out1, _ := state2.JobSummaryByID(ws, job1.ID)
+	out2, _ := state2.JobSummaryByID(ws, job2.ID)
 	if !reflect.DeepEqual(js1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", js1, out1)
 	}
@@ -1214,8 +1240,9 @@ func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.VaultAccessor(a1.Accessor)
-	out2, _ := state2.VaultAccessor(a2.Accessor)
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.VaultAccessor(ws, a1.Accessor)
+	out2, _ := state2.VaultAccessor(ws, a2.Accessor)
 	if !reflect.DeepEqual(a1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, a1)
 	}
@@ -1246,7 +1273,8 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	state2 := fsm2.State()
 	latestIndex, _ := state.LatestIndex()
 
-	out, _ := state2.JobSummaryByID(alloc.Job.ID)
+	ws := memdb.NewWatchSet()
+	out, _ := state2.JobSummaryByID(ws, alloc.Job.ID)
 	expected := structs.JobSummary{
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1297,7 +1325,8 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	out1, _ := state.JobSummaryByID(job1.ID)
+	ws := memdb.NewWatchSet()
+	out1, _ := state.JobSummaryByID(ws, job1.ID)
 	expected := structs.JobSummary{
 		JobID: job1.ID,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1315,7 +1344,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state.JobSummaryByID(alloc.Job.ID)
+	out2, _ := state.JobSummaryByID(ws, alloc.Job.ID)
 	expected = structs.JobSummary{
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{

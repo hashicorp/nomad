@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -67,7 +68,8 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -215,7 +217,8 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure only one allocation was placed
@@ -270,7 +273,8 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -335,7 +339,8 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure no allocations placed
@@ -561,7 +566,8 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	}
 
 	// Ensure two allocations placed
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 	if len(out) != 2 {
 		t.Fatalf("bad: %#v", out)
@@ -680,7 +686,8 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure only one allocations placed
@@ -800,7 +807,8 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -908,7 +916,8 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -999,7 +1008,8 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -1095,7 +1105,8 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -1283,7 +1294,8 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -1350,7 +1362,8 @@ func TestServiceSched_JobDeregister(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure that the job field on the allocation is still populated
@@ -1401,8 +1414,9 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Mark some allocs as running
+	ws := memdb.NewWatchSet()
 	for i := 0; i < 4; i++ {
-		out, _ := h.State.AllocByID(allocs[i].ID)
+		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
 		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
 	}
@@ -1468,8 +1482,9 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Mark some allocs as running
+	ws := memdb.NewWatchSet()
 	for i := 0; i < 4; i++ {
-		out, _ := h.State.AllocByID(allocs[i].ID)
+		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
 		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
 	}
@@ -1560,7 +1575,8 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure all allocations placed
@@ -1829,7 +1845,8 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure no allocations placed
@@ -1882,7 +1899,8 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure no allocations placed
@@ -1935,7 +1953,8 @@ func TestBatchSched_Run_DrainedAlloc(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure a replacement alloc was placed.
@@ -1987,7 +2006,8 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure a replacement alloc was placed.
@@ -2105,7 +2125,8 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 	}
 
 	// Lookup the allocations by JobID
-	out, err := h.State.AllocsByJob(job.ID, false)
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
 	noErr(t, err)
 
 	// Ensure no replacement alloc was placed.

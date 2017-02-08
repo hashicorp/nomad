@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -38,7 +39,8 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if the job has been GC'd
-		exist, err := state.JobByID(job.ID)
+		ws := memdb.NewWatchSet()
+		exist, err := state.JobByID(ws, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -81,7 +83,8 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if Nomad has reconciled the summary for the job
-		summary, err := state.JobSummaryByID(job.ID)
+		ws := memdb.NewWatchSet()
+		summary, err := state.JobSummaryByID(ws, job.ID)
 		if err != nil {
 			return false, err
 		}
