@@ -3,7 +3,9 @@ package nomad
 import (
 	"strings"
 	"sync/atomic"
+	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -12,6 +14,12 @@ const (
 	// StatusReap is used to update the status of a node if we
 	// are handling a EventMemberReap
 	StatusReap = serf.MemberStatus(-1)
+
+	// maxPeerRetries limits how many invalidate attempts are made
+	maxPeerRetries = 6
+
+	// peerRetryBase is a baseline retry time
+	peerRetryBase = 1 * time.Second
 )
 
 // serfEventHandler is used to handle events from the serf cluster
@@ -78,7 +86,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 	}
 }
 
-// maybeBootsrap is used to handle bootstrapping when a new server joins
+// maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 	// Bootstrap can only be done if there are no committed logs, remove our
 	// expectations of bootstrapping. This is slightly cheaper than the full
@@ -106,7 +114,7 @@ func (s *Server) maybeBootstrap() {
 
 	// Scan for all the known servers
 	members := s.serf.Members()
-	addrs := make([]string, 0)
+	var servers []serverParts
 	for _, member := range members {
 		valid, p := isNomadServer(member)
 		if !valid {
@@ -123,25 +131,66 @@ func (s *Server) maybeBootstrap() {
 			s.logger.Printf("[ERR] nomad: peer %v has bootstrap mode. Expect disabled.", member)
 			return
 		}
-		addrs = append(addrs, p.Addr.String())
+		servers = append(servers, *p)
 	}
 
 	// Skip if we haven't met the minimum expect count
-	if len(addrs) < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
+	if len(servers) < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
 		return
+	}
+
+	// Query each of the servers and make sure they report no Raft peers.
+	req := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			AllowStale: true,
+		},
+	}
+	for _, server := range servers {
+		var peers []string
+
+		// Retry with exponential backoff to get peer status from this server
+		for attempt := uint(0); attempt < maxPeerRetries; attempt++ {
+			if err := s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion,
+				"Status.Peers", req, &peers); err != nil {
+				nextRetry := time.Duration((1 << attempt) * peerRetryBase)
+				s.logger.Printf("[ERR] consul: Failed to confirm peer status for %s: %v. Retrying in "+
+					"%v...", server.Name, err, nextRetry.String())
+				time.Sleep(nextRetry)
+			} else {
+				break
+			}
+		}
+
+		// Found a node with some Raft peers, stop bootstrap since there's
+		// evidence of an existing cluster. We should get folded in by the
+		// existing servers if that's the case, so it's cleaner to sit as a
+		// candidate with no peers so we don't cause spurious elections.
+		// It's OK this is racy, because even with an initial bootstrap
+		// as long as one peer runs bootstrap things will work, and if we
+		// have multiple peers bootstrap in the same way, that's OK. We
+		// just don't want a server added much later to do a live bootstrap
+		// and interfere with the cluster. This isn't required for Raft's
+		// correctness because no server in the existing cluster will vote
+		// for this server, but it makes things much more stable.
+		if len(peers) > 0 {
+			s.logger.Printf("[INFO] nomad: Existing Raft peers reported by %s (%v), disabling bootstrap mode", server.Name, server.Addr)
+			s.config.BootstrapExpect = 0
+			return
+		}
 	}
 
 	// Update the peer set
 	// Attempt a live bootstrap!
 	var configuration raft.Configuration
-	for _, addr := range addrs {
-		// TODO (alexdadgar) - This will need to be updated once we support
-		// node IDs.
-		server := raft.Server{
+	var addrs []string
+	for _, server := range servers {
+		addr := server.Addr.String()
+		addrs = append(addrs, addr)
+		peer := raft.Server{
 			ID:      raft.ServerID(addr),
 			Address: raft.ServerAddress(addr),
 		}
-		configuration.Servers = append(configuration.Servers, server)
+		configuration.Servers = append(configuration.Servers, peer)
 	}
 	s.logger.Printf("[INFO] nomad: Found expected number of peers (%s), attempting to bootstrap cluster...",
 		strings.Join(addrs, ","))
@@ -150,7 +199,7 @@ func (s *Server) maybeBootstrap() {
 		s.logger.Printf("[ERR] nomad: Failed to bootstrap cluster: %v", err)
 	}
 
-	// Bootstrapping complete, don't enter this again
+	// Bootstrapping complete, or failed for some reason, don't enter this again
 	atomic.StoreInt32(&s.config.BootstrapExpect, 0)
 }
 

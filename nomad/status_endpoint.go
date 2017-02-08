@@ -49,6 +49,9 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 
 // Peers is used to get all the Raft peers
 func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
+	if args.Region == "" {
+		args.Region = s.srv.config.Region
+	}
 	if done, err := s.srv.forward("Status.Peers", args, args, reply); done {
 		return err
 	}

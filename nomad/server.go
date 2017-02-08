@@ -1060,15 +1060,15 @@ func (s *Server) GetConfig() *Config {
 // peers.json file. This is written to a file called peers.info in the same
 // location.
 const peersInfoContent = `
-As of Nomad 0.5.6, the peers.json file is only used for recovery
+As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. It should be formatted as a JSON array containing the address
 and port of each Consul server in the cluster, like this:
 
-["10.1.0.1:8500","10.1.0.2:8500","10.1.0.3:8500"]
+["10.1.0.1:4647","10.1.0.2:4647","10.1.0.3:4647"]
 
 Under normal operation, the peers.json file will not be present.
 
-When Consul starts for the first time, it will create this peers.info file and
+When Nomad starts for the first time, it will create this peers.info file and
 delete any existing peers.json file so that recovery doesn't occur on the first
 startup.
 
