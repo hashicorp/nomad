@@ -676,7 +676,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// summaries if they were not present previously. When users upgrade to 0.5
 	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
 	// remove this block.
-	index, err := n.state.Index("job_summary")
+	index, err := newState.Index("job_summary")
 	if err != nil {
 		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
 	}
@@ -685,11 +685,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// we will have to create them
 	if index == 0 {
 		// query the latest index
-		latestIndex, err := n.state.LatestIndex()
+		latestIndex, err := newState.LatestIndex()
 		if err != nil {
 			return fmt.Errorf("unable to query latest index: %v", index)
 		}
-		if err := n.state.ReconcileJobSummaries(latestIndex); err != nil {
+		if err := newState.ReconcileJobSummaries(latestIndex); err != nil {
 			return fmt.Errorf("error reconciling summaries: %v", err)
 		}
 	}
