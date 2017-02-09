@@ -247,8 +247,12 @@ func (r *TaskRunner) RestoreState() error {
 	}
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 	r.taskDirBuilt = snap.TaskDirBuilt
-	r.createdResources = snap.CreatedResources
 	r.payloadRendered = snap.PayloadRendered
+
+	// Pre-0.5.3 state snapshots won't have created resources
+	if snap.CreatedResources != nil {
+		r.createdResources = snap.CreatedResources
+	}
 
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
