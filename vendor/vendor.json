@@ -710,6 +710,12 @@
 			"revisionTime": "2016-05-03T14:34:40Z"
 		},
 		{
+			"checksumSHA1": "BGODc7juQbdG3vNXHZG07kt+lKI=",
+			"path": "github.com/hashicorp/go-sockaddr",
+			"revision": "f910dd83c2052566cad78352c33af714358d1372",
+			"revisionTime": "2017-02-08T07:30:35Z"
+		},
+		{
 			"path": "github.com/hashicorp/go-syslog",
 			"revision": "42a2b573b664dbf281bd48c3cc12c086b17a39ba"
 		},
@@ -786,10 +792,10 @@
 			"revision": "0dc08b1671f34c4250ce212759ebd880f743d883"
 		},
 		{
-			"checksumSHA1": "hSoH77pX3FyU6kkYqOOYmf3r55Y=",
+			"checksumSHA1": "1zk7IeGClUqBo+Phsx89p7fQ/rQ=",
 			"path": "github.com/hashicorp/memberlist",
-			"revision": "9800c50ab79c002353852a9b1095e9591b161513",
-			"revisionTime": "2016-12-13T23:44:46Z"
+			"revision": "23ad4b7d7b38496cd64c241dfd4c60b7794c254a",
+			"revisionTime": "2017-02-08T21:15:06Z"
 		},
 		{
 			"path": "github.com/hashicorp/net-rpc-msgpackrpc",
@@ -979,6 +985,12 @@
 			"path": "github.com/ryanuber/columnize",
 			"revision": "50b9b539927dfe231b8be1caf81b2c81d5940276",
 			"revisionTime": "2016-06-28T05:25:20Z"
+		},
+		{
+			"checksumSHA1": "mNpnww6dZFIcnlK5JHJtqCbA2fc=",
+			"path": "github.com/sean-/seed",
+			"revision": "4969e616e90322a649adab1cd3f42725d99564c7",
+			"revisionTime": "2017-02-08T23:20:47Z"
 		},
 		{
 			"checksumSHA1": "8Lm8nsMCFz4+gr9EvQLqK8+w+Ks=",

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/consul/lib"
 	"github.com/mitchellh/cli"
+	"github.com/sean-/seed"
 )
 
 func init() {
-	lib.SeedMathRand()
+	seed.Init()
 }
 
 func main() {
