@@ -95,6 +95,7 @@ type TaskRunner struct {
 
 	// createdResources are all the resources created by the task driver
 	// across all attempts to start the task.
+	// Simple gets and sets should use {get,set}CreatedResources
 	createdResources     *driver.CreatedResources
 	createdResourcesLock sync.Mutex
 
@@ -249,10 +250,7 @@ func (r *TaskRunner) RestoreState() error {
 	r.taskDirBuilt = snap.TaskDirBuilt
 	r.payloadRendered = snap.PayloadRendered
 
-	// Pre-0.5.3 state snapshots won't have created resources
-	if snap.CreatedResources != nil {
-		r.createdResources = snap.CreatedResources
-	}
+	r.setCreatedResources(snap.CreatedResources)
 
 	if err := r.setTaskEnv(); err != nil {
 		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
@@ -307,17 +305,13 @@ func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 
-	r.createdResourcesLock.Lock()
-	res := r.createdResources.Copy()
-	r.createdResourcesLock.Unlock()
-
 	snap := taskRunnerState{
 		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
 		PayloadRendered:    r.payloadRendered,
-		CreatedResources:   res,
+		CreatedResources:   r.getCreatedResources(),
 	}
 
 	r.handleLock.Lock()
@@ -1033,14 +1027,7 @@ func (r *TaskRunner) cleanup() {
 		return
 	}
 
-	r.createdResourcesLock.Lock()
-	res := r.createdResources.Copy()
-	r.createdResourcesLock.Unlock()
-
-	if res == nil {
-		// No created resources to cleanup
-		return
-	}
+	res := r.getCreatedResources()
 
 	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
 	attempts := 1
@@ -1051,9 +1038,7 @@ func (r *TaskRunner) cleanup() {
 
 		// Copy current createdResources state in case SaveState is
 		// called between retries
-		r.createdResourcesLock.Lock()
-		r.createdResources = res.Copy()
-		r.createdResourcesLock.Unlock()
+		r.setCreatedResources(res)
 
 		// Retry 3 times with sleeps between
 		if !retry || attempts > 3 {
@@ -1476,6 +1461,30 @@ func (r *TaskRunner) Destroy(event *structs.TaskEvent) {
 	r.destroy = true
 	r.destroyEvent = event
 	close(r.destroyCh)
+}
+
+// getCreatedResources returns the resources created by drivers. It will never
+// return nil.
+func (r *TaskRunner) getCreatedResources() *driver.CreatedResources {
+	r.createdResourcesLock.Lock()
+	if r.createdResources == nil {
+		r.createdResources = driver.NewCreatedResources()
+	}
+	cr := r.createdResources.Copy()
+	r.createdResourcesLock.Unlock()
+
+	return cr
+}
+
+// setCreatedResources updates the resources created by drivers. If passed nil
+// it will set createdResources to an initialized struct.
+func (r *TaskRunner) setCreatedResources(cr *driver.CreatedResources) {
+	if cr == nil {
+		cr = driver.NewCreatedResources()
+	}
+	r.createdResourcesLock.Lock()
+	r.createdResources = cr.Copy()
+	r.createdResourcesLock.Unlock()
 }
 
 // emitStats emits resource usage stats of tasks to remote metrics collector
