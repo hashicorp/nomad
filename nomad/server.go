@@ -162,6 +162,7 @@ type endpoints struct {
 	Region   *Region
 	Periodic *Periodic
 	System   *System
+	Operator *Operator
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -639,25 +640,27 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Create endpoints
-	s.endpoints.Status = &Status{s}
-	s.endpoints.Node = &Node{srv: s}
-	s.endpoints.Job = &Job{s}
-	s.endpoints.Eval = &Eval{s}
-	s.endpoints.Plan = &Plan{s}
 	s.endpoints.Alloc = &Alloc{s}
-	s.endpoints.Region = &Region{s}
+	s.endpoints.Eval = &Eval{s}
+	s.endpoints.Job = &Job{s}
+	s.endpoints.Node = &Node{srv: s}
+	s.endpoints.Operator = &Operator{s}
 	s.endpoints.Periodic = &Periodic{s}
+	s.endpoints.Plan = &Plan{s}
+	s.endpoints.Region = &Region{s}
+	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
 
 	// Register the handlers
-	s.rpcServer.Register(s.endpoints.Status)
-	s.rpcServer.Register(s.endpoints.Node)
-	s.rpcServer.Register(s.endpoints.Job)
-	s.rpcServer.Register(s.endpoints.Eval)
-	s.rpcServer.Register(s.endpoints.Plan)
 	s.rpcServer.Register(s.endpoints.Alloc)
-	s.rpcServer.Register(s.endpoints.Region)
+	s.rpcServer.Register(s.endpoints.Eval)
+	s.rpcServer.Register(s.endpoints.Job)
+	s.rpcServer.Register(s.endpoints.Node)
+	s.rpcServer.Register(s.endpoints.Operator)
 	s.rpcServer.Register(s.endpoints.Periodic)
+	s.rpcServer.Register(s.endpoints.Plan)
+	s.rpcServer.Register(s.endpoints.Region)
+	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)

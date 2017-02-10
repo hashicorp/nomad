@@ -39,6 +39,8 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		switch k {
 		case "executor":
 		case "syslog":
+		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
+		case "job dispatch":
 		case "fs ls", "fs cat", "fs stat":
 		case "check":
 		default:
