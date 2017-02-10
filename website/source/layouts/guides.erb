@@ -1,0 +1,28 @@
+<% wrap_layout :inner do %>
+  <% content_for :sidebar do %>
+    <div class="docs-sidebar hidden-print affix-top" role="complementary">
+      <ul class="nav docs-sidenav">
+        <li<%= sidebar_current("guides-installing") %>>
+          <a href="/guides/index.html">Guide One</a>
+        </li>
+
+        <li<%= sidebar_current("some-guides") %>>
+          <a href="/guides/some-guides/group.html">A Group of guides</a>
+          <ul class="nav">
+            <li<%= sidebar_current("guides-some-guides-one") %>>
+              <a href="/guides/some-guides/one.html">Guide one</a>
+            </li>
+            <li<%= sidebar_current("guides-some-guides-two") %>>
+              <a href="/guides/some-guides/two.html">Guide two</a>
+            </li>
+            <li<%= sidebar_current("guides-some-guides-three") %>>
+              <a href="/guides/some-guides/three.html">Guide three</a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= yield %>
+<% end %>
