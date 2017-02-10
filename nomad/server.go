@@ -1058,7 +1058,6 @@ func (s *Server) GetConfig() *Config {
 	return s.config
 }
 
-// TODO(alex) we need a outage guide
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.
@@ -1082,5 +1081,5 @@ creating the peers.json file, and that all servers receive the same
 configuration. Once the peers.json file is successfully ingested and applied, it
 will be deleted.
 
-Please see https://www.consul.io/docs/guides/outage.html for more information.
+Please see https://www.nomadproject.io/guides/outage.html for more information.
 `

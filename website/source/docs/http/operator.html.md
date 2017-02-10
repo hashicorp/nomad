@@ -15,7 +15,7 @@ as interacting with the Raft subsystem. This was added in Nomad 0.5.5
 ~> Use this interface with extreme caution, as improper use could lead to a
   Nomad outage and even loss of data.
 
-See the [Outage Recovery](/docs/guides/outage.html) guide for some examples of how
+See the [Outage Recovery](/guides/outage.html) guide for some examples of how
 these capabilities are used. For a CLI to perform these operations manually, please
 see the documentation for the [`nomad operator`](/docs/commands/operator-index.html)
 command.
