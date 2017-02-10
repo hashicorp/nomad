@@ -409,6 +409,7 @@ type TaskState struct {
 }
 
 const (
+	TaskSetup                  = "Task Setup"
 	TaskSetupFailure           = "Setup Failure"
 	TaskDriverFailure          = "Driver Failure"
 	TaskDriverMessage          = "Driver"

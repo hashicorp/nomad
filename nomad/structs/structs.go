@@ -2853,6 +2853,13 @@ const (
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
 
+	// TaskBuildingTaskDir indicates that the task direcotry/chroot is being
+	// built.
+	TaskBuildingTaskDir = "Building Task Directory"
+
+	// TaskSetup indicates the task runner is setting up the task environment
+	TaskSetup = "Task Setup"
+
 	// TaskDiskExceeded indicates that one of the tasks in a taskgroup has
 	// exceeded the requested disk resources.
 	TaskDiskExceeded = "Disk Resources Exceeded"
@@ -2933,6 +2940,12 @@ type TaskEvent struct {
 
 func (te *TaskEvent) GoString() string {
 	return fmt.Sprintf("%v at %v", te.Type, te.Time)
+}
+
+// SetMessage sets the message of TaskEvent
+func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
+	te.Message = msg
+	return te
 }
 
 func (te *TaskEvent) Copy() *TaskEvent {
