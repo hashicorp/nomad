@@ -2,23 +2,26 @@
   <% content_for :sidebar do %>
     <div class="docs-sidebar hidden-print affix-top" role="complementary">
       <ul class="nav docs-sidenav">
-        <li<%= sidebar_current("guides-installing") %>>
-          <a href="/guides/index.html">Guide One</a>
-        </li>
-
-        <li<%= sidebar_current("some-guides") %>>
-          <a href="/guides/some-guides/group.html">A Group of guides</a>
+        <li<%= sidebar_current("guides-cluster") %>>
+          <a href="/guides/cluster/bootstrapping.html">Bootstrapping Clusters</a>
           <ul class="nav">
-            <li<%= sidebar_current("guides-some-guides-one") %>>
-              <a href="/guides/some-guides/one.html">Guide one</a>
+            <li<%= sidebar_current("guides-cluster-automatic") %>>
+              <a href="/guides/cluster/automatic.html">Automatic</a>
             </li>
-            <li<%= sidebar_current("guides-some-guides-two") %>>
-              <a href="/guides/some-guides/two.html">Guide two</a>
+            <li<%= sidebar_current("guides-cluster-manual") %>>
+              <a href="/guides/cluster/manual.html">Manual</a>
             </li>
-            <li<%= sidebar_current("guides-some-guides-three") %>>
-              <a href="/guides/some-guides/three.html">Guide three</a>
+            <li<%= sidebar_current("guides-cluster-federation") %>>
+              <a href="/guides/cluster/federation.html">Federation</a>
+            </li>
+            <li<%= sidebar_current("guides-cluster-requirements") %>>
+              <a href="/guides/cluster/requirements.html">Requirements</a>
             </li>
           </ul>
+        </li>
+
+        <li<%= sidebar_current("guides-outage-recovery") %>>
+          <a href="/guides/outage.html">Outage Recovery</a>
         </li>
       </ul>
     </div>
