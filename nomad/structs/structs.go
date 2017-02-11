@@ -1931,8 +1931,9 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
 	}
 
-	// Check for duplicate tasks
+	// Check for duplicate tasks and that there is only leader task if any
 	tasks := make(map[string]int)
+	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
@@ -1941,6 +1942,14 @@ func (tg *TaskGroup) Validate() error {
 		} else {
 			tasks[task.Name] = idx
 		}
+
+		if task.Leader {
+			leaderTasks++
+		}
+	}
+
+	if leaderTasks > 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
 	// Validate the tasks
@@ -2289,6 +2298,10 @@ type Task struct {
 	// Artifacts is a list of artifacts to download and extract before running
 	// the task.
 	Artifacts []*TaskArtifact
+
+	// Leader marks the task as the leader within the group. When the leader
+	// task exits, other tasks will be gracefully terminated.
+	Leader bool
 }
 
 func (t *Task) Copy() *Task {

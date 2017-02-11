@@ -163,6 +163,7 @@ type Task struct {
 	Vault           *Vault
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
+	Leader          bool
 }
 
 // TaskArtifact is used to download artifacts before running a task.
