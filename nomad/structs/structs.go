@@ -2788,12 +2788,15 @@ const (
 
 	// TaskSiblingFailed indicates that a sibling task in the task group has
 	// failed.
-	TaskSiblingFailed = "Sibling task failed"
+	TaskSiblingFailed = "Sibling Task Failed"
 
 	// TaskDriverMessage is an informational event message emitted by
 	// drivers such as when they're performing a long running action like
 	// downloading an image.
 	TaskDriverMessage = "Driver"
+
+	// TaskLeaderDead indicates that the leader task within the has finished.
+	TaskLeaderDead = "Leader Task Dead"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

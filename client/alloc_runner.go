@@ -383,19 +383,39 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 
 	taskState.State = state
 	if state == structs.TaskStateDead {
-		// If the task failed, we should kill all the other tasks in the task group.
-		if taskState.Failed {
-			var destroyingTasks []string
-			for task, tr := range r.tasks {
-				if task != taskName {
-					destroyingTasks = append(destroyingTasks, task)
-					tr.Destroy(structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
-				}
-			}
-			if len(destroyingTasks) > 0 {
-				r.logger.Printf("[DEBUG] client: task %q failed, destroying other tasks in task group: %v", taskName, destroyingTasks)
+		// Find all tasks that are not the one that is dead and check if the one
+		// that is dead is a leader
+		var otherTaskRunners []*TaskRunner
+		var otherTaskNames []string
+		leader := false
+		for task, tr := range r.tasks {
+			if task != taskName {
+				otherTaskRunners = append(otherTaskRunners, tr)
+				otherTaskNames = append(otherTaskNames, task)
+			} else if tr.task.Leader {
+				leader = true
 			}
 		}
+
+		// If the task failed, we should kill all the other tasks in the task group.
+		if taskState.Failed {
+			for _, tr := range otherTaskRunners {
+				tr.Destroy(structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
+			}
+			if len(otherTaskRunners) > 0 {
+				r.logger.Printf("[DEBUG] client: task %q failed, destroying other tasks in task group: %v", taskName, otherTaskNames)
+			}
+		} else if leader {
+			for _, tr := range otherTaskRunners {
+				tr.Destroy(structs.NewTaskEvent(structs.TaskLeaderDead))
+			}
+			if len(otherTaskRunners) > 0 {
+				r.logger.Printf("[DEBUG] client: leader task %q is dead, destroying other tasks in task group: %v", taskName, otherTaskNames)
+			}
+		}
+
+		// If the task was a leader task we should kill all the other
+		// tasks.
 	}
 
 	select {

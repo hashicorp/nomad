@@ -382,6 +382,8 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			}
 		case api.TaskDriverMessage:
 			desc = event.DriverMessage
+		case api.TaskLeaderDead:
+			desc = "Leader Task in Group dead"
 		}
 
 		// Reverse order so we are sorted by time
