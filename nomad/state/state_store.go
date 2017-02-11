@@ -1429,8 +1429,8 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			alloc := rawAlloc.(*structs.Allocation)
 
 			// Ignore the allocation if it doesn't belong to the currently
-			// registered job
-			if alloc.Job.CreateIndex != job.CreateIndex {
+			// registered job. The allocation is checked because of issue #2304
+			if alloc.Job == nil || alloc.Job.CreateIndex != job.CreateIndex {
 				continue
 			}
 
