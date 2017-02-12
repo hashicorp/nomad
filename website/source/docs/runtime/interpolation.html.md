@@ -111,47 +111,47 @@ Below is a table documenting common node properties:
     <th>Description</th>
   </tr>
   <tr>
-    <td><tt>arch</tt></td>
+    <td><tt>${attr.arch}</tt></td>
     <td>CPU architecture of the client (e.g. <tt>amd64</tt>, <tt>386</tt>)</td>
   </tr>
   <tr>
-    <td><tt>consul.datacenter</tt></td>
+    <td><tt>${attr.consul.datacenter}</tt></td>
     <td>The Consul datacenter of the client (if Consul is found)</td>
   </tr>
   <tr>
-    <td><tt>cpu.numcores</tt></td>
+    <td><tt>${attr.cpu.numcores}</tt></td>
     <td>Number of CPU cores on the client</td>
   </tr>
   <tr>
-    <td><tt>driver.&lt;property&gt;</tt></td>
+    <td><tt>${attr.driver.&lt;property&gt;}</tt></td>
     <td>See the [task drivers](/docs/drivers/index.html) for property documentation</td>
   </tr>
   <tr>
-    <td><tt>unique.hostname</tt></td>
+    <td><tt>${attr.unique.hostname}</tt></td>
     <td>Hostname of the client</td>
   </tr>
   <tr>
-    <td><tt>kernel.name</tt></td>
+    <td><tt>${attr.kernel.name}</tt></td>
     <td>Kernel of the client (e.g. <tt>linux</tt>, <tt>darwin</tt>)</td>
   </tr>
   <tr>
-    <td><tt>kernel.version</tt></td>
+    <td><tt>${attr.kernel.version}</tt></td>
     <td>Version of the client kernel (e.g. <tt>3.19.0-25-generic</tt>, <tt>15.0.0</tt>)</td>
   </tr>
   <tr>
-    <td><tt>platform.aws.ami-id</tt></td>
+    <td><tt>${attr.platform.aws.ami-id}</tt></td>
     <td>AMI ID of the client (if on AWS EC2)</td>
   </tr>
   <tr>
-    <td><tt>platform.aws.instance-type</tt></td>
+    <td><tt>${attr.platform.aws.instance-type}</tt></td>
     <td>Instance type of the client (if on AWS EC2)</td>
   </tr>
   <tr>
-    <td><tt>os.name</tt></td>
+    <td><tt>${attr.os.name}</tt></td>
     <td>Operating system of the client (e.g. <tt>ubuntu</tt>, <tt>windows</tt>, <tt>darwin</tt>)</td>
   </tr>
   <tr>
-    <td><tt>os.version</tt></td>
+    <td><tt>${attr.os.version}</tt></td>
     <td>Version of the client OS</td>
   </tr>
 </table>
