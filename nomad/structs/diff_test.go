@@ -1777,6 +1777,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "0",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Leader",
+								Old:  "",
+								New:  "false",
+							},
 						},
 					},
 					{
@@ -1809,6 +1815,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "KillTimeout",
 								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Leader",
+								Old:  "false",
 								New:  "",
 							},
 						},
