@@ -304,6 +304,9 @@ func (j *Job) Canonicalize() {
 	if j.Name == nil {
 		j.Name = j.ID
 	}
+	if j.ParentID == nil {
+		j.ParentID = helper.StringToPtr("")
+	}
 
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)

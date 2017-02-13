@@ -12,6 +12,12 @@ type Resources struct {
 	Networks []*NetworkResource
 }
 
+func (r *Resources) Canonicalize() {
+	for _, n := range r.Networks {
+		n.Canonicalize()
+	}
+}
+
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      helper.IntToPtr(100),
@@ -56,5 +62,11 @@ type NetworkResource struct {
 	ReservedPorts []Port
 	DynamicPorts  []Port
 	IP            string
-	MBits         int
+	MBits         *int
+}
+
+func (n *NetworkResource) Canonicalize() {
+	if n.MBits == nil {
+		n.MBits = helper.IntToPtr(10)
+	}
 }

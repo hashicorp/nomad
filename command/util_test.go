@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -44,18 +45,18 @@ func testJob(jobID string) *api.Job {
 		SetConfig("run_for", "5s").
 		SetConfig("exit_code", 0).
 		Require(&api.Resources{
-			MemoryMB: 256,
-			CPU:      100,
+			MemoryMB: helper.IntToPtr(256),
+			CPU:      helper.IntToPtr(100),
 		}).
 		SetLogConfig(&api.LogConfig{
-			MaxFiles:      1,
-			MaxFileSizeMB: 2,
+			MaxFiles:      helper.IntToPtr(1),
+			MaxFileSizeMB: helper.IntToPtr(2),
 		})
 
 	group := api.NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
-			SizeMB: 20,
+			SizeMB: helper.IntToPtr(20),
 		})
 
 	job := api.NewBatchJob(jobID, jobID, "region1", 1).

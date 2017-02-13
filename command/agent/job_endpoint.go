@@ -127,7 +127,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, "Job must be specified")
 	}
 
-	job := s.apiJobToStructJob(validateRequest.Job)
+	job := apiJobToStructJob(validateRequest.Job)
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -142,13 +142,13 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 		// Fall back to do local validation
 		args.Job.Canonicalize()
 		if vErr := args.Job.Validate(); vErr != nil {
-			if merr, ok := err.(*multierror.Error); ok {
-				for _, err := range merr.Errors {
-					out.ValidationErrors = append(out.ValidationErrors, err.Error())
+			if merr, ok := vErr.(*multierror.Error); ok {
+				for _, e := range merr.Errors {
+					out.ValidationErrors = append(out.ValidationErrors, e.Error())
 				}
+			} else {
+				out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
 			}
-		} else {
-			out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
 		}
 	}
 
@@ -355,13 +355,13 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func (s *HTTPServer) apiJobToStructJob(job *api.Job) *structs.Job {
+func apiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
 		Region:            *job.Region,
 		ID:                *job.ID,
-		ParentID:          *job.ID,
+		ParentID:          *job.ParentID,
 		Name:              *job.Name,
 		Type:              *job.Type,
 		Priority:          *job.Priority,
@@ -374,16 +374,14 @@ func (s *HTTPServer) apiJobToStructJob(job *api.Job) *structs.Job {
 		StatusDescription: *job.StatusDescription,
 		CreateIndex:       *job.CreateIndex,
 		ModifyIndex:       *job.ModifyIndex,
-		JobModifyIndex:    *job.ModifyIndex,
+		JobModifyIndex:    *job.JobModifyIndex,
 	}
 
 	j.Constraints = make([]*structs.Constraint, len(job.Constraints))
 	for i, c := range job.Constraints {
-		j.Constraints[i] = &structs.Constraint{
-			LTarget: c.LTarget,
-			RTarget: c.RTarget,
-			Operand: c.Operand,
-		}
+		con := &structs.Constraint{}
+		apiConstraintToStructs(c, con)
+		j.Constraints[i] = con
 	}
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{
@@ -393,10 +391,12 @@ func (s *HTTPServer) apiJobToStructJob(job *api.Job) *structs.Job {
 	}
 	if job.Periodic != nil {
 		j.Periodic = &structs.PeriodicConfig{
-			Enabled:         j.Periodic.Enabled,
-			Spec:            j.Periodic.Spec,
-			SpecType:        j.Periodic.SpecType,
-			ProhibitOverlap: j.Periodic.ProhibitOverlap,
+			Enabled:         *job.Periodic.Enabled,
+			SpecType:        *job.Periodic.SpecType,
+			ProhibitOverlap: *job.Periodic.ProhibitOverlap,
+		}
+		if job.Periodic.Spec != nil {
+			j.Periodic.Spec = *job.Periodic.Spec
 		}
 	}
 	if job.ParameterizedJob != nil {
@@ -410,30 +410,28 @@ func (s *HTTPServer) apiJobToStructJob(job *api.Job) *structs.Job {
 	j.TaskGroups = make([]*structs.TaskGroup, len(job.TaskGroups))
 	for i, taskGroup := range job.TaskGroups {
 		tg := &structs.TaskGroup{}
-		s.apiTgToStructsTG(taskGroup, tg)
+		apiTgToStructsTG(taskGroup, tg)
 		j.TaskGroups[i] = tg
 	}
 
 	return j
 }
 
-func (s *HTTPServer) apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+func apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
 	tg.Constraints = make([]*structs.Constraint, len(taskGroup.Constraints))
 	for k, constraint := range taskGroup.Constraints {
-		tg.Constraints[k] = &structs.Constraint{
-			LTarget: constraint.LTarget,
-			RTarget: constraint.RTarget,
-			Operand: constraint.Operand,
-		}
+		c := &structs.Constraint{}
+		apiConstraintToStructs(constraint, c)
+		tg.Constraints[k] = c
 	}
 	tg.RestartPolicy = &structs.RestartPolicy{
-		Attempts: taskGroup.RestartPolicy.Attempts,
-		Interval: taskGroup.RestartPolicy.Interval,
-		Delay:    taskGroup.RestartPolicy.Delay,
-		Mode:     taskGroup.RestartPolicy.Mode,
+		Attempts: *taskGroup.RestartPolicy.Attempts,
+		Interval: *taskGroup.RestartPolicy.Interval,
+		Delay:    *taskGroup.RestartPolicy.Delay,
+		Mode:     *taskGroup.RestartPolicy.Mode,
 	}
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
@@ -444,23 +442,21 @@ func (s *HTTPServer) apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.Task
 	tg.Tasks = make([]*structs.Task, len(taskGroup.Tasks))
 	for l, task := range taskGroup.Tasks {
 		t := &structs.Task{}
-		s.apiTaskToStructsTask(task, t)
+		apiTaskToStructsTask(task, t)
 		tg.Tasks[l] = t
 	}
 }
 
-func (s *HTTPServer) apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
-	structsTask.Name = apiTask.Driver
+func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
+	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
 	structsTask.User = apiTask.User
 	structsTask.Config = apiTask.Config
 	structsTask.Constraints = make([]*structs.Constraint, len(apiTask.Constraints))
 	for i, constraint := range apiTask.Constraints {
-		structsTask.Constraints[i] = &structs.Constraint{
-			LTarget: constraint.LTarget,
-			RTarget: constraint.RTarget,
-			Operand: constraint.Operand,
-		}
+		c := &structs.Constraint{}
+		apiConstraintToStructs(constraint, c)
+		structsTask.Constraints[i] = c
 	}
 	structsTask.Env = apiTask.Env
 	structsTask.Services = make([]*structs.Service, len(apiTask.Services))
@@ -496,10 +492,10 @@ func (s *HTTPServer) apiTaskToStructsTask(apiTask *api.Task, structsTask *struct
 		structsTask.Resources.Networks[i] = &structs.NetworkResource{
 			CIDR:  nw.CIDR,
 			IP:    nw.IP,
-			MBits: nw.MBits,
+			MBits: *nw.MBits,
 		}
-		structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, len(structsTask.Resources.Networks[i].DynamicPorts))
-		structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, len(structsTask.Resources.Networks[i].ReservedPorts))
+		structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, len(nw.DynamicPorts))
+		structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, len(nw.ReservedPorts))
 		for j, dp := range nw.DynamicPorts {
 			structsTask.Resources.Networks[i].DynamicPorts[j] = structs.Port{
 				Label: dp.Label,
@@ -514,7 +510,7 @@ func (s *HTTPServer) apiTaskToStructsTask(apiTask *api.Task, structsTask *struct
 		}
 	}
 	structsTask.Meta = apiTask.Meta
-	structsTask.KillTimeout = apiTask.KillTimeout
+	structsTask.KillTimeout = *apiTask.KillTimeout
 	structsTask.LogConfig = &structs.LogConfig{
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
@@ -552,4 +548,10 @@ func (s *HTTPServer) apiTaskToStructsTask(apiTask *api.Task, structsTask *struct
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+}
+
+func apiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
+	c2.LTarget = c1.LTarget
+	c2.RTarget = c1.RTarget
+	c2.Operand = c1.Operand
 }

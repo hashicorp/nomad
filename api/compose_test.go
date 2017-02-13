@@ -21,7 +21,7 @@ func TestCompose(t *testing.T) {
 			Networks: []*NetworkResource{
 				&NetworkResource{
 					CIDR:          "0.0.0.0/0",
-					MBits:         100,
+					MBits:         helper.IntToPtr(100),
 					ReservedPorts: []Port{{"", 80}, {"", 443}},
 				},
 			},
@@ -83,7 +83,7 @@ func TestCompose(t *testing.T) {
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									CIDR:  "0.0.0.0/0",
-									MBits: 100,
+									MBits: helper.IntToPtr(100),
 									ReservedPorts: []Port{
 										{"", 80},
 										{"", 443},

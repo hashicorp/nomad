@@ -5,8 +5,11 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -621,4 +624,356 @@ func TestHTTP_JobDispatch(t *testing.T) {
 			t.Fatalf("bad: %v", dispatch)
 		}
 	})
+}
+
+func TestJobs_ApiJobToStructsJob(t *testing.T) {
+	apiJob := &api.Job{
+		Region:      helper.StringToPtr("global"),
+		ID:          helper.StringToPtr("foo"),
+		ParentID:    helper.StringToPtr("lol"),
+		Name:        helper.StringToPtr("name"),
+		Type:        helper.StringToPtr("service"),
+		Priority:    helper.IntToPtr(50),
+		AllAtOnce:   helper.BoolToPtr(true),
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*api.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		Update: &api.UpdateStrategy{
+			Stagger:     1 * time.Second,
+			MaxParallel: 5,
+		},
+		Periodic: &api.PeriodicConfig{
+			Enabled:         helper.BoolToPtr(true),
+			Spec:            helper.StringToPtr("spec"),
+			SpecType:        helper.StringToPtr("cron"),
+			ProhibitOverlap: helper.BoolToPtr(true),
+		},
+		ParameterizedJob: &api.ParameterizedJobConfig{
+			Payload:      "payload",
+			MetaRequired: []string{"a", "b"},
+			MetaOptional: []string{"c", "d"},
+		},
+		Payload: []byte("payload"),
+		Meta: map[string]string{
+			"foo": "bar",
+		},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(5),
+				Constraints: []*api.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &api.RestartPolicy{
+					Interval: helper.TimeToPtr(1 * time.Second),
+					Attempts: helper.IntToPtr(5),
+					Delay:    helper.TimeToPtr(10 * time.Second),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB:  helper.IntToPtr(100),
+					Sticky:  helper.BoolToPtr(true),
+					Migrate: helper.BoolToPtr(true),
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*api.Task{
+					{
+						Name:   "task1",
+						Driver: "docker",
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Constraints: []*api.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+
+						Services: []api.Service{
+							{
+								Id:        "id",
+								Name:      "serviceA",
+								Tags:      []string{"1", "2"},
+								PortLabel: "foo",
+								Checks: []api.ServiceCheck{
+									{
+										Id:            "hello",
+										Name:          "bar",
+										Type:          "http",
+										Command:       "foo",
+										Args:          []string{"a", "b"},
+										Path:          "/check",
+										Protocol:      "http",
+										PortLabel:     "foo",
+										Interval:      4 * time.Second,
+										Timeout:       2 * time.Second,
+										InitialStatus: "ok",
+									},
+								},
+							},
+						},
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							Networks: []*api.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: helper.IntToPtr(10),
+									ReservedPorts: []api.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []api.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: helper.TimeToPtr(10 * time.Second),
+						LogConfig: &api.LogConfig{
+							MaxFiles:      helper.IntToPtr(10),
+							MaxFileSizeMB: helper.IntToPtr(100),
+						},
+						Artifacts: []*api.TaskArtifact{
+							{
+								GetterSource: helper.StringToPtr("source"),
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								RelativeDest: helper.StringToPtr("dest"),
+							},
+						},
+						Vault: &api.Vault{
+							Policies:     []string{"a", "b", "c"},
+							Env:          helper.BoolToPtr(true),
+							ChangeMode:   helper.StringToPtr("c"),
+							ChangeSignal: helper.StringToPtr("sighup"),
+						},
+						Templates: []*api.Template{
+							{
+								SourcePath:   helper.StringToPtr("source"),
+								DestPath:     helper.StringToPtr("dest"),
+								EmbeddedTmpl: helper.StringToPtr("embedded"),
+								ChangeMode:   helper.StringToPtr("change"),
+								ChangeSignal: helper.StringToPtr("signal"),
+								Splay:        helper.TimeToPtr(1 * time.Minute),
+								Perms:        helper.StringToPtr("666"),
+							},
+						},
+						DispatchPayload: &api.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+		VaultToken:        helper.StringToPtr("token"),
+		Status:            helper.StringToPtr("status"),
+		StatusDescription: helper.StringToPtr("status_desc"),
+		CreateIndex:       helper.Uint64ToPtr(1),
+		ModifyIndex:       helper.Uint64ToPtr(3),
+		JobModifyIndex:    helper.Uint64ToPtr(5),
+	}
+
+	expected := &structs.Job{
+		Region:      "global",
+		ID:          "foo",
+		ParentID:    "lol",
+		Name:        "name",
+		Type:        "service",
+		Priority:    50,
+		AllAtOnce:   true,
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		Update: structs.UpdateStrategy{
+			Stagger:     1 * time.Second,
+			MaxParallel: 5,
+		},
+		Periodic: &structs.PeriodicConfig{
+			Enabled:         true,
+			Spec:            "spec",
+			SpecType:        "cron",
+			ProhibitOverlap: true,
+		},
+		ParameterizedJob: &structs.ParameterizedJobConfig{
+			Payload:      "payload",
+			MetaRequired: []string{"a", "b"},
+			MetaOptional: []string{"c", "d"},
+		},
+		Payload: []byte("payload"),
+		Meta: map[string]string{
+			"foo": "bar",
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "group1",
+				Count: 5,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Interval: 1 * time.Second,
+					Attempts: 5,
+					Delay:    10 * time.Second,
+					Mode:     "delay",
+				},
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB:  100,
+					Sticky:  true,
+					Migrate: true,
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "task1",
+						Driver: "docker",
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Services: []*structs.Service{
+							&structs.Service{
+								Name:      "serviceA",
+								Tags:      []string{"1", "2"},
+								PortLabel: "foo",
+								Checks: []*structs.ServiceCheck{
+									&structs.ServiceCheck{
+										Name:          "bar",
+										Type:          "http",
+										Command:       "foo",
+										Args:          []string{"a", "b"},
+										Path:          "/check",
+										Protocol:      "http",
+										PortLabel:     "foo",
+										Interval:      4 * time.Second,
+										Timeout:       2 * time.Second,
+										InitialStatus: "ok",
+									},
+								},
+							},
+						},
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 10,
+							Networks: []*structs.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: 10,
+									ReservedPorts: []structs.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []structs.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: 10 * time.Second,
+						LogConfig: &structs.LogConfig{
+							MaxFiles:      10,
+							MaxFileSizeMB: 100,
+						},
+						Artifacts: []*structs.TaskArtifact{
+							{
+								GetterSource: "source",
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								RelativeDest: "dest",
+							},
+						},
+						Vault: &structs.Vault{
+							Policies:     []string{"a", "b", "c"},
+							Env:          true,
+							ChangeMode:   "c",
+							ChangeSignal: "sighup",
+						},
+						Templates: []*structs.Template{
+							{
+								SourcePath:   "source",
+								DestPath:     "dest",
+								EmbeddedTmpl: "embedded",
+								ChangeMode:   "change",
+								ChangeSignal: "SIGNAL",
+								Splay:        1 * time.Minute,
+								Perms:        "666",
+							},
+						},
+						DispatchPayload: &structs.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+
+		VaultToken:        "token",
+		Status:            "status",
+		StatusDescription: "status_desc",
+		CreateIndex:       1,
+		ModifyIndex:       3,
+		JobModifyIndex:    5,
+	}
+
+	structsJob := apiJobToStructJob(apiJob)
+
+	if !reflect.DeepEqual(expected, structsJob) {
+		t.Fatalf("bad %#v", structsJob)
+	}
 }

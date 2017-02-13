@@ -3,11 +3,14 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mitchellh/colorstring"
 )
 
 type ValidateCommand struct {
 	Meta
 	JobGetter
+	color *colorstring.Colorize
 }
 
 func (c *ValidateCommand) Help() string {
@@ -62,8 +65,20 @@ func (c *ValidateCommand) Run(args []string) int {
 	}
 
 	// Check that the job is valid
-	if _, _, err := client.Jobs().Validate(job, nil); err != nil {
+	jr, _, err := client.Jobs().Validate(job, nil)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
+		return 1
+	}
+	if jr != nil && !jr.DriverConfigValidated {
+		c.Ui.Output(c.Colorize().Color("[bold][orange]Driver configuration not validated.[reset]"))
+	}
+
+	if jr != nil && len(jr.ValidationErrors) > 0 {
+		c.Ui.Output("Job Validation errors:")
+		for _, err := range jr.ValidationErrors {
+			c.Ui.Output(err)
+		}
 		return 1
 	}
 

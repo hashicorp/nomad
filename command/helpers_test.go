@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 )
 
@@ -208,8 +210,8 @@ const (
 }`
 )
 
-// Test StructJob with local jobfile
-func TestStructJobWithLocal(t *testing.T) {
+// Test APIJob with local jobfile
+func TestJobGetter_LocalFile(t *testing.T) {
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -221,19 +223,52 @@ func TestStructJobWithLocal(t *testing.T) {
 	}
 
 	j := &JobGetter{}
-	sj, err := j.StructJob(fh.Name())
+	aj, err := j.ApiJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	err = sj.Validate()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+	expected := &api.Job{
+		ID:          helper.StringToPtr("job1"),
+		Region:      helper.StringToPtr("global"),
+		Priority:    helper.IntToPtr(50),
+		Name:        helper.StringToPtr("job1"),
+		Type:        helper.StringToPtr("service"),
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(1),
+				RestartPolicy: &api.RestartPolicy{
+					Attempts: helper.IntToPtr(10),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB: helper.IntToPtr(300),
+				},
+
+				Tasks: []*api.Task{
+					{
+						Driver: "exec",
+						Name:   "task1",
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							IOPS:     helper.IntToPtr(0),
+						},
+						LogConfig: api.DefaultLogConfig(),
+					},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(expected, aj) {
+		t.Fatalf("bad: %#v", aj)
 	}
 }
 
 // Test StructJob with jobfile from HTTP Server
-func TestStructJobWithHTTPServer(t *testing.T) {
+func TestAPIJob_HTTPServer(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, job)
 	})
@@ -243,13 +278,45 @@ func TestStructJobWithHTTPServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	j := &JobGetter{}
-	sj, err := j.StructJob("http://127.0.0.1:12345/")
+	aj, err := j.ApiJob("http://127.0.0.1:12345/")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	expected := &api.Job{
+		ID:          helper.StringToPtr("job1"),
+		Region:      helper.StringToPtr("global"),
+		Priority:    helper.IntToPtr(50),
+		Name:        helper.StringToPtr("job1"),
+		Type:        helper.StringToPtr("service"),
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(1),
+				RestartPolicy: &api.RestartPolicy{
+					Attempts: helper.IntToPtr(10),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB: helper.IntToPtr(300),
+				},
 
-	err = sj.Validate()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+				Tasks: []*api.Task{
+					{
+						Driver: "exec",
+						Name:   "task1",
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							IOPS:     helper.IntToPtr(0),
+						},
+						LogConfig: api.DefaultLogConfig(),
+					},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(expected, aj) {
+		t.Fatalf("bad: %#v", aj)
 	}
 }

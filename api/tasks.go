@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -53,10 +54,25 @@ type AllocResourceUsage struct {
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
-	Interval time.Duration
-	Attempts int
-	Delay    time.Duration
-	Mode     string
+	Interval *time.Duration
+	Attempts *int
+	Delay    *time.Duration
+	Mode     *string
+}
+
+func (r *RestartPolicy) Merge(rp *RestartPolicy) {
+	if rp.Interval != nil {
+		r.Interval = rp.Interval
+	}
+	if rp.Attempts != nil {
+		r.Attempts = rp.Attempts
+	}
+	if rp.Delay != nil {
+		r.Delay = rp.Delay
+	}
+	if rp.Mode != nil {
+		r.Mode = rp.Mode
+	}
 }
 
 // The ServiceCheck data model represents the consul health check that
@@ -145,24 +161,29 @@ func (g *TaskGroup) Canonicalize(jobType string) {
 	} else {
 		g.EphemeralDisk.Canonicalize()
 	}
-	if g.RestartPolicy == nil {
-		switch jobType {
-		case "service", "system":
-			g.RestartPolicy = &RestartPolicy{
-				Delay:    15 * time.Second,
-				Attempts: 2,
-				Interval: 1 * time.Minute,
-				Mode:     "delay",
-			}
-		default:
-			g.RestartPolicy = &RestartPolicy{
-				Delay:    15 * time.Second,
-				Attempts: 15,
-				Interval: 7 * 24 * time.Hour,
-				Mode:     "delay",
-			}
+
+	var defaultRestartPolicy *RestartPolicy
+	switch jobType {
+	case "service", "system":
+		defaultRestartPolicy = &RestartPolicy{
+			Delay:    helper.TimeToPtr(15 * time.Second),
+			Attempts: helper.IntToPtr(2),
+			Interval: helper.TimeToPtr(1 * time.Minute),
+			Mode:     helper.StringToPtr("delay"),
+		}
+	default:
+		defaultRestartPolicy = &RestartPolicy{
+			Delay:    helper.TimeToPtr(15 * time.Second),
+			Attempts: helper.IntToPtr(15),
+			Interval: helper.TimeToPtr(7 * 24 * time.Hour),
+			Mode:     helper.StringToPtr("delay"),
 		}
 	}
+
+	if g.RestartPolicy != nil {
+		defaultRestartPolicy.Merge(g.RestartPolicy)
+	}
+	g.RestartPolicy = defaultRestartPolicy
 }
 
 // Constrain is used to add a constraint to a task group.
@@ -230,7 +251,7 @@ type Task struct {
 	Services        []Service
 	Resources       *Resources
 	Meta            map[string]string
-	KillTimeout     time.Duration
+	KillTimeout     *time.Duration
 	LogConfig       *LogConfig
 	Artifacts       []*TaskArtifact
 	Vault           *Vault
@@ -255,8 +276,13 @@ func (t *Task) Canonicalize() {
 		tmpl.Canonicalize()
 	}
 
+	if t.KillTimeout == nil {
+		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
+	}
+
 	min := MinResources()
 	min.Merge(t.Resources)
+	min.Canonicalize()
 	t.Resources = min
 }
 
@@ -293,6 +319,13 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Perms == nil {
 		tmpl.Perms = helper.StringToPtr("0644")
 	}
+	if *tmpl.ChangeMode == "signal" && tmpl.ChangeSignal == nil {
+		tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
+	}
+	if tmpl.ChangeSignal != nil {
+		sig := *tmpl.ChangeSignal
+		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
+	}
 }
 
 type Vault struct {
@@ -310,7 +343,7 @@ func (v *Vault) Canonicalize() {
 		v.ChangeMode = helper.StringToPtr("restart")
 	}
 	if v.ChangeSignal == nil {
-		v.ChangeSignal = helper.StringToPtr("sighup")
+		v.ChangeSignal = helper.StringToPtr("SIGHUP")
 	}
 }
 

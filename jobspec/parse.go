@@ -712,10 +712,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		}
 
 		// If we have logs then parse that
-		logConfig := &api.LogConfig{
-			MaxFiles:      helper.IntToPtr(10),
-			MaxFileSizeMB: helper.IntToPtr(10),
-		}
+		logConfig := api.DefaultLogConfig()
 
 		if o := listVal.Filter("logs"); len(o.Items) > 0 {
 			if len(o.Items) > 1 {

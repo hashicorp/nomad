@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
@@ -75,6 +76,134 @@ func TestJobs_Validate(t *testing.T) {
 
 	if len(resp1.ValidationErrors) == 0 {
 		t.Fatalf("bad %v", resp1)
+	}
+}
+
+func TestJobs_Canonicalize(t *testing.T) {
+
+	testCases := []struct {
+		name     string
+		expected *Job
+		input    *Job
+	}{
+		{
+			name: "empty",
+			input: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Tasks: []*Task{
+							{},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				ID:                helper.StringToPtr(""),
+				Name:              helper.StringToPtr(""),
+				Region:            helper.StringToPtr("global"),
+				Type:              helper.StringToPtr("service"),
+				ParentID:          helper.StringToPtr(""),
+				Priority:          helper.IntToPtr(50),
+				AllAtOnce:         helper.BoolToPtr(false),
+				VaultToken:        helper.StringToPtr(""),
+				Status:            helper.StringToPtr(""),
+				StatusDescription: helper.StringToPtr(""),
+				CreateIndex:       helper.Uint64ToPtr(0),
+				ModifyIndex:       helper.Uint64ToPtr(0),
+				JobModifyIndex:    helper.Uint64ToPtr(0),
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  helper.StringToPtr(""),
+						Count: helper.IntToPtr(1),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  helper.BoolToPtr(false),
+							Migrate: helper.BoolToPtr(false),
+							SizeMB:  helper.IntToPtr(300),
+						},
+						RestartPolicy: &RestartPolicy{
+							Delay:    helper.TimeToPtr(15 * time.Second),
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Minute),
+							Mode:     helper.StringToPtr("delay"),
+						},
+						Tasks: []*Task{
+							{
+								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								LogConfig:   DefaultLogConfig(),
+								Resources:   MinResources(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "partial",
+			input: &Job{
+				Name:     helper.StringToPtr("foo"),
+				ID:       helper.StringToPtr("bar"),
+				ParentID: helper.StringToPtr("lol"),
+				TaskGroups: []*TaskGroup{
+					{
+						Name: helper.StringToPtr("bar"),
+						Tasks: []*Task{
+							{
+								Name: "task1",
+							},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				ID:                helper.StringToPtr("bar"),
+				Name:              helper.StringToPtr("foo"),
+				Region:            helper.StringToPtr("global"),
+				Type:              helper.StringToPtr("service"),
+				ParentID:          helper.StringToPtr("lol"),
+				Priority:          helper.IntToPtr(50),
+				AllAtOnce:         helper.BoolToPtr(false),
+				VaultToken:        helper.StringToPtr(""),
+				Status:            helper.StringToPtr(""),
+				StatusDescription: helper.StringToPtr(""),
+				CreateIndex:       helper.Uint64ToPtr(0),
+				ModifyIndex:       helper.Uint64ToPtr(0),
+				JobModifyIndex:    helper.Uint64ToPtr(0),
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(1),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  helper.BoolToPtr(false),
+							Migrate: helper.BoolToPtr(false),
+							SizeMB:  helper.IntToPtr(300),
+						},
+						RestartPolicy: &RestartPolicy{
+							Delay:    helper.TimeToPtr(15 * time.Second),
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Minute),
+							Mode:     helper.StringToPtr("delay"),
+						},
+						Tasks: []*Task{
+							{
+								Name:        "task1",
+								LogConfig:   DefaultLogConfig(),
+								Resources:   MinResources(),
+								KillTimeout: helper.TimeToPtr(5 * time.Second),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.input.Canonicalize()
+			if !reflect.DeepEqual(tc.input, tc.expected) {
+				t.Fatalf("Name: %v, expected: %#v, actual: %#v", tc.name, tc.expected, tc.input)
+			}
+		})
 	}
 }
 
@@ -174,7 +303,7 @@ func TestJobs_Info(t *testing.T) {
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if result == nil || result.ID != job.ID {
+	if result == nil || *result.ID != *job.ID {
 		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
 }
@@ -416,7 +545,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		out, _, err := jobs.Info(*job.ID, nil)
-		if err != nil || out == nil || out.ID != job.ID {
+		if err != nil || out == nil || *out.ID != *job.ID {
 			return false, err
 		}
 		return true, nil
