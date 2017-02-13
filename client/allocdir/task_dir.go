@@ -37,6 +37,8 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
+	Mounts map[string]string
+
 	logger *log.Logger
 }
 
@@ -53,6 +55,7 @@ func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
 		LocalDir:       filepath.Join(taskDir, TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
+		Mounts:         make(map[string]string),
 		logger:         logger,
 	}
 }
@@ -60,7 +63,7 @@ func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done.
-func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstructs.FSIsolation) error {
+func (t *TaskDir) Build(chrootCreated bool, links map[string]string, bindings map[string]string, fsi cstructs.FSIsolation) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
 	}
@@ -116,7 +119,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 
 	// Build chroot if chroot filesystem isolation is going to be used
 	if fsi == cstructs.FSIsolationChroot {
-		if err := t.buildChroot(chrootCreated, chroot); err != nil {
+		if err := t.buildChroot(chrootCreated, links, bindings); err != nil {
 			return err
 		}
 	}
@@ -130,12 +133,17 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 // host and can't be embedded an error is returned. If chrootCreated is true
 // skip expensive embedding operations and only ephemeral operations (eg
 // mounting /dev) are done.
-func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
+func (t *TaskDir) buildChroot(chrootCreated bool, links map[string]string, bindings map[string]string) error {
 	if !chrootCreated {
 		// Link/copy chroot entries
-		if err := t.embedDirs(entries); err != nil {
+		if err := t.embedDirs(links); err != nil {
 			return err
 		}
+	}
+
+	// RBind chroot entries
+	if err := t.bindDirs(bindings); err != nil {
+		return err
 	}
 
 	// Mount special dirs

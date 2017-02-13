@@ -1171,7 +1171,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		t.Fatalf("failed to build alloc dir: %v", err)
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
-	if err := taskDir.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := taskDir.Build(false, nil, nil, cstructs.FSIsolationImage); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("failed to build task dir: %v", err)
 	}

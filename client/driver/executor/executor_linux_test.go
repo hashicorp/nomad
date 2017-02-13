@@ -45,7 +45,7 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 	if err := allocDir.Build(); err != nil {
 		log.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(false, chrootEnv, cstructs.FSIsolationChroot); err != nil {
+	if err := allocDir.NewTaskDir(task.Name).Build(false, chrootEnv, nil, cstructs.FSIsolationChroot); err != nil {
 		allocDir.Destroy()
 		log.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}

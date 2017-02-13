@@ -175,6 +175,10 @@ type ClientConfig struct {
 	// task's chroot.
 	ChrootEnv map[string]string `mapstructure:"chroot_env"`
 
+	// A mapping of files/directories on the host OS to attempt to bind-mount inside each
+	// task's chroot.
+	ChrootBindings map[string]string `mapstructure:"chroot_bindings"`
+
 	// Interface to use for network fingerprinting
 	NetworkInterface string `mapstructure:"network_interface"`
 
@@ -978,6 +982,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	for k, v := range b.ChrootEnv {
 		result.ChrootEnv[k] = v
+	}
+
+	// Add the chroot_bindings map values
+	if result.ChrootBindings == nil {
+		result.ChrootBindings = make(map[string]string)
+	}
+	for k, v := range b.ChrootBindings {
+		result.ChrootBindings[k] = v
 	}
 
 	return &result

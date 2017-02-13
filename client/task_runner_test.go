@@ -98,7 +98,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 		fsi = cstructs.FSIsolationChroot
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
-	if err := taskDir.Build(false, config.DefaultChrootEnv, fsi); err != nil {
+	if err := taskDir.Build(false, config.DefaultChrootEnv, config.DefaultChrootBindings, fsi); err != nil {
 		t.Fatalf("error building task dir %q: %v", task.Name, err)
 		return nil
 	}

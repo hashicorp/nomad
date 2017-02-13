@@ -229,7 +229,7 @@ func (d *AllocDir) UnmountAll() error {
 		}
 
 		// Unmount dev/ and proc/ have been mounted.
-		if err := dir.unmountSpecialDirs(); err != nil {
+		if err := dir.unmount(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}

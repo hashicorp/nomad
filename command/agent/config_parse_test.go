@@ -57,6 +57,9 @@ func TestConfig_Parse(t *testing.T) {
 						"/opt/myapp/etc": "/etc",
 						"/opt/myapp/bin": "/bin",
 					},
+					ChrootBindings: map[string]string{
+						"/opt/myapp/var": "/var",
+					},
 					NetworkInterface: "eth0",
 					NetworkSpeed:     100,
 					CpuCompute:       4444,

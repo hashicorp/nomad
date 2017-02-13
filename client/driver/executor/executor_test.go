@@ -49,7 +49,7 @@ func testExecutorContext(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
 	if err := allocDir.Build(); err != nil {
 		log.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(false, nil, cstructs.FSIsolationNone); err != nil {
+	if err := allocDir.NewTaskDir(task.Name).Build(false, nil, nil, cstructs.FSIsolationNone); err != nil {
 		allocDir.Destroy()
 		log.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}

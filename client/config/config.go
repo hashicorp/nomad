@@ -53,6 +53,7 @@ var (
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
 	}
+	DefaultChrootBindings = map[string]string{}
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -121,6 +122,10 @@ type Config struct {
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string
+
+	// A mapping of files/directories on the host OS to attempt to bind-mount inside each
+	// task's chroot.
+	ChrootBindings map[string]string
 
 	// Options provides arbitrary key-value configuration for nomad internals,
 	// like fingerprinters and drivers. The format is:

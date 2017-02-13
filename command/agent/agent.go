@@ -240,6 +240,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
 	conf.ChrootEnv = a.config.Client.ChrootEnv
+	conf.ChrootBindings = a.config.Client.ChrootBindings
 	conf.Options = a.config.Client.Options
 	// Logging deprecation messages about consul related configuration in client
 	// options

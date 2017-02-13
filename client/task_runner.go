@@ -1237,12 +1237,17 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
 			SetMessage(structs.TaskBuildingTaskDir))
 	}
-
-	chroot := config.DefaultChrootEnv
+	links := config.DefaultChrootEnv
 	if len(r.config.ChrootEnv) > 0 {
-		chroot = r.config.ChrootEnv
+		links = r.config.ChrootEnv
 	}
-	if err := r.taskDir.Build(built, chroot, fsi); err != nil {
+
+	bindings := config.DefaultChrootBindings
+	if len(r.config.ChrootBindings) > 0 {
+		bindings = r.config.ChrootBindings
+	}
+
+	if err := r.taskDir.Build(built, links, bindings, fsi); err != nil {
 		return err
 	}
 
