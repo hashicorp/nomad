@@ -358,6 +358,10 @@ The `Task` object supports the following keys:
   sends `SIGTERM` if the task doesn't die after the `KillTimeout` duration has
   elapsed. The default `KillTimeout` is 5 seconds.
 
+* `leader` - Specifies whether the task is the leader task of the task group. If
+  set to true, when the leader task completes, all other tasks within the task
+  group will be gracefully shutdown.
+
 * `LogConfig` - This allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.
 
@@ -680,6 +684,9 @@ README][ct].
 * `ChangeSignal` - Specifies the signal to send to the task as a string like
   "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
   `signal`.
+
+* `perms` - Specifies the rendered template's permissions. File permissions are
+  given as octal of the unix file permissions rwxrwxrwx.
 
 * `Splay` - Specifies a random amount of time to wait between 0ms and the given
   splay value before invoking the change mode. Should be specified in

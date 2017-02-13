@@ -52,6 +52,10 @@ job "docs" {
   If the task does not exit before the configured timeout, `SIGKILL` is sent to
   the task.
 
+- `leader` `(bool: false)` - Specifies whether the task is the leader task of
+  the task group. If set to true, when the leader task completes, all other
+  tasks within the task group will be gracefully shutdown.
+
 - `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
   `stdout` and `stderr` of the task.
 
