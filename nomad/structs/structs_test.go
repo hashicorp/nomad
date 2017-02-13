@@ -1493,11 +1493,19 @@ func TestVault_Validate(t *testing.T) {
 		t.Fatalf("Expected policy list empty error")
 	}
 
-	v.Policies = []string{"foo"}
+	v.Policies = []string{"foo", "root"}
 	v.ChangeMode = VaultChangeModeSignal
 
-	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Signal must") {
+	err := v.Validate()
+	if err == nil {
+		t.Fatalf("Expected validation errors")
+	}
+
+	if !strings.Contains(err.Error(), "Signal must") {
 		t.Fatalf("Expected signal empty error")
+	}
+	if !strings.Contains(err.Error(), "root") {
+		t.Fatalf("Expected root error")
 	}
 }
 

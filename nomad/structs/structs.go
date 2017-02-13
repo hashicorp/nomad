@@ -3238,21 +3238,28 @@ func (v *Vault) Validate() error {
 		return nil
 	}
 
+	var mErr multierror.Error
 	if len(v.Policies) == 0 {
-		return fmt.Errorf("Policy list cannot be empty")
+		multierror.Append(&mErr, fmt.Errorf("Policy list cannot be empty"))
+	}
+
+	for _, p := range v.Policies {
+		if p == "root" {
+			multierror.Append(&mErr, fmt.Errorf("Can not specifiy \"root\" policy"))
+		}
 	}
 
 	switch v.ChangeMode {
 	case VaultChangeModeSignal:
 		if v.ChangeSignal == "" {
-			return fmt.Errorf("Signal must be specified when using change mode %q", VaultChangeModeSignal)
+			multierror.Append(&mErr, fmt.Errorf("Signal must be specified when using change mode %q", VaultChangeModeSignal))
 		}
 	case VaultChangeModeNoop, VaultChangeModeRestart:
 	default:
-		return fmt.Errorf("Unknown change mode %q", v.ChangeMode)
+		multierror.Append(&mErr, fmt.Errorf("Unknown change mode %q", v.ChangeMode))
 	}
 
-	return nil
+	return mErr.ErrorOrNil()
 }
 
 const (
