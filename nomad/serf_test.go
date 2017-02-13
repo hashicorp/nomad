@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/serf/serf"
 )
 
 func TestNomad_JoinPeer(t *testing.T) {
@@ -81,6 +83,94 @@ func TestNomad_RemovePeer(t *testing.T) {
 		}
 		if len(s2.peers) != 1 {
 			return false, fmt.Errorf("bad: %#v", s2.peers)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestNomad_ReapPeer(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+	})
+	defer s1.Shutdown()
+	s2 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+	})
+	defer s2.Shutdown()
+	s3 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node3")
+	})
+	defer s3.Shutdown()
+	testJoin(t, s1, s2, s3)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if members := s1.Members(); len(members) != 3 {
+			return false, fmt.Errorf("bad: %#v", members)
+		}
+		if members := s2.Members(); len(members) != 3 {
+			return false, fmt.Errorf("bad: %#v", members)
+		}
+		if members := s3.Members(); len(members) != 3 {
+			return false, fmt.Errorf("bad: %#v", members)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Simulate a reap
+	mems := s1.Members()
+	var s2mem serf.Member
+	for _, m := range mems {
+		if strings.Contains(m.Name, s2.config.NodeName) {
+			s2mem = m
+			s2mem.Status = StatusReap
+			break
+		}
+	}
+
+	// Shutdown and then send the reap
+	s2.Shutdown()
+	s1.reconcileCh <- s2mem
+	s2.reconcileCh <- s2mem
+	s3.reconcileCh <- s2mem
+
+	testutil.WaitForResult(func() (bool, error) {
+		if len(s1.peers["global"]) != 2 {
+			return false, fmt.Errorf("bad: %#v", s1.peers["global"])
+		}
+		peers, err := s1.numPeers()
+		if err != nil {
+			return false, fmt.Errorf("numPeers() failed: %v", err)
+		}
+		if peers != 2 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+
+		if len(s3.peers["global"]) != 2 {
+			return false, fmt.Errorf("bad: %#v", s1.peers["global"])
+		}
+		peers, err = s3.numPeers()
+		if err != nil {
+			return false, fmt.Errorf("numPeers() failed: %v", err)
+		}
+		if peers != 2 {
+			return false, fmt.Errorf("bad: %#v", peers)
 		}
 		return true, nil
 	}, func(err error) {
