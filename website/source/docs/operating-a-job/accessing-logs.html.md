@@ -79,9 +79,9 @@ $ nomad logs -stderr 04d9627d
 
 While the logs command works well for quickly accessing application logs, it
 generally does not scale to large systems or systems that produce a lot of log
-output, especially for the long-term storage of logs. Nomad only retains log
-files for a configurable period of time, so chatty applications should use a
-better log retention strategy.
+output, especially for the long-term storage of logs. Nomad's retention of log
+files is best effort, so chatty applications should use a better log retention
+strategy.
 
 Since applications log to the `alloc/` directory, all tasks within the same task
 group have access to each others logs. Thus it is possible to have a task group
@@ -91,6 +91,10 @@ as follows:
 group "my-group" {
   task "server" {
     # ...
+
+    # Setting the server task as the leader of the task group allows us to
+    # signal the log shipper task to gracefully shutdown when the server exits.
+    leader = true
   }
 
   task "log-shipper" {
@@ -103,3 +107,11 @@ In the above example, the `server` task is the application that should be run
 and will be producing the logs. The `log-shipper` reads those logs from the
 `alloc/logs/` directory and sends them to a longer-term storage solution such as
 Amazon S3 or an internal log aggregation system.
+
+When using the log shipper pattern, especially for batch jobs, the main task
+should be marked as the [leader task](/docs/job-specification/task.html#leader).
+By marking the main task as a leader, when the task completes all other tasks
+within the group will be gracefully shutdown. This allows the log shipper to
+finish sending any logs and then exiting itself. The log shipper should set a
+high enough [`kill_timeout`](/docs/job-specification/task.html#kill_timeout)
+such that it can ship any remaining logs before exiting.

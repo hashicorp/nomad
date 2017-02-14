@@ -50,6 +50,7 @@ job "binstore-storagelocker" {
     task "binstore" {
       driver = "docker"
       user   = "bob"
+      leader = true
 
       config {
         image = "hashicorp/binstore"

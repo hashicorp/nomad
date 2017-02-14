@@ -163,6 +163,7 @@ type Task struct {
 	Vault           *Vault
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
+	Leader          *bool
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -256,10 +257,10 @@ const (
 	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
-	TaskVaultRenewalFailed     = "Vault token renewal failed"
-	TaskSiblingFailed          = "Sibling task failed"
+	TaskSiblingFailed          = "Sibling Task Failed"
 	TaskSignaling              = "Signaling"
 	TaskRestartSignal          = "Restart Signaled"
+	TaskLeaderDead             = "Leader Task Dead"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

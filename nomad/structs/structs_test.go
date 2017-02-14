@@ -419,8 +419,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 		Name:  "web",
 		Count: 1,
 		Tasks: []*Task{
-			&Task{Name: "web"},
-			&Task{Name: "web"},
+			&Task{Name: "web", Leader: true},
+			&Task{Name: "web", Leader: true},
 			&Task{},
 		},
 		RestartPolicy: &RestartPolicy{
@@ -442,7 +442,10 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }

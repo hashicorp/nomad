@@ -1937,8 +1937,9 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
 	}
 
-	// Check for duplicate tasks
+	// Check for duplicate tasks and that there is only leader task if any
 	tasks := make(map[string]int)
+	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
@@ -1947,6 +1948,14 @@ func (tg *TaskGroup) Validate() error {
 		} else {
 			tasks[task.Name] = idx
 		}
+
+		if task.Leader {
+			leaderTasks++
+		}
+	}
+
+	if leaderTasks > 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
 	// Validate the tasks
@@ -2295,6 +2304,10 @@ type Task struct {
 	// Artifacts is a list of artifacts to download and extract before running
 	// the task.
 	Artifacts []*TaskArtifact
+
+	// Leader marks the task as the leader within the group. When the leader
+	// task exits, other tasks will be gracefully terminated.
+	Leader bool
 }
 
 func (t *Task) Copy() *Task {
@@ -2781,12 +2794,15 @@ const (
 
 	// TaskSiblingFailed indicates that a sibling task in the task group has
 	// failed.
-	TaskSiblingFailed = "Sibling task failed"
+	TaskSiblingFailed = "Sibling Task Failed"
 
 	// TaskDriverMessage is an informational event message emitted by
 	// drivers such as when they're performing a long running action like
 	// downloading an image.
 	TaskDriverMessage = "Driver"
+
+	// TaskLeaderDead indicates that the leader task within the has finished.
+	TaskLeaderDead = "Leader Task Dead"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

@@ -1777,6 +1777,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "0",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Leader",
+								Old:  "",
+								New:  "false",
+							},
 						},
 					},
 					{
@@ -1809,6 +1815,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "KillTimeout",
 								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Leader",
+								Old:  "false",
 								New:  "",
 							},
 						},
@@ -1880,6 +1892,7 @@ func TestTaskDiff(t *testing.T) {
 					"foo": "bar",
 				},
 				KillTimeout: 1 * time.Second,
+				Leader:      true,
 			},
 			New: &Task{
 				Name:   "foo",
@@ -1892,6 +1905,7 @@ func TestTaskDiff(t *testing.T) {
 					"foo": "bar",
 				},
 				KillTimeout: 1 * time.Second,
+				Leader:      true,
 			},
 			Expected: &TaskDiff{
 				Type: DiffTypeNone,
@@ -1911,6 +1925,7 @@ func TestTaskDiff(t *testing.T) {
 					"foo": "bar",
 				},
 				KillTimeout: 1 * time.Second,
+				Leader:      true,
 			},
 			New: &Task{
 				Name:   "foo",
@@ -1923,6 +1938,7 @@ func TestTaskDiff(t *testing.T) {
 					"foo": "baz",
 				},
 				KillTimeout: 2 * time.Second,
+				Leader:      false,
 			},
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
@@ -1945,6 +1961,12 @@ func TestTaskDiff(t *testing.T) {
 						Name: "KillTimeout",
 						Old:  "1000000000",
 						New:  "2000000000",
+					},
+					{
+						Type: DiffTypeEdited,
+						Name: "Leader",
+						Old:  "true",
+						New:  "false",
 					},
 					{
 						Type: DiffTypeEdited,

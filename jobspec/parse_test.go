@@ -181,6 +181,7 @@ func TestParse(t *testing.T) {
 										Perms:        "777",
 									},
 								},
+								Leader: true,
 							},
 							&structs.Task{
 								Name:   "storagelocker",

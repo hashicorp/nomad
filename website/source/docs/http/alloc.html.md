@@ -267,6 +267,8 @@ be specified using the `?region=` query parameter.
     * `Failed Artifact Download` - Artifact(s) specified in the task failed to download.
     * `Restart Signaled` - The task was signalled to be restarted.
     * `Signaling` - The task was is being sent a signal.
-    * `Sibling task failed` - A task in the same task group failed.
+    * `Sibling Task Failed` - A task in the same task group failed.
+    * `Leader Task Dead` - The group's leader task is dead.
+    * `Driver` - A message from the driver.
 
     Depending on the type the event will have applicable annotations.

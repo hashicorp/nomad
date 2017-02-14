@@ -568,6 +568,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*structs.Task, l
 			"driver",
 			"env",
 			"kill_timeout",
+			"leader",
 			"logs",
 			"meta",
 			"resources",

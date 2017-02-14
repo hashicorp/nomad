@@ -663,6 +663,70 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	})
 }
 
+func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
+	upd, ar := testAllocRunner(false)
+
+	// Create two tasks in the task group
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.KillTimeout = 10 * time.Millisecond
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task2 := ar.alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "task 2"
+	task2.Driver = "mock_driver"
+	task2.Leader = true
+	task2.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
+	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	go ar.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+
+		// Task One should be killed
+		state1 := last.TaskStates[task.Name]
+		if state1.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
+		}
+		if len(state1.Events) < 2 {
+			// At least have a received and destroyed
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+
+		found := false
+		for _, e := range state1.Events {
+			if e.Type != structs.TaskLeaderDead {
+				found = true
+			}
+		}
+
+		if !found {
+			return false, fmt.Errorf("Did not find event %v", structs.TaskLeaderDead)
+		}
+
+		// Task Two should be dead
+		state2 := last.TaskStates[task2.Name]
+		if state2.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state2.State, structs.TaskStateDead)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	// Create an alloc runner
 	alloc := mock.Alloc()
