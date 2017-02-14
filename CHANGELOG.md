@@ -13,6 +13,7 @@ IMPROVEMENTS:
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
   * template: Permissions can be set on template destination file [GH-2262]
+  * vault: Disallow root policy from being specified [GH-2309]
 
 BUG FIXES:
   * client: Fix race condition with deriving vault tokens [GH-2275]
