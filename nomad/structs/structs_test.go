@@ -1254,6 +1254,7 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	p := &RestartPolicy{
 		Mode:     RestartPolicyModeFail,
 		Attempts: 0,
+		Interval: 5 * time.Second,
 	}
 	if err := p.Validate(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1263,6 +1264,7 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	p = &RestartPolicy{
 		Mode:     RestartPolicyModeDelay,
 		Attempts: 0,
+		Interval: 5 * time.Second,
 	}
 	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "ambiguous") {
 		t.Fatalf("expect ambiguity error, got: %v", err)
@@ -1272,6 +1274,7 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	p = &RestartPolicy{
 		Mode:     "nope",
 		Attempts: 1,
+		Interval: 5 * time.Second,
 	}
 	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "mode") {
 		t.Fatalf("expect mode error, got: %v", err)
@@ -1282,10 +1285,21 @@ func TestRestartPolicy_Validate(t *testing.T) {
 		Mode:     RestartPolicyModeDelay,
 		Attempts: 3,
 		Delay:    5 * time.Second,
-		Interval: time.Second,
+		Interval: 5 * time.Second,
 	}
 	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "can't restart") {
 		t.Fatalf("expect restart interval error, got: %v", err)
+	}
+
+	// Fails when interval is to small
+	p = &RestartPolicy{
+		Mode:     RestartPolicyModeDelay,
+		Attempts: 3,
+		Delay:    5 * time.Second,
+		Interval: 2 * time.Second,
+	}
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "Interval can not be less than") {
+		t.Fatalf("expect interval too small error, got: %v", err)
 	}
 }
 

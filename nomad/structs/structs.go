@@ -1744,6 +1744,10 @@ const (
 	// RestartPolicyModeFail causes a job to fail if the specified number of
 	// attempts are reached within an interval.
 	RestartPolicyModeFail = "fail"
+
+	// RestartPolicyMinInterval is the minimum interval that is accepted for a
+	// restart policy.
+	RestartPolicyMinInterval = 5 * time.Second
 )
 
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
@@ -1773,24 +1777,26 @@ func (r *RestartPolicy) Copy() *RestartPolicy {
 }
 
 func (r *RestartPolicy) Validate() error {
+	var mErr multierror.Error
 	switch r.Mode {
 	case RestartPolicyModeDelay, RestartPolicyModeFail:
 	default:
-		return fmt.Errorf("Unsupported restart mode: %q", r.Mode)
+		multierror.Append(&mErr, fmt.Errorf("Unsupported restart mode: %q", r.Mode))
 	}
 
 	// Check for ambiguous/confusing settings
 	if r.Attempts == 0 && r.Mode != RestartPolicyModeFail {
-		return fmt.Errorf("Restart policy %q with %d attempts is ambiguous", r.Mode, r.Attempts)
+		multierror.Append(&mErr, fmt.Errorf("Restart policy %q with %d attempts is ambiguous", r.Mode, r.Attempts))
 	}
 
-	if r.Interval == 0 {
-		return nil
+	if r.Interval.Nanoseconds() < RestartPolicyMinInterval.Nanoseconds() {
+		multierror.Append(&mErr, fmt.Errorf("Interval can not be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
 	}
 	if time.Duration(r.Attempts)*r.Delay > r.Interval {
-		return fmt.Errorf("Nomad can't restart the TaskGroup %v times in an interval of %v with a delay of %v", r.Attempts, r.Interval, r.Delay)
+		multierror.Append(&mErr,
+			fmt.Errorf("Nomad can't restart the TaskGroup %v times in an interval of %v with a delay of %v", r.Attempts, r.Interval, r.Delay))
 	}
-	return nil
+	return mErr.ErrorOrNil()
 }
 
 func NewRestartPolicy(jobType string) *RestartPolicy {
