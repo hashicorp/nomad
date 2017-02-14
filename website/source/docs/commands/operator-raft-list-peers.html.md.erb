@@ -45,17 +45,17 @@ nomad-server02.global  10.10.11.6:4647  10.10.11.6:4647  leader    true
 nomad-server03.global  10.10.11.7:4647  10.10.11.7:4647  follower  true
 ```
 
-* `Node` is the node name of the server, as known to Nomad, or "(unknown)" if
+- `Node` is the node name of the server, as known to Nomad, or "(unknown)" if
 the node is stale and not known.
 
-* `ID` is the ID of the server. This is the same as the `Address` but may  be
+- `ID` is the ID of the server. This is the same as the `Address` but may  be
 upgraded to a GUID in a future version of Nomad.
 
-* `Address` is the IP:port for the server.
+- `Address` is the IP:port for the server.
 
-* `State` is either "follower" or "leader" depending on the server's role in the
+- `State` is either "follower" or "leader" depending on the server's role in the
 Raft configuration.
 
-* `Voter` is "true" or "false", indicating if the server has a vote in the Raft
+- `Voter` is "true" or "false", indicating if the server has a vote in the Raft
 configuration. Future versions of Nomad may add support for non-voting servers.
 

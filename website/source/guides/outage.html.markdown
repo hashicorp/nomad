@@ -18,10 +18,9 @@ Depending on your
 may take only a single server failure for cluster unavailability. Recovery
 requires an operator to intervene, but the process is straightforward.
 
-~> This guide is for recovery from a Nomad outage due to a majority
-of server nodes in a datacenter being lost. If you are just looking to
-add or remove servers, see the [bootstrapping
-guide](/guides/cluster/bootstrapping.html).
+~> This guide is for recovery from a Nomad outage due to a majority of server
+nodes in a datacenter being lost. If you are looking to add or remove servers,
+see the [bootstrapping guide](/guides/cluster/bootstrapping.html).
 
 ## Failure of a Single Server Cluster
 
@@ -61,9 +60,9 @@ depending on your version of Nomad:
   the stale peer server on the fly with no downtime.
 
 * In versions of Nomad prior to 0.5.5, you can manually remove the stale peer
-server using the `raft/peers.json` recovery file on all remaining servers. See
-the [section below](#peers.json) for details on this procedure. This process
-requires Nomad downtime to complete.
+  server using the `raft/peers.json` recovery file on all remaining servers. See
+  the [section below](#manual-recovery-using-peers-json) for details on this
+  procedure. This process requires Nomad downtime to complete.
 
 In Nomad 0.5.5 and later, you can use the [`nomad operator raft
 list-peers`](/docs/commands/operator-raft-list-peers.html) command to inspect
@@ -86,10 +85,11 @@ servers were lost, so information about what's committed could be incomplete.
 The recovery process implicitly commits all outstanding Raft log entries, so
 it's also possible to commit data that was uncommitted before the failure.
 
-See the [section below](#peers.json) for details of the recovery procedure. You
-simply include just the remaining servers in the `raft/peers.json` recovery file.
-The cluster should be able to elect a leader once the remaining servers are all
-restarted with an identical `raft/peers.json` configuration.
+See the [section below](#manual-recovery-using-peers-json) for details of the
+recovery procedure. You simply include just the remaining servers in the
+`raft/peers.json` recovery file.  The cluster should be able to elect a leader
+once the remaining servers are all restarted with an identical `raft/peers.json`
+configuration.
 
 Any new servers you introduce later can be fresh with totally clean data directories
 and joined using Nomad's `server-join` command.
@@ -106,7 +106,6 @@ guaranteed to start with your recovered configuration. This does implicitly comm
 all Raft log entries, so should only be used to recover from an outage, but it
 should allow recovery from any situation where there's some cluster data available.
 
-<a name="peers.json"></a>
 ## Manual Recovery Using peers.json
 
 To begin, stop all remaining servers. You can attempt a graceful leave,
@@ -133,9 +132,9 @@ create a `raft/peers.json` file. It should look something like:
 
 ```javascript
 [
-"10.0.1.8:4647",
-"10.0.1.6:4647",
-"10.0.1.7:4647"
+  "10.0.1.8:4647",
+  "10.0.1.6:4647",
+  "10.0.1.7:4647"
 ]
 ```
 
