@@ -8,6 +8,8 @@ IMPROVEMENTS:
   * client: Apply GC related configurations properly [GH-2273]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
+  * jobspec: Add leader task to allow graceful shutdown of other tasks within
+    the task group [GH-2308]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
   * template: Permissions can be set on template destination file [GH-2262]
