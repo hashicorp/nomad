@@ -34,8 +34,9 @@ func (s *Server) serfEventHandler() {
 			case serf.EventMemberLeave, serf.EventMemberFailed:
 				s.nodeFailed(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberUpdate, serf.EventMemberReap,
-				serf.EventUser, serf.EventQuery: // Ignore
+			case serf.EventMemberReap:
+				s.localMemberEvent(e.(serf.MemberEvent))
+			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
 			default:
 				s.logger.Printf("[WARN] nomad: unhandled serf event: %#v", e)
 			}
