@@ -3,6 +3,8 @@
 IMPROVEMENTS:
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
   * api: Validate the restart policy interval [GH-2311]
+  * api/cli: Add nomad operator command and API for interacting with Raft
+    configuration [GH-2305]
   * client: Apply GC related configurations properly [GH-2273]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
