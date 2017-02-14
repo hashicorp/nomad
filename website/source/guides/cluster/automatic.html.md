@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Automatically Bootstrapping a Nomad Cluster"
-sidebar_current: "docs-cluster-automatic"
+sidebar_current: "guides-cluster-automatic"
 description: |-
   Learn how to automatically bootstrap a Nomad cluster using Consul. By having
   a Consul agent installed on each host, Nomad can automatically discover other

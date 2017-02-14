@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Federating a Nomad Cluster"
-sidebar_current: "docs-cluster-federation"
+sidebar_current: "guides-cluster-federation"
 description: |-
   Learn how to join Nomad servers across multiple regions so users can submit
   jobs to any server in any region using global federation.

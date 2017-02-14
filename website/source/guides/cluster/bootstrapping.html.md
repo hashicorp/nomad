@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Bootstrapping a Nomad Cluster"
-sidebar_current: "docs-cluster-bootstrap"
+sidebar_current: "guides-cluster-bootstrap"
 description: |-
   Learn how to bootstrap a Nomad cluster.
 ---
@@ -17,8 +17,8 @@ page](/docs/internals/architecture.html).
 
 There are two strategies for bootstrapping a Nomad cluster:
 
-1. <a href="/docs/cluster/automatic.html">Automatic bootstrapping</a>
-1. <a href="/docs/cluster/manual.html">Manual bootstrapping</a>
+1. <a href="/guides/cluster/automatic.html">Automatic bootstrapping</a>
+1. <a href="/guides/cluster/manual.html">Manual bootstrapping</a>
 
 Please refer to the specific documentation links above or in the sidebar for
 more detailed information about each strategy.

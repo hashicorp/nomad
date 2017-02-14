@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Nomad Client and Server Requirements"
-sidebar_current: "docs-cluster-requirements"
+sidebar_current: "guides-cluster-requirements"
 description: |-
   Learn about Nomad client and server requirements such as memory and CPU
   recommendations, network topologies, and more.

@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Manually Bootstrapping a Nomad Cluster"
-sidebar_current: "docs-cluster-manual"
+sidebar_current: "guides-cluster-manual"
 description: |-
   Learn how to manually bootstrap a Nomad cluster using the server-join
   command. This section also discusses Nomad federation across multiple

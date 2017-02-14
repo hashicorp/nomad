@@ -115,6 +115,30 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"operator": func() (cli.Command, error) {
+			return &command.OperatorCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator raft": func() (cli.Command, error) {
+			return &command.OperatorRaftCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator raft list-peers": func() (cli.Command, error) {
+			return &command.OperatorRaftListCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator raft remove-peer": func() (cli.Command, error) {
+			return &command.OperatorRaftRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"plan": func() (cli.Command, error) {
 			return &command.PlanCommand{
 				Meta: meta,
