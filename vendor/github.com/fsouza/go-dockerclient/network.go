@@ -5,7 +5,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,11 +68,11 @@ type NetworkFilterOpts map[string]map[string]bool
 //
 // See goo.gl/zd2mx4 for more details.
 func (c *Client) FilteredListNetworks(opts NetworkFilterOpts) ([]Network, error) {
-	params := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(params).Encode(&opts); err != nil {
+	params, err := json.Marshal(opts)
+	if err != nil {
 		return nil, err
 	}
-	path := "/networks?filters=" + params.String()
+	path := "/networks?filters=" + string(params)
 	resp, err := c.do("GET", path, doOptions{})
 	if err != nil {
 		return nil, err
@@ -154,9 +153,6 @@ func (c *Client) CreateNetwork(opts CreateNetworkOptions) (*Network, error) {
 		},
 	)
 	if err != nil {
-		if e, ok := err.(*Error); ok && e.Status == http.StatusConflict {
-			return nil, ErrNetworkAlreadyExists
-		}
 		return nil, err
 	}
 	defer resp.Body.Close()

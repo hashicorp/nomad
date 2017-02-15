@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
 )
 
@@ -66,7 +66,7 @@ type JoinSwarmOptions struct {
 // See https://goo.gl/TdhJWU for more details.
 func (c *Client) JoinSwarm(opts JoinSwarmOptions) error {
 	path := "/swarm/join"
-	_, err := c.do("POST", path, doOptions{
+	resp, err := c.do("POST", path, doOptions{
 		data:      opts.JoinRequest,
 		forceJSON: true,
 		context:   opts.Context,
@@ -76,6 +76,7 @@ func (c *Client) JoinSwarm(opts JoinSwarmOptions) error {
 			return ErrNodeAlreadyInSwarm
 		}
 	}
+	resp.Body.Close()
 	return err
 }
 
@@ -92,7 +93,7 @@ func (c *Client) LeaveSwarm(opts LeaveSwarmOptions) error {
 	params := make(url.Values)
 	params.Set("force", strconv.FormatBool(opts.Force))
 	path := "/swarm/leave?" + params.Encode()
-	_, err := c.do("POST", path, doOptions{
+	resp, err := c.do("POST", path, doOptions{
 		context: opts.Context,
 	})
 	if err != nil {
@@ -100,6 +101,7 @@ func (c *Client) LeaveSwarm(opts LeaveSwarmOptions) error {
 			return ErrNodeNotInSwarm
 		}
 	}
+	resp.Body.Close()
 	return err
 }
 
@@ -121,7 +123,7 @@ func (c *Client) UpdateSwarm(opts UpdateSwarmOptions) error {
 	params.Set("rotateWorkerToken", strconv.FormatBool(opts.RotateWorkerToken))
 	params.Set("rotateManagerToken", strconv.FormatBool(opts.RotateManagerToken))
 	path := "/swarm/update?" + params.Encode()
-	_, err := c.do("POST", path, doOptions{
+	resp, err := c.do("POST", path, doOptions{
 		data:      opts.Swarm,
 		forceJSON: true,
 		context:   opts.Context,
@@ -131,6 +133,7 @@ func (c *Client) UpdateSwarm(opts UpdateSwarmOptions) error {
 			return ErrNodeNotInSwarm
 		}
 	}
+	resp.Body.Close()
 	return err
 }
 

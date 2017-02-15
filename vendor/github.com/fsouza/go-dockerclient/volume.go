@@ -76,6 +76,7 @@ type CreateVolumeOptions struct {
 	Driver     string
 	DriverOpts map[string]string
 	Context    context.Context `json:"-"`
+	Labels     map[string]string
 }
 
 // CreateVolume creates a volume on the server.

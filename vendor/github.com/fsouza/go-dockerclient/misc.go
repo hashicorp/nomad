@@ -6,14 +6,15 @@ package docker
 
 import (
 	"encoding/json"
+	"net"
 	"strings"
 
-	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 // Version returns version information about the docker server.
 //
-// See https://goo.gl/ND9R8L for more details.
+// See https://goo.gl/mU7yje for more details.
 func (c *Client) Version() (*Env, error) {
 	resp, err := c.do("GET", "/version", doOptions{})
 	if err != nil {
@@ -66,6 +67,7 @@ type DockerInfo struct {
 	OSType             string
 	Architecture       string
 	IndexServerAddress string
+	RegistryConfig     *ServiceConfig
 	NCPU               int
 	MemTotal           int64
 	DockerRootDir      string
@@ -90,6 +92,50 @@ type PluginsInfo struct {
 	Network []string
 	// List of Authorization plugins registered
 	Authorization []string
+}
+
+// ServiceConfig stores daemon registry services configuration.
+//
+// for more information, see: https://goo.gl/7iFFDz
+type ServiceConfig struct {
+	InsecureRegistryCIDRs []*NetIPNet
+	IndexConfigs          map[string]*IndexInfo
+	Mirrors               []string
+}
+
+// NetIPNet is the net.IPNet type, which can be marshalled and
+// unmarshalled to JSON.
+//
+// for more information, see: https://goo.gl/7iFFDz
+type NetIPNet net.IPNet
+
+// MarshalJSON returns the JSON representation of the IPNet.
+//
+func (ipnet *NetIPNet) MarshalJSON() ([]byte, error) {
+	return json.Marshal((*net.IPNet)(ipnet).String())
+}
+
+// UnmarshalJSON sets the IPNet from a byte array of JSON.
+//
+func (ipnet *NetIPNet) UnmarshalJSON(b []byte) (err error) {
+	var ipnetStr string
+	if err = json.Unmarshal(b, &ipnetStr); err == nil {
+		var cidr *net.IPNet
+		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
+			*ipnet = NetIPNet(*cidr)
+		}
+	}
+	return
+}
+
+// IndexInfo contains information about a registry.
+//
+// for more information, see: https://goo.gl/7iFFDz
+type IndexInfo struct {
+	Name     string
+	Mirrors  []string
+	Secure   bool
+	Official bool
 }
 
 // Info returns system-wide information about the Docker server.

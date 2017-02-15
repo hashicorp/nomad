@@ -1036,6 +1036,10 @@ func TestDockerDriver_Stats(t *testing.T) {
 }
 
 func TestDockerDriver_Signal(t *testing.T) {
+	if !testutil.DockerIsConnected(t) {
+		t.SkipNow()
+	}
+
 	task := &structs.Task{
 		Name:   "redis-demo",
 		Driver: "docker",
