@@ -202,6 +202,7 @@ const (
                 restart{
                         attempts = 10
                         mode = "delay"
+						interval = "15s"
                 }
         }
 }`
