@@ -1125,16 +1125,16 @@
 			"revisionTime": "2016-09-30T03:27:40Z"
 		},
 		{
-			"checksumSHA1": "tHm2SMtuRfrwh6NnnymsuoJ6e0Q=",
+			"checksumSHA1": "CoxdaTYdPZNJXr8mJfLxye428N0=",
 			"path": "github.com/ugorji/go/codec",
-			"revision": "a396ed22fc049df733440d90efe17475e3929ccb",
-			"revisionTime": "2016-03-28T06:07:40Z"
+			"revision": "c88ee250d0221a57af388746f5cf03768c21d6e2",
+			"revisionTime": "2017-02-15T20:11:44Z"
 		},
 		{
 			"checksumSHA1": "CjQp8RP9SgJGltsq01UVaU4UYK0=",
 			"path": "github.com/ugorji/go/codec/codecgen",
-			"revision": "a396ed22fc049df733440d90efe17475e3929ccb",
-			"revisionTime": "2016-03-28T06:07:40Z"
+			"revision": "c88ee250d0221a57af388746f5cf03768c21d6e2",
+			"revisionTime": "2017-02-15T20:11:44Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",

@@ -1,7 +1,6 @@
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -158,12 +157,17 @@ func (c *InspectCommand) Run(args []string) int {
 
 	// Print the contents of the job
 	req := api.RegisterJobRequest{Job: job}
-	buf, err := json.MarshalIndent(req, "", "    ")
+	f, err := DataFormat("json", "")
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(string(buf))
+	out, err := f.TransformData(req)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
+		return 1
+	}
+	c.Ui.Output(out)
 	return 0
 }
