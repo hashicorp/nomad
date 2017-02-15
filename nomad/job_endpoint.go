@@ -687,7 +687,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// If it is a periodic job calculate the next launch
 	if args.Job.IsPeriodic() && args.Job.Periodic.Enabled {
-		reply.NextPeriodicLaunch = args.Job.Periodic.Next(time.Now().UTC())
+		reply.NextPeriodicLaunch = args.Job.Periodic.Next(time.Now().In(args.Job.Periodic.GetLocation()))
 	}
 
 	reply.FailedTGAllocs = updatedEval.FailedTGAllocs

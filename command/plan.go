@@ -218,8 +218,9 @@ func formatDryRun(resp *api.JobPlanResponse, job *structs.Job) string {
 	}
 
 	if next := resp.NextPeriodicLaunch; !next.IsZero() {
+		now := time.Now().In(job.Periodic.GetLocation())
 		out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s (%s from now).\n",
-			formatTime(next), formatTimeDifference(time.Now().UTC(), next, time.Second))
+			formatTime(next), formatTimeDifference(now, next, time.Second))
 	}
 
 	out = strings.TrimSuffix(out, "\n")
