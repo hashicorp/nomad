@@ -7,7 +7,7 @@ services:
 language: go
 
 go:
-  -  1.8rc3
+  -  1.7
 
 branches:
   only:
