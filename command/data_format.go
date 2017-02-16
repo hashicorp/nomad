@@ -46,8 +46,6 @@ func (p *JSONFormat) TransformData(data interface{}) (string, error) {
 	err := enc.Encode(data)
 	if err != nil {
 		return "", err
-	} else {
-		buf.Write([]byte("\n"))
 	}
 
 	return buf.String(), nil

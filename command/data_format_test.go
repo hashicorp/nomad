@@ -12,9 +12,9 @@ type testData struct {
 }
 
 const expectJSON = `{
-    "Region": "global",
     "ID": "1",
-    "Name": "example"
+    "Name": "example",
+    "Region": "global"
 }`
 
 var (
@@ -36,7 +36,7 @@ func TestDataFormat(t *testing.T) {
 		}
 
 		if result != expectOutput[k] {
-			t.Fatalf("expected output: %s, actual: %s", expectOutput[k], result)
+			t.Fatalf("expected output:\n%s\nactual:\n%s", expectOutput[k], result)
 		}
 	}
 }
