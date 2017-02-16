@@ -144,12 +144,12 @@ func (c *StatusCommand) Run(args []string) int {
 
 	// Format the job info
 	basic := []string{
-		fmt.Sprintf("ID|%s", job.ID),
-		fmt.Sprintf("Name|%s", job.Name),
-		fmt.Sprintf("Type|%s", job.Type),
-		fmt.Sprintf("Priority|%d", job.Priority),
+		fmt.Sprintf("ID|%s", *job.ID),
+		fmt.Sprintf("Name|%s", *job.Name),
+		fmt.Sprintf("Type|%s", *job.Type),
+		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status|%s", job.Status),
+		fmt.Sprintf("Status|%s", *job.Status),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
