@@ -1,8 +1,6 @@
 package command
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"sort"
 	"strings"
@@ -133,14 +131,8 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if it is periodic or a parameterized job
-	sJob, err := convertApiJob(job)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
-		return 1
-	}
-	periodic := sJob.IsPeriodic()
-	parameterized := sJob.IsParameterized()
+	periodic := job.IsPeriodic()
+	parameterized := job.IsParameterized()
 
 	// Format the job info
 	basic := []string{
@@ -156,7 +148,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 	if periodic {
 		now := time.Now().UTC()
-		next := sJob.Periodic.Next(now)
+		next := job.Periodic.Next(now)
 		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
 			fmt.Sprintf("%s (%s from now)",
 				formatTime(next), formatTimeDifference(now, next, time.Second))))
@@ -375,13 +367,8 @@ func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error
 		return nil
 	}
 
-	sJob, err := convertApiJob(job)
-	if err != nil {
-		return fmt.Errorf("Error converting job: %s", err)
-	}
-
-	periodic := sJob.IsPeriodic()
-	parameterizedJob := sJob.IsParameterized()
+	periodic := job.IsPeriodic()
+	parameterizedJob := job.IsParameterized()
 
 	// Print the summary
 	if !periodic && !parameterizedJob {
@@ -447,22 +434,6 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
-}
-
-// convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
-// This function is just a hammer and probably needs to be revisited.
-func convertApiJob(in *api.Job) (*structs.Job, error) {
-	gob.Register(map[string]interface{}{})
-	gob.Register([]interface{}{})
-	var structJob *structs.Job
-	buf := new(bytes.Buffer)
-	if err := gob.NewEncoder(buf).Encode(in); err != nil {
-		return nil, err
-	}
-	if err := gob.NewDecoder(buf).Decode(&structJob); err != nil {
-		return nil, err
-	}
-	return structJob, nil
 }
 
 // list general information about a list of jobs

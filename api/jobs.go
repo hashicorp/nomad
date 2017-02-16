@@ -494,6 +494,18 @@ type JobValidateResponse struct {
 	ValidationErrors []string
 }
 
+// JobUpdateRequest is used to update a job
+type JobUpdateRequest struct {
+	Job *Job
+	// If EnforceIndex is set then the job will only be registered if the passed
+	// JobModifyIndex matches the current Jobs index. If the index is zero, the
+	// register only occurs if the job is new.
+	EnforceIndex   bool
+	JobModifyIndex uint64
+
+	WriteRequest
+}
+
 // RegisterJobRequest is used to serialize a job registration
 type RegisterJobRequest struct {
 	Job            *Job
