@@ -8,7 +8,6 @@
   .navbar-brand {
     .logo{
       color: $gray-darker;
-      font-family: $font-family-blanc;
       font-size: 28px;
       background: image-url('logo-header.png') 0 0 no-repeat;
       @include img-retina("logo-header.png", "logo-header@2x.png", $project-logo-width, $project-logo-height);

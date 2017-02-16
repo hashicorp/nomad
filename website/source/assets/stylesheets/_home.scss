@@ -97,12 +97,10 @@
       margin-top: 0;
       color: $blue-dark;
       font-size: $font-size-xl;
-      font-family: $font-family-blanc;
     }
 
     h4{
       color: $blue-light;
-      font-family: $font-family-blanc;
     }
 
     #hero-btns{
@@ -182,7 +180,6 @@
     margin-right: 30px;
     font-size: $font-size-reg;
     line-height: $font-size-reg;
-    font-family: $font-family-blanc-reg;
   }
 
   p, a{
@@ -198,7 +195,6 @@
     margin-bottom: 120px;
     text-align: center;
     font-size: $font-size-m;
-    font-family: $font-family-blanc;
     color: $green;
     text-transform: uppercase;
   }
@@ -320,7 +316,6 @@
         color: $blue-dark;
         letter-spacing: 1px;
         font-size: $font-size-l;
-        font-family: $font-family-blanc;
         line-height: 1.25em;
         max-width: 640px;
       }
@@ -329,7 +324,6 @@
         margin-bottom: 30px;
         color: $blue-light;
         font-size: $font-size-reg+2;
-        font-family: $font-family-blanc-reg;
         line-height: 1.75em;
         max-width: 480px;
       }
@@ -342,7 +336,6 @@
         display: inline-block;
         color: $blue-dark;
         font-size: $font-size-reg;
-        font-family: $font-family-blanc;
         line-height: 1.75em;
         max-width: 320px;
         padding-left: 20px;
