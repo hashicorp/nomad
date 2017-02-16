@@ -268,7 +268,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 }
 
 // Test StructJob with jobfile from HTTP Server
-func TestAPIJob_HTTPServer(t *testing.T) {
+func TestJobGetter_HTTPServer(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, job)
 	})
