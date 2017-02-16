@@ -50,9 +50,8 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
   endpoints on the Nomad agent, including the API.
 
 - `rpc` `(bool: false)` - Specifies if TLS should be enabled on the RPC
-  endpoints and [Raft][raft] traffic between the Nomad servers. Enabling this on
-  a Nomad client makes the client use TLS for making RPC requests to the Nomad
-  servers.
+  endpoints. Enabling this on a Nomad client makes the client use TLS for 
+  making RPC requests to the Nomad servers.
 
 - `verify_server_hostname` `(bool: false)` - Specifies if outgoing TLS
   connections should verify the server's hostname.
@@ -78,5 +77,3 @@ tls {
   key_file  = "/etc/certs/nomad.key"
 }
 ```
-
-[raft]: https://github.com/hashicorp/serf "Serf by HashiCorp"
