@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/mitchellh/cli"
 )
 
@@ -263,7 +264,9 @@ func TestJobGetter_LocalFile(t *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(expected, aj) {
-		t.Fatalf("bad: %#v", aj)
+		eflat := flatmap.Flatten(expected, nil, false)
+		aflat := flatmap.Flatten(aj, nil, false)
+		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
 }
 
@@ -317,6 +320,8 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(expected, aj) {
-		t.Fatalf("bad: %#v", aj)
+		eflat := flatmap.Flatten(expected, nil, false)
+		aflat := flatmap.Flatten(aj, nil, false)
+		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
 }
