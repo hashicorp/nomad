@@ -211,25 +211,8 @@ const (
 }`
 )
 
-// Test APIJob with local jobfile
-func TestJobGetter_LocalFile(t *testing.T) {
-	fh, err := ioutil.TempFile("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh.Name())
-	_, err = fh.WriteString(job)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	j := &JobGetter{}
-	aj, err := j.ApiJob(fh.Name())
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	expected := &api.Job{
+var (
+	expectedApiJob = &api.Job{
 		ID:          helper.StringToPtr("job1"),
 		Region:      helper.StringToPtr("global"),
 		Priority:    helper.IntToPtr(50),
@@ -242,6 +225,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 				Count: helper.IntToPtr(1),
 				RestartPolicy: &api.RestartPolicy{
 					Attempts: helper.IntToPtr(10),
+					Interval: helper.TimeToPtr(15 * time.Second),
 					Mode:     helper.StringToPtr("delay"),
 				},
 				EphemeralDisk: &api.EphemeralDisk{
@@ -263,8 +247,28 @@ func TestJobGetter_LocalFile(t *testing.T) {
 			},
 		},
 	}
-	if !reflect.DeepEqual(expected, aj) {
-		eflat := flatmap.Flatten(expected, nil, false)
+)
+
+// Test APIJob with local jobfile
+func TestJobGetter_LocalFile(t *testing.T) {
+	fh, err := ioutil.TempFile("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(fh.Name())
+	_, err = fh.WriteString(job)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	j := &JobGetter{}
+	aj, err := j.ApiJob(fh.Name())
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(expectedApiJob, aj) {
+		eflat := flatmap.Flatten(expectedApiJob, nil, false)
 		aflat := flatmap.Flatten(aj, nil, false)
 		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
@@ -285,42 +289,8 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	expected := &api.Job{
-		ID:          helper.StringToPtr("job1"),
-		Region:      helper.StringToPtr("global"),
-		Priority:    helper.IntToPtr(50),
-		Name:        helper.StringToPtr("job1"),
-		Type:        helper.StringToPtr("service"),
-		Datacenters: []string{"dc1"},
-		TaskGroups: []*api.TaskGroup{
-			{
-				Name:  helper.StringToPtr("group1"),
-				Count: helper.IntToPtr(1),
-				RestartPolicy: &api.RestartPolicy{
-					Attempts: helper.IntToPtr(10),
-					Mode:     helper.StringToPtr("delay"),
-				},
-				EphemeralDisk: &api.EphemeralDisk{
-					SizeMB: helper.IntToPtr(300),
-				},
-
-				Tasks: []*api.Task{
-					{
-						Driver: "exec",
-						Name:   "task1",
-						Resources: &api.Resources{
-							CPU:      helper.IntToPtr(100),
-							MemoryMB: helper.IntToPtr(10),
-							IOPS:     helper.IntToPtr(0),
-						},
-						LogConfig: api.DefaultLogConfig(),
-					},
-				},
-			},
-		},
-	}
-	if !reflect.DeepEqual(expected, aj) {
-		eflat := flatmap.Flatten(expected, nil, false)
+	if !reflect.DeepEqual(expectedApiJob, aj) {
+		eflat := flatmap.Flatten(expectedApiJob, nil, false)
 		aflat := flatmap.Flatten(aj, nil, false)
 		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
