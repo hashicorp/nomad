@@ -93,20 +93,31 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var args structs.JobPlanRequest
+	var args api.JobPlanRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 	if args.Job == nil {
 		return nil, CodedError(400, "Job must be specified")
 	}
-	if jobName != "" && args.Job.ID != jobName {
+	if args.Job.ID == nil {
+		return nil, CodedError(400, "Job must have a valid ID")
+	}
+	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
 	}
 	s.parseRegion(req, &args.Region)
 
+	sJob := apiJobToStructJob(args.Job)
+	planReq := structs.JobPlanRequest{
+		Job:  sJob,
+		Diff: args.Diff,
+		WriteRequest: structs.WriteRequest{
+			Region: args.WriteRequest.Region,
+		},
+	}
 	var out structs.JobPlanResponse
-	if err := s.agent.RPC("Job.Plan", &args, &out); err != nil {
+	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
@@ -274,20 +285,34 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	var args structs.JobRegisterRequest
+	var args api.JobRegisterRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 	if args.Job == nil {
 		return nil, CodedError(400, "Job must be specified")
 	}
-	if jobName != "" && args.Job.ID != jobName {
-		return nil, CodedError(400, "Job ID does not match")
+
+	if args.Job.ID == nil {
+		return nil, CodedError(400, "Job ID hasn't been provided")
+	}
+	if jobName != "" && *args.Job.ID != jobName {
+		return nil, CodedError(400, "Job ID does not match name")
 	}
 	s.parseRegion(req, &args.Region)
 
+	sJob := apiJobToStructJob(args.Job)
+
+	regReq := structs.JobRegisterRequest{
+		Job:            sJob,
+		EnforceIndex:   args.EnforceIndex,
+		JobModifyIndex: args.JobModifyIndex,
+		WriteRequest: structs.WriteRequest{
+			Region: args.WriteRequest.Region,
+		},
+	}
 	var out structs.JobRegisterResponse
-	if err := s.agent.RPC("Job.Register", &args, &out); err != nil {
+	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

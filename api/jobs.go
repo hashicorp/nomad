@@ -495,7 +495,7 @@ type JobValidateResponse struct {
 }
 
 // JobUpdateRequest is used to update a job
-type JobUpdateRequest struct {
+type JobRegisterRequest struct {
 	Job *Job
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
@@ -526,6 +526,7 @@ type deregisterJobResponse struct {
 type JobPlanRequest struct {
 	Job  *Job
 	Diff bool
+	WriteRequest
 }
 
 type JobPlanResponse struct {
