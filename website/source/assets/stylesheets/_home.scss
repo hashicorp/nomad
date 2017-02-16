@@ -23,6 +23,11 @@
     z-index: 1;
   }
 
+  p {
+    color: $gray;
+    text-align: center;
+  }
+
   #hero-graphic{
     position: absolute;
     display: inline-block;
@@ -100,6 +105,9 @@
     }
 
     h4{
+      font-family: $font-family-open-sans;
+      font-weight: 500;
+      text-transform: none;
       color: $blue-light;
     }
 
