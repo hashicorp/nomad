@@ -1,11 +1,13 @@
 package command
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
@@ -16,6 +18,11 @@ func TestValidateCommand_Implements(t *testing.T) {
 func TestValidateCommand(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &ValidateCommand{Meta: Meta{Ui: ui}}
+
+	// Create a server
+	s := testutil.NewTestServer(t, nil)
+	defer s.Stop()
+	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
 
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
@@ -30,6 +37,9 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
+			config {
+				command = "/bin/sleep"
+			}
 			resources = {
 				cpu = 1000
 				memory = 512
@@ -113,6 +123,10 @@ func TestValidateCommand_From_STDIN(t *testing.T) {
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
 	}
+	// Create a server
+	s := testutil.NewTestServer(t, nil)
+	defer s.Stop()
+	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
 
 	go func() {
 		stdinW.WriteString(`
@@ -123,6 +137,9 @@ job "job1" {
                 count = 1
                 task "task1" {
                         driver = "exec"
+						config {
+							command = "/bin/echo"
+						}
                         resources = {
                                 cpu = 1000
                                 memory = 512
