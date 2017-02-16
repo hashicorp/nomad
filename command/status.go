@@ -191,7 +191,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	}
 
 	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
+	prefix := fmt.Sprintf("%s%s", *job.ID, structs.PeriodicLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
@@ -237,8 +237,8 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 		return err
 	}
 
-	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", job.ID, structs.DispatchLaunchSuffix)
+	// Generate the prefix that matches launched jobs from the parameterized job.
+	prefix := fmt.Sprintf("%s%s", *job.ID, structs.DispatchLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
