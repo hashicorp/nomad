@@ -265,6 +265,12 @@ The `Job` object supports the following keys:
     * `Enabled` - `Enabled` determines whether the periodic job will spawn child
     jobs.
 
+    * `time_zone` - Specifies the time zone to evaluate the next launch interval
+      against. This is useful when wanting to account for day light savings in
+      various time zones. The time zone must be parsable by Golang's
+      [LoadLocation](https://golang.org/pkg/time/#LoadLocation). The default is
+      UTC.
+
     * `SpecType` - `SpecType` determines how Nomad is going to interpret the
       periodic expression. `cron` is the only supported `SpecType` currently.
 

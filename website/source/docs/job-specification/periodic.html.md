@@ -49,6 +49,11 @@ consistent evaluation when Nomad spans multiple time zones.
   previous instances of this job have completed. This only applies to this job;
   it does not prevent other periodic jobs from running at the same time.
 
+- `time_zone` `(string: "UTC")` - Specifies the time zone to evaluate the next
+  launch interval against. This is useful when wanting to account for day light
+  savings in various time zones. The time zone must be parsable by Golang's
+  [LoadLocation](https://golang.org/pkg/time/#LoadLocation).
+
 ## `periodic` Examples
 
 The following examples only show the `periodic` stanzas. Remember that the

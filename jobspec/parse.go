@@ -1172,6 +1172,7 @@ func parsePeriodic(result **structs.PeriodicConfig, list *ast.ObjectList) error 
 		"enabled",
 		"cron",
 		"prohibit_overlap",
+		"time_zone",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err

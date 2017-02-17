@@ -1217,12 +1217,19 @@ func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 	if err := p.Validate(); err == nil {
 		t.Fatal("Enabled PeriodicConfig with no spec shouldn't be valid")
 	}
+
+	// Create a config that is enabled, with a bad time zone.
+	p = &PeriodicConfig{Enabled: true, TimeZone: "FOO"}
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "time zone") {
+		t.Fatal("Enabled PeriodicConfig with bad time zone shouldn't be valid: %v", err)
+	}
 }
 
 func TestPeriodicConfig_InvalidCron(t *testing.T) {
 	specs := []string{"foo", "* *", "@foo"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		p.Canonicalize()
 		if err := p.Validate(); err == nil {
 			t.Fatal("Invalid cron spec")
 		}
@@ -1233,6 +1240,7 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 	specs := []string{"0 0 29 2 *", "@hourly", "0 0-15 * * *"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		p.Canonicalize()
 		if err := p.Validate(); err != nil {
 			t.Fatal("Passed valid cron")
 		}
@@ -1245,10 +1253,50 @@ func TestPeriodicConfig_NextCron(t *testing.T) {
 	expected := []time.Time{time.Time{}, time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC)}
 	for i, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
+		p.Canonicalize()
 		n := p.Next(from)
 		if expected[i] != n {
 			t.Fatalf("Next(%v) returned %v; want %v", from, n, expected[i])
 		}
+	}
+}
+
+func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
+	zones := []string{"Africa/Abidjan", "America/Chicago", "Europe/Minsk", "UTC"}
+	for _, zone := range zones {
+		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: "0 0 29 2 * 1980", TimeZone: zone}
+		p.Canonicalize()
+		if err := p.Validate(); err != nil {
+			t.Fatal("Valid tz errored: %v", err)
+		}
+	}
+}
+
+func TestPeriodicConfig_DST(t *testing.T) {
+	// On Sun, Mar 12, 2:00 am 2017: +1 hour UTC
+	p := &PeriodicConfig{
+		Enabled:  true,
+		SpecType: PeriodicSpecCron,
+		Spec:     "0 2 11-12 3 * 2017",
+		TimeZone: "America/Los_Angeles",
+	}
+	p.Canonicalize()
+
+	t1 := time.Date(2017, time.March, 11, 1, 0, 0, 0, p.location)
+	t2 := time.Date(2017, time.March, 12, 1, 0, 0, 0, p.location)
+
+	// E1 is an 8 hour adjustment, E2 is a 7 hour adjustment
+	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
+	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
+
+	n1 := p.Next(t1).UTC()
+	n2 := p.Next(t2).UTC()
+
+	if !reflect.DeepEqual(e1, n1) {
+		t.Fatalf("Got %v; want %v", n1, e1)
+	}
+	if !reflect.DeepEqual(e2, n2) {
+		t.Fatalf("Got %v; want %v", n1, e1)
 	}
 }
 

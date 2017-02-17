@@ -211,6 +211,15 @@ type PeriodicConfig struct {
 	Spec            string
 	SpecType        string
 	ProhibitOverlap bool
+	TimeZone        *string
+}
+
+func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
+	if p.TimeZone == nil || *p.TimeZone == "" {
+		return time.UTC, nil
+	}
+
+	return time.LoadLocation(*p.TimeZone)
 }
 
 // ParameterizedJobConfig is used to configure the parameterized job.

@@ -243,7 +243,7 @@ func (c *RunCommand) Run(args []string) int {
 	if detach || periodic || paramjob {
 		c.Ui.Output("Job registration successful")
 		if periodic {
-			now := time.Now().UTC()
+			now := time.Now().In(job.Periodic.GetLocation())
 			next := job.Periodic.Next(now)
 			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
 				formatTime(next), formatTimeDifference(now, next, time.Second)))

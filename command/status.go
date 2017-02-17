@@ -139,6 +139,7 @@ func (c *StatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
 		return 1
 	}
+	sJob.Canonicalize()
 	periodic := sJob.IsPeriodic()
 	parameterized := sJob.IsParameterized()
 
@@ -155,7 +156,7 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	if periodic {
-		now := time.Now().UTC()
+		now := time.Now().In(sJob.Periodic.GetLocation())
 		next := sJob.Periodic.Next(now)
 		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
 			fmt.Sprintf("%s (%s from now)",
