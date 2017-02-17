@@ -16,6 +16,7 @@ IMPROVEMENTS:
     [GH-2270]
   * telemetry: Clients report allocated/unallocated resources [GH-2327]
   * template: Permissions can be set on template destination file [GH-2262]
+  * vault: Server side Vault telemetry [GH-2318]
   * vault: Disallow root policy from being specified [GH-2309]
 
 BUG FIXES:
