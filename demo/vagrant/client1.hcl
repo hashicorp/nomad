@@ -22,14 +22,7 @@ client {
     }
     reserved {
        cpu = 500
-       memory = 512
-       disk = 1024
     }
-}
-
-telemetry {
-  publish_allocation_metrics = true
-  publish_node_metrics       = true 
 }
 
 # Modify our port to avoid a collision with server1
