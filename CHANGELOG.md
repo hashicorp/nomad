@@ -13,6 +13,7 @@ IMPROVEMENTS:
     the task group [GH-2308]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
+  * telemetry: Clients report allocated/unallocated resources [GH-2327]
   * template: Permissions can be set on template destination file [GH-2262]
   * vault: Disallow root policy from being specified [GH-2309]
 
