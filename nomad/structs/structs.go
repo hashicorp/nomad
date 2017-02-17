@@ -1603,7 +1603,7 @@ func (p *PeriodicConfig) Canonicalize() {
 	// Load the location
 	l, err := time.LoadLocation(p.TimeZone)
 	if err != nil {
-		panic(fmt.Sprintf("Bad location %q: %v", p.TimeZone, err))
+		p.location = time.UTC
 	}
 
 	p.location = l
