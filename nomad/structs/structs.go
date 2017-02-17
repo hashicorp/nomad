@@ -540,7 +540,7 @@ type JobDispatchResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
-	QueryMeta
+	WriteMeta
 }
 
 // JobListResponse is used for a list request
