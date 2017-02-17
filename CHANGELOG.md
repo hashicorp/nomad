@@ -11,6 +11,7 @@ IMPROVEMENTS:
     [GH-2277]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within
     the task group [GH-2308]
+  * periodic: Allow specification of timezones in Periodic Jobs [GH-2321]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
   * telemetry: Clients report allocated/unallocated resources [GH-2327]
