@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -134,7 +135,9 @@ func (v *TestVaultClient) RevokeTokens(ctx context.Context, accessors []*structs
 	return nil
 }
 
-func (v *TestVaultClient) Stop()                                      {}
-func (v *TestVaultClient) SetActive(enabled bool)                     {}
-func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error { return nil }
-func (v *TestVaultClient) Running() bool                              { return true }
+func (v *TestVaultClient) Stop()                                                {}
+func (v *TestVaultClient) SetActive(enabled bool)                               {}
+func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error           { return nil }
+func (v *TestVaultClient) Running() bool                                        { return true }
+func (v *TestVaultClient) Stats() *VaultStats                                   { return new(VaultStats) }
+func (v *TestVaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {}

@@ -249,7 +249,13 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	// Use the token supplied to interact with vault
 	c.client.SetToken("")
 
-	return c.tokenDeriver(alloc, taskNames, c.client)
+	tokens, err := c.tokenDeriver(alloc, taskNames, c.client)
+	if err != nil {
+		c.logger.Printf("[ERR] client.vault: failed to derive token for allocation %q and tasks %v: %v", alloc.ID, taskNames, err)
+		return nil, err
+	}
+
+	return tokens, nil
 }
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
