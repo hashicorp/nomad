@@ -91,10 +91,12 @@ type decDriver interface {
 	uncacheRead()
 }
 
-type decNoSeparator struct{}
+type decNoSeparator struct {
+}
 
-func (_ decNoSeparator) ReadEnd()     {}
-func (_ decNoSeparator) uncacheRead() {}
+func (_ decNoSeparator) ReadEnd() {}
+
+// func (_ decNoSeparator) uncacheRead() {}
 
 type DecodeOptions struct {
 	// MapType specifies type to use during schema-less decoding of a map in the stream.
@@ -105,10 +107,10 @@ type DecodeOptions struct {
 	// If nil, we use []interface{}
 	SliceType reflect.Type
 
-	// MaxInitLen defines the initial length that we "make" a collection (slice, chan or map) with.
+	// MaxInitLen defines the maxinum initial length that we "make" a collection (string, slice, map, chan).
 	// If 0 or negative, we default to a sensible value based on the size of an element in the collection.
 	//
-	// For example, when decoding, a stream may say that it has MAX_UINT elements.
+	// For example, when decoding, a stream may say that it has 2^64 elements.
 	// We should not auto-matically provision a slice of that length, to prevent Out-Of-Memory crash.
 	// Instead, we provision up to MaxInitLen, fill that up, and start appending after that.
 	MaxInitLen int
@@ -161,6 +163,15 @@ type DecodeOptions struct {
 	// Note: Handles will be smart when using the intern functionality.
 	// So everything will not be interned.
 	InternString bool
+
+	// PreferArrayOverSlice controls whether to decode to an array or a slice.
+	//
+	// This only impacts decoding into a nil interface{}.
+	// Consequently, it has no effect on codecgen.
+	//
+	// *Note*: This only applies if using go1.5 and above,
+	// as it requires reflect.ArrayOf support which was absent before go1.5.
+	PreferArrayOverSlice bool
 }
 
 // ------------------------------------
@@ -433,6 +444,10 @@ func (f *decFnInfo) rawExt(rv reflect.Value) {
 	f.d.d.DecodeExt(rv.Addr().Interface(), 0, nil)
 }
 
+func (f *decFnInfo) raw(rv reflect.Value) {
+	rv.SetBytes(f.d.raw())
+}
+
 func (f *decFnInfo) ext(rv reflect.Value) {
 	f.d.d.DecodeExt(rv.Addr().Interface(), f.xfTag, f.xfFn)
 }
@@ -605,8 +620,11 @@ func (f *decFnInfo) kInterfaceNaked() (rvn reflect.Value) {
 			n.ss = append(n.ss, nil)
 			var v2 interface{} = &n.ss[l]
 			d.decode(v2)
-			rvn = reflect.ValueOf(v2).Elem()
 			n.ss = n.ss[:l]
+			rvn = reflect.ValueOf(v2).Elem()
+			if reflectArrayOfSupported && d.stid == 0 && d.h.PreferArrayOverSlice {
+				rvn = reflectArrayOf(rvn)
+			}
 		} else {
 			rvn = reflect.New(d.h.SliceType).Elem()
 			d.decodeValue(rvn, nil)
@@ -1169,7 +1187,7 @@ type decRtidFn struct {
 // primitives are being decoded.
 //
 // maps and arrays are not handled by this mechanism.
-// However, RawExt is, and we accomodate for extensions that decode
+// However, RawExt is, and we accommodate for extensions that decode
 // RawExt from DecodeNaked, but need to decode the value subsequently.
 // kInterfaceNaked and swallow, which call DecodeNaked, handle this caveat.
 //
@@ -1507,6 +1525,8 @@ func (d *Decoder) decode(iv interface{}) {
 			*v = 0
 		case *[]uint8:
 			*v = nil
+		case *Raw:
+			*v = nil
 		case reflect.Value:
 			if v.Kind() != reflect.Ptr || v.IsNil() {
 				d.errNotValidPtrValue(v)
@@ -1575,6 +1595,9 @@ func (d *Decoder) decode(iv interface{}) {
 		*v = d.d.DecodeFloat(false)
 	case *[]uint8:
 		*v = d.d.DecodeBytes(*v, false, false)
+
+	case *Raw:
+		*v = d.raw()
 
 	case *interface{}:
 		d.decodeValueNotNil(reflect.ValueOf(iv).Elem(), nil)
@@ -1697,6 +1720,8 @@ func (d *Decoder) getDecFn(rt reflect.Type, checkFastpath, checkCodecSelfer bool
 		fn.f = (*decFnInfo).selferUnmarshal
 	} else if rtid == rawExtTypId {
 		fn.f = (*decFnInfo).rawExt
+	} else if rtid == rawTypId {
+		fn.f = (*decFnInfo).raw
 	} else if d.d.IsBuiltinType(rtid) {
 		fn.f = (*decFnInfo).builtin
 	} else if xfFn := d.h.getExt(rtid); xfFn != nil {
@@ -1873,6 +1898,15 @@ func (d *Decoder) nextValueBytes() []byte {
 	return d.r.stopTrack()
 }
 
+func (d *Decoder) raw() []byte {
+	// ensure that this is not a view into the bytes
+	// i.e. make new copy always.
+	bs := d.nextValueBytes()
+	bs2 := make([]byte, len(bs))
+	copy(bs2, bs)
+	return bs2
+}
+
 // --------------------------------------------------
 
 // decSliceHelper assists when decoding into a slice, from a map or an array in the stream.
@@ -1927,18 +1961,31 @@ func (x decSliceHelper) ElemContainerState(index int) {
 	}
 }
 
-func decByteSlice(r decReader, clen int, bs []byte) (bsOut []byte) {
+func decByteSlice(r decReader, clen, maxInitLen int, bs []byte) (bsOut []byte) {
 	if clen == 0 {
 		return zeroByteSlice
 	}
 	if len(bs) == clen {
 		bsOut = bs
+		r.readb(bsOut)
 	} else if cap(bs) >= clen {
 		bsOut = bs[:clen]
+		r.readb(bsOut)
 	} else {
-		bsOut = make([]byte, clen)
+		// bsOut = make([]byte, clen)
+		len2, _ := decInferLen(clen, maxInitLen, 1)
+		bsOut = make([]byte, len2)
+		r.readb(bsOut)
+		for len2 < clen {
+			len3, _ := decInferLen(clen-len2, maxInitLen, 1)
+			// fmt.Printf(">>>>> TESTING: in loop: clen: %v, maxInitLen: %v, len2: %v, len3: %v\n", clen, maxInitLen, len2, len3)
+			bs3 := bsOut
+			bsOut = make([]byte, len2+len3)
+			copy(bsOut, bs3)
+			r.readb(bsOut[len2:])
+			len2 += len3
+		}
 	}
-	r.readb(bsOut)
 	return
 }
 
