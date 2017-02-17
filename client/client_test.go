@@ -903,7 +903,7 @@ func TestClient_UnarchiveAllocDir(t *testing.T) {
 
 	rc := ioutil.NopCloser(buf)
 
-	c1.migratingAllocs["123"] = newMigrateAllocCtrl()
+	c1.migratingAllocs["123"] = newMigrateAllocCtrl(mock.Alloc())
 	if err := c1.unarchiveAllocDir(rc, "123", dir1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
