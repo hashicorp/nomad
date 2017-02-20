@@ -286,6 +286,9 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	// Emit metrics for the blocked eval tracker.
 	go blockedEvals.EmitStats(time.Second, s.shutdownCh)
 
+	// Emit metrics for the Vault client.
+	go s.vault.EmitStats(time.Second, s.shutdownCh)
+
 	// Emit metrics
 	go s.heartbeatStats()
 

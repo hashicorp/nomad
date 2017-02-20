@@ -11,12 +11,16 @@ IMPROVEMENTS:
     [GH-2277]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within
     the task group [GH-2308]
+  * periodic: Allow specification of timezones in Periodic Jobs [GH-2321]
   * server/vault: Vault Client on Server handles SIGHUP to reload configs
     [GH-2270]
+  * telemetry: Clients report allocated/unallocated resources [GH-2327]
   * template: Permissions can be set on template destination file [GH-2262]
+  * vault: Server side Vault telemetry [GH-2318]
   * vault: Disallow root policy from being specified [GH-2309]
 
 BUG FIXES:
+  * api: Fix escaping of HTML characters [GH-2322]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * config: Fix Consul Config Merging/Copying [GH-2278]
   * config: Fix Client reserved resource merging panic [GH-2281]

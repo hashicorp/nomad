@@ -188,6 +188,13 @@ func (d *cborDecDriver) readNextBd() {
 	d.bdRead = true
 }
 
+func (d *cborDecDriver) uncacheRead() {
+	if d.bdRead {
+		d.r.unreadn1()
+		d.bdRead = false
+	}
+}
+
 func (d *cborDecDriver) ContainerType() (vt valueType) {
 	if d.bd == cborBdNil {
 		return valueTypeNil
@@ -414,7 +421,7 @@ func (d *cborDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOut [
 			bs = d.b[:]
 		}
 	}
-	return decByteSlice(d.r, clen, bs)
+	return decByteSlice(d.r, clen, d.d.h.MaxInitLen, bs)
 }
 
 func (d *cborDecDriver) DecodeString() (s string) {

@@ -333,6 +333,7 @@ func TestParse(t *testing.T) {
 					SpecType:        structs.PeriodicSpecCron,
 					Spec:            "*/5 * * *",
 					ProhibitOverlap: true,
+					TimeZone:        "Europe/Minsk",
 				},
 			},
 			false,

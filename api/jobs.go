@@ -227,6 +227,7 @@ type PeriodicConfig struct {
 	Spec            *string
 	SpecType        *string
 	ProhibitOverlap *bool
+	TimeZone        *string
 }
 
 func (p *PeriodicConfig) Canonicalize() {
@@ -238,6 +239,9 @@ func (p *PeriodicConfig) Canonicalize() {
 	}
 	if p.ProhibitOverlap == nil {
 		p.ProhibitOverlap = helper.BoolToPtr(false)
+	}
+	if p.TimeZone == nil || *p.TimeZone == "" {
+		p.TimeZone = helper.StringToPtr("UTC")
 	}
 }
 
@@ -253,6 +257,14 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	}
 
 	return time.Time{}
+}
+
+func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
+	if p.TimeZone == nil || *p.TimeZone == "" {
+		return time.UTC, nil
+	}
+
+	return time.LoadLocation(*p.TimeZone)
 }
 
 // ParameterizedJobConfig is used to configure the parameterized job.
@@ -307,7 +319,6 @@ func (j *Job) Canonicalize() {
 	if j.ParentID == nil {
 		j.ParentID = helper.StringToPtr("")
 	}
-
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
 	}
@@ -601,5 +612,5 @@ type JobDispatchResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
-	QueryMeta
+	WriteMeta
 }

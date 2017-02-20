@@ -201,8 +201,14 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
 	}
 
 	if next := resp.NextPeriodicLaunch; !next.IsZero() {
-		out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s (%s from now).\n",
-			formatTime(next), formatTimeDifference(time.Now().UTC(), next, time.Second))
+		loc, err := job.Periodic.GetLocation()
+		if err != nil {
+			out += fmt.Sprintf("[yellow]- Invalid time zone: %v", err)
+		} else {
+			now := time.Now().In(loc)
+			out += fmt.Sprintf("[green]- If submitted now, next periodic launch would be at %s (%s from now).\n",
+				formatTime(next), formatTimeDifference(now, next, time.Second))
+		}
 	}
 
 	out = strings.TrimSuffix(out, "\n")

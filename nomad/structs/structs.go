@@ -556,7 +556,7 @@ type JobDispatchResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
-	QueryMeta
+	WriteMeta
 }
 
 // JobListResponse is used for a list request
@@ -1191,6 +1191,10 @@ func (j *Job) Canonicalize() {
 	if j.ParameterizedJob != nil {
 		j.ParameterizedJob.Canonicalize()
 	}
+
+	if j.Periodic != nil {
+		j.Periodic.Canonicalize()
+	}
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -1559,6 +1563,16 @@ type PeriodicConfig struct {
 
 	// ProhibitOverlap enforces that spawned jobs do not run in parallel.
 	ProhibitOverlap bool `mapstructure:"prohibit_overlap"`
+
+	// TimeZone is the user specified string that determines the time zone to
+	// launch against. The time zones must be specified from IANA Time Zone
+	// database, such as "America/New_York".
+	// Reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+	// Reference: https://www.iana.org/time-zones
+	TimeZone string `mapstructure:"time_zone"`
+
+	// location is the time zone to evaluate the launch time against
+	location *time.Location
 }
 
 func (p *PeriodicConfig) Copy() *PeriodicConfig {
@@ -1575,23 +1589,41 @@ func (p *PeriodicConfig) Validate() error {
 		return nil
 	}
 
+	var mErr multierror.Error
 	if p.Spec == "" {
-		return fmt.Errorf("Must specify a spec")
+		multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
+	}
+
+	// Check if we got a valid time zone
+	if p.TimeZone != "" {
+		if _, err := time.LoadLocation(p.TimeZone); err != nil {
+			multierror.Append(&mErr, fmt.Errorf("Invalid time zone %q: %v", p.TimeZone, err))
+		}
 	}
 
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		// Validate the cron spec
 		if _, err := cronexpr.Parse(p.Spec); err != nil {
-			return fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err)
+			multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
 		}
 	case PeriodicSpecTest:
 		// No-op
 	default:
-		return fmt.Errorf("Unknown periodic specification type %q", p.SpecType)
+		multierror.Append(&mErr, fmt.Errorf("Unknown periodic specification type %q", p.SpecType))
 	}
 
-	return nil
+	return mErr.ErrorOrNil()
+}
+
+func (p *PeriodicConfig) Canonicalize() {
+	// Load the location
+	l, err := time.LoadLocation(p.TimeZone)
+	if err != nil {
+		p.location = time.UTC
+	}
+
+	p.location = l
 }
 
 // Next returns the closest time instant matching the spec that is after the
@@ -1630,6 +1662,17 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 	}
 
 	return time.Time{}
+}
+
+// GetLocation returns the location to use for determining the time zone to run
+// the periodic job against.
+func (p *PeriodicConfig) GetLocation() *time.Location {
+	// Jobs pre 0.5.5 will not have this
+	if p.location != nil {
+		return p.location
+	}
+
+	return time.UTC
 }
 
 const (

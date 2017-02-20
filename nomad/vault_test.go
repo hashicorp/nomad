@@ -993,6 +993,10 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	if len(client.revoking) != 2 {
 		t.Fatalf("didn't add to revoke loop")
 	}
+
+	if client.Stats().TrackedForRevoke != 2 {
+		t.Fatalf("didn't add to revoke loop")
+	}
 }
 
 func TestVaultClient_RevokeTokens_Root(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	metrics "github.com/armon/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -135,6 +136,21 @@ type VaultClient interface {
 
 	// Running returns whether the Vault client is running
 	Running() bool
+
+	// Stats returns the Vault clients statistics
+	Stats() *VaultStats
+
+	// EmitStats emits that clients statistics at the given period until stopCh
+	// is called.
+	EmitStats(period time.Duration, stopCh chan struct{})
+}
+
+// VaultStats returns all the stats about Vault tokens created and managed by
+// Nomad.
+type VaultStats struct {
+	// TrackedForRevoke is the count of tokens that are being tracked to be
+	// revoked since they could not be immediately revoked.
+	TrackedForRevoke int
 }
 
 // PurgeVaultAccessor is called to remove VaultAccessors from the system. If
@@ -204,6 +220,10 @@ type vaultClient struct {
 	tomb   *tomb.Tomb
 	logger *log.Logger
 
+	// stats stores the stats
+	stats     *VaultStats
+	statsLock sync.RWMutex
+
 	// l is used to lock the configuration aspects of the client such that
 	// multiple callers can't cause conflicting config updates
 	l sync.Mutex
@@ -227,6 +247,7 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaul
 		revoking: make(map[*structs.VaultAccessor]time.Time),
 		purgeFn:  purgeFn,
 		tomb:     &tomb.Tomb{},
+		stats:    new(VaultStats),
 	}
 
 	if v.config.IsEnabled() {
@@ -821,7 +842,6 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	if !v.Enabled() {
 		return nil, fmt.Errorf("Vault integration disabled")
 	}
-
 	if !v.Active() {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Vault client not active"), true)
 	}
@@ -832,6 +852,9 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	} else if !established {
 		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
 	}
+
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "create_token"}, time.Now())
 
 	// Retrieve the Vault block for the task
 	policies := a.Job.VaultPolicies()
@@ -908,6 +931,9 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
 	}
 
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "lookup_token"}, time.Now())
+
 	// Ensure we are under our rate limit
 	if err := v.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -943,6 +969,9 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 		return fmt.Errorf("Vault client not active")
 	}
 
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "revoke_tokens"}, time.Now())
+
 	// Check if we have established a connection with Vault. If not just add it
 	// to the queue
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
@@ -952,21 +981,28 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 			v.storeForRevocation(accessors)
 		}
 
+		// Track that we are abandoning these accessors.
+		metrics.IncrCounter([]string{"nomad", "vault", "undistributed_tokens_abandoned"}, float32(len(accessors)))
 		return nil
 	}
 
 	// Attempt to revoke immediately and if it fails, add it to the revoke queue
 	err := v.parallelRevoke(ctx, accessors)
-	if !committed {
+	if err != nil {
 		// If it is uncommitted, it is a best effort revoke as it will shortly
 		// TTL within the cubbyhole and has not been leaked to any outside
 		// system
-		return nil
-	}
+		if !committed {
+			metrics.IncrCounter([]string{"nomad", "vault", "undistributed_tokens_abandoned"}, float32(len(accessors)))
+			return nil
+		}
 
-	if err != nil {
 		v.logger.Printf("[WARN] vault: failed to revoke tokens. Will reattempt til TTL: %v", err)
 		v.storeForRevocation(accessors)
+		return nil
+	} else if !committed {
+		// Mark that it was revoked but there is nothing to purge so exit
+		metrics.IncrCounter([]string{"nomad", "vault", "undistributed_tokens_revoked"}, float32(len(accessors)))
 		return nil
 	}
 
@@ -976,6 +1012,9 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 		return nil
 	}
 
+	// Track that it was revoked successfully
+	metrics.IncrCounter([]string{"nomad", "vault", "distributed_tokens_revoked"}, float32(len(accessors)))
+
 	return nil
 }
 
@@ -984,10 +1023,13 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 // time.
 func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 	v.revLock.Lock()
+	v.statsLock.Lock()
 	now := time.Now()
 	for _, a := range accessors {
 		v.revoking[a] = now.Add(time.Duration(a.CreationTTL) * time.Second)
 	}
+	v.stats.TrackedForRevoke = len(v.revoking)
+	v.statsLock.Unlock()
 	v.revLock.Unlock()
 }
 
@@ -1103,12 +1145,19 @@ func (v *vaultClient) revokeDaemon() {
 				continue
 			}
 
+			// Track that tokens were revoked successfully
+			metrics.IncrCounter([]string{"nomad", "vault", "distributed_tokens_revoked"}, float32(len(revoking)))
+
 			// Can delete from the tracked list now that we have purged
 			v.revLock.Lock()
+			v.statsLock.Lock()
 			for _, va := range revoking {
 				delete(v.revoking, va)
 			}
+			v.stats.TrackedForRevoke = len(v.revoking)
+			v.statsLock.Unlock()
 			v.revLock.Unlock()
+
 		}
 	}
 }
@@ -1136,4 +1185,31 @@ func (v *vaultClient) setLimit(l rate.Limit) {
 	v.l.Lock()
 	defer v.l.Unlock()
 	v.limiter = rate.NewLimiter(l, int(l))
+}
+
+// Stats is used to query the state of the blocked eval tracker.
+func (v *vaultClient) Stats() *VaultStats {
+	// Allocate a new stats struct
+	stats := new(VaultStats)
+
+	v.statsLock.RLock()
+	defer v.statsLock.RUnlock()
+
+	// Copy all the stats
+	stats.TrackedForRevoke = v.stats.TrackedForRevoke
+
+	return stats
+}
+
+// EmitStats is used to export metrics about the blocked eval tracker while enabled
+func (v *vaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {
+	for {
+		select {
+		case <-time.After(period):
+			stats := v.Stats()
+			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
+		case <-stopCh:
+			return
+		}
+	}
 }

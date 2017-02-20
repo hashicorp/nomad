@@ -33,8 +33,13 @@ const (
 var (
 	// jsonHandle and jsonHandlePretty are the codec handles to JSON encode
 	// structs. The pretty handle will add indents for easier human consumption.
-	jsonHandle       = &codec.JsonHandle{}
-	jsonHandlePretty = &codec.JsonHandle{Indent: 4}
+	jsonHandle = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+	}
+	jsonHandlePretty = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+		Indent:        4,
+	}
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface

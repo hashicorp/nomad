@@ -224,10 +224,13 @@ OUTSIDE:
 	if detach || periodic || paramjob {
 		c.Ui.Output("Job registration successful")
 		if periodic {
-			now := time.Now().UTC()
-			next := job.Periodic.Next(now)
-			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
-				formatTime(next), formatTimeDifference(now, next, time.Second)))
+			loc, err := job.Periodic.GetLocation()
+			if err == nil {
+				now := time.Now().In(loc)
+				next := job.Periodic.Next(now)
+				c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
+					formatTime(next), formatTimeDifference(now, next, time.Second)))
+			}
 		} else if !paramjob {
 			c.Ui.Output("Evaluation ID: " + evalID)
 		}

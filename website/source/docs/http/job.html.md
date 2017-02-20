@@ -370,8 +370,6 @@ region is used; another region can be specified using the `?region=` query param
 
     ```javascript
     {
-    "KnownLeader": false,
-    "LastContact": 0,
     "Index": 13,
     "JobCreateIndex": 12,
     "EvalCreateIndex": 13,

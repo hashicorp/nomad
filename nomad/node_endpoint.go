@@ -1061,7 +1061,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
 					if err != nil {
-						wrapped := fmt.Errorf("failed to create token for task %q: %v", task, err)
+						wrapped := fmt.Errorf("failed to create token for task %q on alloc %q: %v", task, alloc.ID, err)
 						if rerr, ok := err.(*structs.RecoverableError); ok && rerr.Recoverable {
 							// If the error is recoverable, propogate it
 							return structs.NewRecoverableError(wrapped, true)
@@ -1117,10 +1117,10 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 	// If there was an error revoke the created tokens
 	if createErr != nil {
-		n.srv.logger.Printf("[ERR] nomad.node: Vault token creation failed: %v", createErr)
+		n.srv.logger.Printf("[ERR] nomad.node: Vault token creation for alloc %q failed: %v", alloc.ID, createErr)
 
 		if revokeErr := n.srv.vault.RevokeTokens(context.Background(), accessors, false); revokeErr != nil {
-			n.srv.logger.Printf("[ERR] nomad.node: Vault token revocation failed: %v", revokeErr)
+			n.srv.logger.Printf("[ERR] nomad.node: Vault token revocation for alloc %q failed: %v", alloc.ID, revokeErr)
 		}
 
 		if rerr, ok := createErr.(*structs.RecoverableError); ok {
@@ -1136,7 +1136,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	req := structs.VaultAccessorsRequest{Accessors: accessors}
 	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
 	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors failed: %v", err)
+		n.srv.logger.Printf("[ERR] nomad.client: Register Vault accessors for alloc %q failed: %v", alloc.ID, err)
 
 		// Determine if we can recover from the error
 		retry := false

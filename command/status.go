@@ -147,11 +147,14 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	if periodic {
-		now := time.Now().UTC()
-		next := job.Periodic.Next(now)
-		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
-			fmt.Sprintf("%s (%s from now)",
-				formatTime(next), formatTimeDifference(now, next, time.Second))))
+		location, err := job.Periodic.GetLocation()
+		if err == nil {
+			now := time.Now().In(location)
+			next := job.Periodic.Next(now)
+			basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+				fmt.Sprintf("%s (%s from now)",
+					formatTime(next), formatTimeDifference(now, next, time.Second))))
+		}
 	}
 
 	c.Ui.Output(formatKV(basic))
