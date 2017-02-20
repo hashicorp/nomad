@@ -18,10 +18,10 @@ func TestHTTP_JobsList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		for i := 0; i < 3; i++ {
 			// Create the job
-			job := mock.Job()
-			args := structs.JobRegisterRequest{
+			job := api.MockJob()
+			args := api.JobRegisterRequest{
 				Job:          job,
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				WriteRequest: api.WriteRequest{Region: "global"},
 			}
 			var resp structs.JobRegisterResponse
 			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -70,12 +70,12 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		for i := 0; i < 3; i++ {
 			// Create the job
-			job := mock.Job()
-			job.ID = ids[i]
-			job.TaskGroups[0].Count = 1
-			args := structs.JobRegisterRequest{
+			job := api.MockJob()
+			job.ID = &ids[i]
+			*job.TaskGroups[0].Count = 1
+			args := api.JobRegisterRequest{
 				Job:          job,
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				WriteRequest: api.WriteRequest{Region: "global"},
 			}
 			var resp structs.JobRegisterResponse
 			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -118,10 +118,10 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 func TestHTTP_JobsRegister(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		buf := encodeReq(args)
 
@@ -151,7 +151,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 
 		// Check the job is registered
 		getReq := structs.JobSpecificRequest{
-			JobID:        job.ID,
+			JobID:        *job.ID,
 			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		var getResp structs.SingleJobResponse
@@ -165,13 +165,70 @@ func TestHTTP_JobsRegister(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := api.MockJob()
+
+		// Do not set its priority
+		job.Priority = nil
+
+		args := api.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: api.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		dereg := obj.(structs.JobRegisterResponse)
+		if dereg.EvalID == "" {
+			t.Fatalf("bad: %v", dereg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check the job is registered
+		getReq := structs.JobSpecificRequest{
+			JobID:        *job.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var getResp structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if getResp.Job == nil {
+			t.Fatalf("job does not exist")
+		}
+		if getResp.Job.Priority != 50 {
+			t.Fatalf("job didn't get defaulted")
+		}
+	})
+}
+
 func TestHTTP_JobQuery(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -179,7 +236,7 @@ func TestHTTP_JobQuery(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+*job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -204,7 +261,7 @@ func TestHTTP_JobQuery(t *testing.T) {
 
 		// Check the job
 		j := obj.(*structs.Job)
-		if j.ID != job.ID {
+		if j.ID != *job.ID {
 			t.Fatalf("bad: %#v", j)
 		}
 	})
@@ -266,15 +323,15 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 func TestHTTP_JobUpdate(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID, buf)
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -299,7 +356,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 
 		// Check the job is registered
 		getReq := structs.JobSpecificRequest{
-			JobID:        job.ID,
+			JobID:        *job.ID,
 			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		var getResp structs.SingleJobResponse
@@ -316,10 +373,10 @@ func TestHTTP_JobUpdate(t *testing.T) {
 func TestHTTP_JobDelete(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -327,7 +384,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/job/"+job.ID, nil)
+		req, err := http.NewRequest("DELETE", "/v1/job/"+*job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -352,7 +409,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 
 		// Check the job is gone
 		getReq := structs.JobSpecificRequest{
-			JobID:        job.ID,
+			JobID:        *job.ID,
 			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		var getResp structs.SingleJobResponse
@@ -368,10 +425,10 @@ func TestHTTP_JobDelete(t *testing.T) {
 func TestHTTP_JobForceEvaluate(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -379,7 +436,7 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", nil)
+		req, err := http.NewRequest("POST", "/v1/job/"+*job.ID+"/evaluate", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -407,10 +464,10 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 func TestHTTP_JobEvaluations(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -418,7 +475,7 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/evaluations", nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+*job.ID+"/evaluations", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -506,10 +563,10 @@ func TestHTTP_JobAllocations(t *testing.T) {
 func TestHTTP_PeriodicForce(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create and register a periodic job.
-		job := mock.PeriodicJob()
-		args := structs.JobRegisterRequest{
+		job := api.MockPeriodicJob()
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -517,7 +574,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/periodic/force", nil)
+		req, err := http.NewRequest("POST", "/v1/job/"+*job.ID+"/periodic/force", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -581,13 +638,13 @@ func TestHTTP_JobPlan(t *testing.T) {
 func TestHTTP_JobDispatch(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the parameterized job
-		job := mock.Job()
-		job.Type = structs.JobTypeBatch
-		job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+		job := api.MockJob()
+		job.Type = helper.StringToPtr("batch")
+		job.ParameterizedJob = &api.ParameterizedJobConfig{}
 
-		args := structs.JobRegisterRequest{
+		args := api.JobRegisterRequest{
 			Job:          job,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		var resp structs.JobRegisterResponse
 		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -602,7 +659,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		buf := encodeReq(args2)
 
 		// Make the HTTP request
-		req2, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/dispatch", buf)
+		req2, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/dispatch", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
