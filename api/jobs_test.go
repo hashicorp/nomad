@@ -480,13 +480,15 @@ func TestJobs_Info(t *testing.T) {
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	_, _, err := jobs.Info("job1", nil)
+	id := "job-id/with\\troublesome:characters\n?&字\000"
+	_, _, err := jobs.Info(id, nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
 
 	// Register the job
 	job := testJob()
+	job.ID = &id
 	_, wm, err := jobs.Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -494,7 +496,7 @@ func TestJobs_Info(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
-	result, qm, err := jobs.Info("job1", nil)
+	result, qm, err := jobs.Info(id, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

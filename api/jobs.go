@@ -99,7 +99,7 @@ func (j *Jobs) PrefixList(prefix string) ([]*JobListStub, *QueryMeta, error) {
 // job given its unique ID.
 func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	var resp Job
-	qm, err := j.client.query("/v1/job/"+jobID, &resp, q)
+	qm, err := j.client.query("/v1/job/"+url.PathEscape(jobID), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -109,7 +109,7 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
-	u, err := url.Parse("/v1/job/" + jobID + "/allocations")
+	u, err := url.Parse("/v1/job/" + url.PathEscape(jobID) + "/allocations")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +130,7 @@ func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*Al
 // the given job ID.
 func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	var resp []*Evaluation
-	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, q)
+	qm, err := j.client.query("/v1/job/"+url.PathEscape(jobID)+"/evaluations", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -141,7 +141,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 // Deregister is used to remove an existing job.
 func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp deregisterJobResponse
-	wm, err := j.client.delete("/v1/job/"+jobID, &resp, q)
+	wm, err := j.client.delete("/v1/job/"+url.PathEscape(jobID), &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -151,7 +151,7 @@ func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, er
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp registerJobResponse
-	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -161,7 +161,7 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 // PeriodicForce spawns a new instance of the periodic job and returns the eval ID
 func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
-	wm, err := j.client.write("/v1/job/"+jobID+"/periodic/force", nil, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/periodic/force", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -178,7 +178,7 @@ func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *Wr
 		Job:  job,
 		Diff: diff,
 	}
-	wm, err := j.client.write("/v1/job/"+*job.ID+"/plan", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(*job.ID)+"/plan", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,7 +188,7 @@ func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *Wr
 
 func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, error) {
 	var resp JobSummary
-	qm, err := j.client.query("/v1/job/"+jobID+"/summary", &resp, q)
+	qm, err := j.client.query("/v1/job/"+url.PathEscape(jobID)+"/summary", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -203,7 +203,7 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 		Meta:    meta,
 		Payload: payload,
 	}
-	wm, err := j.client.write("/v1/job/"+jobID+"/dispatch", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
