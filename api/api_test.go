@@ -118,7 +118,7 @@ func TestSetQueryOptions(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	r := c.newRequest("GET", "/v1/jobs")
+	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &QueryOptions{
 		Region:     "foo",
 		AllowStale: true,
@@ -145,7 +145,7 @@ func TestSetWriteOptions(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	r := c.newRequest("GET", "/v1/jobs")
+	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &WriteOptions{
 		Region: "foo",
 	}
@@ -160,7 +160,7 @@ func TestRequestToHTTP(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	r := c.newRequest("DELETE", "/v1/jobs/foo")
+	r, _ := c.newRequest("DELETE", "/v1/jobs/foo")
 	q := &QueryOptions{
 		Region: "foo",
 	}
@@ -222,7 +222,7 @@ func TestQueryString(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	r := c.newRequest("PUT", "/v1/abc?foo=bar&baz=zip")
+	r, _ := c.newRequest("PUT", "/v1/abc?foo=bar&baz=zip")
 	q := &WriteOptions{Region: "foo"}
 	r.setWriteOptions(q)
 
