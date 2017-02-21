@@ -158,7 +158,9 @@ The job specification also allows you to specify a `meta` block to supply arbitr
 configuration to a task. This allows you to easily provide job-specific
 configuration even if you use the same executable unit in multiple jobs. These
 key-value pairs are passed through to the job as `NOMAD_META_<key>=<value>`
-environment variables, where `key` is UPPERCASED from the job specification.
+environment variables. Prior to Nomad 0.5.5 the key was uppercased and since
+then both the original case and an uppercased version are injected. The
+uppercased version will be deprecated in a future release.
 
 Currently there is no enforcement that the meta keys be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
