@@ -29,6 +29,7 @@ BUG FIXES:
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * config: Fix Consul Config Merging/Copying [GH-2278]
   * config: Fix Client reserved resource merging panic [GH-2281]
+  * driver/docker: Fix Docker 1.13 on Windows [GH-2342]
   * server: Fix panic when forwarding Vault derivation requests from non-leader
     servers [GH-2267]
 
