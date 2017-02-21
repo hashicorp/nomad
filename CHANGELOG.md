@@ -8,6 +8,7 @@ IMPROVEMENTS:
   * api/cli: Add nomad operator command and API for interacting with Raft
     configuration [GH-2305]
   * client: Apply GC related configurations properly [GH-2273]
+  * client: Don't force uppercase meta keys in env vars [GH-2338]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within
