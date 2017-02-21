@@ -327,7 +327,11 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	s.parseRegion(req, &args.Region)
 
 	var out structs.JobDeregisterResponse
-	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
+	err := s.agent.RPC("Job.Deregister", &args, &out)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "does not exist") {
+			return nil, CodedError(404, err.Error())
+		}
 		return nil, err
 	}
 	setIndex(resp, out.Index)
