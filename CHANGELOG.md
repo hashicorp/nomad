@@ -24,6 +24,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
   * api: Fix escaping of HTML characters [GH-2322]
+  * api: Deregistering nonexistent job returns 404 [GH-2339]
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * config: Fix Consul Config Merging/Copying [GH-2278]
