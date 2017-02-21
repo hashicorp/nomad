@@ -141,6 +141,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	// Build the meta
 	for k, v := range t.TaskMeta {
 		t.TaskEnv[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
+		t.TaskEnv[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
 	// Build the ports
