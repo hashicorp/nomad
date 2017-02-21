@@ -7,15 +7,15 @@
 #header {
   .navbar-brand {
     .logo{
-      color: $gray-darker;
-      font-family: $font-family-blanc;
-      font-size: 28px;
-      background: image-url('logo-header.png') 0 0 no-repeat;
-      @include img-retina("logo-header.png", "logo-header@2x.png", $project-logo-width, $project-logo-height);
-      background-position: 0 center;
+      display: inline-block;
+      height: 59px;
+      width: 153px;
+      margin-top: 15px;
+      background: image-url('logo-header.svg') 0 0 no-repeat;
+      font-size: 0;
 
       &:hover{
-        color: $green-dark;
+        opacity: .7;
       }
     }
 
@@ -52,28 +52,6 @@
   .external-links {
     li > a {
       @include project-a-style();
-    }
-  }
-}
-
-@media (max-width: 414px) {
-  #header {
-    .navbar-brand {
-      .logo{
-        padding-left: 42px;
-        font-size: 18px;
-        @include img-retina("logo-header.png", "logo-header@2x.png", $project-logo-width * .75, $project-logo-height * .75);
-      }
-    }
-  }
-}
-
-@media (max-width: 320px) {
-  #header {
-    .navbar-brand {
-      .logo{
-        // font-size: 0 !important; //hide terraform text
-      }
     }
   }
 }

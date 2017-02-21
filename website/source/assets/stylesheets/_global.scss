@@ -16,20 +16,15 @@ body {
   font-weight: 500;
 }
 
-
 h1, h2, h3, h4, h5 {
+  font-family: $font-family-klavika;
+  text-transform: uppercase;
   -webkit-font-smoothing: antialiased;
 }
 
 h1{
-  font-family: $font-family-open-sans;
   font-weight: $font-weight-reg;
   margin-bottom: 24px;
-}
-
-h3, h4{
-  font-family: $font-family-open-sans;
-  font-weight: $font-weight-reg;
 }
 
 //an alternative color for buttons in the doc body
@@ -82,6 +77,15 @@ pre {
   margin-bottom: 0;
 }
 
+//Typekit utilites for hiding FOUC
+.wf-loading {
+  visibility: hidden;
+}
+
+.wf-active, .wf-inactive {
+  visibility: visible;
+}
+
 //fixed grid below 992 to prevent smaller responsive sizes
 @media (min-width: 768px) and (max-width: 992px) {
   .container{
@@ -89,7 +93,7 @@ pre {
   }
 }
 
-//guarantees nav list fits at tablet viewport size 
+//guarantees nav list fits at tablet viewport size
 @media (min-width: 768px) and (max-width: 800px) {
   #header .navbar-nav a {
     font-size: 12px !important;
