@@ -3,6 +3,7 @@
 IMPROVEMENTS:
   * core: Handle Serf Reap event [GH-2310]
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
+  * api: API defaults missing values [GH-2300]
   * api: Validate the restart policy interval [GH-2311]
   * api/cli: Add nomad operator command and API for interacting with Raft
     configuration [GH-2305]
