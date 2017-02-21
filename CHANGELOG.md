@@ -23,6 +23,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
   * api: Fix escaping of HTML characters [GH-2322]
+  * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * config: Fix Consul Config Merging/Copying [GH-2278]
   * config: Fix Client reserved resource merging panic [GH-2281]
