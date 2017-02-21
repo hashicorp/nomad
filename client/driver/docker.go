@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/fields"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -108,6 +109,10 @@ type DockerDriver struct {
 
 	driverConfig *DockerDriverConfig
 	imageID      string
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
 }
 
 type DockerDriverAuth struct {
@@ -260,6 +265,48 @@ type DockerHandle struct {
 
 func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
+}
+
+func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Initialize docker API clients
+	client, _, err := d.dockerClients()
+	if err != nil {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
+		}
+		delete(node.Attributes, dockerDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
+		return false, nil
+	}
+
+	// This is the first operation taken on the client so we'll try to
+	// establish a connection to the Docker daemon. If this fails it means
+	// Docker isn't available so we'll simply disable the docker driver.
+	env, err := client.Version()
+	if err != nil {
+		delete(node.Attributes, dockerDriverAttr)
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+			d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
+		}
+		d.fingerprintSuccess = helper.BoolToPtr(false)
+		return false, nil
+	}
+
+	node.Attributes[dockerDriverAttr] = "1"
+	node.Attributes["driver.docker.version"] = env.Get("Version")
+
+	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
+	if privileged {
+		node.Attributes[dockerPrivilegedConfigOption] = "1"
+	}
+
+	// Advertise if this node supports Docker volumes
+	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
+		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
+	}
+
+	d.fingerprintSuccess = helper.BoolToPtr(true)
+	return true, nil
 }
 
 // Validate is used to validate the driver configuration
@@ -616,49 +663,6 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 		}
 	})
 	return client, waitClient, merr.ErrorOrNil()
-}
-
-func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Get the current status so that we can log any debug messages only if the
-	// state changes
-	_, currentlyEnabled := node.Attributes[dockerDriverAttr]
-
-	// Initialize docker API clients
-	client, _, err := d.dockerClients()
-	if err != nil {
-		delete(node.Attributes, dockerDriverAttr)
-		if currentlyEnabled {
-			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
-		}
-		return false, nil
-	}
-
-	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
-	if privileged {
-		node.Attributes[dockerPrivilegedConfigOption] = "1"
-	}
-
-	// This is the first operation taken on the client so we'll try to
-	// establish a connection to the Docker daemon. If this fails it means
-	// Docker isn't available so we'll simply disable the docker driver.
-	env, err := client.Version()
-	if err != nil {
-		if currentlyEnabled {
-			d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
-		}
-		delete(node.Attributes, dockerDriverAttr)
-		return false, nil
-	}
-
-	node.Attributes[dockerDriverAttr] = "1"
-	node.Attributes["driver.docker.version"] = env.Get("Version")
-
-	// Advertise if this node supports Docker volumes
-	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
-		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
-	}
-
-	return true, nil
 }
 
 func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir *allocdir.TaskDir,

@@ -29,6 +29,10 @@ const (
 // features.
 type ExecDriver struct {
 	DriverContext
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
 }
 
 type ExecDriverConfig struct {

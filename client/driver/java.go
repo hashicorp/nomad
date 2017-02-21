@@ -23,6 +23,7 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -38,6 +39,10 @@ const (
 type JavaDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
 }
 
 type JavaDriverConfig struct {
@@ -105,16 +110,13 @@ func (d *JavaDriver) Abilities() DriverAbilities {
 }
 
 func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Get the current status so that we can log any debug messages only if the
-	// state changes
-	_, currentlyEnabled := node.Attributes[javaDriverAttr]
-
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
-	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !d.cgroupsMounted(node)) {
-		if currentlyEnabled {
+	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !cgroupsMounted(node)) {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
 		}
 		delete(node.Attributes, "driver.java")
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
 
@@ -128,6 +130,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	if err != nil {
 		// assume Java wasn't found
 		delete(node.Attributes, javaDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
 
@@ -143,10 +146,11 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 
 	if infoString == "" {
-		if currentlyEnabled {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		}
 		delete(node.Attributes, javaDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
 
@@ -163,6 +167,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	node.Attributes["driver.java.version"] = versionString
 	node.Attributes["driver.java.runtime"] = info[1]
 	node.Attributes["driver.java.vm"] = info[2]
+	d.fingerprintSuccess = helper.BoolToPtr(true)
 
 	return true, nil
 }
@@ -294,13 +299,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 }
 
 func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
-
-// cgroupsMounted returns true if the cgroups are mounted on a system otherwise
-// returns false
-func (d *JavaDriver) cgroupsMounted(node *structs.Node) bool {
-	_, ok := node.Attributes["unique.cgroup.mountpoint"]
-	return ok
-}
 
 type javaId struct {
 	Version         string

@@ -19,6 +19,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// cgroupsMounted returns true if the cgroups are mounted on a system otherwise
+// returns false
+func cgroupsMounted(node *structs.Node) bool {
+	_, ok := node.Attributes["unique.cgroup.mountpoint"]
+	return ok
+}
+
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
 func createExecutor(w io.Writer, clientConfig *config.Config,
