@@ -22,7 +22,7 @@ dispatched instance can be provided via stdin by using "-" or by specifiying a
 path to a file. Metadata can be supplied by using the meta flag one or more
 times. 
 
-Upon successfully creation, the dispatched job ID will be printed and the
+Upon successful creation, the dispatched job ID will be printed and the
 triggered evaluation will be monitored. This can be disabled by supplying the
 detach flag.
 
