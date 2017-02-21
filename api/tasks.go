@@ -307,6 +307,8 @@ type Template struct {
 	ChangeSignal *string
 	Splay        *time.Duration
 	Perms        *string
+	LeftDelim    *string
+	RightDelim   *string
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -325,6 +327,12 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.ChangeSignal != nil {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
+	}
+	if tmpl.LeftDelim == nil {
+		tmpl.LeftDelim = helper.StringToPtr("{{")
+	}
+	if tmpl.RightDelim == nil {
+		tmpl.RightDelim = helper.StringToPtr("}}")
 	}
 }
 

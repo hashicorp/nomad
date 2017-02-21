@@ -394,6 +394,8 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 		ct.Source = &src
 		ct.Destination = &dest
 		ct.Contents = &tmpl.EmbeddedTmpl
+		ct.LeftDelim = &tmpl.LeftDelim
+		ct.RightDelim = &tmpl.RightDelim
 
 		// Set the permissions
 		if tmpl.Perms != "" {

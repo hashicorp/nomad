@@ -879,7 +879,9 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"change_signal",
 			"data",
 			"destination",
+			"left_delimiter",
 			"perms",
+			"right_delimiter",
 			"source",
 			"splay",
 		}

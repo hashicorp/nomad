@@ -667,19 +667,6 @@ README][ct].
 
 `Template` object supports following attributes:
 
-* `SourcePath` - Specifies the path to the template to be rendered. `SourcePath`
-  is mutually exclusive with `EmbeddedTmpl` attribute. The source can be fetched
-  using an [`Artifact`](#artifact) resource. The template must exist on the
-  machine prior to starting the task; it is not possible to reference a template
-  inside of a Docker container, for example.
-
-* `EmbeddedTmpl` -  Specifies the raw template to execute. One of `SourcePath`
-  or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
-  templates, but we recommend using `SourcePath` for larger templates.
-
-* `DestPath` - Specifies the location where the resulting template should be
-  rendered, relative to the task directory.
-
 - `ChangeMode` - Specifies the behavior Nomad should take if the rendered
   template changes. The default value is `"restart"`. The possible values are:
 
@@ -691,8 +678,29 @@ README][ct].
   "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
   `signal`.
 
-* `perms` - Specifies the rendered template's permissions. File permissions are
+* `DestPath` - Specifies the location where the resulting template should be
+  rendered, relative to the task directory.
+
+* `EmbeddedTmpl` -  Specifies the raw template to execute. One of `SourcePath`
+  or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
+  templates, but we recommend using `SourcePath` for larger templates.
+
+* `LeftDelim` - Specifies the left delimiter to use in the template. The default
+  is "{{" for some templates, it may be easier to use a different delimiter that
+  does not conflict with the output file itself.
+
+* `Perms` - Specifies the rendered template's permissions. File permissions are
   given as octal of the unix file permissions rwxrwxrwx.
+
+* `RightDelim` - Specifies the right delimiter to use in the template. The default
+  is "}}" for some templates, it may be easier to use a different delimiter that
+  does not conflict with the output file itself.
+
+* `SourcePath` - Specifies the path to the template to be rendered. `SourcePath`
+  is mutually exclusive with `EmbeddedTmpl` attribute. The source can be fetched
+  using an [`Artifact`](#artifact) resource. The template must exist on the
+  machine prior to starting the task; it is not possible to reference a template
+  inside of a Docker container, for example.
 
 * `Splay` - Specifies a random amount of time to wait between 0ms and the given
   splay value before invoking the change mode. Should be specified in
