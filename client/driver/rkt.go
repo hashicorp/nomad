@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
@@ -57,6 +58,10 @@ const (
 // planned in the future
 type RktDriver struct {
 	DriverContext
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
 }
 
 type RktDriverConfig struct {
@@ -157,22 +162,20 @@ func (d *RktDriver) Abilities() DriverAbilities {
 }
 
 func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Get the current status so that we can log any debug messages only if the
-	// state changes
-	_, currentlyEnabled := node.Attributes[rktDriverAttr]
-
 	// Only enable if we are root when running on non-windows systems.
 	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
-		if currentlyEnabled {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
 		}
 		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
 
 	outBytes, err := exec.Command(rktCmd, "version").Output()
 	if err != nil {
 		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
 	out := strings.TrimSpace(string(outBytes))
@@ -181,6 +184,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
@@ -200,6 +204,7 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
 		node.Attributes["driver."+rktVolumesConfigOption] = "1"
 	}
+	d.fingerprintSuccess = helper.BoolToPtr(true)
 	return true, nil
 }
 

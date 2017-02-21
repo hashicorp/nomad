@@ -87,17 +87,11 @@ func (d *RawExecDriver) FSIsolation() cstructs.FSIsolation {
 }
 
 func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Get the current status so that we can log any debug messages only if the
-	// state changes
-	_, currentlyEnabled := node.Attributes[rawExecDriverAttr]
-
 	// Check that the user has explicitly enabled this executor.
 	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
 
 	if enabled || cfg.DevMode {
-		if currentlyEnabled {
-			d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
-		}
+		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		node.Attributes[rawExecDriverAttr] = "1"
 		return true, nil
 	}
