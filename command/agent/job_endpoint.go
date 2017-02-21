@@ -419,6 +419,7 @@ func apiJobToStructJob(job *api.Job) *structs.Job {
 			Enabled:         *job.Periodic.Enabled,
 			SpecType:        *job.Periodic.SpecType,
 			ProhibitOverlap: *job.Periodic.ProhibitOverlap,
+			TimeZone:        *job.Periodic.TimeZone,
 		}
 		if job.Periodic.Spec != nil {
 			j.Periodic.Spec = *job.Periodic.Spec
@@ -476,6 +477,7 @@ func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
 	structsTask.User = apiTask.User
+	structsTask.Leader = apiTask.Leader
 	structsTask.Config = apiTask.Config
 	structsTask.Constraints = make([]*structs.Constraint, len(apiTask.Constraints))
 	for i, constraint := range apiTask.Constraints {

@@ -257,7 +257,7 @@ type Task struct {
 	Vault           *Vault
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
-	Leader          *bool
+	Leader          bool
 }
 
 func (t *Task) Canonicalize() {
