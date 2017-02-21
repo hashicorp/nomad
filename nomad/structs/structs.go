@@ -2671,6 +2671,11 @@ type Template struct {
 
 	// Perms is the permission the file should be written out with.
 	Perms string `mapstructure:"perms"`
+
+	// LeftDelim and RightDelim are optional configurations to control what
+	// delimiter is utilized when parsing the template.
+	LeftDelim  string `mapstructure:"left_delimiter"`
+	RightDelim string `mapstructure:"right_delimiter"`
 }
 
 // DefaultTemplate returns a default template.

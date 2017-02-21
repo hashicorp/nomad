@@ -709,6 +709,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			Spec:            helper.StringToPtr("spec"),
 			SpecType:        helper.StringToPtr("cron"),
 			ProhibitOverlap: helper.BoolToPtr(true),
+			TimeZone:        helper.StringToPtr("test zone"),
 		},
 		ParameterizedJob: &api.ParameterizedJobConfig{
 			Payload:      "payload",
@@ -747,6 +748,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
+						Leader: true,
 						Driver: "docker",
 						User:   "mary",
 						Config: map[string]interface{}{
@@ -840,6 +842,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeSignal: helper.StringToPtr("signal"),
 								Splay:        helper.TimeToPtr(1 * time.Minute),
 								Perms:        helper.StringToPtr("666"),
+								LeftDelim:    helper.StringToPtr("abc"),
+								RightDelim:   helper.StringToPtr("def"),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -882,6 +886,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			Spec:            "spec",
 			SpecType:        "cron",
 			ProhibitOverlap: true,
+			TimeZone:        "test zone",
 		},
 		ParameterizedJob: &structs.ParameterizedJobConfig{
 			Payload:      "payload",
@@ -921,6 +926,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					{
 						Name:   "task1",
 						Driver: "docker",
+						Leader: true,
 						User:   "mary",
 						Config: map[string]interface{}{
 							"lol": "code",
@@ -1010,6 +1016,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeSignal: "SIGNAL",
 								Splay:        1 * time.Minute,
 								Perms:        "666",
+								LeftDelim:    "abc",
+								RightDelim:   "def",
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

@@ -65,8 +65,16 @@ README][ct].
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the task directory.
 
+* `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
+  template. The default is "{{" for some templates, it may be easier to use a
+  different delimiter that does not conflict with the output file itself.
+
 - `perms` `(string: "666")` - Specifies the rendered template's permissions.
   File permissions are given as octal of the unix file permissions rwxrwxrwx.
+
+* `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
+  template. The default is "}}" for some templates, it may be easier to use a
+  different delimiter that does not conflict with the output file itself.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
   One of `source` or `data` must be specified, but not both. This source can

@@ -178,6 +178,8 @@ func TestParse(t *testing.T) {
 										ChangeSignal: "",
 										Splay:        5 * time.Second,
 										Perms:        "777",
+										LeftDelim:    "--",
+										RightDelim:   "__",
 									},
 								},
 								Leader: true,

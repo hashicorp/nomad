@@ -568,6 +568,8 @@ func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			ChangeSignal: *template.ChangeSignal,
 			Splay:        *template.Splay,
 			Perms:        *template.Perms,
+			LeftDelim:    *template.LeftDelim,
+			RightDelim:   *template.RightDelim,
 		}
 	}
 	if apiTask.DispatchPayload != nil {
