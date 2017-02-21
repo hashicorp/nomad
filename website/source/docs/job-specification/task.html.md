@@ -50,7 +50,9 @@ job "docs" {
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
   application to gracefully quit before force-killing. Nomad sends an `SIGINT`.
   If the task does not exit before the configured timeout, `SIGKILL` is sent to
-  the task.
+  the task. Note that the value set here is capped at the value set for
+  [`max_kill_timeout`][max_kill] on the agent running the task, which has a
+  default value of 30 seconds.
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
@@ -183,3 +185,4 @@ task "server" {
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
 [user_drivers]: /docs/agent/configuration/client.html#_quot_user_checked_drivers_quot_
 [user_blacklist]: /docs/agent/configuration/client.html#_quot_user_blacklist_quot_
+[max_kill]: /docs/agent/configuration/client.html#max_kill_timeout
