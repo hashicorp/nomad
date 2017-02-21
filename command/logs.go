@@ -169,7 +169,7 @@ func (l *LogsCommand) Run(args []string) int {
 		// Try to determine the tasks name from the allocation
 		var tasks []*api.Task
 		for _, tg := range alloc.Job.TaskGroups {
-			if tg.Name == alloc.TaskGroup {
+			if *tg.Name == alloc.TaskGroup {
 				if len(tg.Tasks) == 1 {
 					task = tg.Tasks[0].Name
 					break

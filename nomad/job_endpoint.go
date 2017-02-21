@@ -285,6 +285,25 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// Validate validates a job
+func (j *Job) Validate(args *structs.JobValidateRequest,
+	reply *structs.JobValidateResponse) error {
+
+	if err := validateJob(args.Job); err != nil {
+		if merr, ok := err.(*multierror.Error); ok {
+			for _, err := range merr.Errors {
+				reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
+			}
+		} else {
+			reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
+		}
+
+	}
+	reply.DriverConfigValidated = true
+
+	return nil
+}
+
 // Evaluate is used to force a job for re-evaluation
 func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegisterResponse) error {
 	if done, err := j.srv.forward("Job.Evaluate", args, args, reply); done {

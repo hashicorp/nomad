@@ -809,7 +809,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 func isMissingPort(err error) bool {
 	// matches error const in net/ipsock.go
 	const missingPort = "missing port in address"
-	return err != nil && strings.HasPrefix(err.Error(), missingPort)
+	return err != nil && strings.Contains(err.Error(), missingPort)
 }
 
 // Merge is used to merge two server configs together

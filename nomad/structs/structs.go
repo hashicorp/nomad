@@ -282,6 +282,22 @@ type JobDispatchRequest struct {
 	WriteRequest
 }
 
+// JobValidateRequest is used to validate a job
+type JobValidateRequest struct {
+	Job *Job
+	WriteRequest
+}
+
+// JobValidateResponse is the response from validate request
+type JobValidateResponse struct {
+	// DriverConfigValidated indicates whether the agent validated the driver
+	// config
+	DriverConfigValidated bool
+
+	// ValidationErrors is a list of validation errors
+	ValidationErrors []string
+}
+
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
@@ -1209,6 +1225,7 @@ func (j *Job) Copy() *Job {
 // Validate is used to sanity check a job input
 func (j *Job) Validate() error {
 	var mErr multierror.Error
+
 	if j.Region == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job region"))
 	}

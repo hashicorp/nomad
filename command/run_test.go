@@ -1,11 +1,13 @@
 package command
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
@@ -51,6 +53,11 @@ job "job1" {
 func TestRunCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{Meta: Meta{Ui: ui}}
+
+	// Create a server
+	s := testutil.NewTestServer(t, nil)
+	defer s.Stop()
+	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -99,7 +106,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{fh2.Name()}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error validating") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error submitting job") {
 		t.Fatalf("expect validation error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

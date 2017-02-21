@@ -1,6 +1,10 @@
 package api
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/hashicorp/nomad/helper"
+)
 
 func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 	if qm.LastIndex == 0 {
@@ -21,19 +25,19 @@ func testJob() *Job {
 	task := NewTask("task1", "exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			IOPS:     10,
+			CPU:      helper.IntToPtr(100),
+			MemoryMB: helper.IntToPtr(256),
+			IOPS:     helper.IntToPtr(10),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      1,
-			MaxFileSizeMB: 2,
+			MaxFiles:      helper.IntToPtr(1),
+			MaxFileSizeMB: helper.IntToPtr(2),
 		})
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: 25,
+			SizeMB: helper.IntToPtr(25),
 		})
 
 	job := NewBatchJob("job1", "redis", "region1", 1).
@@ -45,9 +49,9 @@ func testJob() *Job {
 
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
-		Enabled:  true,
-		Spec:     "*/30 * * * *",
-		SpecType: "cron",
+		Enabled:  helper.BoolToPtr(true),
+		Spec:     helper.StringToPtr("*/30 * * * *"),
+		SpecType: helper.StringToPtr("cron"),
 	})
 	return job
 }

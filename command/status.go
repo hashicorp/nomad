@@ -1,8 +1,6 @@
 package command
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"sort"
 	"strings"
@@ -133,34 +131,30 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if it is periodic or a parameterized job
-	sJob, err := convertApiJob(job)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
-		return 1
-	}
-	sJob.Canonicalize()
-	periodic := sJob.IsPeriodic()
-	parameterized := sJob.IsParameterized()
+	periodic := job.IsPeriodic()
+	parameterized := job.IsParameterized()
 
 	// Format the job info
 	basic := []string{
-		fmt.Sprintf("ID|%s", job.ID),
-		fmt.Sprintf("Name|%s", job.Name),
-		fmt.Sprintf("Type|%s", job.Type),
-		fmt.Sprintf("Priority|%d", job.Priority),
+		fmt.Sprintf("ID|%s", *job.ID),
+		fmt.Sprintf("Name|%s", *job.Name),
+		fmt.Sprintf("Type|%s", *job.Type),
+		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status|%s", job.Status),
+		fmt.Sprintf("Status|%s", *job.Status),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
 	if periodic {
-		now := time.Now().In(sJob.Periodic.GetLocation())
-		next := sJob.Periodic.Next(now)
-		basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
-			fmt.Sprintf("%s (%s from now)",
-				formatTime(next), formatTimeDifference(now, next, time.Second))))
+		location, err := job.Periodic.GetLocation()
+		if err == nil {
+			now := time.Now().In(location)
+			next := job.Periodic.Next(now)
+			basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+				fmt.Sprintf("%s (%s from now)",
+					formatTime(next), formatTimeDifference(now, next, time.Second))))
+		}
 	}
 
 	c.Ui.Output(formatKV(basic))
@@ -200,7 +194,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	}
 
 	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
+	prefix := fmt.Sprintf("%s%s", *job.ID, structs.PeriodicLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
@@ -216,7 +210,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 	for _, child := range children {
 		// Ensure that we are only showing jobs whose parent is the requested
 		// job.
-		if child.ParentID != job.ID {
+		if child.ParentID != *job.ID {
 			continue
 		}
 
@@ -246,8 +240,8 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 		return err
 	}
 
-	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", job.ID, structs.DispatchLaunchSuffix)
+	// Generate the prefix that matches launched jobs from the parameterized job.
+	prefix := fmt.Sprintf("%s%s", *job.ID, structs.DispatchLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
@@ -263,7 +257,7 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 	for _, child := range children {
 		// Ensure that we are only showing jobs whose parent is the requested
 		// job.
-		if child.ParentID != job.ID {
+		if child.ParentID != *job.ID {
 			continue
 		}
 
@@ -283,13 +277,13 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	var evals, allocs []string
 
 	// Query the allocations
-	jobAllocs, _, err := client.Jobs().Allocations(job.ID, c.allAllocs, nil)
+	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}
 
 	// Query the evaluations
-	jobEvals, _, err := client.Jobs().Evaluations(job.ID, nil)
+	jobEvals, _, err := client.Jobs().Evaluations(*job.ID, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
@@ -367,7 +361,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 // where appropriate
 func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
 	// Query the summary
-	summary, _, err := client.Jobs().Summary(job.ID, nil)
+	summary, _, err := client.Jobs().Summary(*job.ID, nil)
 	if err != nil {
 		return fmt.Errorf("Error querying job summary: %s", err)
 	}
@@ -376,13 +370,8 @@ func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error
 		return nil
 	}
 
-	sJob, err := convertApiJob(job)
-	if err != nil {
-		return fmt.Errorf("Error converting job: %s", err)
-	}
-
-	periodic := sJob.IsPeriodic()
-	parameterizedJob := sJob.IsParameterized()
+	periodic := job.IsPeriodic()
+	parameterizedJob := job.IsParameterized()
 
 	// Print the summary
 	if !periodic && !parameterizedJob {
@@ -448,22 +437,6 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
-}
-
-// convertApiJob is used to take a *api.Job and convert it to an *struct.Job.
-// This function is just a hammer and probably needs to be revisited.
-func convertApiJob(in *api.Job) (*structs.Job, error) {
-	gob.Register(map[string]interface{}{})
-	gob.Register([]interface{}{})
-	var structJob *structs.Job
-	buf := new(bytes.Buffer)
-	if err := gob.NewEncoder(buf).Encode(in); err != nil {
-		return nil, err
-	}
-	if err := gob.NewDecoder(buf).Decode(&structJob); err != nil {
-		return nil, err
-	}
-	return structJob, nil
 }
 
 // list general information about a list of jobs

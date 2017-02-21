@@ -3,6 +3,8 @@ package api
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 func TestCompose(t *testing.T) {
@@ -12,14 +14,14 @@ func TestCompose(t *testing.T) {
 		SetMeta("foo", "bar").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-			CPU:      1250,
-			MemoryMB: 1024,
-			DiskMB:   2048,
-			IOPS:     500,
+			CPU:      helper.IntToPtr(1250),
+			MemoryMB: helper.IntToPtr(1024),
+			DiskMB:   helper.IntToPtr(2048),
+			IOPS:     helper.IntToPtr(500),
 			Networks: []*NetworkResource{
 				&NetworkResource{
 					CIDR:          "0.0.0.0/0",
-					MBits:         100,
+					MBits:         helper.IntToPtr(100),
 					ReservedPorts: []Port{{"", 80}, {"", 443}},
 				},
 			},
@@ -40,11 +42,11 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		Region:   "region1",
-		ID:       "job1",
-		Name:     "myjob",
-		Type:     JobTypeService,
-		Priority: 2,
+		Region:   helper.StringToPtr("region1"),
+		ID:       helper.StringToPtr("job1"),
+		Name:     helper.StringToPtr("myjob"),
+		Type:     helper.StringToPtr(JobTypeService),
+		Priority: helper.IntToPtr(2),
 		Datacenters: []string{
 			"dc1",
 		},
@@ -60,8 +62,8 @@ func TestCompose(t *testing.T) {
 		},
 		TaskGroups: []*TaskGroup{
 			&TaskGroup{
-				Name:  "grp1",
-				Count: 2,
+				Name:  helper.StringToPtr("grp1"),
+				Count: helper.IntToPtr(2),
 				Constraints: []*Constraint{
 					&Constraint{
 						LTarget: "kernel.name",
@@ -74,14 +76,14 @@ func TestCompose(t *testing.T) {
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
-							CPU:      1250,
-							MemoryMB: 1024,
-							DiskMB:   2048,
-							IOPS:     500,
+							CPU:      helper.IntToPtr(1250),
+							MemoryMB: helper.IntToPtr(1024),
+							DiskMB:   helper.IntToPtr(2048),
+							IOPS:     helper.IntToPtr(500),
 							Networks: []*NetworkResource{
 								&NetworkResource{
 									CIDR:  "0.0.0.0/0",
-									MBits: 100,
+									MBits: helper.IntToPtr(100),
 									ReservedPorts: []Port{
 										{"", 80},
 										{"", 443},

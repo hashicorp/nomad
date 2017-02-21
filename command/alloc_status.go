@@ -410,8 +410,8 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	}
 
 	// Display the rolled up stats. If possible prefer the live statistics
-	cpuUsage := strconv.Itoa(resource.CPU)
-	memUsage := humanize.IBytes(uint64(resource.MemoryMB * bytesPerMegabyte))
+	cpuUsage := strconv.Itoa(*resource.CPU)
+	memUsage := humanize.IBytes(uint64(*resource.MemoryMB * bytesPerMegabyte))
 	if stats != nil {
 		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 			if cs := ru.ResourceUsage.CpuStats; cs != nil {
@@ -425,8 +425,8 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
-		humanize.IBytes(uint64(resource.DiskMB*bytesPerMegabyte)),
-		resource.IOPS,
+		humanize.IBytes(uint64(*resource.DiskMB*bytesPerMegabyte)),
+		*resource.IOPS,
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))

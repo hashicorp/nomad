@@ -11,6 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/mitchellh/cli"
 )
 
@@ -208,8 +211,46 @@ const (
 }`
 )
 
-// Test StructJob with local jobfile
-func TestStructJobWithLocal(t *testing.T) {
+var (
+	expectedApiJob = &api.Job{
+		ID:          helper.StringToPtr("job1"),
+		Region:      helper.StringToPtr("global"),
+		Priority:    helper.IntToPtr(50),
+		Name:        helper.StringToPtr("job1"),
+		Type:        helper.StringToPtr("service"),
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(1),
+				RestartPolicy: &api.RestartPolicy{
+					Attempts: helper.IntToPtr(10),
+					Interval: helper.TimeToPtr(15 * time.Second),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB: helper.IntToPtr(300),
+				},
+
+				Tasks: []*api.Task{
+					{
+						Driver: "exec",
+						Name:   "task1",
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							IOPS:     helper.IntToPtr(0),
+						},
+						LogConfig: api.DefaultLogConfig(),
+					},
+				},
+			},
+		},
+	}
+)
+
+// Test APIJob with local jobfile
+func TestJobGetter_LocalFile(t *testing.T) {
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -221,19 +262,20 @@ func TestStructJobWithLocal(t *testing.T) {
 	}
 
 	j := &JobGetter{}
-	sj, err := j.StructJob(fh.Name())
+	aj, err := j.ApiJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	err = sj.Validate()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+	if !reflect.DeepEqual(expectedApiJob, aj) {
+		eflat := flatmap.Flatten(expectedApiJob, nil, false)
+		aflat := flatmap.Flatten(aj, nil, false)
+		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
 }
 
 // Test StructJob with jobfile from HTTP Server
-func TestStructJobWithHTTPServer(t *testing.T) {
+func TestJobGetter_HTTPServer(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, job)
 	})
@@ -243,13 +285,13 @@ func TestStructJobWithHTTPServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	j := &JobGetter{}
-	sj, err := j.StructJob("http://127.0.0.1:12345/")
+	aj, err := j.ApiJob("http://127.0.0.1:12345/")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-
-	err = sj.Validate()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+	if !reflect.DeepEqual(expectedApiJob, aj) {
+		eflat := flatmap.Flatten(expectedApiJob, nil, false)
+		aflat := flatmap.Flatten(aj, nil, false)
+		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 func TestAllocations_List(t *testing.T) {
@@ -28,9 +30,9 @@ func TestAllocations_List(t *testing.T) {
 	return
 
 	job := &Job{
-		ID:   "job1",
-		Name: "Job #1",
-		Type: JobTypeService,
+		ID:   helper.StringToPtr("job1"),
+		Name: helper.StringToPtr("Job #1"),
+		Type: helper.StringToPtr(JobTypeService),
 	}
 	eval, _, err := c.Jobs().Register(job, nil)
 	if err != nil {
@@ -74,10 +76,11 @@ func TestAllocations_PrefixList(t *testing.T) {
 	return
 
 	job := &Job{
-		ID:   "job1",
-		Name: "Job #1",
-		Type: JobTypeService,
+		ID:   helper.StringToPtr("job1"),
+		Name: helper.StringToPtr("Job #1"),
+		Type: helper.StringToPtr(JobTypeService),
 	}
+
 	eval, _, err := c.Jobs().Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)

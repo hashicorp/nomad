@@ -12,7 +12,6 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
-	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/ryanuber/columnize"
 )
@@ -235,7 +234,7 @@ type JobGetter struct {
 }
 
 // StructJob returns the Job struct from jobfile.
-func (j *JobGetter) StructJob(jpath string) (*structs.Job, error) {
+func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	var jobfile io.Reader
 	switch jpath {
 	case "-":

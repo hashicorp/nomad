@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -132,19 +133,22 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.StructJob(args[0])
+	job, err := c.JobGetter.ApiJob(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
 	}
 
-	// Initialize any fields that need to be.
-	job.Canonicalize()
-
-	// Check that the job is valid
-	if err := job.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error validating job: %v", err))
+	// Get the HTTP client
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Force the region to be that of the job.
+	if r := job.Region; r != nil {
+		client.SetRegion(*r)
 	}
 
 	// Check if the job is periodic or is a parameterized job
@@ -158,35 +162,24 @@ func (c *RunCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = vaultToken
-	}
-
-	// Convert it to something we can use
-	apiJob, err := convertStructJob(job)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
-		return 1
+		job.VaultToken = helper.StringToPtr(vaultToken)
 	}
 
 	// COMPAT 0.4.1 -> 0.5 Remove in 0.6
-	if apiJob.TaskGroups != nil {
-	OUTSIDE:
-		for _, tg := range apiJob.TaskGroups {
-			if tg.Tasks != nil {
-				for _, task := range tg.Tasks {
-					if task.Resources != nil {
-						if task.Resources.DiskMB > 0 {
-							c.Ui.Error("WARNING: disk attribute is deprecated in the resources block. See https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html")
-							break OUTSIDE
-						}
-					}
+OUTSIDE:
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Resources != nil {
+				if task.Resources.DiskMB != nil {
+					c.Ui.Error("WARNING: disk attribute is deprecated in the resources block. See https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html")
+					break OUTSIDE
 				}
 			}
 		}
 	}
 
 	if output {
-		req := api.RegisterJobRequest{Job: apiJob}
+		req := api.RegisterJobRequest{Job: job}
 		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
@@ -195,18 +188,6 @@ func (c *RunCommand) Run(args []string) int {
 
 		c.Ui.Output(string(buf))
 		return 0
-	}
-
-	// Get the HTTP client
-	client, err := c.Meta.Client()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
-	}
-
-	// Force the region to be that of the job.
-	if r := job.Region; r != "" {
-		client.SetRegion(r)
 	}
 
 	// Parse the check-index
@@ -219,9 +200,9 @@ func (c *RunCommand) Run(args []string) int {
 	// Submit the job
 	var evalID string
 	if enforce {
-		evalID, _, err = client.Jobs().EnforceRegister(apiJob, checkIndex, nil)
+		evalID, _, err = client.Jobs().EnforceRegister(job, checkIndex, nil)
 	} else {
-		evalID, _, err = client.Jobs().Register(apiJob, nil)
+		evalID, _, err = client.Jobs().Register(job, nil)
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
@@ -243,10 +224,13 @@ func (c *RunCommand) Run(args []string) int {
 	if detach || periodic || paramjob {
 		c.Ui.Output("Job registration successful")
 		if periodic {
-			now := time.Now().In(job.Periodic.GetLocation())
-			next := job.Periodic.Next(now)
-			c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
-				formatTime(next), formatTimeDifference(now, next, time.Second)))
+			loc, err := job.Periodic.GetLocation()
+			if err == nil {
+				now := time.Now().In(loc)
+				next := job.Periodic.Next(now)
+				c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
+					formatTime(next), formatTimeDifference(now, next, time.Second)))
+			}
 		} else if !paramjob {
 			c.Ui.Output("Evaluation ID: " + evalID)
 		}

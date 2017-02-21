@@ -3,13 +3,15 @@ package api
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
-		Name:  "grp1",
-		Count: 2,
+		Name:  helper.StringToPtr("grp1"),
+		Count: helper.IntToPtr(2),
 	}
 	if !reflect.DeepEqual(grp, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, grp)
@@ -162,14 +164,14 @@ func TestTask_Require(t *testing.T) {
 
 	// Create some require resources
 	resources := &Resources{
-		CPU:      1250,
-		MemoryMB: 128,
-		DiskMB:   2048,
-		IOPS:     500,
+		CPU:      helper.IntToPtr(1250),
+		MemoryMB: helper.IntToPtr(128),
+		DiskMB:   helper.IntToPtr(2048),
+		IOPS:     helper.IntToPtr(500),
 		Networks: []*NetworkResource{
 			&NetworkResource{
 				CIDR:          "0.0.0.0/0",
-				MBits:         100,
+				MBits:         helper.IntToPtr(100),
 				ReservedPorts: []Port{{"", 80}, {"", 443}},
 			},
 		},
