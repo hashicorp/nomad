@@ -229,10 +229,9 @@ func TestAllocDir_Move(t *testing.T) {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
-	td2 := d2.NewTaskDir(t1.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationImage); err != nil {
-		t.Fatalf("TaskDir.Build() faild: %v", err)
-	}
+	// Create but don't build second task dir to mimic alloc/task runner
+	// behavior (AllocDir.Move() is called pre-TaskDir.Build).
+	d2.NewTaskDir(t1.Name)
 
 	dataDir := filepath.Join(d1.SharedDir, SharedDataDir)
 

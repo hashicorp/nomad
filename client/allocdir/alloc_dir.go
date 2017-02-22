@@ -161,6 +161,7 @@ func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 	otherDataDir := filepath.Join(other.SharedDir, SharedDataDir)
 	dataDir := filepath.Join(d.SharedDir, SharedDataDir)
 	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
+		os.Remove(dataDir) // remove an empty data dir if it exists
 		if err := os.Rename(otherDataDir, dataDir); err != nil {
 			return fmt.Errorf("error moving data dir: %v", err)
 		}
@@ -179,6 +180,7 @@ func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 				return fmt.Errorf("error creating task %q dir: %v", task.Name, err)
 			}
 			localDir := filepath.Join(newTaskDir, TaskLocal)
+			os.Remove(localDir) // remove an empty local dir if it exists
 			if err := os.Rename(otherTaskLocal, localDir); err != nil {
 				return fmt.Errorf("error moving task %q local dir: %v", task.Name, err)
 			}
