@@ -753,8 +753,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	hostConfig := &docker.HostConfig{
 		// Convert MB to bytes. This is an absolute value.
-		Memory:     memLimit,
-		MemorySwap: memLimit, // MemorySwap is memory + swap.
+		Memory: memLimit,
 		// Convert Mhz to shares. This is a relative value.
 		CPUShares: int64(task.Resources.CPU),
 
@@ -762,6 +761,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
+	}
+
+	// Windows does not support MemorySwap #2193
+	if runtime.GOOS != "windows" {
+		hostConfig.MemorySwap = memLimit // MemorySwap is memory + swap.
 	}
 
 	if len(driverConfig.Logging) != 0 {

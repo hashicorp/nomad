@@ -3,7 +3,9 @@ Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travi
 -	Website: https://www.nomadproject.io
 -	Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
 
-![Nomad](https://raw.githubusercontent.com/hashicorp/nomad/master/website/source/assets/images/logo-header%402x.png?token=AAkIoLO_y1g3wgHMr3QO-559BN22rN0kks5V_2HpwA%3D%3D)
+<p align="center" style="text-align:center;">
+  <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-header.svg" width="500" />
+</p>
 
 Nomad is a cluster manager, designed for both long lived services and short
 lived batch processing workloads. Developers use a declarative job specification
