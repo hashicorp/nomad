@@ -45,7 +45,7 @@ job "job1" {
 	if code := cmd.Run([]string{"-output", fh.Name()}); code != 0 {
 		t.Fatalf("expected exit code 0, got: %d", code)
 	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, `"Region": "global",`) {
+	if out := ui.OutputWriter.String(); !strings.Contains(out, `"Type": "service",`) {
 		t.Fatalf("Expected JSON output: %v", out)
 	}
 }
