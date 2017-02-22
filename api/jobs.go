@@ -218,7 +218,7 @@ type periodicForceResponse struct {
 // UpdateStrategy is for serializing update strategy for a job.
 type UpdateStrategy struct {
 	Stagger     time.Duration
-	MaxParallel int
+	MaxParallel int `mapstructure:"max_parallel"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -226,8 +226,8 @@ type PeriodicConfig struct {
 	Enabled         *bool
 	Spec            *string
 	SpecType        *string
-	ProhibitOverlap *bool
-	TimeZone        *string
+	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap"`
+	TimeZone        *string `mapstructure:"time_zone"`
 }
 
 func (p *PeriodicConfig) Canonicalize() {
@@ -270,8 +270,8 @@ func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
 // ParameterizedJobConfig is used to configure the parameterized job.
 type ParameterizedJobConfig struct {
 	Payload      string
-	MetaRequired []string
-	MetaOptional []string
+	MetaRequired []string `mapstructure:"meta_required"`
+	MetaOptional []string `mapstructure:"meta_optional"`
 }
 
 // Job is used to serialize a job.
@@ -282,7 +282,7 @@ type Job struct {
 	Name              *string
 	Type              *string
 	Priority          *int
-	AllAtOnce         *bool
+	AllAtOnce         *bool `mapstructure:"all_at_once"`
 	Datacenters       []string
 	Constraints       []*Constraint
 	TaskGroups        []*TaskGroup
@@ -291,7 +291,7 @@ type Job struct {
 	ParameterizedJob  *ParameterizedJobConfig
 	Payload           []byte
 	Meta              map[string]string
-	VaultToken        *string
+	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
 	StatusDescription *string
 	CreateIndex       *uint64
@@ -354,7 +354,7 @@ func (j *Job) Canonicalize() {
 	}
 
 	for _, tg := range j.TaskGroups {
-		tg.Canonicalize(*j.Type)
+		tg.Canonicalize(j)
 	}
 }
 
