@@ -369,7 +369,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 			},
 		},
 	}
-	for i := MinDynamicPort; i < MaxDynamicPort-1; i++ {
+	for i := MinDynamicPort; i < MaxDynamicPort; i++ {
 		n.Reserved.Networks[0].ReservedPorts = append(n.Reserved.Networks[0].ReservedPorts, Port{Value: i})
 	}
 
