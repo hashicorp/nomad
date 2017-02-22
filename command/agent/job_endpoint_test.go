@@ -18,10 +18,10 @@ func TestHTTP_JobsList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		for i := 0; i < 3; i++ {
 			// Create the job
-			job := api.MockJob()
-			args := api.JobRegisterRequest{
+			job := mock.Job()
+			args := structs.JobRegisterRequest{
 				Job:          job,
-				WriteRequest: api.WriteRequest{Region: "global"},
+				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 			var resp structs.JobRegisterResponse
 			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
@@ -70,12 +70,12 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		for i := 0; i < 3; i++ {
 			// Create the job
-			job := api.MockJob()
-			job.ID = &ids[i]
-			*job.TaskGroups[0].Count = 1
-			args := api.JobRegisterRequest{
+			job := mock.Job()
+			job.ID = ids[i]
+			job.TaskGroups[0].Count = 1
+			args := structs.JobRegisterRequest{
 				Job:          job,
-				WriteRequest: api.WriteRequest{Region: "global"},
+				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 			var resp structs.JobRegisterResponse
 			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {

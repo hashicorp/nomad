@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flatmap"
+	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 )
 
@@ -214,8 +215,6 @@ const (
 var (
 	expectedApiJob = &api.Job{
 		ID:          helper.StringToPtr("job1"),
-		Region:      helper.StringToPtr("global"),
-		Priority:    helper.IntToPtr(50),
 		Name:        helper.StringToPtr("job1"),
 		Type:        helper.StringToPtr("service"),
 		Datacenters: []string{"dc1"},
@@ -228,20 +227,12 @@ var (
 					Interval: helper.TimeToPtr(15 * time.Second),
 					Mode:     helper.StringToPtr("delay"),
 				},
-				EphemeralDisk: &api.EphemeralDisk{
-					SizeMB: helper.IntToPtr(300),
-				},
 
 				Tasks: []*api.Task{
 					{
-						Driver: "exec",
-						Name:   "task1",
-						Resources: &api.Resources{
-							CPU:      helper.IntToPtr(100),
-							MemoryMB: helper.IntToPtr(10),
-							IOPS:     helper.IntToPtr(0),
-						},
-						LogConfig: api.DefaultLogConfig(),
+						Driver:    "exec",
+						Name:      "task1",
+						Resources: &api.Resources{},
 					},
 				},
 			},
@@ -290,8 +281,9 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if !reflect.DeepEqual(expectedApiJob, aj) {
-		eflat := flatmap.Flatten(expectedApiJob, nil, false)
-		aflat := flatmap.Flatten(aj, nil, false)
-		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
+		for _, d := range pretty.Diff(expectedApiJob, aj) {
+			t.Logf(d)
+		}
+		t.Fatalf("Unexpected file")
 	}
 }
