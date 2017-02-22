@@ -149,8 +149,8 @@ func authConfigs(confs map[string]dockerConfig) (*AuthConfigurations, error) {
 
 // AuthStatus returns the authentication status for Docker API versions >= 1.23.
 type AuthStatus struct {
-	Status        string `json:"Status,omitempty" yaml:"Status,omitempty"`
-	IdentityToken string `json:"IdentityToken,omitempty" yaml:"IdentityToken,omitempty"`
+	Status        string `json:"Status,omitempty" yaml:"Status,omitempty" toml:"Status,omitempty"`
+	IdentityToken string `json:"IdentityToken,omitempty" yaml:"IdentityToken,omitempty" toml:"IdentityToken,omitempty"`
 }
 
 // AuthCheck validates the given credentials. It returns nil if successful.

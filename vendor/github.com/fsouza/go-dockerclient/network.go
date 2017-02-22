@@ -110,14 +110,14 @@ func (c *Client) NetworkInfo(id string) (*Network, error) {
 //
 // See https://goo.gl/6GugX3 for more details.
 type CreateNetworkOptions struct {
-	Name           string                 `json:"Name" yaml:"Name"`
-	Driver         string                 `json:"Driver" yaml:"Driver"`
-	IPAM           IPAMOptions            `json:"IPAM" yaml:"IPAM"`
-	Options        map[string]interface{} `json:"Options" yaml:"Options"`
-	Labels         map[string]string      `json:"Labels" yaml:"Labels"`
-	CheckDuplicate bool                   `json:"CheckDuplicate" yaml:"CheckDuplicate"`
-	Internal       bool                   `json:"Internal" yaml:"Internal"`
-	EnableIPv6     bool                   `json:"EnableIPv6" yaml:"EnableIPv6"`
+	Name           string                 `json:"Name" yaml:"Name" toml:"Name"`
+	Driver         string                 `json:"Driver" yaml:"Driver" toml:"Driver"`
+	IPAM           IPAMOptions            `json:"IPAM" yaml:"IPAM" toml:"IPAM"`
+	Options        map[string]interface{} `json:"Options" yaml:"Options" toml:"Options"`
+	Labels         map[string]string      `json:"Labels" yaml:"Labels" toml:"Labels"`
+	CheckDuplicate bool                   `json:"CheckDuplicate" yaml:"CheckDuplicate" toml:"CheckDuplicate"`
+	Internal       bool                   `json:"Internal" yaml:"Internal" toml:"Internal"`
+	EnableIPv6     bool                   `json:"EnableIPv6" yaml:"EnableIPv6" toml:"EnableIPv6"`
 	Context        context.Context        `json:"-"`
 }
 
@@ -125,8 +125,8 @@ type CreateNetworkOptions struct {
 //
 // See https://goo.gl/T8kRVH for more details.
 type IPAMOptions struct {
-	Driver string       `json:"Driver" yaml:"Driver"`
-	Config []IPAMConfig `json:"Config" yaml:"Config"`
+	Driver string       `json:"Driver" yaml:"Driver" toml:"Driver"`
+	Config []IPAMConfig `json:"Config" yaml:"Config" toml:"Config"`
 }
 
 // IPAMConfig represents IPAM configurations
@@ -210,18 +210,18 @@ type NetworkConnectionOptions struct {
 //
 // See https://goo.gl/RV7BJU for more details.
 type EndpointConfig struct {
-	IPAMConfig          *EndpointIPAMConfig `json:"IPAMConfig,omitempty" yaml:"IPAMConfig,omitempty"`
-	Links               []string            `json:"Links,omitempty" yaml:"Links,omitempty"`
-	Aliases             []string            `json:"Aliases,omitempty" yaml:"Aliases,omitempty"`
-	NetworkID           string              `json:"NetworkID,omitempty" yaml:"NetworkID,omitempty"`
-	EndpointID          string              `json:"EndpointID,omitempty" yaml:"EndpointID,omitempty"`
-	Gateway             string              `json:"Gateway,omitempty" yaml:"Gateway,omitempty"`
-	IPAddress           string              `json:"IPAddress,omitempty" yaml:"IPAddress,omitempty"`
-	IPPrefixLen         int                 `json:"IPPrefixLen,omitempty" yaml:"IPPrefixLen,omitempty"`
-	IPv6Gateway         string              `json:"IPv6Gateway,omitempty" yaml:"IPv6Gateway,omitempty"`
-	GlobalIPv6Address   string              `json:"GlobalIPv6Address,omitempty" yaml:"GlobalIPv6Address,omitempty"`
-	GlobalIPv6PrefixLen int                 `json:"GlobalIPv6PrefixLen,omitempty" yaml:"GlobalIPv6PrefixLen,omitempty"`
-	MacAddress          string              `json:"MacAddress,omitempty" yaml:"MacAddress,omitempty"`
+	IPAMConfig          *EndpointIPAMConfig `json:"IPAMConfig,omitempty" yaml:"IPAMConfig,omitempty" toml:"IPAMConfig,omitempty"`
+	Links               []string            `json:"Links,omitempty" yaml:"Links,omitempty" toml:"Links,omitempty"`
+	Aliases             []string            `json:"Aliases,omitempty" yaml:"Aliases,omitempty" toml:"Aliases,omitempty"`
+	NetworkID           string              `json:"NetworkID,omitempty" yaml:"NetworkID,omitempty" toml:"NetworkID,omitempty"`
+	EndpointID          string              `json:"EndpointID,omitempty" yaml:"EndpointID,omitempty" toml:"EndpointID,omitempty"`
+	Gateway             string              `json:"Gateway,omitempty" yaml:"Gateway,omitempty" toml:"Gateway,omitempty"`
+	IPAddress           string              `json:"IPAddress,omitempty" yaml:"IPAddress,omitempty" toml:"IPAddress,omitempty"`
+	IPPrefixLen         int                 `json:"IPPrefixLen,omitempty" yaml:"IPPrefixLen,omitempty" toml:"IPPrefixLen,omitempty"`
+	IPv6Gateway         string              `json:"IPv6Gateway,omitempty" yaml:"IPv6Gateway,omitempty" toml:"IPv6Gateway,omitempty"`
+	GlobalIPv6Address   string              `json:"GlobalIPv6Address,omitempty" yaml:"GlobalIPv6Address,omitempty" toml:"GlobalIPv6Address,omitempty"`
+	GlobalIPv6PrefixLen int                 `json:"GlobalIPv6PrefixLen,omitempty" yaml:"GlobalIPv6PrefixLen,omitempty" toml:"GlobalIPv6PrefixLen,omitempty"`
+	MacAddress          string              `json:"MacAddress,omitempty" yaml:"MacAddress,omitempty" toml:"MacAddress,omitempty"`
 }
 
 // EndpointIPAMConfig represents IPAM configurations for an

@@ -21,39 +21,39 @@ import (
 
 // APIImages represent an image returned in the ListImages call.
 type APIImages struct {
-	ID          string            `json:"Id" yaml:"Id"`
-	RepoTags    []string          `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty"`
-	Created     int64             `json:"Created,omitempty" yaml:"Created,omitempty"`
-	Size        int64             `json:"Size,omitempty" yaml:"Size,omitempty"`
-	VirtualSize int64             `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty"`
-	ParentID    string            `json:"ParentId,omitempty" yaml:"ParentId,omitempty"`
-	RepoDigests []string          `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty"`
-	Labels      map[string]string `json:"Labels,omitempty" yaml:"Labels,omitempty"`
+	ID          string            `json:"Id" yaml:"Id" toml:"Id"`
+	RepoTags    []string          `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty" toml:"RepoTags,omitempty"`
+	Created     int64             `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
+	Size        int64             `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
+	VirtualSize int64             `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty" toml:"VirtualSize,omitempty"`
+	ParentID    string            `json:"ParentId,omitempty" yaml:"ParentId,omitempty" toml:"ParentId,omitempty"`
+	RepoDigests []string          `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty" toml:"RepoDigests,omitempty"`
+	Labels      map[string]string `json:"Labels,omitempty" yaml:"Labels,omitempty" toml:"Labels,omitempty"`
 }
 
 // RootFS represents the underlying layers used by an image
 type RootFS struct {
-	Type   string   `json:"Type,omitempty" yaml:"Type,omitempty"`
-	Layers []string `json:"Layers,omitempty" yaml:"Layers,omitempty"`
+	Type   string   `json:"Type,omitempty" yaml:"Type,omitempty" toml:"Type,omitempty"`
+	Layers []string `json:"Layers,omitempty" yaml:"Layers,omitempty" toml:"Layers,omitempty"`
 }
 
 // Image is the type representing a docker image and its various properties
 type Image struct {
-	ID              string    `json:"Id" yaml:"Id"`
-	RepoTags        []string  `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty"`
-	Parent          string    `json:"Parent,omitempty" yaml:"Parent,omitempty"`
-	Comment         string    `json:"Comment,omitempty" yaml:"Comment,omitempty"`
-	Created         time.Time `json:"Created,omitempty" yaml:"Created,omitempty"`
-	Container       string    `json:"Container,omitempty" yaml:"Container,omitempty"`
-	ContainerConfig Config    `json:"ContainerConfig,omitempty" yaml:"ContainerConfig,omitempty"`
-	DockerVersion   string    `json:"DockerVersion,omitempty" yaml:"DockerVersion,omitempty"`
-	Author          string    `json:"Author,omitempty" yaml:"Author,omitempty"`
-	Config          *Config   `json:"Config,omitempty" yaml:"Config,omitempty"`
+	ID              string    `json:"Id" yaml:"Id" toml:"Id"`
+	RepoTags        []string  `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty" toml:"RepoTags,omitempty"`
+	Parent          string    `json:"Parent,omitempty" yaml:"Parent,omitempty" toml:"Parent,omitempty"`
+	Comment         string    `json:"Comment,omitempty" yaml:"Comment,omitempty" toml:"Comment,omitempty"`
+	Created         time.Time `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
+	Container       string    `json:"Container,omitempty" yaml:"Container,omitempty" toml:"Container,omitempty"`
+	ContainerConfig Config    `json:"ContainerConfig,omitempty" yaml:"ContainerConfig,omitempty" toml:"ContainerConfig,omitempty"`
+	DockerVersion   string    `json:"DockerVersion,omitempty" yaml:"DockerVersion,omitempty" toml:"DockerVersion,omitempty"`
+	Author          string    `json:"Author,omitempty" yaml:"Author,omitempty" toml:"Author,omitempty"`
+	Config          *Config   `json:"Config,omitempty" yaml:"Config,omitempty" toml:"Config,omitempty"`
 	Architecture    string    `json:"Architecture,omitempty" yaml:"Architecture,omitempty"`
-	Size            int64     `json:"Size,omitempty" yaml:"Size,omitempty"`
-	VirtualSize     int64     `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty"`
-	RepoDigests     []string  `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty"`
-	RootFS          *RootFS   `json:"RootFS,omitempty" yaml:"RootFS,omitempty"`
+	Size            int64     `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
+	VirtualSize     int64     `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty" toml:"VirtualSize,omitempty"`
+	RepoDigests     []string  `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty" toml:"RepoDigests,omitempty"`
+	RootFS          *RootFS   `json:"RootFS,omitempty" yaml:"RootFS,omitempty" toml:"RootFS,omitempty"`
 }
 
 // ImagePre012 serves the same purpose as the Image type except that it is for
@@ -124,11 +124,11 @@ func (c *Client) ListImages(opts ListImagesOptions) ([]APIImages, error) {
 // ImageHistory represent a layer in an image's history returned by the
 // ImageHistory call.
 type ImageHistory struct {
-	ID        string   `json:"Id" yaml:"Id"`
-	Tags      []string `json:"Tags,omitempty" yaml:"Tags,omitempty"`
-	Created   int64    `json:"Created,omitempty" yaml:"Created,omitempty"`
-	CreatedBy string   `json:"CreatedBy,omitempty" yaml:"CreatedBy,omitempty"`
-	Size      int64    `json:"Size,omitempty" yaml:"Size,omitempty"`
+	ID        string   `json:"Id" yaml:"Id" toml:"Id"`
+	Tags      []string `json:"Tags,omitempty" yaml:"Tags,omitempty" toml:"Tags,omitempty"`
+	Created   int64    `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Tags,omitempty"`
+	CreatedBy string   `json:"CreatedBy,omitempty" yaml:"CreatedBy,omitempty" toml:"CreatedBy,omitempty"`
+	Size      int64    `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
 }
 
 // ImageHistory returns the history of the image by its name or ID.
@@ -471,8 +471,8 @@ type BuildImageOptions struct {
 // For more details about the Docker building process, see
 // https://goo.gl/4nYHwV.
 type BuildArg struct {
-	Name  string `json:"Name,omitempty" yaml:"Name,omitempty"`
-	Value string `json:"Value,omitempty" yaml:"Value,omitempty"`
+	Name  string `json:"Name,omitempty" yaml:"Name,omitempty" toml:"Name,omitempty"`
+	Value string `json:"Value,omitempty" yaml:"Value,omitempty" toml:"Value,omitempty"`
 }
 
 // BuildImage builds an image from a tarball's url or a Dockerfile in the input
@@ -617,11 +617,11 @@ func headersWithAuth(auths ...interface{}) (map[string]string, error) {
 //
 // See https://goo.gl/KLO9IZ for more details.
 type APIImageSearch struct {
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	IsOfficial  bool   `json:"is_official,omitempty" yaml:"is_official,omitempty"`
-	IsAutomated bool   `json:"is_automated,omitempty" yaml:"is_automated,omitempty"`
-	Name        string `json:"name,omitempty" yaml:"name,omitempty"`
-	StarCount   int    `json:"star_count,omitempty" yaml:"star_count,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty" toml:"description,omitempty"`
+	IsOfficial  bool   `json:"is_official,omitempty" yaml:"is_official,omitempty" toml:"is_official,omitempty"`
+	IsAutomated bool   `json:"is_automated,omitempty" yaml:"is_automated,omitempty" toml:"is_automated,omitempty"`
+	Name        string `json:"name,omitempty" yaml:"name,omitempty" toml:"name,omitempty"`
+	StarCount   int    `json:"star_count,omitempty" yaml:"star_count,omitempty" toml:"star_count,omitempty"`
 }
 
 // SearchImages search the docker hub with a specific given term.

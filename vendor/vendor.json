@@ -25,10 +25,10 @@
 			"revisionTime": "2016-08-22T16:14:30Z"
 		},
 		{
-			"checksumSHA1": "VAQq2NnE8Qhzdf1BL00XgZNFwyY=",
+			"checksumSHA1": "L9njXCkN30+qHaLayiiA2Q9jDlY=",
 			"path": "github.com/Microsoft/go-winio",
-			"revision": "ce2922f643c8fd76b46cadc7f404a06282678b34",
-			"revisionTime": "2016-06-21T21:14:38Z"
+			"revision": "fff283ad5116362ca252298cfc9b95828956d85d",
+			"revisionTime": "2017-02-01T00:43:30Z"
 		},
 		{
 			"checksumSHA1": "XeG94RjA9o/0wo9Fuw6NSRGYnjk=",
@@ -495,10 +495,10 @@
 			"revisionTime": "2016-07-19T20:45:16Z"
 		},
 		{
-			"checksumSHA1": "0lrZm1XtNnFfgz83ucUuDAHIEJ0=",
+			"checksumSHA1": "/wGNBzRJdmss307xZyBfYaE0c7Q=",
 			"path": "github.com/fsouza/go-dockerclient",
-			"revision": "000a4bc90f4caf682cdb0d464f93435c196e61dd",
-			"revisionTime": "2017-02-14T06:50:29Z"
+			"revision": "54fbd1ff920ca5fd5ec53068d513c14c3a25bba9",
+			"revisionTime": "2017-02-21T19:53:20Z"
 		},
 		{
 			"path": "github.com/fsouza/go-dockerclient/external/github.com/Sirupsen/logrus",
@@ -1048,9 +1048,11 @@
 			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
 		},
 		{
+			"checksumSHA1": "Ssz9STAL5P2+1poiM63klFjhqhE=",
 			"comment": "v0.0.9-108-g89ab7f2",
 			"path": "github.com/opencontainers/runc/libcontainer/system",
-			"revision": "89ab7f2ccc1e45ddf6485eaa802c35dcf321dfc8"
+			"revision": "a6e649f5835b7ebf354a73ff3a80f3223e3cb5de",
+			"revisionTime": "2016-11-22T01:05:32Z"
 		},
 		{
 			"checksumSHA1": "3AoPMXlmVq2+iWMpsdJZkcUKHB8=",
