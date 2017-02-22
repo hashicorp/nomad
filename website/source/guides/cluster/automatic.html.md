@@ -47,7 +47,7 @@ server {
 This configuration would be saved to disk and then run:
 
 ```shell
-$ nomad agent -config=/etc/nomad.d/server.hcl
+$ nomad agent -config=/etc/nomad.d/server.hcl -data-dir=/etc/nomad.d
 ```
 
 A similar configuration is available for Nomad clients:
@@ -65,7 +65,7 @@ client {
 The agent is started in a similar manner:
 
 ```shell
-$ nomad agent -config=/etc/nomad.d/client.hcl
+$ nomad agent -config=/etc/nomad.d/client.hcl -data-dir=/etc/nomad.d
 ```
 
 As you can see, the above configurations include no IP or DNS addresses between
