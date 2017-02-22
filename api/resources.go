@@ -6,13 +6,22 @@ import "github.com/hashicorp/nomad/helper"
 // a given task or task group.
 type Resources struct {
 	CPU      *int
-	MemoryMB *int
-	DiskMB   *int
+	MemoryMB *int `mapstructure:"memory"`
+	DiskMB   *int `mapstructure:"disk"`
 	IOPS     *int
 	Networks []*NetworkResource
 }
 
 func (r *Resources) Canonicalize() {
+	if r.CPU == nil {
+		r.CPU = helper.IntToPtr(100)
+	}
+	if r.MemoryMB == nil {
+		r.MemoryMB = helper.IntToPtr(10)
+	}
+	if r.IOPS == nil {
+		r.IOPS = helper.IntToPtr(0)
+	}
 	for _, n := range r.Networks {
 		n.Canonicalize()
 	}
@@ -51,7 +60,7 @@ func (r *Resources) Merge(other *Resources) {
 
 type Port struct {
 	Label string
-	Value int
+	Value int `mapstructure:"static"`
 }
 
 // NetworkResource is used to describe required network

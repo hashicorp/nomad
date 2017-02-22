@@ -832,8 +832,8 @@ type NodeListStub struct {
 // on a client
 type Resources struct {
 	CPU      int
-	MemoryMB int `mapstructure:"memory"`
-	DiskMB   int `mapstructure:"disk"`
+	MemoryMB int
+	DiskMB   int
 	IOPS     int
 	Networks []*NetworkResource
 }
@@ -984,7 +984,7 @@ func (r *Resources) GoString() string {
 
 type Port struct {
 	Label string
-	Value int `mapstructure:"static"`
+	Value int
 }
 
 // NetworkResource is used to represent available network
@@ -1128,7 +1128,7 @@ type Job struct {
 	// AllAtOnce is used to control if incremental scheduling of task groups
 	// is allowed or if we must do a gang scheduling of the entire job. This
 	// can slow down larger jobs if resources are not available.
-	AllAtOnce bool `mapstructure:"all_at_once"`
+	AllAtOnce bool
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
@@ -1161,7 +1161,7 @@ type Job struct {
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
-	VaultToken string `mapstructure:"vault_token"`
+	VaultToken string
 
 	// Job status
 	Status string
@@ -1532,7 +1532,7 @@ type UpdateStrategy struct {
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
-	MaxParallel int `mapstructure:"max_parallel"`
+	MaxParallel int
 }
 
 // Rolling returns if a rolling strategy should be used
@@ -1562,14 +1562,14 @@ type PeriodicConfig struct {
 	SpecType string
 
 	// ProhibitOverlap enforces that spawned jobs do not run in parallel.
-	ProhibitOverlap bool `mapstructure:"prohibit_overlap"`
+	ProhibitOverlap bool
 
 	// TimeZone is the user specified string that determines the time zone to
 	// launch against. The time zones must be specified from IANA Time Zone
 	// database, such as "America/New_York".
 	// Reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 	// Reference: https://www.iana.org/time-zones
-	TimeZone string `mapstructure:"time_zone"`
+	TimeZone string
 
 	// location is the time zone to evaluate the launch time against
 	location *time.Location
@@ -1707,10 +1707,10 @@ type ParameterizedJobConfig struct {
 	Payload string
 
 	// MetaRequired is metadata keys that must be specified by the dispatcher
-	MetaRequired []string `mapstructure:"meta_required"`
+	MetaRequired []string
 
 	// MetaOptional is metadata keys that may be specified by the dispatcher
-	MetaOptional []string `mapstructure:"meta_optional"`
+	MetaOptional []string
 }
 
 func (d *ParameterizedJobConfig) Validate() error {
@@ -2067,10 +2067,10 @@ type ServiceCheck struct {
 	Args          []string      // Args is a list of argumes for script checks
 	Path          string        // path of the health check url for http type check
 	Protocol      string        // Protocol to use if check is http, defaults to http
-	PortLabel     string        `mapstructure:"port"` // The port to use for tcp/http checks
+	PortLabel     string        // The port to use for tcp/http checks
 	Interval      time.Duration // Interval of the check
 	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus string        `mapstructure:"initial_status"` // Initial status of the check
+	InitialStatus string        // Initial status of the check
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2179,7 +2179,7 @@ type Service struct {
 	// PortLabel is either the numeric port number or the `host:port`.
 	// To specify the port number using the host's Consul Advertise
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
-	PortLabel string          `mapstructure:"port"`
+	PortLabel string
 	Tags      []string        // List of tags for the service
 	Checks    []*ServiceCheck // List of checks associated with the service
 }
@@ -2287,8 +2287,8 @@ const (
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      int `mapstructure:"max_files"`
-	MaxFileSizeMB int `mapstructure:"max_file_size"`
+	MaxFiles      int
+	MaxFileSizeMB int
 }
 
 // DefaultLogConfig returns the default LogConfig values.
@@ -2356,10 +2356,10 @@ type Task struct {
 
 	// KillTimeout is the time between signaling a task that it will be
 	// killed and killing it.
-	KillTimeout time.Duration `mapstructure:"kill_timeout"`
+	KillTimeout time.Duration
 
 	// LogConfig provides configuration for log rotation
-	LogConfig *LogConfig `mapstructure:"logs"`
+	LogConfig *LogConfig
 
 	// Artifacts is a list of artifacts to download and extract before running
 	// the task.
@@ -2648,34 +2648,34 @@ var (
 // Template represents a template configuration to be rendered for a given task
 type Template struct {
 	// SourcePath is the path to the template to be rendered
-	SourcePath string `mapstructure:"source"`
+	SourcePath string
 
 	// DestPath is the path to where the template should be rendered
-	DestPath string `mapstructure:"destination"`
+	DestPath string
 
 	// EmbeddedTmpl store the raw template. This is useful for smaller templates
 	// where they are embedded in the job file rather than sent as an artificat
-	EmbeddedTmpl string `mapstructure:"data"`
+	EmbeddedTmpl string
 
 	// ChangeMode indicates what should be done if the template is re-rendered
-	ChangeMode string `mapstructure:"change_mode"`
+	ChangeMode string
 
 	// ChangeSignal is the signal that should be sent if the change mode
 	// requires it.
-	ChangeSignal string `mapstructure:"change_signal"`
+	ChangeSignal string
 
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
-	Splay time.Duration `mapstructure:"splay"`
+	Splay time.Duration
 
 	// Perms is the permission the file should be written out with.
-	Perms string `mapstructure:"perms"`
+	Perms string
 
 	// LeftDelim and RightDelim are optional configurations to control what
 	// delimiter is utilized when parsing the template.
-	LeftDelim  string `mapstructure:"left_delimiter"`
-	RightDelim string `mapstructure:"right_delimiter"`
+	LeftDelim  string
+	RightDelim string
 }
 
 // DefaultTemplate returns a default template.
@@ -3065,15 +3065,15 @@ func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 // TaskArtifact is an artifact to download before running the task.
 type TaskArtifact struct {
 	// GetterSource is the source to download an artifact using go-getter
-	GetterSource string `mapstructure:"source"`
+	GetterSource string
 
 	// GetterOptions are options to use when downloading the artifact using
 	// go-getter.
-	GetterOptions map[string]string `mapstructure:"options"`
+	GetterOptions map[string]string
 
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
-	RelativeDest string `mapstructure:"destination"`
+	RelativeDest string
 }
 
 func (ta *TaskArtifact) Copy() *TaskArtifact {
@@ -3237,7 +3237,7 @@ type EphemeralDisk struct {
 	Sticky bool
 
 	// SizeMB is the size of the local disk
-	SizeMB int `mapstructure:"size"`
+	SizeMB int
 
 	// Migrate determines if Nomad client should migrate the allocation dir for
 	// sticky allocations
@@ -3288,11 +3288,11 @@ type Vault struct {
 
 	// ChangeMode is used to configure the task's behavior when the Vault
 	// token changes because the original token could not be renewed in time.
-	ChangeMode string `mapstructure:"change_mode"`
+	ChangeMode string
 
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
-	ChangeSignal string `mapstructure:"change_signal"`
+	ChangeSignal string
 }
 
 func DefaultVaultBlock() *Vault {

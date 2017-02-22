@@ -2,57 +2,59 @@ package jobspec
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 
-	"github.com/hashicorp/consul/api"
+	capi "github.com/hashicorp/consul/api"
 )
 
 func TestParse(t *testing.T) {
 	cases := []struct {
 		File   string
-		Result *structs.Job
+		Result *api.Job
 		Err    bool
 	}{
 		{
 			"basic.hcl",
-			&structs.Job{
-				ID:          "binstore-storagelocker",
-				Name:        "binstore-storagelocker",
-				Type:        "service",
-				Priority:    50,
-				AllAtOnce:   true,
+			&api.Job{
+				ID:          helper.StringToPtr("binstore-storagelocker"),
+				Name:        helper.StringToPtr("binstore-storagelocker"),
+				Type:        helper.StringToPtr("batch"),
+				Priority:    helper.IntToPtr(52),
+				AllAtOnce:   helper.BoolToPtr(true),
 				Datacenters: []string{"us2", "eu1"},
-				Region:      "global",
-				VaultToken:  "foo",
+				Region:      helper.StringToPtr("fooregion"),
+				VaultToken:  helper.StringToPtr("foo"),
 
 				Meta: map[string]string{
 					"foo": "bar",
 				},
 
-				Constraints: []*structs.Constraint{
-					&structs.Constraint{
+				Constraints: []*api.Constraint{
+					&api.Constraint{
 						LTarget: "kernel.os",
 						RTarget: "windows",
 						Operand: "=",
 					},
 				},
 
-				Update: structs.UpdateStrategy{
+				Update: &api.UpdateStrategy{
 					Stagger:     60 * time.Second,
 					MaxParallel: 2,
 				},
 
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "outside",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
+				TaskGroups: []*api.TaskGroup{
+					&api.TaskGroup{
+						Name: helper.StringToPtr("outside"),
+						Tasks: []*api.Task{
+							&api.Task{
 								Name:   "outside",
 								Driver: "java",
 								Config: map[string]interface{}{
@@ -61,16 +63,15 @@ func TestParse(t *testing.T) {
 								Meta: map[string]string{
 									"my-cool-key": "foobar",
 								},
-								LogConfig: structs.DefaultLogConfig(),
 							},
 						},
 					},
 
-					&structs.TaskGroup{
-						Name:  "binsl",
-						Count: 5,
-						Constraints: []*structs.Constraint{
-							&structs.Constraint{
+					&api.TaskGroup{
+						Name:  helper.StringToPtr("binsl"),
+						Count: helper.IntToPtr(5),
+						Constraints: []*api.Constraint{
+							&api.Constraint{
 								LTarget: "kernel.os",
 								RTarget: "linux",
 								Operand: "=",
@@ -81,18 +82,18 @@ func TestParse(t *testing.T) {
 							"elb_interval": "10",
 							"elb_checks":   "3",
 						},
-						RestartPolicy: &structs.RestartPolicy{
-							Interval: 10 * time.Minute,
-							Attempts: 5,
-							Delay:    15 * time.Second,
-							Mode:     "delay",
+						RestartPolicy: &api.RestartPolicy{
+							Interval: helper.TimeToPtr(10 * time.Minute),
+							Attempts: helper.IntToPtr(5),
+							Delay:    helper.TimeToPtr(15 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
 						},
-						EphemeralDisk: &structs.EphemeralDisk{
-							Sticky: true,
-							SizeMB: 150,
+						EphemeralDisk: &api.EphemeralDisk{
+							Sticky: helper.BoolToPtr(true),
+							SizeMB: helper.IntToPtr(150),
 						},
-						Tasks: []*structs.Task{
-							&structs.Task{
+						Tasks: []*api.Task{
+							&api.Task{
 								Name:   "binstore",
 								Driver: "docker",
 								User:   "bob",
@@ -104,12 +105,11 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								Services: []*structs.Service{
+								Services: []api.Service{
 									{
-										Name:      "binstore-storagelocker-binsl-binstore",
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
-										Checks: []*structs.ServiceCheck{
+										Checks: []api.ServiceCheck{
 											{
 												Name:      "check-name",
 												Type:      "tcp",
@@ -124,91 +124,87 @@ func TestParse(t *testing.T) {
 									"HELLO": "world",
 									"LOREM": "ipsum",
 								},
-								Resources: &structs.Resources{
-									CPU:      500,
-									MemoryMB: 128,
-									IOPS:     0,
-									Networks: []*structs.NetworkResource{
-										&structs.NetworkResource{
-											MBits:         100,
-											ReservedPorts: []structs.Port{{"one", 1}, {"two", 2}, {"three", 3}},
-											DynamicPorts:  []structs.Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+								Resources: &api.Resources{
+									CPU:      helper.IntToPtr(500),
+									MemoryMB: helper.IntToPtr(128),
+									Networks: []*api.NetworkResource{
+										&api.NetworkResource{
+											MBits:         helper.IntToPtr(100),
+											ReservedPorts: []api.Port{{"one", 1}, {"two", 2}, {"three", 3}},
+											DynamicPorts:  []api.Port{{"http", 0}, {"https", 0}, {"admin", 0}},
 										},
 									},
 								},
-								KillTimeout: 22 * time.Second,
-								LogConfig: &structs.LogConfig{
-									MaxFiles:      10,
-									MaxFileSizeMB: 100,
+								KillTimeout: helper.TimeToPtr(22 * time.Second),
+								LogConfig: &api.LogConfig{
+									MaxFiles:      helper.IntToPtr(14),
+									MaxFileSizeMB: helper.IntToPtr(101),
 								},
-								Artifacts: []*structs.TaskArtifact{
+								Artifacts: []*api.TaskArtifact{
 									{
-										GetterSource: "http://foo.com/artifact",
-										RelativeDest: "local/",
+										GetterSource: helper.StringToPtr("http://foo.com/artifact"),
 										GetterOptions: map[string]string{
 											"checksum": "md5:b8a4f3f72ecab0510a6a31e997461c5f",
 										},
 									},
 									{
-										GetterSource: "http://bar.com/artifact",
-										RelativeDest: "local/",
+										GetterSource: helper.StringToPtr("http://bar.com/artifact"),
+										RelativeDest: helper.StringToPtr("test/foo/"),
 										GetterOptions: map[string]string{
 											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
 									},
 								},
-								Vault: &structs.Vault{
+								Vault: &api.Vault{
 									Policies:   []string{"foo", "bar"},
-									Env:        true,
-									ChangeMode: structs.VaultChangeModeRestart,
+									Env:        helper.BoolToPtr(true),
+									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
 								},
-								Templates: []*structs.Template{
+								Templates: []*api.Template{
 									{
-										SourcePath:   "foo",
-										DestPath:     "foo",
-										ChangeMode:   "foo",
-										ChangeSignal: "foo",
-										Splay:        10 * time.Second,
-										Perms:        "0644",
+										SourcePath:   helper.StringToPtr("foo"),
+										DestPath:     helper.StringToPtr("foo"),
+										ChangeMode:   helper.StringToPtr("foo"),
+										ChangeSignal: helper.StringToPtr("foo"),
+										Splay:        helper.TimeToPtr(10 * time.Second),
+										Perms:        helper.StringToPtr("0644"),
 									},
 									{
-										SourcePath:   "bar",
-										DestPath:     "bar",
-										ChangeMode:   structs.TemplateChangeModeRestart,
-										ChangeSignal: "",
-										Splay:        5 * time.Second,
-										Perms:        "777",
-										LeftDelim:    "--",
-										RightDelim:   "__",
+										SourcePath: helper.StringToPtr("bar"),
+										DestPath:   helper.StringToPtr("bar"),
+										ChangeMode: helper.StringToPtr(structs.TemplateChangeModeRestart),
+										Splay:      helper.TimeToPtr(5 * time.Second),
+										Perms:      helper.StringToPtr("777"),
+										LeftDelim:  helper.StringToPtr("--"),
+										RightDelim: helper.StringToPtr("__"),
 									},
 								},
 								Leader: true,
 							},
-							&structs.Task{
+							&api.Task{
 								Name:   "storagelocker",
 								Driver: "docker",
 								User:   "",
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},
-								Resources: &structs.Resources{
-									CPU:      500,
-									MemoryMB: 128,
-									IOPS:     30,
+								Resources: &api.Resources{
+									CPU:      helper.IntToPtr(500),
+									MemoryMB: helper.IntToPtr(128),
+									IOPS:     helper.IntToPtr(30),
 								},
-								Constraints: []*structs.Constraint{
-									&structs.Constraint{
+								Constraints: []*api.Constraint{
+									&api.Constraint{
 										LTarget: "kernel.arch",
 										RTarget: "amd64",
 										Operand: "=",
 									},
 								},
-								LogConfig: structs.DefaultLogConfig(),
-								Vault: &structs.Vault{
+								Vault: &api.Vault{
 									Policies:     []string{"foo", "bar"},
-									Env:          false,
-									ChangeMode:   structs.VaultChangeModeSignal,
-									ChangeSignal: "SIGUSR1",
+									Env:          helper.BoolToPtr(false),
+									ChangeMode:   helper.StringToPtr(structs.VaultChangeModeSignal),
+									ChangeSignal: helper.StringToPtr("SIGUSR1"),
 								},
 							},
 						},
@@ -238,26 +234,20 @@ func TestParse(t *testing.T) {
 
 		{
 			"default-job.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
 			},
 			false,
 		},
 
 		{
 			"version-constraint.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
-				Constraints: []*structs.Constraint{
-					&structs.Constraint{
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Constraints: []*api.Constraint{
+					&api.Constraint{
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
 						Operand: structs.ConstraintVersion,
@@ -269,14 +259,11 @@ func TestParse(t *testing.T) {
 
 		{
 			"regexp-constraint.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
-				Constraints: []*structs.Constraint{
-					&structs.Constraint{
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Constraints: []*api.Constraint{
+					&api.Constraint{
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
 						Operand: structs.ConstraintRegex,
@@ -288,14 +275,11 @@ func TestParse(t *testing.T) {
 
 		{
 			"set-contains-constraint.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
-				Constraints: []*structs.Constraint{
-					&structs.Constraint{
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Constraints: []*api.Constraint{
+					&api.Constraint{
 						LTarget: "$meta.data",
 						RTarget: "foo,bar,baz",
 						Operand: structs.ConstraintSetContains,
@@ -307,14 +291,11 @@ func TestParse(t *testing.T) {
 
 		{
 			"distinctHosts-constraint.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
-				Constraints: []*structs.Constraint{
-					&structs.Constraint{
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Constraints: []*api.Constraint{
+					&api.Constraint{
 						Operand: structs.ConstraintDistinctHosts,
 					},
 				},
@@ -324,18 +305,14 @@ func TestParse(t *testing.T) {
 
 		{
 			"periodic-cron.hcl",
-			&structs.Job{
-				ID:       "foo",
-				Name:     "foo",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
-				Periodic: &structs.PeriodicConfig{
-					Enabled:         true,
-					SpecType:        structs.PeriodicSpecCron,
-					Spec:            "*/5 * * *",
-					ProhibitOverlap: true,
-					TimeZone:        "Europe/Minsk",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Periodic: &api.PeriodicConfig{
+					SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
+					Spec:            helper.StringToPtr("*/5 * * *"),
+					ProhibitOverlap: helper.BoolToPtr(true),
+					TimeZone:        helper.StringToPtr("Europe/Minsk"),
 				},
 			},
 			false,
@@ -343,32 +320,23 @@ func TestParse(t *testing.T) {
 
 		{
 			"specify-job.hcl",
-			&structs.Job{
-				ID:       "job1",
-				Name:     "My Job",
-				Priority: 50,
-				Region:   "global",
-				Type:     "service",
+			&api.Job{
+				ID:   helper.StringToPtr("job1"),
+				Name: helper.StringToPtr("My Job"),
 			},
 			false,
 		},
 
 		{
 			"task-nested-config.hcl",
-			&structs.Job{
-				Region:   "global",
-				ID:       "foo",
-				Name:     "foo",
-				Type:     "service",
-				Priority: 50,
-
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "bar",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{
+					&api.TaskGroup{
+						Name: helper.StringToPtr("bar"),
+						Tasks: []*api.Task{
+							&api.Task{
 								Name:   "bar",
 								Driver: "docker",
 								Config: map[string]interface{}{
@@ -378,10 +346,6 @@ func TestParse(t *testing.T) {
 											"db": 1234,
 										},
 									},
-								},
-								LogConfig: &structs.LogConfig{
-									MaxFiles:      10,
-									MaxFileSizeMB: 10,
 								},
 							},
 						},
@@ -399,46 +363,31 @@ func TestParse(t *testing.T) {
 
 		{
 			"artifacts.hcl",
-			&structs.Job{
-				ID:       "binstore-storagelocker",
-				Name:     "binstore-storagelocker",
-				Type:     "service",
-				Priority: 50,
-				Region:   "global",
-
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "binsl",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
+			&api.Job{
+				ID:   helper.StringToPtr("binstore-storagelocker"),
+				Name: helper.StringToPtr("binstore-storagelocker"),
+				TaskGroups: []*api.TaskGroup{
+					&api.TaskGroup{
+						Name: helper.StringToPtr("binsl"),
+						Tasks: []*api.Task{
+							&api.Task{
 								Name:   "binstore",
 								Driver: "docker",
-								Resources: &structs.Resources{
-									CPU:      100,
-									MemoryMB: 10,
-									IOPS:     0,
-								},
-								LogConfig: &structs.LogConfig{
-									MaxFiles:      10,
-									MaxFileSizeMB: 10,
-								},
-								Artifacts: []*structs.TaskArtifact{
+								Artifacts: []*api.TaskArtifact{
 									{
-										GetterSource:  "http://foo.com/bar",
+										GetterSource:  helper.StringToPtr("http://foo.com/bar"),
 										GetterOptions: map[string]string{"foo": "bar"},
-										RelativeDest:  "",
+										RelativeDest:  helper.StringToPtr(""),
 									},
 									{
-										GetterSource:  "http://foo.com/baz",
+										GetterSource:  helper.StringToPtr("http://foo.com/baz"),
 										GetterOptions: nil,
-										RelativeDest:  "local/",
+										RelativeDest:  nil,
 									},
 									{
-										GetterSource:  "http://foo.com/bam",
+										GetterSource:  helper.StringToPtr("http://foo.com/bam"),
 										GetterOptions: nil,
-										RelativeDest:  "var/foo",
+										RelativeDest:  helper.StringToPtr("var/foo"),
 									},
 								},
 							},
@@ -450,37 +399,32 @@ func TestParse(t *testing.T) {
 		},
 		{
 			"service-check-initial-status.hcl",
-			&structs.Job{
-				ID:       "check_initial_status",
-				Name:     "check_initial_status",
-				Type:     "service",
-				Priority: 50,
-				Region:   "global",
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "group",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
+			&api.Job{
+				ID:   helper.StringToPtr("check_initial_status"),
+				Name: helper.StringToPtr("check_initial_status"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					&api.TaskGroup{
+						Name:  helper.StringToPtr("group"),
+						Count: helper.IntToPtr(1),
+						Tasks: []*api.Task{
+							&api.Task{
 								Name: "task",
-								Services: []*structs.Service{
+								Services: []api.Service{
 									{
-										Name:      "check_initial_status-group-task",
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
-										Checks: []*structs.ServiceCheck{
+										Checks: []api.ServiceCheck{
 											{
 												Name:          "check-name",
 												Type:          "http",
 												Interval:      10 * time.Second,
 												Timeout:       2 * time.Second,
-												InitialStatus: api.HealthPassing,
+												InitialStatus: capi.HealthPassing,
 											},
 										},
 									},
 								},
-								LogConfig: structs.DefaultLogConfig(),
 							},
 						},
 					},
@@ -489,51 +433,42 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			// TODO This should be pushed into the API
 			"vault_inheritance.hcl",
-			&structs.Job{
-				ID:       "example",
-				Name:     "example",
-				Type:     "service",
-				Priority: 50,
-				Region:   "global",
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "cache",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
-								Name:      "redis",
-								LogConfig: structs.DefaultLogConfig(),
-								Vault: &structs.Vault{
+			&api.Job{
+				ID:   helper.StringToPtr("example"),
+				Name: helper.StringToPtr("example"),
+				TaskGroups: []*api.TaskGroup{
+					&api.TaskGroup{
+						Name: helper.StringToPtr("cache"),
+						Tasks: []*api.Task{
+							&api.Task{
+								Name: "redis",
+								Vault: &api.Vault{
 									Policies:   []string{"group"},
-									Env:        true,
-									ChangeMode: structs.VaultChangeModeRestart,
+									Env:        helper.BoolToPtr(true),
+									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
 								},
 							},
-							&structs.Task{
-								Name:      "redis2",
-								LogConfig: structs.DefaultLogConfig(),
-								Vault: &structs.Vault{
+							&api.Task{
+								Name: "redis2",
+								Vault: &api.Vault{
 									Policies:   []string{"task"},
-									Env:        false,
-									ChangeMode: structs.VaultChangeModeRestart,
+									Env:        helper.BoolToPtr(false),
+									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
 								},
 							},
 						},
 					},
-					&structs.TaskGroup{
-						Name:          "cache2",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
-								Name:      "redis",
-								LogConfig: structs.DefaultLogConfig(),
-								Vault: &structs.Vault{
+					&api.TaskGroup{
+						Name: helper.StringToPtr("cache2"),
+						Tasks: []*api.Task{
+							&api.Task{
+								Name: "redis",
+								Vault: &api.Vault{
 									Policies:   []string{"job"},
-									Env:        true,
-									ChangeMode: structs.VaultChangeModeRestart,
+									Env:        helper.BoolToPtr(true),
+									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
 								},
 							},
 						},
@@ -542,41 +477,26 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
-
 		{
 			"parameterized_job.hcl",
-			&structs.Job{
-				ID:       "parameterized_job",
-				Name:     "parameterized_job",
-				Type:     "service",
-				Priority: 50,
-				Region:   "global",
+			&api.Job{
+				ID:   helper.StringToPtr("parameterized_job"),
+				Name: helper.StringToPtr("parameterized_job"),
 
-				ParameterizedJob: &structs.ParameterizedJobConfig{
+				ParameterizedJob: &api.ParameterizedJobConfig{
 					Payload:      "required",
 					MetaRequired: []string{"foo", "bar"},
 					MetaOptional: []string{"baz", "bam"},
 				},
 
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Name:          "foo",
-						Count:         1,
-						EphemeralDisk: structs.DefaultEphemeralDisk(),
-						Tasks: []*structs.Task{
-							&structs.Task{
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("foo"),
+						Tasks: []*api.Task{
+							{
 								Name:   "bar",
 								Driver: "docker",
-								Resources: &structs.Resources{
-									CPU:      100,
-									MemoryMB: 10,
-									IOPS:     0,
-								},
-								LogConfig: &structs.LogConfig{
-									MaxFiles:      10,
-									MaxFileSizeMB: 10,
-								},
-								DispatchPayload: &structs.DispatchPayloadConfig{
+								DispatchPayload: &api.DispatchPayloadConfig{
 									File: "foo/bar",
 								},
 							},
@@ -597,10 +517,17 @@ func TestParse(t *testing.T) {
 			continue
 		}
 
-		_, err = ParseFile(path)
+		actual, err := ParseFile(path)
 		if (err != nil) != tc.Err {
 			t.Fatalf("file: %s\n\n%s", tc.File, err)
 			continue
+		}
+
+		if !reflect.DeepEqual(actual, tc.Result) {
+			for _, d := range pretty.Diff(actual, tc.Result) {
+				t.Logf(d)
+			}
+			t.Fatalf("file: %s", tc.File)
 		}
 	}
 }
@@ -690,23 +617,6 @@ func TestOverlappingPorts(t *testing.T) {
 	}
 }
 
-func TestIncompleteServiceDefn(t *testing.T) {
-	path, err := filepath.Abs(filepath.Join("./test-fixtures", "incorrect-service-def.hcl"))
-	if err != nil {
-		t.Fatalf("Can't get absolute path for file: %s", err)
-	}
-
-	_, err = ParseFile(path)
-
-	if err == nil {
-		t.Fatalf("Expected an error")
-	}
-
-	if !strings.Contains(err.Error(), "Only one service block may omit the Name field") {
-		t.Fatalf("Expected collision error; got %v", err)
-	}
-}
-
 func TestIncorrectKey(t *testing.T) {
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "basic_wrong_key.hcl"))
 	if err != nil {
@@ -719,7 +629,7 @@ func TestIncorrectKey(t *testing.T) {
 		t.Fatalf("Expected an error")
 	}
 
-	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'binstore-storagelocker-binsl-binstore', check -> invalid key: nterval") {
-		t.Fatalf("Expected collision error; got %v", err)
+	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'foo', check -> invalid key: nterval") {
+		t.Fatalf("Expected key error; got %v", err)
 	}
 }
