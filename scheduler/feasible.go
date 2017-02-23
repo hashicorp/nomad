@@ -7,8 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"math"
-
+	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -160,8 +159,10 @@ type ProposedAllocConstraintIterator struct {
 	tgDistinctHosts  bool
 	jobDistinctHosts bool
 
-	tgBalance  bool
-	jobBalance bool
+	// Store wherther the Job or TaskGroup has a balance_datacenters constraint so
+	// they don't have to be calculated every time Next() is called.
+	tgBalanceDatacenters  bool
+	jobBalanceDatacenters bool
 }
 
 // NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
@@ -176,13 +177,13 @@ func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *P
 func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
-	iter.tgBalance = iter.hasBalanceConstraint(tg.Constraints)
+	iter.tgBalanceDatacenters = iter.hasBalanceDatacentersConstraint(tg.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
-	iter.jobBalance = iter.hasBalanceConstraint(job.Constraints)
+	iter.jobBalanceDatacenters = iter.hasBalanceDatacentersConstraint(job.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
@@ -194,9 +195,9 @@ func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constrai
 	return false
 }
 
-func (iter *ProposedAllocConstraintIterator) hasBalanceConstraint(constraints []*structs.Constraint) bool {
+func (iter *ProposedAllocConstraintIterator) hasBalanceDatacentersConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
-		if con.Operand == structs.ConstraintBalance {
+		if con.Operand == structs.ConstraintBalanceDatacenters {
 			return true
 		}
 	}
@@ -209,8 +210,8 @@ func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 		// Get the next option from the source
 		option := iter.source.Next()
 
-		// Hot-path if the option is nil or there are no distinct_hosts constraints.
-		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts || iter.jobBalance || iter.tgBalance) {
+		// Hot-path if the option is nil or there are no distinct_hosts or balance_datacenters constraints.
+		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts || iter.jobBalanceDatacenters || iter.tgBalanceDatacenters) {
 			return option
 		}
 
@@ -219,8 +220,8 @@ func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 			continue
 		}
 
-		if !iter.satisfiesBalance(option) {
-			iter.ctx.Metrics().FilterNode(option, structs.ConstraintBalance)
+		if !iter.satisfiesBalanceDatacenters(option) {
+			iter.ctx.Metrics().FilterNode(option, structs.ConstraintBalanceDatacenters)
 			continue
 		}
 
@@ -262,30 +263,28 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 // satisfiesBalance checks if the allocation on this node would make the zones
 // unbalanced, this implies a greater than 1 difference between the lowest, and the
 // highest zone
-func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.Node) bool {
+func (iter *ProposedAllocConstraintIterator) satisfiesBalanceDatacenters(option *structs.Node) bool {
 	// Check if there is no constraint set.
-	if !(iter.jobBalance || iter.tgBalance) {
+	if !(iter.jobBalanceDatacenters || iter.tgBalanceDatacenters) {
 		return true
 	}
 
-	if len(iter.job.Datacenters) == 0 {
-		iter.ctx.Logger().Print("[ERR] Job needs at least 1 datacenter to use balance")
+	if len(iter.job.Datacenters) < 1 {
+		iter.ctx.Logger().Print("[ERR] Job needs at least 2 datacenter to use balance")
 		return false
 	}
-
-	// fill the map with all the dc's in the selected datacenter
-	balanceMap := make(map[string]int)
-
-	for _, dc := range iter.job.Datacenters {
-		balanceMap[dc] = 0
-	}
+	var allocationsInCurrentDatacenter int
 
 	// get all the nodes
-	nodeIter, err := iter.ctx.State().Nodes()
+	ws := memdb.NewWatchSet()
+	nodeIter, err := iter.ctx.State().Nodes(ws)
 	if err != nil {
 		iter.ctx.Logger().Print("[ERR] Failed to get nodes")
 		return false
 	}
+
+	// Fetch all the proposed allocations for all the nodes in the current datacenter
+	var proposed []*structs.Allocation
 
 	for {
 		next := nodeIter.Next()
@@ -295,45 +294,59 @@ func (iter *ProposedAllocConstraintIterator) satisfiesBalance(option *structs.No
 
 		node := next.(*structs.Node)
 
+		// we only care about the nodes which have the same datacenter as the current node (the option)
+		if node.Datacenter != option.Datacenter {
+			continue
+		}
+
 		// proposed allocations
-		proposed, err := iter.ctx.ProposedAllocs(node.ID)
+		nodeProposed, err := iter.ctx.ProposedAllocs(node.ID)
 		if err != nil {
 			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get proposed allocations: %v", err)
 			return false
 		}
 
-		for _, alloc := range proposed {
-			jobCollision := alloc.JobID == iter.job.ID
-			taskCollision := alloc.TaskGroup == iter.tg.Name
+		proposed = append(proposed, nodeProposed...)
+	}
 
-			// skip jobs not in this job or taskgroup (for jobBalance/tgBalance)
-			if !(jobCollision && (iter.jobBalance || taskCollision)) {
-				continue
-			}
+	for _, alloc := range proposed {
+		// If the job has a balance_datacenters constraint we only need an alloc
+		// collision on the JobID but if the constraint is on the TaskGroup then
+		// we need both a job and TaskGroup collision.
+		jobCollision := alloc.JobID == iter.job.ID
+		tgCollision := alloc.TaskGroup == iter.tg.Name && jobCollision
 
-			// skip allocation with DesiredStatus other than running
-			if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
-				continue
-			}
+		if !((iter.jobBalanceDatacenters && jobCollision) || tgCollision) {
+			continue
+		}
 
-			balanceMap[node.Datacenter]++
+		// skip allocation with DesiredStatus other than running
+		if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+			continue
+		}
+
+		allocationsInCurrentDatacenter++
+	}
+
+	// number of allocations per datacenter depends on the constraint location
+	// if the constraint is set on the job level, it is a sum of all the allocations
+	// in all the TaskGroups. If it is set on TaskGroup level, it's only for the Count
+	// of the (current) taskgroup
+	var allocations int
+	if iter.tgBalanceDatacenters {
+		allocations = iter.tg.Count
+	} else {
+		for _, tg := range iter.job.TaskGroups {
+			allocations += tg.Count
 		}
 	}
 
-	min := math.MaxInt32
-
-	for _, n := range balanceMap {
-		if n < min {
-			min = n
-		}
+	allocationsPerDatacenter := allocationsPerDatacenter(allocations, iter.job.Datacenters)
+	if c, ok := allocationsPerDatacenter[option.Datacenter]; ok && allocationsInCurrentDatacenter < c {
+		return true
 	}
 
-	// if the current DC is higher than the minium, the node is not eligible
-	if balanceMap[option.Datacenter] > min {
-		return false
-	}
-
-	return true
+	return false
 }
 
 func (iter *ProposedAllocConstraintIterator) Reset() {
@@ -428,7 +441,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
 	case structs.ConstraintDistinctHosts:
 		return true
-	case structs.ConstraintBalance:
+	case structs.ConstraintBalanceDatacenters:
 		return true
 	default:
 		break

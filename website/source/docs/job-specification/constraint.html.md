@@ -114,15 +114,16 @@ constraint {
     }
     ```
 
-- `"balance_datacenter"` - Instructs the scheduler to force an equal spread across
-  all datacenters specified in the Job. When specified as a job constraint, it
-  applies to all groups in the job. When specified as a group constraint, the
-  effect is constrained to that group. Note that the `attribute` parameter should
-  be omitted when using this constraint.
+- `"balance_datacenters"` - Instructs the scheduler to force an equal spread across
+  all datacenters specified in the job's [datacenter 
+  list](https://www.nomadproject.io/docs/job-specification/job.html#datacenters). 
+  When specified as a job constraint, it applies to all groups in the job. When 
+  specified as a group constraint, the effect is constrained to that group. Note 
+  that the `attribute` parameter should be omitted when using this constraint.
 
     ```hcl
     constraint {
-      operator  = "balance_datacenter"
+      operator  = "balance_datacenters"
       value     = "true"
     }
     ```

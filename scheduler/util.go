@@ -721,3 +721,26 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 		}
 	}
 }
+
+// allocationsPerDatacenter returns a partition with an equal spread of the number of allocations per datacenter
+// the allocations will be equally spread (allocations/len(datacenters)) and the remaining x allocations will be
+// placed on the first x datacenters.
+func allocationsPerDatacenter(allocations int, datacenters []string) map[string]int {
+	dcCount := len(datacenters)
+	result := make(map[string]int, dcCount)
+	remainder := allocations % dcCount
+
+	for _, dc := range datacenters {
+		// integer division of the number of allocations by the number of datacenters
+		// this will leave a "remainder", which we will add as long as there is some left
+		result[dc] = allocations / dcCount
+
+		// divide the remainder across the first x datacenters until the remainder equals zero
+		if remainder > 0 {
+			result[dc]++
+			remainder--
+		}
+	}
+
+	return result
+}

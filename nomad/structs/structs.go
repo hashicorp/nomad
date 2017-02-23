@@ -3186,11 +3186,11 @@ func (ta *TaskArtifact) Validate() error {
 }
 
 const (
-	ConstraintBalance       = "balance_datacenter"
-	ConstraintDistinctHosts = "distinct_hosts"
-	ConstraintRegex         = "regexp"
-	ConstraintVersion       = "version"
-	ConstraintSetContains   = "set_contains"
+	ConstraintBalanceDatacenters = "balance_datacenters"
+	ConstraintDistinctHosts      = "distinct_hosts"
+	ConstraintRegex              = "regexp"
+	ConstraintVersion            = "version"
+	ConstraintSetContains        = "set_contains"
 )
 
 // Constraints are used to restrict placement options.

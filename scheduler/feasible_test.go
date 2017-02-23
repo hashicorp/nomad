@@ -612,7 +612,7 @@ func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
 	}
 }
 
-func TestPropsedAllocConstraint_JobBalance(t *testing.T) {
+func TestPropsedAllocConstraint_JobBalanceDatacenters(t *testing.T) {
 	store, ctx := testContext(t)
 
 	n3 := mock.Node()
@@ -631,12 +631,12 @@ func TestPropsedAllocConstraint_JobBalance(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 
 	// Create a job with balance constraint
-	tg1 := &structs.TaskGroup{Name: "bar"}
-	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg1 := &structs.TaskGroup{Name: "bar", Count: 1}
+	tg2 := &structs.TaskGroup{Name: "baz", Count: 1}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalanceDatacenters}},
 		Datacenters: []string{"dc1", "dc2"},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
@@ -652,7 +652,7 @@ func TestPropsedAllocConstraint_JobBalance(t *testing.T) {
 	}
 }
 
-func TestPropsedAllocConstraint_JobBalance_WithRunningJobs(t *testing.T) {
+func TestPropsedAllocConstraint_JobBalanceDatacenters_WithRunningJobs(t *testing.T) {
 	store, ctx := testContext(t)
 
 	n3 := mock.Node()
@@ -671,12 +671,12 @@ func TestPropsedAllocConstraint_JobBalance_WithRunningJobs(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 
 	// Create a job with balance constraint
-	tg1 := &structs.TaskGroup{Name: "bar"}
-	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg1 := &structs.TaskGroup{Name: "bar", Count: 1}
+	tg2 := &structs.TaskGroup{Name: "baz", Count: 1}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalanceDatacenters}},
 		Datacenters: []string{"dc1", "dc2"},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
@@ -708,9 +708,14 @@ func TestPropsedAllocConstraint_JobBalance_WithRunningJobs(t *testing.T) {
 	if len(out) != 1 {
 		t.Fatalf("Bad: %#v", out)
 	}
+
+	// since there is an allocation on dc1, the yielded node should be on dc2
+	if out[0].Datacenter != "dc2" {
+		t.Fatalf("Bad: proposed node is on the wrong datacenter, expected: dc1; got: %s", out[0].Datacenter)
+	}
 }
 
-func TestPropsedAllocConstraint_JobBalance_WithStoppedJobs(t *testing.T) {
+func TestPropsedAllocConstraint_JobBalanceDatacenters_WithStoppedJobs(t *testing.T) {
 	store, ctx := testContext(t)
 
 	n3 := mock.Node()
@@ -729,26 +734,17 @@ func TestPropsedAllocConstraint_JobBalance_WithStoppedJobs(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 
 	// Create a job with balance constraint
-	tg1 := &structs.TaskGroup{Name: "bar"}
-	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg1 := &structs.TaskGroup{Name: "bar", Count: 1}
+	tg2 := &structs.TaskGroup{Name: "baz", Count: 1}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalanceDatacenters}},
 		Datacenters: []string{"dc1", "dc2"},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
 
 	plan := ctx.Plan()
-	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
-		&structs.Allocation{
-			TaskGroup:     tg1.Name,
-			JobID:         job.ID,
-			ID:            structs.GenerateUUID(),
-			DesiredStatus: structs.AllocDesiredStatusRun,
-		},
-	}
-
 	// this allocation should be ignored since it's no longer active
 	plan.NodeAllocation[n3.ID] = []*structs.Allocation{
 		&structs.Allocation{
@@ -765,12 +761,12 @@ func TestPropsedAllocConstraint_JobBalance_WithStoppedJobs(t *testing.T) {
 
 	out := collectFeasible(propsed)
 
-	if len(out) != 1 {
+	if len(out) != 3 {
 		t.Fatalf("Bad: %#v", out)
 	}
 }
 
-func TestPropsedAllocConstraint_JobBalance_InfeasibleDC(t *testing.T) {
+func TestPropsedAllocConstraint_JobBalanceDatacenters_InfeasibleDC(t *testing.T) {
 	store, ctx := testContext(t)
 
 	nodes := []*structs.Node{
@@ -785,12 +781,12 @@ func TestPropsedAllocConstraint_JobBalance_InfeasibleDC(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 
 	// Create a job with balance constraint
-	tg1 := &structs.TaskGroup{Name: "bar"}
-	tg2 := &structs.TaskGroup{Name: "baz"}
+	tg1 := &structs.TaskGroup{Name: "bar", Count: 1}
+	tg2 := &structs.TaskGroup{Name: "baz", Count: 1}
 
 	job := &structs.Job{
 		ID:          "foo",
-		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalance}},
+		Constraints: []*structs.Constraint{{Operand: structs.ConstraintBalanceDatacenters}},
 		Datacenters: []string{"dc1", "dc2"},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
