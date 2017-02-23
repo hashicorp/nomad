@@ -270,5 +270,6 @@ be specified using the `?region=` query parameter.
     * `Sibling Task Failed` - A task in the same task group failed.
     * `Leader Task Dead` - The group's leader task is dead.
     * `Driver` - A message from the driver.
+    * `Task Setup` - Task setup messages.
 
     Depending on the type the event will have applicable annotations.

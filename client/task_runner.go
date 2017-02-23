@@ -1204,6 +1204,9 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	}
 	r.persistLock.Unlock()
 
+	r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
+		SetMessage(structs.TaskBuildingTaskDir))
+
 	chroot := config.DefaultChrootEnv
 	if len(r.config.ChrootEnv) > 0 {
 		chroot = r.config.ChrootEnv

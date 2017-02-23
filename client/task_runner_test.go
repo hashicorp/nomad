@@ -115,7 +115,8 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 func testWaitForTaskToStart(t *testing.T, ctx *taskRunnerTestCtx) {
 	// Wait for the task to start
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l < 2 {
+		l := len(ctx.upd.events)
+		if l < 2 {
 			return false, fmt.Errorf("Expect two events; got %v", l)
 		}
 
@@ -123,8 +124,17 @@ func testWaitForTaskToStart(t *testing.T, ctx *taskRunnerTestCtx) {
 			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+		if l >= 3 {
+			if ctx.upd.events[1].Type != structs.TaskSetup {
+				return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
+			}
+			if ctx.upd.events[2].Type != structs.TaskStarted {
+				return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+			}
+		} else {
+			if ctx.upd.events[1].Type != structs.TaskStarted {
+				return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+			}
 		}
 
 		return true, nil
@@ -146,7 +156,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 3 {
+	if len(ctx.upd.events) != 4 {
 		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
@@ -158,12 +168,16 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 }
 
@@ -183,20 +197,24 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 	defer ctx.Cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l < 3 {
-			return false, fmt.Errorf("Expect at least three  events; got %v", l)
+		if l := len(ctx.upd.events); l < 4 {
+			return false, fmt.Errorf("Expect at least four events; got %v", l)
 		}
 
 		if ctx.upd.events[0].Type != structs.TaskReceived {
 			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if ctx.upd.events[1].Type != structs.TaskDriverFailure {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDriverFailure)
+		if ctx.upd.events[1].Type != structs.TaskSetup {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 		}
 
-		if ctx.upd.events[2].Type != structs.TaskRestarting {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestarting)
+		if ctx.upd.events[2].Type != structs.TaskDriverFailure {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskDriverFailure)
+		}
+
+		if ctx.upd.events[3].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskRestarting)
 		}
 
 		return true, nil
@@ -236,20 +254,20 @@ func TestTaskRunner_Destroy(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 5 {
+		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
 		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskKilling {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskKilling)
+	if ctx.upd.events[3].Type != structs.TaskKilling {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskKilled {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilled)
+	if ctx.upd.events[4].Type != structs.TaskKilled {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
 	}
 }
 
@@ -399,8 +417,8 @@ func TestTaskRunner_Download_List(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 5 {
+		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -411,16 +429,20 @@ func TestTaskRunner_Download_List(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskStarted {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	if ctx.upd.events[2].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskTerminated {
-		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
+	if ctx.upd.events[3].Type != structs.TaskStarted {
+		t.Fatalf("Forth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[4].Type != structs.TaskTerminated {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskTerminated)
 	}
 
 	// Check that both files exist.
@@ -462,8 +484,8 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 7 {
-		t.Fatalf("should have 7 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 8 {
+		t.Fatalf("should have 8 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -474,28 +496,32 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskArtifactDownloadFailed {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskArtifactDownloadFailed)
+	if ctx.upd.events[2].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskRestarting {
-		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskRestarting)
+	if ctx.upd.events[3].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskArtifactDownloadFailed)
 	}
 
-	if ctx.upd.events[4].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[4].Type != structs.TaskRestarting {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskRestarting)
 	}
 
-	if ctx.upd.events[5].Type != structs.TaskArtifactDownloadFailed {
-		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskArtifactDownloadFailed)
+	if ctx.upd.events[5].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if ctx.upd.events[6].Type != structs.TaskNotRestarting {
-		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskNotRestarting)
+	if ctx.upd.events[6].Type != structs.TaskArtifactDownloadFailed {
+		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskArtifactDownloadFailed)
+	}
+
+	if ctx.upd.events[7].Type != structs.TaskNotRestarting {
+		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskNotRestarting)
 	}
 }
 
@@ -553,8 +579,8 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		go func() {
 			// Wait for the task to start again
 			testutil.WaitForResult(func() (bool, error) {
-				if len(ctx.upd.events) != 7 {
-					t.Fatalf("task %q in alloc %q should have 7 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
+				if len(ctx.upd.events) != 8 {
+					t.Fatalf("task %q in alloc %q should have 8 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
 				}
 
 				return true, nil
@@ -571,7 +597,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 9 {
+	if len(ctx.upd.events) != 10 {
 		t.Fatalf("should have 9 ctx.updates: %#v", ctx.upd.events)
 	}
 
@@ -583,35 +609,39 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskRestartSignal {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestartSignal)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskKilling {
-		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
+	if ctx.upd.events[3].Type != structs.TaskRestartSignal {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskRestartSignal)
 	}
 
-	if ctx.upd.events[4].Type != structs.TaskKilled {
-		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
+	if ctx.upd.events[4].Type != structs.TaskKilling {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilling)
 	}
 
-	if ctx.upd.events[5].Type != structs.TaskRestarting {
-		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskRestarting)
+	if ctx.upd.events[5].Type != structs.TaskKilled {
+		t.Fatalf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskKilled)
 	}
 
-	if ctx.upd.events[6].Type != structs.TaskStarted {
-		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskStarted)
-	}
-	if ctx.upd.events[7].Type != structs.TaskKilling {
-		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskKilling)
+	if ctx.upd.events[6].Type != structs.TaskRestarting {
+		t.Fatalf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskRestarting)
 	}
 
-	if ctx.upd.events[8].Type != structs.TaskKilled {
-		t.Fatalf("Nineth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilled)
+	if ctx.upd.events[7].Type != structs.TaskStarted {
+		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskStarted)
+	}
+	if ctx.upd.events[8].Type != structs.TaskKilling {
+		t.Fatalf("Nineth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
+	}
+
+	if ctx.upd.events[9].Type != structs.TaskKilled {
+		t.Fatalf("Tenth Event was %v; want %v", ctx.upd.events[9].Type, structs.TaskKilled)
 	}
 }
 
@@ -640,8 +670,8 @@ func TestTaskRunner_KillTask(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 5 {
+		t.Fatalf("should have 4 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -656,16 +686,20 @@ func TestTaskRunner_KillTask(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskKilling {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskKilling)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskKilled {
-		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilled)
+	if ctx.upd.events[3].Type != structs.TaskKilling {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
+	}
+
+	if ctx.upd.events[4].Type != structs.TaskKilled {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
 	}
 }
 
@@ -723,8 +757,8 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	case <-time.After(1 * time.Second):
 	}
 
-	if len(ctx.upd.events) != 1 {
-		t.Fatalf("should have 1 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 2 {
+		t.Fatalf("should have 2 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStatePending {
@@ -733,6 +767,10 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 
 	if ctx.upd.events[0].Type != structs.TaskReceived {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
 	// Unblock
@@ -744,8 +782,8 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 3 {
-		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -756,12 +794,16 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 
 	// Check that the token is on disk
@@ -810,8 +852,8 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 3 {
-		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -822,12 +864,16 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 
 	// Check that the token is on disk
@@ -866,16 +912,20 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 
 	// Wait for the task to start
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 2 {
-			return false, fmt.Errorf("Expect two events; got %v", l)
+		if l := len(ctx.upd.events); l != 3 {
+			return false, fmt.Errorf("Expect 3 events; got %v", l)
 		}
 
 		if ctx.upd.events[0].Type != structs.TaskReceived {
 			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if ctx.upd.events[1].Type != structs.TaskKilling {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskKilling)
+		if ctx.upd.events[1].Type != structs.TaskSetup {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
+		}
+
+		if ctx.upd.events[2].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskKilling)
 		}
 
 		return true, nil
@@ -915,8 +965,8 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 	case <-time.After(1 * time.Second):
 	}
 
-	if len(ctx.upd.events) != 1 {
-		t.Fatalf("should have 1 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 2 {
+		t.Fatalf("should have 2 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStatePending {
@@ -925,6 +975,10 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 
 	if ctx.upd.events[0].Type != structs.TaskReceived {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
+	}
+
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
 	// Unblock
@@ -936,8 +990,8 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 3 {
-		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -948,12 +1002,16 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 }
 
@@ -999,8 +1057,8 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 5 {
+		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -1011,16 +1069,20 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskDownloadingArtifacts {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskDownloadingArtifacts)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskStarted {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	if ctx.upd.events[2].Type != structs.TaskDownloadingArtifacts {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskDownloadingArtifacts)
 	}
 
-	if ctx.upd.events[3].Type != structs.TaskTerminated {
-		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
+	if ctx.upd.events[3].Type != structs.TaskStarted {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[4].Type != structs.TaskTerminated {
+		t.Fatalf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskTerminated)
 	}
 
 	// Check that both files exist.
@@ -1128,36 +1190,40 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 
 	// Ensure a restart
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 7 {
-			return false, fmt.Errorf("Expect seven events; got %#v", ctx.upd.events)
+		if l := len(ctx.upd.events); l != 8 {
+			return false, fmt.Errorf("Expect eight events; got %#v", ctx.upd.events)
 		}
 
 		if ctx.upd.events[0].Type != structs.TaskReceived {
 			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if ctx.upd.events[1].Type != structs.TaskStarted {
+		if ctx.upd.events[1].Type != structs.TaskSetup {
 			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
 		}
 
-		if ctx.upd.events[2].Type != structs.TaskRestartSignal {
-			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskRestartSignal)
+		if ctx.upd.events[2].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 		}
 
-		if ctx.upd.events[3].Type != structs.TaskKilling {
-			return false, fmt.Errorf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskKilling)
+		if ctx.upd.events[3].Type != structs.TaskRestartSignal {
+			return false, fmt.Errorf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskRestartSignal)
 		}
 
-		if ctx.upd.events[4].Type != structs.TaskKilled {
-			return false, fmt.Errorf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilled)
+		if ctx.upd.events[4].Type != structs.TaskKilling {
+			return false, fmt.Errorf("Fifth Event was %v; want %v", ctx.upd.events[4].Type, structs.TaskKilling)
 		}
 
-		if ctx.upd.events[5].Type != structs.TaskRestarting {
-			return false, fmt.Errorf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskRestarting)
+		if ctx.upd.events[5].Type != structs.TaskKilled {
+			return false, fmt.Errorf("Sixth Event was %v; want %v", ctx.upd.events[5].Type, structs.TaskKilled)
 		}
 
-		if ctx.upd.events[6].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskStarted)
+		if ctx.upd.events[6].Type != structs.TaskRestarting {
+			return false, fmt.Errorf("Seventh Event was %v; want %v", ctx.upd.events[6].Type, structs.TaskRestarting)
+		}
+
+		if ctx.upd.events[7].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Eight Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskStarted)
 		}
 
 		return true, nil
@@ -1200,20 +1266,24 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 
 	// Ensure a restart
 	testutil.WaitForResult(func() (bool, error) {
-		if l := len(ctx.upd.events); l != 3 {
-			return false, fmt.Errorf("Expect three events; got %#v", ctx.upd.events)
+		if l := len(ctx.upd.events); l != 4 {
+			return false, fmt.Errorf("Expect four events; got %#v", ctx.upd.events)
 		}
 
 		if ctx.upd.events[0].Type != structs.TaskReceived {
 			return false, fmt.Errorf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 		}
 
-		if ctx.upd.events[1].Type != structs.TaskStarted {
-			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+		if ctx.upd.events[1].Type != structs.TaskSetup {
+			return false, fmt.Errorf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 		}
 
-		if ctx.upd.events[2].Type != structs.TaskSignaling {
-			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskSignaling)
+		if ctx.upd.events[2].Type != structs.TaskStarted {
+			return false, fmt.Errorf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+		}
+
+		if ctx.upd.events[3].Type != structs.TaskSignaling {
+			return false, fmt.Errorf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskSignaling)
 		}
 
 		return true, nil
@@ -1254,8 +1324,8 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if len(ctx.upd.events) != 3 {
-		t.Fatalf("should have 3 updates: %#v", ctx.upd.events)
+	if len(ctx.upd.events) != 4 {
+		t.Fatalf("should have 4 updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -1266,12 +1336,16 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskStarted {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskStarted)
+	if ctx.upd.events[1].Type != structs.TaskSetup {
+		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 
-	if ctx.upd.events[2].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskTerminated)
+	if ctx.upd.events[2].Type != structs.TaskStarted {
+		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
+	}
+
+	if ctx.upd.events[3].Type != structs.TaskTerminated {
+		t.Fatalf("Fourth Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
 	}
 
 	// Check that the file was written to disk properly
