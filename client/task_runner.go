@@ -422,8 +422,6 @@ func (r *TaskRunner) Run() {
 	// Build base task directory structure regardless of FS isolation abilities.
 	// This needs to happen before we start the Vault manager and call prestart
 	// as both those can write to the task directories
-	r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
-		SetMessage(structs.TaskBuildingTaskDir))
 	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
 		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
 		r.setState(
@@ -1205,6 +1203,9 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 		return nil
 	}
 	r.persistLock.Unlock()
+
+	r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
+		SetMessage(structs.TaskBuildingTaskDir))
 
 	chroot := config.DefaultChrootEnv
 	if len(r.config.ChrootEnv) > 0 {
