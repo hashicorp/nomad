@@ -117,13 +117,22 @@ func (txn *Txn) Commit() {
 	// Commit each sub-transaction scoped to (table, index)
 	for key, subTxn := range txn.modified {
 		path := indexPath(key.Table, key.Index)
-		final := subTxn.Commit()
+		final := subTxn.CommitOnly()
 		txn.rootTxn.Insert(path, final)
 	}
 
 	// Update the root of the DB
-	newRoot := txn.rootTxn.Commit()
+	newRoot := txn.rootTxn.CommitOnly()
 	atomic.StorePointer(&txn.db.root, unsafe.Pointer(newRoot))
+
+	// Now issue all of the mutation updates (this is safe to call
+	// even if mutation tracking isn't enabled); we do this after
+	// the root pointer is swapped so that waking responders will
+	// see the new state.
+	for _, subTxn := range txn.modified {
+		subTxn.Notify()
+	}
+	txn.rootTxn.Notify()
 
 	// Clear the txn
 	txn.rootTxn = nil
