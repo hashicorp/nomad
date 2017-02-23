@@ -1,5 +1,4 @@
 job "check_initial_status" {
-
     type = "service"
     group "group" {
         count = 1

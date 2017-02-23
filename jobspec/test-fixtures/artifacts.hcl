@@ -18,7 +18,6 @@ job "binstore-storagelocker" {
                 source = "http://foo.com/bam"
                 destination = "var/foo"
             }
-            resources {}
         }
     }
 }

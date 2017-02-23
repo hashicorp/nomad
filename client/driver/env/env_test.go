@@ -157,6 +157,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_META_FOO=baz",
+		"NOMAD_META_foo=baz",
 		"NOMAD_ADDR_web_main=192.168.0.100:5000",
 		"NOMAD_ADDR_web_http=192.168.0.100:2000",
 		"NOMAD_TASK_NAME=taskA",

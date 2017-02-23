@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -84,7 +85,7 @@ type ServiceCheck struct {
 	Command       string
 	Args          []string
 	Path          string
-	Protocol      string `mapstructure:"port"`
+	Protocol      string
 	PortLabel     string `mapstructure:"port"`
 	Interval      time.Duration
 	Timeout       time.Duration
@@ -98,6 +99,12 @@ type Service struct {
 	Tags      []string
 	PortLabel string `mapstructure:"port"`
 	Checks    []ServiceCheck
+}
+
+func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
+	if s.Name == "" {
+		s.Name = fmt.Sprintf("%s-%s-%s", *job.Name, *tg.Name, t.Name)
+	}
 }
 
 // EphemeralDisk is an ephemeral disk object
@@ -146,7 +153,7 @@ func NewTaskGroup(name string, count int) *TaskGroup {
 	}
 }
 
-func (g *TaskGroup) Canonicalize(jobType string) {
+func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
 		g.Name = helper.StringToPtr("")
 	}
@@ -154,7 +161,7 @@ func (g *TaskGroup) Canonicalize(jobType string) {
 		g.Count = helper.IntToPtr(1)
 	}
 	for _, t := range g.Tasks {
-		t.Canonicalize()
+		t.Canonicalize(g, job)
 	}
 	if g.EphemeralDisk == nil {
 		g.EphemeralDisk = DefaultEphemeralDisk()
@@ -163,7 +170,7 @@ func (g *TaskGroup) Canonicalize(jobType string) {
 	}
 
 	var defaultRestartPolicy *RestartPolicy
-	switch jobType {
+	switch *job.Type {
 	case "service", "system":
 		defaultRestartPolicy = &RestartPolicy{
 			Delay:    helper.TimeToPtr(15 * time.Second),
@@ -215,8 +222,8 @@ func (g *TaskGroup) RequireDisk(disk *EphemeralDisk) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      *int
-	MaxFileSizeMB *int
+	MaxFiles      *int `mapstructure:"max_files"`
+	MaxFileSizeMB *int `mapstructure:"max_file_size"`
 }
 
 func DefaultLogConfig() *LogConfig {
@@ -251,8 +258,8 @@ type Task struct {
 	Services        []Service
 	Resources       *Resources
 	Meta            map[string]string
-	KillTimeout     *time.Duration
-	LogConfig       *LogConfig
+	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
+	LogConfig       *LogConfig     `mapstructure:"logs"`
 	Artifacts       []*TaskArtifact
 	Vault           *Vault
 	Templates       []*Template
@@ -260,7 +267,7 @@ type Task struct {
 	Leader          bool
 }
 
-func (t *Task) Canonicalize() {
+func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	if t.LogConfig == nil {
 		t.LogConfig = DefaultLogConfig()
 	} else {
@@ -275,6 +282,9 @@ func (t *Task) Canonicalize() {
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()
 	}
+	for _, s := range t.Services {
+		s.Canonicalize(t, tg, job)
+	}
 
 	if t.KillTimeout == nil {
 		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
@@ -288,9 +298,9 @@ func (t *Task) Canonicalize() {
 
 // TaskArtifact is used to download artifacts before running a task.
 type TaskArtifact struct {
-	GetterSource  *string
-	GetterOptions map[string]string
-	RelativeDest  *string
+	GetterSource  *string           `mapstructure:"source"`
+	GetterOptions map[string]string `mapstructure:"options"`
+	RelativeDest  *string           `mapstructure:"destination"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -300,15 +310,15 @@ func (a *TaskArtifact) Canonicalize() {
 }
 
 type Template struct {
-	SourcePath   *string
-	DestPath     *string
-	EmbeddedTmpl *string
-	ChangeMode   *string
-	ChangeSignal *string
-	Splay        *time.Duration
-	Perms        *string
-	LeftDelim    *string
-	RightDelim   *string
+	SourcePath   *string        `mapstructure:"source"`
+	DestPath     *string        `mapstructure:"destination"`
+	EmbeddedTmpl *string        `mapstructure:"data"`
+	ChangeMode   *string        `mapstructure:"change_mode"`
+	ChangeSignal *string        `mapstructure:"change_signal"`
+	Splay        *time.Duration `mapstructure:"splay"`
+	Perms        *string        `mapstructure:"perms"`
+	LeftDelim    *string        `mapstructure:"left_delimiter"`
+	RightDelim   *string        `mapstructure:"right_delimiter"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -339,8 +349,8 @@ func (tmpl *Template) Canonicalize() {
 type Vault struct {
 	Policies     []string
 	Env          *bool
-	ChangeMode   *string
-	ChangeSignal *string
+	ChangeMode   *string `mapstructure:"change_mode"`
+	ChangeSignal *string `mapstructure:"change_signal"`
 }
 
 func (v *Vault) Canonicalize() {

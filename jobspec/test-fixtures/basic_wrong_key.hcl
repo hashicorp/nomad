@@ -60,6 +60,7 @@ job "binstore-storagelocker" {
       }
 
       service {
+        name = "foo"
         tags = ["foo", "bar"]
         port = "http"
 

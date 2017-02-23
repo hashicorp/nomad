@@ -114,11 +114,6 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
 	result.Name = result.ID
 
-	// Defaults
-	result.Priority = helper.IntToPtr(50)
-	result.Region = helper.StringToPtr("global")
-	result.Type = helper.StringToPtr("service")
-
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
@@ -208,10 +203,6 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		for i, t := range tasks {
 			result.TaskGroups[i] = &api.TaskGroup{
 				Name:  helper.StringToPtr(t.Name),
-				Count: helper.IntToPtr(1),
-				EphemeralDisk: &api.EphemeralDisk{
-					SizeMB: helper.IntToPtr(300),
-				},
 				Tasks: []*api.Task{t},
 			}
 		}
@@ -299,11 +290,6 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "ephemeral_disk")
 		delete(m, "vault")
 
-		// Default count to 1 if not specified
-		if _, ok := m["count"]; !ok {
-			m["count"] = 1
-		}
-
 		// Build the group with the basic decode
 		var g api.TaskGroup
 		g.Name = helper.StringToPtr(n)
@@ -326,10 +312,8 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		}
 
 		// Parse ephemeral disk
-		g.EphemeralDisk = &api.EphemeralDisk{
-			SizeMB: helper.IntToPtr(300),
-		}
 		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
+			g.EphemeralDisk = &api.EphemeralDisk{}
 			if err := parseEphemeralDisk(&g.EphemeralDisk, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', ephemeral_disk ->", n))
 			}
@@ -712,8 +696,6 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		}
 
 		// If we have logs then parse that
-		logConfig := api.DefaultLogConfig()
-
 		if o := listVal.Filter("logs"); len(o.Items) > 0 {
 			if len(o.Items) > 1 {
 				return fmt.Errorf("only one logs block is allowed in a Task. Number of logs block found: %d", len(o.Items))
@@ -734,11 +716,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 				return err
 			}
 
-			if err := mapstructure.WeakDecode(m, &logConfig); err != nil {
+			var log api.LogConfig
+			if err := mapstructure.WeakDecode(m, &log); err != nil {
 				return err
 			}
+
+			t.LogConfig = &log
 		}
-		t.LogConfig = logConfig
 
 		// Parse artifacts
 		if o := listVal.Filter("artifact"); len(o.Items) > 0 {
@@ -818,11 +802,6 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 		}
 
 		delete(m, "options")
-
-		// Default to downloading to the local directory.
-		if _, ok := m["destination"]; !ok {
-			m["destination"] = "local/"
-		}
 
 		var ta api.TaskArtifact
 		if err := mapstructure.WeakDecode(m, &ta); err != nil {
@@ -920,7 +899,6 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 
 func parseServices(jobName string, taskGroupName string, task *api.Task, serviceObjs *ast.ObjectList) error {
 	task.Services = make([]api.Service, len(serviceObjs.Items))
-	var defaultServiceName bool
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
 		valid := []string{
@@ -943,15 +921,6 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
-		}
-
-		if defaultServiceName && service.Name == "" {
-			return fmt.Errorf("Only one service block may omit the Name field")
-		}
-
-		if service.Name == "" {
-			defaultServiceName = true
-			service.Name = fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, task.Name)
 		}
 
 		// Filter checks
@@ -1096,10 +1065,6 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		result.Networks = []*api.NetworkResource{&r}
 	}
 
-	// Combine the parsed resources with a default resource block.
-	min := api.MinResources()
-	min.Merge(result)
-	*result = *min
 	return nil
 }
 
@@ -1205,10 +1170,7 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 		return err
 	}
 
-	// Enabled by default if the periodic block exists.
-	if value, ok := m["enabled"]; !ok {
-		m["Enabled"] = true
-	} else {
+	if value, ok := m["enabled"]; ok {
 		enabled, err := parseBool(value)
 		if err != nil {
 			return fmt.Errorf("periodic.enabled should be set to true or false; %v", err)

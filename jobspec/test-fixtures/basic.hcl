@@ -1,7 +1,7 @@
 job "binstore-storagelocker" {
-  region      = "global"
-  type        = "service"
-  priority    = 50
+  region      = "fooregion"
+  type        = "batch"
+  priority    = 52
   all_at_once = true
   datacenters = ["us2", "eu1"]
   vault_token = "foo"
@@ -61,8 +61,8 @@ job "binstore-storagelocker" {
       }
 
       logs {
-        max_files     = 10
-        max_file_size = 100
+        max_files     = 14
+        max_file_size = 101
       }
 
       env {
@@ -125,6 +125,7 @@ job "binstore-storagelocker" {
 
       artifact {
         source = "http://bar.com/artifact"
+        destination = "test/foo/"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"

@@ -7,8 +7,6 @@ job "parameterized_job" {
     group "foo" {
         task "bar" {
             driver = "docker"
-            resources {}
-
             dispatch_payload {
                 file = "foo/bar"
             }
