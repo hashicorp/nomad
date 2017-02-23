@@ -41,13 +41,14 @@ the following Nomad configuration file:
 server {
   enabled          = true
   bootstrap_expect = 3
+  data_dir         = /etc/nomad.d
 }
 ```
 
 This configuration would be saved to disk and then run:
 
 ```shell
-$ nomad agent -config=/etc/nomad.d/server.hcl -data-dir=/etc/nomad.d
+$ nomad agent -config=/etc/nomad.d/server.hcl
 ```
 
 A similar configuration is available for Nomad clients:
@@ -58,14 +59,15 @@ A similar configuration is available for Nomad clients:
 datacenter = "dc1"
 
 client {
-  enabled = true
+  enabled  = true
+  data_dir = /etc/nomad.d
 }
 ```
 
 The agent is started in a similar manner:
 
 ```shell
-$ nomad agent -config=/etc/nomad.d/client.hcl -data-dir=/etc/nomad.d
+$ nomad agent -config=/etc/nomad.d/client.hcl
 ```
 
 As you can see, the above configurations include no IP or DNS addresses between
