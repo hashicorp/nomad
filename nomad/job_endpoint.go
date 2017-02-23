@@ -389,10 +389,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	if job == nil {
-		return fmt.Errorf("job %q does not exist", args.JobID)
-	}
-
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
