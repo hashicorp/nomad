@@ -13,6 +13,7 @@ IMPROVEMENTS:
   * client: Don't force uppercase meta keys in env vars [GH-2338]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
+  * driver/docker: Add support for volume drivers [GH-2351]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within
     the task group [GH-2308]
   * periodic: Allow specification of timezones in Periodic Jobs [GH-2321]
