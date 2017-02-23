@@ -22,34 +22,63 @@ rm -f bin/*
 rm -rf pkg/*
 mkdir -p bin/
 
-if [[ $(uname) == "Linux" ]]; then
-    echo "==> Building linux 386..."
-    CGO_ENABLED=1 GOARCH="386"   GOOS="linux"   go build -ldflags "-X $LDFLAG" -o "pkg/linux_386/nomad"
-
-    echo "==> Building linux amd64..."
-    CGO_ENBALED=1 GOARCH="amd64" GOOS="linux"   go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad"
-
-    echo "==> Building linux amd64 with lxc..."
-    CGO_ENBALED=1 GOARCH="amd64" GOOS="linux"   go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc"
-
-    echo "==> Building linux arm..."
-    CC="arm-linux-gnueabihf-gcc-5" GOOS=linux GOARCH="arm"  CGO_ENABLED=1 go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm/nomad"
-
-    echo "==> Building linux arm64..."
-    CC="aarch64-linux-gnu-gcc-5"  GOOS=linux GOARCH="arm64" CGO_ENABLED=1 go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm64/nomad"
-
-    echo "==> Building windows 386..."
-    CGO_ENABLED=1 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
-
-    echo "==> Building windows amd64..."
-    CGO_ENABLED=1 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
-elif [[ $(uname) == "Darwin" ]]; then
-    echo "==> Building darwin amd64..."
-    CGO_ENABLED=1 GOARCH="amd64" GOOS="darwin"  go build -ldflags "-X $LDFLAG" -o "pkg/darwin_amd64/nomad"
-else
-    echo "Unable to build on $(uname). Use Linux or Darwin."
-    exit 1
+targets=$TARGETS
+if [[ ! -v TARGETS ]]; then
+    if [[ $(uname) == "Linux" ]]; then
+        targets="linux_386 linux_amd64 linux_amd64-lxc linux_arm linux_arm64 windows_386 windows_amd64 darwin_amd64"
+    elif [[ $(uname) == "Darwin" ]]; then
+	targets="darwin_amd64"
+    else
+        echo "Unable to build on $(uname). Use Linux or Darwin."
+        exit 1
+    fi
 fi
+
+# Don't exit if a single target fails
+set +e
+
+echo "TARGETS=\"$targets\""
+for target in $targets; do
+    case $target in
+        "linux_386")
+            echo "==> Building linux 386..."
+            CGO_ENABLED=1 GOARCH="386"   GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_386/nomad"
+            ;;
+        "linux_amd64")
+            echo "==> Building linux amd64..."
+            CGO_ENBALED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad"
+            ;;
+        "linux_amd64-lxc")
+            echo "==> Building linux amd64 with lxc..."
+            CGO_ENBALED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc"
+            ;;
+        "linux_arm")
+            echo "==> Building linux arm..."
+            CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc-5" GOOS=linux GOARCH="arm"  go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm/nomad"
+            ;;
+        "linux_arm64")
+            echo "==> Building linux arm64..."
+            CGO_ENABLED=1 CC="aarch64-linux-gnu-gcc-5"  GOOS=linux GOARCH="arm64" go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm64/nomad"
+            ;;
+        "windows_386")
+            echo "==> Building windows 386..."
+            CGO_ENABLED=1 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
+            ;;
+        "windows_amd64")
+            echo "==> Building windows amd64..."
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
+            ;;
+        "darwin_amd64")
+            echo "==> Building darwin amd64..."
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="darwin"  go build -ldflags "-X $LDFLAG" -o "pkg/darwin_amd64/nomad"
+            ;;
+        *)
+            echo "--> Invalid target: $target"
+            ;;
+    esac
+done
+
+set -e
 
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}
