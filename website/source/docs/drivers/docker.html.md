@@ -201,6 +201,21 @@ The `docker` driver supports the following configuration in the job spec:
       ]
     }
     ```
+* `volume_driver` - (Optional) The name of the volume driver used to mount
+  volumes. Must be used along with `volumes`.
+  Using a `volume_driver` also allows to use `volumes` with a named volume as
+  well as regular paths.
+
+  ```hcl
+    config {
+      volumes = [
+        # Use named volume created outside nomad.
+        "name-of-the-volume:/path/in/container"
+      ]
+      # Name of the Docker Volume Driver used by the container
+      volume_driver = "flocker"
+    }
+    ```
 
 * `work_dir` - (Optional) The working directory inside the container.
 

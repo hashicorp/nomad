@@ -154,6 +154,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 }
 
@@ -191,6 +192,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.Hostname = env.ReplaceEnv(dconf.Hostname)
 	dconf.WorkDir = env.ReplaceEnv(dconf.WorkDir)
 	dconf.Volumes = env.ParseAndReplace(dconf.Volumes)
+	dconf.VolumeDriver = env.ReplaceEnv(dconf.VolumeDriver)
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
 	dconf.LoadImages = env.ParseAndReplace(dconf.LoadImages)
@@ -387,6 +389,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"volumes": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"volume_driver": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 			"force_pull": &fields.FieldSchema{
 				Type: fields.TypeBool,
@@ -695,8 +700,13 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir 
 		}
 
 		// Relative paths are always allowed as they mount within a container
-		// Expand path relative to alloc dir
-		parts[0] = filepath.Join(taskDir.Dir, parts[0])
+		// When a VolumeDriver is set, we assume we receive a binding in the format volume-name:container-dest
+		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
+		if driverConfig.VolumeDriver == "" {
+			// Expand path relative to alloc dir
+			parts[0] = filepath.Join(taskDir.Dir, parts[0])
+		}
+
 		binds = append(binds, strings.Join(parts, ":"))
 	}
 
@@ -761,6 +771,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
+
+		VolumeDriver: driverConfig.VolumeDriver,
 	}
 
 	// Windows does not support MemorySwap #2193
