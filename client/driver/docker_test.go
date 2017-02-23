@@ -1243,6 +1243,20 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 		}
 	}
 
+	// Volume Drivers should be rejected (error)
+	{
+		task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg, "fake_flocker_vol")
+		defer cleanup()
+		task.Config["volume_driver"] = "flocker"
+
+		if _, err := driver.Prestart(execCtx, task); err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
+		if _, err := driver.Start(execCtx, task); err == nil {
+			t.Fatalf("Started driver successfully when volume drivers should have been disabled.")
+		}
+	}
+
 }
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
