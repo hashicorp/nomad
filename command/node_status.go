@@ -284,6 +284,26 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	return c.formatNode(client, node)
 }
 
+func nodeDrivers(n *api.Node) []string {
+	var drivers []string
+	for k, v := range n.Attributes {
+		// driver.docker = 1
+		parts := strings.Split(k, ".")
+		if len(parts) != 2 {
+			continue
+		} else if parts[0] != "driver" {
+			continue
+		} else if v != "1" {
+			continue
+		}
+
+		drivers = append(drivers, parts[1])
+	}
+
+	sort.Strings(drivers)
+	return drivers
+}
+
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// Format the header output
 	basic := []string{
@@ -293,6 +313,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Status|%s", node.Status),
+		fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")),
 	}
 
 	if c.short {
