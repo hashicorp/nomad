@@ -209,15 +209,10 @@ The `docker` driver supports the following configuration in the job spec:
   ```hcl
     config {
       volumes = [
-        # Use absolute paths to mount arbitrary paths on the host
-        "/path/on/host:/path/in/container",
-
-        # Use relative paths to rebind paths already in the allocation dir
-        "relative/to/task:/also/in/container",
-
         # Use named volume created outside nomad.
         "name-of-the-volume:/path/in/container"
       ]
+      # Name of the Docker Volume Driver used by the container
       volume_driver = "flocker"
     }
     ```
