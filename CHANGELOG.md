@@ -1,5 +1,11 @@
 ## 0.5.5 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+  * driver/docker: The `load` configuration took an array of paths to images
+    prior to this release. A single image is expected by the driver so this
+    behavior has been changed to take a single path as a string. Jobs using the
+    `load` command should update the syntax to a single string.  [GH-2361]
+    
 IMPROVEMENTS:
   * core: Handle Serf Reap event [GH-2310]
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
