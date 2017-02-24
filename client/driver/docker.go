@@ -680,6 +680,10 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir 
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
 
+	if !volumesEnabled && driverConfig.VolumeDriver != "" {
+		return nil, fmt.Errorf("%s is false; cannot use volume driver %q", dockerVolumesConfigOption, driverConfig.VolumeDriver)
+	}
+
 	for _, userbind := range driverConfig.Volumes {
 		parts := strings.Split(userbind, ":")
 		if len(parts) < 2 {

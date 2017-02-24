@@ -204,7 +204,8 @@ The `docker` driver supports the following configuration in the job spec:
 * `volume_driver` - (Optional) The name of the volume driver used to mount
   volumes. Must be used along with `volumes`.
   Using a `volume_driver` also allows to use `volumes` with a named volume as
-  well as regular paths.
+  well as absolute paths. If `docker.volumes.enabled` is false then volume
+  drivers are disallowed.
 
   ```hcl
     config {
@@ -410,8 +411,9 @@ options](/docs/agent/configuration/client.html#options):
   prevent Nomad from removing images from stopped tasks.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
-  (`volumes`) inside their container. Binding relative paths is always allowed
-  and will be resolved relative to the allocation's directory.
+  (`volumes`) inside their container and use volume drivers (`volume_driver`).
+  Binding relative paths is always allowed and will be resolved relative to the
+  allocation's directory.
 
 * `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
   label to the allocation and task local bind-mounts to containers. If used
