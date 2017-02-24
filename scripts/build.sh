@@ -25,7 +25,7 @@ mkdir -p bin/
 targets=$TARGETS
 if [[ ! -v TARGETS ]]; then
     if [[ $(uname) == "Linux" ]]; then
-        targets="linux_386 linux_amd64 linux_amd64-lxc linux_arm linux_arm64 windows_386 windows_amd64 darwin_amd64"
+        targets="linux_386 linux_amd64 linux_amd64-lxc linux_arm linux_arm64 windows_386 windows_amd64"
     elif [[ $(uname) == "Darwin" ]]; then
 	targets="darwin_amd64"
     else
