@@ -233,6 +233,29 @@ func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
 	return val
 }
 
+// ReadDuration parses the specified option as a duration.
+func (c *Config) ReadDuration(id string) (time.Duration, error) {
+	val, ok := c.Options[id]
+	if !ok {
+		return time.Duration(0), fmt.Errorf("Specified config is missing from options")
+	}
+	dval, err := time.ParseDuration(val)
+	if err != nil {
+		return time.Duration(0), fmt.Errorf("Failed to parse %s as time duration: %s", val, err)
+	}
+	return dval, nil
+}
+
+// ReadDurationDefault tries to parse the specified option as a duration. If there is
+// an error in parsing, the default option is returned.
+func (c *Config) ReadDurationDefault(id string, defaultValue time.Duration) time.Duration {
+	val, err := c.ReadDuration(id)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
 // ReadStringListToMap tries to parse the specified option as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
