@@ -684,6 +684,10 @@ func (c *Command) setupTelemetry(config *Config) error {
 		cfg.CheckManager.Broker.ID = telConfig.CirconusBrokerID
 		cfg.CheckManager.Broker.SelectTag = telConfig.CirconusBrokerSelectTag
 
+		if cfg.CheckManager.Check.DisplayName == "" {
+			cfg.CheckManager.Check.DisplayName = "Nomad"
+		}
+
 		if cfg.CheckManager.API.TokenApp == "" {
 			cfg.CheckManager.API.TokenApp = "nomad"
 		}
