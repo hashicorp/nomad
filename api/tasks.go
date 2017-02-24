@@ -334,10 +334,13 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.ChangeMode == nil {
 		tmpl.ChangeMode = helper.StringToPtr("restart")
 	}
-	if *tmpl.ChangeMode == "signal" && tmpl.ChangeSignal == nil {
-		tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
-	}
-	if tmpl.ChangeSignal != nil {
+	if tmpl.ChangeSignal == nil {
+		if *tmpl.ChangeMode == "signal" {
+			tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
+		} else {
+			tmpl.ChangeSignal = helper.StringToPtr("")
+		}
+	} else {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
 	}
