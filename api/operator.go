@@ -45,7 +45,10 @@ type RaftConfiguration struct {
 
 // RaftGetConfiguration is used to query the current Raft peer set.
 func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, error) {
-	r := op.c.newRequest("GET", "/v1/operator/raft/configuration")
+	r, err := op.c.newRequest("GET", "/v1/operator/raft/configuration")
+	if err != nil {
+		return nil, err
+	}
 	r.setQueryOptions(q)
 	_, resp, err := requireOK(op.c.doRequest(r))
 	if err != nil {
@@ -64,7 +67,10 @@ func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, e
 // quorum but no longer known to Serf or the catalog) by address in the form of
 // "IP:port".
 func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) error {
-	r := op.c.newRequest("DELETE", "/v1/operator/raft/peer")
+	r, err := op.c.newRequest("DELETE", "/v1/operator/raft/peer")
+	if err != nil {
+		return err
+	}
 	r.setWriteOptions(q)
 
 	// TODO (alexdadgar) Currently we made address a query parameter. Once

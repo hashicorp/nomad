@@ -374,9 +374,12 @@ func (r *request) toHTTP() (*http.Request, error) {
 }
 
 // newRequest is used to create a new request
-func (c *Client) newRequest(method, path string) *request {
+func (c *Client) newRequest(method, path string) (*request, error) {
 	base, _ := url.Parse(c.config.Address)
-	u, _ := url.Parse(path)
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
 	r := &request{
 		config: &c.config,
 		method: method,
@@ -402,7 +405,7 @@ func (c *Client) newRequest(method, path string) *request {
 		}
 	}
 
-	return r
+	return r, nil
 }
 
 // multiCloser is to wrap a ReadCloser such that when close is called, multiple
@@ -463,7 +466,10 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 // rawQuery makes a GET request to the specified endpoint but returns just the
 // response body.
 func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, error) {
-	r := c.newRequest("GET", endpoint)
+	r, err := c.newRequest("GET", endpoint)
+	if err != nil {
+		return nil, err
+	}
 	r.setQueryOptions(q)
 	_, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
@@ -477,7 +483,10 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 // and deserialize the response into an interface using
 // standard Nomad conventions.
 func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
-	r := c.newRequest("GET", endpoint)
+	r, err := c.newRequest("GET", endpoint)
+	if err != nil {
+		return nil, err
+	}
 	r.setQueryOptions(q)
 	rtt, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
@@ -498,7 +507,10 @@ func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*Quer
 // write is used to do a PUT request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
 func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
-	r := c.newRequest("PUT", endpoint)
+	r, err := c.newRequest("PUT", endpoint)
+	if err != nil {
+		return nil, err
+	}
 	r.setWriteOptions(q)
 	r.obj = in
 	rtt, resp, err := requireOK(c.doRequest(r))
@@ -518,10 +530,13 @@ func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*
 	return wm, nil
 }
 
-// write is used to do a PUT request against an endpoint
+// delete is used to do a DELETE request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
 func (c *Client) delete(endpoint string, out interface{}, q *WriteOptions) (*WriteMeta, error) {
-	r := c.newRequest("DELETE", endpoint)
+	r, err := c.newRequest("DELETE", endpoint)
+	if err != nil {
+		return nil, err
+	}
 	r.setWriteOptions(q)
 	rtt, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
