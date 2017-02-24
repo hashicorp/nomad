@@ -386,6 +386,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Periodic: &PeriodicConfig{
 					Enabled:         helper.BoolToPtr(true),
+					Spec:            helper.StringToPtr(""),
 					SpecType:        helper.StringToPtr(PeriodicSpecCron),
 					ProhibitOverlap: helper.BoolToPtr(false),
 					TimeZone:        helper.StringToPtr("UTC"),
