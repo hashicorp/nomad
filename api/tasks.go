@@ -268,32 +268,32 @@ type Task struct {
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
-	if t.LogConfig == nil {
-		t.LogConfig = DefaultLogConfig()
-	} else {
-		t.LogConfig.Canonicalize()
-	}
-	if t.Vault != nil {
-		t.Vault.Canonicalize()
-	}
-	for _, artifact := range t.Artifacts {
-		artifact.Canonicalize()
-	}
-	for _, tmpl := range t.Templates {
-		tmpl.Canonicalize()
-	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
-	}
-
-	if t.KillTimeout == nil {
-		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
 	}
 
 	min := MinResources()
 	min.Merge(t.Resources)
 	min.Canonicalize()
 	t.Resources = min
+
+	if t.KillTimeout == nil {
+		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
+	}
+	if t.LogConfig == nil {
+		t.LogConfig = DefaultLogConfig()
+	} else {
+		t.LogConfig.Canonicalize()
+	}
+	for _, artifact := range t.Artifacts {
+		artifact.Canonicalize()
+	}
+	if t.Vault != nil {
+		t.Vault.Canonicalize()
+	}
+	for _, tmpl := range t.Templates {
+		tmpl.Canonicalize()
+	}
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -322,21 +322,33 @@ type Template struct {
 }
 
 func (tmpl *Template) Canonicalize() {
+	if tmpl.SourcePath == nil {
+		tmpl.SourcePath = helper.StringToPtr("")
+	}
+	if tmpl.DestPath == nil {
+		tmpl.DestPath = helper.StringToPtr("")
+	}
+	if tmpl.EmbeddedTmpl == nil {
+		tmpl.EmbeddedTmpl = helper.StringToPtr("")
+	}
 	if tmpl.ChangeMode == nil {
 		tmpl.ChangeMode = helper.StringToPtr("restart")
+	}
+	if tmpl.ChangeSignal == nil {
+		if *tmpl.ChangeMode == "signal" {
+			tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
+		} else {
+			tmpl.ChangeSignal = helper.StringToPtr("")
+		}
+	} else {
+		sig := *tmpl.ChangeSignal
+		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
 	}
 	if tmpl.Splay == nil {
 		tmpl.Splay = helper.TimeToPtr(5 * time.Second)
 	}
 	if tmpl.Perms == nil {
 		tmpl.Perms = helper.StringToPtr("0644")
-	}
-	if *tmpl.ChangeMode == "signal" && tmpl.ChangeSignal == nil {
-		tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
-	}
-	if tmpl.ChangeSignal != nil {
-		sig := *tmpl.ChangeSignal
-		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
 	}
 	if tmpl.LeftDelim == nil {
 		tmpl.LeftDelim = helper.StringToPtr("{{")
