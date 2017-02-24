@@ -234,6 +234,9 @@ func (p *PeriodicConfig) Canonicalize() {
 	if p.Enabled == nil {
 		p.Enabled = helper.BoolToPtr(true)
 	}
+	if p.Spec == nil {
+		p.Spec = helper.StringToPtr("")
+	}
 	if p.SpecType == nil {
 		p.SpecType = helper.StringToPtr(PeriodicSpecCron)
 	}
