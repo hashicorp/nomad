@@ -268,32 +268,32 @@ type Task struct {
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
-	if t.LogConfig == nil {
-		t.LogConfig = DefaultLogConfig()
-	} else {
-		t.LogConfig.Canonicalize()
-	}
-	if t.Vault != nil {
-		t.Vault.Canonicalize()
-	}
-	for _, artifact := range t.Artifacts {
-		artifact.Canonicalize()
-	}
-	for _, tmpl := range t.Templates {
-		tmpl.Canonicalize()
-	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
-	}
-
-	if t.KillTimeout == nil {
-		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
 	}
 
 	min := MinResources()
 	min.Merge(t.Resources)
 	min.Canonicalize()
 	t.Resources = min
+
+	if t.KillTimeout == nil {
+		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
+	}
+	if t.LogConfig == nil {
+		t.LogConfig = DefaultLogConfig()
+	} else {
+		t.LogConfig.Canonicalize()
+	}
+	for _, artifact := range t.Artifacts {
+		artifact.Canonicalize()
+	}
+	if t.Vault != nil {
+		t.Vault.Canonicalize()
+	}
+	for _, tmpl := range t.Templates {
+		tmpl.Canonicalize()
+	}
 }
 
 // TaskArtifact is used to download artifacts before running a task.

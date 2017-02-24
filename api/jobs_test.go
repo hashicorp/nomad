@@ -195,6 +195,176 @@ func TestJobs_Canonicalize(t *testing.T) {
 			},
 		},
 		{
+			name: "example_template",
+			input: &Job{
+				ID:          helper.StringToPtr("example_template"),
+				Name:        helper.StringToPtr("example_template"),
+				Datacenters: []string{"dc1"},
+				Type:        helper.StringToPtr("service"),
+				Update: &UpdateStrategy{
+					Stagger:     10 * time.Second,
+					MaxParallel: 1,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  helper.StringToPtr("cache"),
+						Count: helper.IntToPtr(1),
+						RestartPolicy: &RestartPolicy{
+							Interval: helper.TimeToPtr(5 * time.Minute),
+							Attempts: helper.IntToPtr(10),
+							Delay:    helper.TimeToPtr(25 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
+						},
+						EphemeralDisk: &EphemeralDisk{
+							SizeMB: helper.IntToPtr(300),
+						},
+						Tasks: []*Task{
+							{
+								Name:   "redis",
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"image": "redis:3.2",
+									"port_map": map[string]int{
+										"db": 6379,
+									},
+								},
+								Resources: &Resources{
+									CPU:      helper.IntToPtr(500),
+									MemoryMB: helper.IntToPtr(256),
+									Networks: []*NetworkResource{
+										{
+											MBits: helper.IntToPtr(10),
+											DynamicPorts: []Port{
+												{
+													Label: "db",
+												},
+											},
+										},
+									},
+								},
+								Services: []Service{
+									{
+										Name:      "global-redis-check",
+										Tags:      []string{"global", "cache"},
+										PortLabel: "db",
+										Checks: []ServiceCheck{
+											{
+												Name:     "alive",
+												Type:     "tcp",
+												Interval: 10 * time.Second,
+												Timeout:  2 * time.Second,
+											},
+										},
+									},
+								},
+								Templates: []*Template{
+									{
+										EmbeddedTmpl: helper.StringToPtr("---"),
+										DestPath:     helper.StringToPtr("local/file.yml"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				ID:                helper.StringToPtr("example_template"),
+				Name:              helper.StringToPtr("example_template"),
+				ParentID:          helper.StringToPtr(""),
+				Priority:          helper.IntToPtr(50),
+				Region:            helper.StringToPtr("global"),
+				Type:              helper.StringToPtr("service"),
+				AllAtOnce:         helper.BoolToPtr(false),
+				VaultToken:        helper.StringToPtr(""),
+				Status:            helper.StringToPtr(""),
+				StatusDescription: helper.StringToPtr(""),
+				CreateIndex:       helper.Uint64ToPtr(0),
+				ModifyIndex:       helper.Uint64ToPtr(0),
+				JobModifyIndex:    helper.Uint64ToPtr(0),
+				Datacenters:       []string{"dc1"},
+				Update: &UpdateStrategy{
+					Stagger:     10 * time.Second,
+					MaxParallel: 1,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  helper.StringToPtr("cache"),
+						Count: helper.IntToPtr(1),
+						RestartPolicy: &RestartPolicy{
+							Interval: helper.TimeToPtr(5 * time.Minute),
+							Attempts: helper.IntToPtr(10),
+							Delay:    helper.TimeToPtr(25 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
+						},
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  helper.BoolToPtr(false),
+							Migrate: helper.BoolToPtr(false),
+							SizeMB:  helper.IntToPtr(300),
+						},
+						Tasks: []*Task{
+							{
+								Name:   "redis",
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"image": "redis:3.2",
+									"port_map": map[string]int{
+										"db": 6379,
+									},
+								},
+								Resources: &Resources{
+									CPU:      helper.IntToPtr(500),
+									MemoryMB: helper.IntToPtr(256),
+									IOPS:     helper.IntToPtr(0),
+									Networks: []*NetworkResource{
+										{
+											MBits: helper.IntToPtr(10),
+											DynamicPorts: []Port{
+												{
+													Label: "db",
+												},
+											},
+										},
+									},
+								},
+								Services: []Service{
+									{
+										Name:      "global-redis-check",
+										Tags:      []string{"global", "cache"},
+										PortLabel: "db",
+										Checks: []ServiceCheck{
+											{
+												Name:     "alive",
+												Type:     "tcp",
+												Interval: 10 * time.Second,
+												Timeout:  2 * time.Second,
+											},
+										},
+									},
+								},
+								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								LogConfig:   DefaultLogConfig(),
+								Templates: []*Template{
+									{
+										SourcePath:   helper.StringToPtr(""),
+										DestPath:     helper.StringToPtr("local/file.yml"),
+										EmbeddedTmpl: helper.StringToPtr("---"),
+										ChangeMode:   helper.StringToPtr("restart"),
+										ChangeSignal: helper.StringToPtr(""),
+										Splay:        helper.TimeToPtr(5 * time.Second),
+										Perms:        helper.StringToPtr("0644"),
+										LeftDelim:    helper.StringToPtr("{{"),
+										RightDelim:   helper.StringToPtr("}}"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
 			name: "periodic",
 			input: &Job{
 				ID:       helper.StringToPtr("bar"),
