@@ -322,14 +322,17 @@ type Template struct {
 }
 
 func (tmpl *Template) Canonicalize() {
+	if tmpl.SourcePath == nil {
+		tmpl.SourcePath = helper.StringToPtr("")
+	}
+	if tmpl.DestPath == nil {
+		tmpl.DestPath = helper.StringToPtr("")
+	}
+	if tmpl.EmbeddedTmpl == nil {
+		tmpl.EmbeddedTmpl = helper.StringToPtr("")
+	}
 	if tmpl.ChangeMode == nil {
 		tmpl.ChangeMode = helper.StringToPtr("restart")
-	}
-	if tmpl.Splay == nil {
-		tmpl.Splay = helper.TimeToPtr(5 * time.Second)
-	}
-	if tmpl.Perms == nil {
-		tmpl.Perms = helper.StringToPtr("0644")
 	}
 	if *tmpl.ChangeMode == "signal" && tmpl.ChangeSignal == nil {
 		tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
@@ -337,6 +340,12 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.ChangeSignal != nil {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
+	}
+	if tmpl.Splay == nil {
+		tmpl.Splay = helper.TimeToPtr(5 * time.Second)
+	}
+	if tmpl.Perms == nil {
+		tmpl.Perms = helper.StringToPtr("0644")
 	}
 	if tmpl.LeftDelim == nil {
 		tmpl.LeftDelim = helper.StringToPtr("{{")
