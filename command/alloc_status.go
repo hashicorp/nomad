@@ -417,7 +417,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	if stats != nil {
 		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 			if cs := ru.ResourceUsage.CpuStats; cs != nil {
-				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), resource.CPU)
+				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), cpuUsage)
 			}
 			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
 				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
