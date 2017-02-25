@@ -38,6 +38,8 @@ the following Nomad configuration file:
 ```hcl
 # /etc/nomad.d/server.hcl
 
+data_dir = "/etc/nomad.d"
+
 server {
   enabled          = true
   bootstrap_expect = 3
@@ -56,6 +58,7 @@ A similar configuration is available for Nomad clients:
 # /etc/nomad.d/client.hcl
 
 datacenter = "dc1"
+data_dir   = "/etc/nomad.d"
 
 client {
   enabled = true
