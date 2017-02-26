@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-sockaddr/template"
 
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
@@ -692,22 +695,45 @@ func (c *Config) Merge(b *Config) *Config {
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
 // initialized and have sane defaults.
 func (c *Config) normalizeAddrs() error {
-	c.Addresses.HTTP = normalizeBind(c.Addresses.HTTP, c.BindAddr)
-	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
-	c.Addresses.Serf = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	if c.BindAddr != "" {
+		ipStr, err := parseSingleIPTemplate(c.BindAddr)
+		if err != nil {
+			return fmt.Errorf("Bind address resolution failed: %v", err)
+		}
+		c.BindAddr = ipStr
+	}
+
+	addr, err := normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse HTTP address: %v", err)
+	}
+	c.Addresses.HTTP = addr
+
+	addr, err = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse RPC address: %v", err)
+	}
+	c.Addresses.RPC = addr
+
+	addr, err = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse Serf address: %v", err)
+	}
+	c.Addresses.Serf = addr
+
 	c.normalizedAddrs = &Addresses{
 		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
 		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err := normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
 	}
 	c.AdvertiseAddrs.HTTP = addr
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC)
 	if err != nil {
 		return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
 	}
@@ -715,7 +741,7 @@ func (c *Config) normalizeAddrs() error {
 
 	// Skip serf if server is disabled
 	if c.Server != nil && c.Server.Enabled {
-		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf)
 		if err != nil {
 			return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
 		}
@@ -725,14 +751,34 @@ func (c *Config) normalizeAddrs() error {
 	return nil
 }
 
+// parseSingleIPTemplate is used as a helper function to parse out a single IP
+// address from a config parameter.
+func parseSingleIPTemplate(ipTmpl string) (string, error) {
+	out, err := template.Parse(ipTmpl)
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+	}
+
+	ips := strings.Split(out, " ")
+	switch len(ips) {
+	case 0:
+		return "", errors.New("No addresses found, please configure one.")
+	case 1:
+		return ips[0], nil
+	default:
+		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
+	}
+}
+
 // normalizeBind returns a normalized bind address.
 //
 // If addr is set it is used, if not the default bind address is used.
-func normalizeBind(addr, bind string) string {
+func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
-		return bind
+		return bind, nil
+	} else {
+		return parseSingleIPTemplate(addr)
 	}
-	return addr
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -747,61 +793,28 @@ func normalizeBind(addr, bind string) string {
 // is resolved and returned with the port.
 //
 // Loopback is only considered a valid advertise address in dev mode.
-func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
+func normalizeAdvertise(addr string, bind string, defport int) (string, error) {
 	if addr != "" {
 		// Default to using manually configured address
-		_, _, err := net.SplitHostPort(addr)
+		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
 			if !isMissingPort(err) {
 				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
-
-			// missing port, append the default
-			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
+			host = addr
+			port = strconv.Itoa(defport)
 		}
-		return addr, nil
-	}
 
-	// Fallback to bind address first, and then try resolving the local hostname
-	ips, err := net.LookupIP(bind)
-	if err != nil {
-		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
-	}
-
-	// Return the first unicast address
-	for _, ip := range ips {
-		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		ipStr, err := parseSingleIPTemplate(host)
+		if err != nil {
+			return "", fmt.Errorf("Error parsing advertise address template: %v", err)
 		}
-		if ip.IsLoopback() && dev {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
-		}
+
+		return net.JoinHostPort(ipStr, port), nil
 	}
 
-	// As a last resort resolve the hostname and use it if it's not
-	// localhost (as localhost is never a sensible default)
-	host, err := os.Hostname()
-	if err != nil {
-		return "", fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
-	}
-
-	ips, err = net.LookupIP(host)
-	if err != nil {
-		return "", fmt.Errorf("Error resolving hostname %q for advertise address: %v", host, err)
-	}
-
-	// Return the first unicast address
-	for _, ip := range ips {
-		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
-		}
-		if ip.IsLoopback() && dev {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
-		}
-	}
-	return "", fmt.Errorf("No valid advertise addresses, please set `advertise` manually")
+	// Fallback to bind address, as it has been resolved before.
+	return net.JoinHostPort(bind, strconv.Itoa(defport)), nil
 }
 
 // isMissingPort returns true if an error is a "missing port" error from
