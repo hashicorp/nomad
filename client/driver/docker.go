@@ -1196,6 +1196,8 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		executor:       exec,
 		pluginClient:   pluginClient,
 		logger:         d.logger,
+		Image:          pid.Image,
+		ImageID:        pid.ImageID,
 		containerID:    pid.ContainerID,
 		version:        pid.Version,
 		killTimeout:    pid.KillTimeout,
