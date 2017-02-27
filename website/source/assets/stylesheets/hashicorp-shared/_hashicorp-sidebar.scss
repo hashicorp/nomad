@@ -143,11 +143,9 @@ $sidebar-icon-height: 20px;
   }
 
   .sidebar-image {
-    padding-top: 24px;
-    img {
-      display: block;
-      margin: 0 auto;
-    }
+    width: 153px;
+    height: 56px;
+    margin: 24px auto 14px auto;
   }
 
 
@@ -249,17 +247,6 @@ $sidebar-icon-height: 20px;
   .sidebar.open {
     min-width: $sidebar-width;
     width: $sidebar-width;
-  }
-
-  .sidebar .sidebar-header {
-    //height: $sidebar-width * 9/16; // 16:9 header dimension
-  }
-
-  .sidebar .sidebar-image {
-    /* img {
-    width: $sidebar-width/4 - $sidebar-padding;
-    height: $sidebar-width/4 - $sidebar-padding;
-  } */
   }
 }
 

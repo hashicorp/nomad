@@ -7,7 +7,7 @@
     <div class="sidebar-header header-cover">
         <!-- Sidebar brand image -->
         <div class="sidebar-image">
-            <img src="<%= image_path('logo-header@2x.png') %>" width="49px" height="56px">
+          <%= File.read(self.root_path.join("source/assets/images/logo-header.svg")) %>
         </div>
     </div>
 
