@@ -143,4 +143,4 @@ consul {
 ```
 
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
-[bootstrap]: /docs/cluster/automatic.html "Automatic Bootstrapping"
+[bootstrap]: /guides/cluster/automatic.html "Automatic Bootstrapping"

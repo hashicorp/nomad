@@ -175,7 +175,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](/docs/cluster/automatic.html).
+[automatic Nomad bootstrapping documentation](/guides/cluster/automatic.html).
 
 ### Restricting Schedulers
 
