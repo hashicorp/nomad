@@ -68,6 +68,14 @@ server {
   terminal state before it is garbage collected and purged from the system. This
   is specified using a label suffix like "30s" or "1h".
 
+- `job_gc_threshold` `(string: "4h")` - Specifies the minimum time a job must be
+  in the terminal state before it is eligible for garbage collection. This is
+  specified using a label suffix like "30s" or "1h".
+
+- `eval_gc_threshold` `(string: "1h")` - Specifies the minimum time an
+  evaluation must be in the terminal state before it is eligible for garbage
+  collection. This is specified using a label suffix like "30s" or "1h".
+
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
   disallow this server from making any scheduling decisions. This defaults to

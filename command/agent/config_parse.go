@@ -498,6 +498,8 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"num_schedulers",
 		"enabled_schedulers",
 		"node_gc_threshold",
+		"eval_gc_threshold",
+		"job_gc_threshold",
 		"heartbeat_grace",
 		"start_join",
 		"retry_join",

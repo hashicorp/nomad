@@ -238,7 +238,19 @@ type ServerConfig struct {
 	EnabledSchedulers []string `mapstructure:"enabled_schedulers"`
 
 	// NodeGCThreshold controls how "old" a node must be to be collected by GC.
+	// Age is not the only requirement for a node to be GCed but the threshold
+	// can be used to filter by age.
 	NodeGCThreshold string `mapstructure:"node_gc_threshold"`
+
+	// JobGCThreshold controls how "old" a job must be to be collected by GC.
+	// Age is not the only requirement for a Job to be GCed but the threshold
+	// can be used to filter by age.
+	JobGCThreshold string `mapstructure:"job_gc_threshold"`
+
+	// EvalGCThreshold controls how "old" an eval must be to be collected by GC.
+	// Age is not the only requirement for a eval to be GCed but the threshold
+	// can be used to filter by age.
+	EvalGCThreshold string `mapstructure:"eval_gc_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
@@ -833,6 +845,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
+	}
+	if b.JobGCThreshold != "" {
+		result.JobGCThreshold = b.JobGCThreshold
+	}
+	if b.EvalGCThreshold != "" {
+		result.EvalGCThreshold = b.EvalGCThreshold
 	}
 	if b.HeartbeatGrace != "" {
 		result.HeartbeatGrace = b.HeartbeatGrace

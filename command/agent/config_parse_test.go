@@ -82,6 +82,8 @@ func TestConfig_Parse(t *testing.T) {
 					NumSchedulers:     2,
 					EnabledSchedulers: []string{"test"},
 					NodeGCThreshold:   "12h",
+					EvalGCThreshold:   "12h",
+					JobGCThreshold:    "12h",
 					HeartbeatGrace:    "30s",
 					RetryJoin:         []string{"1.1.1.1", "2.2.2.2"},
 					StartJoin:         []string{"1.1.1.1", "2.2.2.2"},
