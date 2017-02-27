@@ -89,7 +89,7 @@ if [ -z "$NO_UPLOAD" ]; then
     modify "s3://hc-sites/$PROJECT/latest/"
 fi
 
-# Perform a soft-purge of the surrogate key.
+# Perform a purge of the surrogate key.
 if [ -z "$NO_PURGE" ]; then
   echo "Purging Fastly cache..."
   curl \
@@ -99,7 +99,6 @@ if [ -z "$NO_PURGE" ]; then
     --request "POST" \
     --header "Accept: application/json" \
     --header "Fastly-Key: $FASTLY_API_KEY" \
-    --header "Fastly-Soft-Purge: 1" \
     "https://api.fastly.com/service/$FASTLY_SERVICE_ID/purge/site-$PROJECT"
 fi
 
