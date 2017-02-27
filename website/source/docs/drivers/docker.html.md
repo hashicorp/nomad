@@ -33,7 +33,9 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `image` - The Docker image to run. The image may include a tag or custom URL
   and should include `https://` if required. By default it will be fetched from
-  Docker Hub.
+  Docker Hub. If the image to be pulled exists in a registry that requires
+  authentication credentials must be provided to Nomad. Please see the
+  [Authentication section](#authentication).
 
     ```hcl
     config {
@@ -201,13 +203,14 @@ The `docker` driver supports the following configuration in the job spec:
       ]
     }
     ```
+
 * `volume_driver` - (Optional) The name of the volume driver used to mount
   volumes. Must be used along with `volumes`.
   Using a `volume_driver` also allows to use `volumes` with a named volume as
   well as absolute paths. If `docker.volumes.enabled` is false then volume
   drivers are disallowed.
 
-  ```hcl
+    ```hcl
     config {
       volumes = [
         # Use named volume created outside nomad.
@@ -232,7 +235,9 @@ This is not configurable.
 ### Authentication
 
 If you want to pull from a private repo (for example on dockerhub or quay.io),
-you will need to specify credentials in your job via the `auth` option.
+you will need to specify credentials in your job via the `auth` option or by
+storing the credentials in a file and setting the
+[docker.auth.config](#auth_file) value on the client.
 
 The `auth` object supports the following keys:
 
@@ -389,8 +394,9 @@ options](/docs/agent/configuration/client.html#options):
   to customize this if you use a non-standard socket (HTTP or another
   location).
 
-* `docker.auth.config` - Allows an operator to specify a JSON file which is in
-  the dockercfg format containing authentication information for a private registry.
+* `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
+  JSON file which is in the dockercfg format containing authentication
+  information for a private registry.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
