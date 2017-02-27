@@ -2853,7 +2853,7 @@ const (
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
 
-	// TaskBuildingTaskDir indicates that the task direcotry/chroot is being
+	// TaskBuildingTaskDir indicates that the task directory/chroot is being
 	// built.
 	TaskBuildingTaskDir = "Building Task Directory"
 
