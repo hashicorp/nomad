@@ -73,6 +73,7 @@ func TestConfig_Parse(t *testing.T) {
 					GCInterval:            6 * time.Second,
 					GCDiskUsageThreshold:  82,
 					GCInodeUsageThreshold: 91,
+					NoHostUUID:            true,
 				},
 				Server: &ServerConfig{
 					Enabled:           true,

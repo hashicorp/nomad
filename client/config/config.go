@@ -165,6 +165,10 @@ type Config struct {
 
 	// LogLevel is the level of the logs to putout
 	LogLevel string
+
+	// NoHostUUID disables using the host's UUID and will force generation of a
+	// random UUID.
+	NoHostUUID bool
 }
 
 func (c *Config) Copy() *Config {

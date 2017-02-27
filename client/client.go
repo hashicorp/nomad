@@ -639,7 +639,7 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 func (c *Client) nodeID() (id, secret string, err error) {
 	var hostID string
 	hostInfo, err := host.Info()
-	if err == nil && helper.IsUUID(hostInfo.HostID) {
+	if !c.config.NoHostUUID && err == nil && helper.IsUUID(hostInfo.HostID) {
 		hostID = hostInfo.HostID
 	} else {
 		// Generate a random hostID if no constant ID is available on

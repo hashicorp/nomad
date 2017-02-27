@@ -312,6 +312,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.GCInterval = a.config.Client.GCInterval
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
+	conf.NoHostUUID = a.config.Client.NoHostUUID
 
 	return conf, nil
 }

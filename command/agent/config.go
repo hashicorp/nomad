@@ -209,6 +209,10 @@ type ClientConfig struct {
 	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
 	// client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64 `mapstructure:"gc_inode_usage_threshold"`
+
+	// NoHostUUID disables using the host's UUID and will force generation of a
+	// random UUID.
+	NoHostUUID bool `mapstructure:"no_host_uuid"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -930,6 +934,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCInodeUsageThreshold != 0 {
 		result.GCInodeUsageThreshold = b.GCInodeUsageThreshold
+	}
+	if b.NoHostUUID {
+		result.NoHostUUID = b.NoHostUUID
 	}
 
 	// Add the servers

@@ -7,6 +7,7 @@ data_dir = "/tmp/client2"
 # Enable the client
 client {
     enabled = true
+    no_host_uuid = true
 
     # For demo assume we are talking to server1. For production,
     # this should be like "nomad.service.consul:4647" and a system
