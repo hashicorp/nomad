@@ -38,6 +38,9 @@ const (
 	// AllocName is the environment variable for passing the allocation name.
 	AllocName = "NOMAD_ALLOC_NAME"
 
+	// TaskCount is the environment variable for passing the task group count.
+	TaskGroupCount = "NOMAD_TASK_GROUP_COUNT"
+
 	// TaskName is the environment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
 
@@ -95,6 +98,7 @@ type TaskEnvironment struct {
 	AllocIndex       int
 	AllocId          string
 	AllocName        string
+	TaskGroupCount   int
 	Node             *structs.Node
 	Networks         []*structs.NetworkResource
 	PortMap          map[string]int
@@ -193,6 +197,9 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	}
 	if t.JobName != "" {
 		t.TaskEnv[JobName] = t.JobName
+	}
+	if t.TaskGroupCount != -1 {
+		t.TaskEnv[TaskGroupCount] = strconv.Itoa(t.TaskGroupCount)
 	}
 
 	// Build the addr of the other tasks
@@ -418,12 +425,17 @@ func (t *TaskEnvironment) SetAlloc(alloc *structs.Allocation) *TaskEnvironment {
 	t.AllocName = alloc.Name
 	t.AllocIndex = alloc.Index()
 	t.Alloc = alloc
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg != nil {
+		t.TaskGroupCount = tg.Count
+	}
+
 	return t
 }
 
 // Helper method for clearing all fields from an allocation.
 func (t *TaskEnvironment) ClearAlloc(alloc *structs.Allocation) *TaskEnvironment {
-	return t.ClearAllocId().ClearAllocName().ClearAllocIndex()
+	return t.ClearAllocId().ClearAllocName().ClearAllocIndex().ClearTaskGroupCount()
 }
 
 func (t *TaskEnvironment) SetAllocIndex(index int) *TaskEnvironment {
@@ -453,6 +465,16 @@ func (t *TaskEnvironment) SetAllocName(name string) *TaskEnvironment {
 
 func (t *TaskEnvironment) ClearAllocName() *TaskEnvironment {
 	t.AllocName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetTaskGroupCount(count int) *TaskEnvironment {
+	t.TaskGroupCount = count
+	return t
+}
+
+func (t *TaskEnvironment) ClearTaskGroupCount() *TaskEnvironment {
+	t.TaskGroupCount = -1
 	return t
 }
 
