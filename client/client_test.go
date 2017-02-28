@@ -670,8 +670,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		ar := c2.allocs[alloc1.ID]
 		c2.allocLock.RUnlock()
 		status := ar.Alloc().ClientStatus
-		alive := status != structs.AllocClientStatusRunning ||
-			status != structs.AllocClientStatusPending
+		alive := status == structs.AllocClientStatusRunning || status == structs.AllocClientStatusPending
 		if !alive {
 			return false, fmt.Errorf("incorrect client status: %#v", ar.Alloc())
 		}

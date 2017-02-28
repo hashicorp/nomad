@@ -33,8 +33,8 @@ var (
 	networks = []*structs.NetworkResource{
 		&structs.NetworkResource{
 			IP:            "127.0.0.1",
-			ReservedPorts: []structs.Port{{"http", 80}},
-			DynamicPorts:  []structs.Port{{"https", 8080}},
+			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
+			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
 		},
 	}
 	portMap = map[string]int{

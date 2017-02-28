@@ -899,6 +899,6 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	if !strings.Contains(harness.mockHooks.KillReason, "Sending signals") {
-		t.Fatalf("Unexpected error", harness.mockHooks.KillReason)
+		t.Fatalf("Unexpected error: %v", harness.mockHooks.KillReason)
 	}
 }

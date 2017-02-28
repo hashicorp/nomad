@@ -354,7 +354,7 @@ while true; do
 done
 	`)
 	if err := ioutil.WriteFile(testFile, testData, 0777); err != nil {
-		fmt.Errorf("Failed to write data")
+		t.Fatalf("Failed to write data: %v", err)
 	}
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {

@@ -80,7 +80,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	// Initialize the port listing. This should be done by the offer process but
 	// we have a mock so that doesn't happen.
-	task.Resources.Networks[0].ReservedPorts = []structs.Port{{"", 80}}
+	task.Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "", Value: 80}}
 
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
@@ -1018,7 +1018,7 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 func TestTaskRunner_Template_Artifact(t *testing.T) {
 	dir, err := os.Getwd()
 	if err != nil {
-		t.Fatal("bad: %v", err)
+		t.Fatalf("bad: %v", err)
 	}
 
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, ".."))))

@@ -238,7 +238,7 @@ func (s *Server) restoreRevokingAccessors() error {
 		// Check the allocation
 		alloc, err := state.AllocByID(ws, va.AllocID)
 		if err != nil {
-			return fmt.Errorf("failed to lookup allocation: %v", va.AllocID, err)
+			return fmt.Errorf("failed to lookup allocation %q: %v", va.AllocID, err)
 		}
 		if alloc == nil || alloc.Terminated() {
 			// No longer running and should be revoked

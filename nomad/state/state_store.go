@@ -744,7 +744,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		// Get the blocked evaluation for a job if it exists
 		iter, err := txn.Get("evals", "job", eval.JobID, structs.EvalStatusBlocked)
 		if err != nil {
-			return fmt.Errorf("failed to get blocked evals for job %q", eval.JobID, err)
+			return fmt.Errorf("failed to get blocked evals for job %q: %v", eval.JobID, err)
 		}
 
 		var blocked []*structs.Evaluation
@@ -1708,7 +1708,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 
 	summaryRaw, err := txn.First("job_summary", "id", alloc.JobID)
 	if err != nil {
-		return fmt.Errorf("unable to lookup job summary for job id %q: %v", err)
+		return fmt.Errorf("unable to lookup job summary for job id %q: %v", alloc.JobID, err)
 	}
 
 	if summaryRaw == nil {

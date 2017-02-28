@@ -875,10 +875,10 @@ func TestJobs_JobSummary(t *testing.T) {
 
 	// Check that the result is what we expect
 	if *job.ID != result.JobID {
-		t.Fatalf("err: expected job id of %s saw %s", job.ID, result.JobID)
+		t.Fatalf("err: expected job id of %s saw %s", *job.ID, result.JobID)
 	}
 	if _, ok := result.Summary[*taskName]; !ok {
-		t.Fatalf("err: unable to find %s key in job summary", taskName)
+		t.Fatalf("err: unable to find %s key in job summary", *taskName)
 	}
 }
 

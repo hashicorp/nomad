@@ -445,7 +445,7 @@ An example is given below:
 
 ```hcl
 client {
-  options = {
+  options {
     "docker.cleanup.image" = "false"
   }
 }

@@ -684,7 +684,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 	}
 	var resp structs.GenericResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.Reblock", get, &resp); err == nil {
-		t.Fatalf("should error since eval was not in blocked state", err)
+		t.Fatalf("should error since eval was not in blocked state: %v", err)
 	}
 }
 

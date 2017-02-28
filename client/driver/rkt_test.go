@@ -452,7 +452,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{"main", 8080}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
 				},
 			},
 		},

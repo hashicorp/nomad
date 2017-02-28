@@ -637,7 +637,6 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 			}
 
 			// Cancel the context
-			cancel()
 			close(unblock)
 		}()
 	}
@@ -646,6 +645,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
 	case <-unblock:
+		cancel()
 	}
 
 	desired := numRequests - 1
