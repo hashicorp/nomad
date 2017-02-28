@@ -129,6 +129,11 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Make sure there is no future still
+	if _, ok := coordinator.deleteFuture[id]; ok {
+		t.Fatal("Got delete future")
+	}
 }
 
 func TestDockerCoordinator_Remove_Cancel(t *testing.T) {

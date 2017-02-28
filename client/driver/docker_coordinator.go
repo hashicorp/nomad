@@ -275,6 +275,14 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: cleanup removed downloaded image: %q", id)
+
+	// Cleanup the future from the map and free the context by cancelling it
+	d.imageLock.Lock()
+	if cancel, ok := d.deleteFuture[id]; ok {
+		delete(d.deleteFuture, id)
+		cancel()
+	}
+	d.imageLock.Unlock()
 }
 
 // recoverablePullError wraps the error gotten when trying to pull and image if
