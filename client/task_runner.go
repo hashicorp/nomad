@@ -874,6 +874,18 @@ func (r *TaskRunner) run() {
 	var stopCollection chan struct{}
 	var handleWaitCh chan *dstructs.WaitResult
 
+	// If we already have a handle, populate the stopCollection and handleWaitCh
+	// to fix the invariant that it exists.
+	r.handleLock.Lock()
+	handleEmpty := r.handle == nil
+	r.handleLock.Unlock()
+
+	if !handleEmpty {
+		stopCollection = make(chan struct{})
+		go r.collectResourceUsageStats(stopCollection)
+		handleWaitCh = r.handle.WaitCh()
+	}
+
 	for {
 		// Do the prestart activities
 		prestartResultCh := make(chan bool, 1)
@@ -895,7 +907,6 @@ func (r *TaskRunner) run() {
 				r.handleLock.Lock()
 				handleEmpty := r.handle == nil
 				r.handleLock.Unlock()
-
 				if handleEmpty {
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
@@ -909,14 +920,14 @@ func (r *TaskRunner) run() {
 					r.runningLock.Lock()
 					r.running = true
 					r.runningLock.Unlock()
-				}
 
-				if stopCollection == nil {
-					stopCollection = make(chan struct{})
-					go r.collectResourceUsageStats(stopCollection)
-				}
+					if stopCollection == nil {
+						stopCollection = make(chan struct{})
+						go r.collectResourceUsageStats(stopCollection)
+					}
 
-				handleWaitCh = r.handle.WaitCh()
+					handleWaitCh = r.handle.WaitCh()
+				}
 
 			case waitRes := <-handleWaitCh:
 				if waitRes == nil {
