@@ -1,6 +1,6 @@
 {
 	"comment": "",
-	"ignore": "test",
+	"ignore": "test appengine",
 	"package": [
 		{
 			"path": "context",
@@ -250,14 +250,6 @@
 			"revisionTime": "2016-11-21T13:51:53Z"
 		},
 		{
-			"path": "github.com/davecgh/go-spew/spew",
-			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
-		},
-		{
-			"path": "github.com/davecgh/go-spew/spew/testdata",
-			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
-		},
-		{
 			"checksumSHA1": "Gj+xR1VgFKKmFXYOJMnAczC3Znk=",
 			"path": "github.com/docker/distribution/digestset",
 			"revision": "69c7f303d511a5777e79505b23340d37d532d7ac",
@@ -462,18 +454,6 @@
 			"revisionTime": "2017-01-10T19:35:11Z"
 		},
 		{
-			"checksumSHA1": "BwY1agr5vzusgMT4bM7UeD3YVpw=",
-			"path": "github.com/docker/engine-api/types/mount",
-			"revision": "4290f40c056686fcaa5c9caf02eac1dde9315adf",
-			"revisionTime": "2016-09-08T23:21:04Z"
-		},
-		{
-			"checksumSHA1": "+YKu9qajCN688hx38lIwIkIQ4SA=",
-			"path": "github.com/docker/engine-api/types/swarm",
-			"revision": "4290f40c056686fcaa5c9caf02eac1dde9315adf",
-			"revisionTime": "2016-09-08T23:21:04Z"
-		},
-		{
 			"checksumSHA1": "JbiWTzH699Sqz25XmDlsARpMN9w=",
 			"path": "github.com/docker/go-connections/nat",
 			"revision": "7da10c8c50cad14494ec818dcdfb6506265c0086",
@@ -656,12 +636,6 @@
 		{
 			"checksumSHA1": "BuOGVqQNO+iuqoGKAGGxCxC51ro=",
 			"path": "github.com/hashicorp/consul/testutil",
-			"revision": "a189091a3530051285c12c726ca28ea55e015336",
-			"revisionTime": "2016-09-14T16:11:34Z"
-		},
-		{
-			"comment": "v0.6.3-363-gae32a3c",
-			"path": "github.com/hashicorp/consul/tlsutil",
 			"revision": "a189091a3530051285c12c726ca28ea55e015336",
 			"revisionTime": "2016-09-14T16:11:34Z"
 		},
