@@ -203,6 +203,7 @@ func (d *dockerCoordinator) IncrementImageReference(id, image string) {
 	if cancel, ok := d.deleteFuture[id]; ok {
 		d.logger.Printf("[DEBUG] driver.docker: cancelling removal of image %q", image)
 		cancel()
+		delete(d.deleteFuture, id)
 	}
 	d.imageLock.Unlock()
 }
@@ -227,6 +228,13 @@ func (d *dockerCoordinator) RemoveImage(id string) {
 	// Nothing to do
 	if references != 0 {
 		return
+	}
+
+	// This should never be the case but we safefty guard so we don't leak a
+	// cancel.
+	if cancel, ok := d.deleteFuture[id]; ok {
+		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", id)
+		cancel()
 	}
 
 	// Setup a future to delete the image
