@@ -96,7 +96,7 @@ path "auth/token/revoke-accessor" {
 
 # Allow checking the capabilities of our own token. This is used to validate the
 # token upon startup.
-path "/sys/capabilities-self" {
+path "sys/capabilities-self" {
   capabilities = ["update"]
 }
 

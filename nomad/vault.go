@@ -51,7 +51,7 @@ const (
 
 	// vaultCapabilitiesLookupPath is the path to lookup the capabilities of
 	// ones token.
-	vaultCapabilitiesLookupPath = "/sys/capabilities-self"
+	vaultCapabilitiesLookupPath = "sys/capabilities-self"
 
 	// vaultTokenRenewPath is the path used to renew our token
 	vaultTokenRenewPath = "auth/token/renew-self"
