@@ -37,6 +37,8 @@ BUG FIXES:
   * api: Fix escaping of HTML characters [GH-2322]
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
+  * client: Fix panic and deadlock during client restore state when prestart
+    fails [GH-2376] 
   * config: Fix Consul Config Merging/Copying [GH-2278]
   * config: Fix Client reserved resource merging panic [GH-2281]
   * driver/docker: Fix Docker 1.13 on Windows [GH-2342]
