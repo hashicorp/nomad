@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -76,7 +77,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
 	// TODO: verify this is needed for things like network access
-	e.resConCtx.groups.Resources.AllowAllDevices = true
+	e.resConCtx.groups.Resources.AllowAllDevices = helper.BoolToPtr(true)
 
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
