@@ -517,15 +517,15 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory|Disk|IOPS"
-	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v|%v/%v",
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%d/%d",
 		cpu,
-		total.CPU,
+		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
 		iops,
-		total.IOPS)
+		*total.IOPS)
 
 	return resources
 }
@@ -568,9 +568,9 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 
 	resources := make([]string, 2)
 	resources[0] = "CPU|Memory"
-	resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v",
+	resources[1] = fmt.Sprintf("%v/%d MHz|%v/%v",
 		math.Floor(cpu),
-		total.CPU,
+		*total.CPU,
 		humanize.IBytes(mem),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)))
 
@@ -599,9 +599,9 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	resources = make([]string, 2)
 	resources[0] = "CPU|Memory|Disk"
 	if physical {
-		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|%v/%v",
+		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|%s/%s",
 			math.Floor(hostStats.CPUTicksConsumed),
-			node.Resources.CPU,
+			*node.Resources.CPU,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			humanize.IBytes(diskUsed),
@@ -610,9 +610,9 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	} else {
 		// If non-physical device are used, output device name only,
 		// since nomad doesn't collect the stats data.
-		resources[1] = fmt.Sprintf("%v/%v MHz|%v/%v|(%s)",
+		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|(%s)",
 			math.Floor(hostStats.CPUTicksConsumed),
-			node.Resources.CPU,
+			*node.Resources.CPU,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			storageDevice,

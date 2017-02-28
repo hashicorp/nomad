@@ -317,7 +317,7 @@ func (j *Job) Canonicalize() {
 		j.ID = helper.StringToPtr("")
 	}
 	if j.Name == nil {
-		j.Name = j.ID
+		j.Name = helper.StringToPtr(*j.ID)
 	}
 	if j.ParentID == nil {
 		j.ParentID = helper.StringToPtr("")

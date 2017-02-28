@@ -85,7 +85,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	}
 
 	if c.heap.Length() != 0 {
-		t.Fatal("bad: heap length: expected: 0, actual: %d", c.heap.Length())
+		t.Fatalf("bad: heap length: expected: 0, actual: %d", c.heap.Length())
 	}
 }
 

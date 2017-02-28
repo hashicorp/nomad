@@ -599,7 +599,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 
 	err := check1.validate()
 	if err != nil {
-		t.Fatal("err: %v", err)
+		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = "foo"
@@ -1221,7 +1221,7 @@ func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 	// Create a config that is enabled, with a bad time zone.
 	p = &PeriodicConfig{Enabled: true, TimeZone: "FOO"}
 	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "time zone") {
-		t.Fatal("Enabled PeriodicConfig with bad time zone shouldn't be valid: %v", err)
+		t.Fatalf("Enabled PeriodicConfig with bad time zone shouldn't be valid: %v", err)
 	}
 }
 
@@ -1267,7 +1267,7 @@ func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: "0 0 29 2 * 1980", TimeZone: zone}
 		p.Canonicalize()
 		if err := p.Validate(); err != nil {
-			t.Fatal("Valid tz errored: %v", err)
+			t.Fatalf("Valid tz errored: %v", err)
 		}
 	}
 }

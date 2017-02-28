@@ -110,7 +110,7 @@ func (c *StopCommand) Run(args []string) int {
 
 	// Confirm the stop if the job was a prefix match.
 	if jobID != *job.ID && !autoYes {
-		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", job.ID)
+		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
 		answer, err := c.Ui.Ask(question)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))

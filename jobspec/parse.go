@@ -112,7 +112,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
-	result.Name = result.ID
+	result.Name = helper.StringToPtr(*result.ID)
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -124,7 +124,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if ot, ok := obj.Val.(*ast.ObjectType); ok {
 		listVal = ot.List
 	} else {
-		return fmt.Errorf("job '%s' value: should be an object", result.ID)
+		return fmt.Errorf("job '%s' value: should be an object", *result.ID)
 	}
 
 	// Check for invalid keys

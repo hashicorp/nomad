@@ -695,8 +695,6 @@ OUTER:
 			}
 		}
 	}
-
-	return nil
 }
 
 // Logs streams the content of a log blocking on EOF. The parameters are:
@@ -868,8 +866,6 @@ func (s *HTTPServer) logs(follow, plain bool, offset int64,
 		offset = int64(0)
 		nextIdx = idx + 1
 	}
-
-	return nil
 }
 
 // blockUntilNextLog returns a channel that will have data sent when the next

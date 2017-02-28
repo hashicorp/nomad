@@ -29,7 +29,7 @@ func TestJobDispatchCommand_Fails(t *testing.T) {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error reading input data") {
-		t.Fatalf("expect error reading input data", out)
+		t.Fatalf("expect error reading input data: %v", out)
 	}
 	ui.ErrorWriter.Reset()
 

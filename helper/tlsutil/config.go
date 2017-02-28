@@ -154,9 +154,9 @@ func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
 	// Generate the wrapper based on hostname verification
 	if c.VerifyServerHostname {
 		wrapper := func(region string, conn net.Conn) (net.Conn, error) {
-			conf := *tlsConfig
+			conf := tlsConfig.Clone()
 			conf.ServerName = "server." + region + ".nomad"
-			return WrapTLSClient(conn, &conf)
+			return WrapTLSClient(conn, conf)
 		}
 		return wrapper, nil
 	} else {

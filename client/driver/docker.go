@@ -1415,7 +1415,7 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
 	name, err := reference.ParseNamed(repo)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse named repo %q: %v", err)
+		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
 	}
 
 	repoInfo, err := registry.ParseRepositoryInfo(name)

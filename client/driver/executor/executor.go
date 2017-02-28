@@ -873,7 +873,7 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	e.logger.Printf("[DEBUG] executor: sending signal %s", s)
 	err := e.cmd.Process.Signal(s)
 	if err != nil {
-		e.logger.Printf("[ERR] executor: sending signal %s failed: %v", err)
+		e.logger.Printf("[ERR] executor: sending signal %v failed: %v", s, err)
 		return err
 	}
 

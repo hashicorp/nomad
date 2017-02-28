@@ -66,7 +66,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					ReservedPorts: []structs.Port{{"main", 22000}, {"web", 80}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 				},
 			},
 		},
@@ -136,7 +136,7 @@ func TestQemuDriverUser(t *testing.T) {
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					ReservedPorts: []structs.Port{{"main", 22000}, {"web", 80}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 				},
 			},
 		},

@@ -25,8 +25,8 @@ var basicResources = &structs.Resources{
 	Networks: []*structs.NetworkResource{
 		&structs.NetworkResource{
 			IP:            "0.0.0.0",
-			ReservedPorts: []structs.Port{{"main", 12345}},
-			DynamicPorts:  []structs.Port{{"HTTP", 43330}},
+			ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
+			DynamicPorts:  []structs.Port{{Label: "HTTP", Value: 43330}},
 		},
 	},
 }
@@ -144,8 +144,8 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "1.2.3.4",
-					ReservedPorts: []structs.Port{{"one", 80}, {"two", 443}},
-					DynamicPorts:  []structs.Port{{"admin", 8081}, {"web", 8086}},
+					ReservedPorts: []structs.Port{{Label: "one", Value: 80}, {Label: "two", Value: 443}},
+					DynamicPorts:  []structs.Port{{Label: "admin", Value: 8081}, {Label: "web", Value: 8086}},
 				},
 			},
 		},

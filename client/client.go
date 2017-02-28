@@ -1708,7 +1708,7 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 	stopMigrating, ok := c.migratingAllocs[allocID]
 	if !ok {
 		os.RemoveAll(pathToAllocDir)
-		return fmt.Errorf("Allocation %q is not marked for remote migration: %v", allocID)
+		return fmt.Errorf("Allocation %q is not marked for remote migration", allocID)
 	}
 	for {
 		// See if the alloc still needs migration
@@ -1789,8 +1789,6 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 
 		}
 	}
-
-	return nil
 }
 
 // getNode gets the node from the server with the given Node ID
