@@ -126,7 +126,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	node.SecretID = structs.GenerateUUID()
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	if err == nil || !strings.Contains(err.Error(), "Not registering") {
-		t.Fatalf("Expecting error regarding mismatching secret id", err)
+		t.Fatalf("Expecting error regarding mismatching secret id: %v", err)
 	}
 }
 

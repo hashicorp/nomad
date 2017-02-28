@@ -78,7 +78,6 @@ func (d *DockerScriptCheck) Run() *cstructs.CheckResult {
 	if client, err = d.dockerClient(); err != nil {
 		return &cstructs.CheckResult{Err: err}
 	}
-	client = client
 	execOpts := docker.CreateExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
@@ -157,33 +156,33 @@ func (e *ExecScriptCheck) Run() *cstructs.CheckResult {
 	go func() {
 		errCh <- cmd.Wait()
 	}()
-	for {
-		select {
-		case err := <-errCh:
-			endTime := time.Now()
-			if err == nil {
-				return &cstructs.CheckResult{
-					ExitCode:  0,
-					Output:    string(buf.Bytes()),
-					Timestamp: ts,
-				}
-			}
-			exitCode := 1
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-					exitCode = status.ExitStatus()
-				}
-			}
+
+	select {
+	case err := <-errCh:
+		endTime := time.Now()
+		if err == nil {
 			return &cstructs.CheckResult{
-				ExitCode:  exitCode,
+				ExitCode:  0,
 				Output:    string(buf.Bytes()),
 				Timestamp: ts,
-				Duration:  endTime.Sub(ts),
 			}
-		case <-time.After(e.Timeout()):
-			errCh <- fmt.Errorf("timed out after waiting 30s")
 		}
+		exitCode := 1
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+				exitCode = status.ExitStatus()
+			}
+		}
+		return &cstructs.CheckResult{
+			ExitCode:  exitCode,
+			Output:    string(buf.Bytes()),
+			Timestamp: ts,
+			Duration:  endTime.Sub(ts),
+		}
+	case <-time.After(e.Timeout()):
+		errCh <- fmt.Errorf("timed out after waiting 30s")
 	}
+
 	return nil
 }
 

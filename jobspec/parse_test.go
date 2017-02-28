@@ -130,8 +130,8 @@ func TestParse(t *testing.T) {
 									Networks: []*api.NetworkResource{
 										&api.NetworkResource{
 											MBits:         helper.IntToPtr(100),
-											ReservedPorts: []api.Port{{"one", 1}, {"two", 2}, {"three", 3}},
-											DynamicPorts:  []api.Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+											ReservedPorts: []api.Port{{Label: "one", Value: 1}, {Label: "two", Value: 2}, {Label: "three", Value: 3}},
+											DynamicPorts:  []api.Port{{Label: "http", Value: 0}, {Label: "https", Value: 0}, {Label: "admin", Value: 0}},
 										},
 									},
 								},

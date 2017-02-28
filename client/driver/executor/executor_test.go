@@ -255,7 +255,7 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 	act := stat.Mode().Perm()
 	exp := os.FileMode(0755)
 	if act != exp {
-		t.Fatalf("expected permissions %v; got %v", err)
+		t.Fatalf("expected permissions %v; got %v", exp, act)
 	}
 }
 

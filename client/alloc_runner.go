@@ -472,7 +472,7 @@ func (r *AllocRunner) Run() {
 				r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
 			}
 			if err := r.otherAllocDir.Destroy(); err != nil {
-				r.logger.Printf("[ERROR] client: error destroying allocdir %v", r.otherAllocDir.AllocDir, err)
+				r.logger.Printf("[ERROR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
 			}
 		}
 	}

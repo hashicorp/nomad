@@ -265,7 +265,7 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 
 	// Setup the Consul syncer
 	if err := s.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("failed to create server Consul syncer: %v")
+		return nil, fmt.Errorf("failed to create server Consul syncer: %v", err)
 	}
 
 	// Monitor leadership changes

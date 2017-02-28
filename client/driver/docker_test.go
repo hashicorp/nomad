@@ -69,8 +69,8 @@ func dockerTask() (*structs.Task, int, int) {
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
 					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{"main", docker_reserved}},
-					DynamicPorts:  []structs.Port{{"REDIS", docker_dynamic}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: docker_reserved}},
+					DynamicPorts:  []structs.Port{{Label: "REDIS", Value: docker_dynamic}},
 				},
 			},
 		},
@@ -783,7 +783,7 @@ func TestDockerWorkDir(t *testing.T) {
 	}
 
 	if want, got := "/some/path", container.Config.WorkingDir; want != got {
-		t.Errorf("Wrong working directory for docker job. Expect: %d, got: %d", want, got)
+		t.Errorf("Wrong working directory for docker job. Expect: %s, got: %s", want, got)
 	}
 }
 
@@ -1092,7 +1092,7 @@ while true; do
 done
 	`)
 	if err := ioutil.WriteFile(testFile, testData, 0777); err != nil {
-		fmt.Errorf("Failed to write data")
+		t.Fatalf("Failed to write data: %v", err)
 	}
 
 	_, err := d.Prestart(ctx.ExecCtx, task)

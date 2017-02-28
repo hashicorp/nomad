@@ -285,8 +285,7 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	// Parse the JobFile
 	jobStruct, err := jobspec.Parse(jobfile)
 	if err != nil {
-		fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
-		return nil, err
+		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
 	}
 
 	return jobStruct, nil

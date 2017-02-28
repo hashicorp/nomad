@@ -589,7 +589,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 		t.Fatalf("expected exactly 1 error from RestoreState but found: %d: %v", len(merr.Errors), err)
 	}
 	if expected := "task runner snapshot includes nil Task"; merr.Errors[0].Error() != expected {
-		t.Fatalf("expected %q but got: %q", merr.Errors[0].Error())
+		t.Fatalf("expected %q but got: %q", expected, merr.Errors[0].Error())
 	}
 
 	if err := ar.SaveState(); err != nil {

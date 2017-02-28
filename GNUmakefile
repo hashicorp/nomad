@@ -1,6 +1,4 @@
 PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
-         -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
 	github.com/kardianos/govendor \
 	github.com/mitchellh/gox \
@@ -8,8 +6,6 @@ EXTERNAL_TOOLS=\
 	github.com/axw/gocov/gocov \
 	gopkg.in/matm/v1/gocov-html \
 	github.com/ugorji/go/codec/codecgen
-
-GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 all: test
 
@@ -48,11 +44,8 @@ generate:
 	@sed -i.old -e 's|github.com/hashicorp/nomad/vendor/github.com/ugorji/go/codec|github.com/ugorji/go/codec|' nomad/structs/structs.generated.go
 
 vet:
-	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \
-		go get golang.org/x/tools/cmd/vet; \
-	fi
-	@echo "--> Running go tool vet $(VETARGS) ${GOFILES_NOVENDOR}"
-	@go tool vet $(VETARGS) ${GOFILES_NOVENDOR} ; if [ $$? -eq 1 ]; then \
+	@echo "--> Running go vet $(VETARGS) ${PACKAGES}"
+	@go vet $(VETARGS) ${PACKAGES} ; if [ $$? -eq 1 ]; then \
 		echo ""; \
 		echo "[LINT] Vet found suspicious constructs. Please check the reported constructs"; \
 		echo "and fix them if necessary before submitting the code for review."; \
