@@ -181,6 +181,7 @@ The `docker` driver supports the following configuration in the job spec:
         type = "fluentd"
         config {
           fluentd-address = "localhost:24224"
+          tag = "your_tag"
         }
       }
     }
