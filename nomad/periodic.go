@@ -207,6 +207,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		return nil
 	}
 
+	// Check if the job is also a parameterized job. If it is, then we do not want to
+	// treat it as a periodic job but only its dispatched children.
+	if job.IsParameterized() {
+		return nil
+	}
+
 	// Add or update the job.
 	p.tracked[job.ID] = job
 	next := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))

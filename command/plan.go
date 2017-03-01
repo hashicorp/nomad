@@ -200,7 +200,7 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
 		out += fmt.Sprintf("[green]- Rolling update, next evaluation will be in %s.\n", rolling.Wait)
 	}
 
-	if next := resp.NextPeriodicLaunch; !next.IsZero() {
+	if next := resp.NextPeriodicLaunch; !next.IsZero() && !job.IsParameterized() {
 		loc, err := job.Periodic.GetLocation()
 		if err != nil {
 			out += fmt.Sprintf("[yellow]- Invalid time zone: %v", err)
