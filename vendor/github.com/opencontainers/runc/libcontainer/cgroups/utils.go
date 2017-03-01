@@ -16,24 +16,37 @@ import (
 	"github.com/docker/go-units"
 )
 
-const (
-	cgroupNamePrefix = "name="
-	CgroupProcesses  = "cgroup.procs"
-)
+const cgroupNamePrefix = "name="
 
-// https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt
+// https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
-	mnt, _, err := FindCgroupMountpointAndRoot(subsystem)
-	return mnt, err
-}
-
-func FindCgroupMountpointAndRoot(subsystem string) (string, string, error) {
 	// We are not using mount.GetMounts() because it's super-inefficient,
 	// parsing it directly sped up x10 times because of not using Sscanf.
 	// It was one of two major performance drawbacks in container start.
-	if !isSubsystemAvailable(subsystem) {
-		return "", "", NewNotFoundError(subsystem)
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return "", err
 	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		fields := strings.Split(txt, " ")
+		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
+			if opt == subsystem {
+				return fields[4], nil
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", NewNotFoundError(subsystem)
+}
+
+func FindCgroupMountpointAndRoot(subsystem string) (string, string, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return "", "", err
@@ -55,15 +68,6 @@ func FindCgroupMountpointAndRoot(subsystem string) (string, string, error) {
 	}
 
 	return "", "", NewNotFoundError(subsystem)
-}
-
-func isSubsystemAvailable(subsystem string) bool {
-	cgroups, err := ParseCgroupFile("/proc/self/cgroup")
-	if err != nil {
-		return false
-	}
-	_, avail := cgroups[subsystem]
-	return avail
 }
 
 func FindCgroupMountpointDir() (string, error) {
@@ -117,17 +121,16 @@ func (m Mount) GetThisCgroupDir(cgroups map[string]string) (string, error) {
 	return getControllerPath(m.Subsystems[0], cgroups)
 }
 
-func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount, error) {
+func getCgroupMountsHelper(ss map[string]bool, mi io.Reader) ([]Mount, error) {
 	res := make([]Mount, 0, len(ss))
 	scanner := bufio.NewScanner(mi)
-	numFound := 0
-	for scanner.Scan() && numFound < len(ss) {
+	for scanner.Scan() {
 		txt := scanner.Text()
 		sepIdx := strings.Index(txt, " - ")
 		if sepIdx == -1 {
 			return nil, fmt.Errorf("invalid mountinfo format")
 		}
-		if txt[sepIdx+3:sepIdx+10] == "cgroup2" || txt[sepIdx+3:sepIdx+9] != "cgroup" {
+		if txt[sepIdx+3:sepIdx+9] != "cgroup" {
 			continue
 		}
 		fields := strings.Split(txt, " ")
@@ -136,16 +139,11 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount,
 			Root:       fields[3],
 		}
 		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
-			if !ss[opt] {
-				continue
-			}
 			if strings.HasPrefix(opt, cgroupNamePrefix) {
 				m.Subsystems = append(m.Subsystems, opt[len(cgroupNamePrefix):])
-			} else {
-				m.Subsystems = append(m.Subsystems, opt)
 			}
-			if !all {
-				numFound++
+			if ss[opt] {
+				m.Subsystems = append(m.Subsystems, opt)
 			}
 		}
 		res = append(res, m)
@@ -156,28 +154,26 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount,
 	return res, nil
 }
 
-// GetCgroupMounts returns the mounts for the cgroup subsystems.
-// all indicates whether to return just the first instance or all the mounts.
-func GetCgroupMounts(all bool) ([]Mount, error) {
+func GetCgroupMounts() ([]Mount, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	allSubsystems, err := ParseCgroupFile("/proc/self/cgroup")
+	all, err := GetAllSubsystems()
 	if err != nil {
 		return nil, err
 	}
 
 	allMap := make(map[string]bool)
-	for s := range allSubsystems {
+	for _, s := range all {
 		allMap[s] = true
 	}
-	return getCgroupMountsHelper(allMap, f, all)
+	return getCgroupMountsHelper(allMap, f)
 }
 
-// GetAllSubsystems returns all the cgroup subsystems supported by the kernel
+// Returns all the cgroup subsystems supported by the kernel
 func GetAllSubsystems() ([]string, error) {
 	f, err := os.Open("/proc/cgroups")
 	if err != nil {
@@ -189,6 +185,9 @@ func GetAllSubsystems() ([]string, error) {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
 		text := s.Text()
 		if text[0] != '#' {
 			parts := strings.Fields(text)
@@ -197,13 +196,10 @@ func GetAllSubsystems() ([]string, error) {
 			}
 		}
 	}
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
 	return subsystems, nil
 }
 
-// GetThisCgroupDir returns the relative path to the cgroup docker is running in.
+// Returns the relative path to the cgroup docker is running in.
 func GetThisCgroupDir(subsystem string) (string, error) {
 	cgroups, err := ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
@@ -224,7 +220,7 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 }
 
 func readProcsFile(dir string) ([]int, error) {
-	f, err := os.Open(filepath.Join(dir, CgroupProcesses))
+	f, err := os.Open(filepath.Join(dir, "cgroup.procs"))
 	if err != nil {
 		return nil, err
 	}
@@ -247,8 +243,6 @@ func readProcsFile(dir string) ([]int, error) {
 	return out, nil
 }
 
-// ParseCgroupFile parses the given cgroup file, typically from
-// /proc/<pid>/cgroup, into a map of subgroups to cgroup names.
 func ParseCgroupFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -256,35 +250,21 @@ func ParseCgroupFile(path string) (map[string]string, error) {
 	}
 	defer f.Close()
 
-	return parseCgroupFromReader(f)
-}
-
-// helper function for ParseCgroupFile to make testing easier
-func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
-	s := bufio.NewScanner(r)
+	s := bufio.NewScanner(f)
 	cgroups := make(map[string]string)
 
 	for s.Scan() {
-		text := s.Text()
-		// from cgroups(7):
-		// /proc/[pid]/cgroup
-		// ...
-		// For each cgroup hierarchy ... there is one entry
-		// containing three colon-separated fields of the form:
-		//     hierarchy-ID:subsystem-list:cgroup-path
-		parts := strings.SplitN(text, ":", 3)
-		if len(parts) < 3 {
-			return nil, fmt.Errorf("invalid cgroup entry: must contain at least two colons: %v", text)
+		if err := s.Err(); err != nil {
+			return nil, err
 		}
+
+		text := s.Text()
+		parts := strings.Split(text, ":")
 
 		for _, subs := range strings.Split(parts[1], ",") {
 			cgroups[subs] = parts[2]
 		}
 	}
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
-
 	return cgroups, nil
 }
 
@@ -311,7 +291,8 @@ func PathExists(path string) bool {
 func EnterPid(cgroupPaths map[string]string, pid int) error {
 	for _, path := range cgroupPaths {
 		if PathExists(path) {
-			if err := WriteCgroupProc(path, pid); err != nil {
+			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
+				[]byte(strconv.Itoa(pid)), 0700); err != nil {
 				return err
 			}
 		}
@@ -380,7 +361,7 @@ func GetAllPids(path string) ([]int, error) {
 	// collect pids from all sub-cgroups
 	err := filepath.Walk(path, func(p string, info os.FileInfo, iErr error) error {
 		dir, file := filepath.Split(p)
-		if file != CgroupProcesses {
+		if file != "cgroup.procs" {
 			return nil
 		}
 		if iErr != nil {
@@ -394,21 +375,4 @@ func GetAllPids(path string) ([]int, error) {
 		return nil
 	})
 	return pids, err
-}
-
-// WriteCgroupProc writes the specified pid into the cgroup's cgroup.procs file
-func WriteCgroupProc(dir string, pid int) error {
-	// Normally dir should not be empty, one case is that cgroup subsystem
-	// is not mounted, we will get empty dir, and we want it fail here.
-	if dir == "" {
-		return fmt.Errorf("no such directory for %s", CgroupProcesses)
-	}
-
-	// Dont attach any pid to the cgroup if -1 is specified as a pid
-	if pid != -1 {
-		if err := ioutil.WriteFile(filepath.Join(dir, CgroupProcesses), []byte(strconv.Itoa(pid)), 0700); err != nil {
-			return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)
-		}
-	}
-	return nil
 }

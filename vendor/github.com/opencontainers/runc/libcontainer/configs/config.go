@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 type Rlimit struct {
@@ -34,7 +33,7 @@ type Seccomp struct {
 	Syscalls      []*Syscall `json:"syscalls"`
 }
 
-// Action is taken upon rule match in Seccomp
+// An action to be taken upon rule match in Seccomp
 type Action int
 
 const (
@@ -45,7 +44,7 @@ const (
 	Trace
 )
 
-// Operator is a comparison operator to be used when matching syscall arguments in Seccomp
+// A comparison operator to be used when matching syscall arguments in Seccomp
 type Operator int
 
 const (
@@ -58,7 +57,7 @@ const (
 	MaskEqualTo
 )
 
-// Arg is a rule to match a specific syscall argument in Seccomp
+// A rule to match a specific syscall argument in Seccomp
 type Arg struct {
 	Index    uint     `json:"index"`
 	Value    uint64   `json:"value"`
@@ -66,7 +65,7 @@ type Arg struct {
 	Op       Operator `json:"op"`
 }
 
-// Syscall is a rule to match a syscall in Seccomp
+// An rule to match a syscall in Seccomp
 type Syscall struct {
 	Name   string `json:"name"`
 	Action Action `json:"action"`
@@ -85,6 +84,11 @@ type Config struct {
 	// ParentDeathSignal specifies the signal that is sent to the container's process in the case
 	// that the parent process dies.
 	ParentDeathSignal int `json:"parent_death_signal"`
+
+	// PivotDir allows a custom directory inside the container's root filesystem to be used as pivot, when NoPivotRoot is not set.
+	// When a custom PivotDir not set, a temporary dir inside the root filesystem will be used. The pivot dir needs to be writeable.
+	// This is required when using read only root filesystems. In these cases, a read/writeable path can be (bind) mounted somewhere inside the root filesystem to act as pivot.
+	PivotDir string `json:"pivot_dir"`
 
 	// Path to a directory containing the container's root filesystem.
 	Rootfs string `json:"rootfs"`
@@ -144,6 +148,10 @@ type Config struct {
 	// More information about kernel oom score calculation here: https://lwn.net/Articles/317814/
 	OomScoreAdj int `json:"oom_score_adj"`
 
+	// AdditionalGroups specifies the gids that should be added to supplementary groups
+	// in addition to those that the user belongs to.
+	AdditionalGroups []string `json:"additional_groups"`
+
 	// UidMappings is an array of User ID mappings for User Namespaces
 	UidMappings []IDMap `json:"uid_mappings"`
 
@@ -179,10 +187,6 @@ type Config struct {
 
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
-
-	// NoNewKeyring will not allocated a new session keyring for the container.  It will use the
-	// callers keyring in this case.
-	NoNewKeyring bool `json:"no_new_keyring"`
 }
 
 type Hooks struct {
@@ -244,14 +248,19 @@ func (hooks Hooks) MarshalJSON() ([]byte, error) {
 }
 
 // HookState is the payload provided to a hook on execution.
-type HookState specs.State
+type HookState struct {
+	Version string `json:"version"`
+	ID      string `json:"id"`
+	Pid     int    `json:"pid"`
+	Root    string `json:"root"`
+}
 
 type Hook interface {
 	// Run executes the hook with the provided state.
 	Run(HookState) error
 }
 
-// NewFunctionHook will call the provided function when the hook is run.
+// NewFunctionHooks will call the provided function when the hook is run.
 func NewFunctionHook(f func(HookState) error) FuncHook {
 	return FuncHook{
 		run: f,
@@ -274,7 +283,7 @@ type Command struct {
 	Timeout *time.Duration `json:"timeout"`
 }
 
-// NewCommandHook will execute the provided command when the hook is run.
+// NewCommandHooks will execute the provided command when the hook is run.
 func NewCommandHook(cmd Command) CommandHook {
 	return CommandHook{
 		Command: cmd,
@@ -290,38 +299,25 @@ func (c Command) Run(s HookState) error {
 	if err != nil {
 		return err
 	}
-	var stdout, stderr bytes.Buffer
 	cmd := exec.Cmd{
-		Path:   c.Path,
-		Args:   c.Args,
-		Env:    c.Env,
-		Stdin:  bytes.NewReader(b),
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}
-	if err := cmd.Start(); err != nil {
-		return err
+		Path:  c.Path,
+		Args:  c.Args,
+		Env:   c.Env,
+		Stdin: bytes.NewReader(b),
 	}
 	errC := make(chan error, 1)
 	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			err = fmt.Errorf("error running hook: %v, stdout: %s, stderr: %s", err, stdout.String(), stderr.String())
-		}
-		errC <- err
+		errC <- cmd.Run()
 	}()
-	var timerCh <-chan time.Time
 	if c.Timeout != nil {
-		timer := time.NewTimer(*c.Timeout)
-		defer timer.Stop()
-		timerCh = timer.C
+		select {
+		case err := <-errC:
+			return err
+		case <-time.After(*c.Timeout):
+			cmd.Process.Kill()
+			cmd.Wait()
+			return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
+		}
 	}
-	select {
-	case err := <-errC:
-		return err
-	case <-timerCh:
-		cmd.Process.Kill()
-		cmd.Wait()
-		return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
-	}
+	return <-errC
 }

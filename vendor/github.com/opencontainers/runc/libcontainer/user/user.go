@@ -199,16 +199,18 @@ type ExecUser struct {
 // files cannot be opened for any reason, the error is ignored and a nil
 // io.Reader is passed instead.
 func GetExecUserPath(userSpec string, defaults *ExecUser, passwdPath, groupPath string) (*ExecUser, error) {
-	var passwd, group io.Reader
-
-	if passwdFile, err := os.Open(passwdPath); err == nil {
-		passwd = passwdFile
-		defer passwdFile.Close()
+	passwd, err := os.Open(passwdPath)
+	if err != nil {
+		passwd = nil
+	} else {
+		defer passwd.Close()
 	}
 
-	if groupFile, err := os.Open(groupPath); err == nil {
-		group = groupFile
-		defer groupFile.Close()
+	group, err := os.Open(groupPath)
+	if err != nil {
+		group = nil
+	} else {
+		defer group.Close()
 	}
 
 	return GetExecUser(userSpec, defaults, passwd, group)
@@ -341,7 +343,7 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 			if len(groups) > 0 {
 				// First match wins, even if there's more than one matching entry.
 				user.Gid = groups[0].Gid
-			} else {
+			} else if groupArg != "" {
 				// If we can't find a group with the given name, the only other valid
 				// option is if it's a numeric group name with no associated entry in group.
 
@@ -431,11 +433,9 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 // that opens the groupPath given and gives it as an argument to
 // GetAdditionalGroups.
 func GetAdditionalGroupsPath(additionalGroups []string, groupPath string) ([]int, error) {
-	var group io.Reader
-
-	if groupFile, err := os.Open(groupPath); err == nil {
-		group = groupFile
-		defer groupFile.Close()
+	group, err := os.Open(groupPath)
+	if err == nil {
+		defer group.Close()
 	}
 	return GetAdditionalGroups(additionalGroups, group)
 }

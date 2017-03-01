@@ -22,7 +22,7 @@ type Cgroup struct {
 	// The path is assumed to be relative to the host system cgroup mountpoint.
 	Path string `json:"path"`
 
-	// ScopePrefix describes prefix for the scope name
+	// ScopePrefix decribes prefix for the scope name
 	ScopePrefix string `json:"scope_prefix"`
 
 	// Paths represent the absolute cgroups paths to join.
@@ -36,7 +36,7 @@ type Cgroup struct {
 type Resources struct {
 	// If this is true allow access to any kind of device within the container.  If false, allow access only to devices explicitly listed in the allowed_devices list.
 	// Deprecated
-	AllowAllDevices *bool `json:"allow_all_devices,omitempty"`
+	AllowAllDevices bool `json:"allow_all_devices,omitempty"`
 	// Deprecated
 	AllowedDevices []*Device `json:"allowed_devices,omitempty"`
 	// Deprecated
@@ -69,10 +69,10 @@ type Resources struct {
 	CpuPeriod int64 `json:"cpu_period"`
 
 	// How many time CPU will use in realtime scheduling (in usecs).
-	CpuRtRuntime int64 `json:"cpu_rt_quota"`
+	CpuRtRuntime int64 `json:"cpu_quota"`
 
 	// CPU period to be used for realtime scheduling (in usecs).
-	CpuRtPeriod int64 `json:"cpu_rt_period"`
+	CpuRtPeriod int64 `json:"cpu_period"`
 
 	// CPU to use
 	CpusetCpus string `json:"cpuset_cpus"`
@@ -95,7 +95,7 @@ type Resources struct {
 	// IO read rate limit per cgroup per device, bytes per second.
 	BlkioThrottleReadBpsDevice []*ThrottleDevice `json:"blkio_throttle_read_bps_device"`
 
-	// IO write rate limit per cgroup per device, bytes per second.
+	// IO write rate limit per cgroup per divice, bytes per second.
 	BlkioThrottleWriteBpsDevice []*ThrottleDevice `json:"blkio_throttle_write_bps_device"`
 
 	// IO read rate limit per cgroup per device, IO per second.
@@ -120,5 +120,5 @@ type Resources struct {
 	NetPrioIfpriomap []*IfPrioMap `json:"net_prio_ifpriomap"`
 
 	// Set class identifier for container's network packets
-	NetClsClassid uint32 `json:"net_cls_classid_u"`
+	NetClsClassid string `json:"net_cls_classid"`
 }
