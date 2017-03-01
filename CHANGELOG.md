@@ -19,6 +19,7 @@ IMPROVEMENTS:
   * client: Don't force uppercase meta keys in env vars [GH-2338]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
+  * client: Don't exec `uname -r` for node attribute kernel.version [GH-2380]
   * driver/docker: Add support for volume drivers [GH-2351]
   * driver/docker: Docker image coordinator and caching [GH-2361]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within
