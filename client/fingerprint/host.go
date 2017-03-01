@@ -32,11 +32,7 @@ func (f *HostFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (b
 	node.Attributes["os.version"] = hostInfo.PlatformVersion
 
 	node.Attributes["kernel.name"] = runtime.GOOS
-	node.Attributes["kernel.version"] = ""
-
-	if runtime.GOOS != "windows" {
-		node.Attributes["kernel.version"] = hostInfo.KernelVersion
-	}
+	node.Attributes["kernel.version"] = hostInfo.KernelVersion
 
 	node.Attributes["unique.hostname"] = hostInfo.Hostname
 
