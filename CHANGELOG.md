@@ -35,6 +35,7 @@ IMPROVEMENTS:
   * vault: Disallow root policy from being specified [GH-2309]
 
 BUG FIXES:
+  * core: Handle periodic paramaterized jobs [GH-2385]
   * api: Fix escaping of HTML characters [GH-2322]
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
