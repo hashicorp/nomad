@@ -46,11 +46,11 @@ for target in $targets; do
             ;;
         "linux_amd64")
             echo "==> Building linux amd64..."
-            CGO_ENBALED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad"
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad"
             ;;
         "linux_amd64-lxc")
             echo "==> Building linux amd64 with lxc..."
-            CGO_ENBALED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc"
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc"
             ;;
         "linux_arm")
             echo "==> Building linux arm..."
@@ -113,4 +113,3 @@ done
 echo
 echo "==> Results:"
 tree pkg/
-
