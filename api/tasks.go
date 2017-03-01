@@ -255,7 +255,7 @@ type Task struct {
 	Config          map[string]interface{}
 	Constraints     []*Constraint
 	Env             map[string]string
-	Services        []Service
+	Services        []*Service
 	Resources       *Resources
 	Meta            map[string]string
 	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
@@ -268,10 +268,6 @@ type Task struct {
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
-	for _, s := range t.Services {
-		s.Canonicalize(t, tg, job)
-	}
-
 	min := MinResources()
 	min.Merge(t.Resources)
 	min.Canonicalize()
@@ -293,6 +289,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()
+	}
+	for _, s := range t.Services {
+		s.Canonicalize(t, tg, job)
 	}
 }
 

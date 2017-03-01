@@ -765,7 +765,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 
-						Services: []api.Service{
+						Services: []*api.Service{
 							{
 								Id:        "id",
 								Name:      "serviceA",

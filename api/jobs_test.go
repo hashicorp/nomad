@@ -242,7 +242,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										},
 									},
 								},
-								Services: []Service{
+								Services: []*Service{
 									{
 										Name:      "global-redis-check",
 										Tags:      []string{"global", "cache"},
@@ -327,7 +327,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										},
 									},
 								},
-								Services: []Service{
+								Services: []*Service{
 									{
 										Name:      "global-redis-check",
 										Tags:      []string{"global", "cache"},
