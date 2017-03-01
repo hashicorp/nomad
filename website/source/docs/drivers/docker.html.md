@@ -33,8 +33,9 @@ The `docker` driver supports the following configuration in the job spec:
 
 * `image` - The Docker image to run. The image may include a tag or custom URL
   and should include `https://` if required. By default it will be fetched from
-  Docker Hub. If the image to be pulled exists in a registry that requires
-  authentication credentials must be provided to Nomad. Please see the
+  Docker Hub. If the tag is omitted or equal to `latest` the driver will always
+  try to pull the image. If the image to be pulled exists in a registry that
+  requires authentication credentials must be provided to Nomad. Please see the
   [Authentication section](#authentication).
 
     ```hcl
