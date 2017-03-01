@@ -992,7 +992,8 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			ServerAddress: driverConfig.Auth[0].ServerAddress,
 		}
 	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-		authOptions, err := authOptionFrom(authConfigFile, repo)
+		var err error
+		authOptions, err = authOptionFrom(authConfigFile, repo)
 		if err != nil {
 			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
 			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
