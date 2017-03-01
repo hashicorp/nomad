@@ -131,10 +131,8 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occured during the pull
 func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration) (imageID string, err error) {
-	// Lock while we look up the future
-	d.imageLock.Lock()
-
 	// Get the future
+	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
 	if !ok {
 		// Make the future
@@ -147,9 +145,19 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 	// We unlock while we wait since this can take a while
 	id, err := future.wait().result()
 
+	d.imageLock.Lock()
+	defer d.imageLock.Unlock()
+
+	// Delete the future since we don't need it and we don't want to cache an
+	// image being there if it has possibly been manually deleted (outside of
+	// Nomad).
+	if _, ok := d.pullFutures[image]; ok {
+		delete(d.pullFutures, image)
+	}
+
 	// If we are cleaning up, we increment the reference count on the image
 	if err == nil && d.cleanup {
-		d.IncrementImageReference(id, image)
+		d.incrementImageReferenceImpl(id, image)
 	}
 
 	return id, err
@@ -196,16 +204,22 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 // IncrementImageReference is used to increment an image reference count
 func (d *dockerCoordinator) IncrementImageReference(id, image string) {
 	d.imageLock.Lock()
-	d.imageRefCount[id] += 1
-	d.logger.Printf("[DEBUG] driver.docker: image %q (%v) reference count incremented: %d", image, id, d.imageRefCount[id])
+	defer d.imageLock.Unlock()
+	d.incrementImageReferenceImpl(id, image)
+}
 
+// incrementImageReferenceImpl assumes the lock is held
+func (d *dockerCoordinator) incrementImageReferenceImpl(id, image string) {
 	// Cancel any pending delete
 	if cancel, ok := d.deleteFuture[id]; ok {
 		d.logger.Printf("[DEBUG] driver.docker: cancelling removal of image %q", image)
 		cancel()
 		delete(d.deleteFuture, id)
 	}
-	d.imageLock.Unlock()
+
+	// Increment the reference
+	d.imageRefCount[id] += 1
+	d.logger.Printf("[DEBUG] driver.docker: image %q (%v) reference count incremented: %d", image, id, d.imageRefCount[id])
 }
 
 // RemoveImage removes the given image. If there are any errors removing the
@@ -213,6 +227,10 @@ func (d *dockerCoordinator) IncrementImageReference(id, image string) {
 func (d *dockerCoordinator) RemoveImage(id string) {
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()
+
+	if !d.cleanup {
+		return
+	}
 
 	references, ok := d.imageRefCount[id]
 	if !ok {
@@ -250,11 +268,6 @@ func (d *dockerCoordinator) RemoveImage(id string) {
 // delay to remove the image. If the context is cancalled before that the image
 // removal will be cancelled.
 func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
-	// Sanity check
-	if !d.cleanup {
-		return
-	}
-
 	// Wait for the delay or a cancellation event
 	select {
 	case <-ctx.Done():
@@ -262,6 +275,20 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 		return
 	case <-time.After(d.removeDelay):
 	}
+
+	// Ensure we are suppose to delete. Do a short check while holding the lock
+	// so there can't be interleaving. There is still the smallest chance that
+	// the delete occurs after the image has been pulled but before it has been
+	// incremented. For handling that we just treat it as a recoverable error in
+	// the docker driver.
+	d.imageLock.Lock()
+	select {
+	case <-ctx.Done():
+		d.imageLock.Unlock()
+		return
+	default:
+	}
+	d.imageLock.Unlock()
 
 	for i := 0; i < 3; i++ {
 		err := d.client.RemoveImage(id)
@@ -280,6 +307,13 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 
 		// Retry on unknown errors
 		d.logger.Printf("[DEBUG] driver.docker: failed to remove image %q (attempt %d): %v", id, i+1, err)
+
+		select {
+		case <-ctx.Done():
+			// We have been cancelled
+			return
+		case <-time.After(3 * time.Second):
+		}
 	}
 
 	d.logger.Printf("[DEBUG] driver.docker: cleanup removed downloaded image: %q", id)

@@ -1104,6 +1104,10 @@ CREATE:
 			time.Sleep(1 * time.Second)
 			goto CREATE
 		}
+	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
+		// There is still a very small chance this is possible even with the
+		// coordinator so retry.
+		structs.NewRecoverableError(createErr, true)
 	}
 
 	return nil, recoverableErrTimeouts(createErr)

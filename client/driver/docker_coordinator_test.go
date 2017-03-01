@@ -62,17 +62,31 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 
 	id := ""
 	for i := 0; i < 10; i++ {
-		id, _ = coordinator.PullImage(image, nil)
+		go func() {
+			id, _ = coordinator.PullImage(image, nil)
+		}()
 	}
 
-	if p := mock.pulled[image]; p != 1 {
-		t.Fatalf("Got multiple pulls %d", p)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		p := mock.pulled[image]
+		if p != 1 {
+			return false, fmt.Errorf("Wrong number of pulls: %d", p)
+		}
 
-	// Check the reference count
-	if r := coordinator.imageRefCount[id]; r != 10 {
-		t.Fatalf("Got reference count %d; want %d", r, 10)
-	}
+		// Check the reference count
+		if r := coordinator.imageRefCount[id]; r != 10 {
+			return false, fmt.Errorf("Got reference count %d; want %d", r, 10)
+		}
+
+		// Ensure there is no pull future
+		if len(coordinator.pullFutures) != 0 {
+			return false, fmt.Errorf("Pull future exists after pull finished")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestDockerCoordinator_Pull_Remove(t *testing.T) {
@@ -146,7 +160,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 		logger:      testLogger(),
 		cleanup:     true,
 		client:      mock,
-		removeDelay: 1 * time.Millisecond,
+		removeDelay: 100 * time.Millisecond,
 	}
 
 	// Create a coordinator
