@@ -146,7 +146,7 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
-	if periodic {
+	if periodic && !parameterized {
 		location, err := job.Periodic.GetLocation()
 		if err == nil {
 			now := time.Now().In(location)
@@ -165,7 +165,7 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	// Print periodic job information
-	if periodic {
+	if periodic && !parameterized {
 		if err := c.outputPeriodicInfo(client, job); err != nil {
 			c.Ui.Error(err.Error())
 			return 1

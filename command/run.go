@@ -223,7 +223,7 @@ OUTSIDE:
 	// Check if we should enter monitor mode
 	if detach || periodic || paramjob {
 		c.Ui.Output("Job registration successful")
-		if periodic {
+		if periodic && !paramjob {
 			loc, err := job.Periodic.GetLocation()
 			if err == nil {
 				now := time.Now().In(loc)

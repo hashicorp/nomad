@@ -110,6 +110,20 @@ func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
 	}
 }
 
+func TestPeriodicDispatch_Add_Periodic_Parameterized(t *testing.T) {
+	p, _ := testPeriodicDispatcher()
+	job := mock.PeriodicJob()
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add of periodic parameterized job failed: %v; expect no-op", err)
+	}
+
+	tracked := p.Tracked()
+	if len(tracked) != 0 {
+		t.Fatalf("Add of periodic parameterized job should be no-op: %v", tracked)
+	}
+}
+
 func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	p, _ := testPeriodicDispatcher()
 	job := mock.PeriodicJob()
