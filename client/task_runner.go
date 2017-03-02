@@ -285,7 +285,7 @@ func (r *TaskRunner) RestoreState() error {
 
 		// In the case it fails, we relaunch the task in the Run() method.
 		if err != nil {
-			r.logger.Printf("[ERR] client: failed to open handle to task '%s' for alloc '%s': %v",
+			r.logger.Printf("[ERR] client: failed to open handle to task %q for alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
 			return nil
 		}
@@ -1208,11 +1208,7 @@ func (r *TaskRunner) startTask() error {
 // to call multiple times as its state is persisted.
 func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	r.persistLock.Lock()
-	if r.taskDirBuilt {
-		// Already built! Nothing to do.
-		r.persistLock.Unlock()
-		return nil
-	}
+	built := r.taskDirBuilt
 	r.persistLock.Unlock()
 
 	r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
@@ -1222,7 +1218,7 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	if len(r.config.ChrootEnv) > 0 {
 		chroot = r.config.ChrootEnv
 	}
-	if err := r.taskDir.Build(chroot, fsi); err != nil {
+	if err := r.taskDir.Build(built, chroot, fsi); err != nil {
 		return err
 	}
 

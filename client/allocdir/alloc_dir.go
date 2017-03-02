@@ -416,6 +416,21 @@ func pathExists(path string) bool {
 	return true
 }
 
+// pathEmpty returns true if a path exists, is listable, and is empty. If the
+// path does not exist or is not listable an error is returned.
+func pathEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	entries, err := f.Readdir(1)
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	return len(entries) == 0, nil
+}
+
 // createDir creates a directory structure inside the basepath. This functions
 // preserves the permissions of each of the subdirectories in the relative path
 // by looking up the permissions in the host.
