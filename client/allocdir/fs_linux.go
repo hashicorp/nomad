@@ -73,9 +73,12 @@ func createSecretDir(dir string) error {
 func removeSecretDir(dir string) error {
 	if unix.Geteuid() == 0 {
 		if err := syscall.Unmount(dir, 0); err != nil {
-			return os.NewSyscallError("unmount", err)
+			// Ignore invalid path errors
+			if err != syscall.ENOENT {
+				return os.NewSyscallError("unmount", err)
+			}
 		}
-	}
 
+	}
 	return os.RemoveAll(dir)
 }
