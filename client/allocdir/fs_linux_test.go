@@ -54,19 +54,19 @@ func TestLinuxRootSecretDir(t *testing.T) {
 	}
 	tmpdir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %s", err)
+		t.Fatalf("unable to create tempdir for test: %v", err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	secretsDir := filepath.Join(tmpdir, TaskSecrets)
 
-	// removing a non-existant secrets dir should NOT error
+	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 	// run twice as it should be idemptotent
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 
 	// creating a secrets dir should work
@@ -102,7 +102,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 
 	// removing again should be a noop
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }
 
@@ -120,13 +120,13 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 
 	secretsDir := filepath.Join(tmpdir, TaskSecrets)
 
-	// removing a non-existant secrets dir should NOT error
+	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 	// run twice as it should be idemptotent
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 
 	// creating a secrets dir should work
@@ -162,6 +162,6 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 
 	// removing again should be a noop
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing non-existant secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }
