@@ -29,9 +29,8 @@ func linkDir(src, dst string) error {
 }
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support
-// hardlinking directories.
-//
-// If the dir is already unmounted no error is returned.
+// hardlinking directories. If the dir is already unmounted no error is
+// returned.
 func unlinkDir(dir string) error {
 	if err := syscall.Unmount(dir, 0); err != nil {
 		if err != syscall.EINVAL {

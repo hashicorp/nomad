@@ -57,10 +57,10 @@ func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 	}
 }
 
-// Build default directories and permissions in a task directory. If the built
-// boolean is true Build assumes the task dir has already been built and skips
-// expensive operations like chroot creation.
-func (t *TaskDir) Build(built bool, chroot map[string]string, fsi cstructs.FSIsolation) error {
+// Build default directories and permissions in a task directory. chrootCreated
+// allows skipping chroot creation if the caller knows it has already been
+// done.
+func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstructs.FSIsolation) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (t *TaskDir) Build(built bool, chroot map[string]string, fsi cstructs.FSIso
 
 	// Build chroot if chroot filesystem isolation is going to be used
 	if fsi == cstructs.FSIsolationChroot {
-		if err := t.buildChroot(built, chroot); err != nil {
+		if err := t.buildChroot(chrootCreated, chroot); err != nil {
 			return err
 		}
 	}
@@ -127,12 +127,11 @@ func (t *TaskDir) Build(built bool, chroot map[string]string, fsi cstructs.FSIso
 // buildChroot takes a mapping of absolute directory or file paths on the host
 // to their intended, relative location within the task directory. This
 // attempts hardlink and then defaults to copying. If the path exists on the
-// host and can't be embedded an error is returned.
-//
-// If built is true the chroot is assumed to have been built already and only
-// ephemeral operations (eg mounting /dev) are done.
-func (t *TaskDir) buildChroot(built bool, entries map[string]string) error {
-	if !built {
+// host and can't be embedded an error is returned. If chrootCreated is true
+// skip expensive embedding operations and only ephemeral operations (eg
+// mounting /dev) are done.
+func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
+	if !chrootCreated {
 		// Link/copy chroot entries
 		if err := t.embedDirs(entries); err != nil {
 			return err
