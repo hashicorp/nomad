@@ -106,11 +106,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td1.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td2.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -151,11 +151,11 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(nil, cstructs.FSIsolationImage); err != nil {
+	if err := td2.Build(false, nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -225,7 +225,7 @@ func TestAllocDir_Move(t *testing.T) {
 	defer d2.Destroy()
 
 	td1 := d1.NewTaskDir(t1.Name)
-	if err := td1.Build(nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
@@ -322,7 +322,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	defer d.Destroy()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 
@@ -334,7 +334,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 }
 
 func TestAllocDir_SplitPath(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "tmpdirtest")
+	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -355,7 +355,7 @@ func TestAllocDir_SplitPath(t *testing.T) {
 }
 
 func TestAllocDir_CreateDir(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "tmpdirtest")
+	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -388,5 +388,40 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 	if fi.Mode() != subdirMode.Mode() {
 		t.Fatalf("wrong file mode: %v, expected: %v", fi.Mode(), subdirMode.Mode())
+	}
+}
+
+func TestPathFuncs(t *testing.T) {
+	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
+	if err != nil {
+		t.Fatalf("error creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	missingDir := filepath.Join(dir, "does-not-exist")
+
+	if !pathExists(dir) {
+		t.Errorf("%q exists", dir)
+	}
+	if pathExists(missingDir) {
+		t.Errorf("%q does not exist", missingDir)
+	}
+
+	if empty, err := pathEmpty(dir); err != nil || !empty {
+		t.Errorf("%q is empty and exists. empty=%v error=%v", dir, empty, err)
+	}
+	if empty, err := pathEmpty(missingDir); err == nil || empty {
+		t.Errorf("%q is missing. empty=%v error=%v", missingDir, empty, err)
+	}
+
+	filename := filepath.Join(dir, "just-some-file")
+	f, err := os.Create(filename)
+	if err != nil {
+		t.Fatalf("could not create %q: %v", filename, err)
+	}
+	f.Close()
+
+	if empty, err := pathEmpty(dir); err != nil || empty {
+		t.Errorf("%q is not empty. empty=%v error=%v", dir, empty, err)
 	}
 }

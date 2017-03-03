@@ -29,9 +29,15 @@ func linkDir(src, dst string) error {
 }
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support
-// hardlinking directories.
+// hardlinking directories. If the dir is already unmounted no error is
+// returned.
 func unlinkDir(dir string) error {
-	return syscall.Unmount(dir, 0)
+	if err := syscall.Unmount(dir, 0); err != nil {
+		if err != syscall.EINVAL {
+			return err
+		}
+	}
+	return nil
 }
 
 // createSecretDir creates the secrets dir folder at the given path using a
@@ -72,7 +78,7 @@ func createSecretDir(dir string) error {
 // createSecretDir removes the secrets dir folder
 func removeSecretDir(dir string) error {
 	if unix.Geteuid() == 0 {
-		if err := syscall.Unmount(dir, 0); err != nil {
+		if err := unlinkDir(dir); err != nil {
 			// Ignore invalid path errors
 			if err != syscall.ENOENT {
 				return os.NewSyscallError("unmount", err)
