@@ -40,6 +40,7 @@ BUG FIXES:
   * api: Fix escaping of HTML characters [GH-2322]
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
+  * client: Fix remounting alloc dirs after reboots [GH-2391] [GH-2394]
   * client: Fix panic and deadlock during client restore state when prestart
     fails [GH-2376] 
   * config: Fix Consul Config Merging/Copying [GH-2278]
