@@ -1212,8 +1212,13 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	built := r.taskDirBuilt
 	r.persistLock.Unlock()
 
-	r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
-		SetMessage(structs.TaskBuildingTaskDir))
+	// We do not set the state again since this only occurs during restoration
+	// and the task dir is already built. The reason we call Build again is to
+	// ensure that the task dir invariants are still held.
+	if !built {
+		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
+			SetMessage(structs.TaskBuildingTaskDir))
+	}
 
 	chroot := config.DefaultChrootEnv
 	if len(r.config.ChrootEnv) > 0 {

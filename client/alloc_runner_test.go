@@ -321,7 +321,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new alloc runner
-	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
+	l2 := prefixedTestLogger("----- ar2:  ")
+	ar2 := NewAllocRunner(l2, ar.config, upd.Update,
 		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
 	err = ar2.RestoreState()
 	if err != nil {
@@ -341,7 +342,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		last := upd.Allocs[upd.Count-1]
 		return last.ClientStatus == structs.AllocClientStatusRunning, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar2.alloc.TaskStates["web"])
 	})
 
 	// Destroy and wait
