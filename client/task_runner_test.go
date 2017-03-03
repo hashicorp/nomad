@@ -157,7 +157,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 3 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 3 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -255,7 +255,7 @@ func TestTaskRunner_Destroy(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 5 {
-		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 5 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -418,7 +418,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 5 {
-		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 5 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -485,7 +485,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 8 {
-		t.Fatalf("should have 8 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 8 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -758,7 +758,7 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 2 {
-		t.Fatalf("should have 2 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 2 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStatePending {
@@ -783,7 +783,7 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 4 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -853,7 +853,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 4 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -966,7 +966,7 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 2 {
-		t.Fatalf("should have 2 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 2 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStatePending {
@@ -991,7 +991,7 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 4 {
-		t.Fatalf("should have 4 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 4 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -1058,7 +1058,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 5 {
-		t.Fatalf("should have 5 ctx.upd.tes: %#v", ctx.upd.events)
+		t.Fatalf("should have 5 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {

@@ -71,7 +71,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 	}
 
 	// Create a local directory that each task can use.
-	if err := os.Mkdir(t.LocalDir, 0777); err != nil {
+	if err := os.MkdirAll(t.LocalDir, 0777); err != nil {
 		return err
 	}
 
