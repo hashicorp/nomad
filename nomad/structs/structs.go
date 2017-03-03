@@ -296,6 +296,9 @@ type JobValidateResponse struct {
 
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
+
+	// Error is a string version of any error that may have occured
+	Error string
 }
 
 // NodeListRequest is used to parameterize a list request
@@ -1277,7 +1280,7 @@ func (j *Job) Validate() error {
 	// Validate the task group
 	for _, tg := range j.TaskGroups {
 		if err := tg.Validate(); err != nil {
-			outer := fmt.Errorf("Task group %s validation failed: %s", tg.Name, err)
+			outer := fmt.Errorf("Task group %s validation failed: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -2021,7 +2024,7 @@ func (tg *TaskGroup) Validate() error {
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		if err := task.Validate(tg.EphemeralDisk); err != nil {
-			outer := fmt.Errorf("Task %s validation failed: %s", task.Name, err)
+			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}

@@ -506,6 +506,9 @@ type JobValidateResponse struct {
 
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
+
+	// Error is a string version of any error that may have occured
+	Error string
 }
 
 // JobUpdateRequest is used to update a job
