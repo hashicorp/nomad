@@ -10,3 +10,6 @@
 //= require app/_Sidebar
 //= require app/_CubeDraw
 //= require app/_Init
+
+// assets/javascripts/application.js
+//= require hashicorp/mega-nav
