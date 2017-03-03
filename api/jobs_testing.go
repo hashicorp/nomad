@@ -46,7 +46,7 @@ func MockJob() *Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
-						Services: []Service{
+						Services: []*Service{
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",

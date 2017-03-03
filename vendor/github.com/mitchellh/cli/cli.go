@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -24,7 +25,7 @@ import (
 //
 //   * We use longest prefix matching to find a matching subcommand. This
 //     means if you register "foo bar" and the user executes "cli foo qux",
-//     the "foo" commmand will be executed with the arg "qux". It is up to
+//     the "foo" command will be executed with the arg "qux". It is up to
 //     you to handle these args. One option is to just return the special
 //     help return code `RunResultHelp` to display help and exit.
 //
@@ -122,20 +123,11 @@ func (c *CLI) Run() (int, error) {
 		return 1, nil
 	}
 
-	// If there is an invalid flag, then error
-	if len(c.topFlags) > 0 {
-		c.HelpWriter.Write([]byte(
-			"Invalid flags before the subcommand. If these flags are for\n" +
-				"the subcommand, please put them after the subcommand.\n\n"))
-		c.HelpWriter.Write([]byte(c.HelpFunc(c.Commands) + "\n"))
-		return 1, nil
-	}
-
 	// Attempt to get the factory function for creating the command
 	// implementation. If the command is invalid or blank, it is an error.
 	raw, ok := c.commandTree.Get(c.Subcommand())
 	if !ok {
-		c.HelpWriter.Write([]byte(c.HelpFunc(c.Commands) + "\n"))
+		c.HelpWriter.Write([]byte(c.HelpFunc(c.helpCommands(c.subcommandParent())) + "\n"))
 		return 1, nil
 	}
 
@@ -146,6 +138,15 @@ func (c *CLI) Run() (int, error) {
 
 	// If we've been instructed to just print the help, then print it
 	if c.IsHelp() {
+		c.commandHelp(command)
+		return 1, nil
+	}
+
+	// If there is an invalid flag, then error
+	if len(c.topFlags) > 0 {
+		c.HelpWriter.Write([]byte(
+			"Invalid flags before the subcommand. If these flags are for\n" +
+				"the subcommand, please put them after the subcommand.\n\n"))
 		c.commandHelp(command)
 		return 1, nil
 	}
@@ -173,6 +174,27 @@ func (c *CLI) Subcommand() string {
 func (c *CLI) SubcommandArgs() []string {
 	c.once.Do(c.init)
 	return c.subcommandArgs
+}
+
+// subcommandParent returns the parent of this subcommand, if there is one.
+// If there isn't on, "" is returned.
+func (c *CLI) subcommandParent() string {
+	// Get the subcommand, if it is "" alread just return
+	sub := c.Subcommand()
+	if sub == "" {
+		return sub
+	}
+
+	// Clear any trailing spaces and find the last space
+	sub = strings.TrimRight(sub, " ")
+	idx := strings.LastIndex(sub, " ")
+
+	if idx == -1 {
+		// No space means our parent is root
+		return ""
+	}
+
+	return sub[:idx]
 }
 
 func (c *CLI) init() {
@@ -228,7 +250,7 @@ func (c *CLI) init() {
 		c.commandTree.Walk(walkFn)
 
 		// Insert any that we're missing
-		for k, _ := range toInsert {
+		for k := range toInsert {
 			var f CommandFactory = func() (Command, error) {
 				return &MockCommand{
 					HelpText:  "This command is accessed by using one of the subcommands below.",
@@ -268,15 +290,14 @@ func (c *CLI) commandHelp(command Command) {
 	}
 
 	// Build subcommand list if we have it
-	var subcommands []map[string]interface{}
+	var subcommandsTpl []map[string]interface{}
 	if c.commandNested {
 		// Get the matching keys
-		var keys []string
-		prefix := c.Subcommand() + " "
-		c.commandTree.WalkPrefix(prefix, func(k string, raw interface{}) bool {
+		subcommands := c.helpCommands(c.Subcommand())
+		keys := make([]string, 0, len(subcommands))
+		for k := range subcommands {
 			keys = append(keys, k)
-			return false
-		})
+		}
 
 		// Sort the keys
 		sort.Strings(keys)
@@ -290,34 +311,35 @@ func (c *CLI) commandHelp(command Command) {
 		}
 
 		// Go through and create their structures
-		subcommands = make([]map[string]interface{}, len(keys))
-		for i, k := range keys {
-			raw, ok := c.commandTree.Get(k)
-			if !ok {
-				// We just checked that it should be here above. If it is
-				// isn't, there are serious problems.
-				panic("value is missing")
-			}
-
+		subcommandsTpl = make([]map[string]interface{}, 0, len(subcommands))
+		for _, k := range keys {
 			// Get the command
-			sub, err := raw.(CommandFactory)()
+			raw, ok := subcommands[k]
+			if !ok {
+				c.HelpWriter.Write([]byte(fmt.Sprintf(
+					"Error getting subcommand %q", k)))
+			}
+			sub, err := raw()
 			if err != nil {
 				c.HelpWriter.Write([]byte(fmt.Sprintf(
 					"Error instantiating %q: %s", k, err)))
 			}
 
-			// Determine some info
-			name := strings.TrimPrefix(k, prefix)
+			// Find the last space and make sure we only include that last part
+			name := k
+			if idx := strings.LastIndex(k, " "); idx > -1 {
+				name = name[idx+1:]
+			}
 
-			subcommands[i] = map[string]interface{}{
+			subcommandsTpl = append(subcommandsTpl, map[string]interface{}{
 				"Name":        name,
 				"NameAligned": name + strings.Repeat(" ", longest-len(k)),
 				"Help":        sub.Help(),
 				"Synopsis":    sub.Synopsis(),
-			}
+			})
 		}
 	}
-	data["Subcommands"] = subcommands
+	data["Subcommands"] = subcommandsTpl
 
 	// Write
 	err = t.Execute(c.HelpWriter, data)
@@ -330,16 +352,56 @@ func (c *CLI) commandHelp(command Command) {
 		"Internal error rendering help: %s", err)))
 }
 
+// helpCommands returns the subcommands for the HelpFunc argument.
+// This will only contain immediate subcommands.
+func (c *CLI) helpCommands(prefix string) map[string]CommandFactory {
+	// If our prefix isn't empty, make sure it ends in ' '
+	if prefix != "" && prefix[len(prefix)-1] != ' ' {
+		prefix += " "
+	}
+
+	// Get all the subkeys of this command
+	var keys []string
+	c.commandTree.WalkPrefix(prefix, func(k string, raw interface{}) bool {
+		// Ignore any sub-sub keys, i.e. "foo bar baz" when we want "foo bar"
+		if !strings.Contains(k[len(prefix):], " ") {
+			keys = append(keys, k)
+		}
+
+		return false
+	})
+
+	// For each of the keys return that in the map
+	result := make(map[string]CommandFactory, len(keys))
+	for _, k := range keys {
+		raw, ok := c.commandTree.Get(k)
+		if !ok {
+			// We just got it via WalkPrefix above, so we just panic
+			panic("not found: " + k)
+		}
+
+		result[k] = raw.(CommandFactory)
+	}
+
+	return result
+}
+
 func (c *CLI) processArgs() {
 	for i, arg := range c.Args {
+		if arg == "--" {
+			break
+		}
+
+		// Check for help flags.
+		if arg == "-h" || arg == "-help" || arg == "--help" {
+			c.isHelp = true
+			continue
+		}
+
 		if c.subcommand == "" {
-			// Check for version and help flags if not in a subcommand
+			// Check for version flags if not in a subcommand.
 			if arg == "-v" || arg == "-version" || arg == "--version" {
 				c.isVersion = true
-				continue
-			}
-			if arg == "-h" || arg == "-help" || arg == "--help" {
-				c.isHelp = true
 				continue
 			}
 
@@ -350,16 +412,24 @@ func (c *CLI) processArgs() {
 		}
 
 		// If we didn't find a subcommand yet and this is the first non-flag
-		// argument, then this is our subcommand. j
+		// argument, then this is our subcommand.
 		if c.subcommand == "" && arg != "" && arg[0] != '-' {
 			c.subcommand = arg
 			if c.commandNested {
 				// Nested CLI, the subcommand is actually the entire
 				// arg list up to a flag that is still a valid subcommand.
-				k, _, ok := c.commandTree.LongestPrefix(strings.Join(c.Args[i:], " "))
+				searchKey := strings.Join(c.Args[i:], " ")
+				k, _, ok := c.commandTree.LongestPrefix(searchKey)
 				if ok {
-					c.subcommand = k
-					i += strings.Count(k, " ")
+					// k could be a prefix that doesn't contain the full
+					// command such as "foo" instead of "foobar", so we
+					// need to verify that we have an entire key. To do that,
+					// we look for an ending in a space or an end of string.
+					reVerify := regexp.MustCompile(regexp.QuoteMeta(k) + `( |$)`)
+					if reVerify.MatchString(searchKey) {
+						c.subcommand = k
+						i += strings.Count(k, " ")
+					}
 				}
 			}
 
@@ -384,7 +454,7 @@ const defaultHelpTemplate = `
 {{.Help}}{{if gt (len .Subcommands) 0}}
 
 Subcommands:
-{{ range $value := .Subcommands }}
+{{- range $value := .Subcommands }}
     {{ $value.NameAligned }}    {{ $value.Synopsis }}{{ end }}
-{{ end }}
+{{- end }}
 `

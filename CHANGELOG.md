@@ -17,9 +17,10 @@ IMPROVEMENTS:
   * cli: node-status displays enabled drivers on the node [GH-2349]
   * client: Apply GC related configurations properly [GH-2273]
   * client: Don't force uppercase meta keys in env vars [GH-2338]
+  * client: Don't exec `uname -r` for node attribute kernel.version [GH-2380]
+  * client: Artifact support for git and hg as well as netrc support [GH-2386]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
-  * client: Don't exec `uname -r` for node attribute kernel.version [GH-2380]
   * driver/docker: Add support for volume drivers [GH-2351]
   * driver/docker: Docker image coordinator and caching [GH-2361]
   * jobspec: Add leader task to allow graceful shutdown of other tasks within

@@ -793,6 +793,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			for _, artifact := range r.task.Artifacts {
 				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir.Dir); err != nil {
 					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
+					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
 					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, true))

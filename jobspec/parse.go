@@ -898,7 +898,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 }
 
 func parseServices(jobName string, taskGroupName string, task *api.Task, serviceObjs *ast.ObjectList) error {
-	task.Services = make([]api.Service, len(serviceObjs.Items))
+	task.Services = make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
 		valid := []string{
@@ -937,7 +937,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			}
 		}
 
-		task.Services[idx] = service
+		task.Services[idx] = &service
 	}
 
 	return nil

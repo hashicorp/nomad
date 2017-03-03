@@ -105,7 +105,7 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								Services: []api.Service{
+								Services: []*api.Service{
 									{
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
@@ -410,7 +410,7 @@ func TestParse(t *testing.T) {
 						Tasks: []*api.Task{
 							&api.Task{
 								Name: "task",
-								Services: []api.Service{
+								Services: []*api.Service{
 									{
 										Tags:      []string{"foo", "bar"},
 										PortLabel: "http",
