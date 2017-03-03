@@ -408,10 +408,10 @@ func TestPathFuncs(t *testing.T) {
 	}
 
 	if empty, err := pathEmpty(dir); err != nil || !empty {
-		t.Errorf("%q is empty and exists. empty=%v error=%v", empty, err)
+		t.Errorf("%q is empty and exists. empty=%v error=%v", dir, empty, err)
 	}
 	if empty, err := pathEmpty(missingDir); err == nil || empty {
-		t.Errorf("%q is missing. empty=%v error=%v", empty, err)
+		t.Errorf("%q is missing. empty=%v error=%v", missingDir, empty, err)
 	}
 
 	filename := filepath.Join(dir, "just-some-file")
@@ -422,6 +422,6 @@ func TestPathFuncs(t *testing.T) {
 	f.Close()
 
 	if empty, err := pathEmpty(dir); err != nil || empty {
-		t.Errorf("%q is not empty. empty=%v error=%v", empty, err)
+		t.Errorf("%q is not empty. empty=%v error=%v", dir, empty, err)
 	}
 }

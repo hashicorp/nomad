@@ -87,7 +87,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 		t.Fatalf("secrets dir %q is not a directory and should be", secretsDir)
 	}
 	if err := isMount(secretsDir); err != nil {
-		t.Fatalf("secrets dir %q is not a mount: %v", err)
+		t.Fatalf("secrets dir %q is not a mount: %v", secretsDir, err)
 	}
 
 	// now remove it
