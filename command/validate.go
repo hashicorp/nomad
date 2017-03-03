@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/colorstring"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/command/agent"
 )
 
 type ValidateCommand struct {
 	Meta
 	JobGetter
-	color *colorstring.Colorize
 }
 
 func (c *ValidateCommand) Help() string {
@@ -67,22 +68,49 @@ func (c *ValidateCommand) Run(args []string) int {
 	// Check that the job is valid
 	jr, _, err := client.Jobs().Validate(job, nil)
 	if err != nil {
+		jr, err = c.validateLocal(job)
+	}
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error validating job: %s", err))
 		return 1
 	}
+
 	if jr != nil && !jr.DriverConfigValidated {
-		c.Ui.Output(c.Colorize().Color("[bold][orange]Driver configuration not validated.[reset]"))
+		c.Ui.Output(
+			c.Colorize().Color("[bold][yellow]Driver configuration not validated since connection to Nomad agent couldn't be established.[reset]\n"))
 	}
 
-	if jr != nil && len(jr.ValidationErrors) > 0 {
-		c.Ui.Output("Job Validation errors:")
-		for _, err := range jr.ValidationErrors {
-			c.Ui.Output(err)
-		}
+	if jr != nil && jr.Error != "" {
+		c.Ui.Error(
+			c.Colorize().Color("[bold][red]Job validation errors:[reset]"))
+		c.Ui.Error(jr.Error)
 		return 1
 	}
 
 	// Done!
-	c.Ui.Output("Job validation successful")
+	c.Ui.Output(
+		c.Colorize().Color("[bold][green]Job validation successful[reset]"))
 	return 0
+}
+
+// validateLocal validates without talking to a Nomad agent
+func (c *ValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, error) {
+	var out api.JobValidateResponse
+
+	job := agent.ApiJobToStructJob(aj)
+	job.Canonicalize()
+
+	if vErr := job.Validate(); vErr != nil {
+		if merr, ok := vErr.(*multierror.Error); ok {
+			for _, err := range merr.Errors {
+				out.ValidationErrors = append(out.ValidationErrors, err.Error())
+			}
+			out.Error = merr.Error()
+		} else {
+			out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
+			out.Error = vErr.Error()
+		}
+	}
+
+	return &out, nil
 }

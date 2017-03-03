@@ -532,61 +532,6 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestBadConfigEmpty(t *testing.T) {
-	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-config-empty.hcl"))
-	if err != nil {
-		t.Fatalf("Can't get absolute path for file: %s", err)
-	}
-
-	_, err = ParseFile(path)
-
-	if !strings.Contains(err.Error(), "field \"image\" is required, but no value was found") {
-		t.Fatalf("\nExpected error\n  %s\ngot\n  %v",
-			"field \"image\" is required, but no value was found",
-			err,
-		)
-	}
-}
-
-func TestBadConfigMissing(t *testing.T) {
-	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-config-missing.hcl"))
-	if err != nil {
-		t.Fatalf("Can't get absolute path for file: %s", err)
-	}
-
-	_, err = ParseFile(path)
-
-	if !strings.Contains(err.Error(), "field \"image\" is required") {
-		t.Fatalf("\nExpected error\n  %s\ngot\n  %v",
-			"field \"image\" is required",
-			err,
-		)
-	}
-}
-
-func TestBadConfig(t *testing.T) {
-	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-config.hcl"))
-	if err != nil {
-		t.Fatalf("Can't get absolute path for file: %s", err)
-	}
-
-	_, err = ParseFile(path)
-
-	if !strings.Contains(err.Error(), "seem to be of type boolean") {
-		t.Fatalf("\nExpected error\n  %s\ngot\n  %v",
-			"seem to be of type boolean",
-			err,
-		)
-	}
-
-	if !strings.Contains(err.Error(), "\"foo\" is an invalid field") {
-		t.Fatalf("\nExpected error\n  %s\ngot\n  %v",
-			"\"foo\" is an invalid field",
-			err,
-		)
-	}
-}
-
 func TestBadPorts(t *testing.T) {
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-ports.hcl"))
 	if err != nil {

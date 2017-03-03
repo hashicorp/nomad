@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -108,7 +107,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	}
 	s.parseRegion(req, &args.Region)
 
-	sJob := apiJobToStructJob(args.Job)
+	sJob := ApiJobToStructJob(args.Job)
 	planReq := structs.JobPlanRequest{
 		Job:  sJob,
 		Diff: args.Diff,
@@ -138,7 +137,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, "Job must be specified")
 	}
 
-	job := apiJobToStructJob(validateRequest.Job)
+	job := ApiJobToStructJob(validateRequest.Job)
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -149,18 +148,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 
 	var out structs.JobValidateResponse
 	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
-
-		// Fall back to do local validation
-		args.Job.Canonicalize()
-		if vErr := args.Job.Validate(); vErr != nil {
-			if merr, ok := vErr.(*multierror.Error); ok {
-				for _, e := range merr.Errors {
-					out.ValidationErrors = append(out.ValidationErrors, e.Error())
-				}
-			} else {
-				out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
-			}
-		}
+		return nil, err
 	}
 
 	return out, nil
@@ -301,7 +289,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 	s.parseRegion(req, &args.Region)
 
-	sJob := apiJobToStructJob(args.Job)
+	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
@@ -380,7 +368,7 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func apiJobToStructJob(job *api.Job) *structs.Job {
+func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
@@ -405,7 +393,7 @@ func apiJobToStructJob(job *api.Job) *structs.Job {
 	j.Constraints = make([]*structs.Constraint, len(job.Constraints))
 	for i, c := range job.Constraints {
 		con := &structs.Constraint{}
-		apiConstraintToStructs(c, con)
+		ApiConstraintToStructs(c, con)
 		j.Constraints[i] = con
 	}
 	if job.Update != nil {
@@ -436,21 +424,21 @@ func apiJobToStructJob(job *api.Job) *structs.Job {
 	j.TaskGroups = make([]*structs.TaskGroup, len(job.TaskGroups))
 	for i, taskGroup := range job.TaskGroups {
 		tg := &structs.TaskGroup{}
-		apiTgToStructsTG(taskGroup, tg)
+		ApiTgToStructsTG(taskGroup, tg)
 		j.TaskGroups[i] = tg
 	}
 
 	return j
 }
 
-func apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
 	tg.Constraints = make([]*structs.Constraint, len(taskGroup.Constraints))
 	for k, constraint := range taskGroup.Constraints {
 		c := &structs.Constraint{}
-		apiConstraintToStructs(constraint, c)
+		ApiConstraintToStructs(constraint, c)
 		tg.Constraints[k] = c
 	}
 	tg.RestartPolicy = &structs.RestartPolicy{
@@ -468,12 +456,12 @@ func apiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Tasks = make([]*structs.Task, len(taskGroup.Tasks))
 	for l, task := range taskGroup.Tasks {
 		t := &structs.Task{}
-		apiTaskToStructsTask(task, t)
+		ApiTaskToStructsTask(task, t)
 		tg.Tasks[l] = t
 	}
 }
 
-func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
+func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
 	structsTask.User = apiTask.User
@@ -482,7 +470,7 @@ func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Constraints = make([]*structs.Constraint, len(apiTask.Constraints))
 	for i, constraint := range apiTask.Constraints {
 		c := &structs.Constraint{}
-		apiConstraintToStructs(constraint, c)
+		ApiConstraintToStructs(constraint, c)
 		structsTask.Constraints[i] = c
 	}
 	structsTask.Env = apiTask.Env
@@ -579,7 +567,7 @@ func apiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	}
 }
 
-func apiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
+func ApiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
 	c2.LTarget = c1.LTarget
 	c2.RTarget = c1.RTarget
 	c2.Operand = c1.Operand

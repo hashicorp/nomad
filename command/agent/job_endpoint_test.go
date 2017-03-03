@@ -1036,7 +1036,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		JobModifyIndex:    5,
 	}
 
-	structsJob := apiJobToStructJob(apiJob)
+	structsJob := ApiJobToStructJob(apiJob)
 
 	if !reflect.DeepEqual(expected, structsJob) {
 		t.Fatalf("bad %#v", structsJob)

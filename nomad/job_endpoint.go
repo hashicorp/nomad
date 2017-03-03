@@ -294,13 +294,13 @@ func (j *Job) Validate(args *structs.JobValidateRequest,
 			for _, err := range merr.Errors {
 				reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
 			}
+			reply.Error = merr.Error()
 		} else {
 			reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
+			reply.Error = err.Error()
 		}
-
 	}
 	reply.DriverConfigValidated = true
-
 	return nil
 }
 

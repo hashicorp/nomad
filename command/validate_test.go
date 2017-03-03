@@ -106,7 +106,7 @@ func TestValidateCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{fh2.Name()}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error validating") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Job validation errors") {
 		t.Fatalf("expect validation error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
