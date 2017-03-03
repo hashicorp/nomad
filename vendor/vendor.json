@@ -933,8 +933,10 @@
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
+			"checksumSHA1": "PfnjkP75J4WIemUueJcrH2VbRHY=",
 			"path": "github.com/mitchellh/cli",
-			"revision": "cb6853d606ea4a12a15ac83cc43503df99fd28fb"
+			"revision": "8d6d9ab3c912dcb005ece87c40a41b9e73e1999a",
+			"revisionTime": "2017-03-03T02:36:54Z"
 		},
 		{
 			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",
