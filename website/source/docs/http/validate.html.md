@@ -196,12 +196,14 @@ configurations.
   <dd>
     
     ```javascript
-    {
-        "DriverConfigValidated": true,
-        "ValidationErrors": [
-          "minimum CPU value is 20; got 1"
-          ]
-    }
+{
+  "DriverConfigValidated": true,
+  "ValidationErrors": [
+    "Task group cache validation failed: 1 error(s) occurred:\n\n* Task redis validation failed: 1 error(s) occurred:\n\n* 1 error(s) occurred:\n\n* minimum CPU value is 20; got 1"
+  ],
+  "Error": "1 error(s) occurred:\n\n* Task group cache validation failed: 1 error(s) occurred:\n\n* Task redis validation failed: 1 error(s) occurred:\n\n* 1 error(s) occurred:\n\n* minimum CPU value is 20; got 1"
+}
     ```
+
   </dd>
 </dl>
