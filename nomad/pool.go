@@ -373,30 +373,6 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	return nil
 }
 
-// PingNomadServer sends a Status.Ping message to the specified server and
-// returns true if healthy, false if an error occurred
-func (p *ConnPool) PingNomadServer(region string, apiMajorVersion int, s net.Addr) (bool, error) {
-	// Get a usable client
-	conn, sc, err := p.getClient(region, s, apiMajorVersion)
-	if err != nil {
-		return false, err
-	}
-
-	// Make the RPC call
-	var out struct{}
-	err = msgpackrpc.CallWithCodec(sc.codec, "Status.Ping", struct{}{}, &out)
-	if err != nil {
-		sc.Close()
-		p.releaseConn(conn)
-		return false, err
-	}
-
-	// Done with the connection
-	conn.returnClient(sc)
-	p.releaseConn(conn)
-	return true, nil
-}
-
 // Reap is used to close conns open over maxTime
 func (p *ConnPool) reap() {
 	for {
