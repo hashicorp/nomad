@@ -41,6 +41,6 @@ fi
 popd
 
 # Upload
-if [ ! -z $HC_RELEASE ]; then
+if [ -z $HC_RELEASE ]; then
   hc-releases upload $DIR/pkg/dist && hc-releases publish
 fi
