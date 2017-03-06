@@ -257,7 +257,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		return err
 	}
 
-	if len(accessors) != 0 {
+	if l := len(accessors); l != 0 {
+		n.srv.logger.Printf("[DEBUG] nomad.client: revoking %d accessors on node %q due to deregister", l, args.NodeID)
 		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: revoking accessors for node %q failed: %v", args.NodeID, err)
 			return err
@@ -341,7 +342,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			return err
 		}
 
-		if len(accessors) != 0 {
+		if l := len(accessors); l != 0 {
+			n.srv.logger.Printf("[DEBUG] nomad.client: revoking %d accessors on node %q due to down state", l, args.NodeID)
 			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
 				n.srv.logger.Printf("[ERR] nomad.client: revoking accessors for node %q failed: %v", args.NodeID, err)
 				return err
@@ -734,7 +736,8 @@ func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation) {
 		revoke = append(revoke, accessors...)
 	}
 
-	if len(revoke) != 0 {
+	if l := len(revoke); l != 0 {
+		n.srv.logger.Printf("[DEBUG] nomad.client: revoking %d accessors due to terminal allocations", l)
 		if err := n.srv.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: batched accessor revocation failed: %v", err)
 			mErr.Errors = append(mErr.Errors, err)
