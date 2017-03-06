@@ -427,7 +427,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
-		humanize.IBytes(uint64(*resource.DiskMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
 		*resource.IOPS,
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
