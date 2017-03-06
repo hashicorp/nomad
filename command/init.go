@@ -254,9 +254,9 @@ job "example" {
       # }
 
       # The "resources" stanza describes the requirements a task needs to
-      # execute. Resource requirements include memory, disk space, network,
-      # cpu, and more. This ensures the task will execute on a machine that
-      # contains enough resource capacity.
+      # execute. Resource requirements include memory, network, cpu, and more.
+      # This ensures the task will execute on a machine that contains enough
+      # resource capacity.
       #
       # For more information and examples on the "resources" stanza, please see
       # the online documentation at:

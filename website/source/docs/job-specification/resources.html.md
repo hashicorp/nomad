@@ -4,7 +4,7 @@ page_title: "resources Stanza - Job Specification"
 sidebar_current: "docs-job-specification-resources"
 description: |-
   The "resources" stanza describes the requirements a task needs to execute.
-  Resource requirements include memory, disk space, network, cpu, and more.
+  Resource requirements include memory, network, cpu, and more.
 ---
 
 # `resources` Stanza
@@ -19,7 +19,7 @@ description: |-
 </table>
 
 The `resources` stanza describes the requirements a task needs to execute.
-Resource requirements include memory, disk space, network, cpu, and more.
+Resource requirements include memory, network, cpu, and more.
 
 ```hcl
 job "docs" {
