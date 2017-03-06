@@ -11,11 +11,11 @@ const (
 	// serviceJobAntiAffinityPenalty is the penalty applied
 	// to the score for placing an alloc on a node that
 	// already has an alloc for this job.
-	serviceJobAntiAffinityPenalty = 10.0
+	serviceJobAntiAffinityPenalty = 20.0
 
 	// batchJobAntiAffinityPenalty is the same as the
 	// serviceJobAntiAffinityPenalty but for batch type jobs.
-	batchJobAntiAffinityPenalty = 5.0
+	batchJobAntiAffinityPenalty = 10.0
 )
 
 // Stack is a chained collection of iterators. The stack is used to
