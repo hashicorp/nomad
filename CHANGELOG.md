@@ -38,6 +38,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * core: Handle periodic paramaterized jobs [GH-2385]
   * api: Fix escaping of HTML characters [GH-2322]
+  * cli: Display disk resources in alloc-status [GH-2404]
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * client: Fix remounting alloc dirs after reboots [GH-2391] [GH-2394]
