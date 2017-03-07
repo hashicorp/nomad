@@ -42,6 +42,7 @@ BUG FIXES:
   * client: Drivers log during fingerprinting [GH-2337]
   * client: Fix race condition with deriving vault tokens [GH-2275]
   * client: Fix remounting alloc dirs after reboots [GH-2391] [GH-2394]
+  * client: Replace `-` with `_` in environment variable names [GH-2406]
   * client: Fix panic and deadlock during client restore state when prestart
     fails [GH-2376] 
   * config: Fix Consul Config Merging/Copying [GH-2278]
