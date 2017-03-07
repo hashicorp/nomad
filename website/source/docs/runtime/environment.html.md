@@ -73,6 +73,10 @@ environment variables.
     <td>The IP:Port pair of the port with the given label</td>
   </tr>
   <tr>
+    <td>`NOMAD_ADDR_<task>_<label`></td>
+    <td>The allocated address, given as IP:Port for the given label of other tasks in the same group</td>
+  </tr>
+  <tr>
     <td>`NOMAD_HOST_PORT_<label>`</td>
     <td>The host port for the given label if the port is port mapped</td>
   </tr>
@@ -84,11 +88,11 @@ environment variables.
     <td>`VAULT_TOKEN`</td>
     <td>The task's Vault token. See [Vault Integration](/docs/vault-integration/index.html) for more details</td>
   </tr>
-  <tr>
-    <td>`NOMAD_ADDR_<task>_<label`></td>
-    <td>The allocated address, given as IP:Port, for each task, port label</td>
-  </tr>
 </table>
+
+Port labels and task names will have any dashes `-` in their names replaced by
+underscores `_` when they're used in environment variable names such as
+`NOMAD_ADDR_<task>_<label>`.
 
 ## Task Identifiers
 
