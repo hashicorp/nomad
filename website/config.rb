@@ -58,8 +58,6 @@ helpers do
       classes << "layout-#{page.data.layout}"
     end
 
-    classes << "-displaying-bnr"
-
     return classes.join(" ")
   end
 end
