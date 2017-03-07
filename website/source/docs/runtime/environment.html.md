@@ -90,7 +90,7 @@ environment variables.
   </tr>
 </table>
 
-Port labels and task names will have any dashes `-` in their names replaced by
+~> Port labels and task names will have any dashes `-` in their names replaced by
 underscores `_` when they're used in environment variable names such as
 `NOMAD_ADDR_<task>_<label>`.
 
