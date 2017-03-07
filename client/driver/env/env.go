@@ -251,6 +251,14 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		t.TaskEnv[k] = v
 	}
 
+	// Clean keys (see #2405)
+	cleanedEnv := make(map[string]string, len(t.TaskEnv))
+	for k, v := range t.TaskEnv {
+		cleanedK := strings.Replace(k, "-", "_", -1)
+		cleanedEnv[cleanedK] = v
+	}
+	t.TaskEnv = cleanedEnv
+
 	return t
 }
 

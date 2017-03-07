@@ -267,3 +267,26 @@ func TestEnvironment_AppendHostEnvVars(t *testing.T) {
 		t.Fatalf("Didn't filter environment variable %q", skip)
 	}
 }
+
+// TestEnvironment_DashesInTaskName asserts dashes in port labels are properly
+// converted to underscores in environment variables.
+// See: https://github.com/hashicorp/nomad/issues/2405
+func TestEnvironment_DashesInTaskName(t *testing.T) {
+	env := testTaskEnvironment()
+	env.SetNetworks([]*structs.NetworkResource{
+		{
+			Device: "eth0",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "just-some-dashes",
+					Value: 9000,
+				},
+			},
+		},
+	})
+	env.Build()
+
+	if env.TaskEnv["NOMAD_PORT_just_some_dashes"] != "9000" {
+		t.Fatalf("Expected NOMAD_PORT_just_some_dashes=9000 in TaskEnv; found:\n%#v", env.TaskEnv)
+	}
+}
