@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -157,6 +158,9 @@ type ProposedAllocConstraintIterator struct {
 	// they don't have to be calculated every time Next() is called.
 	tgDistinctHosts  bool
 	jobDistinctHosts bool
+
+	tgDistinctPropertyConstraints  []*structs.Constraint
+	jobDistinctPropertyConstraints []*structs.Constraint
 }
 
 // NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
@@ -171,11 +175,13 @@ func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *P
 func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
+	iter.tgDistinctPropertyConstraints = getDistinctPropertyConstraints(tg.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
+	iter.jobDistinctPropertyConstraints = getDistinctPropertyConstraints(job.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
@@ -184,22 +190,59 @@ func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constrai
 			return true
 		}
 	}
+
 	return false
 }
 
+// getDistinctPropertyConstraints filters the input constraints returning a list
+// of distinct_property constraints.
+func getDistinctPropertyConstraints(constraints []*structs.Constraint) []*structs.Constraint {
+	var distinctProperties []*structs.Constraint
+	for _, con := range constraints {
+		if con.Operand == structs.ConstraintDistinctProperty {
+			distinctProperties = append(distinctProperties, con)
+		}
+	}
+	return distinctProperties
+}
+
 func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
+OUTER:
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
 
-		// Hot-path if the option is nil or there are no distinct_hosts constraints.
-		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+		// Hot-path if the option is nil or there are no distinct_hosts or
+		// distinct_property constraints.
+		hosts := iter.jobDistinctHosts || iter.tgDistinctHosts
+		properties := len(iter.jobDistinctPropertyConstraints) != 0 || len(iter.tgDistinctPropertyConstraints) != 0
+		if option == nil || !(hosts || properties) {
 			return option
 		}
 
-		if !iter.satisfiesDistinctHosts(option) {
-			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
-			continue
+		// Check if the host constraints are satisfied
+		if hosts {
+			if !iter.satisfiesDistinctHosts(option) {
+				iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
+				continue
+			}
+		}
+
+		// Check if the property constraints are satisfied
+		if properties {
+			for _, con := range iter.jobDistinctPropertyConstraints {
+				if !iter.satisfiesDistinctProperty(option, con, true) {
+					iter.ctx.Metrics().FilterNode(option, con.String())
+					continue OUTER
+				}
+			}
+
+			for _, con := range iter.tgDistinctPropertyConstraints {
+				if !iter.satisfiesDistinctProperty(option, con, true) {
+					iter.ctx.Metrics().FilterNode(option, con.String())
+					continue OUTER
+				}
+			}
 		}
 
 		return option
@@ -230,6 +273,95 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 		jobCollision := alloc.JobID == iter.job.ID
 		taskCollision := alloc.TaskGroup == iter.tg.Name
 		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
+			return false
+		}
+	}
+
+	return true
+}
+
+// satisfiesDistinctProperty checks if the node satisfies the
+// distinct_property constraint for the passed constraint.
+// XXX it is insane to do all this work per constraint. Pass in all constraints
+func (iter *ProposedAllocConstraintIterator) satisfiesDistinctProperty(
+	option *structs.Node, con *structs.Constraint, jobConstraint bool) bool {
+
+	// Check if this node has the property
+	val, ok := resolveConstraintTarget(con.LTarget, option)
+	if !ok {
+		return false
+	}
+	optionValue, ok := val.(string)
+	if !ok {
+		return false
+	}
+
+	// Retrieve all previously placed allocations
+	// XXX this should be cached
+	ws := memdb.NewWatchSet()
+	allocs, err := iter.ctx.State().AllocsByJob(ws, iter.job.ID, false)
+	if err != nil {
+		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get job's allocations: %v", err)
+		return false
+	}
+
+	// Add the proposed allocations
+	for _, pallocs := range iter.ctx.Plan().NodeAllocation {
+		allocs = append(allocs, pallocs...)
+	}
+
+	// Filter to relevant allocations
+	var filteredAllocs []*structs.Allocation
+	for _, alloc := range allocs {
+		// Ensure the allocation is for the same job
+		if alloc.JobID != iter.job.ID {
+			continue
+		}
+
+		// Ensure the allocation is non-terminal
+		if alloc.TerminalStatus() {
+			continue
+		}
+
+		// We are working on a particular task group so filter allocs not from
+		// it.
+		if !jobConstraint && alloc.TaskGroup != iter.tg.Name {
+			continue
+		}
+
+		filteredAllocs = append(filteredAllocs, alloc)
+	}
+
+	// Get all the nodes that have already been used
+	nodes := make(map[string]*structs.Node)
+	for _, alloc := range filteredAllocs {
+		if _, ok := nodes[alloc.NodeID]; ok {
+			continue
+		}
+
+		node, err := iter.ctx.State().NodeByID(ws, alloc.NodeID)
+		if err != nil {
+			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to lookup node ID %q: %v", alloc.NodeID, err)
+			return false
+		}
+
+		nodes[alloc.NodeID] = node
+	}
+
+	// Check if this options value for the target propery collides with a
+	// previously selected property value
+	for _, n := range nodes {
+		val, ok := resolveConstraintTarget(con.LTarget, n)
+		if !ok {
+			continue
+		}
+		nodeValue, ok := val.(string)
+		if !ok {
+			continue
+		}
+
+		// We have a duplicate so we aren't valid
+		if nodeValue == optionValue {
 			return false
 		}
 	}
@@ -327,7 +459,7 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
-	case structs.ConstraintDistinctHosts:
+	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
 		return true
 	default:
 		break
