@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -69,25 +68,21 @@ func (c *AgentCheckCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("unable to query agent info: %v", err))
 		return HealthCritical
 	}
-	if stats, ok := info["stats"]; !ok && (reflect.TypeOf(stats).Kind() == reflect.Map) {
-		c.Ui.Error("error getting stats from the agent api")
-		return 1
-	}
-	if _, ok := info["stats"]["nomad"]; ok {
-		return c.checkServerHealth(info["stats"], minPeers)
+	if _, ok := info.Stats["nomad"]; ok {
+		return c.checkServerHealth(info.Stats, minPeers)
 	}
 
-	if _, ok := info["stats"]["client"]; ok {
-		return c.checkClientHealth(info["stats"], minServers)
+	if clientStats, ok := info.Stats["client"]; ok {
+		return c.checkClientHealth(clientStats, minServers)
 	}
 	return HealthWarn
 }
 
 // checkServerHealth returns the health of a server.
 // TODO Add more rules for determining server health
-func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPeers int) int {
-	raft := info["raft"].(map[string]interface{})
-	knownPeers, err := strconv.Atoi(raft["num_peers"].(string))
+func (c *AgentCheckCommand) checkServerHealth(info map[string]map[string]string, minPeers int) int {
+	raft := info["raft"]
+	knownPeers, err := strconv.Atoi(raft["num_peers"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to get known peers: %v", err))
 		return HealthCritical
@@ -101,21 +96,20 @@ func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPe
 }
 
 // checkClientHealth returns the health of a client
-func (c *AgentCheckCommand) checkClientHealth(info map[string]interface{}, minServers int) int {
-	clientStats := info["client"].(map[string]interface{})
-	knownServers, err := strconv.Atoi(clientStats["known_servers"].(string))
+func (c *AgentCheckCommand) checkClientHealth(clientStats map[string]string, minServers int) int {
+	knownServers, err := strconv.Atoi(clientStats["known_servers"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to get known servers: %v", err))
 		return HealthCritical
 	}
 
-	heartbeatTTL, err := time.ParseDuration(clientStats["heartbeat_ttl"].(string))
+	heartbeatTTL, err := time.ParseDuration(clientStats["heartbeat_ttl"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to parse heartbeat TTL: %v", err))
 		return HealthCritical
 	}
 
-	lastHeartbeat, err := time.ParseDuration(clientStats["last_heartbeat"].(string))
+	lastHeartbeat, err := time.ParseDuration(clientStats["last_heartbeat"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to parse last heartbeat: %v", err))
 		return HealthCritical
