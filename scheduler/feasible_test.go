@@ -653,11 +653,12 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 	// job unsatisfiable on all nodes but node5. Also mix the allocations
 	// existing in the plan and the state store.
 	plan := ctx.Plan()
+	alloc1ID := structs.GenerateUUID()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
-			ID:        structs.GenerateUUID(),
+			ID:        alloc1ID,
 			NodeID:    nodes[0].ID,
 		},
 
@@ -686,7 +687,28 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 		},
 	}
 
+	// Put an allocation on Node 5 but make it stopped in the plan
+	stoppingAllocID := structs.GenerateUUID()
+	plan.NodeUpdate[nodes[4].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			NodeID:    nodes[4].ID,
+		},
+	}
+
 	upserting := []*structs.Allocation{
+		// Have one of the allocations exist in both the plan and the state
+		// store. This resembles an allocation update
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        alloc1ID,
+			EvalID:    structs.GenerateUUID(),
+			NodeID:    nodes[0].ID,
+		},
+
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
@@ -718,6 +740,13 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[3].ID,
+		},
+		&structs.Allocation{
+			TaskGroup: tg2.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			EvalID:    structs.GenerateUUID(),
+			NodeID:    nodes[4].ID,
 		},
 	}
 	if err := state.UpsertAllocs(1000, upserting); err != nil {
@@ -725,8 +754,9 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 	}
 
 	proposed := NewProposedAllocConstraintIterator(ctx, static)
-	proposed.SetTaskGroup(tg2)
 	proposed.SetJob(job)
+	proposed.SetTaskGroup(tg2)
+	proposed.Reset()
 
 	out := collectFeasible(proposed)
 	if len(out) != 1 {
@@ -734,6 +764,81 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 	}
 	if out[0].ID != nodes[4].ID {
 		t.Fatalf("wrong node picked")
+	}
+}
+
+// This test checks that if a node has an allocation on it that gets stopped,
+// there is a plan to re-use that for a new allocation, that the next select
+// won't select that node.
+func TestProposedAllocConstraint_JobDistinctProperty_RemoveAndReplace(t *testing.T) {
+	state, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+
+	nodes[0].Meta["rack"] = "1"
+
+	// Add to state store
+	if err := state.UpsertNode(uint64(100), nodes[0]); err != nil {
+		t.Fatalf("failed to upsert node: %v", err)
+	}
+
+	static := NewStaticIterator(ctx, nodes)
+
+	// Create a job with a distinct_property constraint and a task groups.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	job := &structs.Job{
+		ID: "foo",
+		Constraints: []*structs.Constraint{
+			{
+				Operand: structs.ConstraintDistinctProperty,
+				LTarget: "${meta.rack}",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{tg1},
+	}
+
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        structs.GenerateUUID(),
+			NodeID:    nodes[0].ID,
+		},
+	}
+
+	stoppingAllocID := structs.GenerateUUID()
+	plan.NodeUpdate[nodes[0].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			NodeID:    nodes[0].ID,
+		},
+	}
+
+	upserting := []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			EvalID:    structs.GenerateUUID(),
+			NodeID:    nodes[0].ID,
+		},
+	}
+	if err := state.UpsertAllocs(1000, upserting); err != nil {
+		t.Fatalf("failed to UpsertAllocs: %v", err)
+	}
+
+	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed.SetJob(job)
+	proposed.SetTaskGroup(tg1)
+	proposed.Reset()
+
+	out := collectFeasible(proposed)
+	if len(out) != 0 {
+		t.Fatalf("Bad: %#v", out)
 	}
 }
 
@@ -799,8 +904,9 @@ func TestProposedAllocConstraint_JobDistinctProperty_Infeasible(t *testing.T) {
 	}
 
 	proposed := NewProposedAllocConstraintIterator(ctx, static)
-	proposed.SetTaskGroup(tg3)
 	proposed.SetJob(job)
+	proposed.SetTaskGroup(tg3)
+	proposed.Reset()
 
 	out := collectFeasible(proposed)
 	if len(out) != 0 {
@@ -859,6 +965,18 @@ func TestProposedAllocConstraint_TaskGroupDistinctProperty(t *testing.T) {
 			NodeID:    nodes[0].ID,
 		},
 	}
+
+	// Put an allocation on Node 3 but make it stopped in the plan
+	stoppingAllocID := structs.GenerateUUID()
+	plan.NodeUpdate[nodes[2].ID] = []*structs.Allocation{
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			NodeID:    nodes[2].ID,
+		},
+	}
+
 	upserting := []*structs.Allocation{
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
@@ -876,14 +994,23 @@ func TestProposedAllocConstraint_TaskGroupDistinctProperty(t *testing.T) {
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[2].ID,
 		},
+
+		&structs.Allocation{
+			TaskGroup: tg1.Name,
+			JobID:     job.ID,
+			ID:        stoppingAllocID,
+			EvalID:    structs.GenerateUUID(),
+			NodeID:    nodes[2].ID,
+		},
 	}
 	if err := state.UpsertAllocs(1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
 	proposed := NewProposedAllocConstraintIterator(ctx, static)
-	proposed.SetTaskGroup(tg1)
 	proposed.SetJob(job)
+	proposed.SetTaskGroup(tg1)
+	proposed.Reset()
 
 	out := collectFeasible(proposed)
 	if len(out) != 1 {
@@ -895,8 +1022,9 @@ func TestProposedAllocConstraint_TaskGroupDistinctProperty(t *testing.T) {
 
 	// Since the other task group doesn't have the constraint, both nodes should
 	// be feasible.
-	proposed.Reset()
 	proposed.SetTaskGroup(tg2)
+	proposed.Reset()
+
 	out = collectFeasible(proposed)
 	if len(out) != 3 {
 		t.Fatalf("Bad: %#v", out)

@@ -154,34 +154,39 @@ type ProposedAllocConstraintIterator struct {
 	tg     *structs.TaskGroup
 	job    *structs.Job
 
+	// distinctProperties is used to track the distinct properties of the job
+	// and to check if node options satisfy these constraints.
+	distinctProperties *propertySet
+
 	// Store whether the Job or TaskGroup has a distinct_hosts constraints so
 	// they don't have to be calculated every time Next() is called.
 	tgDistinctHosts  bool
 	jobDistinctHosts bool
-
-	tgDistinctPropertyConstraints  []*structs.Constraint
-	jobDistinctPropertyConstraints []*structs.Constraint
 }
 
 // NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
 // from a source.
 func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *ProposedAllocConstraintIterator {
 	return &ProposedAllocConstraintIterator{
-		ctx:    ctx,
-		source: source,
+		ctx:                ctx,
+		source:             source,
+		distinctProperties: NewPropertySet(ctx),
 	}
 }
 
 func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
-	iter.tgDistinctPropertyConstraints = getDistinctPropertyConstraints(tg.Constraints)
 }
 
 func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
-	iter.jobDistinctPropertyConstraints = getDistinctPropertyConstraints(job.Constraints)
+
+	if err := iter.distinctProperties.SetJob(job); err != nil {
+		iter.ctx.Logger().Printf(
+			"[ERR] scheduler.dynamic-constraint: failed to build property set: %v", err)
+	}
 }
 
 func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
@@ -194,20 +199,7 @@ func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constrai
 	return false
 }
 
-// getDistinctPropertyConstraints filters the input constraints returning a list
-// of distinct_property constraints.
-func getDistinctPropertyConstraints(constraints []*structs.Constraint) []*structs.Constraint {
-	var distinctProperties []*structs.Constraint
-	for _, con := range constraints {
-		if con.Operand == structs.ConstraintDistinctProperty {
-			distinctProperties = append(distinctProperties, con)
-		}
-	}
-	return distinctProperties
-}
-
 func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
-OUTER:
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
@@ -215,7 +207,7 @@ OUTER:
 		// Hot-path if the option is nil or there are no distinct_hosts or
 		// distinct_property constraints.
 		hosts := iter.jobDistinctHosts || iter.tgDistinctHosts
-		properties := len(iter.jobDistinctPropertyConstraints) != 0 || len(iter.tgDistinctPropertyConstraints) != 0
+		properties := iter.distinctProperties.HasDistinctPropertyConstraints()
 		if option == nil || !(hosts || properties) {
 			return option
 		}
@@ -230,18 +222,10 @@ OUTER:
 
 		// Check if the property constraints are satisfied
 		if properties {
-			for _, con := range iter.jobDistinctPropertyConstraints {
-				if !iter.satisfiesDistinctProperty(option, con, true) {
-					iter.ctx.Metrics().FilterNode(option, con.String())
-					continue OUTER
-				}
-			}
-
-			for _, con := range iter.tgDistinctPropertyConstraints {
-				if !iter.satisfiesDistinctProperty(option, con, true) {
-					iter.ctx.Metrics().FilterNode(option, con.String())
-					continue OUTER
-				}
+			satisfied, reason := iter.distinctProperties.SatisfiesDistinctProperties(option, iter.tg.Name)
+			if !satisfied {
+				iter.ctx.Metrics().FilterNode(option, reason)
+				continue
 			}
 		}
 
@@ -280,97 +264,356 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 	return true
 }
 
-// satisfiesDistinctProperty checks if the node satisfies the
-// distinct_property constraint for the passed constraint.
-// XXX it is insane to do all this work per constraint. Pass in all constraints
-func (iter *ProposedAllocConstraintIterator) satisfiesDistinctProperty(
-	option *structs.Node, con *structs.Constraint, jobConstraint bool) bool {
+func (iter *ProposedAllocConstraintIterator) Reset() {
+	iter.source.Reset()
 
-	// Check if this node has the property
-	val, ok := resolveConstraintTarget(con.LTarget, option)
-	if !ok {
-		return false
+	// Repopulate the proposed set every time we are reset because an
+	// additional allocation may have been added
+	if err := iter.distinctProperties.PopulateProposed(); err != nil {
+		iter.ctx.Logger().Printf(
+			"[ERR] scheduler.dynamic-constraint: failed to populate proposed properties: %v", err)
 	}
-	optionValue, ok := val.(string)
-	if !ok {
-		return false
+}
+
+// propertySet is used to track used values for a particular node property.
+type propertySet struct {
+
+	// ctx is used to lookup the plan and state
+	ctx Context
+
+	// job stores the job the property set is tracking
+	job *structs.Job
+
+	// jobConstrainedProperties stores the set of LTargets that we are
+	// constrained on. The outer key is the task group name. The values stored
+	// in key "" are those constrained at the job level.
+	jobConstrainedProperties map[string]map[string]struct{}
+
+	// existingProperties is a mapping of task group/job to properties (LTarget)
+	// to a string set of used values for pre-placed allocation.
+	existingProperties map[string]map[string]map[string]struct{}
+
+	// proposedCreateProperties is a mapping of task group/job to properties (LTarget)
+	// to a string set of used values for proposed allocations.
+	proposedCreateProperties map[string]map[string]map[string]struct{}
+
+	// clearedProposedProperties is a mapping of task group/job to properties (LTarget)
+	// to a string set of values that have been cleared and are no longer used
+	clearedProposedProperties map[string]map[string]map[string]struct{}
+}
+
+// NewPropertySet returns a new property set used to guarantee unique property
+// values for new allocation placements.
+func NewPropertySet(ctx Context) *propertySet {
+	p := &propertySet{
+		ctx: ctx,
+		jobConstrainedProperties:  make(map[string]map[string]struct{}),
+		existingProperties:        make(map[string]map[string]map[string]struct{}),
+		proposedCreateProperties:  make(map[string]map[string]map[string]struct{}),
+		clearedProposedProperties: make(map[string]map[string]map[string]struct{}),
+	}
+
+	return p
+}
+
+// setJob sets the job the property set is tracking. The distinct property
+// constraints and property values already used by existing allocations are
+// calculated.
+func (p *propertySet) SetJob(j *structs.Job) error {
+	p.job = j
+
+	p.buildDistinctProperties()
+	if err := p.populateExisting(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// HasDistinctPropertyConstraints returns whether there are distinct_property
+// constraints on the job.
+func (p *propertySet) HasDistinctPropertyConstraints() bool {
+	return len(p.jobConstrainedProperties) != 0
+}
+
+// PopulateProposed populates the set of property values used by the proposed
+// allocations for the job. This should be called on every reset
+func (p *propertySet) PopulateProposed() error {
+	// Hot path since there is nothing to do
+	if !p.HasDistinctPropertyConstraints() {
+		return nil
+	}
+
+	// Reset the proposed properties
+	p.proposedCreateProperties = make(map[string]map[string]map[string]struct{})
+	p.clearedProposedProperties = make(map[string]map[string]map[string]struct{})
+
+	// Gather the set of proposed stops.
+	var stopping []*structs.Allocation
+	for _, updates := range p.ctx.Plan().NodeUpdate {
+		stopping = append(stopping, updates...)
+	}
+
+	// build the property set for the proposed stopped allocations
+	// This should be called before building the property set for the created
+	// allocs.
+	if err := p.buildProperySet(stopping, false, true); err != nil {
+		return err
+	}
+
+	// Gather the proposed allocations
+	var proposed []*structs.Allocation
+	for _, pallocs := range p.ctx.Plan().NodeAllocation {
+		proposed = append(proposed, pallocs...)
+	}
+
+	// build the property set for the proposed new allocations
+	return p.buildProperySet(proposed, false, false)
+}
+
+// satisfiesDistinctProperties checks if the option satisfies all
+// distinct_property constraints given the existing placements and proposed
+// placements. If the option does not satisfy the constraints an explanation is
+// given.
+func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg string) (bool, string) {
+	// Hot path if there is nothing to do
+	jobConstrainedProperties := p.jobConstrainedProperties[""]
+	tgConstrainedProperties := p.jobConstrainedProperties[tg]
+	if len(jobConstrainedProperties) == 0 && len(tgConstrainedProperties) == 0 {
+		return true, ""
+	}
+
+	// both is used to iterate over both the proposed and existing used
+	// properties
+	bothAll := []map[string]map[string]map[string]struct{}{p.existingProperties, p.proposedCreateProperties}
+
+	// Check if the option is unique for all the job properties
+	for constrainedProperty := range jobConstrainedProperties {
+		// Get the nodes property value
+		nValue, ok := p.getProperty(option, constrainedProperty)
+		if !ok {
+			return false, fmt.Sprintf("missing property %q", constrainedProperty)
+		}
+
+		// Check if the nodes value has already been used.
+		for _, usedProperties := range bothAll {
+			// Since we are checking at the job level, check all task groups
+			for group, properties := range usedProperties {
+				setValues, ok := properties[constrainedProperty]
+				if !ok {
+					continue
+				}
+
+				// Check if the nodes value has been used
+				_, used := setValues[nValue]
+				if !used {
+					continue
+				}
+
+				// The last check is to ensure that the value hasn't been
+				// removed in the proposed removals.
+				if _, cleared := p.clearedProposedProperties[group][constrainedProperty][nValue]; cleared {
+					continue
+				}
+
+				return false, fmt.Sprintf("distinct_property: %s=%s already used", constrainedProperty, nValue)
+			}
+		}
+	}
+
+	// bothTG is both filtered at by the task group
+	bothTG := []map[string]map[string]struct{}{p.existingProperties[tg], p.proposedCreateProperties[tg]}
+
+	// Check if the option is unique for all the task group properties
+	for constrainedProperty := range tgConstrainedProperties {
+		// Get the nodes property value
+		nValue, ok := p.getProperty(option, constrainedProperty)
+		if !ok {
+			return false, fmt.Sprintf("missing property %q", constrainedProperty)
+		}
+
+		// Check if the nodes value has already been used.
+		for _, properties := range bothTG {
+			setValues, ok := properties[constrainedProperty]
+			if !ok {
+				continue
+			}
+
+			// Check if the nodes value has been used
+			if _, used := setValues[nValue]; !used {
+				continue
+			}
+
+			// The last check is to ensure that the value hasn't been
+			// removed in the proposed removals.
+			if _, cleared := p.clearedProposedProperties[tg][constrainedProperty][nValue]; cleared {
+				continue
+			}
+
+			return false, fmt.Sprintf("distinct_property: %s=%s already used", constrainedProperty, nValue)
+		}
+	}
+
+	return true, ""
+}
+
+// buildDistinctProperties takes the job and populates the map of distinct
+// properties that are constrained on for the job.
+func (p *propertySet) buildDistinctProperties() {
+	for _, c := range p.job.Constraints {
+		if c.Operand != structs.ConstraintDistinctProperty {
+			continue
+		}
+
+		// Store job properties in the magic empty string since it can't be used
+		// by any task group.
+		if _, ok := p.jobConstrainedProperties[""]; !ok {
+			p.jobConstrainedProperties[""] = make(map[string]struct{})
+		}
+
+		p.jobConstrainedProperties[""][c.LTarget] = struct{}{}
+	}
+
+	for _, tg := range p.job.TaskGroups {
+		for _, c := range tg.Constraints {
+			if c.Operand != structs.ConstraintDistinctProperty {
+				continue
+			}
+
+			if _, ok := p.jobConstrainedProperties[tg.Name]; !ok {
+				p.jobConstrainedProperties[tg.Name] = make(map[string]struct{})
+			}
+
+			p.jobConstrainedProperties[tg.Name][c.LTarget] = struct{}{}
+		}
+	}
+}
+
+// populateExisting populates the set of property values used by existing
+// allocations for the job.
+func (p *propertySet) populateExisting() error {
+	// Hot path since there is nothing to do
+	if !p.HasDistinctPropertyConstraints() {
+		return nil
 	}
 
 	// Retrieve all previously placed allocations
-	// XXX this should be cached
 	ws := memdb.NewWatchSet()
-	allocs, err := iter.ctx.State().AllocsByJob(ws, iter.job.ID, false)
+	allocs, err := p.ctx.State().AllocsByJob(ws, p.job.ID, false)
 	if err != nil {
-		iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to get job's allocations: %v", err)
-		return false
+		return fmt.Errorf("failed to get job's allocations: %v", err)
 	}
 
-	// Add the proposed allocations
-	for _, pallocs := range iter.ctx.Plan().NodeAllocation {
-		allocs = append(allocs, pallocs...)
+	return p.buildProperySet(allocs, true, false)
+}
+
+// buildProperySet takes a set of allocations and determines what property
+// values have been used by them. The existing boolean marks whether these are
+// existing allocations or proposed allocations. Stopping marks whether the
+// allocations are being stopped.
+func (p *propertySet) buildProperySet(allocs []*structs.Allocation, existing, stopping bool) error {
+	// Only want running allocs
+	filtered := allocs
+	if !stopping {
+		filtered, _ = structs.FilterTerminalAllocs(allocs)
 	}
 
-	// Filter to relevant allocations
-	var filteredAllocs []*structs.Allocation
-	for _, alloc := range allocs {
-		// Ensure the allocation is for the same job
-		if alloc.JobID != iter.job.ID {
-			continue
-		}
-
-		// Ensure the allocation is non-terminal
-		if alloc.TerminalStatus() {
-			continue
-		}
-
-		// We are working on a particular task group so filter allocs not from
-		// it.
-		if !jobConstraint && alloc.TaskGroup != iter.tg.Name {
-			continue
-		}
-
-		filteredAllocs = append(filteredAllocs, alloc)
-	}
-
-	// Get all the nodes that have already been used
+	// Get all the nodes that have been used by the allocs
+	ws := memdb.NewWatchSet()
 	nodes := make(map[string]*structs.Node)
-	for _, alloc := range filteredAllocs {
+	for _, alloc := range filtered {
 		if _, ok := nodes[alloc.NodeID]; ok {
 			continue
 		}
 
-		node, err := iter.ctx.State().NodeByID(ws, alloc.NodeID)
+		node, err := p.ctx.State().NodeByID(ws, alloc.NodeID)
 		if err != nil {
-			iter.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: failed to lookup node ID %q: %v", alloc.NodeID, err)
-			return false
+			return fmt.Errorf("failed to lookup node ID %q: %v", alloc.NodeID, err)
 		}
 
 		nodes[alloc.NodeID] = node
 	}
 
-	// Check if this options value for the target propery collides with a
-	// previously selected property value
-	for _, n := range nodes {
-		val, ok := resolveConstraintTarget(con.LTarget, n)
-		if !ok {
-			continue
-		}
-		nodeValue, ok := val.(string)
-		if !ok {
-			continue
+	// propertySet is the set we are operating on
+	propertySet := p.existingProperties
+	if !existing && !stopping {
+		propertySet = p.proposedCreateProperties
+	} else if stopping {
+		propertySet = p.clearedProposedProperties
+	}
+
+	// Go through each allocation and build the set of property values that have
+	// been used
+	for _, alloc := range filtered {
+		// Gather job related constrained properties
+		jobProperties := p.jobConstrainedProperties[""]
+		for constrainedProperty := range jobProperties {
+			nProperty, ok := p.getProperty(nodes[alloc.NodeID], constrainedProperty)
+			if !ok {
+				continue
+			}
+
+			if _, exists := propertySet[""]; !exists {
+				propertySet[""] = make(map[string]map[string]struct{})
+			}
+
+			if _, exists := propertySet[""][constrainedProperty]; !exists {
+				propertySet[""][constrainedProperty] = make(map[string]struct{})
+			}
+
+			propertySet[""][constrainedProperty][nProperty] = struct{}{}
+
+			// This is a newly created allocation so clear out the fact that
+			// proposed property is not being used anymore
+			if !existing && !stopping {
+				delete(p.clearedProposedProperties[""][constrainedProperty], nProperty)
+			}
 		}
 
-		// We have a duplicate so we aren't valid
-		if nodeValue == optionValue {
-			return false
+		// Gather task group related constrained properties
+		groupProperties := p.jobConstrainedProperties[alloc.TaskGroup]
+		for constrainedProperty := range groupProperties {
+			nProperty, ok := p.getProperty(nodes[alloc.NodeID], constrainedProperty)
+			if !ok {
+				continue
+			}
+
+			if _, exists := propertySet[alloc.TaskGroup]; !exists {
+				propertySet[alloc.TaskGroup] = make(map[string]map[string]struct{})
+			}
+			if _, exists := propertySet[alloc.TaskGroup][constrainedProperty]; !exists {
+				propertySet[alloc.TaskGroup][constrainedProperty] = make(map[string]struct{})
+			}
+
+			propertySet[alloc.TaskGroup][constrainedProperty][nProperty] = struct{}{}
+
+			// This is a newly created allocation so clear out the fact that
+			// proposed property is not being used anymore
+			if !existing && !stopping {
+				delete(p.clearedProposedProperties[alloc.TaskGroup][constrainedProperty], nProperty)
+			}
 		}
 	}
 
-	return true
+	return nil
 }
 
-func (iter *ProposedAllocConstraintIterator) Reset() {
-	iter.source.Reset()
+// getProperty is used to lookup the property value on the node
+func (p *propertySet) getProperty(n *structs.Node, property string) (string, bool) {
+	if n == nil || property == "" {
+		return "", false
+	}
+
+	val, ok := resolveConstraintTarget(property, n)
+	if !ok {
+		return "", false
+	}
+	nodeValue, ok := val.(string)
+	if !ok {
+		return "", false
+	}
+
+	return nodeValue, true
 }
 
 // ConstraintChecker is a FeasibilityChecker which returns nodes that match a

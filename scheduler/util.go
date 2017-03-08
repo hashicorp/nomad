@@ -464,11 +464,6 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Check if the task drivers or config has changed, requires
 		// a rolling upgrade since that cannot be done in-place.
-		//existing := update.Alloc.Job.LookupTaskGroup(update.TaskGroup.Name)
-		//if tasksUpdated(update.TaskGroup, existing) {
-		//continue
-		//}
-
 		existing := update.Alloc.Job
 		if tasksUpdated(job, existing, update.TaskGroup.Name) {
 			continue
