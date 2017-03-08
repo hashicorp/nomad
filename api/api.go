@@ -384,10 +384,11 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		config: &c.config,
 		method: method,
 		url: &url.URL{
-			Scheme: base.Scheme,
-			User:   base.User,
-			Host:   base.Host,
-			Path:   u.Path,
+			Scheme:  base.Scheme,
+			User:    base.User,
+			Host:    base.Host,
+			Path:    u.Path,
+			RawPath: u.RawPath,
 		},
 		params: make(map[string][]string),
 	}
