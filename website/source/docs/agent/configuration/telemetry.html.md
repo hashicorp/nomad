@@ -45,6 +45,9 @@ The following options are available on all telemetry configurations.
 - `disable_hostname` `(bool: false)` - Specifies if gauge values should be
   prefixed with the local hostname.
 
+- `collection_interval` `(duration: 1s)` - Specifies the time interval at which
+  the Nomad agent collects telemetry data.
+
 - `use_node_name` `(bool: false)` - Specifies if gauge values should be
   prefixed with the name of the node, instead of the hostname. If set it will
   override [disable_hostname](#disable_hostname) value.
