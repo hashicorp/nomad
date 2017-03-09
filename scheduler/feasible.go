@@ -307,10 +307,8 @@ type propertySet struct {
 func NewPropertySet(ctx Context) *propertySet {
 	p := &propertySet{
 		ctx: ctx,
-		jobConstrainedProperties:  make(map[string]map[string]struct{}),
-		existingProperties:        make(map[string]map[string]map[string]struct{}),
-		proposedCreateProperties:  make(map[string]map[string]map[string]struct{}),
-		clearedProposedProperties: make(map[string]map[string]map[string]struct{}),
+		jobConstrainedProperties: make(map[string]map[string]struct{}),
+		existingProperties:       make(map[string]map[string]map[string]struct{}),
 	}
 
 	return p
@@ -320,9 +318,13 @@ func NewPropertySet(ctx Context) *propertySet {
 // constraints and property values already used by existing allocations are
 // calculated.
 func (p *propertySet) SetJob(j *structs.Job) error {
+	// Store the job
 	p.job = j
 
+	// Capture all the distinct property constraints in the job
 	p.buildDistinctProperties()
+
+	// Capture all the used values for those properties
 	if err := p.populateExisting(); err != nil {
 		return err
 	}
