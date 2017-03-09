@@ -437,7 +437,7 @@ func TestCheckRegexpConstraint(t *testing.T) {
 
 // This test puts allocations on the node to test if it detects infeasibility of
 // nodes correctly and picks the only feasible one
-func TestProposedAllocConstraint_JobDistinctHosts(t *testing.T) {
+func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -488,7 +488,7 @@ func TestProposedAllocConstraint_JobDistinctHosts(t *testing.T) {
 		},
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctHostsIterator(ctx, static)
 	proposed.SetTaskGroup(tg1)
 	proposed.SetJob(job)
 
@@ -502,7 +502,7 @@ func TestProposedAllocConstraint_JobDistinctHosts(t *testing.T) {
 	}
 }
 
-func TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) {
+func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -539,7 +539,7 @@ func TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) 
 		},
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctHostsIterator(ctx, static)
 	proposed.SetTaskGroup(tg3)
 	proposed.SetJob(job)
 
@@ -550,7 +550,7 @@ func TestProposedAllocConstraint_JobDistinctHosts_InfeasibleCount(t *testing.T) 
 	}
 }
 
-func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
+func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -585,7 +585,7 @@ func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
 		},
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctHostsIterator(ctx, static)
 	proposed.SetTaskGroup(tg1)
 	proposed.SetJob(&structs.Job{ID: "foo"})
 
@@ -613,7 +613,7 @@ func TestProposedAllocConstraint_TaskGroupDistinctHosts(t *testing.T) {
 // This test puts creates allocations across task groups that use a property
 // value to detect if the constraint at the job level properly considers all
 // task groups.
-func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
+func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -753,7 +753,7 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctPropertyIterator(ctx, static)
 	proposed.SetJob(job)
 	proposed.SetTaskGroup(tg2)
 	proposed.Reset()
@@ -770,7 +770,7 @@ func TestProposedAllocConstraint_JobDistinctProperty(t *testing.T) {
 // This test checks that if a node has an allocation on it that gets stopped,
 // there is a plan to re-use that for a new allocation, that the next select
 // won't select that node.
-func TestProposedAllocConstraint_JobDistinctProperty_RemoveAndReplace(t *testing.T) {
+func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -831,7 +831,7 @@ func TestProposedAllocConstraint_JobDistinctProperty_RemoveAndReplace(t *testing
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctPropertyIterator(ctx, static)
 	proposed.SetJob(job)
 	proposed.SetTaskGroup(tg1)
 	proposed.Reset()
@@ -845,7 +845,7 @@ func TestProposedAllocConstraint_JobDistinctProperty_RemoveAndReplace(t *testing
 // This test creates previous allocations selecting certain property values to
 // test if it detects infeasibility of property values correctly and picks the
 // only feasible one
-func TestProposedAllocConstraint_JobDistinctProperty_Infeasible(t *testing.T) {
+func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -903,7 +903,7 @@ func TestProposedAllocConstraint_JobDistinctProperty_Infeasible(t *testing.T) {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctPropertyIterator(ctx, static)
 	proposed.SetJob(job)
 	proposed.SetTaskGroup(tg3)
 	proposed.Reset()
@@ -917,7 +917,7 @@ func TestProposedAllocConstraint_JobDistinctProperty_Infeasible(t *testing.T) {
 // This test creates previous allocations selecting certain property values to
 // test if it detects infeasibility of property values correctly and picks the
 // only feasible one when the constraint is at the task group.
-func TestProposedAllocConstraint_TaskGroupDistinctProperty(t *testing.T) {
+func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1007,7 +1007,7 @@ func TestProposedAllocConstraint_TaskGroupDistinctProperty(t *testing.T) {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
-	proposed := NewProposedAllocConstraintIterator(ctx, static)
+	proposed := NewDistinctPropertyIterator(ctx, static)
 	proposed.SetJob(job)
 	proposed.SetTaskGroup(tg1)
 	proposed.Reset()

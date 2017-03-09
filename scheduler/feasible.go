@@ -143,20 +143,14 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
-// ProposedAllocConstraintIterator is a FeasibleIterator which returns nodes that
-// match constraints that are not static such as Node attributes but are
-// effected by proposed alloc placements. Examples are distinct_hosts and
-// tenancy constraints. This is used to filter on job and task group
-// constraints.
-type ProposedAllocConstraintIterator struct {
+// DistinctHostsIterator is a FeasibleIterator which returns nodes that pass the
+// distinct_hosts constraint. The constraint ensures that multiple allocations
+// do not exist on the same node.
+type DistinctHostsIterator struct {
 	ctx    Context
 	source FeasibleIterator
 	tg     *structs.TaskGroup
 	job    *structs.Job
-
-	// distinctProperties is used to track the distinct properties of the job
-	// and to check if node options satisfy these constraints.
-	distinctProperties *propertySet
 
 	// Store whether the Job or TaskGroup has a distinct_hosts constraints so
 	// they don't have to be calculated every time Next() is called.
@@ -164,32 +158,25 @@ type ProposedAllocConstraintIterator struct {
 	jobDistinctHosts bool
 }
 
-// NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
-// from a source.
-func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *ProposedAllocConstraintIterator {
-	return &ProposedAllocConstraintIterator{
-		ctx:                ctx,
-		source:             source,
-		distinctProperties: NewPropertySet(ctx),
+// NewDistinctHostsIterator creates a DistinctHostsIterator from a source.
+func NewDistinctHostsIterator(ctx Context, source FeasibleIterator) *DistinctHostsIterator {
+	return &DistinctHostsIterator{
+		ctx:    ctx,
+		source: source,
 	}
 }
 
-func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
+func (iter *DistinctHostsIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
 }
 
-func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
+func (iter *DistinctHostsIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
-
-	if err := iter.distinctProperties.SetJob(job); err != nil {
-		iter.ctx.Logger().Printf(
-			"[ERR] scheduler.dynamic-constraint: failed to build property set: %v", err)
-	}
 }
 
-func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
+func (iter *DistinctHostsIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
 			return true
@@ -199,7 +186,7 @@ func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constrai
 	return false
 }
 
-func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
+func (iter *DistinctHostsIterator) Next() *structs.Node {
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
@@ -207,26 +194,14 @@ func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 		// Hot-path if the option is nil or there are no distinct_hosts or
 		// distinct_property constraints.
 		hosts := iter.jobDistinctHosts || iter.tgDistinctHosts
-		properties := iter.distinctProperties.HasDistinctPropertyConstraints()
-		if option == nil || !(hosts || properties) {
+		if option == nil || !hosts {
 			return option
 		}
 
 		// Check if the host constraints are satisfied
-		if hosts {
-			if !iter.satisfiesDistinctHosts(option) {
-				iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
-				continue
-			}
-		}
-
-		// Check if the property constraints are satisfied
-		if properties {
-			satisfied, reason := iter.distinctProperties.SatisfiesDistinctProperties(option, iter.tg.Name)
-			if !satisfied {
-				iter.ctx.Metrics().FilterNode(option, reason)
-				continue
-			}
+		if !iter.satisfiesDistinctHosts(option) {
+			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
+			continue
 		}
 
 		return option
@@ -235,7 +210,7 @@ func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 
 // satisfiesDistinctHosts checks if the node satisfies a distinct_hosts
 // constraint either specified at the job level or the TaskGroup level.
-func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
+func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) bool {
 	// Check if there is no constraint set.
 	if !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
 		return true
@@ -264,7 +239,81 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 	return true
 }
 
-func (iter *ProposedAllocConstraintIterator) Reset() {
+func (iter *DistinctHostsIterator) Reset() {
+	iter.source.Reset()
+}
+
+// DistinctPropertyIterator is a FeasibleIterator which returns nodes that pass the
+// distinct_property constraint. The constraint ensures that multiple allocations
+// do not use the same value of the given property.
+type DistinctPropertyIterator struct {
+	ctx    Context
+	source FeasibleIterator
+	tg     *structs.TaskGroup
+	job    *structs.Job
+
+	// distinctProperties is used to track the distinct properties of the job
+	// and to check if node options satisfy these constraints.
+	distinctProperties *propertySet
+}
+
+// NewDistinctPropertyIterator creates a DistinctPropertyIterator from a source.
+func NewDistinctPropertyIterator(ctx Context, source FeasibleIterator) *DistinctPropertyIterator {
+	return &DistinctPropertyIterator{
+		ctx:                ctx,
+		source:             source,
+		distinctProperties: NewPropertySet(ctx),
+	}
+}
+
+func (iter *DistinctPropertyIterator) SetTaskGroup(tg *structs.TaskGroup) {
+	iter.tg = tg
+}
+
+func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
+	iter.job = job
+	if err := iter.distinctProperties.SetJob(job); err != nil {
+		iter.ctx.Logger().Printf(
+			"[ERR] scheduler.dynamic-constraint: failed to build property set: %v", err)
+	}
+}
+
+func (iter *DistinctPropertyIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
+	for _, con := range constraints {
+		if con.Operand == structs.ConstraintDistinctHosts {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (iter *DistinctPropertyIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+
+		// Hot-path if the option is nil or there are no distinct_hosts or
+		// distinct_property constraints.
+		properties := iter.distinctProperties.HasDistinctPropertyConstraints()
+		if option == nil || !properties {
+			return option
+		}
+
+		// Check if the property constraints are satisfied
+		if properties {
+			satisfied, reason := iter.distinctProperties.SatisfiesDistinctProperties(option, iter.tg.Name)
+			if !satisfied {
+				iter.ctx.Metrics().FilterNode(option, reason)
+				continue
+			}
+		}
+
+		return option
+	}
+}
+
+func (iter *DistinctPropertyIterator) Reset() {
 	iter.source.Reset()
 
 	// Repopulate the proposed set every time we are reset because an

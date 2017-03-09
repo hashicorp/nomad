@@ -44,11 +44,12 @@ type GenericStack struct {
 	taskGroupDrivers    *DriverChecker
 	taskGroupConstraint *ConstraintChecker
 
-	proposedAllocConstraint *ProposedAllocConstraintIterator
-	binPack                 *BinPackIterator
-	jobAntiAff              *JobAntiAffinityIterator
-	limit                   *LimitIterator
-	maxScore                *MaxScoreIterator
+	distinctHostsConstraint    *DistinctHostsIterator
+	distinctPropertyConstraint *DistinctPropertyIterator
+	binPack                    *BinPackIterator
+	jobAntiAff                 *JobAntiAffinityIterator
+	limit                      *LimitIterator
+	maxScore                   *MaxScoreIterator
 }
 
 // NewGenericStack constructs a stack used for selecting service placements
@@ -81,11 +82,14 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
 
-	// Filter on constraints that are affected by propsed allocations.
-	s.proposedAllocConstraint = NewProposedAllocConstraintIterator(ctx, s.wrappedChecks)
+	// Filter on distinct host constraints.
+	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
+
+	// Filter on distinct property constraints.
+	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.distinctHostsConstraint)
 
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.proposedAllocConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Only enable eviction for the service
@@ -134,7 +138,8 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
-	s.proposedAllocConstraint.SetJob(job)
+	s.distinctHostsConstraint.SetJob(job)
+	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetPriority(job.Priority)
 	s.jobAntiAff.SetJob(job.ID)
 	s.ctx.Eligibility().SetJob(job)
@@ -152,7 +157,8 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
-	s.proposedAllocConstraint.SetTaskGroup(tg)
+	s.distinctHostsConstraint.SetTaskGroup(tg)
+	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.binPack.SetTaskGroup(tg)
 
@@ -187,13 +193,14 @@ func (s *GenericStack) SelectPreferringNodes(tg *structs.TaskGroup, nodes []*str
 // SystemStack is the Stack used for the System scheduler. It is designed to
 // attempt to make placements on all nodes.
 type SystemStack struct {
-	ctx                 Context
-	source              *StaticIterator
-	wrappedChecks       *FeasibilityWrapper
-	jobConstraint       *ConstraintChecker
-	taskGroupDrivers    *DriverChecker
-	taskGroupConstraint *ConstraintChecker
-	binPack             *BinPackIterator
+	ctx                        Context
+	source                     *StaticIterator
+	wrappedChecks              *FeasibilityWrapper
+	jobConstraint              *ConstraintChecker
+	taskGroupDrivers           *DriverChecker
+	taskGroupConstraint        *ConstraintChecker
+	distinctPropertyConstraint *DistinctPropertyIterator
+	binPack                    *BinPackIterator
 }
 
 // NewSystemStack constructs a stack used for selecting service placements
@@ -222,8 +229,11 @@ func NewSystemStack(ctx Context) *SystemStack {
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
 
+	// Filter on distinct property constraints.
+	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.wrappedChecks)
+	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
@@ -239,6 +249,7 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *SystemStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetPriority(job.Priority)
 	s.ctx.Eligibility().SetJob(job)
 }
@@ -255,8 +266,9 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
-	s.binPack.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
+	s.distinctPropertyConstraint.SetTaskGroup(tg)
+	s.binPack.SetTaskGroup(tg)
 
 	// Get the next option that satisfies the constraints.
 	option := s.binPack.Next()
