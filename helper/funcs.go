@@ -177,3 +177,21 @@ func CopySliceInt(s []int) []int {
 	}
 	return c
 }
+
+// CleanEnvVar replaces all occurrences of illegal characters in an environment
+// variable with the specified byte.
+func CleanEnvVar(s string, r byte) string {
+	b := []byte(s)
+	for i, c := range b {
+		switch {
+		case c == '_':
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case i > 0 && c >= '0' && c <= '9':
+		default:
+			// Replace!
+			b[i] = r
+		}
+	}
+	return string(b)
+}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -254,7 +255,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	// Clean keys (see #2405)
 	cleanedEnv := make(map[string]string, len(t.TaskEnv))
 	for k, v := range t.TaskEnv {
-		cleanedK := strings.Replace(k, "-", "_", -1)
+		cleanedK := helper.CleanEnvVar(k, '_')
 		cleanedEnv[cleanedK] = v
 	}
 	t.TaskEnv = cleanedEnv
