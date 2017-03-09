@@ -584,6 +584,8 @@ func (r *AllocRunner) handleDestroy() {
 			r.logger.Printf("[ERR] client: failed to destroy state for alloc '%s': %v",
 				r.alloc.ID, err)
 		}
+	case <-r.updateCh:
+		r.logger.Printf("[ERR] client: dropping update to terminal alloc '%s'", r.alloc.ID)
 	}
 }
 
