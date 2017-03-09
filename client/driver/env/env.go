@@ -48,6 +48,12 @@ const (
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 
+	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
+	Datacenter = "NOMAD_DC"
+
+	// Region is the environment variable for passing the region in which the alloc is running.
+	Region = "NOMAD_REGION"
+
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
@@ -94,6 +100,8 @@ type TaskEnvironment struct {
 	MemLimit         int
 	TaskName         string
 	AllocIndex       int
+	Datacenter       string
+	Region           string
 	AllocId          string
 	AllocName        string
 	Node             *structs.Node
