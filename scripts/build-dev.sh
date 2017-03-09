@@ -14,3 +14,6 @@ fi
 
 echo "--> Installing with tags: $TAGS"
 go install -ldflags "-X $LDFLAG" -tags "${TAGS}"
+
+echo "--> Copying to bin"
+cp $GOPATH/bin/nomad bin/nomad
