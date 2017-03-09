@@ -18,7 +18,7 @@ helpers do
     end
 
      "Nomad by HashiCorp"
-   end
+  end
 
   # Get the description for the page
   #
@@ -57,8 +57,6 @@ helpers do
     if page && page.data.layout
       classes << "layout-#{page.data.layout}"
     end
-
-    classes << "-displaying-bnr"
 
     return classes.join(" ")
   end
