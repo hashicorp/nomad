@@ -223,7 +223,7 @@ func (c *Config) ConfigureTLS() error {
 				return err
 			}
 			foundClientCert = true
-		} else if c.TLSConfig.ClientCert != "" || c.TLSConfig.ClientKey != "" {
+		} else {
 			return fmt.Errorf("Both client cert and client key must be provided")
 		}
 	}
