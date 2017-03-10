@@ -19,6 +19,7 @@ IMPROVEMENTS:
   * client: Don't force uppercase meta keys in env vars [GH-2338]
   * client: Don't exec `uname -r` for node attribute kernel.version [GH-2380]
   * client: Artifact support for git and hg as well as netrc support [GH-2386]
+  * client: Add metrics to show number of allocations on in each state [GH-2425]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
   * driver/docker: Add support for volume drivers [GH-2351]
