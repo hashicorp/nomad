@@ -84,7 +84,7 @@ func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 	}
 
 	// Filter to the correct set of allocs
-	allocs = p.filterAllocs(allocs)
+	allocs = p.filterAllocs(allocs, true)
 
 	// Get all the nodes that have been used by the allocs
 	nodes, err := p.buildNodeMap(allocs)
@@ -112,14 +112,14 @@ func (p *propertySet) PopulateProposed() {
 	for _, updates := range p.ctx.Plan().NodeUpdate {
 		stopping = append(stopping, updates...)
 	}
-	stopping = p.filterAllocs(stopping)
+	stopping = p.filterAllocs(stopping, false)
 
 	// Gather the proposed allocations
 	var proposed []*structs.Allocation
 	for _, pallocs := range p.ctx.Plan().NodeAllocation {
 		proposed = append(proposed, pallocs...)
 	}
-	proposed = p.filterAllocs(proposed)
+	proposed = p.filterAllocs(proposed, true)
 
 	// Get the used nodes
 	both := make([]*structs.Allocation, 0, len(stopping)+len(proposed))
@@ -186,10 +186,13 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 // filterAllocs filters a set of allocations to just be those that are running
 // and if the property set is operation at a task group level, for allocations
 // for that task group
-func (p *propertySet) filterAllocs(allocs []*structs.Allocation) []*structs.Allocation {
+func (p *propertySet) filterAllocs(allocs []*structs.Allocation, filterTerminal bool) []*structs.Allocation {
 	n := len(allocs)
 	for i := 0; i < n; i++ {
-		remove := allocs[i].TerminalStatus()
+		remove := false
+		if filterTerminal {
+			remove = allocs[i].TerminalStatus()
+		}
 
 		// If the constraint is on the task group filter the allocations to just
 		// those on the task group
