@@ -310,7 +310,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	go c.run()
 
 	// Start collecting stats
-	go c.collectHostStats()
+	go c.emitStats()
 
 	c.logger.Printf("[INFO] client: Node ID %q", c.Node().ID)
 	return c, nil
@@ -2170,8 +2170,8 @@ func (c *Client) consulReaperImpl() error {
 	return c.consulSyncer.ReapUnmatched(domains)
 }
 
-// collectHostStats collects host resource usage stats periodically
-func (c *Client) collectHostStats() {
+// emitStats collects host resource usage stats periodically
+func (c *Client) emitStats() {
 	// Start collecting host stats right away and then keep collecting every
 	// collection interval
 	next := time.NewTimer(0)
@@ -2188,16 +2188,18 @@ func (c *Client) collectHostStats() {
 
 			// Publish Node metrics if operator has opted in
 			if c.config.PublishNodeMetrics {
-				c.emitStats(c.hostStatsCollector.Stats())
+				c.emitHostStats(c.hostStatsCollector.Stats())
 			}
+
+			c.emitClientMetrics()
 		case <-c.shutdownCh:
 			return
 		}
 	}
 }
 
-// emitStats pushes host resource usage stats to remote metrics collection sinks
-func (c *Client) emitStats(hStats *stats.HostStats) {
+// emitHostStats pushes host resource usage stats to remote metrics collection sinks
+func (c *Client) emitHostStats(hStats *stats.HostStats) {
 	nodeID := c.Node().ID
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "total"}, float32(hStats.Memory.Total))
 	metrics.SetGauge([]string{"client", "host", "memory", nodeID, "available"}, float32(hStats.Memory.Available))
@@ -2261,6 +2263,38 @@ func (c *Client) emitStats(hStats *stats.HostStats) {
 		unallocatedMbits := totalMbits - n.MBits
 		metrics.SetGauge([]string{"client", "unallocated", "network", n.Device, nodeID}, float32(unallocatedMbits))
 	}
+}
+
+// emitClientMetrics emits lower volume client metrics
+func (c *Client) emitClientMetrics() {
+	nodeID := c.Node().ID
+
+	// Emit allocation metrics
+	c.migratingAllocsLock.Lock()
+	migrating := len(c.migratingAllocs)
+	c.migratingAllocsLock.Unlock()
+
+	c.blockedAllocsLock.Lock()
+	blocked := len(c.blockedAllocations)
+	c.blockedAllocsLock.Unlock()
+
+	pending, running, terminal := 0, 0, 0
+	for _, ar := range c.getAllocRunners() {
+		switch ar.Alloc().ClientStatus {
+		case structs.AllocClientStatusPending:
+			pending++
+		case structs.AllocClientStatusRunning:
+			running++
+		case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed:
+			terminal++
+		}
+	}
+
+	metrics.SetGauge([]string{"client", "allocations", "migrating", nodeID}, float32(migrating))
+	metrics.SetGauge([]string{"client", "allocations", "blocked", nodeID}, float32(blocked))
+	metrics.SetGauge([]string{"client", "allocations", "pending", nodeID}, float32(pending))
+	metrics.SetGauge([]string{"client", "allocations", "running", nodeID}, float32(running))
+	metrics.SetGauge([]string{"client", "allocations", "terminal", nodeID}, float32(terminal))
 }
 
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Resources {

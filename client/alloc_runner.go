@@ -574,15 +574,21 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 // handleDestroy blocks till the AllocRunner should be destroyed and does the
 // necessary cleanup.
 func (r *AllocRunner) handleDestroy() {
-	select {
-	case <-r.destroyCh:
-		if err := r.DestroyContext(); err != nil {
-			r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
-				r.alloc.ID, err)
-		}
-		if err := r.DestroyState(); err != nil {
-			r.logger.Printf("[ERR] client: failed to destroy state for alloc '%s': %v",
-				r.alloc.ID, err)
+	for {
+		select {
+		case <-r.destroyCh:
+			if err := r.DestroyContext(); err != nil {
+				r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
+					r.alloc.ID, err)
+			}
+			if err := r.DestroyState(); err != nil {
+				r.logger.Printf("[ERR] client: failed to destroy state for alloc '%s': %v",
+					r.alloc.ID, err)
+			}
+
+			return
+		case <-r.updateCh:
+			r.logger.Printf("[ERR] client: dropping update to terminal alloc '%s'", r.alloc.ID)
 		}
 	}
 }
