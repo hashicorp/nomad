@@ -50,7 +50,7 @@ const (
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
-	// E.g$NOMAD_ADDR_http=127.0.0.1:80
+	// E.g $NOMAD_ADDR_http=127.0.0.1:80
 	AddrPrefix = "NOMAD_ADDR_"
 
 	// IpPrefix is the prefix for passing the IP of a port allocation to a task.
@@ -213,6 +213,10 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 				for _, p := range ports {
 					key := fmt.Sprintf("%s%s_%s", AddrPrefix, taskName, p.Label)
 					t.TaskEnv[key] = fmt.Sprintf("%s:%d", nw.IP, p.Value)
+					key = fmt.Sprintf("%s%s_%s", IpPrefix, taskName, p.Label)
+					t.TaskEnv[key] = nw.IP
+					key = fmt.Sprintf("%s%s_%s", PortPrefix, taskName, p.Label)
+					t.TaskEnv[key] = strconv.Itoa(p.Value)
 				}
 			}
 		}

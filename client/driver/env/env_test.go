@@ -160,6 +160,10 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_META_foo=baz",
 		"NOMAD_ADDR_web_main=192.168.0.100:5000",
 		"NOMAD_ADDR_web_http=192.168.0.100:2000",
+		"NOMAD_PORT_web_main=5000",
+		"NOMAD_PORT_web_http=2000",
+		"NOMAD_IP_web_main=192.168.0.100",
+		"NOMAD_IP_web_http=192.168.0.100",
 		"NOMAD_TASK_NAME=taskA",
 	}
 	allocID := fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID)
@@ -167,7 +171,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	sort.Strings(act)
 	sort.Strings(exp)
 	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v;\n want %v", act, exp)
+		t.Fatalf("env.List() returned %v;\n want:\n%v", strings.Join(act, "\n"), strings.Join(exp, "\n"))
 	}
 }
 
