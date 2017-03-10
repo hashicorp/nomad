@@ -399,6 +399,83 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 2; i++ {
+		node := mock.Node()
+		node.Meta["ssd"] = "true"
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job that uses distinct property and has count higher than what is
+	// possible.
+	job := mock.Job()
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Constraints = append(job.TaskGroups[0].Constraints,
+		&structs.Constraint{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.ssd}",
+		})
+
+	job.TaskGroups[1].Name = "tg2"
+	job.TaskGroups[1].Count = 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval hasn't spawned blocked eval
+	if len(h.CreateEvals) != 0 {
+		t.Fatalf("bad: %#v", h.CreateEvals[0])
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 2 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 2 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	h := NewHarness(t)
 

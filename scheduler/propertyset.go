@@ -12,7 +12,11 @@ type propertySet struct {
 	// ctx is used to lookup the plan and state
 	ctx Context
 
+	// jobID is the job we are operating on
 	jobID string
+
+	// taskGroup is optionally set if the constraint is for a task group
+	taskGroup string
 
 	// constraint is the constraint this property set is checking
 	constraint *structs.Constraint
@@ -51,37 +55,25 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 func (p *propertySet) SetJobConstraint(constraint *structs.Constraint) {
 	// Store the constraint
 	p.constraint = constraint
-
-	// Retrieve all previously placed allocations
-	ws := memdb.NewWatchSet()
-	allocs, err := p.ctx.State().AllocsByJob(ws, p.jobID, false)
-	if err != nil {
-		p.errorBuilding = fmt.Errorf("failed to get job's allocations: %v", err)
-		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", p.errorBuilding)
-		return
-	}
-
-	// Only want running allocs
-	filtered, _ := structs.FilterTerminalAllocs(allocs)
-
-	// Get all the nodes that have been used by the allocs
-	nodes, err := p.buildNodeMap(filtered)
-	if err != nil {
-		p.errorBuilding = err
-		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", err)
-		return
-	}
-
-	p.populateExisting(constraint, filtered, nodes)
+	p.populateExisting(constraint)
 }
 
 // SetTGConstraint is used to parameterize the property set for a
 // distinct_property constraint set at the task group level. The inputs are the
 // constraint and the task group name.
 func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup string) {
+	// Store that this is for a task group
+	p.taskGroup = taskGroup
+
 	// Store the constraint
 	p.constraint = constraint
 
+	p.populateExisting(constraint)
+}
+
+// populateExisting is a helper shared when setting the constraint to populate
+// the existing values.
+func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 	// Retrieve all previously placed allocations
 	ws := memdb.NewWatchSet()
 	allocs, err := p.ctx.State().AllocsByJob(ws, p.jobID, false)
@@ -91,16 +83,8 @@ func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup 
 		return
 	}
 
-	// Only want running allocs from the task group
-	n := len(allocs)
-	for i := 0; i < n; i++ {
-		if allocs[i].TaskGroup != taskGroup || allocs[i].TerminalStatus() {
-			allocs[i], allocs[n-1] = allocs[n-1], nil
-			i--
-			n--
-		}
-	}
-	allocs = allocs[:n]
+	// Filter to the correct set of allocs
+	allocs = p.filterAllocs(allocs)
 
 	// Get all the nodes that have been used by the allocs
 	nodes, err := p.buildNodeMap(allocs)
@@ -110,14 +94,7 @@ func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup 
 		return
 	}
 
-	p.populateExisting(constraint, allocs, nodes)
-}
-
-// populateExisting is a helper shared when setting the constraint to populate
-// the existing values. The allocations should be filtered appropriately prior
-// to calling.
-func (p *propertySet) populateExisting(constraint *structs.Constraint, jobAllocs []*structs.Allocation, nodes map[string]*structs.Node) {
-	for _, alloc := range jobAllocs {
+	for _, alloc := range allocs {
 		nProperty, ok := p.getProperty(nodes[alloc.NodeID], constraint.LTarget)
 		if !ok {
 			continue
@@ -141,13 +118,14 @@ func (p *propertySet) PopulateProposed() {
 	for _, updates := range p.ctx.Plan().NodeUpdate {
 		stopping = append(stopping, updates...)
 	}
+	stopping = p.filterAllocs(stopping)
 
 	// Gather the proposed allocations
 	var proposed []*structs.Allocation
 	for _, pallocs := range p.ctx.Plan().NodeAllocation {
 		proposed = append(proposed, pallocs...)
 	}
-	proposed, _ = structs.FilterTerminalAllocs(proposed)
+	proposed = p.filterAllocs(proposed)
 
 	// Get the used nodes
 	both := make([]*structs.Allocation, 0, len(stopping)+len(proposed))
@@ -221,6 +199,29 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 	}
 
 	return true, ""
+}
+
+// filterAllocs filters a set of allocations to just be those that are running
+// and if the property set is operation at a task group level, for allocations
+// for that task group
+func (p *propertySet) filterAllocs(allocs []*structs.Allocation) []*structs.Allocation {
+	n := len(allocs)
+	for i := 0; i < n; i++ {
+		remove := allocs[i].TerminalStatus()
+
+		// If the constraint is on the task group filter the allocations to just
+		// those on the task group
+		if p.taskGroup != "" {
+			remove = remove || allocs[i].TaskGroup != p.taskGroup
+		}
+
+		if remove {
+			allocs[i], allocs[n-1] = allocs[n-1], nil
+			i--
+			n--
+		}
+	}
+	return allocs[:n]
 }
 
 // buildNodeMap takes a list of allocations and returns a map of the nodes used

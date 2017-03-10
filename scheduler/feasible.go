@@ -267,6 +267,9 @@ func NewDistinctPropertyIterator(ctx Context, source FeasibleIterator) *Distinct
 
 func (iter *DistinctPropertyIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
+
+	// Check if there is a distinct property
+	iter.hasDistinctPropertyConstraints = len(iter.jobPropertySets) != 0 || len(iter.groupPropertySets[tg.Name]) != 0
 }
 
 func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
@@ -278,7 +281,6 @@ func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
 			continue
 		}
 
-		iter.hasDistinctPropertyConstraints = true
 		pset := NewPropertySet(iter.ctx, job)
 		pset.SetJobConstraint(c)
 		iter.jobPropertySets = append(iter.jobPropertySets, pset)
@@ -290,7 +292,6 @@ func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
 				continue
 			}
 
-			iter.hasDistinctPropertyConstraints = true
 			pset := NewPropertySet(iter.ctx, job)
 			pset.SetTGConstraint(c, tg.Name)
 			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
