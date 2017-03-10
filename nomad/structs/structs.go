@@ -3189,10 +3189,11 @@ func (ta *TaskArtifact) Validate() error {
 }
 
 const (
-	ConstraintDistinctHosts = "distinct_hosts"
-	ConstraintRegex         = "regexp"
-	ConstraintVersion       = "version"
-	ConstraintSetContains   = "set_contains"
+	ConstraintDistinctProperty = "distinct_property"
+	ConstraintDistinctHosts    = "distinct_hosts"
+	ConstraintRegex            = "regexp"
+	ConstraintVersion          = "version"
+	ConstraintSetContains      = "set_contains"
 )
 
 // Constraints are used to restrict placement options.

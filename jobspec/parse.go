@@ -412,12 +412,13 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 		// Check for invalid keys
 		valid := []string{
 			"attribute",
+			"distinct_hosts",
+			"distinct_property",
 			"operator",
+			"regexp",
+			"set_contains",
 			"value",
 			"version",
-			"regexp",
-			"distinct_hosts",
-			"set_contains",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -465,6 +466,11 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 			}
 
 			m["Operand"] = structs.ConstraintDistinctHosts
+		}
+
+		if property, ok := m[structs.ConstraintDistinctProperty]; ok {
+			m["Operand"] = structs.ConstraintDistinctProperty
+			m["LTarget"] = property
 		}
 
 		// Build the constraint

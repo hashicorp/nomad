@@ -304,6 +304,21 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"distinctProperty-constraint.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				Constraints: []*api.Constraint{
+					&api.Constraint{
+						Operand: structs.ConstraintDistinctProperty,
+						LTarget: "${meta.rack}",
+					},
+				},
+			},
+			false,
+		},
+
+		{
 			"periodic-cron.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("foo"),

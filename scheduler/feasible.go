@@ -142,12 +142,10 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
-// ProposedAllocConstraintIterator is a FeasibleIterator which returns nodes that
-// match constraints that are not static such as Node attributes but are
-// effected by proposed alloc placements. Examples are distinct_hosts and
-// tenancy constraints. This is used to filter on job and task group
-// constraints.
-type ProposedAllocConstraintIterator struct {
+// DistinctHostsIterator is a FeasibleIterator which returns nodes that pass the
+// distinct_hosts constraint. The constraint ensures that multiple allocations
+// do not exist on the same node.
+type DistinctHostsIterator struct {
 	ctx    Context
 	source FeasibleIterator
 	tg     *structs.TaskGroup
@@ -159,44 +157,47 @@ type ProposedAllocConstraintIterator struct {
 	jobDistinctHosts bool
 }
 
-// NewProposedAllocConstraintIterator creates a ProposedAllocConstraintIterator
-// from a source.
-func NewProposedAllocConstraintIterator(ctx Context, source FeasibleIterator) *ProposedAllocConstraintIterator {
-	return &ProposedAllocConstraintIterator{
+// NewDistinctHostsIterator creates a DistinctHostsIterator from a source.
+func NewDistinctHostsIterator(ctx Context, source FeasibleIterator) *DistinctHostsIterator {
+	return &DistinctHostsIterator{
 		ctx:    ctx,
 		source: source,
 	}
 }
 
-func (iter *ProposedAllocConstraintIterator) SetTaskGroup(tg *structs.TaskGroup) {
+func (iter *DistinctHostsIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 	iter.tgDistinctHosts = iter.hasDistinctHostsConstraint(tg.Constraints)
 }
 
-func (iter *ProposedAllocConstraintIterator) SetJob(job *structs.Job) {
+func (iter *DistinctHostsIterator) SetJob(job *structs.Job) {
 	iter.job = job
 	iter.jobDistinctHosts = iter.hasDistinctHostsConstraint(job.Constraints)
 }
 
-func (iter *ProposedAllocConstraintIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
+func (iter *DistinctHostsIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
 			return true
 		}
 	}
+
 	return false
 }
 
-func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
+func (iter *DistinctHostsIterator) Next() *structs.Node {
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
 
-		// Hot-path if the option is nil or there are no distinct_hosts constraints.
-		if option == nil || !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
+		// Hot-path if the option is nil or there are no distinct_hosts or
+		// distinct_property constraints.
+		hosts := iter.jobDistinctHosts || iter.tgDistinctHosts
+		if option == nil || !hosts {
 			return option
 		}
 
+		// Check if the host constraints are satisfied
 		if !iter.satisfiesDistinctHosts(option) {
 			iter.ctx.Metrics().FilterNode(option, structs.ConstraintDistinctHosts)
 			continue
@@ -208,7 +209,7 @@ func (iter *ProposedAllocConstraintIterator) Next() *structs.Node {
 
 // satisfiesDistinctHosts checks if the node satisfies a distinct_hosts
 // constraint either specified at the job level or the TaskGroup level.
-func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *structs.Node) bool {
+func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) bool {
 	// Check if there is no constraint set.
 	if !(iter.jobDistinctHosts || iter.tgDistinctHosts) {
 		return true
@@ -237,8 +238,113 @@ func (iter *ProposedAllocConstraintIterator) satisfiesDistinctHosts(option *stru
 	return true
 }
 
-func (iter *ProposedAllocConstraintIterator) Reset() {
+func (iter *DistinctHostsIterator) Reset() {
 	iter.source.Reset()
+}
+
+// DistinctPropertyIterator is a FeasibleIterator which returns nodes that pass the
+// distinct_property constraint. The constraint ensures that multiple allocations
+// do not use the same value of the given property.
+type DistinctPropertyIterator struct {
+	ctx    Context
+	source FeasibleIterator
+	tg     *structs.TaskGroup
+	job    *structs.Job
+
+	hasDistinctPropertyConstraints bool
+	jobPropertySets                []*propertySet
+	groupPropertySets              map[string][]*propertySet
+}
+
+// NewDistinctPropertyIterator creates a DistinctPropertyIterator from a source.
+func NewDistinctPropertyIterator(ctx Context, source FeasibleIterator) *DistinctPropertyIterator {
+	return &DistinctPropertyIterator{
+		ctx:               ctx,
+		source:            source,
+		groupPropertySets: make(map[string][]*propertySet),
+	}
+}
+
+func (iter *DistinctPropertyIterator) SetTaskGroup(tg *structs.TaskGroup) {
+	iter.tg = tg
+
+	// Build the property set at the taskgroup level
+	if _, ok := iter.groupPropertySets[tg.Name]; !ok {
+		for _, c := range tg.Constraints {
+			if c.Operand != structs.ConstraintDistinctProperty {
+				continue
+			}
+
+			pset := NewPropertySet(iter.ctx, iter.job)
+			pset.SetTGConstraint(c, tg.Name)
+			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
+		}
+	}
+
+	// Check if there is a distinct property
+	iter.hasDistinctPropertyConstraints = len(iter.jobPropertySets) != 0 || len(iter.groupPropertySets[tg.Name]) != 0
+}
+
+func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
+	iter.job = job
+
+	// Build the property set at the job level
+	for _, c := range job.Constraints {
+		if c.Operand != structs.ConstraintDistinctProperty {
+			continue
+		}
+
+		pset := NewPropertySet(iter.ctx, job)
+		pset.SetJobConstraint(c)
+		iter.jobPropertySets = append(iter.jobPropertySets, pset)
+	}
+}
+
+func (iter *DistinctPropertyIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+
+		// Hot path if there is nothing to check
+		if option == nil || !iter.hasDistinctPropertyConstraints {
+			return option
+		}
+
+		// Check if the constraints are met
+		if !iter.satisfiesProperties(option, iter.jobPropertySets) ||
+			!iter.satisfiesProperties(option, iter.groupPropertySets[iter.tg.Name]) {
+			continue
+		}
+
+		return option
+	}
+}
+
+// satisfiesProperties returns whether the option satisfies the set of
+// properties. If not it will be filtered.
+func (iter *DistinctPropertyIterator) satisfiesProperties(option *structs.Node, set []*propertySet) bool {
+	for _, ps := range set {
+		if satisfies, reason := ps.SatisfiesDistinctProperties(option, iter.tg.Name); !satisfies {
+			iter.ctx.Metrics().FilterNode(option, reason)
+			return false
+		}
+	}
+
+	return true
+}
+
+func (iter *DistinctPropertyIterator) Reset() {
+	iter.source.Reset()
+
+	for _, ps := range iter.jobPropertySets {
+		ps.PopulateProposed()
+	}
+
+	for _, sets := range iter.groupPropertySets {
+		for _, ps := range sets {
+			ps.PopulateProposed()
+		}
+	}
 }
 
 // ConstraintChecker is a FeasibilityChecker which returns nodes that match a
@@ -327,7 +433,7 @@ func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bo
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
-	case structs.ConstraintDistinctHosts:
+	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
 		return true
 	default:
 		break

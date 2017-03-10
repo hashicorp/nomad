@@ -229,6 +229,253 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job that uses distinct host and has count 1 higher than what is
+	// possible.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 11
+	job.Constraints = append(job.Constraints, &structs.Constraint{Operand: structs.ConstraintDistinctHosts})
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the eval has spawned blocked eval
+	if len(h.CreateEvals) != 1 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
+	// Ensure the plan failed to alloc
+	outEval := h.Evals[0]
+	if len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %+v", outEval)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure different node was used per.
+	used := make(map[string]struct{})
+	for _, alloc := range out {
+		if _, ok := used[alloc.NodeID]; ok {
+			t.Fatalf("Node collision %v", alloc.NodeID)
+		}
+		used[alloc.NodeID] = struct{}{}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		rack := "rack2"
+		if i < 5 {
+			rack = "rack1"
+		}
+		node.Meta["rack"] = rack
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job that uses distinct property and has count higher than what is
+	// possible.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	job.Constraints = append(job.Constraints,
+		&structs.Constraint{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
+		})
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval has spawned blocked eval
+	if len(h.CreateEvals) != 1 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
+	// Ensure the plan failed to alloc
+	outEval := h.Evals[0]
+	if len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %+v", outEval)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 2 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 2 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure different node was used per.
+	used := make(map[string]struct{})
+	for _, alloc := range out {
+		if _, ok := used[alloc.NodeID]; ok {
+			t.Fatalf("Node collision %v", alloc.NodeID)
+		}
+		used[alloc.NodeID] = struct{}{}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	for i := 0; i < 2; i++ {
+		node := mock.Node()
+		node.Meta["ssd"] = "true"
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job that uses distinct property and has count higher than what is
+	// possible.
+	job := mock.Job()
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Constraints = append(job.TaskGroups[0].Constraints,
+		&structs.Constraint{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.ssd}",
+		})
+
+	job.TaskGroups[1].Name = "tg2"
+	job.TaskGroups[1].Count = 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval hasn't spawned blocked eval
+	if len(h.CreateEvals) != 0 {
+		t.Fatalf("bad: %#v", h.CreateEvals[0])
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 2 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 2 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	h := NewHarness(t)
 
@@ -1316,6 +1563,112 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		node.Meta["rack"] = fmt.Sprintf("rack%d", i)
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Create a job that uses distinct property and has count higher than what is
+	// possible.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 11
+	job.Constraints = append(job.Constraints,
+		&structs.Constraint{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
+		})
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	oldJob := job.Copy()
+	oldJob.JobModifyIndex -= 1
+	oldJob.TaskGroups[0].Count = 4
+
+	// Place 4 of 10
+	var allocs []*structs.Allocation
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = oldJob
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	if plan.Annotations != nil {
+		t.Fatalf("expected no annotations")
+	}
+
+	// Ensure the eval hasn't spawned blocked eval
+	if len(h.CreateEvals) != 1 {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+
+	// Ensure the plan failed to alloc
+	outEval := h.Evals[0]
+	if len(outEval.FailedTGAllocs) != 1 {
+		t.Fatalf("bad: %+v", outEval)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 10 {
+		t.Fatalf("bad: %#v", planned)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	if len(out) != 10 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Ensure different node was used per.
+	used := make(map[string]struct{})
+	for _, alloc := range out {
+		if _, ok := used[alloc.NodeID]; ok {
+			t.Fatalf("Node collision %v", alloc.NodeID)
+		}
+		used[alloc.NodeID] = struct{}{}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_JobDeregister(t *testing.T) {
