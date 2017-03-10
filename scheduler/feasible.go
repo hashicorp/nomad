@@ -268,6 +268,19 @@ func NewDistinctPropertyIterator(ctx Context, source FeasibleIterator) *Distinct
 func (iter *DistinctPropertyIterator) SetTaskGroup(tg *structs.TaskGroup) {
 	iter.tg = tg
 
+	// Build the property set at the taskgroup level
+	if _, ok := iter.groupPropertySets[tg.Name]; !ok {
+		for _, c := range tg.Constraints {
+			if c.Operand != structs.ConstraintDistinctProperty {
+				continue
+			}
+
+			pset := NewPropertySet(iter.ctx, iter.job)
+			pset.SetTGConstraint(c, tg.Name)
+			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
+		}
+	}
+
 	// Check if there is a distinct property
 	iter.hasDistinctPropertyConstraints = len(iter.jobPropertySets) != 0 || len(iter.groupPropertySets[tg.Name]) != 0
 }
@@ -275,7 +288,7 @@ func (iter *DistinctPropertyIterator) SetTaskGroup(tg *structs.TaskGroup) {
 func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
 	iter.job = job
 
-	// Build the property sets
+	// Build the property set at the job level
 	for _, c := range job.Constraints {
 		if c.Operand != structs.ConstraintDistinctProperty {
 			continue
@@ -285,22 +298,9 @@ func (iter *DistinctPropertyIterator) SetJob(job *structs.Job) {
 		pset.SetJobConstraint(c)
 		iter.jobPropertySets = append(iter.jobPropertySets, pset)
 	}
-
-	for _, tg := range job.TaskGroups {
-		for _, c := range tg.Constraints {
-			if c.Operand != structs.ConstraintDistinctProperty {
-				continue
-			}
-
-			pset := NewPropertySet(iter.ctx, job)
-			pset.SetTGConstraint(c, tg.Name)
-			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
-		}
-	}
 }
 
 func (iter *DistinctPropertyIterator) Next() *structs.Node {
-OUTER:
 	for {
 		// Get the next option from the source
 		option := iter.source.Next()
@@ -311,22 +311,26 @@ OUTER:
 		}
 
 		// Check if the constraints are met
-		for _, ps := range iter.jobPropertySets {
-			if satisfies, reason := ps.SatisfiesDistinctProperties(option, iter.tg.Name); !satisfies {
-				iter.ctx.Metrics().FilterNode(option, reason)
-				continue OUTER
-			}
-		}
-
-		for _, ps := range iter.groupPropertySets[iter.tg.Name] {
-			if satisfies, reason := ps.SatisfiesDistinctProperties(option, iter.tg.Name); !satisfies {
-				iter.ctx.Metrics().FilterNode(option, reason)
-				continue OUTER
-			}
+		if !iter.satisfiesProperties(option, iter.jobPropertySets) ||
+			!iter.satisfiesProperties(option, iter.groupPropertySets[iter.tg.Name]) {
+			continue
 		}
 
 		return option
 	}
+}
+
+// satisfiesProperties returns whether the option satisfies the set of
+// properties. If not it will be filtered.
+func (iter *DistinctPropertyIterator) satisfiesProperties(option *structs.Node, set []*propertySet) bool {
+	for _, ps := range set {
+		if satisfies, reason := ps.SatisfiesDistinctProperties(option, iter.tg.Name); !satisfies {
+			iter.ctx.Metrics().FilterNode(option, reason)
+			return false
+		}
+	}
+
+	return true
 }
 
 func (iter *DistinctPropertyIterator) Reset() {

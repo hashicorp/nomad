@@ -94,14 +94,8 @@ func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 		return
 	}
 
-	for _, alloc := range allocs {
-		nProperty, ok := p.getProperty(nodes[alloc.NodeID], constraint.LTarget)
-		if !ok {
-			continue
-		}
-
-		p.existingValues[nProperty] = struct{}{}
-	}
+	// Build existing properties map
+	p.populateProperties(allocs, nodes, p.existingValues)
 }
 
 // PopulateProposed populates the proposed values and recomputes any cleared
@@ -139,26 +133,14 @@ func (p *propertySet) PopulateProposed() {
 	}
 
 	// Populate the cleared values
-	for _, alloc := range stopping {
-		nProperty, ok := p.getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
-		if !ok {
-			continue
-		}
-
-		p.clearedValues[nProperty] = struct{}{}
-	}
+	p.populateProperties(stopping, nodes, p.clearedValues)
 
 	// Populate the proposed values
-	for _, alloc := range proposed {
-		nProperty, ok := p.getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
-		if !ok {
-			continue
-		}
+	p.populateProperties(proposed, nodes, p.proposedValues)
 
-		p.proposedValues[nProperty] = struct{}{}
-
-		// If it was cleared, it is now being used
-		delete(p.clearedValues, nProperty)
+	// Remove any cleared value that is now being used by the proposed allocs
+	for value := range p.proposedValues {
+		delete(p.clearedValues, value)
 	}
 }
 
@@ -173,7 +155,7 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 	}
 
 	// Get the nodes property value
-	nValue, ok := p.getProperty(option, p.constraint.LTarget)
+	nValue, ok := getProperty(option, p.constraint.LTarget)
 	if !ok {
 		return false, fmt.Sprintf("missing property %q", p.constraint.LTarget)
 	}
@@ -246,8 +228,23 @@ func (p *propertySet) buildNodeMap(allocs []*structs.Allocation) (map[string]*st
 	return nodes, nil
 }
 
+// populateProperties goes through all allocations and builds up the used
+// properties from the nodes storing the results in the passed properties map.
+func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map[string]*structs.Node,
+	properties map[string]struct{}) {
+
+	for _, alloc := range allocs {
+		nProperty, ok := getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
+		if !ok {
+			continue
+		}
+
+		properties[nProperty] = struct{}{}
+	}
+}
+
 // getProperty is used to lookup the property value on the node
-func (p *propertySet) getProperty(n *structs.Node, property string) (string, bool) {
+func getProperty(n *structs.Node, property string) (string, bool) {
 	if n == nil || property == "" {
 		return "", false
 	}
