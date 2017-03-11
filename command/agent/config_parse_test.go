@@ -71,6 +71,7 @@ func TestConfig_Parse(t *testing.T) {
 						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
 					},
 					GCInterval:            6 * time.Second,
+					GCParallelDestroys:    6,
 					GCDiskUsageThreshold:  82,
 					GCInodeUsageThreshold: 91,
 					NoHostUUID:            true,

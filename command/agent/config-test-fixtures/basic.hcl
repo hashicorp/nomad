@@ -54,6 +54,7 @@ client {
         collection_interval = "5s"
     }
     gc_interval = "6s"
+    gc_parallel_destroys = 6
     gc_disk_usage_threshold = 82
     gc_inode_usage_threshold = 91
     no_host_uuid = true

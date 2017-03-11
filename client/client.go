@@ -238,6 +238,7 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
 		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
 		Interval:            cfg.GCInterval,
+		ParallelDestroys:    cfg.GCParallelDestroys,
 		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
 	}
 	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, gcConfig)
@@ -1832,10 +1833,11 @@ func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	delete(c.allocs, alloc.ID)
 	c.allocLock.Unlock()
 
-	// Remove the allocrunner from garbage collector
-	c.garbageCollector.Remove(ar)
+	// Ensure the GC has a reference and then collect. Collecting through the GC
+	// applies rate limiting
+	c.garbageCollector.MarkForCollection(ar)
+	go c.garbageCollector.Collect(alloc.ID)
 
-	ar.Destroy()
 	return nil
 }
 
