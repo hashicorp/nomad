@@ -14,10 +14,6 @@ import (
 const (
 	// MB is a constant which converts values in bytes to MB
 	MB = 1024 * 1024
-
-	// destroyWaitLimit is the timeout after which the max destroy parallelism
-	// is abandoned to continue to make progress
-	destroyWaitLimit = 3 * time.Minute
 )
 
 // GCConfig allows changing the behaviour of the garbage collector
@@ -130,12 +126,8 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 // once the allocation has been destroyed.
 func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner) {
 	// Acquire the destroy lock
-	locked := false
 	select {
 	case a.destroyCh <- struct{}{}:
-		locked = true
-	case <-time.After(destroyWaitLimit):
-		a.logger.Printf("[WARN] client: garbage collecting contention when attempting destroy of allocation %q", ar.Alloc().ID)
 	case <-a.shutdownCh:
 		return
 	}
@@ -149,11 +141,9 @@ func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner) {
 
 	a.logger.Printf("[DEBUG] client: garbage collected %q", ar.Alloc().ID)
 
-	if locked {
-		select {
-		case <-a.destroyCh:
-		default:
-		}
+	select {
+	case <-a.destroyCh:
+	default:
 	}
 }
 
