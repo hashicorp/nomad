@@ -196,8 +196,6 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 		// The Evaluation GC should not handle batch jobs since those need to be
 		// garbage collected in one shot
-		// XXX believe there is a bug that if a batch job gets stopped, there is no
-		// way for it to GC the eval/allocs
 		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
 		if err != nil {
 			return err
@@ -239,10 +237,6 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
-		if !allowBatch {
-			return false, nil, nil
-		}
-
 		// Check if the job is running
 		job, err := c.snap.JobByID(ws, eval.JobID)
 		if err != nil {
@@ -250,7 +244,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		}
 
 		// We don't want to gc anything related to a job which is not dead
-		if job != nil && job.Status != structs.JobStatusDead {
+		// If the batch job doesn't exist we can GC it regardless of allowBatch
+		if job != nil && (!allowBatch || job.Status != structs.JobStatusDead) {
 			return false, nil, nil
 		}
 	}

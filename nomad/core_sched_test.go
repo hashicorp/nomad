@@ -90,7 +90,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	}
 }
 
-// An EvalGC should never reap a batch job
+// An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -187,6 +187,94 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	}
 	if outB == nil {
 		t.Fatalf("bad: %v", outB)
+	}
+}
+
+// An EvalGC should  reap a batch job that has been stopped
+func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Create a "dead" job
+	state := s1.fsm.State()
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Status = structs.JobStatusDead
+
+	// Insert "complete" eval
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.Type = structs.JobTypeBatch
+	eval.JobID = job.ID
+	err := state.UpsertEvals(1001, []*structs.Evaluation{eval})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert "failed" alloc
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.EvalID = eval.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+
+	// Insert "lost" alloc
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.EvalID = eval.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+
+	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Everything should be gone
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %v", out)
+	}
+
+	outA, err := state.AllocByID(ws, alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA != nil {
+		t.Fatalf("bad: %v", outA)
+	}
+
+	outA2, err := state.AllocByID(ws, alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA2 != nil {
+		t.Fatalf("bad: %v", outA2)
 	}
 }
 
