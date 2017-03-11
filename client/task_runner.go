@@ -796,7 +796,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
-					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, true))
+					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, structs.IsRecoverable(err)))
 					goto RESTART
 				}
 			}

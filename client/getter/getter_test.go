@@ -204,3 +204,102 @@ func TestGetArtifact_Archive(t *testing.T) {
 	}
 	checkContents(taskDir, expected, t)
 }
+
+func TestGetGetterUrl_Queries(t *testing.T) {
+	taskEnv := env.NewTaskEnvironment(mock.Node())
+	cases := []struct {
+		name     string
+		artifact *structs.TaskArtifact
+		output   string
+	}{
+		{
+			name: "adds query parameters",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "https://foo.com?test=1",
+				GetterOptions: map[string]string{
+					"foo": "bar",
+					"bam": "boom",
+				},
+			},
+			output: "https://foo.com?bam=boom&foo=bar&test=1",
+		},
+		{
+			name: "git without http",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "github.com/hashicorp/nomad",
+				GetterOptions: map[string]string{
+					"ref": "abcd1234",
+				},
+			},
+			output: "github.com/hashicorp/nomad?ref=abcd1234",
+		},
+		{
+			name: "git using ssh",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "git@github.com:hashicorp/nomad?sshkey=1",
+				GetterOptions: map[string]string{
+					"ref": "abcd1234",
+				},
+			},
+			output: "git@github.com:hashicorp/nomad?ref=abcd1234&sshkey=1",
+		},
+		{
+			name: "s3 scheme 1",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "s3::https://s3.amazonaws.com/bucket/foo",
+				GetterOptions: map[string]string{
+					"aws_access_key_id": "abcd1234",
+				},
+			},
+			output: "s3::https://s3.amazonaws.com/bucket/foo?aws_access_key_id=abcd1234",
+		},
+		{
+			name: "s3 scheme 2",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "s3::https://s3-eu-west-1.amazonaws.com/bucket/foo",
+				GetterOptions: map[string]string{
+					"aws_access_key_id": "abcd1234",
+				},
+			},
+			output: "s3::https://s3-eu-west-1.amazonaws.com/bucket/foo?aws_access_key_id=abcd1234",
+		},
+		{
+			name: "s3 scheme 3",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "bucket.s3.amazonaws.com/foo",
+				GetterOptions: map[string]string{
+					"aws_access_key_id": "abcd1234",
+				},
+			},
+			output: "bucket.s3.amazonaws.com/foo?aws_access_key_id=abcd1234",
+		},
+		{
+			name: "s3 scheme 4",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "bucket.s3-eu-west-1.amazonaws.com/foo/bar",
+				GetterOptions: map[string]string{
+					"aws_access_key_id": "abcd1234",
+				},
+			},
+			output: "bucket.s3-eu-west-1.amazonaws.com/foo/bar?aws_access_key_id=abcd1234",
+		},
+		{
+			name: "local file",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "/foo/bar",
+			},
+			output: "/foo/bar",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			act, err := getGetterUrl(taskEnv, c.artifact)
+			if err != nil {
+				t.Fatalf("want %q; got err %v", c.output, err)
+			} else if act != c.output {
+				t.Fatalf("want %q; got %q", c.output, act)
+			}
+		})
+	}
+}
