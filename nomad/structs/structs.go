@@ -2515,6 +2515,12 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
+
+		switch constr.Operand {
+		case ConstraintDistinctHosts, ConstraintDistinctProperty:
+			outer := fmt.Errorf("Constraint %d has disallowed Operand at task level: %s", idx+1, constr.Operand)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
 	}
 
 	// Validate Services
