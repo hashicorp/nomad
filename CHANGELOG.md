@@ -39,6 +39,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
   * core: Handle periodic paramaterized jobs [GH-2385]
+  * core: Improve garbage collection of stopped batch jobs [GH-2432]
   * api: Fix escaping of HTML characters [GH-2322]
   * cli: Display disk resources in alloc-status [GH-2404]
   * client: Drivers log during fingerprinting [GH-2337]
