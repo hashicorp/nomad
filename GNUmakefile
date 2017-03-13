@@ -1,11 +1,14 @@
 PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 EXTERNAL_TOOLS=\
-	github.com/kardianos/govendor \
-	github.com/mitchellh/gox \
-	golang.org/x/tools/cmd/cover \
-	github.com/axw/gocov/gocov \
-	gopkg.in/matm/v1/gocov-html \
-	github.com/ugorji/go/codec/codecgen
+	       github.com/kardianos/govendor \
+	       github.com/mitchellh/gox \
+	       golang.org/x/tools/cmd/cover \
+	       github.com/axw/gocov/gocov \
+	       gopkg.in/matm/v1/gocov-html \
+	       github.com/ugorji/go/codec/codecgen
+
+TEST_TOOLS=\
+	   github.com/hashicorp/vault
 
 all: test
 
@@ -27,7 +30,7 @@ test: generate
 	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
 		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
 		exit 1; \
-	fi
+		fi
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
 
@@ -50,18 +53,21 @@ vet:
 		echo "[LINT] Vet found suspicious constructs. Please check the reported constructs"; \
 		echo "and fix them if necessary before submitting the code for review."; \
 		exit 1; \
-	fi
-
+		fi
 	@git grep -n `echo "log"".Print"` | grep -v 'vendor/' ; if [ $$? -eq 0 ]; then \
 		echo "[LINT] Found "log"".Printf" calls. These should use Nomad's logger instead."; \
-	fi
+		fi
 
 # bootstrap the build by downloading additional tools
 bootstrap:
 	@for tool in  $(EXTERNAL_TOOLS) ; do \
 		echo "Installing $$tool" ; \
-    go get $$tool; \
-	done
+		go get $$tool; \
+		done
+	@for tool in  $(TEST_TOOLS) ; do \
+		echo "Installing $$tool (test dependency)" ; \
+		go get $$tool; \
+		done
 
 install: bin/nomad
 	install -o root -g wheel -m 0755 ./bin/nomad /usr/local/bin/nomad
