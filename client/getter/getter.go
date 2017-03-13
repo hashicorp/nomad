@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
@@ -19,6 +20,11 @@ var (
 
 	// supported is the set of download schemes supported by Nomad
 	supported = []string{"http", "https", "s3", "hg", "git"}
+)
+
+const (
+	// gitSSHPrefix is the prefix for dowwnloading via git using ssh
+	gitSSHPrefix = "git@github.com:"
 )
 
 // getClient returns a client that is suitable for Nomad downloading artifacts.
@@ -47,7 +53,17 @@ func getClient(src, dst string) *gg.Client {
 // getGetterUrl returns the go-getter URL to download the artifact.
 func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) (string, error) {
 	taskEnv.Build()
-	u, err := url.Parse(taskEnv.ReplaceEnv(artifact.GetterSource))
+	source := taskEnv.ReplaceEnv(artifact.GetterSource)
+
+	// Handle an invalid URL when given a go-getter url such as
+	// git@github.com:hashicorp/nomad.git
+	gitSSH := false
+	if strings.HasPrefix(source, gitSSHPrefix) {
+		gitSSH = true
+		source = source[len(gitSSHPrefix):]
+	}
+
+	u, err := url.Parse(source)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse source URL %q: %v", artifact.GetterSource, err)
 	}
@@ -58,7 +74,14 @@ func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) 
 		q.Add(k, taskEnv.ReplaceEnv(v))
 	}
 	u.RawQuery = q.Encode()
-	return u.String(), nil
+
+	// Add the prefix back
+	url := u.String()
+	if gitSSH {
+		url = fmt.Sprintf("%s%s", gitSSHPrefix, url)
+	}
+
+	return url, nil
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
@@ -71,7 +94,7 @@ func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact, t
 	// Download the artifact
 	dest := filepath.Join(taskDir, artifact.RelativeDest)
 	if err := getClient(url, dest).Get(); err != nil {
-		return fmt.Errorf("GET error: %v", err)
+		return structs.NewRecoverableError(fmt.Errorf("GET error: %v", err), true)
 	}
 
 	return nil
