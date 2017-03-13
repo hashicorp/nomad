@@ -33,9 +33,9 @@ func NumProcs() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer f.Close()
 
 	list, err := f.Readdir(-1)
-	defer f.Close()
 	if err != nil {
 		return 0, err
 	}

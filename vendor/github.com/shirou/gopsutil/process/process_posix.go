@@ -40,6 +40,8 @@ func getTerminalMap() (map[uint64]string, error) {
 			return nil, err
 		}
 	}
+	defer ptsd.Close()
+
 	if ptsnames == nil {
 		defer ptsd.Close()
 		ptsnames, err = ptsd.Readdirnames(-1)

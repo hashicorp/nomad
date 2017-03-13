@@ -186,6 +186,8 @@ func Info() ([]InfoStat, error) {
 			c.Flags = strings.FieldsFunc(value, func(r rune) bool {
 				return r == ',' || r == ' '
 			})
+		case "microcode":
+			c.Microcode = value
 		}
 	}
 	if c.CPU >= 0 {
@@ -200,6 +202,10 @@ func Info() ([]InfoStat, error) {
 
 func parseStatLine(line string) (*TimesStat, error) {
 	fields := strings.Fields(line)
+
+	if len(fields) == 0 {
+		return nil, errors.New("stat does not contain cpu info")
+	}
 
 	if strings.HasPrefix(fields[0], "cpu") == false {
 		//		return CPUTimesStat{}, e

@@ -1051,46 +1051,52 @@
 			"revisionTime": "2016-04-29T17:20:22Z"
 		},
 		{
-			"checksumSHA1": "zW2k8E1gkuySzTz2eXuSEDhpffY=",
+			"checksumSHA1": "cDsY1Bw9zumq+u6RTpp3ubJPTMk=",
+			"path": "github.com/shirou/gopsutil",
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
+		},
+		{
+			"checksumSHA1": "9LIkEB03iL8LhQNZ0ydyLxXY32A=",
 			"path": "github.com/shirou/gopsutil/cpu",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
 			"checksumSHA1": "EHW4AH6SCfTJGTrnqZ56PiOrJ7o=",
 			"path": "github.com/shirou/gopsutil/disk",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
-			"checksumSHA1": "GsqEEmGv6sj8DreS2SYXRkoZ9NI=",
+			"checksumSHA1": "fe9lD1jnx0DF2ByG3/FeIbJRI4w=",
 			"path": "github.com/shirou/gopsutil/host",
-			"revision": "b62e301a8b9958eebb7299683eb57fab229a9501",
-			"revisionTime": "2017-02-08T02:55:55Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
-			"checksumSHA1": "hz9RxkaV3Tnju2eiHBWO/Yv7n5c=",
+			"checksumSHA1": "S8QxcgsIi8ckcQRKNGCn4Z5Lymw=",
 			"path": "github.com/shirou/gopsutil/internal/common",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
 			"checksumSHA1": "XQwjGKI51Y3aQ3/jNyRh9Gnprgg=",
 			"path": "github.com/shirou/gopsutil/mem",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
-			"checksumSHA1": "OSvOZs5uK5iolCOeS46nB2InVy8=",
+			"checksumSHA1": "zqdJo70e2vfUaNAs8hs3CA7ZmfQ=",
 			"path": "github.com/shirou/gopsutil/net",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
-			"checksumSHA1": "JX0bRK/BdKVfbm4XOxMducVdY58=",
+			"checksumSHA1": "g/TH+QY+CH4rJTg0BJ1vdLWIFaA=",
 			"path": "github.com/shirou/gopsutil/process",
-			"revision": "32b6636de04b303274daac3ca2b10d3b0e4afc35",
-			"revisionTime": "2017-02-04T05:36:48Z"
+			"revision": "d4c8874c1901eea436d4b8df4f67a32a56a1b950",
+			"revisionTime": "2017-03-13T16:51:04Z"
 		},
 		{
 			"checksumSHA1": "Nve7SpDmjsv6+rhkXAkfg/UQx94=",
