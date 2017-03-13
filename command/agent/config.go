@@ -727,13 +727,13 @@ func (c *Config) normalizeAddrs() error {
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
 	}
 	c.AdvertiseAddrs.HTTP = addr
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
 	}
@@ -741,7 +741,7 @@ func (c *Config) normalizeAddrs() error {
 
 	// Skip serf if server is disabled
 	if c.Server != nil && c.Server.Enabled {
-		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf)
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.Serf, c.Addresses.Serf, c.Ports.Serf, c.DevMode)
 		if err != nil {
 			return fmt.Errorf("Failed to parse Serf advertise address: %v", err)
 		}
@@ -793,7 +793,7 @@ func normalizeBind(addr, bind string) (string, error) {
 // is resolved and returned with the port.
 //
 // Loopback is only considered a valid advertise address in dev mode.
-func normalizeAdvertise(addr string, bind string, defport int) (string, error) {
+func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
 	addr, err := parseSingleIPTemplate(addr)
 	if err != nil {
 		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
@@ -813,8 +813,29 @@ func normalizeAdvertise(addr string, bind string, defport int) (string, error) {
 		return net.JoinHostPort(host, port), nil
 	}
 
-	// Fallback to bind address, as it has been resolved before.
-	return net.JoinHostPort(bind, strconv.Itoa(defport)), nil
+	// Fallback to bind address first, and then try resolving the local hostname
+	ips, err := net.LookupIP(bind)
+	if err != nil {
+		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
+	}
+
+	// Return the first unicast address
+	for _, ip := range ips {
+		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+		if !ip.IsLoopback() || (ip.IsLoopback() && dev) {
+			// loopback is fine for dev mode
+			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		}
+	}
+
+	// Otherwise, default to the private IP address
+	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
+	}
+	return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 }
 
 // isMissingPort returns true if an error is a "missing port" error from
