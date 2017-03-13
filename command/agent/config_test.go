@@ -612,8 +612,10 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 			RPC:  4647,
 			Serf: 4648,
 		},
-		Addresses:      &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC: "{{ GetPrivateIP }}:8888",
+		},
 		Server: &ServerConfig{
 			Enabled: true,
 		},
@@ -627,8 +629,8 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("expected HTTP advertise address %s:4646, got %s", c.BindAddr, c.AdvertiseAddrs.HTTP)
 	}
 
-	if c.AdvertiseAddrs.RPC != fmt.Sprintf("%s:4647", c.BindAddr) {
-		t.Fatalf("expected RPC advertise address %s:4647, got %s", c.BindAddr, c.AdvertiseAddrs.RPC)
+	if c.AdvertiseAddrs.RPC != fmt.Sprintf("%s:8888", c.BindAddr) {
+		t.Fatalf("expected RPC advertise address %s:8888, got %s", c.BindAddr, c.AdvertiseAddrs.RPC)
 	}
 
 	if c.AdvertiseAddrs.Serf != fmt.Sprintf("%s:4648", c.BindAddr) {

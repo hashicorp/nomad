@@ -794,6 +794,11 @@ func normalizeBind(addr, bind string) (string, error) {
 //
 // Loopback is only considered a valid advertise address in dev mode.
 func normalizeAdvertise(addr string, bind string, defport int) (string, error) {
+	addr, err := parseSingleIPTemplate(addr)
+	if err != nil {
+		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
+	}
+
 	if addr != "" {
 		// Default to using manually configured address
 		host, port, err := net.SplitHostPort(addr)
@@ -805,12 +810,7 @@ func normalizeAdvertise(addr string, bind string, defport int) (string, error) {
 			port = strconv.Itoa(defport)
 		}
 
-		ipStr, err := parseSingleIPTemplate(host)
-		if err != nil {
-			return "", fmt.Errorf("Error parsing advertise address template: %v", err)
-		}
-
-		return net.JoinHostPort(ipStr, port), nil
+		return net.JoinHostPort(host, port), nil
 	}
 
 	// Fallback to bind address, as it has been resolved before.
