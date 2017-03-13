@@ -76,14 +76,12 @@ func getLocalNodeID(client *api.Client) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error querying agent info: %s", err)
 	}
-	var stats map[string]interface{}
-	stats, _ = info["stats"]
-	clientStats, ok := stats["client"].(map[string]interface{})
+	clientStats, ok := info.Stats["client"]
 	if !ok {
 		return "", fmt.Errorf("Nomad not running in client mode")
 	}
 
-	nodeID, ok := clientStats["node_id"].(string)
+	nodeID, ok := clientStats["node_id"]
 	if !ok {
 		return "", fmt.Errorf("Failed to determine node ID")
 	}

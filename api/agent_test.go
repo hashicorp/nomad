@@ -22,7 +22,7 @@ func TestAgent_Self(t *testing.T) {
 	}
 
 	// Check that we got a valid response
-	if name, ok := res["member"]["Name"]; !ok || name == "" {
+	if res.Member.Name == "" {
 		t.Fatalf("bad member name in response: %#v", res)
 	}
 

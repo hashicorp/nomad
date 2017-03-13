@@ -37,8 +37,8 @@ func (c *Client) Agent() *Agent {
 
 // Self is used to query the /v1/agent/self endpoint and
 // returns information specific to the running agent.
-func (a *Agent) Self() (map[string]map[string]interface{}, error) {
-	var out map[string]map[string]interface{}
+func (a *Agent) Self() (*AgentSelf, error) {
+	var out *AgentSelf
 
 	// Query the self endpoint on the agent
 	_, err := a.client.query("/v1/agent/self", &out, nil)
@@ -55,17 +55,15 @@ func (a *Agent) Self() (map[string]map[string]interface{}, error) {
 // populateCache is used to insert various pieces of static
 // data into the agent handle. This is used during subsequent
 // lookups for the same data later on to save the round trip.
-func (a *Agent) populateCache(info map[string]map[string]interface{}) {
+func (a *Agent) populateCache(self *AgentSelf) {
 	if a.nodeName == "" {
-		a.nodeName, _ = info["member"]["Name"].(string)
+		a.nodeName = self.Member.Name
 	}
-	if tags, ok := info["member"]["Tags"].(map[string]interface{}); ok {
-		if a.datacenter == "" {
-			a.datacenter, _ = tags["dc"].(string)
-		}
-		if a.region == "" {
-			a.region, _ = tags["region"].(string)
-		}
+	if a.datacenter == "" {
+		a.datacenter, _ = self.Member.Tags["dc"]
+	}
+	if a.region == "" {
+		a.region, _ = self.Member.Tags["region"]
 	}
 }
 
@@ -218,10 +216,16 @@ type joinResponse struct {
 }
 
 type ServerMembers struct {
-	ServerName string
-	Region     string
-	DC         string
-	Members    []*AgentMember
+	ServerName   string
+	ServerRegion string
+	ServerDC     string
+	Members      []*AgentMember
+}
+
+type AgentSelf struct {
+	Config map[string]interface{}       `json:"config"`
+	Member AgentMember                  `json:"member"`
+	Stats  map[string]map[string]string `json:"stats"`
 }
 
 // AgentMember represents a cluster member known to the agent

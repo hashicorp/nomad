@@ -55,17 +55,15 @@ func (c *AgentInfoCommand) Run(args []string) int {
 	}
 
 	// Sort and output agent info
-	var stats map[string]interface{}
-	stats, _ = info["stats"]
-	statsKeys := make([]string, 0, len(stats))
-	for key := range stats {
+	statsKeys := make([]string, 0, len(info.Stats))
+	for key := range info.Stats {
 		statsKeys = append(statsKeys, key)
 	}
 	sort.Strings(statsKeys)
 
 	for _, key := range statsKeys {
 		c.Ui.Output(key)
-		statsData, _ := stats[key].(map[string]interface{})
+		statsData, _ := info.Stats[key]
 		statsDataKeys := make([]string, len(statsData))
 		i := 0
 		for key := range statsData {
