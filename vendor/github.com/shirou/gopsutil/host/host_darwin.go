@@ -104,6 +104,7 @@ func Users() ([]UserStat, error) {
 	if err != nil {
 		return ret, err
 	}
+	defer file.Close()
 
 	buf, err := ioutil.ReadAll(file)
 	if err != nil {

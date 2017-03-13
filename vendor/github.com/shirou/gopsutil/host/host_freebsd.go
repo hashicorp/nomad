@@ -112,6 +112,7 @@ func Users() ([]UserStat, error) {
 	if err != nil {
 		return ret, err
 	}
+	defer file.Close()
 
 	buf, err := ioutil.ReadAll(file)
 	if err != nil {
@@ -180,6 +181,8 @@ func getUsersFromUtmp(utmpfile string) ([]UserStat, error) {
 	if err != nil {
 		return ret, err
 	}
+	defer file.Close()
+
 	buf, err := ioutil.ReadAll(file)
 	if err != nil {
 		return ret, err

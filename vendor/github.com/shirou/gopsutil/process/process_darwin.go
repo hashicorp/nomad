@@ -64,6 +64,10 @@ func Pids() ([]int32, error) {
 
 func (p *Process) Ppid() (int32, error) {
 	r, err := callPs("ppid", p.Pid, false)
+	if err != nil {
+		return 0, err
+	}
+
 	v, err := strconv.Atoi(r[0][0])
 	if err != nil {
 		return 0, err

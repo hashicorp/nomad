@@ -40,6 +40,7 @@ type InfoStat struct {
 	Mhz        float64  `json:"mhz"`
 	CacheSize  int32    `json:"cacheSize"`
 	Flags      []string `json:"flags"`
+	Microcode  string   `json:"microcode"`
 }
 
 type lastPercent struct {
