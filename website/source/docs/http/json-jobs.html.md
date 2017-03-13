@@ -516,12 +516,25 @@ The `Constraint` object supports the following keys:
   * `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which
-        scopes the effect to just that group.
+        scopes the effect to just that group. The constraint may not be
+        specified at the task level.
 
         Placing the constraint at both the job level and at the task group level is
         redundant since when placed at the job level, the constraint will be applied
         to all task groups. When specified, `LTarget` and `RTarget` should be
         omitted.
+
+  * `distinct_property` - If set, the scheduler selects nodes that have a
+        distinct value of the specified property for each allocation. This can
+        be specified as a job constraint which applies the constraint to all
+        task groups in the job, or as a task group constraint which scopes the
+        effect to just that group. The constraint may not be specified at the
+        task level.
+
+        Placing the constraint at both the job level and at the task group level is
+        redundant since when placed at the job level, the constraint will be applied
+        to all task groups. When specified, `LTarget` should be the property
+        that should be distinct and and `RTarget` should be omitted.
 
   * Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.

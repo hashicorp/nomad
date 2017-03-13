@@ -104,13 +104,45 @@ constraint {
 - `"distinct_hosts"` - Instructs the scheduler to not co-locate any groups on
   the same machine. When specified as a job constraint, it applies to all groups
   in the job. When specified as a group constraint, the effect is constrained to
-  that group. Note that the `attribute` parameter should be omitted when using
-  this constraint.
+  that group. This constraint can not be specified at the task level. Note that
+  the `attribute` parameter should be omitted when using this constraint.
 
     ```hcl
     constraint {
       operator  = "distinct_hosts"
       value     = "true"
+    }
+    ```
+
+    The constraint may also be specified as follows for a more compact
+    representation:
+
+    ```hcl
+    constraint {
+        distinct_hosts = true
+    }
+    ```
+
+- `"distinct_property"` - Instructs the scheduler to select nodes that have a
+  distinct value of the specified property for each allocation. When specified
+  as a job constraint, it applies to all groups in the job. When specified as a
+  group constraint, the effect is constrained to that group. This constraint can
+  not be specified at the task level. Note that the `value` parameter should be
+  omitted when using this constraint.
+
+    ```hcl
+    constraint {
+      operator  = "distinct_property"
+      attribute = "${meta.rack"}
+    }
+    ```
+
+    The constraint may also be specified as follows for a more compact
+    representation:
+
+    ```hcl
+    constraint {
+        distinct_property = "${meta.rack}"
     }
     ```
 
@@ -169,6 +201,21 @@ constraint {
   attribute = "${attr.kernel.version}"
   operator  = "version"
   value     = "> 3.19"
+}
+```
+
+### Distint Property
+
+A potential use case of the `distinct_property` constraint is to spread a
+service with `count > 1` across racks to minimize correlated failure. Nodes can
+be annotated with which rack they are on using [client
+metadata][client-metadata] with values
+such as "rack-12-1", "rack-12-2", etc. The following constraint would then
+assure no two instances of the task group existed on the same rack.
+
+```hcl
+constraint {
+  distinct_property = "${meta.rack}"
 }
 ```
 

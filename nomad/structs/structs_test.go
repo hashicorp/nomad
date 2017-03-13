@@ -487,6 +487,24 @@ func TestTask_Validate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+
+	task.Constraints = append(task.Constraints,
+		&Constraint{
+			Operand: ConstraintDistinctHosts,
+		},
+		&Constraint{
+			Operand: ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
+		})
+
+	err = task.Validate(ephemeralDisk)
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "task level: distinct_property") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestTask_Validate_Services(t *testing.T) {
