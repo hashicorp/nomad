@@ -442,10 +442,10 @@
 			"revisionTime": "2017-01-10T19:35:11Z"
 		},
 		{
-			"checksumSHA1": "QcztYNLTWLhamq8fPdk63hqIOMc=",
+			"checksumSHA1": "jtruj9m4YJtPaXqUZ5PXdgFQjRA=",
 			"path": "github.com/docker/docker/pkg/system",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "47cd4bf526723100bdbbd5a6bb983cdd668882e9",
+			"revisionTime": "2017-03-13T17:42:22Z"
 		},
 		{
 			"checksumSHA1": "NGqzajRG0Vri8ConQuHY3cCs1RA=",
