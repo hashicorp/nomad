@@ -182,6 +182,9 @@ type ClientConfig struct {
 	// speed.
 	NetworkSpeed int `mapstructure:"network_speed"`
 
+	// CpuCompute is used to override any detected or default total CPU compute.
+	CpuCompute int `mapstructure:"cpu_compute"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `mapstructure:"max_kill_timeout"`
 
@@ -915,6 +918,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
+	}
+	if b.CpuCompute != 0 {
+		result.CpuCompute = b.CpuCompute
 	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout

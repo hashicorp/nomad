@@ -22,8 +22,29 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	setResources := func(totalCompute int) {
+		if node.Resources == nil {
+			node.Resources = &structs.Resources{}
+		}
+
+		node.Resources.CPU = totalCompute
+	}
+
 	if err := stats.Init(); err != nil {
-		return false, fmt.Errorf("Unable to obtain CPU information: %v", err)
+		err := fmt.Errorf("Unable to obtain CPU information: %v", err)
+
+		if cfg.CpuCompute != 0 {
+			f.logger.Printf("[DEBUG] fingerprint.cpu: %v. Using specified cpu compute %d", err, cfg.CpuCompute)
+			setResources(cfg.CpuCompute)
+			return true, nil
+		}
+
+		f.logger.Printf("[ERR] fingerprint.cpu: %v", err)
+		f.logger.Printf("[INFO] fingerprint.cpu: cpu compute may be set manually"+
+			" using the client config option %q on machines where cpu information"+
+			" can not be automatically detected.", "cpu_compute")
+
+		return false, err
 	}
 
 	modelName := stats.CPUModelName()
@@ -40,13 +61,9 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
 
 	tt := stats.TotalTicksAvailable()
+
 	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.0f", tt)
 
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-
-	node.Resources.CPU = int(tt)
-
+	setResources(int(tt))
 	return true, nil
 }

@@ -87,6 +87,10 @@ type Config struct {
 	// be determined dynamically.
 	NetworkSpeed int
 
+	// CpuCompute is the default total CPU compute if they can not be determined
+	// dynamically. It should be given as Cores * MHz (2 Cores * 2 Ghz = 4000)
+	CpuCompute int
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
 	// used.
@@ -236,6 +240,29 @@ func (c *Config) ReadBool(id string) (bool, error) {
 // an error in parsing, the default option is returned.
 func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
 	val, err := c.ReadBool(id)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadInt parses the specified option as a int.
+func (c *Config) ReadInt(id string) (int, error) {
+	val, ok := c.Options[id]
+	if !ok {
+		return 0, fmt.Errorf("Specified config is missing from options")
+	}
+	ival, err := strconv.Atoi(val)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to parse %s as int: %s", val, err)
+	}
+	return ival, nil
+}
+
+// ReadIntDefault tries to parse the specified option as a int. If there is
+// an error in parsing, the default option is returned.
+func (c *Config) ReadIntDefault(id string, defaultValue int) int {
+	val, err := c.ReadInt(id)
 	if err != nil {
 		return defaultValue
 	}
