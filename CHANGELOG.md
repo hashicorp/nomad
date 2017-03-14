@@ -17,6 +17,7 @@ IMPROVEMENTS:
   * cli: node-status displays enabled drivers on the node [GH-2349]
   * client: Apply GC related configurations properly [GH-2273]
   * client: Don't force uppercase meta keys in env vars [GH-2338]
+  * client: Limit parallelism during garbage collection [GH-2427]
   * client: Don't exec `uname -r` for node attribute kernel.version [GH-2380]
   * client: Artifact support for git and hg as well as netrc support [GH-2386]
   * client: Add metrics to show number of allocations on in each state [GH-2425]
