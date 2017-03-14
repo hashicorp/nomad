@@ -127,9 +127,9 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner) {
 	// Acquire the destroy lock
 	select {
-	case a.destroyCh <- struct{}{}:
 	case <-a.shutdownCh:
 		return
+	case a.destroyCh <- struct{}{}:
 	}
 
 	ar.Destroy()
@@ -141,15 +141,12 @@ func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner) {
 
 	a.logger.Printf("[DEBUG] client: garbage collected %q", ar.Alloc().ID)
 
-	select {
-	case <-a.destroyCh:
-	default:
-	}
+	// Release the lock
+	<-a.destroyCh
 }
 
 func (a *AllocGarbageCollector) Stop() {
 	close(a.shutdownCh)
-	close(a.destroyCh)
 }
 
 // Collect garbage collects a single allocation on a node
