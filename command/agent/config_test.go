@@ -212,6 +212,7 @@ func TestConfig_Merge(t *testing.T) {
 				ParsedReservedPorts: []int{1, 2, 3},
 			},
 			GCInterval:            6 * time.Second,
+			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
 		},

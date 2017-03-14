@@ -344,6 +344,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_interval",
 		"gc_disk_usage_threshold",
 		"gc_inode_usage_threshold",
+		"gc_parallel_destroys",
 		"no_host_uuid",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {

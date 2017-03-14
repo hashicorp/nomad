@@ -155,12 +155,16 @@ type Config struct {
 	// collection
 	GCInterval time.Duration
 
-	// GCDiskUsageThreshold is the disk usage threshold beyond which the Nomad
-	// client triggers GC of terminal allocations
+	// GCParallelDestroys is the number of parallel destroys the garbage
+	// collector will allow.
+	GCParallelDestroys int
+
+	// GCDiskUsageThreshold is the disk usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of terminal allocations
 	GCDiskUsageThreshold float64
 
-	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
-	// client triggers GC of the terminal allocations
+	// GCInodeUsageThreshold is the inode usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64
 
 	// LogLevel is the level of the logs to putout
@@ -194,6 +198,7 @@ func DefaultConfig() *Config {
 		TLSConfig:               &config.TLSConfig{},
 		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
+		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
 		GCInodeUsageThreshold:   70,
 	}

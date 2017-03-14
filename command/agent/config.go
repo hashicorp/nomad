@@ -202,6 +202,10 @@ type ClientConfig struct {
 	// collection
 	GCInterval time.Duration `mapstructure:"gc_interval"`
 
+	// GCParallelDestroys is the number of parallel destroys the garbage
+	// collector will allow.
+	GCParallelDestroys int `mapstructure:"gc_parallel_destroys"`
+
 	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
 	// client triggers GC of the terminal allocations
 	GCDiskUsageThreshold float64 `mapstructure:"gc_disk_usage_threshold"`
@@ -524,6 +528,7 @@ func DefaultConfig() *Config {
 			ClientMaxPort:         14512,
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
+			GCParallelDestroys:    2,
 			GCInodeUsageThreshold: 70,
 			GCDiskUsageThreshold:  80,
 		},
@@ -928,6 +933,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
+	}
+	if b.GCParallelDestroys != 0 {
+		result.GCParallelDestroys = b.GCParallelDestroys
 	}
 	if b.GCDiskUsageThreshold != 0 {
 		result.GCDiskUsageThreshold = b.GCDiskUsageThreshold

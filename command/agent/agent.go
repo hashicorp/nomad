@@ -310,6 +310,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	// Set the GC related configs
 	conf.GCInterval = a.config.Client.GCInterval
+	conf.GCParallelDestroys = a.config.Client.GCParallelDestroys
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
 	conf.NoHostUUID = a.config.Client.NoHostUUID
