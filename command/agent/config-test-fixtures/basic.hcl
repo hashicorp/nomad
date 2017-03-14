@@ -39,7 +39,7 @@ client {
 	}
 	network_interface = "eth0"
 	network_speed = 100
-	cpu_compute = 4444
+	cpu_total_compute = 4444
 	reserved {
 		cpu = 10
 		memory = 10

@@ -58,6 +58,12 @@ client {
   clients can determine their speed automatically, and thus in most cases this
   should be left unset.
 
+- `cpu_total_compute` `(int: 0)` - Specifies an override for the total cpu
+  compute. This value should be set to `# Cores * Core MHz`. For example, a
+  quadcore running at 2GHz would have a total compute of 8000 (4 * 2000). Most
+  clients can determine their total cpu compute automatically, and thus in most
+  cases this should be left unset.
+
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
   group client nodes by user-defined class. This can be used during job
   placement as a filter.

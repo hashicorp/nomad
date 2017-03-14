@@ -183,7 +183,7 @@ type ClientConfig struct {
 	NetworkSpeed int `mapstructure:"network_speed"`
 
 	// CpuCompute is used to override any detected or default total CPU compute.
-	CpuCompute int `mapstructure:"cpu_compute"`
+	CpuCompute int `mapstructure:"cpu_total_compute"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `mapstructure:"max_kill_timeout"`

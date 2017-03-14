@@ -42,7 +42,7 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		f.logger.Printf("[ERR] fingerprint.cpu: %v", err)
 		f.logger.Printf("[INFO] fingerprint.cpu: cpu compute may be set manually"+
 			" using the client config option %q on machines where cpu information"+
-			" can not be automatically detected.", "cpu_compute")
+			" can not be automatically detected.", "cpu_total_compute")
 
 		return false, err
 	}

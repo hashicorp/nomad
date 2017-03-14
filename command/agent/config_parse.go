@@ -336,7 +336,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"chroot_env",
 		"network_interface",
 		"network_speed",
-		"cpu_compute",
+		"cpu_total_compute",
 		"max_kill_timeout",
 		"client_max_port",
 		"client_min_port",
