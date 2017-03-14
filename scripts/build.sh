@@ -22,8 +22,8 @@ rm -f bin/*
 rm -rf pkg/*
 mkdir -p bin/
 
-targets=$TARGETS
-if [ -z TARGETS ]; then
+targets="$(go env GOOS)_$(go env GOARCH)"
+if [[ "$TARGETS" == "release" ]]; then
     if [[ $(uname) == "Linux" ]]; then
         targets="linux_386 linux_amd64 linux_amd64-lxc linux_arm linux_arm64 windows_386 windows_amd64"
     elif [[ $(uname) == "Darwin" ]]; then
@@ -80,7 +80,7 @@ done
 
 set -e
 
-# Move all the compiled things to the $GOPATH/bin
+# Move all the compiled things to $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}
 case $(uname) in
     CYGWIN*)

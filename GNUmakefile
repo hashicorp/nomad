@@ -15,8 +15,8 @@ dev: format generate
 bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
-release:
-	@$(MAKE) bin
+release: generate
+	@sh -c "TARGETS=release '$(PWD)/scripts/build.sh'"
 
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
