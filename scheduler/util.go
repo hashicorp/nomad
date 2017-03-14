@@ -455,6 +455,15 @@ func setStatus(logger *log.Logger, planner Planner,
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
 
+	// doInplace manipulates the updates map to make the current allocation
+	// an inplace update.
+	doInplace := func(cur, last, inplaceCount *int) {
+		updates[*cur], updates[*last-1] = updates[*last-1], updates[*cur]
+		*cur--
+		*last--
+		*inplaceCount++
+	}
+
 	ws := memdb.NewWatchSet()
 	n := len(updates)
 	inplaceCount := 0
@@ -466,6 +475,15 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// a rolling upgrade since that cannot be done in-place.
 		existing := update.Alloc.Job
 		if tasksUpdated(job, existing, update.TaskGroup.Name) {
+			continue
+		}
+
+		// Terminal batch allocations are not filtered when they are completed
+		// successfully. We should avoid adding the allocation to the plan in
+		// the case that it is an in-place update to avoid both additional data
+		// in the plan and work for the clients.
+		if update.Alloc.TerminalStatus() {
+			doInplace(&i, &n, &inplaceCount)
 			continue
 		}
 
@@ -523,11 +541,9 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		ctx.Plan().AppendAlloc(newAlloc)
 
 		// Remove this allocation from the slice
-		updates[i], updates[n-1] = updates[n-1], updates[i]
-		i--
-		n--
-		inplaceCount++
+		doInplace(&i, &n, &inplaceCount)
 	}
+
 	if len(updates) > 0 {
 		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplaceCount, len(updates))
 	}
