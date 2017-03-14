@@ -255,7 +255,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	hostpath := filepath.Join(tmpvol, file)
 
 	task := &structs.Task{
-		Name:   "alpine",
+		Name:   "rkttest_alpine",
 		Driver: "rkt",
 		Config: map[string]interface{}{
 			"image":   "docker://alpine",
