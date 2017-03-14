@@ -444,6 +444,7 @@ func (c *Command) Run(args []string) int {
 
 	// Create the agent
 	if err := c.setupAgent(config, logOutput); err != nil {
+		logGate.Flush()
 		return 1
 	}
 	defer c.agent.Shutdown()
