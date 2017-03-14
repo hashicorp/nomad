@@ -32,6 +32,8 @@ if [[ "$TARGETS" == "release" ]]; then
         echo "Unable to build on $(uname). Use Linux or Darwin."
         exit 1
     fi
+elif [[ "$TARGETS" != "" ]]; then
+    targets="$TARGETS"
 fi
 
 # Don't exit if a single target fails
