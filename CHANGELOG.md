@@ -22,6 +22,8 @@ IMPROVEMENTS:
   * client: Artifact support for git and hg as well as netrc support [GH-2386]
   * client: Add metrics to show number of allocations on in each state [GH-2425]
   * client: Add `NOMAD_{IP,PORT}_<task>_<label>` environment variables [GH-2426]
+  * client: Allow specification of cpu_compute to override fingerprinter
+    [GH-2447]
   * client: Reproducible Node ID on OSes that provide system-level UUID
     [GH-2277]
   * driver/docker: Add support for volume drivers [GH-2351]
