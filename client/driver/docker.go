@@ -612,11 +612,6 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 	var err error
 	var merr multierror.Error
 	createClients.Do(func() {
-		if err = shelpers.Init(); err != nil {
-			d.logger.Printf("[FATAL] driver.docker: unable to initialize stats: %v", err)
-			return
-		}
-
 		// Default to using whatever is configured in docker.endpoint. If this is
 		// not specified we'll fall back on NewClientFromEnv which reads config from
 		// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and

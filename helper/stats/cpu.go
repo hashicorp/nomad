@@ -14,20 +14,20 @@ var (
 	cpuNumCores   int
 	cpuTotalTicks float64
 
+	initErr error
 	onceLer sync.Once
 )
 
 func Init() error {
-	var err error
 	onceLer.Do(func() {
-		if cpuNumCores, err = cpu.Counts(true); err != nil {
-			err = fmt.Errorf("Unable to determine the number of CPU cores available: %v", err)
+		if cpuNumCores, initErr = cpu.Counts(true); initErr != nil {
+			initErr = fmt.Errorf("Unable to determine the number of CPU cores available: %v", initErr)
 			return
 		}
 
 		var cpuInfo []cpu.InfoStat
-		if cpuInfo, err = cpu.Info(); err != nil {
-			err = fmt.Errorf("Unable to obtain CPU information: %v", err)
+		if cpuInfo, initErr = cpu.Info(); initErr != nil {
+			initErr = fmt.Errorf("Unable to obtain CPU information: %v", initErr)
 			return
 		}
 
@@ -42,7 +42,7 @@ func Init() error {
 		cpuMhzPerCore = math.Floor(cpuMhzPerCore)
 		cpuTotalTicks = math.Floor(float64(cpuNumCores) * cpuMhzPerCore)
 	})
-	return err
+	return initErr
 }
 
 // CPUModelName returns the number of CPU cores available

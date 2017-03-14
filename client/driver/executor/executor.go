@@ -207,8 +207,7 @@ type UniversalExecutor struct {
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
 	if err := shelpers.Init(); err != nil {
-		logger.Printf("[FATAL] executor: unable to initialize stats: %v", err)
-		return nil
+		logger.Printf("[ERR] executor: unable to initialize stats: %v", err)
 	}
 
 	exec := &UniversalExecutor{
