@@ -1,4 +1,4 @@
-## 0.5.5 (Unreleased)
+## 0.5.5 (March 14, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
   * driver/docker: The `load` configuration took an array of paths to images
