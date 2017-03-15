@@ -9,7 +9,7 @@ text-rendering: optimizeLegibility;
 
 body {
   -webkit-font-smoothing: antialiased;
-  color: $black;
+  color: $body-font-color;
   background-color: $white;
   font-size: 15px;
   font-family: $font-family-open-sans;
@@ -18,21 +18,12 @@ body {
 
 h1, h2, h3, h4, h5 {
   font-family: $font-family-klavika;
-  text-transform: uppercase;
   -webkit-font-smoothing: antialiased;
 }
 
 h1{
   font-weight: $font-weight-reg;
   margin-bottom: 24px;
-}
-
-//an alternative color for buttons in the doc body
-.btn-serf{
-  color: $white !important;
-  background-color: $btn-color;
-  border-radius: $btn-border-radius;
-  //@include box-shadow( $shadow );
 }
 
 .highlight{
@@ -48,25 +39,6 @@ pre {
   border: none;
   padding: 20px;
   margin-bottom: 0;
-}
-
-//all below styles are overriding corrections for below (min-width: 992px)
-//below (min-width: 992px) these styles change
-.navbar-nav {
-  margin: 0;
-}
-
-.navbar-right {
-  float: right !important;
-}
-
-.navbar-nav > li {
-  float: left;
-}
-
-.navbar-nav > li > a {
-  padding-top: 15px;
-  padding-bottom: 15px;
 }
 
 .center {
@@ -90,12 +62,5 @@ pre {
 @media (min-width: 768px) and (max-width: 992px) {
   .container{
     width: 100%;
-  }
-}
-
-//guarantees nav list fits at tablet viewport size
-@media (min-width: 768px) and (max-width: 800px) {
-  #header .navbar-nav a {
-    font-size: 12px !important;
   }
 }

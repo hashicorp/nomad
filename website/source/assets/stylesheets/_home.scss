@@ -2,6 +2,11 @@
 // Home
 // --------------------------------------------------
 
+$font-size-xl:          44px;
+$font-size-l:           36px;
+$font-size-m:           28px;
+$font-size-reg:         16px;
+
 #hero{
   position: relative;
   text-align: center;
@@ -58,7 +63,7 @@
         left: 248px;
         opacity: 0.01;
         @include transform( translate(0, 150px) );
-        @include transition( all 1.5s $easeInOutBack );
+        @include transition( all 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) );
 
         &.in{
           @include transform( translate(0, 0) );
@@ -100,14 +105,13 @@
 
     h1{
       margin-top: 0;
-      color: $blue-dark;
+      color: $body-font-color;
       font-size: $font-size-xl;
     }
 
     h4{
       font-family: $font-family-open-sans;
       font-weight: 500;
-      text-transform: none;
       color: $blue-light;
     }
 
@@ -164,7 +168,7 @@
     }
 
     p{
-      color: $blue-dark;
+      color: $body-font-color;
     }
   }
 
@@ -321,7 +325,7 @@
 
       h3{
         margin: 30px 0 20px 0;
-        color: $blue-dark;
+        color: $body-font-color;
         letter-spacing: 1px;
         font-size: $font-size-l;
         line-height: 1.25em;
@@ -342,7 +346,7 @@
 
       p{
         display: inline-block;
-        color: $blue-dark;
+        color: $body-font-color;
         font-size: $font-size-reg;
         line-height: 1.75em;
         max-width: 320px;
@@ -470,7 +474,7 @@
         }
 
         .feature-footer{
-          margin-top: $small-pad;
+          margin-top: 30px;
 
           .docker-outline-logo{
             width: 94px;
@@ -483,7 +487,7 @@
 
       &#maintain{
         .feature-graphic{
-          margin-top: $small-pad;
+          margin-top: 30px;
           width: 480px;
           height: 297px;
           background: image-url('feature-manage.png') 0 0 no-repeat;
@@ -493,7 +497,7 @@
 
       &#healing{
         .feature-graphic{
-          margin-top: $small-pad;
+          margin-top: 30px;
           width: 480px;
           height: 147px;
           background: image-url('feature-healing.png') 0 0 no-repeat;
@@ -503,7 +507,7 @@
 
       &#density{
         .feature-graphic{
-          margin-top: $small-pad;
+          margin-top: 30px;
           width: 480px;
           height: 189px;
           background: image-url('feature-density.png') 0 0 no-repeat;
@@ -549,7 +553,7 @@
       p{
         display: block;
         margin-right: 0;
-        margin-bottom: $small-pad;
+        margin-bottom: 30px;
       }
     }
   }
@@ -604,7 +608,7 @@
 
       &#maintain{
         .feature-graphic{
-          margin-top: $small-pad;
+          margin-top: 30px;
           width: 280px;
           height: 173px;
           background: image-url('feature-manage.png') 0 0 no-repeat;

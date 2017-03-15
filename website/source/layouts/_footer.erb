@@ -1,26 +1,17 @@
 <div id="footer">
   <div class="container">
     <div class="row">
-      <% if current_page.url != '/' %>
-        <div class="edit-page-link"><a href="<%= github_url :current_page %>">Edit this page</a></div>
-      <% end %>
-      <div class="col-sm-6 col-xs-12">
+      <div class="col-xs-12">
         <ul class="footer-links nav navbar-nav">
           <li><a href="/intro/index.html">Intro</a></li>
           <li><a href="/docs/index.html">Docs</a></li>
           <li><a href="/community.html">Community</a></li>
           <li><a href="/security.html">Security</a></li>
         </ul>
-      </div>
-      <div class="footer-hashi col-sm-6 col-xs-12">
-        <div class="pull-right">
-          <a class="hashi-project" href="https://www.hashicorp.com">
-            <span class="project-text">A </span>
-            <%= partial "layouts/svg/svg-by-hashicorp" %>
-            <span class="project-text">Project</span>
-            <%= partial "layouts/svg/svg-hashicorp-logo" %>
-          </a>
-        </div>
+        <ul class="footer-links nav navbar-nav navbar-right">
+          <li><a href="<%= github_url :current_page %>">Edit this page</a></li>
+        </ul>
+        <div class="clearfix"></div>
       </div>
     </div>
   </div>
