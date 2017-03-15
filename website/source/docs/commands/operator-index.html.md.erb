@@ -28,4 +28,8 @@ Usage: `nomad operator <subcommand> <subcommand> [options]`
 Run `nomad operator <subcommand>` with no arguments for help on that subcommand.
 The following subcommands are available:
 
-* `raft` - View and modify Nomad's Raft configuration.
+* [`raft list-peers`][list] - Display the current Raft peer configuration
+* [`raft remove-peer`][remove] - Remove a Nomad server from the Raft configuration
+
+[list]: /docs/commands/operator-raft-list-peers.html "Raft List Peers command"
+[remove]: /docs/commands/operator-raft-remove-peer.html "Raft Remove Peer command"
