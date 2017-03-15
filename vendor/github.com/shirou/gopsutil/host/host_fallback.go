@@ -1,4 +1,4 @@
-// +build !darwin,!linux,!freebsd,!openbsd,!windows
+// +build !darwin,!linux,!freebsd,!openbsd,!solaris,!windows
 
 package host
 

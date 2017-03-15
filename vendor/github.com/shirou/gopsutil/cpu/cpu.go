@@ -171,7 +171,7 @@ func percentUsedFromLastCall(percpu bool) ([]float64, error) {
 	}
 
 	if lastTimes == nil {
-		return nil, fmt.Errorf("Error getting times for cpu percent. LastTimes was nil")
+		return nil, fmt.Errorf("error getting times for cpu percent. lastTimes was nil")
 	}
 	return calculateAllBusy(lastTimes, cpuTimes)
 }

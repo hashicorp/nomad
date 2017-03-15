@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -41,9 +42,8 @@ func (i Invoke) Command(name string, arg ...string) ([]byte, error) {
 }
 
 type FakeInvoke struct {
-	CommandExpectedDir string // CommandExpectedDir specifies dir which includes expected outputs.
-	Suffix             string // Suffix species expected file name suffix such as "fail"
-	Error              error  // If Error specfied, return the error.
+	Suffix string // Suffix species expected file name suffix such as "fail"
+	Error  error  // If Error specfied, return the error.
 }
 
 // Command in FakeInvoke returns from expected file if exists.
@@ -54,22 +54,18 @@ func (i FakeInvoke) Command(name string, arg ...string) ([]byte, error) {
 
 	arch := runtime.GOOS
 
-	fname := strings.Join(append([]string{name}, arg...), "")
+	commandName := filepath.Base(name)
+
+	fname := strings.Join(append([]string{commandName}, arg...), "")
 	fname = url.QueryEscape(fname)
-	var dir string
-	if i.CommandExpectedDir == "" {
-		dir = "expected"
-	} else {
-		dir = i.CommandExpectedDir
-	}
-	fpath := path.Join(dir, arch, fname)
+	fpath := path.Join("testdata", arch, fname)
 	if i.Suffix != "" {
 		fpath += "_" + i.Suffix
 	}
 	if PathExists(fpath) {
 		return ioutil.ReadFile(fpath)
 	}
-	return exec.Command(name, arg...).Output()
+	return []byte{}, fmt.Errorf("could not find testdata: %s", fpath)
 }
 
 var ErrNotImplementedError = errors.New("not implemented yet")
