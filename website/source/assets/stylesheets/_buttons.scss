@@ -22,13 +22,13 @@
   }
 
   &.lrg{
-    font-size: $font-size-reg;
+    font-size: $font-size;
     padding: 10px 24px;
   }
 
   &.sml{
     padding: 8px 14px;
-    font-size: $font-size-reg - 2;
+    font-size: $font-size - 2;
     line-height: 14px;
 
     &.has-caret{
