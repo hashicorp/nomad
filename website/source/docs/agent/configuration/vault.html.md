@@ -123,7 +123,7 @@ vault {
   # Setting the create_from_role option causes Nomad to create tokens for tasks
   # via the provided role. This allows the role to manage what policies are
   # allowed and disallowed for use by tasks.
-  create_from_role = "nomad-server"
+  create_from_role = "nomad-cluster"
 }
 ```
 
