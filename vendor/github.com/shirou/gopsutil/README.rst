@@ -49,6 +49,7 @@ Available Architectures
 - Windows/amd64
 - Darwin i386/amd64
 - OpenBDS amd64 (Thank you @mpfz0r!)
+- Solaris amd64 (developed and tested on SmartOS/Illumos, Thank you @jen20!)
 
 All works are implemented without cgo by porting c struct to golang struct.
 
@@ -173,13 +174,13 @@ Current Status
 - x: work
 - b: almost works, but something is broken
 
-=================== ====== ======= ======= ====== =======
-name                Linux  FreeBSD OpenBSD MacOSX Windows
+=================== ====== ======= ======= ====== ======= =======
+name                Linux  FreeBSD OpenBSD MacOSX Windows Solaris
 cpu_times             x      x       x       x       x
 cpu_count             x      x       x       x       x
 cpu_percent           x      x       x       x       x
 cpu_times_percent     x      x       x       x       x
-virtual_memory        x      x       x       x       x
+virtual_memory        x      x       x       x       x       b
 swap_memory           x      x       x       x
 disk_partitions       x      x       x       x       x
 disk_io_counters      x      x       x
@@ -244,26 +245,26 @@ is_running
 Original Metrics
 ^^^^^^^^^^^^^^^^^^^
 
-================== ===== ======= ======= ====== =======
-item               Linux FreeBSD OpenBSD MacOSX Windows
+================== ===== ======= ======= ====== ======= =======
+item               Linux FreeBSD OpenBSD MacOSX Windows Solaris
 **HostInfo**
-hostname              x     x      x       x       x
-  uptime              x     x      x       x
-  proces              x     x      x
-  os                  x     x      x       x       x
-  platform            x     x      x       x
-  platformfamily      x     x      x       x
+hostname              x     x      x       x       x       x
+  uptime              x     x      x       x               x
+  proces              x     x      x                       x
+  os                  x     x      x       x       x       x
+  platform            x     x      x       x               x
+  platformfamily      x     x      x       x               x
   virtualization      x
 **CPU**
-  VendorID            x     x      x       x       x
-  Family              x     x      x       x       x
-  Model               x     x      x       x       x
-  Stepping            x     x      x       x       x
-  PhysicalID          x
-  CoreID              x
-  Cores               x                            x
-  ModelName           x     x      x       x       x
-  Microcode           x
+  VendorID            x     x      x       x       x      x
+  Family              x     x      x       x       x      x
+  Model               x     x      x       x       x      x
+  Stepping            x     x      x       x       x      x
+  PhysicalID          x                                   x
+  CoreID              x                                   x
+  Cores               x                            x      x
+  ModelName           x     x      x       x       x      x
+  Microcode           x                                   x
 **LoadAvg**
   Load1               x     x      x       x
   Load5               x     x      x       x
@@ -275,7 +276,7 @@ hostname              x     x      x       x       x
   system              x     no     no      no      no
 **CgroupsMem**
   various             x     no     no      no      no
-================== ===== ======= ======= ====== =======
+================== ===== ======= ======= ====== ======= =======
 
 - future work
 

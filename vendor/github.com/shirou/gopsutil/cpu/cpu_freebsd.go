@@ -118,7 +118,7 @@ func Info() ([]InfoStat, error) {
 		return nil, err
 	}
 	if c.Mhz, err = strconv.ParseFloat(vals[0], 64); err != nil {
-		return nil, fmt.Errorf("Unable to parse FreeBSD CPU clock rate: %v", err)
+		return nil, fmt.Errorf("unable to parse FreeBSD CPU clock rate: %v", err)
 	}
 
 	if vals, err = common.DoSysctrl("hw.ncpu"); err != nil {
@@ -126,7 +126,7 @@ func Info() ([]InfoStat, error) {
 	}
 	var i64 int64
 	if i64, err = strconv.ParseInt(vals[0], 10, 32); err != nil {
-		return nil, fmt.Errorf("Unable to parse FreeBSD cores: %v", err)
+		return nil, fmt.Errorf("unable to parse FreeBSD cores: %v", err)
 	}
 	c.Cores = int32(i64)
 
@@ -156,7 +156,7 @@ func parseDmesgBoot(fileName string) (InfoStat, int, error) {
 			c.Model = matches[4]
 			t, err := strconv.ParseInt(matches[5], 10, 32)
 			if err != nil {
-				return c, 0, fmt.Errorf("Unable to parse FreeBSD CPU stepping information from %q: %v", line, err)
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU stepping information from %q: %v", line, err)
 			}
 			c.Stepping = int32(t)
 		} else if matches := featuresMatch.FindStringSubmatch(line); matches != nil {
@@ -170,12 +170,12 @@ func parseDmesgBoot(fileName string) (InfoStat, int, error) {
 		} else if matches := cpuCores.FindStringSubmatch(line); matches != nil {
 			t, err := strconv.ParseInt(matches[1], 10, 32)
 			if err != nil {
-				return c, 0, fmt.Errorf("Unable to parse FreeBSD CPU Nums from %q: %v", line, err)
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU Nums from %q: %v", line, err)
 			}
 			cpuNum = int(t)
 			t2, err := strconv.ParseInt(matches[2], 10, 32)
 			if err != nil {
-				return c, 0, fmt.Errorf("Unable to parse FreeBSD CPU cores from %q: %v", line, err)
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU cores from %q: %v", line, err)
 			}
 			c.Cores = int32(t2)
 		}
