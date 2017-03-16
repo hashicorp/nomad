@@ -117,6 +117,10 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Fake that ar.Run() exits
+	close(ar1.waitCh)
+	close(ar2.waitCh)
+
 	if err := gc.Collect(ar1.Alloc().ID); err != nil {
 		t.Fatalf("err: %v", err)
 	}
