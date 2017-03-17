@@ -1,6 +1,8 @@
 ## 0.5.5 (March 14, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
+  * api: The api package definition of a Job has changed from exposing
+    primitives to pointers to primitives to allow defaulting of unset fields.
   * driver/docker: The `load` configuration took an array of paths to images
     prior to this release. A single image is expected by the driver so this
     behavior has been changed to take a single path as a string. Jobs using the
