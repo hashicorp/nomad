@@ -124,7 +124,7 @@ to manage what Vault policies are accessible by jobs submitted to Nomad. The
 policies can be managed as a whitelist by using `allowed_policies` in the token
 role definition or as a blacklist by using `disallowed_policies`.
 
-If using `allowed_policies`, task's may only request Vault policies that are in
+If using `allowed_policies`, tasks may only request Vault policies that are in
 the list. If `disallowed_policies` is used, task may request any policy that is
 not in the `disallowed_policies` list. There are tradeoffs to both approaches
 but generally it is easier to use the blacklist approach and add policies that
