@@ -407,26 +407,6 @@ func TestJobDiff(t *testing.T) {
 			},
 			Expected: &JobDiff{
 				Type: DiffTypeNone,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeNone,
-						Name: "Datacenters",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeNone,
-								Name: "Datacenters",
-								Old:  "bar",
-								New:  "bar",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "Datacenters",
-								Old:  "foo",
-								New:  "foo",
-							},
-						},
-					},
-				},
 			},
 		},
 		{
