@@ -48,9 +48,10 @@ README][ct].
 ## `template` Parameters
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
-  if the rendered template changes. The possible values are:
+  if the rendered template changes. Nomad will write to the filesystem in all cases.
+  The possible values are:
 
-  - `"noop"` - take no action (continue running the task)
+  - `"noop"` - write file on task but take no further action on task  (continue running the task)
   - `"restart"` - restart the task
   - `"signal"` - send a configurable signal to the task
 
