@@ -1,3 +1,8 @@
+## 0.6.0 (Unreleased)
+
+BUG FIXES:
+  * cli/plan: Fix diff alignment and remove no change DC output [GH-2465]
+
 ## 0.5.5 (March 14, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
