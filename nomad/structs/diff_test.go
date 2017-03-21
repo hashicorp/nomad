@@ -397,7 +397,7 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
-			// Datacenter contextual
+			// Datacenter contextual no change
 			Contextual: true,
 			Old: &Job{
 				Datacenters: []string{"foo", "bar"},
@@ -407,11 +407,30 @@ func TestJobDiff(t *testing.T) {
 			},
 			Expected: &JobDiff{
 				Type: DiffTypeNone,
+			},
+		},
+		{
+			// Datacenter contextual
+			Contextual: true,
+			Old: &Job{
+				Datacenters: []string{"foo", "bar"},
+			},
+			New: &Job{
+				Datacenters: []string{"foo", "bar", "baz"},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
 					{
-						Type: DiffTypeNone,
+						Type: DiffTypeAdded,
 						Name: "Datacenters",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Datacenters",
+								Old:  "",
+								New:  "baz",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "Datacenters",
