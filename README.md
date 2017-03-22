@@ -4,7 +4,7 @@ Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travi
 -	Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
 
 <p align="center" style="text-align:center;">
-  <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-header.svg" width="500" />
+  <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-text.svg" width="500" />
 </p>
 
 Nomad is a cluster manager, designed for both long lived services and short
