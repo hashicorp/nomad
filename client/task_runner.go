@@ -981,7 +981,7 @@ func (r *TaskRunner) run() {
 				r.runningLock.Unlock()
 				common := fmt.Sprintf("task %v for alloc %q", r.task.Name, r.alloc.ID)
 				if !running {
-					r.logger.Printf("[DEBUG] client: skipping restart of %v: task isn't running")
+					r.logger.Printf("[DEBUG] client: skipping restart of %v: task isn't running", common)
 					continue
 				}
 
