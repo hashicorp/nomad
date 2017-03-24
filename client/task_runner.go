@@ -661,7 +661,7 @@ func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 		}
 
 		// Check if we can't recover from the error
-		if rerr, ok := err.(*structs.RecoverableError); !ok || !rerr.Recoverable {
+		if !structs.IsRecoverable(err) {
 			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
 			r.Kill("vault", fmt.Sprintf("failed to derive token: %v", err), true)
@@ -1176,8 +1176,8 @@ func (r *TaskRunner) startTask() error {
 
 		r.logger.Printf("[WARN] client: error from prestart: %v", wrapped)
 
-		if rerr, ok := err.(*structs.RecoverableError); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
+		if rerr, ok := err.(structs.Recoverable); ok {
+			return structs.NewRecoverableError(wrapped, rerr.Recoverable())
 		}
 
 		return wrapped
@@ -1191,8 +1191,8 @@ func (r *TaskRunner) startTask() error {
 
 		r.logger.Printf("[WARN] client: %v", wrapped)
 
-		if rerr, ok := err.(*structs.RecoverableError); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
+		if rerr, ok := err.(structs.Recoverable); ok {
+			return structs.NewRecoverableError(wrapped, rerr.Recoverable())
 		}
 
 		return wrapped

@@ -149,7 +149,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 // infinitely try to start a task.
 func (r *RestartTracker) handleStartError() (string, time.Duration) {
 	// If the error is not recoverable, do not restart.
-	if rerr, ok := r.startErr.(*structs.RecoverableError); !(ok && rerr.Recoverable) {
+	if !structs.IsRecoverable(r.startErr) {
 		r.reason = ReasonUnrecoverableErrror
 		return structs.TaskNotRestarting, 0
 	}

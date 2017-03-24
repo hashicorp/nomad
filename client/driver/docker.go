@@ -509,9 +509,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container: %s", err)
 		pluginClient.Kill()
-		if rerr, ok := err.(*structs.RecoverableError); ok {
-			rerr.Err = fmt.Sprintf("Failed to create container: %s", rerr.Err)
-			return nil, rerr
+		if rerr, ok := err.(structs.Recoverable); ok {
+			wrapped := fmt.Errorf("Failed to create container: %v", rerr)
+			return nil, structs.NewRecoverableError(wrapped, rerr.Recoverable())
 		}
 		return nil, err
 	}
