@@ -958,14 +958,34 @@ func (r *TaskRunner) run() {
 				}
 
 			case se := <-r.signalCh:
-				r.logger.Printf("[DEBUG] client: task being signalled with %v: %s", se.s, se.e.TaskSignalReason)
+				r.runningLock.Lock()
+				running := r.running
+				r.runningLock.Unlock()
+				common := fmt.Sprintf("signal %v to task %v for alloc %q", se.s, r.task.Name, r.alloc.ID)
+				if !running {
+					// Send no error
+					r.logger.Printf("[DEBUG] client: skipping %s", common)
+					se.result <- nil
+					continue
+				}
+
+				r.logger.Printf("[DEBUG] client: sending %s", common)
 				r.setState(structs.TaskStateRunning, se.e)
 
 				res := r.handle.Signal(se.s)
 				se.result <- res
 
 			case event := <-r.restartCh:
-				r.logger.Printf("[DEBUG] client: task being restarted: %s", event.RestartReason)
+				r.runningLock.Lock()
+				running := r.running
+				r.runningLock.Unlock()
+				common := fmt.Sprintf("task %v for alloc %q", r.task.Name, r.alloc.ID)
+				if !running {
+					r.logger.Printf("[DEBUG] client: skipping restart of %v: task isn't running")
+					continue
+				}
+
+				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, event.RestartReason)
 				r.setState(structs.TaskStateRunning, event)
 				r.killTask(nil)
 
@@ -1365,22 +1385,8 @@ func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
 
 // Restart will restart the task
 func (r *TaskRunner) Restart(source, reason string) {
-
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
-
-	r.logger.Printf("[DEBUG] client: restarting task %v for alloc %q: %v",
-		r.task.Name, r.alloc.ID, reasonStr)
-
-	r.runningLock.Lock()
-	running := r.running
-	r.runningLock.Unlock()
-
-	// Drop the restart event
-	if !running {
-		r.logger.Printf("[DEBUG] client: skipping restart since task isn't running")
-		return
-	}
 
 	select {
 	case r.restartCh <- event:
@@ -1394,24 +1400,13 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetTaskSignalReason(reasonStr)
 
-	r.logger.Printf("[DEBUG] client: sending signal %v to task %v for alloc %q", s, r.task.Name, r.alloc.ID)
-
-	r.runningLock.Lock()
-	running := r.running
-	r.runningLock.Unlock()
-
-	// Drop the restart event
-	if !running {
-		r.logger.Printf("[DEBUG] client: skipping signal since task isn't running")
-		return nil
-	}
-
 	resCh := make(chan error)
 	se := SignalEvent{
 		s:      s,
 		e:      event,
 		result: resCh,
 	}
+
 	select {
 	case r.signalCh <- se:
 	case <-r.waitCh:
