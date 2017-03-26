@@ -280,7 +280,7 @@ func (r *TaskRunner) RestoreState() error {
 			return err
 		}
 
-		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+		ctx := driver.NewExecContext(r.taskDir)
 		handle, err := d.Open(ctx, snap.HandleID)
 
 		// In the case it fails, we relaunch the task in the Run() method.
@@ -378,7 +378,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env, eventEmitter)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, env, eventEmitter)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -1061,7 +1061,7 @@ func (r *TaskRunner) cleanup() {
 
 	res := r.getCreatedResources()
 
-	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	ctx := driver.NewExecContext(r.taskDir)
 	attempts := 1
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
@@ -1182,7 +1182,7 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	// Run prestart
-	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	ctx := driver.NewExecContext(r.taskDir)
 	res, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources

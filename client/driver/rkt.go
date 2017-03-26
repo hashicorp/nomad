@@ -257,17 +257,17 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	sanitizedName := strings.Replace(task.Name, "_", "-", -1)
 
 	// Mount /alloc
-	allocVolName := fmt.Sprintf("%s-%s-alloc", ctx.AllocID, sanitizedName)
+	allocVolName := fmt.Sprintf("%s-%s-alloc", d.DriverContext.allocID, sanitizedName)
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.TaskDir.SharedAllocDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
 
 	// Mount /local
-	localVolName := fmt.Sprintf("%s-%s-local", ctx.AllocID, sanitizedName)
+	localVolName := fmt.Sprintf("%s-%s-local", d.DriverContext.allocID, sanitizedName)
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, ctx.TaskDir.LocalDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
 
 	// Mount /secrets
-	secretsVolName := fmt.Sprintf("%s-%s-secrets", ctx.AllocID, sanitizedName)
+	secretsVolName := fmt.Sprintf("%s-%s-secrets", d.DriverContext.allocID, sanitizedName)
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, ctx.TaskDir.SecretsDir))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
 
@@ -281,7 +281,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
-			volName := fmt.Sprintf("%s-%s-%d", ctx.AllocID, sanitizedName, i)
+			volName := fmt.Sprintf("%s-%s-%d", d.DriverContext.allocID, sanitizedName, i)
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, parts[0]))
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
@@ -413,7 +413,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: d.taskEnv,
 		Driver:  "rkt",
-		AllocID: ctx.AllocID,
+		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
