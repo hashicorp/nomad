@@ -42,7 +42,7 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
   1. Clone the Nomad repository from GitHub into your `GOPATH`:
 
     ```shell
-    $ mkdir -p $GOPATH/src/github.com/hashicorp && cd $!
+    $ mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
     $ git clone https://github.com/hashicorp/nomad.git
     $ cd nomad
     ```
