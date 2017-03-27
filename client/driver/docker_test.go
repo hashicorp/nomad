@@ -364,7 +364,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 
 	if rerr, ok := err.(*structs.RecoverableError); !ok {
 		t.Fatalf("want recoverable error: %+v", err)
-	} else if !rerr.Recoverable {
+	} else if !rerr.Recoverable() {
 		t.Fatalf("error not recoverable: %+v", err)
 	}
 }
