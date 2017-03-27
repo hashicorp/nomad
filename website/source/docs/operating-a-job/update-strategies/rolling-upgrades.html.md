@@ -50,7 +50,7 @@ that is configured with the same rolling update strategy from above.
 +        image = "nginx:1.11"
 ```
 
-The [`nomad plan` command](http://localhost:4567/docs/commands/plan.html) allows
+The [`nomad plan` command](/docs/commands/plan.html) allows
 us to visualize the series of steps the scheduler would perform. We can analyze
 this output to confirm it is correct:
 
