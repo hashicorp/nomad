@@ -34,8 +34,8 @@ job "docs" {
 
 ## `update` Parameters
 
-- `max_parallel` `(int: 0)` - Specifies the number of tasks that can be updated
-  at the same time.
+- `max_parallel` `(int: 0)` - Specifies the number of task groups that can be
+  updated at the same time.
 
 - `stagger` `(string: "0ms")` - Specifies the delay between sets of updates.
   This is specified using a label suffix like "30s" or "1h".
@@ -47,8 +47,8 @@ The following examples only show the `update` stanzas. Remember that the
 
 ### Serial Upgrades
 
-This example uses a serial upgrade strategy, meaning exactly one task will be
-updated at a time, waiting 60 seconds until the next task is upgraded.
+This example uses a serial upgrade strategy, meaning exactly one task group will
+be updated at a time, waiting 60 seconds until the next task group is upgraded.
 
 ```hcl
 update {

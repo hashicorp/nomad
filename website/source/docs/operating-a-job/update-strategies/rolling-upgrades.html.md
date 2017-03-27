@@ -83,7 +83,7 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-Here we can see that Nomad will destroy the 3 existing tasks and create 3
+Here we can see that Nomad will destroy the 3 existing task groups and create 3
 replacements but it will occur with a rolling update with a stagger of `30s`.
 
 For more details on the `update` block, see the
