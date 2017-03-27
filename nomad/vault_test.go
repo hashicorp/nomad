@@ -955,7 +955,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 
 	if rerr, ok := err.(*structs.RecoverableError); !ok {
 		t.Fatalf("Err should have been type recoverable error")
-	} else if ok && !rerr.Recoverable() {
+	} else if ok && !rerr.IsRecoverable() {
 		t.Fatalf("Err should have been recoverable")
 	}
 }

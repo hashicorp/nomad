@@ -120,6 +120,6 @@ func (g *GetError) Error() string {
 	return g.Err.Error()
 }
 
-func (g *GetError) Recoverable() bool {
+func (g *GetError) IsRecoverable() bool {
 	return g.recoverable
 }

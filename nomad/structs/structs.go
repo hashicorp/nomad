@@ -4177,7 +4177,7 @@ type KeyringRequest struct {
 // be retried or it is fatal.
 type RecoverableError struct {
 	Err         string
-	recoverable bool
+	Recoverable bool
 }
 
 // NewRecoverableError is used to wrap an error and mark it as recoverable or
@@ -4189,7 +4189,7 @@ func NewRecoverableError(e error, recoverable bool) error {
 
 	return &RecoverableError{
 		Err:         e.Error(),
-		recoverable: recoverable,
+		Recoverable: recoverable,
 	}
 }
 
@@ -4197,29 +4197,29 @@ func NewRecoverableError(e error, recoverable bool) error {
 // message. If the error was recoverable before the returned error is as well;
 // otherwise it is unrecoverable.
 func WrapRecoverable(msg string, err error) error {
-	return &RecoverableError{Err: msg, recoverable: IsRecoverable(err)}
+	return &RecoverableError{Err: msg, Recoverable: IsRecoverable(err)}
 }
 
 func (r *RecoverableError) Error() string {
 	return r.Err
 }
 
-func (r *RecoverableError) Recoverable() bool {
-	return r.recoverable
+func (r *RecoverableError) IsRecoverable() bool {
+	return r.Recoverable
 }
 
 // Recoverable is an interface for errors to implement to indicate whether or
 // not they are fatal or recoverable.
 type Recoverable interface {
 	error
-	Recoverable() bool
+	IsRecoverable() bool
 }
 
 // IsRecoverable returns true if error is a RecoverableError with
 // Recoverable=true. Otherwise false is returned.
 func IsRecoverable(e error) bool {
 	if re, ok := e.(Recoverable); ok {
-		return re.Recoverable()
+		return re.IsRecoverable()
 	}
 	return false
 }
