@@ -796,7 +796,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
-					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, structs.IsRecoverable(err)))
+					r.restartTracker.SetStartError(structs.WrapRecoverable(wrapped.Error(), err))
 					goto RESTART
 				}
 			}
@@ -1171,31 +1171,19 @@ func (r *TaskRunner) startTask() error {
 	r.createdResourcesLock.Unlock()
 
 	if err != nil {
-		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
+		wrapped := fmt.Sprintf("failed to initialize task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
-
-		r.logger.Printf("[WARN] client: error from prestart: %v", wrapped)
-
-		if rerr, ok := err.(structs.Recoverable); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable())
-		}
-
-		return wrapped
+		r.logger.Printf("[WARN] client: error from prestart: %s", wrapped)
+		return structs.WrapRecoverable(wrapped, err)
 	}
 
 	// Start the job
 	handle, err := drv.Start(ctx, r.task)
 	if err != nil {
-		wrapped := fmt.Errorf("failed to start task %q for alloc %q: %v",
+		wrapped := fmt.Sprintf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
-
-		r.logger.Printf("[WARN] client: %v", wrapped)
-
-		if rerr, ok := err.(structs.Recoverable); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable())
-		}
-
-		return wrapped
+		r.logger.Printf("[WARN] client: %s", wrapped)
+		return structs.WrapRecoverable(wrapped, err)
 
 	}
 

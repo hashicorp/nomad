@@ -1064,12 +1064,8 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
 					if err != nil {
-						wrapped := fmt.Errorf("failed to create token for task %q on alloc %q: %v", task, alloc.ID, err)
-						if structs.IsRecoverable(err) {
-							return structs.NewRecoverableError(wrapped, true)
-						}
-
-						return wrapped
+						wrapped := fmt.Sprintf("failed to create token for task %q on alloc %q: %v", task, alloc.ID, err)
+						return structs.WrapRecoverable(wrapped, err)
 					}
 
 					results[task] = secret

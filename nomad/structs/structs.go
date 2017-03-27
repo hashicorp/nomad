@@ -4193,6 +4193,13 @@ func NewRecoverableError(e error, recoverable bool) error {
 	}
 }
 
+// WrapRecoverable wraps an existing error in a new RecoverableError with a new
+// message. If the error was recoverable before the returned error is as well;
+// otherwise it is unrecoverable.
+func WrapRecoverable(msg string, err error) error {
+	return &RecoverableError{Err: msg, recoverable: IsRecoverable(err)}
+}
+
 func (r *RecoverableError) Error() string {
 	return r.Err
 }
