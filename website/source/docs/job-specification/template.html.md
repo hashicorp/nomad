@@ -41,8 +41,9 @@ job "docs" {
 ```
 
 Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
-template can reference [Nomad's runtime environment variables][env]. For a full
-list of the API template functions, please refer to the [Consul Template
+template can reference [Nomad's runtime environment variables][env]. Since Nomad
+v0.5.6, the template can reference [Node attributes and metadata][nodevars]. For
+a full list of the API template functions, please refer to the [Consul Template
 README][ct].
 
 ## `template` Parameters
@@ -137,7 +138,24 @@ template {
 }
 ```
 
-### Client Configuration
+### Node Variables
+
+As of Nomad v0.5.6 it is possible to access the Node's attributes and metadata.
+
+```hcl
+template {
+  data = <<EOH
+  ---
+    node_dc:    {{ env "node.datacenter" }}
+    node_cores: {{ env "attr.cpu.numcores" }}
+    meta_key:   {{ env "meta.node_meta_key" }}
+  EOH
+
+  destination = "local/file.yml"
+}
+```
+
+## Client Configuration
 
 The `template` block has the following [client configuration
 options](/docs/agent/config.html#options):
@@ -148,3 +166,4 @@ options](/docs/agent/config.html#options):
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [env]: /docs/runtime/environment.html "Nomad Runtime Environment"
+[nodevars]: /docs/runtime/interpolation.html#interpreted_node_vars "Nomad Node Variables"
