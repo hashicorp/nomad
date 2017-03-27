@@ -131,6 +131,10 @@ Below is a table documenting common node properties:
     <td>Hostname of the client</td>
   </tr>
   <tr>
+    <td><tt>${attr.unique.network.ip-address}</tt></td>
+    <td>The IP address fingerprinted by the client and from which task ports are allocated</td>
+  </tr>
+  <tr>
     <td><tt>${attr.kernel.name}</tt></td>
     <td>Kernel of the client (e.g. <tt>linux</tt>, <tt>darwin</tt>)</td>
   </tr>
