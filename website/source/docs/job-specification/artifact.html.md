@@ -88,6 +88,31 @@ artifact {
 }
 ```
 
+### Download using git
+
+This example downloads the artifact from the provided github url and places it at
+`local/repo`, as specified by the optional `destination` parameter.
+
+```hcl
+artifact {
+  source      = "git::https://github.com/example/nomad-examples"
+  destination = "local/repo"
+}
+```
+
+To download from private repo, sshkeys need to be set. The key must be
+base64-encoded string. Run `base64 -w0 <file>`
+
+```hcl
+artifact {
+  source      = "git@github.com:example/nomad-examples"
+  destination = "local/repo"
+  options {
+    sshkeys = "<string>"
+  }
+}
+```
+
 ### Download and Unarchive
 
 This example downloads and unarchives the result in `local/file`. Because the
