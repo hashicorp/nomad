@@ -305,7 +305,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 			return nil
 		}
 
-		if parent.IsPeriodic() {
+		if parent.IsPeriodic() && !parent.IsParameterized() {
 			t, err := n.periodicDispatcher.LaunchTime(req.Job.ID)
 			if err != nil {
 				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
