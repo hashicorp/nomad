@@ -243,6 +243,21 @@ as a command-line flag, or via an environment variable.
 $ VAULT_TOKEN=f02f01c2-c0d1-7cb7-6b88-8a14fada58c0 nomad agent -config /path/to/config
 ```
 
+An example of what may be contained in the configuration is shown below. For
+complete documentation please see the [Nomad agent Vault integration][config]
+configuration.
+
+```hcl
+vault {
+  enabled          = true
+  ca_path          = "/etc/certs/ca"
+  cert_file        = "/var/certs/vault.crt"
+  key_file         = "/var/certs/vault.key"
+  address          = "https://vault.service.consul:8200"
+  create_from_role = "nomad-cluster"
+}
+```
+
 ## Agent Configuration
 
 To enable Vault integration, please see the [Nomad agent Vault
