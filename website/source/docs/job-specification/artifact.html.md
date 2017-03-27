@@ -57,8 +57,7 @@ unarchived before the starting the task.
   documentation][go-getter] for a complete list of options and examples
 
 - `source` `(string: <required>)` - Specifies the URL of the artifact to download.
-  Only `http`, `https`, and `s3` URLs are supported. See [`go-getter`][go-getter]
-  for details.
+  See [`go-getter`][go-getter] for details.
 
 ## `artifact` Examples
 
