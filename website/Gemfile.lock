@@ -1,3 +1,15 @@
+PATH
+  remote: ../../../../../../middleman-hashicorp
+  specs:
+    middleman-hashicorp (0.3.22)
+      bootstrap-sass (~> 3.3)
+      builder (~> 3.2)
+      middleman (~> 3.4)
+      middleman-livereload (~> 3.4)
+      middleman-syntax (~> 3.0)
+      redcarpet (~> 3.3)
+      turbolinks (~> 5.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -77,14 +89,6 @@ GEM
       rack (>= 1.4.5, < 2.0)
       thor (>= 0.15.2, < 2.0)
       tilt (~> 1.4.1, < 2.0)
-    middleman-hashicorp (0.3.22)
-      bootstrap-sass (~> 3.3)
-      builder (~> 3.2)
-      middleman (~> 3.4)
-      middleman-livereload (~> 3.4)
-      middleman-syntax (~> 3.0)
-      redcarpet (~> 3.3)
-      turbolinks (~> 5.0)
     middleman-livereload (3.4.6)
       em-websocket (~> 0.5.1)
       middleman-core (>= 3.3)
@@ -151,7 +155,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  middleman-hashicorp (= 0.3.22)
+  middleman-hashicorp!
 
 BUNDLED WITH
    1.14.6
