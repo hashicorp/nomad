@@ -280,7 +280,7 @@ func (r *TaskRunner) RestoreState() error {
 			return err
 		}
 
-		ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+		ctx := driver.NewExecContext(r.taskDir)
 		handle, err := d.Open(ctx, snap.HandleID)
 
 		// In the case it fails, we relaunch the task in the Run() method.
@@ -378,7 +378,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.config, r.config.Node, r.logger, env, eventEmitter)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, env, eventEmitter)
 	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -553,6 +553,10 @@ func (f *tokenFuture) Get() string {
 // allows setting the initial Vault token. This is useful when the Vault token
 // is recovered off disk.
 func (r *TaskRunner) vaultManager(token string) {
+	// Always stop renewing the token. If token is empty or untracked, it is a
+	// no-op so this is always safe.
+	defer r.vaultClient.StopRenewToken(r.vaultFuture.Get())
+
 	// updatedToken lets us store state between loops. If true, a new token
 	// has been retrieved and we need to apply the Vault change mode
 	var updatedToken bool
@@ -1061,7 +1065,7 @@ func (r *TaskRunner) cleanup() {
 
 	res := r.getCreatedResources()
 
-	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	ctx := driver.NewExecContext(r.taskDir)
 	attempts := 1
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
@@ -1182,7 +1186,7 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	// Run prestart
-	ctx := driver.NewExecContext(r.taskDir, r.alloc.ID)
+	ctx := driver.NewExecContext(r.taskDir)
 	res, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources

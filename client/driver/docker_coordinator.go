@@ -99,7 +99,7 @@ type dockerCoordinator struct {
 	pullFutures map[string]*pullFuture
 
 	// imageRefCount is the reference count of image IDs
-	imageRefCount map[string]int
+	imageRefCount map[string]map[string]struct{}
 
 	// deleteFuture is indexed by image ID and has a cancable delete future
 	deleteFuture map[string]context.CancelFunc
@@ -114,7 +114,7 @@ func NewDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 	return &dockerCoordinator{
 		dockerCoordinatorConfig: config,
 		pullFutures:             make(map[string]*pullFuture),
-		imageRefCount:           make(map[string]int),
+		imageRefCount:           make(map[string]map[string]struct{}),
 		deleteFuture:            make(map[string]context.CancelFunc),
 	}
 }
@@ -130,7 +130,7 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occured during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration) (imageID string, err error) {
+func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
@@ -157,7 +157,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 
 	// If we are cleaning up, we increment the reference count on the image
 	if err == nil && d.cleanup {
-		d.incrementImageReferenceImpl(id, image)
+		d.incrementImageReferenceImpl(id, image, callerID)
 	}
 
 	return id, err
@@ -202,29 +202,39 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 }
 
 // IncrementImageReference is used to increment an image reference count
-func (d *dockerCoordinator) IncrementImageReference(id, image string) {
+func (d *dockerCoordinator) IncrementImageReference(imageID, imageName, callerID string) {
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()
-	d.incrementImageReferenceImpl(id, image)
+	if d.cleanup {
+		d.incrementImageReferenceImpl(imageID, imageName, callerID)
+	}
 }
 
 // incrementImageReferenceImpl assumes the lock is held
-func (d *dockerCoordinator) incrementImageReferenceImpl(id, image string) {
+func (d *dockerCoordinator) incrementImageReferenceImpl(imageID, imageName, callerID string) {
 	// Cancel any pending delete
-	if cancel, ok := d.deleteFuture[id]; ok {
-		d.logger.Printf("[DEBUG] driver.docker: cancelling removal of image %q", image)
+	if cancel, ok := d.deleteFuture[imageID]; ok {
+		d.logger.Printf("[DEBUG] driver.docker: cancelling removal of image %q", imageName)
 		cancel()
-		delete(d.deleteFuture, id)
+		delete(d.deleteFuture, imageID)
 	}
 
 	// Increment the reference
-	d.imageRefCount[id] += 1
-	d.logger.Printf("[DEBUG] driver.docker: image %q (%v) reference count incremented: %d", image, id, d.imageRefCount[id])
+	references, ok := d.imageRefCount[imageID]
+	if !ok {
+		references = make(map[string]struct{})
+		d.imageRefCount[imageID] = references
+	}
+
+	if _, ok := references[callerID]; !ok {
+		references[callerID] = struct{}{}
+		d.logger.Printf("[DEBUG] driver.docker: image %q (%v) reference count incremented: %d", imageName, imageID, len(references))
+	}
 }
 
 // RemoveImage removes the given image. If there are any errors removing the
 // image, the remove is retried internally.
-func (d *dockerCoordinator) RemoveImage(id string) {
+func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()
 
@@ -232,36 +242,36 @@ func (d *dockerCoordinator) RemoveImage(id string) {
 		return
 	}
 
-	references, ok := d.imageRefCount[id]
+	references, ok := d.imageRefCount[imageID]
 	if !ok {
-		d.logger.Printf("[WARN] driver.docker: RemoveImage on non-referenced counted image id %q", id)
+		d.logger.Printf("[WARN] driver.docker: RemoveImage on non-referenced counted image id %q", imageID)
 		return
 	}
 
 	// Decrement the reference count
-	references--
-	d.imageRefCount[id] = references
-	d.logger.Printf("[DEBUG] driver.docker: image id %q reference count decremented: %d", id, references)
+	delete(references, callerID)
+	count := len(references)
+	d.logger.Printf("[DEBUG] driver.docker: image id %q reference count decremented: %d", imageID, count)
 
 	// Nothing to do
-	if references != 0 {
+	if count != 0 {
 		return
 	}
 
 	// This should never be the case but we safefty guard so we don't leak a
 	// cancel.
-	if cancel, ok := d.deleteFuture[id]; ok {
-		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", id)
+	if cancel, ok := d.deleteFuture[imageID]; ok {
+		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", imageID)
 		cancel()
 	}
 
 	// Setup a future to delete the image
 	ctx, cancel := context.WithCancel(context.Background())
-	d.deleteFuture[id] = cancel
-	go d.removeImageImpl(id, ctx)
+	d.deleteFuture[imageID] = cancel
+	go d.removeImageImpl(imageID, ctx)
 
 	// Delete the key from the reference count
-	delete(d.imageRefCount, id)
+	delete(d.imageRefCount, imageID)
 }
 
 // removeImageImpl is used to remove an image. It wil wait the specified remove

@@ -287,6 +287,20 @@ func (t *TaskEnvironment) EnvMap() map[string]string {
 	return m
 }
 
+// EnvMapAll returns the environment variables that will be set as well as node
+// meta/attrs in the map. This is appropriate for interpolation.
+func (t *TaskEnvironment) EnvMapAll() map[string]string {
+	m := make(map[string]string, len(t.TaskEnv))
+	for k, v := range t.TaskEnv {
+		m[k] = v
+	}
+	for k, v := range t.NodeValues {
+		m[k] = v
+	}
+
+	return m
+}
+
 // Builder methods to build the TaskEnvironment
 func (t *TaskEnvironment) SetAllocDir(dir string) *TaskEnvironment {
 	t.AllocDir = dir

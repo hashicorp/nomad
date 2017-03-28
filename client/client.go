@@ -359,6 +359,11 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed to find temporary directory for the AllocDir: %v", err)
 		}
 
+		// Change the permissions to have the execute bit
+		if err := os.Chmod(p, 0755); err != nil {
+			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
+		}
+
 		c.config.AllocDir = p
 	}
 
@@ -857,7 +862,7 @@ func (c *Client) setupDrivers() error {
 
 	var avail []string
 	var skipped []string
-	driverCtx := driver.NewDriverContext("", c.config, c.config.Node, c.logger, nil, nil)
+	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil, nil)
 	for name := range driver.BuiltinDrivers {
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.

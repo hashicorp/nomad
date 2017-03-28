@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -492,6 +493,60 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.PeriodicJob()
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if err := state.UpsertJob(1000, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a child and an evaluation
+	job2 := job.Copy()
+	job2.Periodic = nil
+	job2.ID = fmt.Sprintf("%v/%s-1490635020", job.ID, structs.PeriodicLaunchSuffix)
+	err = state.UpsertJob(1001, job2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval := mock.Eval()
+	eval.JobID = job2.ID
+	err = state.UpsertEvals(1002, []*structs.Evaluation{eval})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job3 := job.Copy()
+	job3.TaskGroups[0].Tasks[0].Name = "new name"
+	err = state.UpsertJob(1003, job3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if s, e := out.Status, structs.JobStatusRunning; s != e {
+		t.Fatalf("got status %v; want %v", s, e)
+	}
+
 }
 
 // This test ensures that UpsertJob creates the EphemeralDisk is a job doesn't have

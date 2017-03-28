@@ -350,7 +350,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 	}
 
 	// Set Nomad's environment variables
-	runner.Env = taskEnv.Build().EnvMap()
+	runner.Env = taskEnv.Build().EnvMapAll()
 
 	// Build the lookup
 	idMap := runner.TemplateConfigMapping()

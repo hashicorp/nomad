@@ -110,7 +110,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 		return nil
 	}
 
-	execCtx := NewExecContext(td, alloc.ID)
+	execCtx := NewExecContext(td)
 
 	taskEnv, err := GetTaskEnv(td, cfg.Node, task, alloc, cfg, "")
 	if err != nil {
@@ -123,7 +123,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(task.Name, cfg, cfg.Node, logger, taskEnv, emitter)
+	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, logger, taskEnv, emitter)
 
 	return &testContext{allocDir, driverCtx, execCtx}
 }
