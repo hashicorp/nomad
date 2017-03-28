@@ -205,10 +205,10 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 			for _, nw := range resources.Networks {
 				ports := make([]*structs.Port, 0, len(nw.ReservedPorts)+len(nw.DynamicPorts))
 				for _, port := range nw.ReservedPorts {
-					ports = append(ports, &port)
+					ports = append(ports, &structs.Port{port.Label, port.Value})
 				}
 				for _, port := range nw.DynamicPorts {
-					ports = append(ports, &port)
+					ports = append(ports, &structs.Port{port.Label, port.Value})
 				}
 				for _, p := range ports {
 					key := fmt.Sprintf("%s%s_%s", AddrPrefix, taskName, p.Label)

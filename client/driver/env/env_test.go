@@ -139,6 +139,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	n := mock.Node()
 	a := mock.Alloc()
 	a.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
+	//a.TaskResources["web2"].Networks[0].DynamicPorts[1].Value = 2000
 	env := NewTaskEnvironment(n).
 		SetNetworks(networks).
 		SetPortMap(portMap).
@@ -153,16 +154,25 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_IP_http=127.0.0.1",
 		"NOMAD_ADDR_https=127.0.0.1:443",
 		"NOMAD_PORT_https=443",
+		"NOMAD_PORT_web2_http21=0",
+		"NOMAD_PORT_web2_http22=0",
 		"NOMAD_IP_https=127.0.0.1",
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_META_FOO=baz",
 		"NOMAD_META_foo=baz",
+		"NOMAD_ADDR_web2_http22=192.168.0.100:0",
+		"NOMAD_ADDR_web2_http21=192.168.0.100:0",
 		"NOMAD_ADDR_web_main=192.168.0.100:5000",
+		"NOMAD_ADDR_web2_main2=192.168.0.100:5002",
 		"NOMAD_ADDR_web_http=192.168.0.100:2000",
 		"NOMAD_PORT_web_main=5000",
+		"NOMAD_PORT_web2_main2=5002",
 		"NOMAD_PORT_web_http=2000",
 		"NOMAD_IP_web_main=192.168.0.100",
+		"NOMAD_IP_web2_http21=192.168.0.100",
+		"NOMAD_IP_web2_http22=192.168.0.100",
+		"NOMAD_IP_web2_main2=192.168.0.100",
 		"NOMAD_IP_web_http=192.168.0.100",
 		"NOMAD_TASK_NAME=taskA",
 	}
