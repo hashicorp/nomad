@@ -125,9 +125,11 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 
 	detail := &CatalogNode{
 		Node: &Node{
+			ID:              node.Node.ID,
 			Node:            node.Node.Node,
 			Address:         node.Node.Address,
 			TaggedAddresses: node.Node.TaggedAddresses,
+			Meta:            node.Node.Meta,
 		},
 		Services: services,
 	}

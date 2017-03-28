@@ -24,9 +24,11 @@ func init() {
 
 // CatalogService is a catalog entry in Consul.
 type CatalogService struct {
+	ID              string
 	Node            string
 	Address         string
 	TaggedAddresses map[string]string
+	NodeMeta        map[string]string
 	ServiceID       string
 	ServiceName     string
 	ServiceAddress  string
@@ -96,9 +98,11 @@ func (d *CatalogServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (int
 	var list []*CatalogService
 	for _, s := range entries {
 		list = append(list, &CatalogService{
+			ID:              s.ID,
 			Node:            s.Node,
 			Address:         s.Address,
 			TaggedAddresses: s.TaggedAddresses,
+			NodeMeta:        s.NodeMeta,
 			ServiceID:       s.ServiceID,
 			ServiceName:     s.ServiceName,
 			ServiceAddress:  s.ServiceAddress,

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"reflect"
 	"regexp"
@@ -49,34 +50,16 @@ func datacentersFunc(b *Brain, used, missing *dep.Set) func() ([]string, error) 
 // envFunc returns a function which checks the value of an environment variable.
 // Invokers can specify their own environment, which takes precedences over any
 // real environment variables
-func envFunc(b *Brain, used, missing *dep.Set, overrides []string) func(string) (string, error) {
+func envFunc(env []string) func(string) (string, error) {
 	return func(s string) (string, error) {
-		var result string
-
-		d, err := dep.NewEnvQuery(s)
-		if err != nil {
-			return result, err
-		}
-
-		used.Add(d)
-
-		// Overrides lookup - we have to do this after adding the dependency,
-		// otherwise dedupe sharing won't work.
-		for _, e := range overrides {
+		for _, e := range env {
 			split := strings.SplitN(e, "=", 2)
 			k, v := split[0], split[1]
 			if k == s {
 				return v, nil
 			}
 		}
-
-		if value, ok := b.Recall(d); ok {
-			return value.(string), nil
-		}
-
-		missing.Add(d)
-
-		return result, nil
+		return os.Getenv(s), nil
 	}
 }
 
@@ -369,7 +352,7 @@ func serviceFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Healt
 			return result, nil
 		}
 
-		d, err := dep.NewHealthServiceQuery(strings.Join(s, ""))
+		d, err := dep.NewHealthServiceQuery(strings.Join(s, "|"))
 		if err != nil {
 			return nil, err
 		}
@@ -1109,5 +1092,34 @@ func divide(b, a interface{}) (interface{}, error) {
 		}
 	default:
 		return nil, fmt.Errorf("divide: unknown type for %q (%T)", av, a)
+	}
+}
+
+// modulo returns the modulo of b from a.
+func modulo(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return av.Int() % bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return av.Int() % int64(bv.Uint()), nil
+		default:
+			return nil, fmt.Errorf("modulo: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return int64(av.Uint()) % bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return av.Uint() % bv.Uint(), nil
+		default:
+			return nil, fmt.Errorf("modulo: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("modulo: unknown type for %q (%T)", av, a)
 	}
 }

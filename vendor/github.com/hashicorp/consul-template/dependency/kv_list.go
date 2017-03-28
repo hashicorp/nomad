@@ -1,6 +1,7 @@
 package dependency
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/url"
@@ -17,6 +18,10 @@ var (
 	// KVListQueryRe is the regular expression to use.
 	KVListQueryRe = regexp.MustCompile(`\A` + prefixRe + dcRe + `\z`)
 )
+
+func init() {
+	gob.Register([]*KeyPair{})
+}
 
 // KeyPair is a simple Key-Value pair
 type KeyPair struct {
