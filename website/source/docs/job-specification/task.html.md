@@ -42,7 +42,7 @@ job "docs" {
 
 - `driver` - Specifies the task driver that should be used to run the
   task. See the [driver documentation](/docs/drivers/index.html) for what
-  is available. Examples include `docker`, `qemu`, `java`, and `exec`.
+  is available. Examples include `docker`, `qemu`, `java` and `exec`.
 
 - `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
   be passed to the running process.
@@ -65,7 +65,7 @@ job "docs" {
   with user-defined metadata.
 
 - `resources` <code>([Resources][]: <required>)</code> - Specifies the minimum
-  resource requirements such as RAM, CPU, disk, and network.
+  resource requirements such as RAM, CPU and network.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
   [Consul][] for service discovery. Nomad automatically registers when a task
