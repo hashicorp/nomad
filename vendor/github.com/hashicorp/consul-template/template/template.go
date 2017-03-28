@@ -186,7 +186,6 @@ func funcMap(i *funcMapInput) template.FuncMap {
 	return template.FuncMap{
 		// API functions
 		"datacenters":  datacentersFunc(i.brain, i.used, i.missing),
-		"env":          envFunc(i.brain, i.used, i.missing, i.env),
 		"file":         fileFunc(i.brain, i.used, i.missing),
 		"key":          keyFunc(i.brain, i.used, i.missing),
 		"keyExists":    keyExistsFunc(i.brain, i.used, i.missing),
@@ -215,6 +214,7 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"containsAny":     containsSomeFunc(false, false),
 		"containsNone":    containsSomeFunc(true, false),
 		"containsNotAll":  containsSomeFunc(false, true),
+		"env":             envFunc(i.env),
 		"executeTemplate": executeTemplateFunc(i.t),
 		"explode":         explode,
 		"in":              in,
@@ -245,6 +245,7 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"subtract": subtract,
 		"multiply": multiply,
 		"divide":   divide,
+		"modulo":   modulo,
 
 		// Deprecated functions
 		"key_or_default": keyWithDefaultFunc(i.brain, i.used, i.missing),

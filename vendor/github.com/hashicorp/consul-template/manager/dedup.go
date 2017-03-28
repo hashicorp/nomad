@@ -160,9 +160,9 @@ START:
 	// Renew our session periodically
 	if err := session.RenewPeriodic("15s", id, nil, d.stopCh); err != nil {
 		log.Printf("[ERR] (dedup) failed to renew session: %v", err)
-		d.wg.Wait()
 	}
 	close(sessionCh)
+	d.wg.Wait()
 
 WAIT:
 	select {
@@ -401,47 +401,50 @@ func (d *DedupManager) parseData(path string, raw []byte) {
 
 func (d *DedupManager) attemptLock(client *consulapi.Client, session string, sessionCh chan struct{}, t *template.Template) {
 	defer d.wg.Done()
-START:
-	log.Printf("[INFO] (dedup) attempting lock for template hash %s", t.ID())
-	basePath := path.Join(*d.config.Prefix, t.ID())
-	lopts := &consulapi.LockOptions{
-		Key:              path.Join(basePath, "lock"),
-		Session:          session,
-		MonitorRetries:   3,
-		MonitorRetryTime: 3 * time.Second,
-	}
-	lock, err := client.LockOpts(lopts)
-	if err != nil {
-		log.Printf("[ERR] (dedup) failed to create lock '%s': %v",
-			lopts.Key, err)
-		return
-	}
+	for {
+		log.Printf("[INFO] (dedup) attempting lock for template hash %s", t.ID())
+		basePath := path.Join(*d.config.Prefix, t.ID())
+		lopts := &consulapi.LockOptions{
+			Key:              path.Join(basePath, "lock"),
+			Session:          session,
+			MonitorRetries:   3,
+			MonitorRetryTime: 3 * time.Second,
+		}
+		lock, err := client.LockOpts(lopts)
+		if err != nil {
+			log.Printf("[ERR] (dedup) failed to create lock '%s': %v",
+				lopts.Key, err)
+			return
+		}
 
-	var retryCh <-chan time.Time
-	leaderCh, err := lock.Lock(sessionCh)
-	if err != nil {
-		log.Printf("[ERR] (dedup) failed to acquire lock '%s': %v",
-			lopts.Key, err)
-		retryCh = time.After(lockRetry)
-	} else {
-		log.Printf("[INFO] (dedup) acquired lock '%s'", lopts.Key)
-		d.setLeader(t, leaderCh)
-	}
+		var retryCh <-chan time.Time
+		leaderCh, err := lock.Lock(sessionCh)
+		if err != nil {
+			log.Printf("[ERR] (dedup) failed to acquire lock '%s': %v",
+				lopts.Key, err)
+			retryCh = time.After(lockRetry)
+		} else {
+			log.Printf("[INFO] (dedup) acquired lock '%s'", lopts.Key)
+			d.setLeader(t, leaderCh)
+		}
 
-	select {
-	case <-retryCh:
-		retryCh = nil
-		goto START
-	case <-leaderCh:
-		log.Printf("[WARN] (dedup) lost lock ownership '%s'", lopts.Key)
-		d.setLeader(t, nil)
-		goto START
-	case <-sessionCh:
-		log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
-		d.setLeader(t, nil)
-		lock.Unlock()
-	case <-d.stopCh:
-		log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
-		lock.Unlock()
+		select {
+		case <-retryCh:
+			retryCh = nil
+			continue
+		case <-leaderCh:
+			log.Printf("[WARN] (dedup) lost lock ownership '%s'", lopts.Key)
+			d.setLeader(t, nil)
+			continue
+		case <-sessionCh:
+			log.Printf("[INFO] (dedup) releasing session '%s'", lopts.Key)
+			d.setLeader(t, nil)
+			lock.Unlock()
+			return
+		case <-d.stopCh:
+			log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
+			lock.Unlock()
+			return
+		}
 	}
 }

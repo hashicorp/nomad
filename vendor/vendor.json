@@ -593,44 +593,44 @@
 		{
 			"checksumSHA1": "gx2CAg/v3k7kfBA/rT5NCkI0jDI=",
 			"path": "github.com/hashicorp/consul-template/child",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
-			"checksumSHA1": "1EAiHEm1b/m3KWy08U7yrAvDlms=",
+			"checksumSHA1": "VMDorxQ1u/r2BYZ/azJd71UQi4A=",
 			"path": "github.com/hashicorp/consul-template/config",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
-			"checksumSHA1": "/SBscJ0TqJlOZjKqkbUYMa5c5rk=",
+			"checksumSHA1": "kvyZVRAc/JG3Ua1deyKaFtOrlqc=",
 			"path": "github.com/hashicorp/consul-template/dependency",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
-			"checksumSHA1": "efWxWe8blQflfYZFU1WSIks2Tbw=",
+			"checksumSHA1": "QHR0vkzQMi3UH7q1HdV2QhxrOt8=",
 			"path": "github.com/hashicorp/consul-template/manager",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
 			"checksumSHA1": "oskgb0WteBKOItG8NNDduM7E/D0=",
 			"path": "github.com/hashicorp/consul-template/signals",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
-			"checksumSHA1": "qZEh52+ryjQjwRWxMZ9eEPa6OBI=",
+			"checksumSHA1": "KFFY15i/0MuTL2z6OzbQfB4xIBE=",
 			"path": "github.com/hashicorp/consul-template/template",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
 			"checksumSHA1": "cl9R28+I+YT6a0Z+KQFP//wuC+0=",
 			"path": "github.com/hashicorp/consul-template/watch",
-			"revision": "8bf2ce9e0cdcd60d799a75262b90468d24ee392e",
-			"revisionTime": "2017-01-20T21:50:49Z"
+			"revision": "e79894aad0b3789b93d0372e23f6eb0d2b75b35a",
+			"revisionTime": "2017-03-28T18:42:41Z"
 		},
 		{
 			"checksumSHA1": "kWbL0V4o8vJL75mzeQzhF6p5jiQ=",
