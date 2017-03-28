@@ -2030,7 +2030,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
-	if resp.Error == nil || !resp.Error.Recoverable {
+	if resp.Error == nil || !resp.Error.IsRecoverable() {
 		t.Fatalf("bad: %+v", resp.Error)
 	}
 }

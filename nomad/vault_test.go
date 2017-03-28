@@ -925,9 +925,9 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 		t.Fatalf("CreateToken should have failed: %v", err)
 	}
 
-	_, ok := err.(*structs.RecoverableError)
+	_, ok := err.(structs.Recoverable)
 	if ok {
-		t.Fatalf("CreateToken should not be a recoverable error type: %v", err)
+		t.Fatalf("CreateToken should not be a recoverable error type: %v (%T)", err, err)
 	}
 }
 
@@ -955,7 +955,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 
 	if rerr, ok := err.(*structs.RecoverableError); !ok {
 		t.Fatalf("Err should have been type recoverable error")
-	} else if ok && !rerr.Recoverable {
+	} else if ok && !rerr.IsRecoverable() {
 		t.Fatalf("Err should have been recoverable")
 	}
 }

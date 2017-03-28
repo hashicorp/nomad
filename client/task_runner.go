@@ -665,7 +665,7 @@ func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 		}
 
 		// Check if we can't recover from the error
-		if rerr, ok := err.(*structs.RecoverableError); !ok || !rerr.Recoverable {
+		if !structs.IsRecoverable(err) {
 			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
 			r.Kill("vault", fmt.Sprintf("failed to derive token: %v", err), true)
@@ -800,7 +800,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
 						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
-					r.restartTracker.SetStartError(structs.NewRecoverableError(wrapped, structs.IsRecoverable(err)))
+					r.restartTracker.SetStartError(structs.WrapRecoverable(wrapped.Error(), err))
 					goto RESTART
 				}
 			}
@@ -1195,31 +1195,19 @@ func (r *TaskRunner) startTask() error {
 	r.createdResourcesLock.Unlock()
 
 	if err != nil {
-		wrapped := fmt.Errorf("failed to initialize task %q for alloc %q: %v",
+		wrapped := fmt.Sprintf("failed to initialize task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
-
-		r.logger.Printf("[WARN] client: error from prestart: %v", wrapped)
-
-		if rerr, ok := err.(*structs.RecoverableError); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
-		}
-
-		return wrapped
+		r.logger.Printf("[WARN] client: error from prestart: %s", wrapped)
+		return structs.WrapRecoverable(wrapped, err)
 	}
 
 	// Start the job
 	handle, err := drv.Start(ctx, r.task)
 	if err != nil {
-		wrapped := fmt.Errorf("failed to start task %q for alloc %q: %v",
+		wrapped := fmt.Sprintf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
-
-		r.logger.Printf("[WARN] client: %v", wrapped)
-
-		if rerr, ok := err.(*structs.RecoverableError); ok {
-			return structs.NewRecoverableError(wrapped, rerr.Recoverable)
-		}
-
-		return wrapped
+		r.logger.Printf("[WARN] client: %s", wrapped)
+		return structs.WrapRecoverable(wrapped, err)
 
 	}
 

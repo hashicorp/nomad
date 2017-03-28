@@ -88,14 +88,38 @@ func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) 
 func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact, taskDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
-		return err
+		return newGetError(artifact.GetterSource, err, false)
 	}
 
 	// Download the artifact
 	dest := filepath.Join(taskDir, artifact.RelativeDest)
 	if err := getClient(url, dest).Get(); err != nil {
-		return structs.NewRecoverableError(fmt.Errorf("GET error: %v", err), true)
+		return newGetError(url, err, true)
 	}
 
 	return nil
+}
+
+// GetError wraps the underlying artifact fetching error with the URL. It
+// implements the RecoverableError interface.
+type GetError struct {
+	URL         string
+	Err         error
+	recoverable bool
+}
+
+func newGetError(url string, err error, recoverable bool) *GetError {
+	return &GetError{
+		URL:         url,
+		Err:         err,
+		recoverable: recoverable,
+	}
+}
+
+func (g *GetError) Error() string {
+	return g.Err.Error()
+}
+
+func (g *GetError) IsRecoverable() bool {
+	return g.recoverable
 }
