@@ -102,7 +102,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	})
 
 	// Look for mounted directories in their proper location
-	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.ExecCtx.AllocID)
+	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.DriverCtx.allocID)
 	for _, mnt := range []string{"alloc", "local", "secrets"} {
 		fullpath := filepath.Join(lxcHandle.lxcPath, containerName, "rootfs", mnt)
 		stat, err := os.Stat(fullpath)
