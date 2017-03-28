@@ -1938,6 +1938,10 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		MetaOptional: []string{"foo", "bar"},
 	}
 
+	// Periodic dispatch job
+	d6 := mock.PeriodicJob()
+	d6.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
 	reqNoInputNoMeta := &structs.JobDispatchRequest{}
 	reqInputDataNoMeta := &structs.JobDispatchRequest{
 		Payload: []byte("hello world"),
@@ -1971,6 +1975,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		name             string
 		parameterizedJob *structs.Job
 		dispatchReq      *structs.JobDispatchRequest
+		noEval           bool
 		err              bool
 		errStr           string
 	}
@@ -2052,6 +2057,12 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			err:              true,
 			errStr:           "Payload exceeds maximum size",
 		},
+		{
+			name:             "periodic job dispatched, ensure no eval",
+			parameterizedJob: d6,
+			dispatchReq:      reqNoInputNoMeta,
+			noEval:           true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -2088,7 +2099,18 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 
 				// Check that we got an eval and job id back
-				if dispatchResp.EvalID == "" || dispatchResp.DispatchedJobID == "" {
+				switch dispatchResp.EvalID {
+				case "":
+					if !tc.noEval {
+						t.Fatalf("Bad response")
+					}
+				default:
+					if tc.noEval {
+						t.Fatalf("Got eval %q", dispatchResp.EvalID)
+					}
+				}
+
+				if dispatchResp.DispatchedJobID == "" {
 					t.Fatalf("Bad response")
 				}
 
@@ -2108,11 +2130,16 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 					t.Fatalf("bad parent ID")
 				}
 
+				if tc.noEval {
+					return
+				}
+
 				// Lookup the evaluation
 				eval, err := state.EvalByID(ws, dispatchResp.EvalID)
 				if err != nil {
 					t.Fatalf("err: %v", err)
 				}
+
 				if eval == nil {
 					t.Fatalf("expected eval")
 				}

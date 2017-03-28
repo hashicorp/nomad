@@ -842,34 +842,40 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	// Create a new evaluation
-	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
-		Priority:       dispatchJob.Priority,
-		Type:           dispatchJob.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
-		JobID:          dispatchJob.ID,
-		JobModifyIndex: jobCreateIndex,
-		Status:         structs.EvalStatusPending,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
-	}
-
-	// Commit this evaluation via Raft
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
-		return err
-	}
-
-	// Setup the reply
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
 	reply.JobCreateIndex = jobCreateIndex
 	reply.DispatchedJobID = dispatchJob.ID
-	reply.Index = evalIndex
+	reply.Index = jobCreateIndex
+
+	// If the job is periodic, we don't create an eval.
+	if !dispatchJob.IsPeriodic() {
+		// Create a new evaluation
+		eval := &structs.Evaluation{
+			ID:             structs.GenerateUUID(),
+			Priority:       dispatchJob.Priority,
+			Type:           dispatchJob.Type,
+			TriggeredBy:    structs.EvalTriggerJobRegister,
+			JobID:          dispatchJob.ID,
+			JobModifyIndex: jobCreateIndex,
+			Status:         structs.EvalStatusPending,
+		}
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// Commit this evaluation via Raft
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+			return err
+		}
+
+		// Setup the reply
+		reply.EvalID = eval.ID
+		reply.EvalCreateIndex = evalIndex
+		reply.Index = evalIndex
+	}
+
 	return nil
 }
 
