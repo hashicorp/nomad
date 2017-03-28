@@ -1,6 +1,7 @@
 ## 0.5.6 (Unreleased)
 
 IMPROVEMENTS:
+  * client: Improve error message when artifact downloading fails [GH-2289]
   * client/template: Access Node meta and attributes in template [GH-2488]
 
 BUG FIXES:
