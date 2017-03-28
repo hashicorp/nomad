@@ -40,6 +40,16 @@ which operate in the agent or node contexts respectively.
 
 ### Remote Usage
 
-You can use Nomad CLI from a different machine event without Nomad agent running on it. 
+The Nomad CLI may be used to interact with a remote Nomad cluster, even when the
+local machine does not have a running Nomad agent. To do so, set the
+`NOMAD_ADDR` environment variable or use the `-address=<addr>` flag when running
+commands.
 
-Make sure your remote agent exposes HTTP endoint (make sure you are in the trusted network, or set up TLS) and `NOMAD_ADDR` environment variable is set on your "external" machine, with the address of the remote agent.
+```
+$ NOMAD_ADDR=https://remote-address:4646 nomad status
+$ nomad status -address=https://remote-address:4646
+```
+
+The provided address must be reachable from your local machine. There are a
+variety of ways to accomplish this (VPN, SSH Tunnel, etc). If the port is
+exposed to the public internet it is highly recommended to configure TLS.
