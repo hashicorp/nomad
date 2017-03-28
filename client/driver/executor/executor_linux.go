@@ -173,6 +173,22 @@ func (e *UniversalExecutor) runAs(userid string) error {
 		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
 	}
 
+	// Get the groups the user is a part of
+	gidStrings, err := u.GroupIds()
+	if err != nil {
+		return fmt.Errorf("Unable to lookup user's group membership: %v", err)
+	}
+
+	gids := make([]uint32, len(gidStrings))
+	for _, gidString := range gidStrings {
+		u, err := strconv.Atoi(gidString)
+		if err != nil {
+			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
+		}
+
+		gids = append(gids, uint32(u))
+	}
+
 	// Convert the uid and gid
 	uid, err := strconv.ParseUint(u.Uid, 10, 32)
 	if err != nil {
@@ -192,6 +208,9 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	}
 	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
 	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
+	e.cmd.SysProcAttr.Credential.Groups = gids
+
+	e.logger.Printf("[DEBUG] executor: running as user:group %d:%d with group membership in %v", uid, gid, gids)
 
 	return nil
 }

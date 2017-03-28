@@ -359,6 +359,11 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed to find temporary directory for the AllocDir: %v", err)
 		}
 
+		// Change the permissions to have the execute bit
+		if err := os.Chmod(p, 0755); err != nil {
+			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
+		}
+
 		c.config.AllocDir = p
 	}
 
