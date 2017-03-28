@@ -1,6 +1,7 @@
-## 0.6.0 (Unreleased)
+## 0.5.6 (Unreleased)
 
 BUG FIXES:
+  * api: Fix TLS in logs and fs commands/APIs [GH-2290]
   * cli/plan: Fix diff alignment and remove no change DC output [GH-2465]
   * client: Fix panic when restarting non-running tasks [GH-2480]
 
