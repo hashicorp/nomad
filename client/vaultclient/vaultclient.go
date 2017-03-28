@@ -457,9 +457,8 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			// item is tracked by the renewal loop, stop renewing
 			// it by removing the corresponding heap entry.
 			if err := c.heap.Remove(req.id); err != nil {
-				return fmt.Errorf("failed to remove heap entry. err: %v", err)
+				return fmt.Errorf("failed to remove heap entry: %v", err)
 			}
-			delete(c.heap.heapMap, req.id)
 
 			// Report the fatal error to the client
 			req.errCh <- renewalErr
@@ -578,14 +577,9 @@ func (c *vaultClient) stopRenew(id string) error {
 		return nil
 	}
 
-	// Remove the identifier from the heap
 	if err := c.heap.Remove(id); err != nil {
 		return fmt.Errorf("failed to remove heap entry: %v", err)
 	}
-
-	// Delete the identifier from the map only after the it is removed from
-	// the heap. Heap's remove method relies on the heap map.
-	delete(c.heap.heapMap, id)
 
 	// Signal an update to the renewal loop.
 	if c.running {
