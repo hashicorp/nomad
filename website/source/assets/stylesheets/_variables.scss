@@ -1,91 +1,8 @@
-//
-// Variables
-// --------------------------------------------------
-
-
-// Global values
-// --------------------------------------------------
-
-$header-height:         100px;
-$btn-border-radius:     4px;
-$el-border-radius:      6px;
-
-// Colors
-$white:        #FFFFFF;
-$black:        #000000;
-$green:        #56CDAD;
-$green-dark:   #449B82;
-$green-light:  #9BDB9C;
-$blue-dark:    #4E5859;
-$blue-light:   #89999A;
-$blue:         #00BFE0;
-$blue-faint:   #E0E8E8;
-$light-black:  #242424;
-$orange:       #E78C5B;
-$gray-dark:    #3B4142;
-$gray:         #777777;
-$gray-light:   #939393;
-$gray-lighter: #979797;
-$gray:         #929199;
-$light-gray:   #C2C1C7;
-$faint-gray:   #E3E3EA;
-$red:          #DD4E58;
-$red-dark:     #C5454E;
-$purple:       #822FF7;
-
-// Typography
-$font-family-klavika:   'klavika-web', 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
-$font-family-open-sans: 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
-$font-family-monospace: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace;
-$font-size:             15px;
-$font-weight-reg:       400;
-$font-weight-bold:      600;
-
-// Body
-$body-font-color: $blue-dark;
-$body-link-color: $green-dark;
-
-// Sidebar
-$sidebar-font-size: $font-size - 2;
-$sidebar-link-color: $body-font-color;
-$sidebar-link-color-hover: $black;
-$sidebar-link-color-active: $green-dark;
-
-// Header
-$header-font-size: $font-size - 2;
-$header-link-color: $body-font-color;
-$header-link-color-hover: $black;
-
-// Footer
-$footer-font-size: $font-size - 2;
-$footer-link-color: $body-font-color;
-$footer-link-color-hover: $black;
-
-
-
-
-
-
-
-
-
-
-//////////////////
-/////////////////////
-///////////////////////////
-
-
-
-
-
-
-
-
-
 // Colors
 $white: #FFFFFF;
 $black: #000000;
-$gray-darker: #555555;
+$gray: #555555;
+$gray-light: #CCCCCC;
 
 $nomad-green: #2DAA86;
 $nomad-green-dark:#0E7A65;
@@ -106,12 +23,12 @@ $font-weight-reg:       400;
 $font-weight-bold:      600;
 
 // Body
-$body-font-color: $gray-darker;
+$body-font-color: $gray;
 $body-link-color: $nomad-green;
 
 // Home
 $home-header-background-color: transparent;
-$home-header-link-color: $gray-darker;
+$home-header-link-color: $gray;
 $home-header-link-color-hover: $black;
 
 // Sidebar

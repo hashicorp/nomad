@@ -153,7 +153,7 @@ $font-size-reg:         16px;
       h4{
         font-family: $font-family-open-sans;
         font-weight: 500;
-        color: $blue-light;
+        color: $gray;
       }
 
       #hero-btns{
@@ -196,17 +196,17 @@ $font-size-reg:         16px;
 
     &.gray-banner{
       .col{
-        border: 1px solid $blue-faint;
+        border: 1px solid $gray-light;
       }
 
       p{
-        color: $blue-light;
+        color: $gray;
       }
     }
 
     &.green-banner{
       .col{
-        border: 1px solid $blue-faint;
+        border: 1px solid $gray-light;
       }
 
       p{
@@ -249,7 +249,7 @@ $font-size-reg:         16px;
       margin-bottom: 120px;
       text-align: center;
       font-size: $font-size-m;
-      color: $green;
+      color: $nomad-green;
       text-transform: uppercase;
     }
 
@@ -257,7 +257,7 @@ $font-size-reg:         16px;
       position: relative;
       margin-bottom: 60px;
       padding-bottom: 60px;
-      border-bottom: 1px solid $blue-faint;
+      border-bottom: 1px solid $gray-light;
 
       &:last-child{
         border-bottom: none;
@@ -306,7 +306,7 @@ $font-size-reg:         16px;
       &#partners{
         .partner-logos{
           .docker-wrap{
-            border-right: 1px solid $blue-faint;
+            border-right: 1px solid $gray-light;
 
             .partner-logo{
               display: inline-block;
@@ -376,7 +376,7 @@ $font-size-reg:         16px;
 
         p{
           margin-bottom: 30px;
-          color: $blue-light;
+          color: $gray;
           font-size: $font-size-reg+2;
           line-height: 1.75em;
           max-width: 480px;
@@ -393,7 +393,7 @@ $font-size-reg:         16px;
           line-height: 1.75em;
           max-width: 320px;
           padding-left: 20px;
-          border-left: 1px solid $blue-faint;
+          border-left: 1px solid $gray-light;
         }
 
         .docker-outline-logo{
