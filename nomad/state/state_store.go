@@ -878,7 +878,15 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, jobID string) ([]*structs.Eva
 		if raw == nil {
 			break
 		}
-		out = append(out, raw.(*structs.Evaluation))
+
+		e := raw.(*structs.Evaluation)
+
+		// Filter non-exact matches
+		if e.JobID != jobID {
+			continue
+		}
+
+		out = append(out, e)
 	}
 	return out, nil
 }
@@ -1619,9 +1627,16 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	}
 
 	hasEval := false
-	for eval := evals.Next(); eval != nil; eval = evals.Next() {
+	for raw := evals.Next(); raw != nil; raw = evals.Next() {
+		e := raw.(*structs.Evaluation)
+
+		// Filter non-exact matches
+		if e.JobID != job.ID {
+			continue
+		}
+
 		hasEval = true
-		if !eval.(*structs.Evaluation).TerminalStatus() {
+		if !e.TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
 	}
