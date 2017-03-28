@@ -37,3 +37,9 @@ status` command queries information about existing jobs, etc. Conversely,
 commands with a prefix in their name likely operate in a different context.
 Examples include the `nomad agent-info` or `nomad node-drain` commands,
 which operate in the agent or node contexts respectively.
+
+### Remote Usage
+
+You can use Nomad CLI from a different machine event without Nomad agent running on it. 
+
+Make sure your remote agent exposes HTTP endoint (make sure you are in the trusted network, or set up TLS) and `NOMAD_ADDR` environment variable is set on your "external" machine, with the address of the remote agent.
