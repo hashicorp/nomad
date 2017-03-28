@@ -263,11 +263,17 @@ func Alloc() *structs.Allocation {
 			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
 				&structs.NetworkResource{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
+					Device: "eth0",
+					IP:     "192.168.0.100",
+					ReservedPorts: []structs.Port{
+						{Label: "main", Value: 5000},
+						{Label: "main2", Value: 5002},
+					},
+					MBits: 50,
+					DynamicPorts: []structs.Port{
+						{Label: "http"},
+						{Label: "http2"},
+					},
 				},
 			},
 		},
@@ -282,6 +288,22 @@ func Alloc() *structs.Allocation {
 						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
 						MBits:         50,
 						DynamicPorts:  []structs.Port{{Label: "http"}},
+					},
+				},
+			},
+			"web2": &structs.Resources{
+				CPU:      500,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					&structs.NetworkResource{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "main2", Value: 5002}},
+						MBits:         50,
+						DynamicPorts: []structs.Port{
+							{Label: "http21"},
+							{Label: "http22"},
+						},
 					},
 				},
 			},
