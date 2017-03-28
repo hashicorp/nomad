@@ -139,6 +139,16 @@ func TestEnvironment_AsList(t *testing.T) {
 	n := mock.Node()
 	a := mock.Alloc()
 	a.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
+	a.TaskResources["ssh"] = &structs.Resources{
+		Networks: []*structs.NetworkResource{
+			{
+				ReservedPorts: []structs.Port{
+					{Label: "ssh", Value: 22},
+					{Label: "other", Value: 1234},
+				},
+			},
+		},
+	}
 	env := NewTaskEnvironment(n).
 		SetNetworks(networks).
 		SetPortMap(portMap).
@@ -165,6 +175,12 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_IP_web_main=192.168.0.100",
 		"NOMAD_IP_web_http=192.168.0.100",
 		"NOMAD_TASK_NAME=taskA",
+		"NOMAD_ADDR_ssh_other=:1234",
+		"NOMAD_ADDR_ssh_ssh=:22",
+		"NOMAD_IP_ssh_other=",
+		"NOMAD_IP_ssh_ssh=",
+		"NOMAD_PORT_ssh_other=1234",
+		"NOMAD_PORT_ssh_ssh=22",
 	}
 	allocID := fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID)
 	exp = append(exp, allocID)
