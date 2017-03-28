@@ -1,118 +1,43 @@
-//
-// Button Styles
-// --------------------------------------------------
-
-.h-btn{
+.button {
+  background: $button-background;
+  border: 1px solid $button-font-color;
+  box-shadow: 3px 4px 0 rgba(0,0,0,0.1);
+  color: $button-font-color;
   display: inline-block;
-  background-color: transparent;
-  color: $black;
-  @include transition(color .3s ease-in-out);
-  //@include btn-shadow();
+  font-family: $button-font-family;
+  font-size: $button-font-size;
+  font-weight: $button-font-weight;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  padding: 10px 30px;
   text-transform: uppercase;
-  border-radius: 3px;
+  text-decoration: none;
 
-  &.has-caret{
-    span.h-caret{
-      display: inline-block;
-      width: 8px;
-      height: 12px;
-      margin-left: 10px;
-      @include transition(all 300ms ease-in);
+  &:hover,
+  &:active,
+  &:focus {
+    text-decoration: none;
+  }
+
+  &:hover {
+    background: $button-font-color;
+    border: 1px solid $button-font-color;
+    color: $button-background;
+  }
+
+  &.primary {
+    background: $button-primary-background;
+    border: 1px solid darken($button-primary-background, 5%);
+    color: $button-primary-font-color;
+
+    &:hover {
+      background: lighten($button-primary-background, 5%);
     }
   }
 
-  &.lrg{
-    font-size: $font-size;
-    padding: 10px 24px;
-  }
-
-  &.sml{
+  &.inline {
     padding: 8px 14px;
     font-size: $font-size - 2;
     line-height: 14px;
-
-    &.has-caret{
-      span.h-caret{
-        background-size: 6px 9px !important;
-        margin-bottom: -2px;
-        margin-right: -3px;
-      }
-    }
-  }
-
-  &.light{
-    color: $green-light;
-
-    &.has-border{
-      border: 2px solid $green-light;
-    }
-
-    &.has-caret{
-      span.h-caret{
-        background: image-url('caret-light.png') 0 0 no-repeat;
-        @include img-retina("caret-light.png", "caret-light@2x.png", 8px, 12px);
-      }
-    }
-  }
-
-  &.green{
-    color: $green;
-
-    &.has-border{
-      border: 2px solid $green;
-    }
-
-    span.h-caret{
-      background: image-url('caret-green.png') 0 0 no-repeat;
-      @include img-retina("caret-green.png", "caret-green@2x.png", 8px, 12px);
-    }
-
-    &.fill{
-      background-color: $green;
-      color: $white;
-
-      span.h-caret{
-        background: image-url('caret-white.png') 0 0 no-repeat;
-        @include img-retina("caret-white.png", "caret-white@2x.png", 8px, 12px);
-      }
-    }
-  }
-
-  &.gray{
-    color: $blue-light;
-
-    &.border{
-      border: 2px solid $blue-light;
-    }
-
-    &.fill{
-      background-color: $blue-light;
-      color: $white;
-
-      span.h-caret{
-        background: image-url('caret-white.png') 0 0 no-repeat;
-        @include img-retina("caret-white.png", "caret-white@2x.png", 8px, 12px);
-      }
-    }
-  }
-
-  &.dark{
-    color: $green-dark;
-
-    &.border{
-      border: 2px solid $green-dark;
-    }
-  }
-
-  &:hover{
-    text-decoration: none;
-    @include transition(color 200ms ease-in);
-
-    &.has-caret{
-      span.h-caret{
-        @include translate(4px, 0);
-        @include transition(all 200ms ease-in);
-      }
-    }
   }
 }

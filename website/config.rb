@@ -18,7 +18,7 @@ helpers do
     end
 
      "Nomad by HashiCorp"
-  end
+   end
 
   # Get the description for the page
   #
@@ -26,7 +26,12 @@ helpers do
   #
   # @return [String]
   def description_for(page)
-    return escape_html(page.data.description || "")
+    description = (page.data.description || "")
+      .gsub('"', '')
+      .gsub(/\n+/, ' ')
+      .squeeze(' ')
+
+    return escape_html(description)
   end
 
   # This helps by setting the "active" class for sidebar nav elements
@@ -43,10 +48,22 @@ helpers do
   # Returns the id for this page.
   # @return [String]
   def body_id_for(page)
-    if name = page.data.sidebar_current && !name.blank?
+    if !(name = page.data.sidebar_current).blank?
       return "page-#{name.strip}"
     end
-    return "page-home"
+    if page.url == "/" || page.url == "/index.html"
+      return "page-home"
+    end
+    if !(title = page.data.page_title).blank?
+      return title
+        .downcase
+        .gsub('"', '')
+        .gsub(/[^\w]+/, '-')
+        .gsub(/_+/, '-')
+        .squeeze('-')
+        .squeeze(' ')
+    end
+    return ""
   end
 
   # Returns the list of classes for this page.
@@ -54,8 +71,19 @@ helpers do
   def body_classes_for(page)
     classes = []
 
-    if page && page.data.layout
+    if !(layout = page.data.layout).blank?
       classes << "layout-#{page.data.layout}"
+    end
+
+    if !(title = page.data.page_title).blank?
+      title = title
+        .downcase
+        .gsub('"', '')
+        .gsub(/[^\w]+/, '-')
+        .gsub(/_+/, '-')
+        .squeeze('-')
+        .squeeze(' ')
+      classes << "page-#{title}"
     end
 
     return classes.join(" ")

@@ -1,0 +1,62 @@
+svg.logo {
+  &.color {
+    opacity: 1.0;
+
+    path.top {
+      fill: $nomad-green;
+      opacity: 1.0;
+    }
+
+    path.left {
+      fill: $nomad-green-dark;
+      opacity: 1.0;
+    }
+
+    path.right {
+      fill: $nomad-green-light;
+      opacity: 1.0;
+    }
+
+    path.n {
+      fill: $white;
+      opacity: 1.0;
+    }
+
+    path.text {
+      fill: $black;
+      opacity: 1.0;
+    }
+  }
+
+  // The default logo class is the colored version
+  @extend .color;
+
+  &.white {
+    opacity: 1.0;
+
+    path.top {
+      fill: $white;
+      opacity: 0.8;
+    }
+
+    path.left {
+      fill: $white;
+      opacity: 1.0;
+    }
+
+    path.right {
+      fill: $white;
+      opacity: 0.6;
+    }
+
+    path.n {
+      fill: $nomad-green;
+      opacity: 1.0;
+    }
+
+    path.text {
+      fill: $white;
+      opacity: 1.0;
+    }
+  }
+}

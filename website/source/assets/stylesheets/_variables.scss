@@ -60,3 +60,86 @@ $header-link-color-hover: $black;
 $footer-font-size: $font-size - 2;
 $footer-link-color: $body-font-color;
 $footer-link-color-hover: $black;
+
+
+
+
+
+
+
+
+
+
+//////////////////
+/////////////////////
+///////////////////////////
+
+
+
+
+
+
+
+
+
+// Colors
+$white: #FFFFFF;
+$black: #000000;
+$gray-darker: #555555;
+
+$nomad-green: #2DAA86;
+$nomad-green-dark:#0E7A65;
+$nomad-green-light: #27C48D;
+$packer-blue: #1DAEFF;
+$packer-blue-dark: #1D94DD;
+$vagrant-blue: #1563FF;
+$vagrant-blue-dark: #104EB2;
+$vault-black: #000000;
+$vault-blue: #00ABE0;
+
+// Typography
+$font-family-klavika:   'klavika-web', 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
+$font-family-open-sans: 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
+$font-family-monospace: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace;
+$font-size:             15px;
+$font-weight-reg:       400;
+$font-weight-bold:      600;
+
+// Body
+$body-font-color: $gray-darker;
+$body-link-color: $nomad-green;
+
+// Home
+$home-header-background-color: transparent;
+$home-header-link-color: $gray-darker;
+$home-header-link-color-hover: $black;
+
+// Sidebar
+$sidebar-background-color: $white;
+$sidebar-font-size: $font-size - 2;
+$sidebar-link-color: $body-font-color;
+$sidebar-link-color-hover: $black;
+$sidebar-link-color-active: $body-link-color;
+$sidebar-font-family: $font-family-open-sans;
+$sidebar-font-weight: $font-weight-reg;
+
+// Header
+$header-background-color: $nomad-green;
+$header-font-size: $font-size - 2;
+$header-height: 92px;
+$header-link-color: rgba($white, 0.85);
+$header-link-color-hover: $white;
+
+// Footer
+$footer-font-size: $font-size - 2;
+$footer-link-color: $body-font-color;
+$footer-link-color-hover: $black;
+
+// Button
+$button-background: $white;
+$button-font-color: #7b8A8E;
+$button-font-family: $font-family-klavika;
+$button-font-size: $font-size;
+$button-font-weight: $font-weight-bold;
+$button-primary-background: $nomad-green;
+$button-primary-font-color: $white;

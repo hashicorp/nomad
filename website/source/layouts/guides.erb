@@ -1,30 +1,28 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
-    <div class="docs-sidebar hidden-print affix-top" role="complementary">
-      <ul class="nav docs-sidenav">
-        <li<%= sidebar_current("guides-cluster") %>>
-          <a href="/guides/cluster/bootstrapping.html">Bootstrapping Clusters</a>
-          <ul class="nav">
-            <li<%= sidebar_current("guides-cluster-automatic") %>>
-              <a href="/guides/cluster/automatic.html">Automatic</a>
-            </li>
-            <li<%= sidebar_current("guides-cluster-manual") %>>
-              <a href="/guides/cluster/manual.html">Manual</a>
-            </li>
-            <li<%= sidebar_current("guides-cluster-federation") %>>
-              <a href="/guides/cluster/federation.html">Federation</a>
-            </li>
-            <li<%= sidebar_current("guides-cluster-requirements") %>>
-              <a href="/guides/cluster/requirements.html">Requirements</a>
-            </li>
-          </ul>
-        </li>
+    <ul class="nav docs-sidenav">
+      <li<%= sidebar_current("guides-cluster") %>>
+        <a href="/guides/cluster/bootstrapping.html">Bootstrapping Clusters</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-cluster-automatic") %>>
+            <a href="/guides/cluster/automatic.html">Automatic</a>
+          </li>
+          <li<%= sidebar_current("guides-cluster-manual") %>>
+            <a href="/guides/cluster/manual.html">Manual</a>
+          </li>
+          <li<%= sidebar_current("guides-cluster-federation") %>>
+            <a href="/guides/cluster/federation.html">Federation</a>
+          </li>
+          <li<%= sidebar_current("guides-cluster-requirements") %>>
+            <a href="/guides/cluster/requirements.html">Requirements</a>
+          </li>
+        </ul>
+      </li>
 
-        <li<%= sidebar_current("guides-outage-recovery") %>>
-          <a href="/guides/outage.html">Outage Recovery</a>
-        </li>
-      </ul>
-    </div>
+      <li<%= sidebar_current("guides-outage-recovery") %>>
+        <a href="/guides/outage.html">Outage Recovery</a>
+      </li>
+    </ul>
   <% end %>
 
   <%= yield %>

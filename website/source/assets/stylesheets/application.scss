@@ -11,10 +11,9 @@
 
 // Core variables and mixins
 @import '_variables';
-@import '_mixins';
 
-// Utility classes
-@import '_utilities';
+// Sidebar
+@import 'hashicorp/sidebar';
 
 //Global Site
 @import '_global';
@@ -22,9 +21,10 @@
 // Components
 @import '_header';
 @import '_footer';
+@import '_inner';
 @import '_buttons';
-@import '_sidebar';
 @import '_syntax';
+@import '_logos';
 
 // Pages
 @import '_home';
@@ -32,4 +32,3 @@
 @import '_docs';
 @import '_downloads';
 @import '_api';
-@import '_livestream';
