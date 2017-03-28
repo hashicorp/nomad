@@ -553,6 +553,10 @@ func (f *tokenFuture) Get() string {
 // allows setting the initial Vault token. This is useful when the Vault token
 // is recovered off disk.
 func (r *TaskRunner) vaultManager(token string) {
+	// Always stop renewing the token. If token is empty or untracked, it is a
+	// no-op so this is always safe.
+	defer r.vaultClient.StopRenewToken(r.vaultFuture.Get())
+
 	// updatedToken lets us store state between loops. If true, a new token
 	// has been retrieved and we need to apply the Vault change mode
 	var updatedToken bool
