@@ -78,10 +78,11 @@ const (
 
 // The node values that can be interpreted.
 const (
-	nodeIdKey    = "node.unique.id"
-	nodeDcKey    = "node.datacenter"
-	nodeNameKey  = "node.unique.name"
-	nodeClassKey = "node.class"
+	nodeIdKey     = "node.unique.id"
+	nodeDcKey     = "node.datacenter"
+	nodeRegionKey = "node.region"
+	nodeNameKey   = "node.unique.name"
+	nodeClassKey  = "node.class"
 
 	// Prefixes used for lookups.
 	nodeAttributePrefix = "attr."
@@ -241,6 +242,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		// Set up the node values.
 		t.NodeValues[nodeIdKey] = t.Node.ID
 		t.NodeValues[nodeDcKey] = t.Node.Datacenter
+		t.NodeValues[nodeRegionKey] = t.Node.Region
 		t.NodeValues[nodeNameKey] = t.Node.Name
 		t.NodeValues[nodeClassKey] = t.Node.NodeClass
 
