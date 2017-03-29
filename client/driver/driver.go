@@ -295,6 +295,8 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 		SetJobName(alloc.Job.Name).
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
+		SetDatacenterName(node.Datacenter)
+		SetRegionName(node.Region)
 
 	// Vary paths by filesystem isolation used
 	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())

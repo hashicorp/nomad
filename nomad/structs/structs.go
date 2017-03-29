@@ -735,6 +735,9 @@ type Node struct {
 	// Datacenter for this node
 	Datacenter string
 
+	// Region for this node
+	Region string
+
 	// Node name
 	Name string
 
