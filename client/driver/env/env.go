@@ -203,6 +203,12 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	if t.JobName != "" {
 		t.TaskEnv[JobName] = t.JobName
 	}
+	if t.Datacenter != "" {
+		t.TaskEnv[Datacenter] = t.Datacenter
+	}
+	if t.Region != "" {
+		t.TaskEnv[Region] = t.Region
+	}
 
 	// Build the addr of the other tasks
 	if t.Alloc != nil {
@@ -496,13 +502,13 @@ func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
 	return t
 }
 
-func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
-	t.JobName = name
+func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
+	t.TaskName = ""
 	return t
 }
 
-func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
-	t.TaskName = ""
+func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
+	t.JobName = name
 	return t
 }
 
