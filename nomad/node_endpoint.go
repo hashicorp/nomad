@@ -1123,7 +1123,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 		if rerr, ok := createErr.(*structs.RecoverableError); ok {
 			reply.Error = rerr
-		} else if err != nil {
+		} else {
 			reply.Error = structs.NewRecoverableError(createErr, false).(*structs.RecoverableError)
 		}
 
