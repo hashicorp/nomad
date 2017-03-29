@@ -97,6 +97,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
+* `sysctls` - (Optional) A key-value map of sysctl configurations to set to the
+  containers on start.
+
+    ```hcl
+    config {
+      sysctls {
+        net.core.somaxconn = "16384"
+      }
+    }
+    ```
+
+* `ulimits` - (Optional) A key-value map of ulimits configurations to set to the
+  containers on start.
+
+    ```hcl
+    config {
+      ulimits {
+        nproc = "4242"
+        nofile = "2048:4096"
+      }
+    }
+    ```
+
+* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
+  the container access to devices on the host. Note that this also requires the
+  nomad agent and docker daemon to be configured to allow privileged
+  containers.
+
 * `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
   is `none` for a private IPC namespace. Other values are `host` for sharing
   the host IPC namespace or the name or id of an existing container. Note that
