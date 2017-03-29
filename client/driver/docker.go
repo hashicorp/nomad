@@ -176,6 +176,10 @@ type DockerDriverConfig struct {
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
+	SysctlsRaw       []map[string]string `mapstructure:"sysctls"`            //
+	Sysctls          map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
+	UlimitsRaw       []map[string]string `mapstructure:"ulimits"`            //
+	Ulimits          []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
@@ -199,6 +203,37 @@ type DockerDriverConfig struct {
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
 }
 
+func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
+	var ulimits []docker.ULimit
+
+	for name, ulimitRaw := range ulimitsRaw {
+		splitted := strings.SplitN(ulimitRaw, ":", 2)
+
+		soft, err := strconv.Atoi(splitted[0])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+		}
+
+		ulimit := docker.ULimit{
+			Name: name,
+			Soft: int64(soft),
+			Hard: int64(soft), // default: can be override
+		}
+
+		// hard limit is optional
+		if len(splitted) == 2 {
+			if hard, err := strconv.Atoi(splitted[1]); err != nil {
+				return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+			} else {
+				ulimit.Hard = int64(hard)
+			}
+		}
+
+		ulimits = append(ulimits, ulimit)
+	}
+	return ulimits, nil
+}
+
 // Validate validates a docker driver config
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
@@ -220,6 +255,18 @@ func (c *DockerDriverConfig) Validate() error {
 			}
 		}
 	}
+	c.Sysctls = mapMergeStrStr(c.SysctlsRaw...)
+	c.Labels = mapMergeStrStr(c.LabelsRaw...)
+	if len(c.Logging) > 0 {
+		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
+	}
+
+	mergedUlimitsRaw := mapMergeStrStr(c.UlimitsRaw...)
+	ulimits, err := sliceMergeUlimit(mergedUlimitsRaw)
+	if err != nil {
+		return err
+	}
+	c.Ulimits = ulimits
 	return nil
 }
 
@@ -253,6 +300,20 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
+
+	for _, m := range dconf.SysctlsRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
+
+	for _, m := range dconf.UlimitsRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -505,6 +566,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"userns_mode": {
 				Type: fields.TypeString,
+			},
+			"sysctls": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"ulimits": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 			"port_map": {
 				Type: fields.TypeArray,
@@ -1108,6 +1175,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
+	hostConfig.Sysctls = driverConfig.Sysctls
+	hostConfig.Ulimits = driverConfig.Ulimits
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
