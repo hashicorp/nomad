@@ -876,6 +876,21 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	if act := string(data); act != token {
 		t.Fatalf("Token didn't get written to disk properly, got %q; want %q", act, token)
 	}
+
+	// Check the token was revoked
+	m := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
+	testutil.WaitForResult(func() (bool, error) {
+		if len(m.StoppedTokens) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", m.StoppedTokens)
+		}
+
+		if a := m.StoppedTokens[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
@@ -946,6 +961,21 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	if act := string(data); act != token {
 		t.Fatalf("Token didn't get written to disk properly, got %q; want %q", act, token)
 	}
+
+	// Check the token was revoked
+	m := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
+	testutil.WaitForResult(func() (bool, error) {
+		if len(m.StoppedTokens) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", m.StoppedTokens)
+		}
+
+		if a := m.StoppedTokens[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
@@ -1211,6 +1241,21 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 			return false, fmt.Errorf("Template manager not ctx.updated")
 		}
 
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Check the token was revoked
+	m := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
+	testutil.WaitForResult(func() (bool, error) {
+		if len(m.StoppedTokens) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", m.StoppedTokens)
+		}
+
+		if a := m.StoppedTokens[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)

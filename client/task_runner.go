@@ -553,9 +553,12 @@ func (f *tokenFuture) Get() string {
 // allows setting the initial Vault token. This is useful when the Vault token
 // is recovered off disk.
 func (r *TaskRunner) vaultManager(token string) {
-	// Always stop renewing the token. If token is empty or untracked, it is a
-	// no-op so this is always safe.
-	defer r.vaultClient.StopRenewToken(r.vaultFuture.Get())
+	// Helper for stopping token renewal
+	stopRenewal := func() {
+		if err := r.vaultClient.StopRenewToken(r.vaultFuture.Get()); err != nil {
+			r.logger.Printf("[WARN] client: failed to stop token renewal for task %v in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+		}
+	}
 
 	// updatedToken lets us store state between loops. If true, a new token
 	// has been retrieved and we need to apply the Vault change mode
@@ -566,6 +569,7 @@ OUTER:
 		// Check if we should exit
 		select {
 		case <-r.waitCh:
+			stopRenewal()
 			return
 		default:
 		}
@@ -643,12 +647,14 @@ OUTER:
 			// Clear the token
 			token = ""
 			r.logger.Printf("[ERR] client: failed to renew Vault token for task %v on alloc %q: %v", r.task.Name, r.alloc.ID, err)
+			stopRenewal()
 
 			// Check if we have to do anything
 			if r.task.Vault.ChangeMode != structs.VaultChangeModeNoop {
 				updatedToken = true
 			}
 		case <-r.waitCh:
+			stopRenewal()
 			return
 		}
 	}
