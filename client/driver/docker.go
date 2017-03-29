@@ -166,9 +166,17 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 	var ulimits []docker.ULimit
 
 	for name, ulimitRaw := range ulimitsRaw {
-		splitted := strings.SplitN(ulimitRaw, ":", 2)
+		// hard limit is optional
+		if strings.Contains(ulimitRaw, ":") == false {
+			ulimitRaw = ulimitRaw + ":" + ulimitRaw
+		}
 
+		splitted := strings.SplitN(ulimitRaw, ":", 2)
 		soft, err := strconv.Atoi(splitted[0])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+		}
+		hard, err := strconv.Atoi(splitted[1])
 		if err != nil {
 			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
 		}
@@ -176,18 +184,8 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 		ulimit := docker.ULimit{
 			Name: name,
 			Soft: int64(soft),
-			Hard: int64(soft), // default: can be override
+			Hard: int64(hard),
 		}
-
-		// hard limit is optional
-		if len(splitted) == 2 {
-			if hard, err := strconv.Atoi(splitted[1]); err != nil {
-				return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
-			} else {
-				ulimit.Hard = int64(hard)
-			}
-		}
-
 		ulimits = append(ulimits, ulimit)
 	}
 	return ulimits, nil
