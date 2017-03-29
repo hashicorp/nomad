@@ -517,6 +517,26 @@ func (t *TaskEnvironment) ClearJobName() *TaskEnvironment {
 	return t
 }
 
+func (t *TaskEnvironment) SetDatacenterName(name string) *TaskEnvironment {
+	t.JobName = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearDatacenterName() *TaskEnvironment {
+	t.JobName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetRegionName(name string) *TaskEnvironment {
+	t.JobName = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearRegionName() *TaskEnvironment {
+	t.JobName = ""
+	return t
+}
+
 func (t *TaskEnvironment) SetVaultToken(token string, inject bool) *TaskEnvironment {
 	t.VaultToken = token
 	t.InjectVaultToken = inject
