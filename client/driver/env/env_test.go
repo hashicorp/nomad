@@ -53,11 +53,11 @@ func testTaskEnvironment() *TaskEnvironment {
 	n.Name = nodeName
 	n.NodeClass = nodeClass
 
-	envVars := map[string]string{
+	envvars := map[string]string{
 		envOneKey: envOneVal,
 		envTwoKey: envTwoVal,
 	}
-	return NewTaskEnvironment(n).SetEnvvars(envVars).Build()
+	return NewTaskEnvironment(n).SetEnvvars(envvars).Build()
 }
 
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
@@ -266,7 +266,7 @@ func TestEnvironment_ClearEnvvars(t *testing.T) {
 	}
 }
 
-func TestEnvironment_Interprolate(t *testing.T) {
+func TestEnvironment_Interpolate(t *testing.T) {
 	env := testTaskEnvironment().
 		SetEnvvars(map[string]string{"test": "${node.class}", "test2": "${attr.arch}"}).
 		Build()
@@ -280,7 +280,7 @@ func TestEnvironment_Interprolate(t *testing.T) {
 	}
 }
 
-func TestEnvironment_AppendHostEnvVars(t *testing.T) {
+func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 	host := os.Environ()
 	if len(host) < 2 {
 		t.Skip("No host environment variables. Can't test")
