@@ -520,22 +520,22 @@ func (t *TaskEnvironment) ClearJobName() *TaskEnvironment {
 }
 
 func (t *TaskEnvironment) SetDatacenterName(name string) *TaskEnvironment {
-	t.JobName = name
+	t.Datacenter = name
 	return t
 }
 
 func (t *TaskEnvironment) ClearDatacenterName() *TaskEnvironment {
-	t.JobName = ""
+	t.Datacenter = ""
 	return t
 }
 
 func (t *TaskEnvironment) SetRegionName(name string) *TaskEnvironment {
-	t.JobName = name
+	t.Region = name
 	return t
 }
 
 func (t *TaskEnvironment) ClearRegionName() *TaskEnvironment {
-	t.JobName = ""
+	t.Region = ""
 	return t
 }
 
