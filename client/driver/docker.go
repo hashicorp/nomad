@@ -985,14 +985,16 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 			ServerAddress: driverConfig.Auth[0].ServerAddress,
 		}
 	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-		var err error
-		authOptions, err = authOptionFrom(authConfigFile, repo)
+		var warning, err error
+		authOptions, warning, err = authOptionFrom(authConfigFile, repo)
 		if err != nil {
 			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
 			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+		} else if warning != nil {
+			d.logger.Printf("[WARNING] driver.docker: failed to find docker auth for repo %q: %v", repo, warning)
 		}
 
-		if authOptions.Email == "" && authOptions.Password == "" &&
+		if authOptions == nil || authOptions.Email == "" && authOptions.Password == "" &&
 			authOptions.ServerAddress == "" && authOptions.Username == "" {
 			d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 		}
@@ -1410,26 +1412,26 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 // authOptionFrom takes the Docker auth config file and the repo being pulled
 // and returns an AuthConfiguration or an error if the file/repo could not be
 // parsed or looked up.
-func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
+func authOptionFrom(file, repo string) (auth *docker.AuthConfiguration, warning, failure error) {
 	name, err := reference.ParseNamed(repo)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
+		return nil, nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
 	}
 
 	repoInfo, err := registry.ParseRepositoryInfo(name)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse repository: %v", err)
+		return nil, nil, fmt.Errorf("Failed to parse repository: %v", err)
 	}
 
 	f, err := os.Open(file)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err), nil
 	}
 	defer f.Close()
 
 	cfile := new(configfile.ConfigFile)
 	if err := cfile.LoadFromReader(f); err != nil {
-		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+		return nil, nil, fmt.Errorf("Failed to parse auth config file: %v", err)
 	}
 
 	dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
@@ -1442,5 +1444,5 @@ func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
 		ServerAddress: dockerAuthConfig.ServerAddress,
 	}
 
-	return apiAuthConfig, nil
+	return apiAuthConfig, nil, nil
 }
