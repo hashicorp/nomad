@@ -121,7 +121,7 @@ func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient 
 	return &ServiceClient{
 		client:         consulClient,
 		logger:         logger,
-		retryInterval:  defaultSyncInterval, //TODO what should this default to?!
+		retryInterval:  defaultSyncInterval,
 		runningCh:      make(chan struct{}),
 		shutdownCh:     make(chan struct{}),
 		shutdownWait:   defaultShutdownWait,
@@ -158,7 +158,6 @@ func (c *ServiceClient) Run() {
 					lastOk = false
 					c.logger.Printf("[WARN] consul: failed to update services in Consul: %v", err)
 				}
-				//TODO Log? and jitter/backoff
 				timer.Reset(c.retryInterval)
 			} else {
 				if !lastOk {
