@@ -61,6 +61,14 @@ environment variables.
     <td>The job's name</td>
   </tr>
   <tr>
+    <td>`NOMAD_DC`</td>
+    <td>The datacenter in which the job is running.</td>
+  </tr>
+  <tr>
+    <td>`NOMAD_REGION`</td>
+    <td>The region in which the job is running.</td>
+  </tr>
+  <tr>
     <td>`NOMAD_IP_<label>`</td>
     <td>The IP of the port with the given label</td>
   </tr>
