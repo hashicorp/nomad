@@ -57,7 +57,7 @@ Developing Nomad
 
 If you wish to work on Nomad itself or any of its built-in systems,
 you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.7+ is *required*).
+machine (version 1.8+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
