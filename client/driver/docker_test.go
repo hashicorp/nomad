@@ -692,8 +692,8 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 func TestDockerDriver_Sysctls_Ulimits(t *testing.T) {
 	task, _, _ := dockerTask()
 	expectedUlimits := map[string]string{
-		"nproc":   "4242",
-		"nofiles": "2048:4096",
+		"nproc":  "4242",
+		"nofile": "2048:4096",
 	}
 	task.Config["sysctls"] = []map[string]string{
 		map[string]string{
