@@ -74,7 +74,6 @@ type ServiceClient struct {
 	client        AgentAPI
 	logger        *log.Logger
 	retryInterval time.Duration
-	syncInterval  time.Duration
 
 	// runningCh is closed when the main Run loop exits
 	runningCh chan struct{}
@@ -123,7 +122,6 @@ func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient 
 		client:         consulClient,
 		logger:         logger,
 		retryInterval:  defaultSyncInterval, //TODO what should this default to?!
-		syncInterval:   defaultSyncInterval,
 		runningCh:      make(chan struct{}),
 		shutdownCh:     make(chan struct{}),
 		shutdownWait:   defaultShutdownWait,
