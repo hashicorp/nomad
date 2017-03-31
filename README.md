@@ -17,8 +17,8 @@ The key features of Nomad are:
 
 * **Docker Support**: Jobs can specify tasks which are Docker containers.
   Nomad will automatically run the containers on clients which have Docker
-  installed, scale up and down based on the number of instances requested,
-  and automatically recover from failures.
+  installed, scale up and down based on the number of instances requested, and
+  automatically recover from failures.
 
 * **Multi-Datacenter and Multi-Region Aware**: Nomad is designed to be
   a global-scale scheduler. Multiple datacenters can be managed as part
