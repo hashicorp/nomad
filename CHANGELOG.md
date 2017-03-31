@@ -1,7 +1,10 @@
 ## 0.5.6 (Unreleased)
 
 IMPROVEMENTS:
+  * api: Improve log API error when task doesn't exist or hasn't started
+    [GH-2512]
   * client: Improve error message when artifact downloading fails [GH-2289]
+  * client: Track task start/finish time [GH-2512]
   * client/template: Access Node meta and attributes in template [GH-2488]
 
 BUG FIXES:
