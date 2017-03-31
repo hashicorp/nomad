@@ -176,10 +176,10 @@ type DockerDriverConfig struct {
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
-	SysctlsRaw       []map[string]string `mapstructure:"sysctls"`            //
-	Sysctls          map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
-	UlimitsRaw       []map[string]string `mapstructure:"ulimits"`            //
-	Ulimits          []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
+	SysctlRaw        []map[string]string `mapstructure:"sysctl"`             //
+	Sysctl           map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
+	UlimitRaw        []map[string]string `mapstructure:"ulimit"`             //
+	Ulimit           []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
@@ -242,7 +242,6 @@ func (c *DockerDriverConfig) Validate() error {
 			if dev.HostPath == "" {
 				return fmt.Errorf("host path must be set in configuration for devices")
 			}
-
 			if dev.CgroupPermissions != "" {
 				for _, c := range dev.CgroupPermissions {
 					ch := string(c)
@@ -253,18 +252,18 @@ func (c *DockerDriverConfig) Validate() error {
 			}
 		}
 	}
-	c.Sysctls = mapMergeStrStr(c.SysctlsRaw...)
+	c.Sysctl = mapMergeStrStr(c.SysctlRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
 	if len(c.Logging) > 0 {
 		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
 	}
 
-	mergedUlimitsRaw := mapMergeStrStr(c.UlimitsRaw...)
-	ulimits, err := sliceMergeUlimit(mergedUlimitsRaw)
+	mergedUlimitsRaw := mapMergeStrStr(c.UlimitRaw...)
+	ulimit, err := sliceMergeUlimit(mergedUlimitsRaw)
 	if err != nil {
 		return err
 	}
-	c.Ulimits = ulimits
+	c.Ulimit = ulimit
 	return nil
 }
 
@@ -299,14 +298,14 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
 
-	for _, m := range dconf.SysctlsRaw {
+	for _, m := range dconf.SysctlRaw {
 		for k, v := range m {
 			delete(m, k)
 			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 		}
 	}
 
-	for _, m := range dconf.UlimitsRaw {
+	for _, m := range dconf.UlimitRaw {
 		for k, v := range m {
 			delete(m, k)
 			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
@@ -565,10 +564,10 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"userns_mode": {
 				Type: fields.TypeString,
 			},
-			"sysctls": &fields.FieldSchema{
+			"sysctl": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
-			"ulimits": &fields.FieldSchema{
+			"ulimit": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 			"port_map": {
@@ -1173,8 +1172,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
-	hostConfig.Sysctls = driverConfig.Sysctls
-	hostConfig.Ulimits = driverConfig.Ulimits
+	hostConfig.Sysctls = driverConfig.Sysctl
+	hostConfig.Ulimits = driverConfig.Ulimit
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {

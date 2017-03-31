@@ -75,6 +75,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
+<<<<<<< 657619c0ec51068e48a34817ddc4df267b6cce6f
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
@@ -97,23 +98,23 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
-* `sysctls` - (Optional) A key-value map of sysctl configurations to set to the
-  containers on start.
+* `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+
 
     ```hcl
     config {
-      sysctls {
+      sysctl {
         net.core.somaxconn = "16384"
       }
     }
     ```
 
-* `ulimits` - (Optional) A key-value map of ulimits configurations to set to the
+* `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
   containers on start.
 
     ```hcl
     config {
-      ulimits {
+      ulimit {
         nproc = "4242"
         nofile = "2048:4096"
       }
