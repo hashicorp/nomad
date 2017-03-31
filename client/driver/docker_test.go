@@ -689,18 +689,18 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_Sysctls_Ulimits(t *testing.T) {
+func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	task, _, _ := dockerTask()
 	expectedUlimits := map[string]string{
 		"nproc":  "4242",
 		"nofile": "2048:4096",
 	}
-	task.Config["sysctls"] = []map[string]string{
+	task.Config["sysctl"] = []map[string]string{
 		map[string]string{
 			"net.core.somaxconn": "16384",
 		},
 	}
-	task.Config["ulimits"] = []map[string]string{
+	task.Config["ulimit"] = []map[string]string{
 		expectedUlimits,
 	}
 
@@ -719,7 +719,7 @@ func TestDockerDriver_Sysctls_Ulimits(t *testing.T) {
 	}
 
 	if want, got := 2, len(container.HostConfig.Ulimits); want != got {
-		t.Errorf("Wrong number of ulimit configs for docker job. Expect: %s, got: %s", want, got)
+		t.Errorf("Wrong number of ulimit configs for docker job. Expect: %d, got: %d", want, got)
 	}
 	for _, got := range container.HostConfig.Ulimits {
 		if expectedStr, ok := expectedUlimits[got.Name]; ok == false {
