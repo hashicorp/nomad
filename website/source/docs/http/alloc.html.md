@@ -225,6 +225,8 @@ be specified using the `?region=` query parameter.
             }
           ],
           "State": "running"
+          "FinishedAt": "0001-01-01T00:00:00Z",
+          "StartedAt": "2017-03-31T22:51:40.248633594Z",
           "Failed": false,
         }
       },
@@ -246,6 +248,10 @@ be specified using the `?region=` query parameter.
       time or due to a restart.
     * `TaskStateRunning` - The task is currently running.
     * `TaskStateDead` - The task is dead and will not run again.
+
+    Further the state contains the `StartedAt` and `FinishedAt` times of the
+    task. `StartedAt` can be updated multiple times if the task restarts but
+    `FinishedAt` is set only when the task transistions to `TaskStateDead`
 
     <p>The latest 10 events are stored per task. Each event is timestamped (unix nano-seconds)
     and has one of the following types:</p>

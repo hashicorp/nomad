@@ -761,6 +761,24 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		return nil, err
 	}
 
+	alloc, err := s.agent.client.GetClientAlloc(allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that the task is there
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return nil, fmt.Errorf("Failed to lookup task group for allocation")
+	} else if taskStruct := tg.LookupTask(task); taskStruct == nil {
+		return nil, CodedError(404, fmt.Sprintf("task group %q does not have task with name %q", alloc.TaskGroup, task))
+	}
+
+	state, ok := alloc.TaskStates[task]
+	if !ok || state.StartedAt.IsZero() {
+		return nil, CodedError(404, fmt.Sprintf("task %q not started yet. No logs available", task))
+	}
+
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
