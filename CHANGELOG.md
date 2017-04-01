@@ -1,4 +1,4 @@
-## 0.5.6 (Unreleased)
+## 0.5.6 (March 31, 2017)
 
 IMPROVEMENTS:
   * api: Improve log API error when task doesn't exist or hasn't started
