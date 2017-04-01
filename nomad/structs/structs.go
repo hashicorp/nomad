@@ -203,8 +203,9 @@ type NodeUpdateStatusRequest struct {
 
 // NodeUpdateDrainRequest is used for updatin the drain status
 type NodeUpdateDrainRequest struct {
-	NodeID string
-	Drain  bool
+	NodeID     string
+	Drain      bool
+	Reallocate bool
 	WriteRequest
 }
 

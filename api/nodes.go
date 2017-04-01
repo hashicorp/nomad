@@ -42,9 +42,12 @@ func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) 
 }
 
 // ToggleDrain is used to toggle drain mode on/off for a given node.
-func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteMeta, error) {
+func (n *Nodes) ToggleDrain(nodeID string, drain bool, reallocate bool, q *WriteOptions) (*WriteMeta, error) {
 	drainArg := strconv.FormatBool(drain)
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain?enable="+drainArg, nil, nil, q)
+
+	reallocateArg := strconv.FormatBool(reallocate)
+	// ? indicates first query param and & any additional
+	wm, err := n.client.write("/v1/node/"+nodeID+"/drain?enable="+drainArg+"&reallocate="+reallocateArg, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}
