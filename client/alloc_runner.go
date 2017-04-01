@@ -388,8 +388,11 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			taskState.StartedAt = time.Now().UTC()
 		}
 	case structs.TaskStateDead:
-		// Capture the finished time
-		taskState.FinishedAt = time.Now().UTC()
+		// Capture the finished time. If it has never started there is no finish
+		// time
+		if !taskState.StartedAt.IsZero() {
+			taskState.FinishedAt = time.Now().UTC()
+		}
 
 		// Find all tasks that are not the one that is dead and check if the one
 		// that is dead is a leader

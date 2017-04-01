@@ -633,9 +633,6 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		if state1.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state1.State, structs.TaskStateDead)
 		}
-		if state1.FinishedAt.IsZero() || state1.StartedAt.IsZero() {
-			return false, fmt.Errorf("expected to have a start and finish time")
-		}
 		if len(state1.Events) < 2 {
 			// At least have a received and destroyed
 			return false, fmt.Errorf("Unexpected number of events")
