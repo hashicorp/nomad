@@ -40,7 +40,7 @@ var (
 	TaskSecrets = "secrets"
 
 	// TaskDirs is the set of directories created in each tasks directory.
-	TaskDirs = []string{"tmp"}
+	TaskDirs = map[string]os.FileMode{"tmp": os.ModeSticky | 0777}
 )
 
 type AllocDir struct {
@@ -250,7 +250,7 @@ func (d *AllocDir) Build() error {
 	}
 
 	// Make the shared directory have non-root permissions.
-	if err := dropDirPermissions(d.SharedDir); err != nil {
+	if err := dropDirPermissions(d.SharedDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -260,7 +260,7 @@ func (d *AllocDir) Build() error {
 		if err := os.MkdirAll(p, 0777); err != nil {
 			return err
 		}
-		if err := dropDirPermissions(p); err != nil {
+		if err := dropDirPermissions(p, os.ModePerm); err != nil {
 			return err
 		}
 	}

@@ -51,7 +51,7 @@ func removeSecretDir(dir string) error {
 }
 
 // The windows version does nothing currently.
-func dropDirPermissions(path string) error {
+func dropDirPermissions(path string, desired os.FileMode) error {
 	return nil
 }
 
