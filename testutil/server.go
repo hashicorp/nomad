@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/nomad/helper/discover"
 )
 
 // offset is used to atomically increment the port numbers.
@@ -126,8 +127,9 @@ type TestServer struct {
 // NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
 func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
-	if path, err := exec.LookPath("nomad"); err != nil || path == "" {
-		t.Skip("nomad not found on $PATH, skipping")
+	path, err := discover.NomadExecutable()
+	if err != nil {
+		t.Skipf("nomad not found, skipping: %v", err)
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")
@@ -175,7 +177,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Start the server
-	cmd := exec.Command("nomad", args...)
+	cmd := exec.Command(path, args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
