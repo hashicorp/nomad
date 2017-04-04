@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -46,7 +47,11 @@ func NewTestVault(t *testing.T) *TestVault {
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
 
-	cmd := exec.Command("vault", "server", "-dev", bind, root)
+	bin := "vault"
+	if runtime.GOOS == "windows" {
+		bin = "vault.exe"
+	}
+	cmd := exec.Command(bin, "server", "-dev", bind, root)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
