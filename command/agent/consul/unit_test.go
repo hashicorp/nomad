@@ -323,8 +323,8 @@ func TestConsul_ShutdownOK(t *testing.T) {
 	}
 
 	// Nothing should be enqueued anymore
-	enqueued := (len(ctx.ServiceClient.regServices) + len(ctx.ServiceClient.deregServices) +
-		len(ctx.ServiceClient.regChecks) + len(ctx.ServiceClient.deregChecks))
+	enqueued := (len(ctx.ServiceClient.pending.regServices) + len(ctx.ServiceClient.pending.deregServices) +
+		len(ctx.ServiceClient.pending.regChecks) + len(ctx.ServiceClient.pending.deregChecks))
 	if enqueued > 0 {
 		t.Errorf("%d operations still enqueued", enqueued)
 	}

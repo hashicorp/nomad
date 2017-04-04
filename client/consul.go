@@ -10,4 +10,5 @@ import (
 type ConsulServiceAPI interface {
 	RegisterTask(allocID string, task *structs.Task, exec consul.ScriptExecutor) error
 	RemoveTask(allocID string, task *structs.Task)
+	UpdateTask(allocID string, existing, newTask *structs.Task, exec consul.ScriptExecutor) error
 }

@@ -1386,15 +1386,27 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
 	var mErr multierror.Error
-	var scriptExec consul.ScriptExecutor
 	r.handleLock.Lock()
 	if r.handle != nil {
 		// Update will update resources and store the new kill timeout.
 		if err := r.handle.Update(updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
-		// Not all drivers support Exec (eg QEMU)
-		scriptExec, _ = r.handle.(consul.ScriptExecutor)
+
+		//FIXME is there a better place to do this? used to be in executor
+		// Prepare services
+		interpolateServices(r.getTaskEnv(), updatedTask)
+
+		// Not all drivers support Exec (eg QEMU), but RegisterTask
+		// handles nil ScriptExecutors
+		scriptExec, _ := r.handle.(consul.ScriptExecutor)
+
+		// Since the handle exists, the task is running, so we need to
+		// update it in Consul (if the handle doesn't exist
+		// registration in Consul will happen when it's created)
+		if err := r.consul.UpdateTask(r.alloc.ID, r.task, updatedTask, scriptExec); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
+		}
 	}
 	r.handleLock.Unlock()
 
@@ -1403,21 +1415,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		r.restartTracker.SetPolicy(tg.RestartPolicy)
 	}
 
-	// Deregister the old service+checks
-	r.consul.RemoveTask(r.alloc.ID, r.task)
-
 	// Store the updated alloc.
 	r.alloc = update
 	r.task = updatedTask
-
-	//FIXME is there a better place to do this? used to be in executor
-	// Prepare services
-	interpolateServices(r.getTaskEnv(), r.task)
-
-	// Register the new service+checks
-	if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("error registering updated task with consul: %v", err))
-	}
 	return mErr.ErrorOrNil()
 }
 
