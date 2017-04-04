@@ -1,0 +1,13 @@
+version: "build-{branch}-{build}"
+image: Visual Studio 2017
+clone_folder: c:\gopath\src\github.com\hashicorp\nomad
+environment:
+  GOPATH: c:\gopath
+install:
+- cmd: echo %Path%
+- cmd: go version
+- cmd: go env
+- cmd: go get github.com/hashicorp/vault
+- cmd: go install
+build_script:
+- cmd: go test -v -tags nomad_test ./...
