@@ -1,7 +1,6 @@
 package fingerprint
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -56,10 +55,11 @@ func NewNetworkFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// newNetwork is populated and addded to the Nodes resources
-	newNetwork := &structs.NetworkResource{}
-	var ip string
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
 
+	// Find the named interface
 	intf, err := f.findInterface(cfg.NetworkInterface)
 	switch {
 	case err != nil:
@@ -69,51 +69,54 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		return false, nil
 	}
 
-	if ip, err = f.ipAddress(intf); err != nil {
-		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
-	}
-
-	newNetwork.Device = intf.Name
-	node.Attributes["unique.network.ip-address"] = ip
-	newNetwork.IP = ip
-	newNetwork.CIDR = newNetwork.IP + "/32"
-
-	f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP %v during fingerprinting", intf.Name, ip)
-
+	// Record the throughput of the interface
+	var mbits int
 	throughput := f.linkSpeed(intf.Name)
 	if cfg.NetworkSpeed != 0 {
-		newNetwork.MBits = cfg.NetworkSpeed
-		f.logger.Printf("[DEBUG] fingerprint.network: setting link speed to user configured speed: %d", newNetwork.MBits)
+		mbits = cfg.NetworkSpeed
+		f.logger.Printf("[DEBUG] fingerprint.network: setting link speed to user configured speed: %d", mbits)
 	} else if throughput != 0 {
-		newNetwork.MBits = throughput
-		f.logger.Printf("[DEBUG] fingerprint.network: link speed for %v set to %v", intf.Name, newNetwork.MBits)
+		mbits = throughput
+		f.logger.Printf("[DEBUG] fingerprint.network: link speed for %v set to %v", intf.Name, mbits)
 	} else {
-		newNetwork.MBits = defaultNetworkSpeed
+		mbits = defaultNetworkSpeed
 		f.logger.Printf("[DEBUG] fingerprint.network: link speed could not be detected and no speed specified by user. Defaulting to %d", defaultNetworkSpeed)
 	}
 
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
+	var ips []net.IP
+	if ips, err = f.ipAddrs(intf); err != nil || len(ips) == 0 {
+		return false, fmt.Errorf("Unable to find IP address of interface: %s, err: %v", intf.Name, err)
 	}
 
-	node.Resources.Networks = append(node.Resources.Networks, newNetwork)
+	for _, ip := range ips {
+		newNetwork := &structs.NetworkResource{}
+		newNetwork.Device = intf.Name
+		newNetwork.IP = ip.String()
+		if ip.To4() != nil {
+			newNetwork.CIDR = newNetwork.IP + "/32"
+		} else {
+			newNetwork.CIDR = newNetwork.IP + "/64"
+		}
+		newNetwork.MBits = mbits
+		node.Resources.Networks = append(node.Resources.Networks, newNetwork)
+
+		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP %v during fingerprinting", intf.Name, ip)
+	}
 
 	// return true, because we have a network connection
 	return true, nil
 }
 
-// Gets the ipv4 addr for a network interface
-func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
+// ipAddrs gets all the ipv addresses associated with a network interface
+func (f *NetworkFingerprint) ipAddrs(intf *net.Interface) ([]net.IP, error) {
 	var addrs []net.Addr
 	var err error
 
 	if addrs, err = f.interfaceDetector.Addrs(intf); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if len(addrs) == 0 {
-		return "", errors.New(fmt.Sprintf("Interface %s has no IP address", intf.Name))
-	}
+	ips := make([]net.IP, 0)
 	for _, addr := range addrs {
 		var ip net.IP
 		switch v := (addr).(type) {
@@ -122,12 +125,10 @@ func (f *NetworkFingerprint) ipAddress(intf *net.Interface) (string, error) {
 		case *net.IPAddr:
 			ip = v.IP
 		}
-		if ip.To4() != nil {
-			return ip.String(), nil
-		}
+		ips = append(ips, ip)
 	}
 
-	return "", fmt.Errorf("Couldn't parse IP address for interface %s", intf.Name)
+	return ips, nil
 
 }
 
@@ -138,7 +139,7 @@ func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
 
 // Checks if the device has any IP address configured
 func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
-	_, err := f.ipAddress(intf)
+	_, err := f.ipAddrs(intf)
 	return err == nil
 }
 
