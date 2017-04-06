@@ -414,12 +414,13 @@ func TestClient_MixedTLS(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
-	deadline := time.Now().Add(1234 * time.Millisecond)
+	deadline := time.Now().Add(100 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		err := c1.RPC("Node.GetNode", &req, &out)
 		if err == nil {
 			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
 		}
+		time.Sleep(3 * time.Millisecond)
 	}
 }
 
@@ -466,12 +467,13 @@ func TestClient_BadTLS(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
-	deadline := time.Now().Add(1234 * time.Millisecond)
+	deadline := time.Now().Add(100 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		err := c1.RPC("Node.GetNode", &req, &out)
 		if err == nil {
 			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
 		}
+		time.Sleep(3 * time.Millisecond)
 	}
 }
 
