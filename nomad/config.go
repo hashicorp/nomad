@@ -92,9 +92,6 @@ type Config struct {
 	// RaftTimeout is applied to any network traffic for raft. Defaults to 10s.
 	RaftTimeout time.Duration
 
-	// RequireTLS ensures that all RPC traffic is protected with TLS
-	RequireTLS bool
-
 	// SerfConfig is the configuration for the serf cluster
 	SerfConfig *serf.Config
 

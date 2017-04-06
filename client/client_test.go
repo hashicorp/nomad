@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 
@@ -379,6 +380,98 @@ func TestClient_Drivers_WhitelistBlacklistCombination(t *testing.T) {
 	// Check expected absent
 	if node.Attributes["driver.exec"] != "" {
 		t.Fatalf("exec driver loaded despite blacklist")
+	}
+}
+
+// TestClient_MixedTLS asserts that when a server is running with TLS enabled
+// it will reject any RPC connections from clients that lack TLS. See #2525
+func TestClient_MixedTLS(t *testing.T) {
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+	deadline := time.Now().Add(1234 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		err := c1.RPC("Node.GetNode", &req, &out)
+		if err == nil {
+			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
+		}
+	}
+}
+
+// TestClient_BadTLS asserts that when a client and server are running with TLS
+// enabled -- but their certificates are signed by different CAs -- they're
+// unable to communicate.
+func TestClient_BadTLS(t *testing.T) {
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		badca   = "../helper/tlsutil/testdata/ca-bad.pem"
+		badcert = "../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey  = "../helper/tlsutil/testdata/nomad-bad-key.pem"
+	)
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               badca,
+			CertFile:             badcert,
+			KeyFile:              badkey,
+		}
+	})
+	defer c1.Shutdown()
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+	deadline := time.Now().Add(1234 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		err := c1.RPC("Node.GetNode", &req, &out)
+		if err == nil {
+			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
+		}
 	}
 }
 

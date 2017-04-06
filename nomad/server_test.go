@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -62,6 +63,11 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	f := false
 	config.VaultConfig.Enabled = &f
 
+	// Squelch output when -v isn't specified
+	if !testing.Verbose() {
+		config.LogOutput = ioutil.Discard
+	}
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)
@@ -71,7 +77,7 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
 	shutdownCh := make(chan struct{})
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
+	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
 	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -104,6 +110,46 @@ func TestServer_RPC(t *testing.T) {
 	var out struct{}
 	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestServer_RPC_MixedTLS(t *testing.T) {
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevDisableBootstrap = true
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	cb := func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevDisableBootstrap = true
+	}
+	s2 := testServer(t, cb)
+	defer s2.Shutdown()
+	s3 := testServer(t, cb)
+	defer s3.Shutdown()
+
+	testJoin(t, s1, s2, s3)
+	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForLeader(t, s3.RPC)
+
+	// s1 shouldn't be able to join
+	leader := ""
+	if err := s1.RPC("Status.Leader", &structs.GenericRequest{}, &leader); err == nil {
+		t.Errorf("expected a connection error from TLS server but received none; found leader: %q", leader)
 	}
 }
 
