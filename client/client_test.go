@@ -414,14 +414,18 @@ func TestClient_MixedTLS(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
-	deadline := time.Now().Add(100 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		err := c1.RPC("Node.GetNode", &req, &out)
-		if err == nil {
-			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
-		}
-		time.Sleep(3 * time.Millisecond)
-	}
+	testutil.AssertUntil(100*time.Millisecond,
+		func() (bool, error) {
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf(err.Error())
+		},
+	)
 }
 
 // TestClient_BadTLS asserts that when a client and server are running with TLS
@@ -467,14 +471,18 @@ func TestClient_BadTLS(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out structs.SingleNodeResponse
-	deadline := time.Now().Add(100 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		err := c1.RPC("Node.GetNode", &req, &out)
-		if err == nil {
-			t.Fatalf("client RPC succeeded when it should have failed:\n%+v", out)
-		}
-		time.Sleep(3 * time.Millisecond)
-	}
+	testutil.AssertUntil(100*time.Millisecond,
+		func() (bool, error) {
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf(err.Error())
+		},
+	)
 }
 
 func TestClient_Register(t *testing.T) {
