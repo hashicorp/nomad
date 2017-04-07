@@ -136,6 +136,8 @@ type DockerDriverConfig struct {
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
+	IPv4Address      string              `mapstructure:"ipv4_address"`       // The container ipv4 address
+	IPv6Address      string              `mapstructure:"ipv6_address"`       // the container ipv6 address
 	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
@@ -187,6 +189,8 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
 	dconf.NetworkMode = env.ReplaceEnv(dconf.NetworkMode)
 	dconf.NetworkAliases = env.ParseAndReplace(dconf.NetworkAliases)
+	dconf.IPv4Address = env.ReplaceEnv(dconf.IPv4Address)
+	dconf.IPv6Address = env.ReplaceEnv(dconf.IPv6Address)
 	dconf.PidMode = env.ReplaceEnv(dconf.PidMode)
 	dconf.UTSMode = env.ReplaceEnv(dconf.UTSMode)
 	dconf.Hostname = env.ReplaceEnv(dconf.Hostname)
@@ -340,6 +344,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"network_aliases": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"ipv4_address": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"ipv6_address": &fields.FieldSchema{
+				Type: fields.TypeString,
 			},
 			"pid_mode": &fields.FieldSchema{
 				Type: fields.TypeString,
@@ -916,17 +926,27 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)
 
 	var networkingConfig *docker.NetworkingConfig
-	if len(driverConfig.NetworkAliases) > 0 {
+	if len(driverConfig.NetworkAliases) > 0 || driverConfig.IPv4Address != "" || driverConfig.IPv6Address != "" {
 		networkingConfig = &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
-				hostConfig.NetworkMode: &docker.EndpointConfig{
-					Aliases: driverConfig.NetworkAliases,
-				},
+				hostConfig.NetworkMode: &docker.EndpointConfig{},
 			},
 		}
+	}
 
+	if len(driverConfig.NetworkAliases) > 0 {
+		networkingConfig.EndpointsConfig[hostConfig.NetworkMode].Aliases = driverConfig.NetworkAliases
 		d.logger.Printf("[DEBUG] driver.docker: using network_mode %q with network aliases: %v",
 			hostConfig.NetworkMode, strings.Join(driverConfig.NetworkAliases, ", "))
+	}
+
+	if driverConfig.IPv4Address != "" || driverConfig.IPv6Address != "" {
+		networkingConfig.EndpointsConfig[hostConfig.NetworkMode].IPAMConfig = &docker.EndpointIPAMConfig{
+			IPv4Address: driverConfig.IPv4Address,
+			IPv6Address: driverConfig.IPv6Address,
+		}
+		d.logger.Printf("[DEBUG] driver.docker: using network_mode %q with ipv4: %q and ipv6: %q",
+			hostConfig.NetworkMode, driverConfig.IPv4Address, driverConfig.IPv6Address)
 	}
 
 	return docker.CreateContainerOptions{
