@@ -111,8 +111,8 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	if err != nil {
 		return nil, err
 	}
-	nwResources := make([]*structs.NetworkResource, len(addrs))
-	for i, addr := range addrs {
+	nwResources := make([]*structs.NetworkResource, 0)
+	for _, addr := range addrs {
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
 			Device: intf.Name,
@@ -120,20 +120,27 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 		}
 
 		// Find the IP Addr and the CIDR from the Address
+		var ip net.IP
 		switch v := (addr).(type) {
 		case *net.IPNet:
+			ip = v.IP
 			newNetwork.IP = v.IP.String()
-			newNetwork.CIDR = v.String()
 		case *net.IPAddr:
-			ip := v.IP
-			newNetwork.IP = ip.String()
-			if ip.To4() != nil {
-				newNetwork.CIDR = newNetwork.IP + "/32"
-			} else {
-				newNetwork.CIDR = newNetwork.IP + "/128"
-			}
+			ip = v.IP
 		}
-		nwResources[i] = newNetwork
+
+		// If the ip is link-local then we ignore it
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			continue
+		}
+		newNetwork.IP = ip.String()
+		if ip.To4() != nil {
+			newNetwork.CIDR = newNetwork.IP + "/32"
+		} else {
+			newNetwork.CIDR = newNetwork.IP + "/128"
+		}
+
+		nwResources = append(nwResources, newNetwork)
 	}
 	return nwResources, nil
 }
