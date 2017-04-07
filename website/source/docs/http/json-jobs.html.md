@@ -91,7 +91,6 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
             "Resources":{
               "CPU":500,
               "MemoryMB":256,
-              "DiskMB":300,
               "IOPS":0,
               "Networks":[
                 {
@@ -316,6 +315,9 @@ attributes:
   If omitted, a default policy for batch and non-batch jobs is used based on the
   job type. See the [restart policy reference](#restart_policy) for more details.
 
+* `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
+  [ephemeral disk reference](#ephemeral_disk) for more details.
+
 * `Tasks` - A list of `Task` object that are part of the task group.
 
 ### Task
@@ -448,8 +450,6 @@ The `Resources` object supports the following keys:
 
 * `CPU` - The CPU required in MHz.
 
-* `DiskMB` - The disk required in MB.
-
 * `IOPS` - The number of IOPS required given as a weight between 10-1000.
 
 * `MemoryMB` - The memory required in MB.
@@ -468,6 +468,24 @@ ports. A network object allows the user to specify a list of `DynamicPorts` and
   attribute is ignored.
 * `Label` - The label to annotate a port so that it can be referred in the
   service discovery block or environment variables.
+
+<a id="ephemeral_disk"></a>
+
+### Ephemeral Disk
+
+The `EphemeralDisk` object supports the following keys:
+
+* `Migrate` - Specifies that the Nomad client should make a best-effort attempt
+  to migrate the data from a remote machine if placement cannot be made on the
+  original node. During data migration, the task will block starting until the
+  data migration has completed. Value is a boolean and the default is false.
+
+* `SizeMB` - Specifies the size of the ephemeral disk in MB. Default is 300.
+
+* `Sticky` - Specifies that Nomad should make a best-effort attempt to place the
+  updated allocation on the same machine. This will move the `local/` and
+  `alloc/data` directories to the new allocation. Value is a boolean and the
+  default is false.
 
 <a id="restart_policy"></a>
 
