@@ -37,6 +37,21 @@ func WaitForResultRetries(retries int64, test testFn, error errorFn) {
 	}
 }
 
+// AssertUntil asserts the test function passes throughout the given duration.
+// Otherwise error is called on failure.
+func AssertUntil(until time.Duration, test testFn, error errorFn) {
+	deadline := time.Now().Add(until)
+	for time.Now().Before(deadline) {
+		success, err := test()
+		if !success {
+			error(err)
+			return
+		}
+		// Sleep some arbitrary fraction of the deadline
+		time.Sleep(until / 30)
+	}
+}
+
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
 func TestMultiplier() int64 {

@@ -1,3 +1,12 @@
+## 0.6.0 (Unreleased)
+
+IMPROVEMENTS:
+ * driver/docker: Allow setting container IP with user defined networks
+   [GH-2535]
+
+BUG FIXES:
+ * server: Reject non-TLS clients when TLS enabled [GH-2525]
+
 ## 0.5.6 (March 31, 2017)
 
 IMPROVEMENTS:

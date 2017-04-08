@@ -144,6 +144,12 @@ The `docker` driver supports the following configuration in the job spec:
     }
     ```
 
+* `ipv4_address` - (Optional) The IPv4 address to be used for the container when
+  using user defined networks. Requires docker 1.13.0 or greater.
+
+* `ipv6_address` - (Optional) The IPv6 address to be used for the container when
+  using user defined networks. Requires docker 1.13.0 or greater.
+
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
   container the task starts will have the same hostname.
