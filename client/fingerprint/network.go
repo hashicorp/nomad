@@ -90,10 +90,9 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	}
 
 	// Add the network resources to the node
+	node.Resources.Networks = nwResources
 	for _, nwResource := range nwResources {
-		node.Resources.Networks = append(node.Resources.Networks, nwResource)
-		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v, CIDR: %v during fingerprinting",
-			intf.Name, nwResource.IP, nwResource.CIDR)
+		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
 
 	if len(nwResources) > 0 {
@@ -124,7 +123,6 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 		switch v := (addr).(type) {
 		case *net.IPNet:
 			ip = v.IP
-			newNetwork.IP = v.IP.String()
 		case *net.IPAddr:
 			ip = v.IP
 		}
