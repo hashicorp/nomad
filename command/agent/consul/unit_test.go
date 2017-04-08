@@ -62,14 +62,24 @@ func (t *testFakeCtx) Exec(ctx context.Context, cmd string, args []string) ([]by
 	return t.ExecFunc(ctx, cmd, args)
 }
 
+var errNoOps = fmt.Errorf("testing error: no pending operations")
+
+// syncOps simulates one iteration of the ServiceClient.Run loop and returns
+// any errors returned by sync() or errNoOps if no pending operations.
+func (t *testFakeCtx) syncOnce() error {
+	select {
+	case ops := <-t.ServiceClient.opCh:
+		t.ServiceClient.merge(ops)
+		return t.ServiceClient.sync()
+	default:
+		return errNoOps
+	}
+}
+
 // setupFake creates a testFakeCtx with a ServiceClient backed by a fakeConsul.
 // A test Task is also provided.
 func setupFake() *testFakeCtx {
-	fc := &fakeConsul{
-		services:  make(map[string]*api.AgentServiceRegistration),
-		checks:    make(map[string]*api.AgentCheckRegistration),
-		checkTTLs: make(map[string]int),
-	}
+	fc := newFakeConsul()
 	return &testFakeCtx{
 		ServiceClient: NewServiceClient(fc, testLogger()),
 		FakeConsul:    fc,
@@ -86,6 +96,55 @@ type fakeConsul struct {
 
 	// when UpdateTTL is called the check ID will have its counter inc'd
 	checkTTLs map[string]int
+
+	// What check status to return from Checks()
+	checkStatus string
+}
+
+func newFakeConsul() *fakeConsul {
+	return &fakeConsul{
+		services:    make(map[string]*api.AgentServiceRegistration),
+		checks:      make(map[string]*api.AgentCheckRegistration),
+		checkTTLs:   make(map[string]int),
+		checkStatus: api.HealthPassing,
+	}
+}
+
+func (c *fakeConsul) Services() (map[string]*api.AgentService, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	r := make(map[string]*api.AgentService, len(c.services))
+	for k, v := range c.services {
+		r[k] = &api.AgentService{
+			ID:                v.ID,
+			Service:           v.Name,
+			Tags:              make([]string, len(v.Tags)),
+			Port:              v.Port,
+			Address:           v.Address,
+			EnableTagOverride: v.EnableTagOverride,
+		}
+		copy(r[k].Tags, v.Tags)
+	}
+	return r, nil
+}
+
+func (c *fakeConsul) Checks() (map[string]*api.AgentCheck, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	r := make(map[string]*api.AgentCheck, len(c.checks))
+	for k, v := range c.checks {
+		r[k] = &api.AgentCheck{
+			CheckID:     v.ID,
+			Name:        v.Name,
+			Status:      c.checkStatus,
+			Notes:       v.Notes,
+			ServiceID:   v.ServiceID,
+			ServiceName: c.services[v.ServiceID].Name,
+		}
+	}
+	return r, nil
 }
 
 func (c *fakeConsul) CheckRegister(check *api.AgentCheckRegistration) error {
@@ -137,8 +196,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
-	// Manually call sync() since Run() isn't running
-	if err := ctx.ServiceClient.sync(); err != nil {
+	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
@@ -157,13 +215,13 @@ func TestConsul_ChangeTags(t *testing.T) {
 		}
 	}
 
-	// Changing a tag removes old entry before adding new one
-	ctx.ServiceClient.RemoveTask("allocid", ctx.Task)
+	origTask := ctx.Task
+	ctx.Task = testTask()
 	ctx.Task.Services[0].Tags[0] = "newtag"
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
-	if err := ctx.ServiceClient.sync(); err != nil {
+	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
@@ -193,8 +251,7 @@ func TestConsul_RegServices(t *testing.T) {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
-	// Manually call sync() since Run() isn't running
-	if err := ctx.ServiceClient.sync(); err != nil {
+	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
@@ -232,7 +289,7 @@ func TestConsul_RegServices(t *testing.T) {
 	}
 
 	// Now sync() and re-check for the applied updates
-	if err := ctx.ServiceClient.sync(); err != nil {
+	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 	if n := len(ctx.FakeConsul.services); n != 2 {
@@ -256,7 +313,7 @@ func TestConsul_RegServices(t *testing.T) {
 
 	// Remove the new task
 	ctx.ServiceClient.RemoveTask("allocid", ctx.Task)
-	if err := ctx.ServiceClient.sync(); err != nil {
+	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 	if n := len(ctx.FakeConsul.services); n != 1 {
@@ -287,11 +344,7 @@ func TestConsul_ShutdownOK(t *testing.T) {
 		},
 	}
 
-	hasShutdown := make(chan struct{})
-	go func() {
-		ctx.ServiceClient.Run()
-		close(hasShutdown)
-	}()
+	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx); err != nil {
@@ -309,24 +362,9 @@ func TestConsul_ShutdownOK(t *testing.T) {
 		t.Fatalf("unexpected error registering agent: %v", err)
 	}
 
-	// Shutdown should block until all enqueued operations finish.
+	// Shutdown should block until scripts finish
 	if err := ctx.ServiceClient.Shutdown(); err != nil {
 		t.Errorf("unexpected error shutting down client: %v", err)
-	}
-
-	// assert Run() exits in a timely fashion after Shutdown() exits
-	select {
-	case <-hasShutdown:
-		// ok! Run() exited as expected
-	case <-time.After(10 * time.Second):
-		t.Fatalf("expected Run() to exit, but it did not")
-	}
-
-	// Nothing should be enqueued anymore
-	enqueued := (len(ctx.ServiceClient.pending.regServices) + len(ctx.ServiceClient.pending.deregServices) +
-		len(ctx.ServiceClient.pending.regChecks) + len(ctx.ServiceClient.pending.deregChecks))
-	if enqueued > 0 {
-		t.Errorf("%d operations still enqueued", enqueued)
 	}
 
 	// UpdateTTL should have been called once for the script check
@@ -365,7 +403,13 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 	}
 
 	// Make Exec slow, but not too slow
+	waiter := make(chan struct{})
 	ctx.ExecFunc = func(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+		select {
+		case <-waiter:
+		default:
+			close(waiter)
+		}
 		time.Sleep(time.Second)
 		return []byte{}, 0, nil
 	}
@@ -373,29 +417,20 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 	// Make shutdown wait time just a bit longer than ctx.Exec takes
 	ctx.ServiceClient.shutdownWait = 3 * time.Second
 
-	hasShutdown := make(chan struct{})
-	go func() {
-		ctx.ServiceClient.Run()
-		close(hasShutdown)
-	}()
+	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
+	// wait for Exec to get called before shutting down
+	<-waiter
+
 	// Shutdown should block until all enqueued operations finish.
 	preShutdown := time.Now()
 	if err := ctx.ServiceClient.Shutdown(); err != nil {
 		t.Errorf("unexpected error shutting down client: %v", err)
-	}
-
-	// assert Run() exits in a timely fashion after Shutdown() exits
-	select {
-	case <-hasShutdown:
-		// ok! Run() exited as expected
-	case <-time.After(10 * time.Second):
-		t.Fatalf("expected Run() to exit, but it did not")
 	}
 
 	// Shutdown time should have taken: 1s <= shutdown <= 3s
@@ -442,8 +477,10 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	block := make(chan struct{})
 	defer close(block) // cleanup after test
 
-	// Make Exec slow, but not too slow
+	// Make Exec block forever
+	waiter := make(chan struct{})
 	ctx.ExecFunc = func(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+		close(waiter)
 		<-block
 		return []byte{}, 0, nil
 	}
@@ -451,16 +488,15 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	// Use a short shutdown deadline since we're intentionally blocking forever
 	ctx.ServiceClient.shutdownWait = time.Second
 
-	hasShutdown := make(chan struct{})
-	go func() {
-		ctx.ServiceClient.Run()
-		close(hasShutdown)
-	}()
+	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
+
+	// Wait for exec to be called
+	<-waiter
 
 	// Shutdown should block until all enqueued operations finish.
 	preShutdown := time.Now()
@@ -469,18 +505,10 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 		t.Errorf("expected a timed out error from shutdown")
 	}
 
-	// assert Run() exits in a timely fashion after Shutdown() exits
-	maxWait := 10 * time.Second
-	select {
-	case <-hasShutdown:
-		// ok! Run() exited as expected
-	case <-time.After(maxWait):
-		t.Fatalf("expected Run() to exit, but it did not")
-	}
-
-	// Shutdown time should have taken 1s; to avoid timing related errors
-	// simply test for 1s <= shutdown <= 10s
+	// Shutdown time should have taken shutdownWait; to avoid timing
+	// related errors simply test for wait <= shutdown <= wait+3s
 	shutdownTime := time.Now().Sub(preShutdown)
+	maxWait := ctx.ServiceClient.shutdownWait + (3 * time.Second)
 	if shutdownTime < ctx.ServiceClient.shutdownWait || shutdownTime > maxWait {
 		t.Errorf("expected shutdown to take >%s and <%s but took: %s", ctx.ServiceClient.shutdownWait, maxWait, shutdownTime)
 	}

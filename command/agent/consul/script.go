@@ -27,10 +27,11 @@ func (s *scriptHandle) wait() <-chan struct{} {
 }
 
 type scriptCheck struct {
-	id    string
-	check *structs.ServiceCheck
-	exec  ScriptExecutor
-	agent heartbeater
+	id      string
+	check   *structs.ServiceCheck
+	exec    ScriptExecutor
+	agent   heartbeater
+	running bool
 
 	// lastCheckOk is true if the last check was ok; otherwise false
 	lastCheckOk bool
@@ -132,5 +133,6 @@ func (s *scriptCheck) run() *scriptHandle {
 			}
 		}
 	}()
+	s.running = true
 	return &scriptHandle{cancel: cancel, done: done}
 }
