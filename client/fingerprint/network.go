@@ -95,6 +95,7 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
 
+	// Deprectaed, setting the first IP as unique IP for the node
 	if len(nwResources) > 0 {
 		node.Attributes["unique.network.ip-address"] = nwResources[0].IP
 	}

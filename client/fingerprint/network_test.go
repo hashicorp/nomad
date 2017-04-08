@@ -126,8 +126,9 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) 
 
 	if intf.Name == "eth0" {
 		_, ipnet1, _ := net.ParseCIDR("100.64.0.11/10")
-		_, ipnet2, _ := net.ParseCIDR("2005:DB6::/48")
-		return []net.Addr{ipnet1, ipnet2}, nil
+		_, ipnet2, _ := net.ParseCIDR("2001:0db8:85a3:0000:0000:8a2e:0370:7334/64")
+		ipAddr, _ := net.ResolveIPAddr("ip6", "fe80::140c:9579:8037:f565")
+		return []net.Addr{ipnet1, ipnet2, ipAddr}, nil
 	}
 
 	if intf.Name == "eth1" {
@@ -306,5 +307,17 @@ func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
 	}
 	if net.MBits == 0 {
 		t.Fatal("Expected Network Resource to have a non-zero bandwith")
+	}
+
+	// Test the CIDR of the IPs
+	if node.Resources.Networks[0].CIDR != "100.64.0.0/32" {
+		t.Fatalf("bad CIDR: %v", node.Resources.Networks[0].CIDR)
+	}
+	if node.Resources.Networks[1].CIDR != "2001:db8:85a3::/128" {
+		t.Fatalf("bad CIDR: %v", node.Resources.Networks[1].CIDR)
+	}
+	// Ensure that the link local address isn't fingerprinted
+	if len(node.Resources.Networks) != 2 {
+		t.Fatalf("bad number of IPs %v", len(node.Resources.Networks))
 	}
 }
