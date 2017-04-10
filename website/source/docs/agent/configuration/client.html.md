@@ -52,8 +52,8 @@ client {
 - `network_interface` `(string: "lo | lo0")` - Specifies the name of the
   interface to force network fingerprinting on. This defaults to the loopback
   interface. All addresses on the interface are fingerprinted except the ones
-  which are scoped local for IPv6. The scheduler is going to pick one of the
-  many addresses which have been fingerprinted.
+  which are scoped local for IPv6. When allocating ports for tasks, the
+  scheduler will choose from the IPs of the fingerprinted interface.
 
 - `network_speed` `(int: 0)` - Specifies an override for the network link speed.
   This value, if set, overrides any detected or defaulted link speed. Most
