@@ -31,25 +31,11 @@ func (s *TestServer) Cleanup() {
 	os.RemoveAll(s.Dir)
 }
 
-// makeHTTPServerNoLogs returns a test server with full logging.
-func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
-	return makeHTTPServerWithWriter(t, nil, cb)
-}
-
-// makeHTTPServerNoLogs returns a test server which only prints agent logs and
-// no http server logs
-func makeHTTPServerNoLogs(t testing.TB, cb func(c *Config)) *TestServer {
-	return makeHTTPServerWithWriter(t, ioutil.Discard, cb)
-}
-
-// makeHTTPServerWithWriter returns a test server whose logs will be written to
+// makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
-func makeHTTPServerWithWriter(t testing.TB, w io.Writer, cb func(c *Config)) *TestServer {
+func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
 	dir, agent := makeAgent(t, cb)
-	if w == nil {
-		w = agent.logOutput
-	}
-	srv, err := NewHTTPServer(agent, agent.config, w)
+	srv, err := NewHTTPServer(agent, agent.config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -63,7 +49,7 @@ func makeHTTPServerWithWriter(t testing.TB, w io.Writer, cb func(c *Config)) *Te
 }
 
 func BenchmarkHTTPRequests(b *testing.B) {
-	s := makeHTTPServerNoLogs(b, func(c *Config) {
+	s := makeHTTPServer(b, func(c *Config) {
 		c.Client.Enabled = false
 	})
 	defer s.Cleanup()
