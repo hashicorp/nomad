@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -196,6 +197,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
 	// Create a result holder for the plan
+	var resLock sync.Mutex
 	result := &structs.PlanResult{
 		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
@@ -224,6 +226,9 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// handleResult is used to process the result of evaluateNodePlan
 	handleResult := func(nodeID string, fit bool, err error) (cancel bool) {
+		resLock.Lock()
+		defer resLock.Unlock()
+
 		// Evaluate the plan for this node
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -242,6 +247,11 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			}
 
 			// Skip this node, since it cannot be used.
+			return
+		}
+
+		// Check to see if the plan has been cancelled
+		if result.NodeAllocation == nil || result.NodeUpdate == nil {
 			return
 		}
 
