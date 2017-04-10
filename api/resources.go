@@ -66,12 +66,12 @@ type Port struct {
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
-	Public        bool
+	Device        string
 	CIDR          string
-	ReservedPorts []Port
-	DynamicPorts  []Port
 	IP            string
 	MBits         *int
+	ReservedPorts []Port
+	DynamicPorts  []Port
 }
 
 func (n *NetworkResource) Canonicalize() {
