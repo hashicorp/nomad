@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -52,7 +51,7 @@ type HTTPServer struct {
 }
 
 // NewHTTPServer starts new HTTP server over the agent
-func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
+func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Start the listener
 	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
 	if err != nil {
