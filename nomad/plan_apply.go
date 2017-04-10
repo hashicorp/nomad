@@ -263,6 +263,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// Evalute each node in the plan, handling results as they are ready to
 	// avoid blocking.
+OUTER:
 	for len(nodeIDList) > 0 {
 		nodeID := nodeIDList[0]
 		select {
@@ -276,7 +277,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			// which may save time processing additional entries.
 			if cancel := handleResult(r.nodeID, r.fit, r.err); cancel {
 				didCancel = true
-				break
+				break OUTER
 			}
 		}
 	}
