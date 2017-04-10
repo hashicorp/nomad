@@ -20,6 +20,8 @@ func IsUUID(str string) bool {
 	return validUUID.MatchString(str)
 }
 
+// HashUUID takes an input UUID and returns a hashed version of the UUID to
+// ensure it is well distributed.
 func HashUUID(input string) (output string, hashed bool) {
 	if !IsUUID(input) {
 		return "", false
