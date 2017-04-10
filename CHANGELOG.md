@@ -3,6 +3,8 @@
 IMPROVEMENTS:
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
+ * client: Fingerprint all routable addresses on an interface including IPv6
+   addresses [GH-2536]
 
 BUG FIXES:
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
