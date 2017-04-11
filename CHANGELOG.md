@@ -1,11 +1,12 @@
 ## 0.6.0 (Unreleased)
 
 IMPROVEMENTS:
+ * client: Fingerprint all routable addresses on an interface including IPv6
+   addresses [GH-2536]
+ * client: Hash host ID so its stable and well distributed [GH-2541]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
- * client: Fingerprint all routable addresses on an interface including IPv6
-   addresses [GH-2536]
 
 BUG FIXES:
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
