@@ -25,6 +25,14 @@ parameters section below), and there is currently no way to disable logging for
 tasks. The `logs` stanza allows for finer-grained control over how Nomad handles
 log files.
 
+Nomad's log rotation works by writing stdout/stderr output from tasks to a file
+inside the `alloc/logs/` directory with the following format:
+`<task-name>.<stdout/stderr>.<index>`. Output is written to a particular index,
+starting at zero, till that log file hits the configured `max_file_size`. After,
+a new file is created at `index + 1` and logs will then be written there. A log
+file is never rolled over, instead Nomad will keep up to `max_files` worth of
+logs and once that is exceeded, the log file with the lowest index is deleted.
+
 ```hcl
 job "docs" {
   group "example" {
@@ -38,7 +46,8 @@ job "docs" {
 }
 ```
 
-For information on how to interact with logs after they have been configured, please see the [`nomad logs`][logs-command] command.
+For information on how to interact with logs after they have been configured,
+please see the [`nomad logs`][logs-command] command.
 
 ## `logs` Parameters
 
