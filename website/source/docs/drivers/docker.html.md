@@ -160,6 +160,9 @@ The `docker` driver supports the following configuration in the job spec:
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
+* `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
+  `/etc/hosts`.
+
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
   repository. The default value is `true`. **Deprecated as of 0.5.3**
 

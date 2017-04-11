@@ -146,6 +146,7 @@ type DockerDriverConfig struct {
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
@@ -200,6 +201,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.VolumeDriver = env.ReplaceEnv(dconf.VolumeDriver)
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
+	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -370,6 +372,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"dns_search_domains": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"extra_hosts": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 			"hostname": &fields.FieldSchema{
@@ -818,10 +823,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		}
 	}
 
-	// set DNS search domains
-	for _, domain := range driverConfig.DNSSearchDomains {
-		hostConfig.DNSSearch = append(hostConfig.DNSSearch, domain)
-	}
+	// set DNS search domains and extra hosts
+	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IpcMode
 	hostConfig.PidMode = driverConfig.PidMode
