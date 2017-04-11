@@ -1,6 +1,7 @@
 ## 0.6.0 (Unreleased)
 
 IMPROVEMENTS:
+ * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
  * client: Fingerprint all routable addresses on an interface including IPv6
