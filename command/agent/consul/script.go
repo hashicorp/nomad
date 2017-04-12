@@ -16,23 +16,26 @@ type heartbeater interface {
 	UpdateTTL(id, output, status string) error
 }
 
+// scriptHandle is returned by scriptCheck.run by cancelling a scriptCheck and
+// waiting for it to shutdown.
 type scriptHandle struct {
 	// cancel the script
 	cancel func()
-	done   chan struct{}
+	exitCh chan struct{}
 }
 
 // wait returns a chan that's closed when the script exits
 func (s *scriptHandle) wait() <-chan struct{} {
-	return s.done
+	return s.exitCh
 }
 
+// scriptCheck runs script checks via a ScriptExecutor and updates the
+// appropriate check's TTL when the script succeeds.
 type scriptCheck struct {
-	id      string
-	check   *structs.ServiceCheck
-	exec    driver.ScriptExecutor
-	agent   heartbeater
-	running bool
+	id    string
+	check *structs.ServiceCheck
+	exec  driver.ScriptExecutor
+	agent heartbeater
 
 	// lastCheckOk is true if the last check was ok; otherwise false
 	lastCheckOk bool
@@ -41,6 +44,8 @@ type scriptCheck struct {
 	shutdownCh <-chan struct{}
 }
 
+// newScriptCheck creates a new scriptCheck. run() should be called once the
+// initial check is registered with Consul.
 func newScriptCheck(id string, check *structs.ServiceCheck, exec driver.ScriptExecutor, agent heartbeater,
 	logger *log.Logger, shutdownCh <-chan struct{}) *scriptCheck {
 
@@ -59,9 +64,9 @@ func newScriptCheck(id string, check *structs.ServiceCheck, exec driver.ScriptEx
 // closed the check will be run once more before exiting.
 func (s *scriptCheck) run() *scriptHandle {
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
+	exitCh := make(chan struct{})
 	go func() {
-		defer close(done)
+		defer close(exitCh)
 		timer := time.NewTimer(0)
 		defer timer.Stop()
 		for {
@@ -89,6 +94,7 @@ func (s *scriptCheck) run() *scriptHandle {
 				s.lastCheckOk = false
 				s.logger.Printf("[WARN] consul.checks: check %q timed out (%s)", s.check.Name, s.check.Timeout)
 			}
+
 			// cleanup context
 			cancel()
 
@@ -99,13 +105,17 @@ func (s *scriptCheck) run() *scriptHandle {
 			case 1:
 				state = api.HealthWarning
 			}
+
+			var outputMsg string
 			if err != nil {
 				state = api.HealthCritical
-				output = []byte(err.Error())
+				outputMsg = err.Error()
+			} else {
+				outputMsg = string(output)
 			}
 
 			// Actually heartbeat the check
-			err = s.agent.UpdateTTL(s.id, string(output), state)
+			err = s.agent.UpdateTTL(s.id, outputMsg, state)
 			select {
 			case <-ctx.Done():
 				// check has been removed; don't report errors
@@ -114,7 +124,6 @@ func (s *scriptCheck) run() *scriptHandle {
 			}
 
 			if err != nil {
-				//FIXME Backoff? Retry faster?
 				if s.lastCheckOk {
 					s.lastCheckOk = false
 					s.logger.Printf("[WARN] consul.checks: update for check %q failed: %v", s.check.Name, err)
@@ -130,12 +139,11 @@ func (s *scriptCheck) run() *scriptHandle {
 
 			select {
 			case <-s.shutdownCh:
-				// We've been told to exit
+				// We've been told to exit and just heartbeated so exit
 				return
 			default:
 			}
 		}
 	}()
-	s.running = true
-	return &scriptHandle{cancel: cancel, done: done}
+	return &scriptHandle{cancel: cancel, exitCh: exitCh}
 }
