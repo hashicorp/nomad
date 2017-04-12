@@ -640,8 +640,8 @@ func createCheckID(serviceID string, check *structs.ServiceCheck) string {
 
 // createCheckReg creates a Check that can be registered with Consul.
 //
-// Only supports HTTP(S) and TCP checks. Script checks must be handled
-// externally.
+// Script checks simply have a TTL set and the caller is responsible for
+// running the script and heartbeating.
 func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host string, port int) (*api.AgentCheckRegistration, error) {
 	chkReg := api.AgentCheckRegistration{
 		ID:        checkID,
