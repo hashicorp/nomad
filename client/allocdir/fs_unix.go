@@ -90,9 +90,9 @@ func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 		return nil
 	}
 	// Attempt to hardlink.
-	//if err := os.Link(src, dst); err == nil {
-	//	return nil
-	//}
+	if err := os.Link(src, dst); err == nil {
+		return nil
+	}
 
 	return fileCopy(src, dst, uid, gid, perm)
 }
