@@ -20,6 +20,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		nodeTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
+		jobHistorySchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
@@ -135,6 +136,37 @@ func jobSummarySchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "JobID",
 					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+// jobHistorySchema returns the memdb schema for the job history table which
+// keeps a historical view of jobs.
+func jobHistorySchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_histories",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (JobID, Version) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "JobID",
+							Lowercase: true,
+						},
+
+						// Will need to create a new indexer
+						&memdb.UintFieldIndex{
+							Field: "Version",
+						},
+					},
 				},
 			},
 		},
