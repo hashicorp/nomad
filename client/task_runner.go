@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -298,7 +297,7 @@ func (r *TaskRunner) RestoreState() error {
 		interpolateServices(r.getTaskEnv(), r.task)
 
 		// Ensure the service is registered
-		scriptExec, _ := handle.(consul.ScriptExecutor)
+		scriptExec, _ := handle.(driver.ScriptExecutor)
 		if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
 			//FIXME What to do if this fails?
 			r.logger.Printf("[WARN] client: failed to register services and checks for task %q alloc %q: %v",
@@ -1243,7 +1242,7 @@ func (r *TaskRunner) startTask() error {
 
 	// RegisterTask properly handles scriptExec being nil, so it just
 	// ignore the ok value.
-	scriptExec, _ := handle.(consul.ScriptExecutor)
+	scriptExec, _ := handle.(driver.ScriptExecutor)
 	if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
 		//FIXME handle errors?!
 		//FIXME could break into prepare & submit steps as only preperation can error...
@@ -1399,7 +1398,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 
 		// Not all drivers support Exec (eg QEMU), but RegisterTask
 		// handles nil ScriptExecutors
-		scriptExec, _ := r.handle.(consul.ScriptExecutor)
+		scriptExec, _ := r.handle.(driver.ScriptExecutor)
 
 		// Since the handle exists, the task is running, so we need to
 		// update it in Consul (if the handle doesn't exist

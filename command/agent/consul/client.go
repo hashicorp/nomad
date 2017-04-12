@@ -1,7 +1,6 @@
 package consul
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -50,12 +50,6 @@ const (
 	// ServiceTagSerf is the tag assigned to Serf services
 	ServiceTagSerf = "serf"
 )
-
-// ScriptExecutor is the interface the ServiceClient uses to execute script
-// checks inside a container.
-type ScriptExecutor interface {
-	Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error)
-}
 
 // CatalogAPI is the consul/api.Catalog API used by Nomad.
 type CatalogAPI interface {
@@ -386,7 +380,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 
 // makeCheckReg adds a check reg to operations.
 func (c *ServiceClient) makeCheckReg(ops *operations, check *structs.ServiceCheck,
-	service *api.AgentServiceRegistration, exec ScriptExecutor, parseAddr addrParser) error {
+	service *api.AgentServiceRegistration, exec driver.ScriptExecutor, parseAddr addrParser) error {
 
 	checkID := createCheckID(service.ID, check)
 	if check.Type == structs.ServiceCheckScript {
@@ -412,7 +406,7 @@ func (c *ServiceClient) makeCheckReg(ops *operations, check *structs.ServiceChec
 // serviceRegs creates service registrations, check registrations, and script
 // checks from a service.
 func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *structs.Service,
-	exec ScriptExecutor, task *structs.Task) error {
+	exec driver.ScriptExecutor, task *structs.Task) error {
 
 	id := makeTaskServiceID(allocID, task.Name, service)
 	host, port := task.FindHostAndPortFor(service.PortLabel)
@@ -441,7 +435,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 // exec is nil and a script check exists an error is returned.
 //
 // Actual communication with Consul is done asynchrously (see Run).
-func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec ScriptExecutor) error {
+func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor) error {
 	ops := &operations{}
 	for _, service := range task.Services {
 		if err := c.serviceRegs(ops, allocID, service, exec, task); err != nil {
@@ -454,7 +448,7 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec Sc
 
 // UpdateTask in Consul. Does not alter the service if only checks have
 // changed.
-func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, exec ScriptExecutor) error {
+func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor) error {
 	ops := &operations{}
 
 	existingIDs := make(map[string]*structs.Service, len(existing.Services))

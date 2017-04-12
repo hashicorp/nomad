@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -254,6 +255,12 @@ type DriverHandle interface {
 
 	// Signal is used to send a signal to the task
 	Signal(s os.Signal) error
+}
+
+// ScriptExecutor is a DriverHandle that supports Exec()ing commands in the
+// driver's context.
+type ScriptExecutor interface {
+	Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error)
 }
 
 // ExecContext is a task's execution context

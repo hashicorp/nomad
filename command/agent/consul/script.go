@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,7 +30,7 @@ func (s *scriptHandle) wait() <-chan struct{} {
 type scriptCheck struct {
 	id      string
 	check   *structs.ServiceCheck
-	exec    ScriptExecutor
+	exec    driver.ScriptExecutor
 	agent   heartbeater
 	running bool
 
@@ -40,7 +41,9 @@ type scriptCheck struct {
 	shutdownCh <-chan struct{}
 }
 
-func newScriptCheck(id string, check *structs.ServiceCheck, exec ScriptExecutor, agent heartbeater, logger *log.Logger, shutdownCh <-chan struct{}) *scriptCheck {
+func newScriptCheck(id string, check *structs.ServiceCheck, exec driver.ScriptExecutor, agent heartbeater,
+	logger *log.Logger, shutdownCh <-chan struct{}) *scriptCheck {
+
 	return &scriptCheck{
 		id:          id,
 		check:       check,
