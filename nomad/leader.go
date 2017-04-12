@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -19,6 +20,15 @@ const (
 	// unblocked to re-enter the scheduler. A failed evaluation occurs under
 	// high contention when the schedulers plan does not make progress.
 	failedEvalUnblockInterval = 1 * time.Minute
+
+	// failedEvalFollowUpBaseLineWait is the minimum time waited before retrying
+	// a failed evaluation.
+	failedEvalFollowUpBaseLineWait = 1 * time.Minute
+
+	// failedEvalFollowUpWaitRange defines the the range of additional time from
+	// the minimum in which to wait before retrying a failed evaluation. A value
+	// from this range should be selected using a uniform distribution.
+	failedEvalFollowUpWaitRange = 9 * time.Minute
 )
 
 // monitorLeadership is used to monitor if we acquire or lose our role
@@ -392,9 +402,16 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			newEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
 			s.logger.Printf("[WARN] nomad: eval %#v reached delivery limit, marking as failed", newEval)
 
+			// Create a follow-up evaluation that will be used to retry the
+			// scheduling for the job after the cluster is hopefully more stable
+			// due to the fairly large backoff.
+			followupEvalWait := failedEvalFollowUpBaseLineWait +
+				time.Duration(rand.Int63n(int64(failedEvalFollowUpWaitRange)))
+			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
+
 			// Update via Raft
 			req := structs.EvalUpdateRequest{
-				Evals: []*structs.Evaluation{newEval},
+				Evals: []*structs.Evaluation{newEval, followupEval},
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
 				s.logger.Printf("[ERR] nomad: failed to update failed eval %#v: %v", newEval, err)

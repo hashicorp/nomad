@@ -3736,13 +3736,14 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister   = "job-register"
-	EvalTriggerJobDeregister = "job-deregister"
-	EvalTriggerPeriodicJob   = "periodic-job"
-	EvalTriggerNodeUpdate    = "node-update"
-	EvalTriggerScheduled     = "scheduled"
-	EvalTriggerRollingUpdate = "rolling-update"
-	EvalTriggerMaxPlans      = "max-plan-attempts"
+	EvalTriggerJobRegister    = "job-register"
+	EvalTriggerJobDeregister  = "job-deregister"
+	EvalTriggerPeriodicJob    = "periodic-job"
+	EvalTriggerNodeUpdate     = "node-update"
+	EvalTriggerScheduled      = "scheduled"
+	EvalTriggerRollingUpdate  = "rolling-update"
+	EvalTriggerFailedFollowUp = "failed-eval-follow-up"
+	EvalTriggerMaxPlans       = "max-plan-attempts"
 )
 
 const (
@@ -3982,6 +3983,23 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 		PreviousEval:         e.ID,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
+	}
+}
+
+// CreateFailedFollowUpEval creates a follow up evaluation when the current one
+// has been marked as failed becasue it has hit the delivery limit and will not
+// be retried by the eval_broker.
+func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
+	return &Evaluation{
+		ID:             GenerateUUID(),
+		Priority:       e.Priority,
+		Type:           e.Type,
+		TriggeredBy:    EvalTriggerFailedFollowUp,
+		JobID:          e.JobID,
+		JobModifyIndex: e.JobModifyIndex,
+		Status:         EvalStatusPending,
+		Wait:           wait,
+		PreviousEval:   e.ID,
 	}
 }
 
