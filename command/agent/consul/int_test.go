@@ -133,7 +133,7 @@ func TestConsul_Integration(t *testing.T) {
 	tr.MarkReceived()
 	go tr.Run()
 	defer func() {
-		// Just in case cleanup
+		// Make sure we always shutdown task runner when the test exits
 		select {
 		case <-tr.WaitCh():
 			// Exited cleanly, no need to kill
