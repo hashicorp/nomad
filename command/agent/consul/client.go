@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -159,11 +158,14 @@ func (c *ServiceClient) Run() {
 
 		if err := c.sync(); err != nil {
 			if failures == 0 {
-				c.logger.Printf("[WARN] consul: failed to update services in Consul: %v", err)
+				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
 			}
 			failures++
 			if !retryTimer.Stop() {
-				<-retryTimer.C
+				select {
+				case <-retryTimer.C:
+				default:
+				}
 			}
 			backoff := c.retryInterval * time.Duration(failures)
 			if backoff > c.maxRetryInterval {
@@ -172,7 +174,7 @@ func (c *ServiceClient) Run() {
 			retryTimer.Reset(backoff)
 		} else {
 			if failures > 0 {
-				c.logger.Printf("[INFO] consul: successfully updated services in Consul")
+				c.logger.Printf("[INFO] consul.sync: successfully updated services in Consul")
 				failures = 0
 			}
 		}
@@ -561,37 +563,32 @@ func (c *ServiceClient) Shutdown() error {
 	case <-c.shutdownCh:
 		return nil
 	default:
-		close(c.shutdownCh)
 	}
 
-	var mErr multierror.Error
-
-	// Don't let Shutdown block indefinitely
-	deadline := time.After(c.shutdownWait)
-
-	// Deregister agent services and checks
+	// First deregister Nomad agent Consul entries
+	ops := operations{}
 	c.agentLock.Lock()
 	for id := range c.agentServices {
-		if err := c.client.ServiceDeregister(id); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
+		ops.deregServices = append(ops.deregServices, id)
 	}
-
-	// Deregister Checks
 	for id := range c.agentChecks {
-		if err := c.client.CheckDeregister(id); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
+		ops.deregChecks = append(ops.deregChecks, id)
 	}
 	c.agentLock.Unlock()
+	c.commit(&ops)
+
+	// Then signal shutdown
+	close(c.shutdownCh)
+
+	// Give run loop time to sync, but don't block indefinitely
+	deadline := time.After(c.shutdownWait)
 
 	// Wait for Run to finish any outstanding operations and exit
 	select {
 	case <-c.exitCh:
 	case <-deadline:
 		// Don't wait forever though
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("timed out waiting for Consul operations to complete"))
-		return mErr.ErrorOrNil()
+		return fmt.Errorf("timed out waiting for Consul operations to complete")
 	}
 
 	// Give script checks time to exit (no need to lock as Run() has exited)
@@ -599,11 +596,10 @@ func (c *ServiceClient) Shutdown() error {
 		select {
 		case <-h.wait():
 		case <-deadline:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("timed out waiting for script checks to run"))
-			return mErr.ErrorOrNil()
+			return fmt.Errorf("timed out waiting for script checks to run")
 		}
 	}
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 // makeAgentServiceID creates a unique ID for identifying an agent service in
