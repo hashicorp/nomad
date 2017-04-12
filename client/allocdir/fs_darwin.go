@@ -24,3 +24,8 @@ func createSecretDir(dir string) error {
 func removeSecretDir(dir string) error {
 	return os.RemoveAll(dir)
 }
+
+// getOwner isn't implemented for Darwin
+func getOwner(os.FileInfo) (int, int) {
+	return -1, -1
+}

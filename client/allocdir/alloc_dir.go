@@ -385,7 +385,9 @@ func getFileWatcher(path string) watch.FileWatcher {
 	return watch.NewPollingFileWatcher(path)
 }
 
-func fileCopy(src, dst string, perm os.FileMode) error {
+// fileCopy from src to dst setting the permissions and owner (if uid & gid are
+// both greater than 0)
+func fileCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	// Do a simple copy.
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -400,7 +402,13 @@ func fileCopy(src, dst string, perm os.FileMode) error {
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("Couldn't copy %v to %v: %v", src, dst, err)
+		return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+	}
+
+	if uid >= 0 && gid >= 0 {
+		if err := dstFile.Chown(uid, gid); err != nil {
+			return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+		}
 	}
 
 	return nil

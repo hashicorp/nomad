@@ -82,7 +82,7 @@ func getGid(u *user.User) (int, error) {
 
 // linkOrCopy attempts to hardlink dst to src and fallsback to copying if the
 // hardlink fails.
-func linkOrCopy(src, dst string, perm os.FileMode) error {
+func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	// Avoid link/copy if the file already exists in the chroot
 	// TODO 0.6 clean this up. This was needed because chroot creation fails
 	// when a process restarts.
@@ -90,9 +90,9 @@ func linkOrCopy(src, dst string, perm os.FileMode) error {
 		return nil
 	}
 	// Attempt to hardlink.
-	if err := os.Link(src, dst); err == nil {
-		return nil
-	}
+	//if err := os.Link(src, dst); err == nil {
+	//	return nil
+	//}
 
-	return fileCopy(src, dst, perm)
+	return fileCopy(src, dst, uid, gid, perm)
 }
