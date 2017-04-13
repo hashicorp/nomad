@@ -145,7 +145,7 @@ func TestConsul_Integration(t *testing.T) {
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
-	for len(res) == 0 {
+	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
 		res, meta, err = catalog.Service("httpd2", "test", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
 		if err != nil {
@@ -158,7 +158,7 @@ func TestConsul_Integration(t *testing.T) {
 	res = res[:]
 
 	// Assert the service with the checks exists
-	for len(res) == 0 {
+	for i := 0; len(res) == 0 && i < 10; i++ {
 		res, meta, err = catalog.Service("httpd", "http", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
 		if err != nil {
 			t.Fatalf("error querying for service: %v", err)

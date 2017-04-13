@@ -2,13 +2,21 @@ package consul
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+func TestMain(m *testing.M) {
+	if !testtask.Run() {
+		os.Exit(m.Run())
+	}
+}
 
 // blockingScriptExec implements ScriptExec by running a subcommand that never
 // exits.
@@ -26,7 +34,7 @@ func newBlockingScriptExec() *blockingScriptExec {
 
 func (b *blockingScriptExec) Exec(ctx context.Context, _ string, _ []string) ([]byte, int, error) {
 	b.running <- mark
-	cmd := exec.CommandContext(ctx, "/bin/sleep", "9000")
+	cmd := exec.CommandContext(ctx, testtask.Path(), "sleep", "9000h")
 	err := cmd.Run()
 	code := 0
 	if exitErr, ok := err.(*exec.ExitError); ok {
