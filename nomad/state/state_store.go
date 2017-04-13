@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -311,6 +312,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
+		job.Version = existing.(*structs.Job).Version + 1
 
 		// Compute the job status
 		var err error
@@ -322,6 +324,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.CreateIndex = index
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
+		job.Version = 0
 
 		if err := s.setJobStatus(index, txn, job, false, ""); err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
@@ -339,6 +342,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 
 	if err := s.updateSummaryWithJob(index, job, txn); err != nil {
 		return fmt.Errorf("unable to create job summary: %v", err)
+	}
+
+	if err := s.upsertJobHistory(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_histories table: %v", err)
 	}
 
 	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -437,6 +444,55 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	return nil
 }
 
+// upsertJobHistory inserts a job into its historic table and limits the number
+// of historic jobs that are tracked.
+func (s *StateStore) upsertJobHistory(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	// Insert the job
+	if err := txn.Insert("job_histories", job); err != nil {
+		return fmt.Errorf("failed to insert job into job_histories table: %v", err)
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"job_histories", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Get all the historic jobs for this ID
+	all, err := s.jobHistoryByID(txn, nil, job.ID)
+	if err != nil {
+		return fmt.Errorf("failed to look up job history for %q: %v", job.ID, err)
+	}
+
+	// If we are below the limit there is no GCing to be done
+	if len(all) <= structs.JobDefaultHistoricCount {
+		return nil
+	}
+
+	// We have to delete a historic job to make room.
+	// Find index of the highest versioned stable job
+	stableIdx := -1
+	for i, j := range all {
+		if j.Stable {
+			stableIdx = i
+			break
+		}
+	}
+
+	// If the stable job is the oldest version, do a swap to bring it into the
+	// keep set.
+	max := structs.JobDefaultHistoricCount
+	if stableIdx == max {
+		all[max-1], all[max] = all[max], all[max-1]
+	}
+
+	// Delete the job outside of the set that are being kept.
+	d := all[max]
+	if err := txn.Delete("job_histories", d); err != nil {
+		return fmt.Errorf("failed to delete job %v (%d) from job_histories", d.ID, d.Version)
+	}
+
+	return nil
+}
+
 // JobByID is used to lookup a job by its ID
 func (s *StateStore) JobByID(ws memdb.WatchSet, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
@@ -465,6 +521,50 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultI
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// JobHistoryByID returns all the tracked versions of a job.
+func (s *StateStore) JobHistoryByID(ws memdb.WatchSet, id string) ([]*structs.Job, error) {
+	txn := s.db.Txn(false)
+	return s.jobHistoryByID(txn, &ws, id)
+}
+
+// jobHistoryByID is the underlying implementation for retrieving all tracked
+// versions of a job and is called under an existing transaction. A watch set
+// can optionally be passed in to add the job histories to the watch set.
+func (s *StateStore) jobHistoryByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
+	// Get all the historic jobs for this ID
+	iter, err := txn.Get("job_histories", "id_prefix", id)
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(iter.WatchCh())
+	}
+
+	var all []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Ensure the ID is an exact match
+		j := raw.(*structs.Job)
+		if j.ID != id {
+			continue
+		}
+
+		all = append(all, j)
+	}
+
+	// Sort with highest versions first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version >= all[j].Version
+	})
+
+	return all, nil
 }
 
 // Jobs returns an iterator over all the jobs

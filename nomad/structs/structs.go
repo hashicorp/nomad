@@ -1097,6 +1097,10 @@ const (
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
 	CoreJobPriority = JobMaxPriority * 2
+
+	// JobDefaultHistoricCount is the number of historic job versions that are
+	// kept.
+	JobDefaultHistoricCount = 6
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -1171,6 +1175,15 @@ type Job struct {
 
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
+
+	// Stable marks a job as stable. Stability is only defined on "service" and
+	// "system" jobs. The stability of a job will be set automatically as part
+	// of a deployment and can be manually set via APIs.
+	Stable bool
+
+	// Version is a monitonically increasing version number that is incremened
+	// on each job register.
+	Version uint64
 
 	// Raft Indexes
 	CreateIndex    uint64

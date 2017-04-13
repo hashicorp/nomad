@@ -158,7 +158,7 @@ func jobHistorySchema() *memdb.TableSchema {
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
-							Field:     "JobID",
+							Field:     "ID",
 							Lowercase: true,
 						},
 

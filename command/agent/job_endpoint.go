@@ -372,22 +372,17 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
-		Region:            *job.Region,
-		ID:                *job.ID,
-		ParentID:          *job.ParentID,
-		Name:              *job.Name,
-		Type:              *job.Type,
-		Priority:          *job.Priority,
-		AllAtOnce:         *job.AllAtOnce,
-		Datacenters:       job.Datacenters,
-		Payload:           job.Payload,
-		Meta:              job.Meta,
-		VaultToken:        *job.VaultToken,
-		Status:            *job.Status,
-		StatusDescription: *job.StatusDescription,
-		CreateIndex:       *job.CreateIndex,
-		ModifyIndex:       *job.ModifyIndex,
-		JobModifyIndex:    *job.JobModifyIndex,
+		Region:      *job.Region,
+		ID:          *job.ID,
+		ParentID:    *job.ParentID,
+		Name:        *job.Name,
+		Type:        *job.Type,
+		Priority:    *job.Priority,
+		AllAtOnce:   *job.AllAtOnce,
+		Datacenters: job.Datacenters,
+		Payload:     job.Payload,
+		Meta:        job.Meta,
+		VaultToken:  *job.VaultToken,
 	}
 
 	j.Constraints = make([]*structs.Constraint, len(job.Constraints))

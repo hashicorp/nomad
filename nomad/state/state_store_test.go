@@ -420,6 +420,19 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	// Check the job history
+	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(allVersions) != 1 {
+		t.Fatalf("got %d; want 1", len(allVersions))
+	}
+
+	if a := allVersions[0]; a.ID != job.ID || a.Version != 0 {
+		t.Fatalf("bad: %v", a)
+	}
 }
 
 func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
@@ -439,6 +452,7 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 
 	job2 := mock.Job()
 	job2.ID = job.ID
+	job2.AllAtOnce = true
 	err = state.UpsertJob(1001, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -488,6 +502,22 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	_, ok := summary.Summary["web"]
 	if !ok {
 		t.Fatalf("nil summary for task group")
+	}
+
+	// Check the job history
+	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(allVersions) != 2 {
+		t.Fatalf("got %d; want 1", len(allVersions))
+	}
+
+	if a := allVersions[0]; a.ID != job.ID || a.Version != 1 || !a.AllAtOnce {
+		t.Fatalf("bad: %+v", a)
+	}
+	if a := allVersions[1]; a.ID != job.ID || a.Version != 0 || a.AllAtOnce {
+		t.Fatalf("bad: %+v", a)
 	}
 
 	if watchFired(ws) {
@@ -624,6 +654,95 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 		t.Fatalf("bad children summary: %v", summary.Children)
 	}
 	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job and mark it as stable
+	job := mock.Job()
+	job.Stable = true
+	job.Priority = 0
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.JobHistoryByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if err := state.UpsertJob(1000, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	var finalJob *structs.Job
+	for i := 1; i < 20; i++ {
+		finalJob = mock.Job()
+		finalJob.ID = job.ID
+		finalJob.Priority = i
+		err = state.UpsertJob(uint64(1000+i), finalJob)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	ws = memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(finalJob, out) {
+		t.Fatalf("bad: %#v %#v", finalJob, out)
+	}
+
+	if out.CreateIndex != 1000 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.ModifyIndex != 1019 {
+		t.Fatalf("bad: %#v", out)
+	}
+	if out.Version != 19 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	index, err := state.Index("job_histories")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1019 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	// Check the job history
+	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(allVersions) != structs.JobDefaultHistoricCount {
+		t.Fatalf("got %d; want 1", len(allVersions))
+	}
+
+	if a := allVersions[0]; a.ID != job.ID || a.Version != 19 || a.Priority != 19 {
+		t.Fatalf("bad: %+v", a)
+	}
+	if a := allVersions[1]; a.ID != job.ID || a.Version != 18 || a.Priority != 18 {
+		t.Fatalf("bad: %+v", a)
+	}
+
+	// Ensure we didn't delete the stable job
+	if a := allVersions[structs.JobDefaultHistoricCount-1]; a.ID != job.ID ||
+		a.Version != 0 || a.Priority != 0 || !a.Stable {
+		t.Fatalf("bad: %+v", a)
+	}
+
+	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
 }

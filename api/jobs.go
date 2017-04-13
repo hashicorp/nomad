@@ -297,6 +297,8 @@ type Job struct {
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
 	StatusDescription *string
+	Stable            *bool
+	Version           *uint64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -342,6 +344,12 @@ func (j *Job) Canonicalize() {
 	}
 	if j.StatusDescription == nil {
 		j.StatusDescription = helper.StringToPtr("")
+	}
+	if j.Stable == nil {
+		j.Stable = helper.BoolToPtr(false)
+	}
+	if j.Version == nil {
+		j.Version = helper.Uint64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)
