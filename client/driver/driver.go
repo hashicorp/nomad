@@ -294,7 +294,7 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 		SetTaskMeta(alloc.Job.CombinedTaskMeta(alloc.TaskGroup, task.Name)).
 		SetJobName(alloc.Job.Name).
 		SetDatacenterName(node.Datacenter).
-		SetRegionName(node.Region).
+		SetRegionName(conf.Region).
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 

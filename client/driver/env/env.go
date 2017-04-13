@@ -242,7 +242,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		// Set up the node values.
 		t.NodeValues[nodeIdKey] = t.Node.ID
 		t.NodeValues[nodeDcKey] = t.Node.Datacenter
-		t.NodeValues[nodeRegionKey] = t.Node.Region
+		t.NodeValues[nodeRegionKey] = t.Region
 		t.NodeValues[nodeNameKey] = t.Node.Name
 		t.NodeValues[nodeClassKey] = t.Node.NodeClass
 

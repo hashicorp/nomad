@@ -280,7 +280,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	// Setup the node
 	conf.Node = new(structs.Node)
 	conf.Node.Datacenter = a.config.Datacenter
-	conf.Node.Region = a.config.Region
 	conf.Node.Name = a.config.NodeName
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
