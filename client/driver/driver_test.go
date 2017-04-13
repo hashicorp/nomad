@@ -88,6 +88,7 @@ type testContext struct {
 // It is up to the caller to call AllocDir.Destroy to cleanup.
 func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	cfg := testConfig()
+	cfg.Node = mock.Node()
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
