@@ -21,7 +21,7 @@ task "webservice" {
   driver = "java"
 
   config {
-    jar_path    = "local/exaple.jar"
+    jar_path    = "local/example.jar"
     jvm_options = ["-Xmx2048m", "-Xms256m"]
   }
 }  
