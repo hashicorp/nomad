@@ -33,7 +33,7 @@ func newBlockingScriptExec() *blockingScriptExec {
 }
 
 func (b *blockingScriptExec) Exec(ctx context.Context, _ string, _ []string) ([]byte, int, error) {
-	b.running <- mark
+	b.running <- struct{}{}
 	cmd := exec.CommandContext(ctx, testtask.Path(), "sleep", "9000h")
 	err := cmd.Run()
 	code := 0

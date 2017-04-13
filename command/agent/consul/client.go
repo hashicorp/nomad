@@ -15,8 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var mark = struct{}{}
-
 const (
 	// nomadServicePrefix is the first prefix that scopes all Nomad registered
 	// services
@@ -369,10 +367,10 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 	// Record IDs for deregistering on shutdown
 	c.agentLock.Lock()
 	for _, id := range ops.regServices {
-		c.agentServices[id.ID] = mark
+		c.agentServices[id.ID] = struct{}{}
 	}
 	for _, id := range ops.regChecks {
-		c.agentChecks[id.ID] = mark
+		c.agentChecks[id.ID] = struct{}{}
 	}
 	c.agentLock.Unlock()
 	return nil
@@ -481,7 +479,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		// Check to see what checks were updated
 		existingChecks := make(map[string]struct{}, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
-			existingChecks[createCheckID(existingID, check)] = mark
+			existingChecks[createCheckID(existingID, check)] = struct{}{}
 		}
 
 		// Register new checks
