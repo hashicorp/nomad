@@ -536,7 +536,7 @@ type SingleNodeResponse struct {
 	QueryMeta
 }
 
-// JobListResponse is used for a list request
+// NodeListResponse is used for a list request
 type NodeListResponse struct {
 	Nodes []*NodeListStub
 	QueryMeta
@@ -565,6 +565,12 @@ type JobDispatchResponse struct {
 // JobListResponse is used for a list request
 type JobListResponse struct {
 	Jobs []*JobListStub
+	QueryMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
 	QueryMeta
 }
 

@@ -1134,6 +1134,227 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the jobs
+	job1 := mock.Job()
+	job2 := mock.Job()
+
+	// Upsert a job we are not interested in first.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertJob(100, job1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert another job later which should trigger the watch.
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertJob(200, job2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req := &structs.JobSpecificRequest{
+		JobID: job2.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	start := time.Now()
+	var resp structs.SingleJobResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if resp.Job == nil || resp.Job.ID != job2.ID {
+		t.Fatalf("bad: %#v", resp.Job)
+	}
+
+	// Job delete fires watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteJob(300, job2.ID); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	start = time.Now()
+
+	var resp2 structs.SingleJobResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Job != nil {
+		t.Fatalf("bad: %#v", resp2.Job)
+	}
+}
+
+func TestJobEndpoint_GetJobVersions(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Priority = 88
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 100
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the job
+	get := &structs.JobSpecificRequest{
+		JobID:        job.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var versionsResp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+
+	// Make sure there are two job versions
+	versions := versionsResp.Versions
+	if l := len(versions); l != 2 {
+		t.Fatalf("Got %d versions; want 2", l)
+	}
+
+	if v := versions[0]; v.Priority != 100 || v.ID != job.ID || v.Version != 1 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[1]; v.Priority != 88 || v.ID != job.ID || v.Version != 0 {
+		t.Fatalf("bad: %+v", v)
+	}
+
+	// Lookup non-existing job
+	get.JobID = "foobarbaz"
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+	if l := len(versionsResp.Versions); l != 0 {
+		t.Fatalf("unexpected versions: %d", l)
+	}
+}
+
+func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the jobs
+	job1 := mock.Job()
+	job2 := mock.Job()
+	job3 := mock.Job()
+	job3.ID = job2.ID
+	job3.Priority = 1
+
+	// Upsert a job we are not interested in first.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertJob(100, job1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert another job later which should trigger the watch.
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertJob(200, job2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req := &structs.JobSpecificRequest{
+		JobID: job2.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	start := time.Now()
+	var resp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Versions) != 1 || resp.Versions[0].ID != job2.ID {
+		t.Fatalf("bad: %#v", resp.Versions)
+	}
+
+	// Upsert the job again which should trigger the watch.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertJob(300, job3); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req2 := &structs.JobSpecificRequest{
+		JobID: job3.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 250,
+		},
+	}
+	var resp2 structs.JobVersionsResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", req2, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 300)
+	}
+	if len(resp2.Versions) != 2 {
+		t.Fatalf("bad: %#v", resp2.Versions)
+	}
+}
+
 func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1264,80 +1485,6 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 
 	var resp2 structs.SingleJobResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
-	}
-	if resp2.Index != 300 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
-	}
-	if resp2.Job != nil {
-		t.Fatalf("bad: %#v", resp2.Job)
-	}
-}
-
-func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
-	defer s1.Shutdown()
-	state := s1.fsm.State()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the jobs
-	job1 := mock.Job()
-	job2 := mock.Job()
-
-	// Upsert a job we are not interested in first.
-	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job1); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
-	// Upsert another job later which should trigger the watch.
-	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(200, job2); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
-	req := &structs.JobSpecificRequest{
-		JobID: job2.ID,
-		QueryOptions: structs.QueryOptions{
-			Region:        "global",
-			MinQueryIndex: 150,
-		},
-	}
-	start := time.Now()
-	var resp structs.SingleJobResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
-	if resp.Index != 200 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 200)
-	}
-	if resp.Job == nil || resp.Job.ID != job2.ID {
-		t.Fatalf("bad: %#v", resp.Job)
-	}
-
-	// Job delete fires watches
-	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteJob(300, job2.ID); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
-	req.QueryOptions.MinQueryIndex = 250
-	start = time.Now()
-
-	var resp2 structs.SingleJobResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
