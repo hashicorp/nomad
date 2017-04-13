@@ -376,31 +376,6 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 	return nil
 }
 
-// makeCheckReg adds a check reg to operations.
-func (c *ServiceClient) makeCheckReg(ops *operations, check *structs.ServiceCheck,
-	service *api.AgentServiceRegistration, exec driver.ScriptExecutor, parseAddr addrParser) error {
-
-	checkID := createCheckID(service.ID, check)
-	if check.Type == structs.ServiceCheckScript {
-		if exec == nil {
-			return fmt.Errorf("driver doesn't support script checks")
-		}
-		ops.scripts = append(ops.scripts, newScriptCheck(
-			checkID, check, exec, c.client, c.logger, c.shutdownCh))
-
-	}
-	host, port := service.Address, service.Port
-	if check.PortLabel != "" {
-		host, port = parseAddr(check.PortLabel)
-	}
-	checkReg, err := createCheckReg(service.ID, checkID, check, host, port)
-	if err != nil {
-		return fmt.Errorf("failed to add check %q: %v", check.Name, err)
-	}
-	ops.regChecks = append(ops.regChecks, checkReg)
-	return nil
-}
-
 // serviceRegs creates service registrations, check registrations, and script
 // checks from a service.
 func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *structs.Service,
@@ -421,10 +396,24 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 	ops.regServices = append(ops.regServices, serviceReg)
 
 	for _, check := range service.Checks {
-		err := c.makeCheckReg(ops, check, serviceReg, exec, task.FindHostAndPortFor)
-		if err != nil {
-			return err
+		checkID := createCheckID(id, check)
+		if check.Type == structs.ServiceCheckScript {
+			if exec == nil {
+				return fmt.Errorf("driver doesn't support script checks")
+			}
+			ops.scripts = append(ops.scripts, newScriptCheck(
+				allocID, task.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
+
 		}
+		host, port := serviceReg.Address, serviceReg.Port
+		if check.PortLabel != "" {
+			host, port = task.FindHostAndPortFor(check.PortLabel)
+		}
+		checkReg, err := createCheckReg(id, checkID, check, host, port)
+		if err != nil {
+			return fmt.Errorf("failed to add check %q: %v", check.Name, err)
+		}
+		ops.regChecks = append(ops.regChecks, checkReg)
 	}
 	return nil
 }
@@ -497,7 +486,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 					return fmt.Errorf("driver doesn't support script checks")
 				}
 				ops.scripts = append(ops.scripts, newScriptCheck(
-					checkID, check, exec, c.client, c.logger, c.shutdownCh))
+					existingID, newTask.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
 			}
 			host, port := parseAddr(existingSvc.PortLabel)
 			if check.PortLabel != "" {

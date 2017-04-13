@@ -57,7 +57,7 @@ func TestConsulScript_Exec_Cancel(t *testing.T) {
 	exec := newBlockingScriptExec()
 
 	// pass nil for heartbeater as it shouldn't be called
-	check := newScriptCheck("checkid", &serviceCheck, exec, nil, testLogger(), nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, nil, testLogger(), nil)
 	handle := check.run()
 
 	// wait until Exec is called
@@ -101,7 +101,7 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	exec := newBlockingScriptExec()
 
 	hb := newFakeHeartbeater()
-	check := newScriptCheck("checkid", &serviceCheck, exec, hb, testLogger(), nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), nil)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 	<-exec.running
@@ -148,7 +148,7 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 
 	hb := newFakeHeartbeater()
 	shutdown := make(chan struct{})
-	check := newScriptCheck("checkid", &serviceCheck, noopExec{}, hb, testLogger(), shutdown)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, noopExec{}, hb, testLogger(), shutdown)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 

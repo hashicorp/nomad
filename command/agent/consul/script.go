@@ -32,6 +32,9 @@ func (s *scriptHandle) wait() <-chan struct{} {
 // scriptCheck runs script checks via a ScriptExecutor and updates the
 // appropriate check's TTL when the script succeeds.
 type scriptCheck struct {
+	allocID  string
+	taskName string
+
 	id    string
 	check *structs.ServiceCheck
 	exec  driver.ScriptExecutor
@@ -46,11 +49,14 @@ type scriptCheck struct {
 
 // newScriptCheck creates a new scriptCheck. run() should be called once the
 // initial check is registered with Consul.
-func newScriptCheck(id string, check *structs.ServiceCheck, exec driver.ScriptExecutor, agent heartbeater,
-	logger *log.Logger, shutdownCh <-chan struct{}) *scriptCheck {
+func newScriptCheck(allocID, taskName, checkID string, check *structs.ServiceCheck,
+	exec driver.ScriptExecutor, agent heartbeater, logger *log.Logger,
+	shutdownCh <-chan struct{}) *scriptCheck {
 
 	return &scriptCheck{
-		id:          id,
+		allocID:     allocID,
+		taskName:    taskName,
+		id:          checkID,
 		check:       check,
 		exec:        exec,
 		agent:       agent,
@@ -92,7 +98,8 @@ func (s *scriptCheck) run() *scriptHandle {
 			case context.DeadlineExceeded:
 				// Log deadline exceeded every time, but flip last check to false
 				s.lastCheckOk = false
-				s.logger.Printf("[WARN] consul.checks: check %q timed out (%s)", s.check.Name, s.check.Timeout)
+				s.logger.Printf("[WARN] consul.checks: check %q for task %q alloc %q timed out (%s)",
+					s.check.Name, s.taskName, s.allocID, s.check.Timeout)
 			}
 
 			// cleanup context
@@ -126,15 +133,18 @@ func (s *scriptCheck) run() *scriptHandle {
 			if err != nil {
 				if s.lastCheckOk {
 					s.lastCheckOk = false
-					s.logger.Printf("[WARN] consul.checks: update for check %q failed: %v", s.check.Name, err)
+					s.logger.Printf("[WARN] consul.checks: update for task %q alloc %q check %q failed: %v",
+						s.taskName, s.allocID, s.check.Name, err)
 				} else {
-					s.logger.Printf("[DEBUG] consul.checks: update for check %q still failing: %v", s.check.Name, err)
+					s.logger.Printf("[DEBUG] consul.checks: update for task %q alloc %q check %q still failing: %v",
+						s.taskName, s.allocID, s.check.Name, err)
 				}
 
 			} else if !s.lastCheckOk {
 				// Succeeded for the first time or after failing; log
 				s.lastCheckOk = true
-				s.logger.Printf("[INFO] consul.checks: update for check %q succeeded", s.check.Name)
+				s.logger.Printf("[INFO] consul.checks: update for task %q alloc %q check %q succeeded",
+					s.taskName, s.allocID, s.check.Name)
 			}
 
 			select {
