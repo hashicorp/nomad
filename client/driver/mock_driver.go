@@ -76,6 +76,7 @@ func NewMockDriver(ctx *DriverContext) Driver {
 func (d *MockDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        true,
 	}
 }
 

@@ -86,6 +86,7 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 func (d *ExecDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
+		Exec:        true,
 	}
 }
 

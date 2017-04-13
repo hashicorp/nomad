@@ -108,6 +108,7 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 func (d *JavaDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
+		Exec:        true,
 	}
 }
 

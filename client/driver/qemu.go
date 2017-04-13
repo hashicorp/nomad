@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -97,6 +98,7 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 func (d *QemuDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        false,
 	}
 }
 
@@ -351,6 +353,10 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *qemuHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return nil, 0, fmt.Errorf("Qemu driver can't execute commands")
 }
 
 func (h *qemuHandle) Signal(s os.Signal) error {

@@ -165,6 +165,7 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 func (d *RktDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        true,
 	}
 }
 

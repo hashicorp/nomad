@@ -292,15 +292,11 @@ func (r *TaskRunner) RestoreState() error {
 			return nil
 		}
 
-		//FIXME is there a better place to do this? used to be in executor
-		// Prepare services
-		interpolateServices(r.getTaskEnv(), r.task)
-
-		// Ensure the service is registered
-		scriptExec, _ := handle.(driver.ScriptExecutor)
-		if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
-			//FIXME What to do if this fails?
-			r.logger.Printf("[WARN] client: failed to register services and checks for task %q alloc %q: %v",
+		if err := r.registerServices(d, handle); err != nil {
+			// Don't hard fail here as there's a chance this task
+			// registered with Consul properly when it initial
+			// started.
+			r.logger.Printf("[WARN] client: failed to register services and checks with consul for task %q in alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
 		}
 
@@ -1186,8 +1182,12 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	// Mark that we received the kill event
 	r.setState(structs.TaskStateRunning, event)
 
+	r.handleLock.Lock()
+	handle := r.handle
+	r.handleLock.Unlock()
+
 	// Kill the task using an exponential backoff in-case of failures.
-	destroySuccess, err := r.handleDestroy()
+	destroySuccess, err := r.handleDestroy(handle)
 	if !destroySuccess {
 		// We couldn't successfully destroy the resource created.
 		r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
@@ -1236,24 +1236,35 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
+	if err := r.registerServices(drv, handle); err != nil {
+		// All IO is done asynchronously, so errors from registering
+		// services are hard failures.
+		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
+
+		// Kill the started task
+		if destroyed, err := r.handleDestroy(handle); !destroyed {
+			r.logger.Printf("[ERR] client: failed to kill task %q alloc %q. Resources may be leaked: %v",
+				r.task.Name, r.alloc.ID, err)
+		}
+		return structs.NewRecoverableError(err, false)
+	}
+
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
 
-	//FIXME is there a better place to do this? used to be in executor
-	// Prepare services
-	interpolateServices(r.getTaskEnv(), r.task)
-
-	// RegisterTask properly handles scriptExec being nil, so it just
-	// ignore the ok value.
-	scriptExec, _ := handle.(driver.ScriptExecutor)
-	if err := r.consul.RegisterTask(r.alloc.ID, r.task, scriptExec); err != nil {
-		//FIXME handle errors?!
-		//FIXME could break into prepare & submit steps as only preperation can error...
-		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
-	}
-
 	return nil
+}
+
+// registerServices and checks with Consul.
+func (r *TaskRunner) registerServices(d driver.Driver, h driver.ScriptExecutor) error {
+	var exec driver.ScriptExecutor
+	if d.Abilities().Exec {
+		// Allow set the script executor if the driver supports it
+		exec = h
+	}
+	interpolateServices(r.getTaskEnv(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, r.task, exec)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1391,23 +1402,20 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	var mErr multierror.Error
 	r.handleLock.Lock()
 	if r.handle != nil {
+		// Need to check driver abilities for updating services
+		drv, err := r.createDriver()
+		if err != nil {
+			// Something has really gone wrong; don't continue
+			r.handleLock.Unlock()
+			return fmt.Errorf("error accessing driver when updating task %q: %v", r.task.Name, err)
+		}
+
 		// Update will update resources and store the new kill timeout.
 		if err := r.handle.Update(updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 
-		//FIXME is there a better place to do this? used to be in executor
-		// Prepare services
-		interpolateServices(r.getTaskEnv(), updatedTask)
-
-		// Not all drivers support Exec (eg QEMU), but RegisterTask
-		// handles nil ScriptExecutors
-		scriptExec, _ := r.handle.(driver.ScriptExecutor)
-
-		// Since the handle exists, the task is running, so we need to
-		// update it in Consul (if the handle doesn't exist
-		// registration in Consul will happen when it's created)
-		if err := r.consul.UpdateTask(r.alloc.ID, r.task, updatedTask, scriptExec); err != nil {
+		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1424,14 +1432,25 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	return mErr.ErrorOrNil()
 }
 
+// updateServices and checks with Consul.
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
+	var exec driver.ScriptExecutor
+	if d.Abilities().Exec {
+		// Allow set the script executor if the driver supports it
+		exec = h
+	}
+	interpolateServices(r.getTaskEnv(), r.task)
+	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
+}
+
 // handleDestroy kills the task handle. In the case that killing fails,
 // handleDestroy will retry with an exponential backoff and will give up at a
 // given limit. It returns whether the task was destroyed and the error
 // associated with the last kill attempt.
-func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
+func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, err error) {
 	// Cap the number of times we attempt to kill the task.
 	for i := 0; i < killFailureLimit; i++ {
-		if err = r.handle.Kill(); err != nil {
+		if err = handle.Kill(); err != nil {
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
 			if backoff > killBackoffLimit {

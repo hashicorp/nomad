@@ -80,6 +80,7 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 func (d *RawExecDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
+		Exec:        true,
 	}
 }
 

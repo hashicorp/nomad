@@ -3,6 +3,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -149,6 +150,7 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 func (d *LxcDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        false,
 	}
 }
 
@@ -373,6 +375,10 @@ func (h *lxcDriverHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *lxcDriverHandle) Update(task *structs.Task) error {
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.killTimeout)
 	return nil
+}
+
+func (h *lxcDriverHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return nil, 0, fmt.Errorf("lxc driver cannot execute commands")
 }
 
 func (h *lxcDriverHandle) Kill() error {
