@@ -560,6 +560,72 @@ func TestHTTP_JobAllocations(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobVersions(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		job2 := mock.Job()
+		job2.ID = job.ID
+		job2.Priority = 100
+
+		args2 := structs.JobRegisterRequest{
+			Job:          job2,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp2 structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args2, &resp2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		versions := obj.([]*structs.Job)
+		if len(versions) != 2 {
+			t.Fatalf("got %d versions; want 2", len(versions))
+		}
+
+		if v := versions[0]; v.Version != 1 || v.Priority != 100 {
+			t.Fatalf("bad %v", v)
+		}
+
+		if v := versions[1]; v.Version != 0 {
+			t.Fatalf("bad %v", v)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+	})
+}
+
 func TestHTTP_PeriodicForce(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create and register a periodic job.

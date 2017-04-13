@@ -106,6 +106,17 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Versions is used to retrieve all versions of a particular
+// job given its unique ID.
+func (j *Jobs) Versions(jobID string, q *QueryOptions) ([]*Job, *QueryMeta, error) {
+	var resp []*Job
+	qm, err := j.client.query("/v1/job/"+jobID+"/versions", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub

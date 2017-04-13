@@ -63,6 +63,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/dispatch"):
 		jobName := strings.TrimSuffix(path, "/dispatch")
 		return s.jobDispatchRequest(resp, req, jobName)
+	case strings.HasSuffix(path, "/versions"):
+		jobName := strings.TrimSuffix(path, "/versions")
+		return s.jobVersions(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -320,6 +323,28 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobVersionsResponse
+	if err := s.agent.RPC("Job.GetJobVersions", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if len(out.Versions) == 0 {
+		return nil, CodedError(404, "job versions not found")
+	}
+
+	return out.Versions, nil
 }
 
 func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
