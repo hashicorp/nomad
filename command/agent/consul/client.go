@@ -307,8 +307,10 @@ func (c *ServiceClient) sync() error {
 	return nil
 }
 
-// RegisterAgent registers Nomad agents (client or server). Script checks are
-// not supported and will return an error. Registration is asynchronous.
+// RegisterAgent registers Nomad agents (client or server). The
+// Service.PortLabel should be a literal port to be parsed with SplitHostPort.
+// Script checks are not supported and will return an error. Registration is
+// asynchronous.
 //
 // Agents will be deregistered when Shutdown is called.
 func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) error {
@@ -316,6 +318,9 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 
 	for _, service := range services {
 		id := makeAgentServiceID(role, service)
+
+		// Unlike tasks, agents don't use port labels. Agent ports are
+		// stored directly in the PortLabel.
 		host, rawport, err := net.SplitHostPort(service.PortLabel)
 		if err != nil {
 			return fmt.Errorf("error parsing port label %q from service %q: %v", service.PortLabel, service.Name, err)
@@ -340,6 +345,8 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			}
 			checkHost, checkPort := serviceReg.Address, serviceReg.Port
 			if check.PortLabel != "" {
+				// Unlike tasks, agents don't use port labels. Agent ports are
+				// stored directly in the PortLabel.
 				host, rawport, err := net.SplitHostPort(check.PortLabel)
 				if err != nil {
 					return fmt.Errorf("error parsing port label %q from check %q: %v", service.PortLabel, check.Name, err)
