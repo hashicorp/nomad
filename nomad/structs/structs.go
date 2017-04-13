@@ -1098,9 +1098,9 @@ const (
 	// for the system to remain healthy.
 	CoreJobPriority = JobMaxPriority * 2
 
-	// JobDefaultHistoricCount is the number of historic job versions that are
+	// JobTrackedVersions is the number of historic job versions that are
 	// kept.
-	JobDefaultHistoricCount = 6
+	JobTrackedVersions = 6
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest

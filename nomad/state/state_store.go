@@ -344,8 +344,8 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
-	if err := s.upsertJobHistory(index, job, txn); err != nil {
-		return fmt.Errorf("unable to upsert job into job_histories table: %v", err)
+	if err := s.upsertJobVersion(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_versions table: %v", err)
 	}
 
 	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -444,26 +444,26 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	return nil
 }
 
-// upsertJobHistory inserts a job into its historic table and limits the number
-// of historic jobs that are tracked.
-func (s *StateStore) upsertJobHistory(index uint64, job *structs.Job, txn *memdb.Txn) error {
+// upsertJobVersion inserts a job into its historic version table and limits the
+// number of job versions that are tracked.
+func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb.Txn) error {
 	// Insert the job
-	if err := txn.Insert("job_histories", job); err != nil {
-		return fmt.Errorf("failed to insert job into job_histories table: %v", err)
+	if err := txn.Insert("job_versions", job); err != nil {
+		return fmt.Errorf("failed to insert job into job_versions table: %v", err)
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"job_histories", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{"job_versions", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	// Get all the historic jobs for this ID
-	all, err := s.jobHistoryByID(txn, nil, job.ID)
+	all, err := s.jobVersionByID(txn, nil, job.ID)
 	if err != nil {
-		return fmt.Errorf("failed to look up job history for %q: %v", job.ID, err)
+		return fmt.Errorf("failed to look up job versions for %q: %v", job.ID, err)
 	}
 
 	// If we are below the limit there is no GCing to be done
-	if len(all) <= structs.JobDefaultHistoricCount {
+	if len(all) <= structs.JobTrackedVersions {
 		return nil
 	}
 
@@ -479,15 +479,15 @@ func (s *StateStore) upsertJobHistory(index uint64, job *structs.Job, txn *memdb
 
 	// If the stable job is the oldest version, do a swap to bring it into the
 	// keep set.
-	max := structs.JobDefaultHistoricCount
+	max := structs.JobTrackedVersions
 	if stableIdx == max {
 		all[max-1], all[max] = all[max], all[max-1]
 	}
 
 	// Delete the job outside of the set that are being kept.
 	d := all[max]
-	if err := txn.Delete("job_histories", d); err != nil {
-		return fmt.Errorf("failed to delete job %v (%d) from job_histories", d.ID, d.Version)
+	if err := txn.Delete("job_versions", d); err != nil {
+		return fmt.Errorf("failed to delete job %v (%d) from job_versions", d.ID, d.Version)
 	}
 
 	return nil
@@ -523,18 +523,18 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultI
 	return iter, nil
 }
 
-// JobHistoryByID returns all the tracked versions of a job.
-func (s *StateStore) JobHistoryByID(ws memdb.WatchSet, id string) ([]*structs.Job, error) {
+// JobVersionsByID returns all the tracked versions of a job.
+func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, id string) ([]*structs.Job, error) {
 	txn := s.db.Txn(false)
-	return s.jobHistoryByID(txn, &ws, id)
+	return s.jobVersionByID(txn, &ws, id)
 }
 
-// jobHistoryByID is the underlying implementation for retrieving all tracked
+// jobVersionByID is the underlying implementation for retrieving all tracked
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
-func (s *StateStore) jobHistoryByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
+func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
 	// Get all the historic jobs for this ID
-	iter, err := txn.Get("job_histories", "id_prefix", id)
+	iter, err := txn.Get("job_versions", "id_prefix", id)
 	if err != nil {
 		return nil, err
 	}

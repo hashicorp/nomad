@@ -20,7 +20,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		nodeTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
-		jobHistorySchema,
+		jobVersionsSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
@@ -142,11 +142,11 @@ func jobSummarySchema() *memdb.TableSchema {
 	}
 }
 
-// jobHistorySchema returns the memdb schema for the job history table which
-// keeps a historical view of jobs.
-func jobHistorySchema() *memdb.TableSchema {
+// jobVersionsSchema returns the memdb schema for the job version table which
+// keeps a historical view of job versions.
+func jobVersionsSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "job_histories",
+		Name: "job_versions",
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": &memdb.IndexSchema{
 				Name:         "id",

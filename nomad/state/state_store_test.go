@@ -421,8 +421,8 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 		t.Fatalf("bad")
 	}
 
-	// Check the job history
-	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	// Check the job versions
+	allVersions, err := state.JobVersionsByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -504,8 +504,8 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 		t.Fatalf("nil summary for task group")
 	}
 
-	// Check the job history
-	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	// Check the job versions
+	allVersions, err := state.JobVersionsByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -658,7 +658,7 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
+func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	state := testStateStore(t)
 
 	// Create a job and mark it as stable
@@ -668,7 +668,7 @@ func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	_, err := state.JobHistoryByID(ws, job.ID)
+	_, err := state.JobVersionsByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -712,7 +712,7 @@ func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	index, err := state.Index("job_histories")
+	index, err := state.Index("job_versions")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -720,12 +720,12 @@ func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
 		t.Fatalf("bad: %d", index)
 	}
 
-	// Check the job history
-	allVersions, err := state.JobHistoryByID(ws, job.ID)
+	// Check the job versions
+	allVersions, err := state.JobVersionsByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(allVersions) != structs.JobDefaultHistoricCount {
+	if len(allVersions) != structs.JobTrackedVersions {
 		t.Fatalf("got %d; want 1", len(allVersions))
 	}
 
@@ -737,7 +737,7 @@ func TestStateStore_UpdateUpsertJob_JobHistory(t *testing.T) {
 	}
 
 	// Ensure we didn't delete the stable job
-	if a := allVersions[structs.JobDefaultHistoricCount-1]; a.ID != job.ID ||
+	if a := allVersions[structs.JobTrackedVersions-1]; a.ID != job.ID ||
 		a.Version != 0 || a.Priority != 0 || !a.Stable {
 		t.Fatalf("bad: %+v", a)
 	}
