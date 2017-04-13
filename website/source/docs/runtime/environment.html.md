@@ -62,11 +62,11 @@ environment variables.
   </tr>
   <tr>
     <td>`NOMAD_DC`</td>
-    <td>The datacenter in which the job is running</td>
+    <td>The datacenter in which the allocation is running</td>
   </tr>
   <tr>
     <td>`NOMAD_REGION`</td>
-    <td>The region in which the job is running</td>
+    <td>The region in which the allocation is running</td>
   </tr>
   <tr>
     <td>`NOMAD_IP_<label>`</td>
