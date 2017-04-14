@@ -10,6 +10,9 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * client: Add sticky bit to temp directory [GH-2519]
+ * client: Client syncs allocation state with server before waiting for
+   allocation destroy fixing a corner case in which an allocation may be blocked
+   till destroy [GH-2563]
  * client/artifact: Honor netrc [GH-2524]
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
