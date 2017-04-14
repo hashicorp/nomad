@@ -3742,7 +3742,7 @@ const (
 	EvalTriggerNodeUpdate     = "node-update"
 	EvalTriggerScheduled      = "scheduled"
 	EvalTriggerRollingUpdate  = "rolling-update"
-	EvalTriggerFailedFollowUp = "failed-eval-follow-up"
+	EvalTriggerFailedFollowUp = "failed-follow-up"
 	EvalTriggerMaxPlans       = "max-plan-attempts"
 )
 

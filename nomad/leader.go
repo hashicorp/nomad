@@ -397,10 +397,10 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			}
 
 			// Update the status to failed
-			newEval := eval.Copy()
-			newEval.Status = structs.EvalStatusFailed
-			newEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
-			s.logger.Printf("[WARN] nomad: eval %#v reached delivery limit, marking as failed", newEval)
+			updateEval := eval.Copy()
+			updateEval.Status = structs.EvalStatusFailed
+			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
+			s.logger.Printf("[WARN] nomad: eval %#v reached delivery limit, marking as failed", updateEval)
 
 			// Create a follow-up evaluation that will be used to retry the
 			// scheduling for the job after the cluster is hopefully more stable
@@ -411,10 +411,10 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 
 			// Update via Raft
 			req := structs.EvalUpdateRequest{
-				Evals: []*structs.Evaluation{newEval, followupEval},
+				Evals: []*structs.Evaluation{updateEval, followupEval},
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update failed eval %#v: %v", newEval, err)
+				s.logger.Printf("[ERR] nomad: failed to update failed eval %#v and create a follow-up: %v", updateEval, err)
 				continue
 			}
 
