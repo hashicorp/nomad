@@ -103,7 +103,10 @@ type PendingEvaluations []*structs.Evaluation
 // NewEvalBroker creates a new evaluation broker. This is parameterized
 // with the timeout used for messages that are not acknowledged before we
 // assume a Nack and attempt to redeliver as well as the deliveryLimit
-// which prevents a failing eval from being endlessly delivered.
+// which prevents a failing eval from being endlessly delivered. The
+// initialNackDelay is the delay before making a Nacked evalution available
+// again for the first Nack and subsequentNackDelay is the compounding delay
+// after the first Nack.
 func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
 	if timeout < 0 {
 		return nil, fmt.Errorf("timeout cannot be negative")
