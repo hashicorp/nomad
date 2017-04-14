@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -420,17 +419,5 @@ func TestCreatedResources_CopyRemove(t *testing.T) {
 	// Make sure res1 wasn't updated
 	if reflect.DeepEqual(res1, res2) {
 		t.Fatalf("res1 should not equal res2: #%v", res1)
-	}
-}
-
-// TestHandleExec statically asserts the drivers we expect to implement the
-// consul.Executor interface do.
-func TestHandleScriptExecutor(t *testing.T) {
-	_ = []consul.ScriptExecutor{
-		&DockerHandle{},
-		&execHandle{},
-		&javaHandle{},
-		&rawExecHandle{},
-		&rktHandle{},
 	}
 }

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -536,7 +535,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// Exec a command that should work
-	out, code, err := handle.(consul.ScriptExecutor).Exec(context.TODO(), "/etcd", []string{"--version"})
+	out, code, err := handle.Exec(context.TODO(), "/etcd", []string{"--version"})
 	if err != nil {
 		t.Fatalf("error exec'ing etcd --version: %v", err)
 	}
@@ -548,7 +547,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	}
 
 	// Exec a command that should fail
-	out, code, err = handle.(consul.ScriptExecutor).Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
+	out, code, err = handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
 	if err != nil {
 		t.Fatalf("error exec'ing bad command: %v", err)
 	}

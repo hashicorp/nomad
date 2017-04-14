@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -317,7 +316,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	}
 
 	// Exec a command that should work
-	out, code, err := handle.(consul.ScriptExecutor).Exec(context.TODO(), "/usr/bin/stat", []string{"/alloc"})
+	out, code, err := handle.Exec(context.TODO(), "/usr/bin/stat", []string{"/alloc"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}
@@ -329,7 +328,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	}
 
 	// Exec a command that should fail
-	out, code, err = handle.(consul.ScriptExecutor).Exec(context.TODO(), "/usr/bin/stat", []string{"lkjhdsaflkjshowaisxmcvnlia"})
+	out, code, err = handle.Exec(context.TODO(), "/usr/bin/stat", []string{"lkjhdsaflkjshowaisxmcvnlia"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}

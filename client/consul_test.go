@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,7 +15,7 @@ import (
 type mockConsulOp struct {
 	allocID string
 	task    *structs.Task
-	exec    consul.ScriptExecutor
+	exec    driver.ScriptExecutor
 }
 
 // mockConsulServiceClient implements the ConsulServiceAPI interface to record
@@ -40,17 +40,26 @@ func newMockConsulServiceClient() *mockConsulServiceClient {
 	return &m
 }
 
-func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, exec consul.ScriptExecutor) error {
-	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T)", allocID, task.Name, exec)
+func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.Task, exec driver.ScriptExecutor) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %q, %q, %T)", allocID, old, new, exec)
+	m.removes = append(m.removes, mockConsulOp{allocID, old, exec})
+	m.registers = append(m.registers, mockConsulOp{allocID, new, exec})
+	return nil
+}
+
+func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T)", allocID, task.Name, exec)
 	m.registers = append(m.registers, mockConsulOp{allocID, task, exec})
 	return nil
 }
 
 func (m *mockConsulServiceClient) RemoveTask(allocID string, task *structs.Task) {
-	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", allocID, task.Name)
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", allocID, task.Name)
 	m.removes = append(m.removes, mockConsulOp{allocID, task, nil})
 }
