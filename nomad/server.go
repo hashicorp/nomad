@@ -66,11 +66,11 @@ const (
 
 	// defaultConsulDiscoveryInterval is how often to poll Consul for new
 	// servers if there is no leader.
-	defaultConsulDiscoveryInterval time.Duration = 9 * time.Second
+	defaultConsulDiscoveryInterval time.Duration = 3 * time.Second
 
 	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
 	// new servers if there is no leader and the last Consul query failed.
-	defaultConsulDiscoveryIntervalRetry time.Duration = 3 * time.Second
+	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
 )
 
 // Server is Nomad server which manages the job queues,
