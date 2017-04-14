@@ -12,14 +12,17 @@ description: |-
 ## Resources (RAM, CPU, etc.)
 
 **Nomad servers** may need to be run on large machine instances. We suggest
-having 8+ cores, 32 GB+ of memory, 80 GB+ of disk and significant network
-bandwidth. The core count and network recommendations are to ensure high
-throughput as Nomad heavily relies on network communication and as the Servers
-are managing all the nodes in the region and performing scheduling. The memory
-and disk requirements are due to the fact that Nomad stores all state in memory
-and will store two snapshots of this data onto disk. Thus disk should be at
-least 2 times the memory available to the server when deploying a high load
-cluster.
+having between 4-8+ cores, 16-32 GB+ of memory, 40-80 GB+ of disk and
+significant network bandwidth. The core count and network recommendations are to
+ensure high throughput as Nomad heavily relies on network communication and as
+the Servers are managing all the nodes in the region and performing scheduling.
+The memory and disk requirements are due to the fact that Nomad stores all state
+in memory and will store two snapshots of this data onto disk. Thus disk should
+be at least 2 times the memory available to the server when deploying a high
+load cluster.
+
+These recommendations are guidelines and operators should always monitor the
+resource usage of Nomad to determine if the machines are under or over-sized.
 
 **Nomad clients** support reserving resources on the node that should not be
 used by Nomad. This should be used to target a specific resource utilization per
