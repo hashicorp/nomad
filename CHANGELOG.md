@@ -1,6 +1,8 @@
 ## 0.6.0 (Unreleased)
 
 IMPROVEMENTS:
+ * core: Back-pressure when evaluations are nacked and ensure scheduling
+   progress on evaluation failures [GH-2555]
  * client: Fingerprint all routable addresses on an interface including IPv6
    addresses [GH-2536]
  * client: Hash host ID so its stable and well distributed [GH-2541]
