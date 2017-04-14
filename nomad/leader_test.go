@@ -543,8 +543,8 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 					e.Status, structs.EvalStatusPending)
 			}
 
-			if e.Wait < failedEvalFollowUpBaseLineWait ||
-				e.Wait > failedEvalFollowUpBaseLineWait+failedEvalFollowUpWaitRange {
+			if e.Wait < s1.config.EvalFailedFollowupBaselineDelay ||
+				e.Wait > s1.config.EvalFailedFollowupBaselineDelay+s1.config.EvalFailedFollowupDelayRange {
 				return false, fmt.Errorf("bad wait: %v", e.Wait)
 			}
 

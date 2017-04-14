@@ -158,6 +158,30 @@ type Config struct {
 	// complete eventually fails out of the system.
 	EvalDeliveryLimit int
 
+	// EvalNackInitialReenqueueDelay is the delay applied before reenqueuing a
+	// Nacked evaluation for the first time. This value should be small as the
+	// initial Nack can be due to a down machine and the eval should be retried
+	// quickly for liveliness.
+	EvalNackInitialReenqueueDelay time.Duration
+
+	// EvalNackSubsequentReenqueueDelay is the delay applied before reenqueuing
+	// an evaluation that has been Nacked more than once. This delay is
+	// compounding after the first Nack. This value should be significantly
+	// longer than the initial delay as the purpose it severs is to apply
+	// back-pressure as evaluatiions are being Nacked either due to scheduler
+	// failures or because they are hitting their Nack timeout, both of which
+	// are signs of high server resource usage.
+	EvalNackSubsequentReenqueueDelay time.Duration
+
+	// EvalFailedFollowupBaselineDelay is the minimum time waited before
+	// retrying a failed evaluation.
+	EvalFailedFollowupBaselineDelay time.Duration
+
+	// EvalFailedFollowupDelayRange defines the range of additional time from
+	// the baseline in which to wait before retrying a failed evaluation. The
+	// additional delay is selected from this range randomly.
+	EvalFailedFollowupDelayRange time.Duration
+
 	// MinHeartbeatTTL is the minimum time between heartbeats.
 	// This is used as a floor to prevent excessive updates.
 	MinHeartbeatTTL time.Duration
@@ -214,33 +238,37 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:                 DefaultRegion,
-		Datacenter:             DefaultDC,
-		NodeName:               hostname,
-		ProtocolVersion:        ProtocolVersionMax,
-		RaftConfig:             raft.DefaultConfig(),
-		RaftTimeout:            10 * time.Second,
-		LogOutput:              os.Stderr,
-		RPCAddr:                DefaultRPCAddr,
-		SerfConfig:             serf.DefaultConfig(),
-		NumSchedulers:          1,
-		ReconcileInterval:      60 * time.Second,
-		EvalGCInterval:         5 * time.Minute,
-		EvalGCThreshold:        1 * time.Hour,
-		JobGCInterval:          5 * time.Minute,
-		JobGCThreshold:         4 * time.Hour,
-		NodeGCInterval:         5 * time.Minute,
-		NodeGCThreshold:        24 * time.Hour,
-		EvalNackTimeout:        60 * time.Second,
-		EvalDeliveryLimit:      3,
-		MinHeartbeatTTL:        10 * time.Second,
-		MaxHeartbeatsPerSecond: 50.0,
-		HeartbeatGrace:         10 * time.Second,
-		FailoverHeartbeatTTL:   300 * time.Second,
-		ConsulConfig:           config.DefaultConsulConfig(),
-		VaultConfig:            config.DefaultVaultConfig(),
-		RPCHoldTimeout:         5 * time.Second,
-		TLSConfig:              &config.TLSConfig{},
+		Region:                           DefaultRegion,
+		Datacenter:                       DefaultDC,
+		NodeName:                         hostname,
+		ProtocolVersion:                  ProtocolVersionMax,
+		RaftConfig:                       raft.DefaultConfig(),
+		RaftTimeout:                      10 * time.Second,
+		LogOutput:                        os.Stderr,
+		RPCAddr:                          DefaultRPCAddr,
+		SerfConfig:                       serf.DefaultConfig(),
+		NumSchedulers:                    1,
+		ReconcileInterval:                60 * time.Second,
+		EvalGCInterval:                   5 * time.Minute,
+		EvalGCThreshold:                  1 * time.Hour,
+		JobGCInterval:                    5 * time.Minute,
+		JobGCThreshold:                   4 * time.Hour,
+		NodeGCInterval:                   5 * time.Minute,
+		NodeGCThreshold:                  24 * time.Hour,
+		EvalNackTimeout:                  60 * time.Second,
+		EvalDeliveryLimit:                3,
+		EvalNackInitialReenqueueDelay:    1 * time.Second,
+		EvalNackSubsequentReenqueueDelay: 20 * time.Second,
+		EvalFailedFollowupBaselineDelay:  1 * time.Minute,
+		EvalFailedFollowupDelayRange:     5 * time.Minute,
+		MinHeartbeatTTL:                  10 * time.Second,
+		MaxHeartbeatsPerSecond:           50.0,
+		HeartbeatGrace:                   10 * time.Second,
+		FailoverHeartbeatTTL:             300 * time.Second,
+		ConsulConfig:                     config.DefaultConsulConfig(),
+		VaultConfig:                      config.DefaultVaultConfig(),
+		RPCHoldTimeout:                   5 * time.Second,
+		TLSConfig:                        &config.TLSConfig{},
 	}
 
 	// Enable all known schedulers by default

@@ -17,18 +17,33 @@ var (
 	}
 )
 
+func testBrokerConfig() *Config {
+	config := DefaultConfig()
+
+	// Tune the Nack timeout
+	config.EvalNackTimeout = 5 * time.Second
+
+	// Tune the Nack delay
+	config.EvalNackInitialReenqueueDelay = 5 * time.Millisecond
+	config.EvalNackSubsequentReenqueueDelay = 50 * time.Millisecond
+	return config
+}
+
 func testBroker(t *testing.T, timeout time.Duration) *EvalBroker {
-	if timeout == 0 {
-		timeout = 5 * time.Second
+	config := testBrokerConfig()
+
+	if timeout != 0 {
+		config.EvalNackTimeout = timeout
 	}
-	b, err := NewEvalBroker(timeout, 3)
+
+	return testBrokerFromConfig(t, config)
+}
+
+func testBrokerFromConfig(t *testing.T, c *Config) *EvalBroker {
+	b, err := NewEvalBroker(c.EvalNackTimeout, c.EvalNackInitialReenqueueDelay, c.EvalNackSubsequentReenqueueDelay, 3)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Tune the Nack delay
-	b.initialNackDelay = 5 * time.Millisecond
-	b.subsequentNackDelay = 50 * time.Millisecond
 
 	return b
 }
