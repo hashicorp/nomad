@@ -508,7 +508,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 	}
 	s1.evalBroker.Nack(out.ID, token)
 
-	// Wait updated evaluation
+	// Wait for an updated and followup evaluation
 	state := s1.fsm.State()
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
@@ -516,7 +516,45 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-		return out != nil && out.Status == structs.EvalStatusFailed, nil
+		if out == nil {
+			return false, fmt.Errorf("expect original evaluation to exist")
+		}
+		if out.Status != structs.EvalStatusFailed {
+			return false, fmt.Errorf("got status %v; want %v", out.Status, structs.EvalStatusFailed)
+		}
+
+		// See if there is a followup
+		evals, err := state.EvalsByJob(ws, eval.JobID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 2 {
+			return false, fmt.Errorf("got %d evals, want 2", l)
+		}
+
+		for _, e := range evals {
+			if e.ID == eval.ID {
+				continue
+			}
+
+			if e.Status != structs.EvalStatusPending {
+				return false, fmt.Errorf("follow up eval has status %v; want %v",
+					e.Status, structs.EvalStatusPending)
+			}
+
+			if e.Wait < s1.config.EvalFailedFollowupBaselineDelay ||
+				e.Wait > s1.config.EvalFailedFollowupBaselineDelay+s1.config.EvalFailedFollowupDelayRange {
+				return false, fmt.Errorf("bad wait: %v", e.Wait)
+			}
+
+			if e.TriggeredBy != structs.EvalTriggerFailedFollowUp {
+				return false, fmt.Errorf("follow up eval TriggeredBy %v; want %v",
+					e.TriggeredBy, structs.EvalTriggerFailedFollowUp)
+			}
+		}
+
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})

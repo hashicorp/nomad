@@ -174,7 +174,11 @@ func NewServer(config *Config, consulSyncer *consul.Syncer, logger *log.Logger) 
 	}
 
 	// Create an eval broker
-	evalBroker, err := NewEvalBroker(config.EvalNackTimeout, config.EvalDeliveryLimit)
+	evalBroker, err := NewEvalBroker(
+		config.EvalNackTimeout,
+		config.EvalNackInitialReenqueueDelay,
+		config.EvalNackSubsequentReenqueueDelay,
+		config.EvalDeliveryLimit)
 	if err != nil {
 		return nil, err
 	}
