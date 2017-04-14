@@ -578,14 +578,15 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 	for _, tr := range runners {
 		<-tr.WaitCh()
 	}
-
-	// Final state sync
-	r.syncStatus()
 }
 
 // handleDestroy blocks till the AllocRunner should be destroyed and does the
 // necessary cleanup.
 func (r *AllocRunner) handleDestroy() {
+	// Final state sync. We do this to ensure that the server has the correct
+	// state as we wait for a destroy.
+	r.syncStatus()
+
 	for {
 		select {
 		case <-r.destroyCh:
