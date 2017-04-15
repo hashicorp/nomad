@@ -846,6 +846,10 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return fmt.Errorf("Specified job %q is not a parameterized job", args.JobID)
 	}
 
+	if parameterizedJob.Stop {
+		return fmt.Errorf("Specified job %q is stopped", args.JobID)
+	}
+
 	// Validate the arguments
 	if err := validateDispatchRequest(args, parameterizedJob); err != nil {
 		return err

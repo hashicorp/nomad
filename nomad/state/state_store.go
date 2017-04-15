@@ -1787,6 +1787,11 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	// job is periodic or is a parameterized job, we mark it as running as
 	// it will never have an allocation/evaluation against it.
 	if job.IsPeriodic() || job.IsParameterized() {
+		// If the job is stopped mark it as dead
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil

@@ -854,9 +854,10 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Deregister
+	// Deregister but don't purge
 	dereg := &structs.JobDeregisterRequest{
 		JobID:        job.ID,
+		Purge:        false,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.JobDeregisterResponse
@@ -867,15 +868,18 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 		t.Fatalf("bad index: %d", resp2.Index)
 	}
 
-	// Check for the node in the FSM
+	// Check for the job in the FSM
 	ws := memdb.NewWatchSet()
 	state := s1.fsm.State()
 	out, err := state.JobByID(ws, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out != nil {
-		t.Fatalf("unexpected job")
+	if out == nil {
+		t.Fatalf("job purged")
+	}
+	if !out.Stop {
+		t.Fatalf("job not stopped")
 	}
 
 	// Lookup the evaluation
@@ -903,6 +907,60 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 		t.Fatalf("bad: %#v", eval)
 	}
 	if eval.JobModifyIndex != resp2.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
+
+	// Deregister and purge
+	dereg2 := &structs.JobDeregisterRequest{
+		JobID:        job.ID,
+		Purge:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp3 structs.JobDeregisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp3.Index == 0 {
+		t.Fatalf("bad index: %d", resp3.Index)
+	}
+
+	// Check for the job in the FSM
+	out, err = state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected job")
+	}
+
+	// Lookup the evaluation
+	eval, err = state.EvalByID(ws, resp3.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("expected eval")
+	}
+	if eval.CreateIndex != resp3.EvalCreateIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	if eval.Priority != structs.JobDefaultPriority {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Type != structs.JobTypeService {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobID != job.ID {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobModifyIndex != resp3.JobModifyIndex {
 		t.Fatalf("bad: %#v", eval)
 	}
 	if eval.Status != structs.EvalStatusPending {
@@ -990,6 +1048,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
 		JobID:        job.ID,
+		Purge:        true,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.JobDeregisterResponse
@@ -1042,6 +1101,7 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
 		JobID:        job.ID,
+		Purge:        true,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.JobDeregisterResponse
@@ -2089,6 +2149,11 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	d6 := mock.PeriodicJob()
 	d6.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
+	d7 := mock.Job()
+	d7.Type = structs.JobTypeBatch
+	d7.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	d7.Stop = true
+
 	reqNoInputNoMeta := &structs.JobDispatchRequest{}
 	reqInputDataNoMeta := &structs.JobDispatchRequest{
 		Payload: []byte("hello world"),
@@ -2209,6 +2274,13 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			parameterizedJob: d6,
 			dispatchReq:      reqNoInputNoMeta,
 			noEval:           true,
+		},
+		{
+			name:             "periodic job stopped, ensure error",
+			parameterizedJob: d7,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "stopped",
 		},
 	}
 

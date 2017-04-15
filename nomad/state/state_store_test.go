@@ -3760,6 +3760,59 @@ func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
 	}
 }
 
+func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.PeriodicJob()
+
+	txn := state.db.Txn(false)
+	status, err := state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if status != structs.JobStatusRunning {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
+	}
+
+	// Mark it as stopped
+	job.Stop = true
+	status, err = state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if status != structs.JobStatusDead {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
+	}
+}
+
+func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	txn := state.db.Txn(false)
+	status, err := state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if status != structs.JobStatusRunning {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
+	}
+
+	// Mark it as stopped
+	job.Stop = true
+	status, err = state.getJobStatus(txn, job, false)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if status != structs.JobStatusDead {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
+	}
+}
+
 func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
