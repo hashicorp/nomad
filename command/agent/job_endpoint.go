@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -312,8 +313,20 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
+
+	purgeStr := req.URL.Query().Get("purge")
+	var purgeBool bool
+	if purgeStr != "" {
+		var err error
+		purgeBool, err = strconv.ParseBool(purgeStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "purge", purgeStr, err)
+		}
+	}
+
 	args := structs.JobDeregisterRequest{
 		JobID: jobName,
+		Purge: purgeBool,
 	}
 	s.parseRegion(req, &args.Region)
 
@@ -397,6 +410,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
+		Stop:        *job.Stop,
 		Region:      *job.Region,
 		ID:          *job.ID,
 		ParentID:    *job.ParentID,

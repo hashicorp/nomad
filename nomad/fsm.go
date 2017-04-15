@@ -330,20 +330,43 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteJob(index, req.JobID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
-		return err
-	}
-
+	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 		return err
 	}
 
-	// We always delete from the periodic launch table because it is possible that
-	// the job was updated to be non-perioidic, thus checking if it is periodic
-	// doesn't ensure we clean it up properly.
-	n.state.DeletePeriodicLaunch(index, req.JobID)
+	if req.Purge {
+		if err := n.state.DeleteJob(index, req.JobID); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
+			return err
+		}
+
+		// We always delete from the periodic launch table because it is possible that
+		// the job was updated to be non-perioidic, thus checking if it is periodic
+		// doesn't ensure we clean it up properly.
+		n.state.DeletePeriodicLaunch(index, req.JobID)
+	} else {
+		// Get the current job and mark it as stopped and re-insert it.
+		ws := memdb.NewWatchSet()
+		current, err := n.state.JobByID(ws, req.JobID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
+			return err
+		}
+
+		if current == nil {
+			return fmt.Errorf("job %q doesn't exist to be deregistered", req.JobID)
+		}
+
+		stopped := current.Copy()
+		stopped.Stop = true
+
+		if err := n.state.UpsertJob(index, stopped); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
+			return err
+		}
+	}
 
 	return nil
 }

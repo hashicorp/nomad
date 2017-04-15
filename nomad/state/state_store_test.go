@@ -797,6 +797,30 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 		t.Fatalf("expected summary to be nil, but got: %v", summary)
 	}
 
+	index, err = state.Index("job_summary")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	versions, err := state.JobVersionsByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(versions) != 0 {
+		t.Fatalf("expected no job versions")
+	}
+
+	index, err = state.Index("job_summary")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}

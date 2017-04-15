@@ -314,7 +314,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 }
 
-func TestFSM_DeregisterJob(t *testing.T) {
+func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -333,6 +333,7 @@ func TestFSM_DeregisterJob(t *testing.T) {
 
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
+		Purge: true,
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -366,6 +367,65 @@ func TestFSM_DeregisterJob(t *testing.T) {
 	}
 	if launchOut != nil {
 		t.Fatalf("launch found!")
+	}
+}
+
+func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
+	fsm := testFSM(t)
+
+	job := mock.PeriodicJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	req2 := structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: false,
+	}
+	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if jobOut == nil {
+		t.Fatalf("job not found!")
+	}
+	if !jobOut.Stop {
+		t.Fatalf("job not stopped found!")
+	}
+
+	// Verify it was removed from the periodic runner.
+	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+		t.Fatal("job not removed from periodic runner")
+	}
+
+	// Verify it was removed from the periodic launch table.
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut == nil {
+		t.Fatalf("launch not found!")
 	}
 }
 

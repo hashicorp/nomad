@@ -141,7 +141,7 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status|%s", *job.Status),
+		fmt.Sprintf("Status|%s", getStatusString(*job.Status, *job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
@@ -448,7 +448,14 @@ func createStatusListOutput(jobs []*api.JobListStub) string {
 			job.ID,
 			job.Type,
 			job.Priority,
-			job.Status)
+			getStatusString(job.Status, job.Stop))
 	}
 	return formatList(out)
+}
+
+func getStatusString(status string, stop bool) string {
+	if stop {
+		return fmt.Sprintf("%s (stopped)", status)
+	}
+	return status
 }

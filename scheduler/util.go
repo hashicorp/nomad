@@ -21,7 +21,7 @@ type allocTuple struct {
 // a job requires. This is used to do the count expansion.
 func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	out := make(map[string]*structs.TaskGroup)
-	if job == nil {
+	if job == nil || job.Stop {
 		return out
 	}
 

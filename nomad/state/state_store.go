@@ -432,6 +432,11 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Delete the job versions
+	if err := s.deleteJobVersions(index, job, txn); err != nil {
+		return err
+	}
+
 	// Delete the job summary
 	if _, err = txn.DeleteAll("job_summary", "id", jobID); err != nil {
 		return fmt.Errorf("deleing job summary failed: %v", err)
@@ -441,6 +446,37 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	}
 
 	txn.Commit()
+	return nil
+}
+
+// deleteJobVersions deletes all versions of the given job.
+func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	iter, err := txn.Get("job_versions", "id_prefix", job.ID)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Ensure the ID is an exact match
+		j := raw.(*structs.Job)
+		if j.ID != job.ID {
+			continue
+		}
+
+		if _, err = txn.DeleteAll("job_versions", "id", job.ID, job.Version); err != nil {
+			return fmt.Errorf("deleing job versions failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }
 

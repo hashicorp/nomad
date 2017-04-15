@@ -239,6 +239,12 @@ type JobRegisterRequest struct {
 // to deregister a job as being a schedulable entity.
 type JobDeregisterRequest struct {
 	JobID string
+
+	// Purge controls whether the deregister purges the job from the system or
+	// whether the job is just marked as stopped and will be removed by the
+	// garbage collector
+	Purge bool
+
 	WriteRequest
 }
 
@@ -1114,6 +1120,12 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
+	// Stop marks whether the user has stopped the job. A stopped job will
+	// have all created allocations stopped and acts as a way to stop a job
+	// without purging it from the system. This allows existing allocs to be
+	// queried and the job to be inspected as it is being killed.
+	Stop bool
+
 	// Region is the Nomad region that handles scheduling this job
 	Region string
 
@@ -1384,6 +1396,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
+		Stop:              j.Stop,
 		Status:            j.Status,
 		StatusDescription: j.StatusDescription,
 		CreateIndex:       j.CreateIndex,
@@ -1483,6 +1496,7 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Stop              bool
 	Status            string
 	StatusDescription string
 	JobSummary        *JobSummary

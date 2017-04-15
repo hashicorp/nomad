@@ -690,17 +690,36 @@ func TestJobs_Deregister(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Attempting delete on non-existing job returns an error
-	if _, _, err = jobs.Deregister("nope", nil); err != nil {
+	if _, _, err = jobs.Deregister("nope", false, nil); err != nil {
 		t.Fatalf("unexpected error deregistering job: %v", err)
-
 	}
 
-	// Deleting an existing job works
-	evalID, wm3, err := jobs.Deregister("job1", nil)
+	// Do a soft deregister of an existing job
+	evalID, wm3, err := jobs.Deregister("job1", false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	assertWriteMeta(t, wm3)
+	if evalID == "" {
+		t.Fatalf("missing eval ID")
+	}
+
+	// Check that the job is still queryable
+	out, qm1, err := jobs.Info("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm1)
+	if out == nil {
+		t.Fatalf("missing job")
+	}
+
+	// Do a purge deregister of an existing job
+	evalID, wm4, err := jobs.Deregister("job1", true, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm4)
 	if evalID == "" {
 		t.Fatalf("missing eval ID")
 	}

@@ -179,6 +179,12 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	return s.planner.CreateEval(s.blocked)
 }
 
+// isStoppedJob returns if the scheduling is for a stopped job and the scheduler
+// should stop all its allocations.
+func (s *GenericScheduler) isStoppedJob() bool {
+	return s.job == nil || s.job.Stop
+}
+
 // process is wrapped in retryMax to iteratively run the handler until we have no
 // further work or we've made the maximum number of attempts.
 func (s *GenericScheduler) process() (bool, error) {
@@ -191,7 +197,7 @@ func (s *GenericScheduler) process() (bool, error) {
 			s.eval.JobID, err)
 	}
 	numTaskGroups := 0
-	if s.job != nil {
+	if !s.isStoppedJob() {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
@@ -207,7 +213,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// Construct the placement stack
 	s.stack = NewGenericStack(s.batch, s.ctx)
-	if s.job != nil {
+	if !s.isStoppedJob() {
 		s.stack.SetJob(s.job)
 	}
 
@@ -351,7 +357,7 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) ([
 func (s *GenericScheduler) computeJobAllocs() error {
 	// Materialize all the task groups, job could be missing if deregistered
 	var groups map[string]*structs.TaskGroup
-	if s.job != nil {
+	if !s.isStoppedJob() {
 		groups = materializeTaskGroups(s.job)
 	}
 
@@ -398,7 +404,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Check if a rolling upgrade strategy is being used
 	limit := len(diff.update) + len(diff.migrate) + len(diff.lost)
-	if s.job != nil && s.job.Update.Rolling() {
+	if !s.isStoppedJob() && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
 
@@ -414,7 +420,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
-		if s.job != nil {
+		if !s.isStoppedJob() {
 			for _, tg := range s.job.TaskGroups {
 				s.queuedAllocs[tg.Name] = 0
 			}
