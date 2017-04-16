@@ -133,9 +133,60 @@ region is used; another region can be specified using the `?region=` query param
     },
     "Status": "",
     "StatusDescription": "",
+    "Version": 3,
     "CreateIndex": 14,
     "ModifyIndex": 14
     }
+    ```
+  </dd>
+</dl>
+
+<dl>
+  <dt>Description</dt>
+  <dd>
+    Query all versions of a single job.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/v1/job/<ID>/versions`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    None
+  </dd>
+
+  <dt>Blocking Queries</dt>
+  <dd>
+    [Supported](/docs/http/index.html#blocking-queries)
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+    [
+        {
+            "Region": "global",
+            "ID": "binstore-storagelocker",
+            "Version": 2,
+            ...
+        },
+        {
+            "Region": "global",
+            "ID": "binstore-storagelocker",
+            "Version": 1,
+            ...
+        },
+        {
+            "Region": "global",
+            "ID": "binstore-storagelocker",
+            "Version": 0,
+            ...
+        }
+    ]
     ```
   </dd>
 </dl>
