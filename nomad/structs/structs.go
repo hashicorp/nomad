@@ -1396,6 +1396,8 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
+		Periodic:          j.IsPeriodic(),
+		ParameterizedJob:  j.IsParameterized(),
 		Stop:              j.Stop,
 		Status:            j.Status,
 		StatusDescription: j.StatusDescription,
@@ -1496,6 +1498,8 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
 	Stop              bool
 	Status            string
 	StatusDescription string

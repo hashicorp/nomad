@@ -431,6 +431,8 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
 	Stop              bool
 	Status            string
 	StatusDescription string

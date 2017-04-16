@@ -450,11 +450,25 @@ func createStatusListOutput(jobs []*api.JobListStub) string {
 	for i, job := range jobs {
 		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
 			job.ID,
-			job.Type,
+			getTypeString(job),
 			job.Priority,
 			getStatusString(job.Status, job.Stop))
 	}
 	return formatList(out)
+}
+
+func getTypeString(job *api.JobListStub) string {
+	t := job.Type
+
+	if job.Periodic {
+		t += "/periodic"
+	}
+
+	if job.ParameterizedJob {
+		t += "/parameterized"
+	}
+
+	return t
 }
 
 func getStatusString(status string, stop bool) string {
