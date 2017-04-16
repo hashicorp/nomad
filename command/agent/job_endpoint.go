@@ -424,18 +424,22 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultToken:  *job.VaultToken,
 	}
 
-	j.Constraints = make([]*structs.Constraint, len(job.Constraints))
-	for i, c := range job.Constraints {
-		con := &structs.Constraint{}
-		ApiConstraintToStructs(c, con)
-		j.Constraints[i] = con
+	if l := len(job.Constraints); l != 0 {
+		j.Constraints = make([]*structs.Constraint, l)
+		for i, c := range job.Constraints {
+			con := &structs.Constraint{}
+			ApiConstraintToStructs(c, con)
+			j.Constraints[i] = con
+		}
 	}
+
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{
 			Stagger:     job.Update.Stagger,
 			MaxParallel: job.Update.MaxParallel,
 		}
 	}
+
 	if job.Periodic != nil {
 		j.Periodic = &structs.PeriodicConfig{
 			Enabled:         *job.Periodic.Enabled,
@@ -443,10 +447,12 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 			ProhibitOverlap: *job.Periodic.ProhibitOverlap,
 			TimeZone:        *job.Periodic.TimeZone,
 		}
+
 		if job.Periodic.Spec != nil {
 			j.Periodic.Spec = *job.Periodic.Spec
 		}
 	}
+
 	if job.ParameterizedJob != nil {
 		j.ParameterizedJob = &structs.ParameterizedJobConfig{
 			Payload:      job.ParameterizedJob.Payload,
@@ -455,11 +461,13 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
-	j.TaskGroups = make([]*structs.TaskGroup, len(job.TaskGroups))
-	for i, taskGroup := range job.TaskGroups {
-		tg := &structs.TaskGroup{}
-		ApiTgToStructsTG(taskGroup, tg)
-		j.TaskGroups[i] = tg
+	if l := len(job.TaskGroups); l != 0 {
+		j.TaskGroups = make([]*structs.TaskGroup, l)
+		for i, taskGroup := range job.TaskGroups {
+			tg := &structs.TaskGroup{}
+			ApiTgToStructsTG(taskGroup, tg)
+			j.TaskGroups[i] = tg
+		}
 	}
 
 	return j
@@ -469,29 +477,36 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
-	tg.Constraints = make([]*structs.Constraint, len(taskGroup.Constraints))
-	for k, constraint := range taskGroup.Constraints {
-		c := &structs.Constraint{}
-		ApiConstraintToStructs(constraint, c)
-		tg.Constraints[k] = c
+
+	if l := len(taskGroup.Constraints); l != 0 {
+		tg.Constraints = make([]*structs.Constraint, l)
+		for k, constraint := range taskGroup.Constraints {
+			c := &structs.Constraint{}
+			ApiConstraintToStructs(constraint, c)
+			tg.Constraints[k] = c
+		}
 	}
+
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
 		Interval: *taskGroup.RestartPolicy.Interval,
 		Delay:    *taskGroup.RestartPolicy.Delay,
 		Mode:     *taskGroup.RestartPolicy.Mode,
 	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
 	}
-	tg.Meta = taskGroup.Meta
-	tg.Tasks = make([]*structs.Task, len(taskGroup.Tasks))
-	for l, task := range taskGroup.Tasks {
-		t := &structs.Task{}
-		ApiTaskToStructsTask(task, t)
-		tg.Tasks[l] = t
+
+	if l := len(taskGroup.Tasks); l != 0 {
+		tg.Tasks = make([]*structs.Task, l)
+		for l, task := range taskGroup.Tasks {
+			t := &structs.Task{}
+			ApiTaskToStructsTask(task, t)
+			tg.Tasks[l] = t
+		}
 	}
 }
 
@@ -501,77 +516,101 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.User = apiTask.User
 	structsTask.Leader = apiTask.Leader
 	structsTask.Config = apiTask.Config
-	structsTask.Constraints = make([]*structs.Constraint, len(apiTask.Constraints))
-	for i, constraint := range apiTask.Constraints {
-		c := &structs.Constraint{}
-		ApiConstraintToStructs(constraint, c)
-		structsTask.Constraints[i] = c
-	}
 	structsTask.Env = apiTask.Env
-	structsTask.Services = make([]*structs.Service, len(apiTask.Services))
-	for i, service := range apiTask.Services {
-		structsTask.Services[i] = &structs.Service{
-			Name:      service.Name,
-			PortLabel: service.PortLabel,
-			Tags:      service.Tags,
+	structsTask.Meta = apiTask.Meta
+	structsTask.KillTimeout = *apiTask.KillTimeout
+
+	if l := len(apiTask.Constraints); l != 0 {
+		structsTask.Constraints = make([]*structs.Constraint, l)
+		for i, constraint := range apiTask.Constraints {
+			c := &structs.Constraint{}
+			ApiConstraintToStructs(constraint, c)
+			structsTask.Constraints[i] = c
 		}
-		structsTask.Services[i].Checks = make([]*structs.ServiceCheck, len(service.Checks))
-		for j, check := range service.Checks {
-			structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-				Name:          check.Name,
-				Type:          check.Type,
-				Command:       check.Command,
-				Args:          check.Args,
-				Path:          check.Path,
-				Protocol:      check.Protocol,
-				PortLabel:     check.PortLabel,
-				Interval:      check.Interval,
-				Timeout:       check.Timeout,
-				InitialStatus: check.InitialStatus,
+	}
+
+	if l := len(apiTask.Services); l != 0 {
+		structsTask.Services = make([]*structs.Service, l)
+		for i, service := range apiTask.Services {
+			structsTask.Services[i] = &structs.Service{
+				Name:      service.Name,
+				PortLabel: service.PortLabel,
+				Tags:      service.Tags,
+			}
+
+			if l := len(service.Checks); l != 0 {
+				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
+				for j, check := range service.Checks {
+					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
+						Name:          check.Name,
+						Type:          check.Type,
+						Command:       check.Command,
+						Args:          check.Args,
+						Path:          check.Path,
+						Protocol:      check.Protocol,
+						PortLabel:     check.PortLabel,
+						Interval:      check.Interval,
+						Timeout:       check.Timeout,
+						InitialStatus: check.InitialStatus,
+					}
+				}
 			}
 		}
 	}
+
 	structsTask.Resources = &structs.Resources{
 		CPU:      *apiTask.Resources.CPU,
 		MemoryMB: *apiTask.Resources.MemoryMB,
 		IOPS:     *apiTask.Resources.IOPS,
 	}
-	structsTask.Resources.Networks = make([]*structs.NetworkResource, len(apiTask.Resources.Networks))
-	for i, nw := range apiTask.Resources.Networks {
-		structsTask.Resources.Networks[i] = &structs.NetworkResource{
-			CIDR:  nw.CIDR,
-			IP:    nw.IP,
-			MBits: *nw.MBits,
-		}
-		structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, len(nw.DynamicPorts))
-		structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, len(nw.ReservedPorts))
-		for j, dp := range nw.DynamicPorts {
-			structsTask.Resources.Networks[i].DynamicPorts[j] = structs.Port{
-				Label: dp.Label,
-				Value: dp.Value,
+
+	if l := len(apiTask.Resources.Networks); l != 0 {
+		structsTask.Resources.Networks = make([]*structs.NetworkResource, l)
+		for i, nw := range apiTask.Resources.Networks {
+			structsTask.Resources.Networks[i] = &structs.NetworkResource{
+				CIDR:  nw.CIDR,
+				IP:    nw.IP,
+				MBits: *nw.MBits,
 			}
-		}
-		for j, rp := range nw.ReservedPorts {
-			structsTask.Resources.Networks[i].ReservedPorts[j] = structs.Port{
-				Label: rp.Label,
-				Value: rp.Value,
+
+			if l := len(nw.DynamicPorts); l != 0 {
+				structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, l)
+				for j, dp := range nw.DynamicPorts {
+					structsTask.Resources.Networks[i].DynamicPorts[j] = structs.Port{
+						Label: dp.Label,
+						Value: dp.Value,
+					}
+				}
+			}
+
+			if l := len(nw.ReservedPorts); l != 0 {
+				structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, l)
+				for j, rp := range nw.ReservedPorts {
+					structsTask.Resources.Networks[i].ReservedPorts[j] = structs.Port{
+						Label: rp.Label,
+						Value: rp.Value,
+					}
+				}
 			}
 		}
 	}
-	structsTask.Meta = apiTask.Meta
-	structsTask.KillTimeout = *apiTask.KillTimeout
+
 	structsTask.LogConfig = &structs.LogConfig{
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
 	}
-	structsTask.Artifacts = make([]*structs.TaskArtifact, len(apiTask.Artifacts))
-	for k, ta := range apiTask.Artifacts {
-		structsTask.Artifacts[k] = &structs.TaskArtifact{
-			GetterSource:  *ta.GetterSource,
-			GetterOptions: ta.GetterOptions,
-			RelativeDest:  *ta.RelativeDest,
+
+	if l := len(apiTask.Artifacts); l != 0 {
+		structsTask.Artifacts = make([]*structs.TaskArtifact, l)
+		for k, ta := range apiTask.Artifacts {
+			structsTask.Artifacts[k] = &structs.TaskArtifact{
+				GetterSource:  *ta.GetterSource,
+				GetterOptions: ta.GetterOptions,
+				RelativeDest:  *ta.RelativeDest,
+			}
 		}
 	}
+
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Policies:     apiTask.Vault.Policies,
@@ -580,20 +619,24 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}
 	}
-	structsTask.Templates = make([]*structs.Template, len(apiTask.Templates))
-	for i, template := range apiTask.Templates {
-		structsTask.Templates[i] = &structs.Template{
-			SourcePath:   *template.SourcePath,
-			DestPath:     *template.DestPath,
-			EmbeddedTmpl: *template.EmbeddedTmpl,
-			ChangeMode:   *template.ChangeMode,
-			ChangeSignal: *template.ChangeSignal,
-			Splay:        *template.Splay,
-			Perms:        *template.Perms,
-			LeftDelim:    *template.LeftDelim,
-			RightDelim:   *template.RightDelim,
+
+	if l := len(apiTask.Templates); l != 0 {
+		structsTask.Templates = make([]*structs.Template, l)
+		for i, template := range apiTask.Templates {
+			structsTask.Templates[i] = &structs.Template{
+				SourcePath:   *template.SourcePath,
+				DestPath:     *template.DestPath,
+				EmbeddedTmpl: *template.EmbeddedTmpl,
+				ChangeMode:   *template.ChangeMode,
+				ChangeSignal: *template.ChangeSignal,
+				Splay:        *template.Splay,
+				Perms:        *template.Perms,
+				LeftDelim:    *template.LeftDelim,
+				RightDelim:   *template.RightDelim,
+			}
 		}
 	}
+
 	if apiTask.DispatchPayload != nil {
 		structsTask.DispatchPayload = &structs.DispatchPayloadConfig{
 			File: apiTask.DispatchPayload.File,

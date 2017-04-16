@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -272,10 +273,16 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 	}
 
 	// Should get it back
-	out2, _, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
-	if out2 != out {
-		t.Fatalf("nack failed")
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		out2, _, _ := s1.evalBroker.Dequeue(defaultSched, time.Second)
+		if out2 != out {
+			return false, fmt.Errorf("nack failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
 }
 
 func TestEvalEndpoint_Update(t *testing.T) {

@@ -59,7 +59,8 @@ type JobDiff struct {
 func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"ID", "Status", "StatusDescription", "CreateIndex", "ModifyIndex", "JobModifyIndex"}
+	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
+		"ModifyIndex", "JobModifyIndex"}
 
 	// Have to treat this special since it is a struct literal, not a pointer
 	var jUpdate, otherUpdate *UpdateStrategy
@@ -81,10 +82,6 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	} else {
 		if j.ID != other.ID {
 			return nil, fmt.Errorf("can not diff jobs with different IDs: %q and %q", j.ID, other.ID)
-		}
-
-		if !reflect.DeepEqual(j, other) {
-			diff.Type = DiffTypeEdited
 		}
 
 		jUpdate = &j.Update
@@ -133,6 +130,35 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	// ParameterizedJob diff
 	if cDiff := parameterizedJobDiff(j.ParameterizedJob, other.ParameterizedJob, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	// Check to see if there is a diff. We don't use reflect because we are
+	// filtering quite a few fields that will change on each diff.
+	if diff.Type == DiffTypeNone {
+		for _, fd := range diff.Fields {
+			if fd.Type != DiffTypeNone {
+				diff.Type = DiffTypeEdited
+				break
+			}
+		}
+	}
+
+	if diff.Type == DiffTypeNone {
+		for _, od := range diff.Objects {
+			if od.Type != DiffTypeNone {
+				diff.Type = DiffTypeEdited
+				break
+			}
+		}
+	}
+
+	if diff.Type == DiffTypeNone {
+		for _, tg := range diff.TaskGroups {
+			if tg.Type != DiffTypeNone {
+				diff.Type = DiffTypeEdited
+				break
+			}
+		}
 	}
 
 	return diff, nil
