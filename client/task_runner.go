@@ -1402,7 +1402,6 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	var mErr multierror.Error
 	r.handleLock.Lock()
 	if r.handle != nil {
-		// Need to check driver abilities for updating services
 		drv, err := r.createDriver()
 		if err != nil {
 			// Something has really gone wrong; don't continue
