@@ -88,11 +88,3 @@ func removeSecretDir(dir string) error {
 	}
 	return os.RemoveAll(dir)
 }
-
-func getOwner(fi os.FileInfo) (int, int) {
-	stat, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return -1, -1
-	}
-	return int(stat.Uid), int(stat.Gid)
-}

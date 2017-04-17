@@ -73,5 +73,5 @@ func unmountSpecialDirs(taskDir string) error {
 
 // getOwner doesn't work on Windows as Windows doesn't use int user IDs
 func getOwner(os.FileInfo) (int, int) {
-	return -1, -1
+	return idUnsupported, idUnsupported
 }

@@ -17,6 +17,12 @@ import (
 	"github.com/hpcloud/tail/watch"
 )
 
+const (
+	// idUnsupported is what the uid/gid will be set to on platforms (eg
+	// Windows) that don't support integer ownership identifiers.
+	idUnsupported = -1
+)
+
 var (
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
@@ -405,7 +411,7 @@ func fileCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 		return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
 	}
 
-	if uid >= 0 && gid >= 0 {
+	if uid != idUnsupported && gid != idUnsupported {
 		if err := dstFile.Chown(uid, gid); err != nil {
 			return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
 		}
@@ -456,6 +462,12 @@ func createDir(basePath, relPath string) error {
 		if err := os.MkdirAll(destDir, fi.Perm); err != nil {
 			return err
 		}
+
+		if fi.Uid != idUnsupported && fi.Gid != idUnsupported {
+			if err := os.Chown(destDir, fi.Uid, fi.Gid); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -464,6 +476,10 @@ func createDir(basePath, relPath string) error {
 type fileInfo struct {
 	Name string
 	Perm os.FileMode
+
+	// Uid and Gid are unsupported on Windows
+	Uid int
+	Gid int
 }
 
 // splitPath stats each subdirectory of a path. The first element of the array
@@ -471,17 +487,19 @@ type fileInfo struct {
 // path.
 func splitPath(path string) ([]fileInfo, error) {
 	var mode os.FileMode
-	i, err := os.Stat(path)
+	fi, err := os.Stat(path)
 
 	// If the path is not present in the host then we respond with the most
 	// flexible permission.
+	uid, gid := idUnsupported, idUnsupported
 	if err != nil {
 		mode = os.ModePerm
 	} else {
-		mode = i.Mode()
+		uid, gid = getOwner(fi)
+		mode = fi.Mode()
 	}
 	var dirs []fileInfo
-	dirs = append(dirs, fileInfo{Name: path, Perm: mode})
+	dirs = append(dirs, fileInfo{Name: path, Perm: mode, Uid: uid, Gid: gid})
 	currentDir := path
 	for {
 		dir := filepath.Dir(filepath.Clean(currentDir))
@@ -491,13 +509,15 @@ func splitPath(path string) ([]fileInfo, error) {
 
 		// We try to find the permission of the file in the host. If the path is not
 		// present in the host then we respond with the most flexible permission.
-		i, err = os.Stat(dir)
+		uid, gid := idUnsupported, idUnsupported
+		fi, err := os.Stat(dir)
 		if err != nil {
 			mode = os.ModePerm
 		} else {
-			mode = i.Mode()
+			uid, gid = getOwner(fi)
+			mode = fi.Mode()
 		}
-		dirs = append(dirs, fileInfo{Name: dir, Perm: mode})
+		dirs = append(dirs, fileInfo{Name: dir, Perm: mode, Uid: uid, Gid: gid})
 		currentDir = dir
 	}
 	return dirs, nil

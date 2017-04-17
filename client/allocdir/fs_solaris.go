@@ -25,8 +25,3 @@ func createSecretDir(dir string) error {
 func removeSecretDir(dir string) error {
 	return os.RemoveAll(dir)
 }
-
-// getOwner isn't implemented for Solaris
-func getOwner(os.FileInfo) (int, int) {
-	return -1, -1
-}

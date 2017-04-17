@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -95,4 +96,12 @@ func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	}
 
 	return fileCopy(src, dst, uid, gid, perm)
+}
+
+func getOwner(fi os.FileInfo) (int, int) {
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return -1, -1
+	}
+	return int(stat.Uid), int(stat.Gid)
 }
