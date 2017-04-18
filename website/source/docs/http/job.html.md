@@ -320,6 +320,19 @@ region is used; another region can be specified using the `?region=` query param
         <span class="param-flags">required</span>
         The JSON definition of the job.
       </li>
+      <li>
+        <span class="param">EnforceIndex</span>
+        <span class="param-flags">optional</span>
+        If EnforceIndex is set the job will only be registered if the passed
+        JobModifyIndex matches the current job's index. If the index is zero,
+        the register only occurs if the job is new. This paradigm allows
+        check-and-set style job updating.
+      </li>
+      <li>
+        <span class="param">JobModifyIndex</span>
+        <span class="param-flags">optional</span>
+        The JobModifyIndex to enforce the current job is at.
+      </li>
     </ul>
   </dd>
 
