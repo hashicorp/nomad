@@ -15,6 +15,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// Ports used in testTask
+	xPort = 1234
+	yPort = 1235
+)
+
 func testLogger() *log.Logger {
 	if testing.Verbose() {
 		return log.New(os.Stderr, "", log.LstdFlags)
@@ -28,7 +34,10 @@ func testTask() *structs.Task {
 		Resources: &structs.Resources{
 			Networks: []*structs.NetworkResource{
 				{
-					DynamicPorts: []structs.Port{{Label: "x", Value: 1234}},
+					DynamicPorts: []structs.Port{
+						{Label: "x", Value: xPort},
+						{Label: "y", Value: yPort},
+					},
 				},
 			},
 		},
@@ -49,12 +58,20 @@ type testFakeCtx struct {
 	FakeConsul    *fakeConsul
 	Task          *structs.Task
 
+	// Ticked whenever a script is called
+	execs chan int
+
+	// If non-nil will be called by script checks
 	ExecFunc func(ctx context.Context, cmd string, args []string) ([]byte, int, error)
 }
 
 // Exec implements the ScriptExecutor interface and will use an alternate
 // implementation t.ExecFunc if non-nil.
 func (t *testFakeCtx) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	select {
+	case t.execs <- 1:
+	default:
+	}
 	if t.ExecFunc == nil {
 		// Default impl is just "ok"
 		return []byte("ok"), 0, nil
@@ -84,6 +101,7 @@ func setupFake() *testFakeCtx {
 		ServiceClient: NewServiceClient(fc, testLogger()),
 		FakeConsul:    fc,
 		Task:          testTask(),
+		execs:         make(chan int, 100),
 	}
 }
 
@@ -238,6 +256,188 @@ func TestConsul_ChangeTags(t *testing.T) {
 		}
 		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
 			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
+		}
+	}
+}
+
+// TestConsul_ChangePorts asserts that changing the ports on a service updates
+// it in Consul. Since ports are part of the service ID this is a slightly
+// different code path than changing tags.
+func TestConsul_ChangePorts(t *testing.T) {
+	ctx := setupFake()
+	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:      "c1",
+			Type:      "tcp",
+			Interval:  time.Second,
+			Timeout:   time.Second,
+			PortLabel: "x",
+		},
+		{
+			Name:     "c2",
+			Type:     "script",
+			Interval: 9000 * time.Hour,
+			Timeout:  time.Second,
+		},
+		{
+			Name:      "c3",
+			Type:      "http",
+			Protocol:  "http",
+			Path:      "/",
+			Interval:  time.Second,
+			Timeout:   time.Second,
+			PortLabel: "y",
+		},
+	}
+
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx); err != nil {
+		t.Fatalf("unexpected error registering task: %v", err)
+	}
+
+	if err := ctx.syncOnce(); err != nil {
+		t.Fatalf("unexpected error syncing task: %v", err)
+	}
+
+	if n := len(ctx.FakeConsul.services); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	}
+
+	origServiceKey := ""
+	for k, v := range ctx.FakeConsul.services {
+		origServiceKey = k
+		if v.Name != ctx.Task.Services[0].Name {
+			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
+		}
+		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
+			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
+		}
+		if v.Port != xPort {
+			t.Errorf("expected Port x=%v but found: %v", xPort, v.Port)
+		}
+	}
+
+	if n := len(ctx.FakeConsul.checks); n != 3 {
+		t.Fatalf("expected 3 checks but found %d:\n%#v", n, ctx.FakeConsul.checks)
+	}
+
+	origTCPKey := ""
+	origScriptKey := ""
+	origHTTPKey := ""
+	for k, v := range ctx.FakeConsul.checks {
+		switch v.Name {
+		case "c1":
+			origTCPKey = k
+			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
+				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
+			}
+		case "c2":
+			origScriptKey = k
+			select {
+			case <-ctx.execs:
+				if n := len(ctx.execs); n > 0 {
+					t.Errorf("expected 1 exec but found: %d", n+1)
+				}
+			case <-time.After(3 * time.Second):
+				t.Errorf("script not called in time")
+			}
+		case "c3":
+			origHTTPKey = k
+			if expected := fmt.Sprintf("http://:%d/", yPort); v.HTTP != expected {
+				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
+			}
+		default:
+			t.Fatalf("unexpected check: %q", v.Name)
+		}
+	}
+
+	// Now update the PortLabel on the Service and Check c3
+	origTask := ctx.Task
+	ctx.Task = testTask()
+	ctx.Task.Services[0].PortLabel = "y"
+	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:      "c1",
+			Type:      "tcp",
+			Interval:  time.Second,
+			Timeout:   time.Second,
+			PortLabel: "x",
+		},
+		{
+			Name:     "c2",
+			Type:     "script",
+			Interval: 9000 * time.Hour,
+			Timeout:  time.Second,
+		},
+		{
+			Name:     "c3",
+			Type:     "http",
+			Protocol: "http",
+			Path:     "/",
+			Interval: time.Second,
+			Timeout:  time.Second,
+			// Removed PortLabel
+		},
+	}
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx); err != nil {
+		t.Fatalf("unexpected error registering task: %v", err)
+	}
+	if err := ctx.syncOnce(); err != nil {
+		t.Fatalf("unexpected error syncing task: %v", err)
+	}
+
+	if n := len(ctx.FakeConsul.services); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	}
+
+	for k, v := range ctx.FakeConsul.services {
+		if k != origServiceKey {
+			t.Errorf("unexpected key change; was: %q -- but found %q", origServiceKey, k)
+		}
+		if v.Name != ctx.Task.Services[0].Name {
+			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
+		}
+		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
+			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
+		}
+		if v.Port != yPort {
+			t.Errorf("expected Port y=%v but found: %v", yPort, v.Port)
+		}
+	}
+
+	if n := len(ctx.FakeConsul.checks); n != 3 {
+		t.Fatalf("expected 3 check but found %d:\n%#v", n, ctx.FakeConsul.checks)
+	}
+
+	for k, v := range ctx.FakeConsul.checks {
+		switch v.Name {
+		case "c1":
+			if k != origTCPKey {
+				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origTCPKey, k)
+			}
+			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
+				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
+			}
+		case "c2":
+			if k != origScriptKey {
+				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origScriptKey, k)
+			}
+			select {
+			case <-ctx.execs:
+				if n := len(ctx.execs); n > 0 {
+					t.Errorf("expected 1 exec but found: %d", n+1)
+				}
+			case <-time.After(3 * time.Second):
+				t.Errorf("script not called in time")
+			}
+		case "c3":
+			if k == origHTTPKey {
+				t.Errorf("expected %s key to change from %q", v.Name, k)
+			}
+			if expected := fmt.Sprintf("http://:%d/", yPort); v.HTTP != expected {
+				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
+			}
+		default:
+			t.Errorf("Unkown check: %q", k)
 		}
 	}
 }

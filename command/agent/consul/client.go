@@ -249,13 +249,21 @@ func (c *ServiceClient) sync() error {
 		sdereg++
 	}
 
+	// Track services whose ports have changed as their checks may also
+	// need updating
+	portsChanged := make(map[string]struct{}, len(c.services))
+
 	// Add Nomad services missing from Consul
-	for id, service := range c.services {
-		if _, ok := consulServices[id]; ok {
-			// Already in Consul; skipping
-			continue
+	for id, locals := range c.services {
+		if remotes, ok := consulServices[id]; ok {
+			if locals.Port == remotes.Port {
+				// Already exists in Consul; skip
+				continue
+			}
+			// Port changed, reregister it and its checks
+			portsChanged[id] = struct{}{}
 		}
-		if err = c.client.ServiceRegister(service); err != nil {
+		if err = c.client.ServiceRegister(locals); err != nil {
 			return err
 		}
 		sreg++
@@ -264,7 +272,7 @@ func (c *ServiceClient) sync() error {
 	// Remove Nomad checks in Consul but unknown locally
 	for id, check := range consulChecks {
 		if _, ok := c.checks[id]; ok {
-			// Known check, skip
+			// Known check, leave it
 			continue
 		}
 		if !isNomadService(check.ServiceID) {
@@ -280,9 +288,11 @@ func (c *ServiceClient) sync() error {
 
 	// Add Nomad checks missing from Consul
 	for id, check := range c.checks {
-		if _, ok := consulChecks[id]; ok {
-			// Already in Consul; skipping
-			continue
+		if check, ok := consulChecks[id]; ok {
+			if _, changed := portsChanged[check.ServiceID]; !changed {
+				// Already in Consul and ports didn't change; skipping
+				continue
+			}
 		}
 		if err := c.client.CheckRegister(check); err != nil {
 			return err
@@ -291,11 +301,11 @@ func (c *ServiceClient) sync() error {
 
 		// Handle starting scripts
 		if script, ok := c.scripts[id]; ok {
-			// If it's already running, don't run it again
-			if _, running := c.runningScripts[id]; running {
-				continue
+			// If it's already running, cancel and replace
+			if oldScript, running := c.runningScripts[id]; running {
+				oldScript.cancel()
 			}
-			// Not running, start and store the handle
+			// Start and store the handle
 			c.runningScripts[id] = script.run()
 		}
 	}
@@ -456,8 +466,6 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		newIDs[makeTaskServiceID(allocID, newTask.Name, s)] = s
 	}
 
-	parseAddr := newTask.FindHostAndPortFor
-
 	// Loop over existing Service IDs to see if they have been removed or
 	// updated.
 	for existingID, existingSvc := range existingIDs {
@@ -471,8 +479,10 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			continue
 		}
 
-		// Service exists and wasn't updated, don't add it later
-		delete(newIDs, existingID)
+		if newSvc.PortLabel == existingSvc.PortLabel {
+			// Service exists and hasn't changed, don't add it later
+			delete(newIDs, existingID)
+		}
 
 		// Check to see what checks were updated
 		existingChecks := make(map[string]struct{}, len(existingSvc.Checks))
@@ -484,28 +494,9 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		for _, check := range newSvc.Checks {
 			checkID := createCheckID(existingID, check)
 			if _, exists := existingChecks[checkID]; exists {
-				// Check already exists; skip it
+				// Check exists, so don't remove it
 				delete(existingChecks, checkID)
-				continue
 			}
-
-			// New check, register it
-			if check.Type == structs.ServiceCheckScript {
-				if exec == nil {
-					return fmt.Errorf("driver doesn't support script checks")
-				}
-				ops.scripts = append(ops.scripts, newScriptCheck(
-					existingID, newTask.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
-			}
-			host, port := parseAddr(existingSvc.PortLabel)
-			if check.PortLabel != "" {
-				host, port = parseAddr(check.PortLabel)
-			}
-			checkReg, err := createCheckReg(existingID, checkID, check, host, port)
-			if err != nil {
-				return err
-			}
-			ops.regChecks = append(ops.regChecks, checkReg)
 		}
 
 		// Remove existing checks not in updated service
