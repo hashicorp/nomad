@@ -96,8 +96,14 @@ func (s *scriptCheck) run() *scriptHandle {
 				// check removed during execution; exit
 				return
 			case context.DeadlineExceeded:
-				// Log deadline exceeded every time, but flip last check to false
-				s.lastCheckOk = false
+				// If no error was returned, set one to make sure the task goes critical
+				if err == nil {
+					err = context.DeadlineExceeded
+				}
+
+				// Log deadline exceeded every time as it's a
+				// distinct issue from checks returning
+				// failures
 				s.logger.Printf("[WARN] consul.checks: check %q for task %q alloc %q timed out (%s)",
 					s.check.Name, s.taskName, s.allocID, s.check.Timeout)
 			}

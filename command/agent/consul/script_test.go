@@ -140,6 +140,43 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	}
 }
 
+// sleeperExec sleeps for 100ms but returns successfully to allow testing timeout conditions
+type sleeperExec struct{}
+
+func (sleeperExec) Exec(context.Context, string, []string) ([]byte, int, error) {
+	time.Sleep(100 * time.Millisecond)
+	return []byte{}, 0, nil
+}
+
+// TestConsulScript_Exec_TimeoutCritical asserts a script will be killed when
+// the timeout is reached and always set a critical status regardless of what
+// Exec returns.
+func TestConsulScript_Exec_TimeoutCritical(t *testing.T) {
+	t.Parallel() // run the slow tests in parallel
+	serviceCheck := structs.ServiceCheck{
+		Name:     "sleeper",
+		Interval: time.Hour,
+		Timeout:  time.Nanosecond,
+	}
+	hb := newFakeHeartbeater()
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, sleeperExec{}, hb, testLogger(), nil)
+	handle := check.run()
+	defer handle.cancel() // just-in-case cleanup
+
+	// Check for UpdateTTL call
+	select {
+	case update := <-hb.updates:
+		if update.status != api.HealthCritical {
+			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
+		}
+		if update.output != context.DeadlineExceeded.Error() {
+			t.Errorf("expected output=%q but found: %q", context.DeadlineExceeded.Error(), update.output)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timed out waiting for script check to timeout")
+	}
+}
+
 // simpleExec is a fake ScriptExecutor that returns whatever is specified.
 type simpleExec struct {
 	code int
