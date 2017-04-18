@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 func TestJobs_Register(t *testing.T) {
@@ -107,6 +108,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				VaultToken:        helper.StringToPtr(""),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				CreateIndex:       helper.Uint64ToPtr(0),
 				ModifyIndex:       helper.Uint64ToPtr(0),
 				JobModifyIndex:    helper.Uint64ToPtr(0),
@@ -162,6 +166,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          helper.IntToPtr(50),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -277,6 +284,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:              helper.StringToPtr("service"),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -379,6 +389,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          helper.IntToPtr(50),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -399,6 +412,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
 			if !reflect.DeepEqual(tc.input, tc.expected) {
+				t.Logf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
 				t.Fatalf("Name: %v, expected:\n%#v\nactual:\n%#v", tc.name, tc.expected, tc.input)
 			}
 		})

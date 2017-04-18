@@ -1142,7 +1142,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 
 func TestStateStore_JobsByGC(t *testing.T) {
 	state := testStateStore(t)
-	var gc, nonGc []*structs.Job
+	gc, nonGc := make(map[string]struct{}), make(map[string]struct{})
 
 	for i := 0; i < 20; i++ {
 		var job *structs.Job
@@ -1151,21 +1151,30 @@ func TestStateStore_JobsByGC(t *testing.T) {
 		} else {
 			job = mock.PeriodicJob()
 		}
-		nonGc = append(nonGc, job)
+		nonGc[job.ID] = struct{}{}
 
 		if err := state.UpsertJob(1000+uint64(i), job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i += 2 {
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
-		gc = append(gc, job)
+		gc[job.ID] = struct{}{}
 
 		if err := state.UpsertJob(2000+uint64(i), job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
+
+		// Create an eval for it
+		eval := mock.Eval()
+		eval.JobID = job.ID
+		eval.Status = structs.EvalStatusComplete
+		if err := state.UpsertEvals(2000+uint64(i+1), []*structs.Evaluation{eval}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
 	}
 
 	ws := memdb.NewWatchSet()
@@ -1174,9 +1183,10 @@ func TestStateStore_JobsByGC(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	var outGc []*structs.Job
+	outGc := make(map[string]struct{})
 	for i := iter.Next(); i != nil; i = iter.Next() {
-		outGc = append(outGc, i.(*structs.Job))
+		j := i.(*structs.Job)
+		outGc[j.ID] = struct{}{}
 	}
 
 	iter, err = state.JobsByGC(ws, false)
@@ -1184,15 +1194,11 @@ func TestStateStore_JobsByGC(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	var outNonGc []*structs.Job
+	outNonGc := make(map[string]struct{})
 	for i := iter.Next(); i != nil; i = iter.Next() {
-		outNonGc = append(outNonGc, i.(*structs.Job))
+		j := i.(*structs.Job)
+		outNonGc[j.ID] = struct{}{}
 	}
-
-	sort.Sort(JobIDSort(gc))
-	sort.Sort(JobIDSort(nonGc))
-	sort.Sort(JobIDSort(outGc))
-	sort.Sort(JobIDSort(outNonGc))
 
 	if !reflect.DeepEqual(gc, outGc) {
 		t.Fatalf("bad: %#v %#v", gc, outGc)
