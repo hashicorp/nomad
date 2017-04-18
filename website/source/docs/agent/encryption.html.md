@@ -51,6 +51,27 @@ TLS is used to secure the RPC calls between agents, but gossip between nodes is
 done over UDP and is secured using a symmetric key. See above for enabling
 gossip encryption.
 
+### Configuring the command line tool
+
+If you have HTTPS enabled for your Nomad agent, you must export environment
+variables for the command line tool to also use HTTPS:
+
+```sh
+# NOMAD_ADDR defaults to http://, so set it to https
+# Alternatively you can use the -address flag
+export NOMAD_ADDR=https://127.0.0.1:4646
+
+# Set the location of your CA certificate
+# Alternatively you can use the -ca-cert flag
+export NOMAD_CACERT=/path/to/ca.pem
+```
+
+Run any command except `agent` with `-h` to see all environment variables and
+flags. For example: `nomad status -h`
+
+Since HTTPS currently does not validate client certificates you do not need to
+give the command line tool access to any private keys.
+
 ## Encryption Examples
 
 ### TLS Configuration using `cfssl`
