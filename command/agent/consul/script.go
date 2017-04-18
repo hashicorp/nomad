@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -87,6 +88,7 @@ func (s *scriptCheck) run() *scriptHandle {
 			case <-timer.C:
 				timer.Reset(s.check.Interval)
 			}
+			metrics.IncrCounter([]string{"client", "consul", "script_runs"}, 1)
 
 			// Execute check script with timeout
 			execctx, cancel := context.WithTimeout(ctx, s.check.Timeout)
@@ -96,6 +98,7 @@ func (s *scriptCheck) run() *scriptHandle {
 				// check removed during execution; exit
 				return
 			case context.DeadlineExceeded:
+				metrics.IncrCounter([]string{"client", "consul", "script_timeouts"}, 1)
 				// If no error was returned, set one to make sure the task goes critical
 				if err == nil {
 					err = context.DeadlineExceeded

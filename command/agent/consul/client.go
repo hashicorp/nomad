@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -216,6 +217,9 @@ func (c *ServiceClient) merge(ops *operations) {
 		}
 		delete(c.checks, cid)
 	}
+	metrics.SetGauge([]string{"client", "consul", "services"}, float32(len(c.services)))
+	metrics.SetGauge([]string{"client", "consul", "checks"}, float32(len(c.checks)))
+	metrics.SetGauge([]string{"client", "consul", "script_checks"}, float32(len(c.runningScripts)))
 }
 
 // sync enqueued operations.
@@ -224,11 +228,13 @@ func (c *ServiceClient) sync() error {
 
 	consulServices, err := c.client.Services()
 	if err != nil {
+		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 		return fmt.Errorf("error querying Consul services: %v", err)
 	}
 
 	consulChecks, err := c.client.Checks()
 	if err != nil {
+		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 		return fmt.Errorf("error querying Consul checks: %v", err)
 	}
 
@@ -244,9 +250,11 @@ func (c *ServiceClient) sync() error {
 		}
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
+			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		sdereg++
+		metrics.IncrCounter([]string{"client", "consul", "service_deregisrations"}, 1)
 	}
 
 	// Track services whose ports have changed as their checks may also
@@ -264,9 +272,11 @@ func (c *ServiceClient) sync() error {
 			portsChanged[id] = struct{}{}
 		}
 		if err = c.client.ServiceRegister(locals); err != nil {
+			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		sreg++
+		metrics.IncrCounter([]string{"client", "consul", "service_regisrations"}, 1)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -281,9 +291,11 @@ func (c *ServiceClient) sync() error {
 		}
 		// Unknown Nomad managed check; kill
 		if err := c.client.CheckDeregister(id); err != nil {
+			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		cdereg++
+		metrics.IncrCounter([]string{"client", "consul", "check_deregisrations"}, 1)
 	}
 
 	// Add Nomad checks missing from Consul
@@ -295,9 +307,11 @@ func (c *ServiceClient) sync() error {
 			}
 		}
 		if err := c.client.CheckRegister(check); err != nil {
+			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		creg++
+		metrics.IncrCounter([]string{"client", "consul", "check_regisrations"}, 1)
 
 		// Handle starting scripts
 		if script, ok := c.scripts[id]; ok {
