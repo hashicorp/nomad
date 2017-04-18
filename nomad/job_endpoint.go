@@ -286,8 +286,8 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 }
 
 // Validate validates a job
-func (j *Job) Validate(args *structs.JobValidateRequest,
-	reply *structs.JobValidateResponse) error {
+func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	if err := validateJob(args.Job); err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
@@ -300,6 +300,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest,
 			reply.Error = err.Error()
 		}
 	}
+
 	reply.DriverConfigValidated = true
 	return nil
 }

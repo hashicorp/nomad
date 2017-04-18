@@ -539,6 +539,21 @@ type JobValidateResponse struct {
 	Error string
 }
 
+// JobRevertRequest is used to revert a job to a prior version.
+type JobRevertRequest struct {
+	// JobID is the ID of the job  being reverted
+	JobID string
+
+	// JobVersion the version to revert to.
+	JobVersion uint64
+
+	// EnforcePriorVersion if set will enforce that the job is at the given
+	// version before reverting.
+	EnforcePriorVersion *uint64
+
+	WriteRequest
+}
+
 // JobUpdateRequest is used to update a job
 type JobRegisterRequest struct {
 	Job *Job
