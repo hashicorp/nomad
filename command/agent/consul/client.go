@@ -155,6 +155,9 @@ func (c *ServiceClient) Run() {
 			}
 			failures++
 			if !retryTimer.Stop() {
+				// Timer already expired, since the timer may
+				// or may not have been read in the select{}
+				// above, conditionally receive on it
 				select {
 				case <-retryTimer.C:
 				default:
