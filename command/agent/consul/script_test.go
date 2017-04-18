@@ -2,6 +2,7 @@ package consul
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"testing"
@@ -76,17 +77,25 @@ func TestConsulScript_Exec_Cancel(t *testing.T) {
 	}
 }
 
+type execStatus struct {
+	checkID string
+	output  string
+	status  string
+}
+
+// fakeHeartbeater implements the heartbeater interface to allow mocking out
+// Consul in script executor tests.
 type fakeHeartbeater struct {
-	updates chan string
+	updates chan execStatus
 }
 
 func (f *fakeHeartbeater) UpdateTTL(checkID, output, status string) error {
-	f.updates <- status
+	f.updates <- execStatus{checkID: checkID, output: output, status: status}
 	return nil
 }
 
 func newFakeHeartbeater() *fakeHeartbeater {
-	return &fakeHeartbeater{updates: make(chan string)}
+	return &fakeHeartbeater{updates: make(chan execStatus)}
 }
 
 // TestConsulScript_Exec_Timeout asserts a script will be killed when the
@@ -109,7 +118,7 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	// Check for UpdateTTL call
 	select {
 	case update := <-hb.updates:
-		if update != api.HealthCritical {
+		if update.status != api.HealthCritical {
 			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
 		}
 	case <-time.After(3 * time.Second):
@@ -131,10 +140,19 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	}
 }
 
-type noopExec struct{}
+// simpleExec is a fake ScriptExecutor that returns whatever is specified.
+type simpleExec struct {
+	code int
+	err  error
+}
 
-func (noopExec) Exec(context.Context, string, []string) ([]byte, int, error) {
-	return []byte{}, 0, nil
+func (s simpleExec) Exec(context.Context, string, []string) ([]byte, int, error) {
+	return []byte(fmt.Sprintf("code=%d err=%v", s.code, s.err)), s.code, s.err
+}
+
+// newSimpleExec creates a new ScriptExecutor that returns the given code and err.
+func newSimpleExec(code int, err error) simpleExec {
+	return simpleExec{code: code, err: err}
 }
 
 // TestConsulScript_Exec_Shutdown asserts a script will be executed once more
@@ -148,7 +166,8 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 
 	hb := newFakeHeartbeater()
 	shutdown := make(chan struct{})
-	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, noopExec{}, hb, testLogger(), shutdown)
+	exec := newSimpleExec(0, nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 
@@ -157,8 +176,8 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 
 	select {
 	case update := <-hb.updates:
-		if update != api.HealthPassing {
-			t.Error("expected %q due to timeout but received %q", api.HealthPassing, update)
+		if update.status != api.HealthPassing {
+			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")
@@ -170,4 +189,51 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")
 	}
+}
+
+func TestConsulScript_Exec_Codes(t *testing.T) {
+	run := func(code int, err error, expected string) {
+		serviceCheck := structs.ServiceCheck{
+			Name:     "test",
+			Interval: time.Hour,
+			Timeout:  3 * time.Second,
+		}
+
+		hb := newFakeHeartbeater()
+		shutdown := make(chan struct{})
+		exec := newSimpleExec(code, err)
+		check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
+		handle := check.run()
+		defer handle.cancel()
+
+		select {
+		case update := <-hb.updates:
+			if update.status != expected {
+				t.Errorf("expected %q but received %q", expected, update)
+			}
+			// assert output is being reported
+			expectedOutput := fmt.Sprintf("code=%d err=%v", code, err)
+			if err != nil {
+				expectedOutput = err.Error()
+			}
+			if update.output != expectedOutput {
+				t.Errorf("expected output=%q but found: %q", expectedOutput, update.output)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timed out waiting for script check to exec")
+		}
+	}
+
+	// Test exit codes with errors
+	run(0, nil, api.HealthPassing)
+	run(1, nil, api.HealthWarning)
+	run(2, nil, api.HealthCritical)
+	run(9000, nil, api.HealthCritical)
+
+	// Errors should always cause Critical status
+	err := fmt.Errorf("test error")
+	run(0, err, api.HealthCritical)
+	run(1, err, api.HealthCritical)
+	run(2, err, api.HealthCritical)
+	run(9000, err, api.HealthCritical)
 }
