@@ -119,7 +119,7 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	select {
 	case update := <-hb.updates:
 		if update.status != api.HealthCritical {
-			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
+			t.Errorf("expected %q due to timeout but received %q", api.HealthCritical, update)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")
@@ -167,7 +167,7 @@ func TestConsulScript_Exec_TimeoutCritical(t *testing.T) {
 	select {
 	case update := <-hb.updates:
 		if update.status != api.HealthCritical {
-			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
+			t.Errorf("expected %q due to timeout but received %q", api.HealthCritical, update)
 		}
 		if update.output != context.DeadlineExceeded.Error() {
 			t.Errorf("expected output=%q but found: %q", context.DeadlineExceeded.Error(), update.output)
@@ -214,7 +214,7 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 	select {
 	case update := <-hb.updates:
 		if update.status != api.HealthPassing {
-			t.Error("expected %q due to timeout but received %q", api.HealthCritical, update)
+			t.Errorf("expected %q due to timeout but received %q", api.HealthCritical, update)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")

@@ -96,6 +96,7 @@ func (s *scriptCheck) run() *scriptHandle {
 			switch execctx.Err() {
 			case context.Canceled:
 				// check removed during execution; exit
+				cancel()
 				return
 			case context.DeadlineExceeded:
 				metrics.IncrCounter([]string{"client", "consul", "script_timeouts"}, 1)

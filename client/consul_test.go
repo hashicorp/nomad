@@ -55,7 +55,7 @@ func newMockConsulServiceClient() *mockConsulServiceClient {
 func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.Task, exec driver.ScriptExecutor) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %q, %q, %T)", allocID, old, new, exec)
+	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %v, %v, %T)", allocID, old, new, exec)
 	m.ops = append(m.ops, newMockConsulOp("update", allocID, old, exec))
 	return nil
 }
