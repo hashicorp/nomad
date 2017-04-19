@@ -552,6 +552,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Interval:      check.Interval,
 						Timeout:       check.Timeout,
 						InitialStatus: check.InitialStatus,
+						TLSSkipVerify: check.TLSSkipVerify,
 					}
 				}
 			}
