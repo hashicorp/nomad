@@ -52,7 +52,7 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 // of the evaluation, along with any errors encountered.
 func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{Job: job}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
@@ -65,7 +65,7 @@ func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
 // EnforceRegister is used to register a job enforcing its job modify index.
 func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (string, *WriteMeta, error) {
 
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{
 		Job:            job,
@@ -153,7 +153,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 // is deregistered and purged from the system versus still being queryable and
 // eventually GC'ed from the system. Most callers should not specify purge.
 func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
-	var resp deregisterJobResponse
+	var resp JobDeregisterResponse
 	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", jobID, purge), &resp, q)
 	if err != nil {
 		return "", nil, err
@@ -163,7 +163,7 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
@@ -217,6 +217,25 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 		Payload: payload,
 	}
 	wm, err := j.client.write("/v1/job/"+jobID+"/dispatch", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Revert is used to revert the given job to the passed version. If
+// enforceVersion is set, the job is only reverted if the current version is at
+// the passed version.
+func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
+	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+
+	var resp JobRegisterResponse
+	req := &JobRevertRequest{
+		JobID:               jobID,
+		JobVersion:          version,
+		EnforcePriorVersion: enforcePriorVersion,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/revert", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -573,14 +592,20 @@ type RegisterJobRequest struct {
 	JobModifyIndex uint64 `json:",omitempty"`
 }
 
-// registerJobResponse is used to deserialize a job response
-type registerJobResponse struct {
-	EvalID string
+// JobRegisterResponse is used to respond to a job registration
+type JobRegisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
 }
 
-// deregisterJobResponse is used to decode a deregister response
-type deregisterJobResponse struct {
-	EvalID string
+// JobDeregisterResponse is used to respond to a job deregistration
+type JobDeregisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
 }
 
 type JobPlanRequest struct {
