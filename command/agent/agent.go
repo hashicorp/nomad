@@ -699,7 +699,7 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	a.consulCatalog = client.Catalog()
 
 	// Create Consul Service client for service advertisement and checks.
-	a.consulService = consul.NewServiceClient(client.Agent(), a.logger)
+	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
 	go a.consulService.Run()
 	return nil
 }

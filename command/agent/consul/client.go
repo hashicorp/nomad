@@ -89,6 +89,9 @@ type ServiceClient struct {
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 
+	// skipVerifySupport is true if the local Consul agent suppots TLSSkipVerify
+	skipVerifySupport bool
+
 	// exitCh is closed when the main Run loop exits
 	exitCh chan struct{}
 
@@ -115,22 +118,23 @@ type ServiceClient struct {
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
 // Client and logger.
-func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient {
+func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log.Logger) *ServiceClient {
 	return &ServiceClient{
-		client:           consulClient,
-		logger:           logger,
-		retryInterval:    defaultRetryInterval,
-		maxRetryInterval: defaultMaxRetryInterval,
-		exitCh:           make(chan struct{}),
-		shutdownCh:       make(chan struct{}),
-		shutdownWait:     defaultShutdownWait,
-		opCh:             make(chan *operations, 8),
-		services:         make(map[string]*api.AgentServiceRegistration),
-		checks:           make(map[string]*api.AgentCheckRegistration),
-		scripts:          make(map[string]*scriptCheck),
-		runningScripts:   make(map[string]*scriptHandle),
-		agentServices:    make(map[string]struct{}),
-		agentChecks:      make(map[string]struct{}),
+		client:            consulClient,
+		skipVerifySupport: skipVerifySupport,
+		logger:            logger,
+		retryInterval:     defaultRetryInterval,
+		maxRetryInterval:  defaultMaxRetryInterval,
+		exitCh:            make(chan struct{}),
+		shutdownCh:        make(chan struct{}),
+		shutdownWait:      defaultShutdownWait,
+		opCh:              make(chan *operations, 8),
+		services:          make(map[string]*api.AgentServiceRegistration),
+		checks:            make(map[string]*api.AgentCheckRegistration),
+		scripts:           make(map[string]*scriptCheck),
+		runningScripts:    make(map[string]*scriptHandle),
+		agentServices:     make(map[string]struct{}),
+		agentChecks:       make(map[string]struct{}),
 	}
 }
 
@@ -432,6 +436,11 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 	ops.regServices = append(ops.regServices, serviceReg)
 
 	for _, check := range service.Checks {
+		if check.TLSSkipVerify && !c.skipVerifySupport {
+			c.logger.Printf("[WARN] consul.sync: skipping check %q for task %q alloc %q because Consul doesn't support tls_skip_verify. Please upgrade to Consul >= 0.7.2.",
+				check.Name, task.Name, allocID)
+			continue
+		}
 		checkID := createCheckID(id, check)
 		if check.Type == structs.ServiceCheckScript {
 			if exec == nil {
@@ -441,6 +450,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 				allocID, task.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
 
 		}
+
 		host, port := serviceReg.Address, serviceReg.Port
 		if check.PortLabel != "" {
 			host, port = task.FindHostAndPortFor(check.PortLabel)

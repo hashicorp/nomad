@@ -98,7 +98,7 @@ func (t *testFakeCtx) syncOnce() error {
 func setupFake() *testFakeCtx {
 	fc := newFakeConsul()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, testLogger()),
+		ServiceClient: NewServiceClient(fc, true, testLogger()),
 		FakeConsul:    fc,
 		Task:          testTask(),
 		execs:         make(chan int, 100),
@@ -445,7 +445,6 @@ func TestConsul_ChangePorts(t *testing.T) {
 // TestConsul_RegServices tests basic service registration.
 func TestConsul_RegServices(t *testing.T) {
 	ctx := setupFake()
-	port := ctx.Task.Resources.Networks[0].DynamicPorts[0].Value
 
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
@@ -465,8 +464,8 @@ func TestConsul_RegServices(t *testing.T) {
 		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
 			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
 		}
-		if v.Port != port {
-			t.Errorf("expected Port=%d != %d", port, v.Port)
+		if v.Port != xPort {
+			t.Errorf("expected Port=%d != %d", xPort, v.Port)
 		}
 	}
 
@@ -720,6 +719,51 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	for _, v := range ctx.FakeConsul.checks {
 		if expected := "warning"; v.Status != expected {
 			t.Fatalf("expected check to be %q but found %q", expected, v.Status)
+		}
+	}
+}
+
+// TestConsul_NoTLSSkipVerifySupport asserts that checks with
+// TLSSkipVerify=true are skipped when Consul doesn't support TLSSkipVerify.
+func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
+	ctx := setupFake()
+	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testLogger())
+	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
+		// This check sets TLSSkipVerify so it should get dropped
+		{
+			Name:          "tls-check-skip",
+			Type:          "http",
+			Protocol:      "https",
+			Path:          "/",
+			TLSSkipVerify: true,
+		},
+		// This check doesn't set TLSSkipVerify so it should work fine
+		{
+			Name:          "tls-check-noskip",
+			Type:          "http",
+			Protocol:      "https",
+			Path:          "/",
+			TLSSkipVerify: false,
+		},
+	}
+
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil); err != nil {
+		t.Fatalf("unexpected error registering task: %v", err)
+	}
+
+	if err := ctx.syncOnce(); err != nil {
+		t.Fatalf("unexpected error syncing task: %v", err)
+	}
+
+	if len(ctx.FakeConsul.checks) != 1 {
+		t.Errorf("expected 1 check but found %d", len(ctx.FakeConsul.checks))
+	}
+	for _, v := range ctx.FakeConsul.checks {
+		if expected := "tls-check-noskip"; v.Name != expected {
+			t.Errorf("only expected %q but found: %q", expected, v.Name)
+		}
+		if v.TLSSkipVerify {
+			t.Errorf("TLSSkipVerify=true when TLSSkipVerify not supported!")
 		}
 	}
 }

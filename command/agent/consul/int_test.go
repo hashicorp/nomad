@@ -122,7 +122,7 @@ func TestConsul_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating consul client: %v", err)
 	}
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), logger)
+	serviceClient := consul.NewServiceClient(consulClient.Agent(), true, logger)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})
 	go func() {
