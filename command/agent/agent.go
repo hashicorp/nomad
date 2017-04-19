@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -53,6 +54,10 @@ type Agent struct {
 
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
+
+	// consulSupportsTLSSkipVerify flags whether or not Nomad can register
+	// checks with TLSSkipVerify
+	consulSupportsTLSSkipVerify bool
 
 	client *client.Client
 
@@ -374,6 +379,16 @@ func (a *Agent) setupServer() error {
 				},
 			},
 		}
+		if conf.TLSConfig.EnableHTTP {
+			if a.consulSupportsTLSSkipVerify {
+				httpServ.Checks[0].Protocol = "https"
+				httpServ.Checks[0].TLSSkipVerify = true
+			} else {
+				// No TLSSkipVerify support, don't register https check
+				a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
+				httpServ.Checks = []*structs.ServiceCheck{}
+			}
+		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
@@ -404,13 +419,10 @@ func (a *Agent) setupServer() error {
 		}
 
 		// Add the http port check if TLS isn't enabled
-		// TODO Add TLS check when Consul 0.7.1 comes out.
 		consulServices := []*structs.Service{
 			rpcServ,
 			serfServ,
-		}
-		if !conf.TLSConfig.EnableHTTP {
-			consulServices = append(consulServices, httpServ)
+			httpServ,
 		}
 		if err := a.consulService.RegisterAgent(consulRoleServer, consulServices); err != nil {
 			return err
@@ -477,8 +489,6 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the Nomad Client  services for Consul
-	// TODO think how we can re-introduce HTTP/S checks when Consul 0.7.1 comes
-	// out
 	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
@@ -496,10 +506,18 @@ func (a *Agent) setupClient() error {
 				},
 			},
 		}
-		if !conf.TLSConfig.EnableHTTP {
-			if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
-				return err
+		if conf.TLSConfig.EnableHTTP {
+			if a.consulSupportsTLSSkipVerify {
+				httpServ.Checks[0].Protocol = "https"
+				httpServ.Checks[0].TLSSkipVerify = true
+			} else {
+				// No TLSSkipVerify support, don't register https check
+				a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
+				httpServ.Checks = []*structs.ServiceCheck{}
 			}
+		}
+		if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
+			return err
 		}
 	}
 
@@ -672,6 +690,11 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 		return err
 	}
 
+	// Determine version for TLSSkipVerify
+	if self, err := client.Agent().Self(); err != nil {
+		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
+	}
+
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
 
@@ -679,4 +702,60 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	a.consulService = consul.NewServiceClient(client.Agent(), a.logger)
 	go a.consulService.Run()
 	return nil
+}
+
+// consulSupportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
+func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
+	member, ok := self["Member"]
+	if !ok {
+		return false
+	}
+	tagsI, ok := member["Tags"]
+	if !ok {
+		return false
+	}
+	tags, ok := tagsI.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	buildI, ok := tags["build"]
+	if !ok {
+		return false
+	}
+	build, ok := buildI.(string)
+	if !ok {
+		return false
+	}
+	parts := strings.SplitN(build, ":", 2)
+	if len(parts) == 0 {
+		return false
+	}
+	parts = strings.Split(parts[0], ".")
+	if len(parts) != 3 {
+		return false
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+	patch, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return false
+	}
+	if major > 0 || minor > 7 {
+		// After 0.7.2!
+		return true
+	}
+	if minor < 7 {
+		return false
+	}
+	if patch < 2 {
+		return false
+	}
+	// 0.7.2 or higher!
+	return true
 }

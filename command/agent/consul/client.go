@@ -666,6 +666,9 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if check.Protocol == "" {
 			check.Protocol = "http"
 		}
+		if check.TLSSkipVerify {
+			chkReg.TLSSkipVerify = true
+		}
 		base := url.URL{
 			Scheme: check.Protocol,
 			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
