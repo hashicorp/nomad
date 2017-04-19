@@ -67,6 +67,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/versions"):
 		jobName := strings.TrimSuffix(path, "/versions")
 		return s.jobVersions(resp, req, jobName)
+	case strings.HasSuffix(path, "/revert"):
+		jobName := strings.TrimSuffix(path, "/revert")
+		return s.jobRevert(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -358,6 +361,35 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	}
 
 	return out.Versions, nil
+}
+
+func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var revertRequest structs.JobRevertRequest
+	if err := decodeBody(req, &revertRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if revertRequest.JobID == "" {
+		return nil, CodedError(400, "JobID must be specified")
+	}
+	if revertRequest.JobID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+
+	s.parseRegion(req, &revertRequest.Region)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Revert", &revertRequest, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out, nil
 }
 
 func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
