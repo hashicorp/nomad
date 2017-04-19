@@ -261,7 +261,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 }
 
 // TestConsul_ChangePorts asserts that changing the ports on a service updates
-// it in Consul. Since ports are part of the service ID this is a slightly
+// it in Consul. Since ports are not part of the service ID this is a slightly
 // different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
 	ctx := setupFake()
