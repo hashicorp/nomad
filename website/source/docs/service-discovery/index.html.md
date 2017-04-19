@@ -32,6 +32,8 @@ To configure a job to register with service discovery, please see the
 
 ## Assumptions
 
+- Consul 0.7.2 or later is needed for `tls_skip_verify` in HTTP checks.
+
 - Consul 0.6.4 or later is needed for using the Script checks.
 
 - Consul 0.6.0 or later is needed for using the TCP checks.

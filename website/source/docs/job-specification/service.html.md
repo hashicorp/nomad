@@ -143,6 +143,9 @@ does not automatically enable service discovery.
 - `type` `(string: <required>)` - This indicates the check types supported by
   Nomad. Valid options are `script`, `http`, and `tcp`.
 
+- `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
+  checks. Requires Consul >= 0.7.2.
+
 
 ## `service` Examples
 
