@@ -332,6 +332,18 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
 	}
 
+	cur, err := snap.JobByID(ws, args.JobID)
+	if err != nil {
+		return err
+	}
+	if cur == nil {
+		return fmt.Errorf("job %q not found", args.JobID)
+	}
+
+	if args.JobVersion == cur.Version {
+		return fmt.Errorf("can't revert to current version")
+	}
+
 	// Build the register request
 	reg := &structs.JobRegisterRequest{
 		Job:          jobV.Copy(),
@@ -340,11 +352,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// If the request is enforcing the existing version do a check.
 	if args.EnforcePriorVersion != nil {
-		cur, err := snap.JobByID(ws, args.JobID)
-		if err != nil {
-			return err
-		}
-
 		if cur.Version != *args.EnforcePriorVersion {
 			return fmt.Errorf("Current job has version %d; enforcing version %d", cur.Version, *args.EnforcePriorVersion)
 		}

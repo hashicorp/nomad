@@ -743,6 +743,19 @@ func TestJobEndpoint_Revert(t *testing.T) {
 		t.Fatalf("expected enforcement error")
 	}
 
+	// Create revert request and enforcing it be at the current version
+	revertReq = &structs.JobRevertRequest{
+		JobID:        job.ID,
+		JobVersion:   1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "current version") {
+		t.Fatalf("expected current version err: %v", err)
+	}
+
 	// Create revert request and enforcing it be at version 1
 	revertReq = &structs.JobRevertRequest{
 		JobID:               job.ID,
