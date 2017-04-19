@@ -466,7 +466,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
-	// Make the restart policy try one ctx.upd.te
+	// Make the restart policy try one ctx.update
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
@@ -523,6 +523,53 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 
 	if ctx.upd.events[7].Type != structs.TaskNotRestarting {
 		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[7].Type, structs.TaskNotRestarting)
+	}
+}
+
+// TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
+// Consul when waiting to be retried.
+func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Create an allocation that has a task with bad artifacts.
+	alloc := mock.Alloc()
+
+	// Make the restart policy try one ctx.update
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    time.Nanosecond,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "1",
+		"run_for":   "1ns",
+	}
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	// Assert it is properly registered and unregistered
+	consul := ctx.tr.consul.(*mockConsulServiceClient)
+	if expected := 4; len(consul.ops) != expected {
+		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
+	}
+	if consul.ops[0].op != "add" {
+		t.Errorf("expected first op to be add but found: %q", consul.ops[0].op)
+	}
+	if consul.ops[1].op != "remove" {
+		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
+	}
+	if consul.ops[2].op != "add" {
+		t.Errorf("expected third op to be add but found: %q", consul.ops[2].op)
+	}
+	if consul.ops[3].op != "remove" {
+		t.Errorf("expected fourth/final op to be remove but found: %q", consul.ops[3].op)
 	}
 }
 

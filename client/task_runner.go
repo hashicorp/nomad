@@ -1056,6 +1056,7 @@ func (r *TaskRunner) run() {
 		}
 
 	RESTART:
+		// shouldRestart will block if the task should restart after a delay.
 		restart := r.shouldRestart()
 		if !restart {
 			r.cleanup()
@@ -1135,6 +1136,9 @@ func (r *TaskRunner) shouldRestart() bool {
 		r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
 		return false
 	}
+
+	// Unregister from Consul while waiting to restart.
+	r.consul.RemoveTask(r.alloc.ID, r.task)
 
 	// Sleep but watch for destroy events.
 	select {
