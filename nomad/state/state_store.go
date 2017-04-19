@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -469,7 +468,7 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 		}
 
 		if _, err = txn.DeleteAll("job_versions", "id", job.ID, job.Version); err != nil {
-			return fmt.Errorf("deleing job versions failed: %v", err)
+			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
 
@@ -595,10 +594,10 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 		all = append(all, j)
 	}
 
-	// Sort with highest versions first
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Version >= all[j].Version
-	})
+	// Reverse so that highest versions first
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
 
 	return all, nil
 }

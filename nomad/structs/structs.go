@@ -1388,6 +1388,11 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	return meta
 }
 
+// Stopped returns if a job is stopped.
+func (j *Job) Stopped() bool {
+	return j == nil || j.Stop
+}
+
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
