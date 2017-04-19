@@ -528,7 +528,8 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 	return nil
 }
 
-// JobByID is used to lookup a job by its ID
+// JobByID is used to lookup a job by its ID. JobByID returns the current/latest job
+// version.
 func (s *StateStore) JobByID(ws memdb.WatchSet, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
