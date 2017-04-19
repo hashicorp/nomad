@@ -49,10 +49,6 @@ const (
 	// datacenters looking for the Nomad server service.
 	datacenterQueryLimit = 9
 
-	// consulReaperIntv is the interval at which the Consul reaper will
-	// run.
-	consulReaperIntv = 5 * time.Second
-
 	// registerRetryIntv is minimum interval on which we retry
 	// registration. We pick a value between this and 2x this.
 	registerRetryIntv = 15 * time.Second
@@ -142,8 +138,12 @@ type Client struct {
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
-	// consulSyncer advertises this Nomad Agent with Consul
-	consulSyncer *consul.Syncer
+	// consulService is Nomad's custom Consul client for managing services
+	// and checks.
+	consulService ConsulServiceAPI
+
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	consulCatalog consul.CatalogAPI
 
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
@@ -196,7 +196,7 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logger) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService ConsulServiceAPI, logger *log.Logger) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -210,7 +210,8 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 	// Create the client
 	c := &Client{
 		config:              cfg,
-		consulSyncer:        consulSyncer,
+		consulCatalog:       consulCatalog,
+		consulService:       consulService,
 		start:               time.Now(),
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
@@ -284,9 +285,6 @@ func NewClient(cfg *config.Config, consulSyncer *consul.Syncer, logger *log.Logg
 			c.triggerDiscoveryCh <- struct{}{}
 		}
 	}
-
-	// Start Consul reaper
-	go c.consulReaper()
 
 	// Setup the vault client for token and secret renewals
 	if err := c.setupVaultClient(); err != nil {
@@ -606,7 +604,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 		c.configLock.RUnlock()
 		c.allocLock.Lock()
 		c.allocs[id] = ar
@@ -1894,7 +1892,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
 	go ar.Run()
@@ -2047,8 +2045,7 @@ func (c *Client) consulDiscoveryImpl() error {
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
 
-	consulCatalog := c.consulSyncer.ConsulClient().Catalog()
-	dcs, err := consulCatalog.Datacenters()
+	dcs, err := c.consulCatalog.Datacenters()
 	if err != nil {
 		return fmt.Errorf("client.consul: unable to query Consul datacenters: %v", err)
 	}
@@ -2084,7 +2081,7 @@ DISCOLOOP:
 			Near:       "_agent",
 			WaitTime:   consul.DefaultQueryWaitDuration,
 		}
-		consulServices, _, err := consulCatalog.Service(serviceName, consul.ServiceTagRPC, consulOpts)
+		consulServices, _, err := c.consulCatalog.Service(serviceName, consul.ServiceTagRPC, consulOpts)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to query service %+q from Consul datacenter %+q: %v", serviceName, dc, err))
 			continue
@@ -2141,54 +2138,6 @@ DISCOLOOP:
 			return nil
 		}
 	}
-}
-
-// consulReaper periodically reaps unmatched domains from Consul. Intended to
-// be called in its own goroutine. See consulReaperIntv for interval.
-func (c *Client) consulReaper() {
-	ticker := time.NewTicker(consulReaperIntv)
-	defer ticker.Stop()
-	lastok := true
-	for {
-		select {
-		case <-ticker.C:
-			if err := c.consulReaperImpl(); err != nil {
-				if lastok {
-					c.logger.Printf("[ERR] client.consul: error reaping services in consul: %v", err)
-					lastok = false
-				}
-			} else {
-				lastok = true
-			}
-		case <-c.shutdownCh:
-			return
-		}
-	}
-}
-
-// consulReaperImpl reaps unmatched domains from Consul.
-func (c *Client) consulReaperImpl() error {
-	const estInitialExecutorDomains = 8
-
-	// Create the domains to keep and add the server and client
-	domains := make([]consul.ServiceDomain, 2, estInitialExecutorDomains)
-	domains[0] = consul.ServerDomain
-	domains[1] = consul.ClientDomain
-
-	for allocID, ar := range c.getAllocRunners() {
-		ar.taskStatusLock.RLock()
-		taskStates := copyTaskStates(ar.taskStates)
-		ar.taskStatusLock.RUnlock()
-		for taskName, taskState := range taskStates {
-			// Only keep running tasks
-			if taskState.State == structs.TaskStateRunning {
-				d := consul.NewExecutorDomain(allocID, taskName)
-				domains = append(domains, d)
-			}
-		}
-	}
-
-	return c.consulSyncer.ReapUnmatched(domains)
 }
 
 // emitStats collects host resource usage stats periodically

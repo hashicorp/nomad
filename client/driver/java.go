@@ -2,6 +2,7 @@ package driver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -59,6 +60,7 @@ type javaHandle struct {
 	userPid         int
 	executor        executor.Executor
 	isolationConfig *dstructs.IsolationConfig
+	taskDir         string
 
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
@@ -106,6 +108,7 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 func (d *JavaDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
+		Exec:        true,
 	}
 }
 
@@ -284,15 +287,13 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		executor:        execIntf,
 		userPid:         ps.Pid,
 		isolationConfig: ps.IsolationConfig,
+		taskDir:         ctx.TaskDir.Dir,
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
 		version:         d.config.Version,
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
-	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		d.logger.Printf("[ERR] driver.java: error registering services with consul for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil
@@ -306,6 +307,7 @@ type javaId struct {
 	MaxKillTimeout  time.Duration
 	PluginConfig    *PluginReattachConfig
 	IsolationConfig *dstructs.IsolationConfig
+	TaskDir         string
 	UserPid         int
 }
 
@@ -352,10 +354,6 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		d.logger.Printf("[ERR] driver.java: error registering services with consul: %v", err)
-	}
-
 	go h.run()
 	return h, nil
 }
@@ -368,6 +366,7 @@ func (h *javaHandle) ID() string {
 		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:         h.userPid,
 		IsolationConfig: h.isolationConfig,
+		TaskDir:         h.taskDir,
 	}
 
 	data, err := json.Marshal(id)
@@ -388,6 +387,10 @@ func (h *javaHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *javaHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return execChroot(ctx, h.taskDir, cmd, args)
 }
 
 func (h *javaHandle) Signal(s os.Signal) error {
@@ -434,11 +437,6 @@ func (h *javaHandle) run() {
 				h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
 			}
 		}
-	}
-
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.java: failed to kill the deregister services: %v", err)
 	}
 
 	// Exit the executor

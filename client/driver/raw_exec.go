@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -79,6 +80,7 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 func (d *RawExecDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: true,
+		Exec:        true,
 	}
 }
 
@@ -164,9 +166,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul for task: %q: %v", task.Name, err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -214,9 +213,6 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.raw_exec: error registering services with consul: %v", err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -248,6 +244,10 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *rawExecHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return execChroot(ctx, "", cmd, args)
 }
 
 func (h *rawExecHandle) Signal(s os.Signal) error {
@@ -288,10 +288,6 @@ func (h *rawExecHandle) run() {
 		if e := killProcess(h.userPid); e != nil {
 			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
 		}
-	}
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.raw_exec: failed to deregister services: %v", err)
 	}
 
 	// Exit the executor

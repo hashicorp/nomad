@@ -34,8 +34,12 @@ var (
 	// included in snapshots.
 	SharedDataDir = "data"
 
+	// TmpDirName is the name of the temporary directory in each alloc and
+	// task.
+	TmpDirName = "tmp"
+
 	// The set of directories that exist inside eache shared alloc directory.
-	SharedAllocDirs = []string{LogDirName, "tmp", SharedDataDir}
+	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
 	// regardless of driver.
@@ -46,7 +50,7 @@ var (
 	TaskSecrets = "secrets"
 
 	// TaskDirs is the set of directories created in each tasks directory.
-	TaskDirs = map[string]os.FileMode{"tmp": os.ModeSticky | 0777}
+	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
 )
 
 type AllocDir struct {

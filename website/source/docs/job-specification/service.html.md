@@ -106,7 +106,7 @@ does not automatically enable service discovery.
     ~> **Caveat:** The command must be the path to the command on disk, and no
     shell exists by default. That means operators like `||` or `&&` are not
     available. Additionally, all arguments must be supplied via the `args`
-    parameter. The achieve the behavior of shell operators, specify the command
+    parameter. To achieve the behavior of shell operators, specify the command
     as a shell, like `/bin/bash` and then use `args` to run the check.
 
 - `initial_status` `(string: <enum>)` - Specifies the originating status of the
@@ -142,6 +142,9 @@ does not automatically enable service discovery.
 
 - `type` `(string: <required>)` - This indicates the check types supported by
   Nomad. Valid options are `script`, `http`, and `tcp`.
+
+- `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
+  checks. Requires Consul >= 0.7.2.
 
 
 ## `service` Examples

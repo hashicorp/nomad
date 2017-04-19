@@ -59,7 +59,8 @@ type AllocRunner struct {
 
 	updateCh chan *structs.Allocation
 
-	vaultClient vaultclient.VaultClient
+	vaultClient  vaultclient.VaultClient
+	consulClient ConsulServiceAPI
 
 	otherAllocDir *allocdir.AllocDir
 
@@ -96,20 +97,23 @@ type allocRunnerState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
-	alloc *structs.Allocation, vaultClient vaultclient.VaultClient) *AllocRunner {
+	alloc *structs.Allocation, vaultClient vaultclient.VaultClient,
+	consulClient ConsulServiceAPI) *AllocRunner {
+
 	ar := &AllocRunner{
-		config:      config,
-		updater:     updater,
-		logger:      logger,
-		alloc:       alloc,
-		dirtyCh:     make(chan struct{}, 1),
-		tasks:       make(map[string]*TaskRunner),
-		taskStates:  copyTaskStates(alloc.TaskStates),
-		restored:    make(map[string]struct{}),
-		updateCh:    make(chan *structs.Allocation, 64),
-		destroyCh:   make(chan struct{}),
-		waitCh:      make(chan struct{}),
-		vaultClient: vaultClient,
+		config:       config,
+		updater:      updater,
+		logger:       logger,
+		alloc:        alloc,
+		dirtyCh:      make(chan struct{}, 1),
+		tasks:        make(map[string]*TaskRunner),
+		taskStates:   copyTaskStates(alloc.TaskStates),
+		restored:     make(map[string]struct{}),
+		updateCh:     make(chan *structs.Allocation, 64),
+		destroyCh:    make(chan struct{}),
+		waitCh:       make(chan struct{}),
+		vaultClient:  vaultClient,
+		consulClient: consulClient,
 	}
 	return ar
 }
@@ -174,7 +178,7 @@ func (r *AllocRunner) RestoreState() error {
 		}
 
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, td, r.Alloc(), task, r.vaultClient)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -512,7 +516,7 @@ func (r *AllocRunner) Run() {
 		taskdir := r.allocDir.NewTaskDir(task.Name)
 		r.allocDirLock.Unlock()
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, taskdir, r.Alloc(), task.Copy(), r.vaultClient)
+		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, taskdir, r.Alloc(), task.Copy(), r.vaultClient, r.consulClient)
 		r.tasks[task.Name] = tr
 		tr.MarkReceived()
 

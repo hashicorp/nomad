@@ -2116,6 +2116,7 @@ type ServiceCheck struct {
 	Interval      time.Duration // Interval of the check
 	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
 	InitialStatus string        // Initial status of the check
+	TLSSkipVerify bool          // Skip TLS verification when Protocol=https
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2199,6 +2200,10 @@ func (sc *ServiceCheck) RequiresPort() bool {
 	}
 }
 
+// Hash all ServiceCheck fields and the check's corresponding service ID to
+// create an identifier. The identifier is not guaranteed to be unique as if
+// the PortLabel is blank, the Service's PortLabel will be used after Hash is
+// called.
 func (sc *ServiceCheck) Hash(serviceID string) string {
 	h := sha1.New()
 	io.WriteString(h, serviceID)
@@ -2211,6 +2216,10 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
+	// Only include TLSSkipVerify if set to maintain ID stability with Nomad <0.6
+	if sc.TLSSkipVerify {
+		io.WriteString(h, "true")
+	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

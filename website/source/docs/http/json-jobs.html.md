@@ -423,7 +423,7 @@ The `Task` object supports the following keys:
          * `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
 
-         * `Path`:The path of the http endpoint which Consul will query to query
+         * `Path`: The path of the http endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
            to add the relative URL of the health check endpoint.
@@ -436,6 +436,9 @@ The `Task` object supports the following keys:
 
          * `Args`: Additional arguments to the `command` for script based health
            checks.
+
+	 * `TLSSkipVerify`: If true, Consul will not attempt to verify the
+	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
 
 * `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with

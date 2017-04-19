@@ -2,8 +2,10 @@ package driver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -51,6 +53,9 @@ const (
 
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
+
+	// rktUuidDeadline is how long to wait for the uuid file to be written
+	rktUuidDeadline = 5 * time.Second
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -81,6 +86,7 @@ type RktDriverConfig struct {
 
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
+	uuid           string
 	pluginClient   *plugin.Client
 	executorPid    int
 	executor       executor.Executor
@@ -94,6 +100,7 @@ type rktHandle struct {
 // rktPID is a struct to map the pid running the process to the vm image on
 // disk
 type rktPID struct {
+	UUID           string
 	PluginConfig   *PluginReattachConfig
 	ExecutorPid    int
 	KillTimeout    time.Duration
@@ -158,6 +165,7 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 func (d *RktDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        true,
 	}
 }
 
@@ -229,7 +237,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	img := driverConfig.ImageName
 
 	// Build the command.
-	var cmdArgs []string
+	cmdArgs := make([]string, 0, 32)
 
 	// Add debug option to rkt command.
 	debug := driverConfig.Debug
@@ -252,6 +260,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		insecure = true
 	}
 	cmdArgs = append(cmdArgs, "run")
+
+	// Write the UUID out to a file in the state dir so we can read it back
+	// in and access the pod by UUID from other commands
+	uuidPath := filepath.Join(ctx.TaskDir.Dir, "rkt.uuid")
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--uuid-file-save=%s", uuidPath))
 
 	// Convert underscores to dashes in task names for use in volume names #2358
 	sanitizedName := strings.Replace(task.Name, "_", "-", -1)
@@ -439,9 +452,28 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 
-	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q with: %v", img, cmdArgs)
+	// Wait for UUID file to get written
+	uuid := ""
+	deadline := time.Now().Add(rktUuidDeadline)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if uuidBytes, err := ioutil.ReadFile(uuidPath); err != nil {
+			lastErr = err
+		} else {
+			uuid = string(uuidBytes)
+			break
+		}
+		time.Sleep(400 * time.Millisecond)
+	}
+	if uuid == "" {
+		d.logger.Printf("[WARN] driver.rkt: reading uuid from %q failed; unable to run script checks for task %q. Last error: %v",
+			uuidPath, d.taskName, lastErr)
+	}
+
+	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q (UUID: %s) for task %q with: %v", img, uuid, d.taskName, cmdArgs)
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
+		uuid:           uuid,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
 		executorPid:    ps.Pid,
@@ -450,9 +482,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.rkt: error registering services for task: %q: %v", task.Name, err)
 	}
 	go h.run()
 	return h, nil
@@ -484,6 +513,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	d.logger.Printf("[DEBUG] driver.rkt: version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &rktHandle{
+		uuid:           id.UUID,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,
 		executor:       exec,
@@ -493,9 +523,6 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.rkt: error registering services: %v", err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -503,6 +530,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
+		UUID:           h.uuid,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
@@ -526,6 +554,19 @@ func (h *rktHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *rktHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	if h.uuid == "" {
+		return nil, 0, fmt.Errorf("unable to find rkt pod UUID")
+	}
+	// enter + UUID + cmd + args...
+	enterArgs := make([]string, 3+len(args))
+	enterArgs[0] = "enter"
+	enterArgs[1] = h.uuid
+	enterArgs[2] = cmd
+	copy(enterArgs[3:], args)
+	return execChroot(ctx, "", rktCmd, enterArgs)
 }
 
 func (h *rktHandle) Signal(s os.Signal) error {
@@ -555,10 +596,6 @@ func (h *rktHandle) run() {
 		if e := killProcess(h.executorPid); e != nil {
 			h.logger.Printf("[ERROR] driver.rkt: error killing user process: %v", e)
 		}
-	}
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.rkt: failed to deregister services: %v", err)
 	}
 
 	// Exit the executor

@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -97,6 +98,7 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 func (d *QemuDriver) Abilities() DriverAbilities {
 	return DriverAbilities{
 		SendSignals: false,
+		Exec:        false,
 	}
 }
 
@@ -273,10 +275,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: error registering services for task: %q: %v", task.Name, err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -322,9 +320,6 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
-	if err := h.executor.SyncServices(consulContext(d.config, "")); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: error registering services: %v", err)
-	}
 	go h.run()
 	return h, nil
 }
@@ -358,6 +353,10 @@ func (h *qemuHandle) Update(task *structs.Task) error {
 
 	// Update is not possible
 	return nil
+}
+
+func (h *qemuHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+	return nil, 0, fmt.Errorf("Qemu driver can't execute commands")
 }
 
 func (h *qemuHandle) Signal(s os.Signal) error {
@@ -401,11 +400,6 @@ func (h *qemuHandle) run() {
 		}
 	}
 	close(h.doneCh)
-
-	// Remove services
-	if err := h.executor.DeregisterServices(); err != nil {
-		h.logger.Printf("[ERR] driver.qemu: failed to deregister services: %v", err)
-	}
 
 	// Exit the executor
 	h.executor.Exit()

@@ -1912,20 +1912,22 @@ func TestTaskGroupDiff(t *testing.T) {
 
 func TestTaskDiff(t *testing.T) {
 	cases := []struct {
+		Name       string
 		Old, New   *Task
 		Expected   *TaskDiff
 		Error      bool
 		Contextual bool
 	}{
 		{
-			Old: nil,
-			New: nil,
+			Name: "Empty",
+			Old:  nil,
+			New:  nil,
 			Expected: &TaskDiff{
 				Type: DiffTypeNone,
 			},
 		},
 		{
-			// Primitive only that has different names
+			Name: "Primitive only that has different names",
 			Old: &Task{
 				Name: "foo",
 				Meta: map[string]string{
@@ -1941,7 +1943,7 @@ func TestTaskDiff(t *testing.T) {
 			Error: true,
 		},
 		{
-			// Primitive only that is the same
+			Name: "Primitive only that is the same",
 			Old: &Task{
 				Name:   "foo",
 				Driver: "exec",
@@ -1974,7 +1976,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Primitive only that has diffs
+			Name: "Primitive only that has diffs",
 			Old: &Task{
 				Name:   "foo",
 				Driver: "exec",
@@ -2045,7 +2047,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Map diff
+			Name: "Map diff",
 			Old: &Task{
 				Meta: map[string]string{
 					"foo": "foo",
@@ -2097,7 +2099,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Constraints edited
+			Name: "Constraints edited",
 			Old: &Task{
 				Constraints: []*Constraint{
 					{
@@ -2185,8 +2187,8 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// LogConfig added
-			Old: &Task{},
+			Name: "LogConfig added",
+			Old:  &Task{},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
@@ -2218,7 +2220,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// LogConfig deleted
+			Name: "LogConfig deleted",
 			Old: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
@@ -2251,7 +2253,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// LogConfig edited
+			Name: "LogConfig edited",
 			Old: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
@@ -2289,7 +2291,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// LogConfig edited with context
+			Name:       "LogConfig edited with context",
 			Contextual: true,
 			Old: &Task{
 				LogConfig: &LogConfig{
@@ -2328,7 +2330,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Artifacts edited
+			Name: "Artifacts edited",
 			Old: &Task{
 				Artifacts: []*TaskArtifact{
 					{
@@ -2420,7 +2422,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Resources edited (no networks)
+			Name: "Resources edited (no networks)",
 			Old: &Task{
 				Resources: &Resources{
 					CPU:      100,
@@ -2474,7 +2476,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Resources edited (no networks) with context
+			Name:       "Resources edited (no networks) with context",
 			Contextual: true,
 			Old: &Task{
 				Resources: &Resources{
@@ -2529,7 +2531,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Network Resources edited
+			Name: "Network Resources edited",
 			Old: &Task{
 				Resources: &Resources{
 					Networks: []*NetworkResource{
@@ -2677,7 +2679,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Config same
+			Name: "Config same",
 			Old: &Task{
 				Config: map[string]interface{}{
 					"foo": 1,
@@ -2711,7 +2713,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Config edited
+			Name: "Config edited",
 			Old: &Task{
 				Config: map[string]interface{}{
 					"foo": 1,
@@ -2795,7 +2797,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Config edited with context
+			Name:       "Config edited with context",
 			Contextual: true,
 			Old: &Task{
 				Config: map[string]interface{}{
@@ -2892,7 +2894,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Services edited (no checks)
+			Name: "Services edited (no checks)",
 			Old: &Task{
 				Services: []*Service{
 					{
@@ -2980,7 +2982,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Services edited (no checks) with context
+			Name:       "Services edited (no checks) with context",
 			Contextual: true,
 			Old: &Task{
 				Services: []*Service{
@@ -3023,7 +3025,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Service Checks edited
+			Name: "Service Checks edited",
 			Old: &Task{
 				Services: []*Service{
 					{
@@ -3157,6 +3159,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "TLSSkipVerify",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Timeout",
 										Old:  "",
 										New:  "1000000000",
@@ -3205,6 +3213,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeDeleted,
+										Name: "TLSSkipVerify",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
 										Name: "Timeout",
 										Old:  "1000000000",
 										New:  "",
@@ -3223,7 +3237,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Service Checks edited with context
+			Name:       "Service Checks edited with context",
 			Contextual: true,
 			Old: &Task{
 				Services: []*Service{
@@ -3334,6 +3348,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
+										Name: "TLSSkipVerify",
+										Old:  "false",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "Timeout",
 										Old:  "1000000000",
 										New:  "1000000000",
@@ -3352,8 +3372,8 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Vault added
-			Old: &Task{},
+			Name: "Vault added",
+			Old:  &Task{},
 			New: &Task{
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
@@ -3413,7 +3433,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Vault deleted
+			Name: "Vault deleted",
 			Old: &Task{
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
@@ -3474,7 +3494,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Vault edited
+			Name: "Vault edited",
 			Old: &Task{
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
@@ -3542,7 +3562,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Vault edited with context
+			Name:       "Vault edited with context",
 			Contextual: true,
 			Old: &Task{
 				Vault: &Vault{
@@ -3617,7 +3637,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Template edited
+			Name: "Template edited",
 			Old: &Task{
 				Templates: []*Template{
 					{
@@ -3765,8 +3785,8 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// DispatchPayload added
-			Old: &Task{},
+			Name: "DispatchPayload added",
+			Old:  &Task{},
 			New: &Task{
 				DispatchPayload: &DispatchPayloadConfig{
 					File: "foo",
@@ -3791,7 +3811,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// DispatchPayload deleted
+			Name: "DispatchPayload deleted",
 			Old: &Task{
 				DispatchPayload: &DispatchPayloadConfig{
 					File: "foo",
@@ -3817,7 +3837,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// Dispatch payload edited
+			Name: "Dispatch payload edited",
 			Old: &Task{
 				DispatchPayload: &DispatchPayloadConfig{
 					File: "foo",
@@ -3847,8 +3867,8 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
-			// DispatchPayload edited with context. Place holder for if more
-			// fields are added
+			// Place holder for if more fields are added
+			Name:       "DispatchPayload edited with context",
 			Contextual: true,
 			Old: &Task{
 				DispatchPayload: &DispatchPayloadConfig{
@@ -3881,20 +3901,22 @@ func TestTaskDiff(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		actual, err := c.Old.Diff(c.New, c.Contextual)
-		if c.Error && err == nil {
-			t.Fatalf("case %d: expected errored", i+1)
-		} else if err != nil {
-			if !c.Error {
-				t.Fatalf("case %d: errored %#v", i+1, err)
-			} else {
-				continue
+		t.Run(c.Name, func(t *testing.T) {
+			actual, err := c.Old.Diff(c.New, c.Contextual)
+			if c.Error && err == nil {
+				t.Fatalf("case %d: expected errored", i+1)
+			} else if err != nil {
+				if !c.Error {
+					t.Fatalf("case %d: errored %#v", i+1, err)
+				} else {
+					return
+				}
 			}
-		}
 
-		if !reflect.DeepEqual(actual, c.Expected) {
-			t.Errorf("case %d: got:\n%#v\n want:\n%#v\n",
-				i+1, actual, c.Expected)
-		}
+			if !reflect.DeepEqual(actual, c.Expected) {
+				t.Errorf("case %d: got:\n%#v\n want:\n%#v\n",
+					i+1, actual, c.Expected)
+			}
+		})
 	}
 }

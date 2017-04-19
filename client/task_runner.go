@@ -61,6 +61,7 @@ type TaskRunner struct {
 	logger         *log.Logger
 	alloc          *structs.Allocation
 	restartTracker *RestartTracker
+	consul         ConsulServiceAPI
 
 	// running marks whether the task is running
 	running     bool
@@ -173,7 +174,7 @@ type SignalEvent struct {
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	updater TaskStateUpdater, taskDir *allocdir.TaskDir,
 	alloc *structs.Allocation, task *structs.Task,
-	vaultClient vaultclient.VaultClient) *TaskRunner {
+	vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI) *TaskRunner {
 
 	// Merge in the task resources
 	task.Resources = alloc.TaskResources[task.Name]
@@ -195,6 +196,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		task:             task,
 		taskDir:          taskDir,
 		createdResources: driver.NewCreatedResources(),
+		consul:           consulClient,
 		vaultClient:      vaultClient,
 		vaultFuture:      NewTokenFuture().Set(""),
 		updateCh:         make(chan *structs.Allocation, 64),
@@ -289,6 +291,15 @@ func (r *TaskRunner) RestoreState() error {
 				r.task.Name, r.alloc.ID, err)
 			return nil
 		}
+
+		if err := r.registerServices(d, handle); err != nil {
+			// Don't hard fail here as there's a chance this task
+			// registered with Consul properly when it initial
+			// started.
+			r.logger.Printf("[WARN] client: failed to register services and checks with consul for task %q in alloc %q: %v",
+				r.task.Name, r.alloc.ID, err)
+		}
+
 		r.handleLock.Lock()
 		r.handle = handle
 		r.handleLock.Unlock()
@@ -1045,6 +1056,7 @@ func (r *TaskRunner) run() {
 		}
 
 	RESTART:
+		// shouldRestart will block if the task should restart after a delay.
 		restart := r.shouldRestart()
 		if !restart {
 			r.cleanup()
@@ -1061,8 +1073,12 @@ func (r *TaskRunner) run() {
 	}
 }
 
-// cleanup calls Driver.Cleanup when a task is stopping. Errors are logged.
+// cleanup removes Consul entries and calls Driver.Cleanup when a task is
+// stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
+	// Remove from Consul
+	r.consul.RemoveTask(r.alloc.ID, r.task)
+
 	drv, err := r.createDriver()
 	if err != nil {
 		r.logger.Printf("[ERR] client: error creating driver to cleanup resources: %v", err)
@@ -1121,6 +1137,9 @@ func (r *TaskRunner) shouldRestart() bool {
 		return false
 	}
 
+	// Unregister from Consul while waiting to restart.
+	r.consul.RemoveTask(r.alloc.ID, r.task)
+
 	// Sleep but watch for destroy events.
 	select {
 	case <-time.After(when):
@@ -1167,8 +1186,12 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	// Mark that we received the kill event
 	r.setState(structs.TaskStateRunning, event)
 
+	r.handleLock.Lock()
+	handle := r.handle
+	r.handleLock.Unlock()
+
 	// Kill the task using an exponential backoff in-case of failures.
-	destroySuccess, err := r.handleDestroy()
+	destroySuccess, err := r.handleDestroy(handle)
 	if !destroySuccess {
 		// We couldn't successfully destroy the resource created.
 		r.logger.Printf("[ERR] client: failed to kill task %q. Resources may have been leaked: %v", r.task.Name, err)
@@ -1217,10 +1240,55 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
+	if err := r.registerServices(drv, handle); err != nil {
+		// All IO is done asynchronously, so errors from registering
+		// services are hard failures.
+		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
+
+		// Kill the started task
+		if destroyed, err := r.handleDestroy(handle); !destroyed {
+			r.logger.Printf("[ERR] client: failed to kill task %q alloc %q. Resources may be leaked: %v",
+				r.task.Name, r.alloc.ID, err)
+		}
+		return structs.NewRecoverableError(err, false)
+	}
+
 	r.handleLock.Lock()
 	r.handle = handle
 	r.handleLock.Unlock()
+
 	return nil
+}
+
+// registerServices and checks with Consul.
+func (r *TaskRunner) registerServices(d driver.Driver, h driver.ScriptExecutor) error {
+	var exec driver.ScriptExecutor
+	if d.Abilities().Exec {
+		// Allow set the script executor if the driver supports it
+		exec = h
+	}
+	interpolateServices(r.getTaskEnv(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, r.task, exec)
+}
+
+// interpolateServices interpolates tags in a service and checks with values from the
+// task's environment.
+func interpolateServices(taskEnv *env.TaskEnvironment, task *structs.Task) {
+	for _, service := range task.Services {
+		for _, check := range service.Checks {
+			check.Name = taskEnv.ReplaceEnv(check.Name)
+			check.Type = taskEnv.ReplaceEnv(check.Type)
+			check.Command = taskEnv.ReplaceEnv(check.Command)
+			check.Args = taskEnv.ParseAndReplace(check.Args)
+			check.Path = taskEnv.ReplaceEnv(check.Path)
+			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
+			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
+			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+		}
+		service.Name = taskEnv.ReplaceEnv(service.Name)
+		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
+		service.Tags = taskEnv.ParseAndReplace(service.Tags)
+	}
 }
 
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
@@ -1335,12 +1403,23 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
-	// Update will update resources and store the new kill timeout.
 	var mErr multierror.Error
 	r.handleLock.Lock()
 	if r.handle != nil {
+		drv, err := r.createDriver()
+		if err != nil {
+			// Something has really gone wrong; don't continue
+			r.handleLock.Unlock()
+			return fmt.Errorf("error accessing driver when updating task %q: %v", r.task.Name, err)
+		}
+
+		// Update will update resources and store the new kill timeout.
 		if err := r.handle.Update(updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
+		}
+
+		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
 	r.handleLock.Unlock()
@@ -1356,14 +1435,25 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	return mErr.ErrorOrNil()
 }
 
+// updateServices and checks with Consul.
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
+	var exec driver.ScriptExecutor
+	if d.Abilities().Exec {
+		// Allow set the script executor if the driver supports it
+		exec = h
+	}
+	interpolateServices(r.getTaskEnv(), r.task)
+	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
+}
+
 // handleDestroy kills the task handle. In the case that killing fails,
 // handleDestroy will retry with an exponential backoff and will give up at a
 // given limit. It returns whether the task was destroyed and the error
 // associated with the last kill attempt.
-func (r *TaskRunner) handleDestroy() (destroyed bool, err error) {
+func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, err error) {
 	// Cap the number of times we attempt to kill the task.
 	for i := 0; i < killFailureLimit; i++ {
-		if err = r.handle.Kill(); err != nil {
+		if err = handle.Kill(); err != nil {
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
 			if backoff > killBackoffLimit {

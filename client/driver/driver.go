@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -191,6 +192,10 @@ type Driver interface {
 type DriverAbilities struct {
 	// SendSignals marks the driver as being able to send signals
 	SendSignals bool
+
+	// Exec marks the driver as being able to execute arbitrary commands
+	// such as health checks. Used by the ScriptExecutor interface.
+	Exec bool
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
@@ -254,6 +259,16 @@ type DriverHandle interface {
 
 	// Signal is used to send a signal to the task
 	Signal(s os.Signal) error
+
+	// ScriptExecutor is an interface used to execute commands such as
+	// health check scripts in the a DriverHandle's context.
+	ScriptExecutor
+}
+
+// ScriptExecutor is an interface that supports Exec()ing commands in the
+// driver's context. Split out of DriverHandle to ease testing.
+type ScriptExecutor interface {
+	Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error)
 }
 
 // ExecContext is a task's execution context

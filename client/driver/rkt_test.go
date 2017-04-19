@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -487,5 +489,76 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	case <-handle.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
+	}
+}
+
+func TestRktDriver_HandlerExec(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name:   "etcd",
+		Driver: "rkt",
+		Config: map[string]interface{}{
+			"trust_prefix": "coreos.com/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRktDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	handle, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if handle == nil {
+		t.Fatalf("missing handle")
+	}
+
+	// Give the pod a second to start
+	time.Sleep(time.Second)
+
+	// Exec a command that should work
+	out, code, err := handle.Exec(context.TODO(), "/etcd", []string{"--version"})
+	if err != nil {
+		t.Fatalf("error exec'ing etcd --version: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected `etcd --version` to succeed but exit code was: %d\n%s", code, string(out))
+	}
+	if expected := []byte("etcd version "); !bytes.HasPrefix(out, expected) {
+		t.Fatalf("expected output to start with %q but found:\n%q", expected, out)
+	}
+
+	// Exec a command that should fail
+	out, code, err = handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
+	if err != nil {
+		t.Fatalf("error exec'ing bad command: %v", err)
+	}
+	if code == 0 {
+		t.Fatalf("expected `stat` to fail but exit code was: %d", code)
+	}
+	if expected := "flag provided but not defined"; !bytes.Contains(out, []byte(expected)) {
+		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	if err := handle.Kill(); err != nil {
+		t.Fatalf("error killing handle: %v", err)
 	}
 }

@@ -76,15 +76,11 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Enable raft as leader if we have bootstrap on
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
-	shutdownCh := make(chan struct{})
 	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
-	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	catalog := consul.NewMockCatalog(logger)
 
 	// Create server
-	server, err := NewServer(config, consulSyncer, logger)
+	server, err := NewServer(config, catalog, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

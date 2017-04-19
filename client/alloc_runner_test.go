@@ -40,7 +40,7 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient)
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient, newMockConsulServiceClient())
 	return upd, ar
 }
 
@@ -323,7 +323,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
 	ar2 := NewAllocRunner(l2, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient,
+		ar.consulClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -415,7 +416,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient)
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient, ar.consulClient)
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
 	if err != nil {
@@ -573,7 +574,8 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 	alloc.Job.Type = structs.JobTypeBatch
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient)
+	cclient := newMockConsulServiceClient()
+	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient, cclient)
 	defer ar.Destroy()
 
 	// RestoreState should fail on the task state since we only test the
