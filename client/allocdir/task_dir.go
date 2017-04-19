@@ -163,7 +163,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 
 			// Copy the file.
 			taskEntry := filepath.Join(t.Dir, dest)
-			if err := linkOrCopy(source, taskEntry, s.Mode().Perm()); err != nil {
+			uid, gid := getOwner(s)
+			if err := linkOrCopy(source, taskEntry, uid, gid, s.Mode().Perm()); err != nil {
 				return err
 			}
 
@@ -217,7 +218,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 				continue
 			}
 
-			if err := linkOrCopy(hostEntry, taskEntry, entry.Mode().Perm()); err != nil {
+			uid, gid := getOwner(entry)
+			if err := linkOrCopy(hostEntry, taskEntry, uid, gid, entry.Mode().Perm()); err != nil {
 				return err
 			}
 		}
