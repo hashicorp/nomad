@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -704,6 +704,8 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	return nil
 }
 
+var consulTLSSkipVerifyMinVersion = version.Must(version.NewVersion("0.7.2"))
+
 // consulSupportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
 func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
 	member, ok := self["Member"]
@@ -727,35 +729,15 @@ func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
 		return false
 	}
 	parts := strings.SplitN(build, ":", 2)
-	if len(parts) == 0 {
+	if len(parts) != 2 {
 		return false
 	}
-	parts = strings.Split(parts[0], ".")
-	if len(parts) != 3 {
-		return false
-	}
-	major, err := strconv.Atoi(parts[0])
+	v, err := version.NewVersion(parts[0])
 	if err != nil {
 		return false
 	}
-	minor, err := strconv.Atoi(parts[1])
-	if err != nil {
+	if v.LessThan(consulTLSSkipVerifyMinVersion) {
 		return false
 	}
-	patch, err := strconv.Atoi(parts[2])
-	if err != nil {
-		return false
-	}
-	if major > 0 || minor > 7 {
-		// After 0.7.2!
-		return true
-	}
-	if minor < 7 {
-		return false
-	}
-	if patch < 2 {
-		return false
-	}
-	// 0.7.2 or higher!
 	return true
 }
