@@ -229,48 +229,51 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 }
 
 func TestConsulScript_Exec_Codes(t *testing.T) {
-	run := func(code int, err error, expected string) {
-		serviceCheck := structs.ServiceCheck{
-			Name:     "test",
-			Interval: time.Hour,
-			Timeout:  3 * time.Second,
-		}
+	run := func(code int, err error, expected string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+			serviceCheck := structs.ServiceCheck{
+				Name:     "test",
+				Interval: time.Hour,
+				Timeout:  3 * time.Second,
+			}
 
-		hb := newFakeHeartbeater()
-		shutdown := make(chan struct{})
-		exec := newSimpleExec(code, err)
-		check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
-		handle := check.run()
-		defer handle.cancel()
+			hb := newFakeHeartbeater()
+			shutdown := make(chan struct{})
+			exec := newSimpleExec(code, err)
+			check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
+			handle := check.run()
+			defer handle.cancel()
 
-		select {
-		case update := <-hb.updates:
-			if update.status != expected {
-				t.Errorf("expected %q but received %q", expected, update)
+			select {
+			case update := <-hb.updates:
+				if update.status != expected {
+					t.Errorf("expected %q but received %q", expected, update)
+				}
+				// assert output is being reported
+				expectedOutput := fmt.Sprintf("code=%d err=%v", code, err)
+				if err != nil {
+					expectedOutput = err.Error()
+				}
+				if update.output != expectedOutput {
+					t.Errorf("expected output=%q but found: %q", expectedOutput, update.output)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timed out waiting for script check to exec")
 			}
-			// assert output is being reported
-			expectedOutput := fmt.Sprintf("code=%d err=%v", code, err)
-			if err != nil {
-				expectedOutput = err.Error()
-			}
-			if update.output != expectedOutput {
-				t.Errorf("expected output=%q but found: %q", expectedOutput, update.output)
-			}
-		case <-time.After(3 * time.Second):
-			t.Fatalf("timed out waiting for script check to exec")
 		}
 	}
 
 	// Test exit codes with errors
-	run(0, nil, api.HealthPassing)
-	run(1, nil, api.HealthWarning)
-	run(2, nil, api.HealthCritical)
-	run(9000, nil, api.HealthCritical)
+	t.Run("Passing", run(0, nil, api.HealthPassing))
+	t.Run("Warning", run(1, nil, api.HealthWarning))
+	t.Run("Critical-2", run(2, nil, api.HealthCritical))
+	t.Run("Critical-9000", run(9000, nil, api.HealthCritical))
 
 	// Errors should always cause Critical status
 	err := fmt.Errorf("test error")
-	run(0, err, api.HealthCritical)
-	run(1, err, api.HealthCritical)
-	run(2, err, api.HealthCritical)
-	run(9000, err, api.HealthCritical)
+	t.Run("Error-0", run(0, err, api.HealthCritical))
+	t.Run("Error-1", run(1, err, api.HealthCritical))
+	t.Run("Error-2", run(2, err, api.HealthCritical))
+	t.Run("Error-9000", run(9000, err, api.HealthCritical))
 }
