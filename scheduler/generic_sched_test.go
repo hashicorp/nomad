@@ -1671,11 +1671,77 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobDeregister(t *testing.T) {
+func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	h := NewHarness(t)
 
 	// Generate a fake job with allocations
 	job := mock.Job()
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		allocs = append(allocs, alloc)
+	}
+	for _, alloc := range allocs {
+		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation to deregister the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobDeregister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all nodes
+	if len(plan.NodeUpdate["12345678-abcd-efab-cdef-123456789abc"]) != len(allocs) {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	noErr(t, err)
+
+	// Ensure that the job field on the allocation is still populated
+	for _, alloc := range out {
+		if alloc.Job == nil {
+			t.Fatalf("bad: %#v", alloc)
+		}
+	}
+
+	// Ensure no remaining allocations
+	out, _ = structs.FilterTerminalAllocs(out)
+	if len(out) != 0 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
+	h := NewHarness(t)
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	job.Stop = true
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {

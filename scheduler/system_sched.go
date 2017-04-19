@@ -95,13 +95,13 @@ func (s *SystemScheduler) process() (bool, error) {
 			s.eval.JobID, err)
 	}
 	numTaskGroups := 0
-	if s.job != nil {
+	if !s.job.Stopped() {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Get the ready nodes in the required datacenters
-	if s.job != nil {
+	if !s.job.Stopped() {
 		s.nodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
@@ -119,7 +119,7 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.ctx)
-	if s.job != nil {
+	if !s.job.Stopped() {
 		s.stack.SetJob(s.job)
 	}
 
@@ -228,7 +228,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Check if a rolling upgrade strategy is being used
 	limit := len(diff.update)
-	if s.job != nil && s.job.Update.Rolling() {
+	if !s.job.Stopped() && s.job.Update.Rolling() {
 		limit = s.job.Update.MaxParallel
 	}
 
@@ -237,7 +237,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(diff.place) == 0 {
-		if s.job != nil {
+		if !s.job.Stopped() {
 			for _, tg := range s.job.TaskGroups {
 				s.queuedAllocs[tg.Name] = 0
 			}

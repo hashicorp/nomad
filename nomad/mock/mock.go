@@ -146,6 +146,7 @@ func Job() *structs.Job {
 			"owner": "armon",
 		},
 		Status:         structs.JobStatusPending,
+		Version:        0,
 		CreateIndex:    42,
 		ModifyIndex:    99,
 		JobModifyIndex: 99,

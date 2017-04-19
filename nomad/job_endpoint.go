@@ -475,6 +475,45 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// GetJobVersions is used to retrieve all tracked versions of a job.
+func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
+	reply *structs.JobVersionsResponse) error {
+	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_versions"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Look for the job
+			out, err := state.JobVersionsByID(ws, args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			reply.Versions = out
+			if len(out) != 0 {
+				reply.Index = out[0].ModifyIndex
+			} else {
+				// Use the last index that affected the nodes table
+				index, err := state.Index("job_versions")
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
+}
+
 // List is used to list the jobs registered in the system
 func (j *Job) List(args *structs.JobListRequest,
 	reply *structs.JobListResponse) error {
@@ -805,6 +844,10 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	if !parameterizedJob.IsParameterized() {
 		return fmt.Errorf("Specified job %q is not a parameterized job", args.JobID)
+	}
+
+	if parameterizedJob.Stop {
+		return fmt.Errorf("Specified job %q is stopped", args.JobID)
 	}
 
 	// Validate the arguments

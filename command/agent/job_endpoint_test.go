@@ -383,7 +383,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Make the HTTP request
+		// Make the HTTP request to do a soft delete
 		req, err := http.NewRequest("DELETE", "/v1/job/"+job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -407,16 +407,56 @@ func TestHTTP_JobDelete(t *testing.T) {
 			t.Fatalf("missing index")
 		}
 
-		// Check the job is gone
-		getReq := structs.JobSpecificRequest{
+		// Check the job is still queryable
+		getReq1 := structs.JobSpecificRequest{
 			JobID:        job.ID,
 			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
-		var getResp structs.SingleJobResponse
-		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
+		var getResp1 structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq1, &getResp1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if getResp.Job != nil {
+		if getResp1.Job == nil {
+			t.Fatalf("job doesn't exists")
+		}
+		if !getResp1.Job.Stop {
+			t.Fatalf("job should be marked as stop")
+		}
+
+		// Make the HTTP request to do a purge delete
+		req2, err := http.NewRequest("DELETE", "/v1/job/"+job.ID+"?purge=true", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW.Flush()
+
+		// Make the request
+		obj, err = s.Server.JobSpecificRequest(respW, req2)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		dereg = obj.(structs.JobDeregisterResponse)
+		if dereg.EvalID == "" {
+			t.Fatalf("bad: %v", dereg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check the job is gone
+		getReq2 := structs.JobSpecificRequest{
+			JobID:        job.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var getResp2 structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq2, &getResp2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if getResp2.Job != nil {
 			t.Fatalf("job still exists")
 		}
 	})
@@ -560,6 +600,72 @@ func TestHTTP_JobAllocations(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobVersions(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		job2 := mock.Job()
+		job2.ID = job.ID
+		job2.Priority = 100
+
+		args2 := structs.JobRegisterRequest{
+			Job:          job2,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp2 structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args2, &resp2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		versions := obj.([]*structs.Job)
+		if len(versions) != 2 {
+			t.Fatalf("got %d versions; want 2", len(versions))
+		}
+
+		if v := versions[0]; v.Version != 1 || v.Priority != 100 {
+			t.Fatalf("bad %v", v)
+		}
+
+		if v := versions[1]; v.Version != 0 {
+			t.Fatalf("bad %v", v)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+	})
+}
+
 func TestHTTP_PeriodicForce(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create and register a periodic job.
@@ -685,6 +791,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
+		Stop:        helper.BoolToPtr(true),
 		Region:      helper.StringToPtr("global"),
 		ID:          helper.StringToPtr("foo"),
 		ParentID:    helper.StringToPtr("lol"),
@@ -856,12 +963,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		VaultToken:        helper.StringToPtr("token"),
 		Status:            helper.StringToPtr("status"),
 		StatusDescription: helper.StringToPtr("status_desc"),
+		Version:           helper.Uint64ToPtr(10),
 		CreateIndex:       helper.Uint64ToPtr(1),
 		ModifyIndex:       helper.Uint64ToPtr(3),
 		JobModifyIndex:    helper.Uint64ToPtr(5),
 	}
 
 	expected := &structs.Job{
+		Stop:        true,
 		Region:      "global",
 		ID:          "foo",
 		ParentID:    "lol",
@@ -1028,12 +1137,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 
-		VaultToken:        "token",
-		Status:            "status",
-		StatusDescription: "status_desc",
-		CreateIndex:       1,
-		ModifyIndex:       3,
-		JobModifyIndex:    5,
+		VaultToken: "token",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 func TestJobs_Register(t *testing.T) {
@@ -107,6 +108,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				VaultToken:        helper.StringToPtr(""),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				CreateIndex:       helper.Uint64ToPtr(0),
 				ModifyIndex:       helper.Uint64ToPtr(0),
 				JobModifyIndex:    helper.Uint64ToPtr(0),
@@ -162,6 +166,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          helper.IntToPtr(50),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -277,6 +284,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:              helper.StringToPtr("service"),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -379,6 +389,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          helper.IntToPtr(50),
 				AllAtOnce:         helper.BoolToPtr(false),
 				VaultToken:        helper.StringToPtr(""),
+				Stop:              helper.BoolToPtr(false),
+				Stable:            helper.BoolToPtr(false),
+				Version:           helper.Uint64ToPtr(0),
 				Status:            helper.StringToPtr(""),
 				StatusDescription: helper.StringToPtr(""),
 				CreateIndex:       helper.Uint64ToPtr(0),
@@ -399,6 +412,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
 			if !reflect.DeepEqual(tc.input, tc.expected) {
+				t.Logf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
 				t.Fatalf("Name: %v, expected:\n%#v\nactual:\n%#v", tc.name, tc.expected, tc.input)
 			}
 		})
@@ -502,6 +516,38 @@ func TestJobs_Info(t *testing.T) {
 
 	// Check that the result is what we expect
 	if result == nil || *result.ID != *job.ID {
+		t.Fatalf("expect: %#v, got: %#v", job, result)
+	}
+}
+
+func TestJobs_Versions(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Trying to retrieve a job by ID before it exists returns an error
+	_, _, err := jobs.Versions("job1", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Register the job
+	job := testJob()
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again and ensure it exists
+	result, qm, err := jobs.Versions("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
+	if len(result) == 0 || *result[0].ID != *job.ID {
 		t.Fatalf("expect: %#v, got: %#v", job, result)
 	}
 }
@@ -658,17 +704,36 @@ func TestJobs_Deregister(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Attempting delete on non-existing job returns an error
-	if _, _, err = jobs.Deregister("nope", nil); err != nil {
+	if _, _, err = jobs.Deregister("nope", false, nil); err != nil {
 		t.Fatalf("unexpected error deregistering job: %v", err)
-
 	}
 
-	// Deleting an existing job works
-	evalID, wm3, err := jobs.Deregister("job1", nil)
+	// Do a soft deregister of an existing job
+	evalID, wm3, err := jobs.Deregister("job1", false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	assertWriteMeta(t, wm3)
+	if evalID == "" {
+		t.Fatalf("missing eval ID")
+	}
+
+	// Check that the job is still queryable
+	out, qm1, err := jobs.Info("job1", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertQueryMeta(t, qm1)
+	if out == nil {
+		t.Fatalf("missing job")
+	}
+
+	// Do a purge deregister of an existing job
+	evalID, wm4, err := jobs.Deregister("job1", true, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm4)
 	if evalID == "" {
 		t.Fatalf("missing eval ID")
 	}

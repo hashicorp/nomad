@@ -22,8 +22,16 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	state := s1.fsm.State()
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
+	job.Stop = true
 	if err := state.UpsertJob(1000, job); err != nil {
-		t.Fatalf("UpsertAllocs() failed: %v", err)
+		t.Fatalf("UpsertJob() failed: %v", err)
+	}
+
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.JobID = job.ID
+	if err := state.UpsertEvals(1001, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("UpsertEvals() failed: %v", err)
 	}
 
 	// Make the GC request
@@ -45,7 +53,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 			return false, err
 		}
 		if exist != nil {
-			return false, fmt.Errorf("job %q wasn't garbage collected", job.ID)
+			return false, fmt.Errorf("job %+v wasn't garbage collected", job)
 		}
 		return true, nil
 	}, func(err error) {

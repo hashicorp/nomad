@@ -106,6 +106,17 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Versions is used to retrieve all versions of a particular
+// job given its unique ID.
+func (j *Jobs) Versions(jobID string, q *QueryOptions) ([]*Job, *QueryMeta, error) {
+	var resp []*Job
+	qm, err := j.client.query("/v1/job/"+jobID+"/versions", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
@@ -138,10 +149,12 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 	return resp, qm, nil
 }
 
-// Deregister is used to remove an existing job.
-func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+// Deregister is used to remove an existing job. If purge is set to true, the job
+// is deregistered and purged from the system versus still being queryable and
+// eventually GC'ed from the system. Most callers should not specify purge.
+func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp deregisterJobResponse
-	wm, err := j.client.delete("/v1/job/"+jobID, &resp, q)
+	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", jobID, purge), &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -279,6 +292,7 @@ type ParameterizedJobConfig struct {
 
 // Job is used to serialize a job.
 type Job struct {
+	Stop              *bool
 	Region            *string
 	ID                *string
 	ParentID          *string
@@ -297,6 +311,8 @@ type Job struct {
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
 	StatusDescription *string
+	Stable            *bool
+	Version           *uint64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -325,6 +341,9 @@ func (j *Job) Canonicalize() {
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
 	}
+	if j.Stop == nil {
+		j.Stop = helper.BoolToPtr(false)
+	}
 	if j.Region == nil {
 		j.Region = helper.StringToPtr("global")
 	}
@@ -342,6 +361,12 @@ func (j *Job) Canonicalize() {
 	}
 	if j.StatusDescription == nil {
 		j.StatusDescription = helper.StringToPtr("")
+	}
+	if j.Stable == nil {
+		j.Stable = helper.BoolToPtr(false)
+	}
+	if j.Version == nil {
+		j.Version = helper.Uint64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)
@@ -406,6 +431,9 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
+	Stop              bool
 	Status            string
 	StatusDescription string
 	JobSummary        *JobSummary

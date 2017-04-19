@@ -20,6 +20,7 @@ func stateStoreSchema() *memdb.DBSchema {
 		nodeTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
+		jobVersionsSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
@@ -141,6 +142,37 @@ func jobSummarySchema() *memdb.TableSchema {
 	}
 }
 
+// jobVersionsSchema returns the memdb schema for the job version table which
+// keeps a historical view of job versions.
+func jobVersionsSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_versions",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (JobID, Version) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "ID",
+							Lowercase: true,
+						},
+
+						// Will need to create a new indexer
+						&memdb.UintFieldIndex{
+							Field: "Version",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // jobIsGCable satisfies the ConditionalIndexFunc interface and creates an index
 // on whether a job is eligible for garbage collection.
 func jobIsGCable(obj interface{}) (bool, error) {
@@ -149,11 +181,31 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	// The job is GCable if it is batch, it is not periodic and is not a
-	// parameterized job.
+	// If the job is periodic or parameterized it is only garbage collectable if
+	// it is stopped.
 	periodic := j.Periodic != nil && j.Periodic.Enabled
-	gcable := j.Type == structs.JobTypeBatch && !periodic && !j.IsParameterized()
-	return gcable, nil
+	parameterized := j.IsParameterized()
+	if periodic || parameterized {
+		return j.Stop, nil
+	}
+
+	// If the job isn't dead it isn't eligible
+	if j.Status != structs.JobStatusDead {
+		return false, nil
+	}
+
+	// Any job that is stopped is eligible for garbage collection
+	if j.Stop {
+		return true, nil
+	}
+
+	// Otherwise, only batch jobs are eligible because they complete on their
+	// own without a user stopping them.
+	if j.Type != structs.JobTypeBatch {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index

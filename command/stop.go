@@ -31,6 +31,10 @@ Stop Options:
     screen, which can be used to examine the evaluation using the eval-status
     command.
 
+  -purge
+    Purge is used to stop the job and purge it from the system. If not set, the
+    job will still be queryable and will be purged by the garbage collector.
+
   -yes
     Automatic yes to prompts.
 
@@ -45,13 +49,14 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) Run(args []string) int {
-	var detach, verbose, autoYes bool
+	var detach, purge, verbose, autoYes bool
 
 	flags := c.Meta.FlagSet("stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
+	flags.BoolVar(&purge, "purge", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -132,7 +137,7 @@ func (c *StopCommand) Run(args []string) int {
 	}
 
 	// Invoke the stop
-	evalID, _, err := client.Jobs().Deregister(*job.ID, nil)
+	evalID, _, err := client.Jobs().Deregister(*job.ID, purge, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1

@@ -239,6 +239,12 @@ type JobRegisterRequest struct {
 // to deregister a job as being a schedulable entity.
 type JobDeregisterRequest struct {
 	JobID string
+
+	// Purge controls whether the deregister purges the job from the system or
+	// whether the job is just marked as stopped and will be removed by the
+	// garbage collector
+	Purge bool
+
 	WriteRequest
 }
 
@@ -536,7 +542,7 @@ type SingleNodeResponse struct {
 	QueryMeta
 }
 
-// JobListResponse is used for a list request
+// NodeListResponse is used for a list request
 type NodeListResponse struct {
 	Nodes []*NodeListStub
 	QueryMeta
@@ -565,6 +571,12 @@ type JobDispatchResponse struct {
 // JobListResponse is used for a list request
 type JobListResponse struct {
 	Jobs []*JobListStub
+	QueryMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
 	QueryMeta
 }
 
@@ -1097,6 +1109,10 @@ const (
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
 	CoreJobPriority = JobMaxPriority * 2
+
+	// JobTrackedVersions is the number of historic job versions that are
+	// kept.
+	JobTrackedVersions = 6
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -1104,6 +1120,12 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
+	// Stop marks whether the user has stopped the job. A stopped job will
+	// have all created allocations stopped and acts as a way to stop a job
+	// without purging it from the system. This allows existing allocs to be
+	// queried and the job to be inspected as it is being killed.
+	Stop bool
+
 	// Region is the Nomad region that handles scheduling this job
 	Region string
 
@@ -1171,6 +1193,15 @@ type Job struct {
 
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
+
+	// Stable marks a job as stable. Stability is only defined on "service" and
+	// "system" jobs. The stability of a job will be set automatically as part
+	// of a deployment and can be manually set via APIs.
+	Stable bool
+
+	// Version is a monitonically increasing version number that is incremened
+	// on each job register.
+	Version uint64
 
 	// Raft Indexes
 	CreateIndex    uint64
@@ -1357,6 +1388,11 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	return meta
 }
 
+// Stopped returns if a job is stopped.
+func (j *Job) Stopped() bool {
+	return j == nil || j.Stop
+}
+
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
@@ -1365,6 +1401,9 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		Name:              j.Name,
 		Type:              j.Type,
 		Priority:          j.Priority,
+		Periodic:          j.IsPeriodic(),
+		ParameterizedJob:  j.IsParameterized(),
+		Stop:              j.Stop,
 		Status:            j.Status,
 		StatusDescription: j.StatusDescription,
 		CreateIndex:       j.CreateIndex,
@@ -1464,6 +1503,9 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
+	Stop              bool
 	Status            string
 	StatusDescription string
 	JobSummary        *JobSummary

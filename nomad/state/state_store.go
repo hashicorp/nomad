@@ -311,6 +311,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
+		job.Version = existing.(*structs.Job).Version + 1
 
 		// Compute the job status
 		var err error
@@ -322,6 +323,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		job.CreateIndex = index
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
+		job.Version = 0
 
 		if err := s.setJobStatus(index, txn, job, false, ""); err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
@@ -339,6 +341,10 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 
 	if err := s.updateSummaryWithJob(index, job, txn); err != nil {
 		return fmt.Errorf("unable to create job summary: %v", err)
+	}
+
+	if err := s.upsertJobVersion(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_versions table: %v", err)
 	}
 
 	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -425,6 +431,11 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Delete the job versions
+	if err := s.deleteJobVersions(index, job, txn); err != nil {
+		return err
+	}
+
 	// Delete the job summary
 	if _, err = txn.DeleteAll("job_summary", "id", jobID); err != nil {
 		return fmt.Errorf("deleing job summary failed: %v", err)
@@ -434,6 +445,86 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	}
 
 	txn.Commit()
+	return nil
+}
+
+// deleteJobVersions deletes all versions of the given job.
+func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	iter, err := txn.Get("job_versions", "id_prefix", job.ID)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Ensure the ID is an exact match
+		j := raw.(*structs.Job)
+		if j.ID != job.ID {
+			continue
+		}
+
+		if _, err = txn.DeleteAll("job_versions", "id", job.ID, job.Version); err != nil {
+			return fmt.Errorf("deleting job versions failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
+// upsertJobVersion inserts a job into its historic version table and limits the
+// number of job versions that are tracked.
+func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	// Insert the job
+	if err := txn.Insert("job_versions", job); err != nil {
+		return fmt.Errorf("failed to insert job into job_versions table: %v", err)
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"job_versions", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Get all the historic jobs for this ID
+	all, err := s.jobVersionByID(txn, nil, job.ID)
+	if err != nil {
+		return fmt.Errorf("failed to look up job versions for %q: %v", job.ID, err)
+	}
+
+	// If we are below the limit there is no GCing to be done
+	if len(all) <= structs.JobTrackedVersions {
+		return nil
+	}
+
+	// We have to delete a historic job to make room.
+	// Find index of the highest versioned stable job
+	stableIdx := -1
+	for i, j := range all {
+		if j.Stable {
+			stableIdx = i
+			break
+		}
+	}
+
+	// If the stable job is the oldest version, do a swap to bring it into the
+	// keep set.
+	max := structs.JobTrackedVersions
+	if stableIdx == max {
+		all[max-1], all[max] = all[max], all[max-1]
+	}
+
+	// Delete the job outside of the set that are being kept.
+	d := all[max]
+	if err := txn.Delete("job_versions", d); err != nil {
+		return fmt.Errorf("failed to delete job %v (%d) from job_versions", d.ID, d.Version)
+	}
+
 	return nil
 }
 
@@ -465,6 +556,50 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultI
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// JobVersionsByID returns all the tracked versions of a job.
+func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, id string) ([]*structs.Job, error) {
+	txn := s.db.Txn(false)
+	return s.jobVersionByID(txn, &ws, id)
+}
+
+// jobVersionByID is the underlying implementation for retrieving all tracked
+// versions of a job and is called under an existing transaction. A watch set
+// can optionally be passed in to add the job histories to the watch set.
+func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
+	// Get all the historic jobs for this ID
+	iter, err := txn.Get("job_versions", "id_prefix", id)
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(iter.WatchCh())
+	}
+
+	var all []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Ensure the ID is an exact match
+		j := raw.(*structs.Job)
+		if j.ID != id {
+			continue
+		}
+
+		all = append(all, j)
+	}
+
+	// Reverse so that highest versions first
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+
+	return all, nil
 }
 
 // Jobs returns an iterator over all the jobs
@@ -1651,6 +1786,11 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 	// job is periodic or is a parameterized job, we mark it as running as
 	// it will never have an allocation/evaluation against it.
 	if job.IsPeriodic() || job.IsParameterized() {
+		// If the job is stopped mark it as dead
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
 		return structs.JobStatusRunning, nil
 	}
 	return structs.JobStatusPending, nil

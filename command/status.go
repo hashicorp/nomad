@@ -141,19 +141,23 @@ func (c *StatusCommand) Run(args []string) int {
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status|%s", *job.Status),
+		fmt.Sprintf("Status|%s", getStatusString(*job.Status, *job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
 	if periodic && !parameterized {
-		location, err := job.Periodic.GetLocation()
-		if err == nil {
-			now := time.Now().In(location)
-			next := job.Periodic.Next(now)
-			basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
-				fmt.Sprintf("%s (%s from now)",
-					formatTime(next), formatTimeDifference(now, next, time.Second))))
+		if *job.Stop {
+			basic = append(basic, fmt.Sprintf("Next Periodic Launch|none (job stopped)"))
+		} else {
+			location, err := job.Periodic.GetLocation()
+			if err == nil {
+				now := time.Now().In(location)
+				next := job.Periodic.Next(now)
+				basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+					fmt.Sprintf("%s (%s from now)",
+						formatTime(next), formatTimeDifference(now, next, time.Second))))
+			}
 		}
 	}
 
@@ -446,9 +450,30 @@ func createStatusListOutput(jobs []*api.JobListStub) string {
 	for i, job := range jobs {
 		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
 			job.ID,
-			job.Type,
+			getTypeString(job),
 			job.Priority,
-			job.Status)
+			getStatusString(job.Status, job.Stop))
 	}
 	return formatList(out)
+}
+
+func getTypeString(job *api.JobListStub) string {
+	t := job.Type
+
+	if job.Periodic {
+		t += "/periodic"
+	}
+
+	if job.ParameterizedJob {
+		t += "/parameterized"
+	}
+
+	return t
+}
+
+func getStatusString(status string, stop bool) string {
+	if stop {
+		return fmt.Sprintf("%s (stopped)", status)
+	}
+	return status
 }

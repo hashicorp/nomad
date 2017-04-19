@@ -149,6 +149,7 @@ OUTER:
 	for _, job := range gcJob {
 		req := structs.JobDeregisterRequest{
 			JobID: job,
+			Purge: true,
 			WriteRequest: structs.WriteRequest{
 				Region: c.srv.config.Region,
 			},
@@ -243,9 +244,24 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 			return false, nil, err
 		}
 
+		// Can collect if:
+		// Job doesn't exist
+		// Job is Stopped and dead
+		// allowBatch and the job is dead
+		collect := false
+		if job == nil {
+			collect = true
+		} else if job.Status != structs.JobStatusDead {
+			collect = false
+		} else if job.Stop {
+			collect = true
+		} else if allowBatch {
+			collect = true
+		}
+
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
-		if job != nil && (!allowBatch || job.Status != structs.JobStatusDead) {
+		if !collect {
 			return false, nil, nil
 		}
 	}
