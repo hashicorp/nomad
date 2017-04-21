@@ -3449,6 +3449,81 @@ func (v *Vault) Validate() error {
 }
 
 const (
+	// DeploymentStatuses are the various states a deployment can be be in
+	DeploymentStatusRunning    = "running"
+	DeploymentStatusFailed     = "failed"
+	DeploymentStatusSuccessful = "successful"
+	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusPaused     = "paused"
+)
+
+// Deployment is the object that represents a job deployment which is used to
+// transistion a job between versions.
+type Deployment struct {
+	// ID is a generated UUID for the deployment
+	ID string
+
+	// JobID is the job the deployment is created for
+	JobID string
+
+	// JobVersion is the version of the job at which the deployment is tracking
+	JobVersion uint64
+
+	// JobModifyIndex is the modify index of the job at which the deployment is tracking
+	JobModifyIndex uint64
+
+	// JobCreateIndex is the create index of the job which the deployment is
+	// tracking. It is needed so that if the job gets stopped and reran we can
+	// present the correct list of deployments for the job and not old ones.
+	JobCreateIndex uint64
+
+	// TaskGroups is the set of task groups effected by the deployment and their
+	// current deployment status.
+	TaskGroups map[string]*DeploymentState
+
+	// The status of the deployment
+	Status string
+
+	// StatusDescription allows a human readable description of the deployment
+	// status.
+	StatusDescription string
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// DeploymentState tracks the state of a deployment for a given task group.
+type DeploymentState struct {
+	// Promoted marks whether the canaries have been. Promotion by
+	// task group is not allowed since that doesn’t allow a single
+	// job to transition into the “stable” state.
+	Promoted bool
+
+	// RequiresPromotion marks whether the deployment is expecting
+	// a promotion. This is computable by checking if the job has canaries
+	// specified, but is stored in the deployment to make it so that consumers
+	// do not need to query job history and deployments to know whether a
+	// promotion is needed.
+	RequiresPromotion bool
+
+	// DesiredCanaries is the number of canaries that should be created.
+	DesiredCanaries int
+
+	// DesiredTotal is the total number of allocations that should be created as
+	// part of the deployment.
+	DesiredTotal int
+
+	// PlacedAllocs is the number of allocations that have been placed
+	PlacedAllocs int
+
+	// HealthyAllocs is the number of allocations that have been marked healthy.
+	HealthyAllocs int
+
+	// UnhealthyAllocs are allocations that have been marked as unhealthy.
+	UnhealthyAllocs int
+}
+
+const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
 	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
@@ -3517,6 +3592,18 @@ type Allocation struct {
 
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
+
+	// DeploymentID identifies an allocation as being created from a
+	// particular deployment
+	DeploymentID string
+
+	// DeploymentHealth marks whether the allocation has been marked healthy or
+	// unhealthy as part of a deployment. It can be unset if it has neither been
+	// marked healthy or unhealthy.
+	DeploymentHealth *bool
+
+	// Canary marks this allocation as being a canary
+	Canary bool
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -4108,6 +4195,10 @@ type Plan struct {
 	// Annotations contains annotations by the scheduler to be used by operators
 	// to understand the decisions made by the scheduler.
 	Annotations *PlanAnnotations
+
+	// CreatedDeployment is the deployment created by the scheduler that should
+	// be applied by the planner.
+	CreatedDeployment *Deployment
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
