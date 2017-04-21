@@ -16,6 +16,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -234,17 +235,20 @@ func (r *TaskRunner) stateFilePath() string {
 	return path
 }
 
-// RestoreState is used to restore our state
-func (r *TaskRunner) RestoreState() error {
+// RestoreState is used to restore our state. If a non-empty string is returned
+// the task is restarted with the string as the reason. This is useful for
+// backwards incompatible upgrades that need to restart tasks with a new
+// executor.
+func (r *TaskRunner) RestoreState() (string, error) {
 	// Load the snapshot
 	var snap taskRunnerState
 	if err := restoreState(r.stateFilePath(), &snap); err != nil {
-		return err
+		return "", err
 	}
 
 	// Restore fields
 	if snap.Task == nil {
-		return fmt.Errorf("task runner snapshot includes nil Task")
+		return "", fmt.Errorf("task runner snapshot includes nil Task")
 	} else {
 		r.task = snap.Task
 	}
@@ -255,7 +259,7 @@ func (r *TaskRunner) RestoreState() error {
 	r.setCreatedResources(snap.CreatedResources)
 
 	if err := r.setTaskEnv(); err != nil {
-		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
+		return "", fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
 			r.task.Name, r.alloc.ID, err)
 	}
 
@@ -265,7 +269,7 @@ func (r *TaskRunner) RestoreState() error {
 		data, err := ioutil.ReadFile(tokenPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+				return "", fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
 			}
 
 			// Token file doesn't exist
@@ -276,10 +280,11 @@ func (r *TaskRunner) RestoreState() error {
 	}
 
 	// Restore the driver
+	restartReason := ""
 	if snap.HandleID != "" {
 		d, err := r.createDriver()
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		ctx := driver.NewExecContext(r.taskDir)
@@ -289,7 +294,11 @@ func (r *TaskRunner) RestoreState() error {
 		if err != nil {
 			r.logger.Printf("[ERR] client: failed to open handle to task %q for alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
-			return nil
+			return "", nil
+		}
+
+		if pre06ScriptCheck(snap.Version, r.task.Services) {
+			restartReason = "upgrading pre-0.6 script checks"
 		}
 
 		if err := r.registerServices(d, handle); err != nil {
@@ -308,7 +317,30 @@ func (r *TaskRunner) RestoreState() error {
 		r.running = true
 		r.runningLock.Unlock()
 	}
-	return nil
+	return restartReason, nil
+}
+
+var ver06 = version.Must(version.NewVersion("0.6.0dev"))
+
+// pre06ScriptCheck returns true if version is prior to 0.6.0dev.
+func pre06ScriptCheck(ver string, services []*structs.Service) bool {
+	v, err := version.NewVersion(ver)
+	if err != nil {
+		// Treat it as old
+		return true
+	}
+	if !v.LessThan(ver06) {
+		// >= 0.6.0dev
+		return false
+	}
+	for _, service := range services {
+		for _, check := range service.Checks {
+			if check.Type == "script" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // SaveState is used to snapshot our state

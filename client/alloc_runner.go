@@ -186,13 +186,20 @@ func (r *AllocRunner) RestoreState() error {
 			continue
 		}
 
-		if err := tr.RestoreState(); err != nil {
-			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task '%s': %v", r.alloc.ID, name, err)
+		if restartReason, err := tr.RestoreState(); err != nil {
+			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task %q: %v", r.alloc.ID, name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else if !r.alloc.TerminalStatus() {
 			// Only start if the alloc isn't in a terminal status.
 			go tr.Run()
+
+			// Restart task runner if RestoreState gave a reason
+			if restartReason != "" {
+				r.logger.Printf("[INFO] client: restarting alloc %s task %q due to upgrade: %s", r.alloc.ID, name, restartReason)
+				tr.Restart("upgrade", restartReason)
+			}
 		}
+
 	}
 
 	return mErr.ErrorOrNil()
