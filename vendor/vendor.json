@@ -743,8 +743,10 @@
 			"revision": "42a2b573b664dbf281bd48c3cc12c086b17a39ba"
 		},
 		{
+			"checksumSHA1": "tUGxc7rfX0cmhOOUDhMuAZ9rWsA=",
 			"path": "github.com/hashicorp/go-version",
-			"revision": "2e7f5ea8e27bb3fdf9baa0881d16757ac4637332"
+			"revision": "03c5bf6be031b6dd45afec16b1cf94fc8938bc77",
+			"revisionTime": "2017-02-02T08:07:59Z"
 		},
 		{
 			"checksumSHA1": "d9PxF1XQGLMJZRct2R8qVM/eYlE=",
