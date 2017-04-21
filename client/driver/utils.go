@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
@@ -182,18 +183,17 @@ func getExecutorUser(task *structs.Task) string {
 	return task.User
 }
 
-// execChroot executes cmd with args inside chroot if set and returns the
-// output, exit code, and error. If chroot is an empty string the command is
-// executed on the host.
-func execChroot(ctx context.Context, chroot, name string, args []string) ([]byte, int, error) {
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+// execScript executes cmd with args and returns the output, exit code, and
+// error. Output is truncated to client/driver/structs.CheckBufSize
+func execScript(ctx context.Context, dir string, env *env.TaskEnvironment, name string, args []string) ([]byte, int, error) {
+	name = env.ReplaceEnv(name)
+	args = env.ParseAndReplace(args)
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = "/"
+	cmd.Dir = dir
+	cmd.Env = env.EnvList()
+	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
 	cmd.Stdout = buf
 	cmd.Stderr = buf
-	if chroot != "" {
-		setChroot(cmd, chroot)
-	}
 	if err := cmd.Run(); err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if !ok {

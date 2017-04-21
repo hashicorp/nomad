@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -48,6 +50,8 @@ type rawExecHandle struct {
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
+	taskEnv        *env.TaskEnvironment
+	taskDir        *allocdir.TaskDir
 }
 
 // NewRawExecDriver is used to create a new raw exec driver
@@ -165,6 +169,8 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskEnv:        d.taskEnv,
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -212,6 +218,8 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskEnv:        d.taskEnv,
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -247,7 +255,7 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 }
 
 func (h *rawExecHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
-	return execChroot(ctx, "", cmd, args)
+	return execScript(ctx, h.taskDir.Dir, h.taskEnv, cmd, args)
 }
 
 func (h *rawExecHandle) Signal(s os.Signal) error {

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -87,6 +88,8 @@ type RktDriverConfig struct {
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	uuid           string
+	env            *env.TaskEnvironment
+	taskDir        *allocdir.TaskDir
 	pluginClient   *plugin.Client
 	executorPid    int
 	executor       executor.Executor
@@ -474,6 +477,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
+		env:            d.taskEnv,
+		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
 		executorPid:    ps.Pid,
@@ -514,6 +519,8 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		uuid:           id.UUID,
+		env:            d.taskEnv,
+		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,
 		executor:       exec,
@@ -566,7 +573,7 @@ func (h *rktHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte
 	enterArgs[1] = h.uuid
 	enterArgs[2] = cmd
 	copy(enterArgs[3:], args)
-	return execChroot(ctx, "", rktCmd, enterArgs)
+	return execScript(ctx, h.taskDir.Dir, h.env, rktCmd, enterArgs)
 }
 
 func (h *rktHandle) Signal(s os.Signal) error {
