@@ -259,7 +259,12 @@ func (h *execHandle) Update(task *structs.Task) error {
 }
 
 func (h *execHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
-	return execChroot(ctx, h.taskDir.Dir, cmd, args)
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		// No deadline set on context; default to 1 minute
+		deadline = time.Now().Add(time.Minute)
+	}
+	return h.executor.Exec(deadline, cmd, args)
 }
 
 func (h *execHandle) Signal(s os.Signal) error {

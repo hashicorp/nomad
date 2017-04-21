@@ -195,7 +195,6 @@ func (r *AllocRunner) RestoreState() error {
 
 			// Restart task runner if RestoreState gave a reason
 			if restartReason != "" {
-				r.logger.Printf("[INFO] client: restarting alloc %s task %q due to upgrade: %s", r.alloc.ID, name, restartReason)
 				tr.Restart("upgrade", restartReason)
 			}
 		}

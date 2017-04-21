@@ -297,7 +297,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			return "", nil
 		}
 
-		if pre06ScriptCheck(snap.Version, r.task.Services) {
+		if pre06ScriptCheck(snap.Version, r.task.Driver, r.task.Services) {
 			restartReason = "upgrading pre-0.6 script checks"
 		}
 
@@ -323,7 +323,11 @@ func (r *TaskRunner) RestoreState() (string, error) {
 var ver06 = version.Must(version.NewVersion("0.6.0dev"))
 
 // pre06ScriptCheck returns true if version is prior to 0.6.0dev.
-func pre06ScriptCheck(ver string, services []*structs.Service) bool {
+func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
+	if driver != "exec" && driver != "java" {
+		// Only exec and java are affected
+		return false
+	}
 	v, err := version.NewVersion(ver)
 	if err != nil {
 		// Treat it as old
