@@ -121,6 +121,142 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 	return nil
 }
 
+func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment, cancelPrior bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Go through and cancel any active deployment for the job.
+	if cancelPrior {
+		iter, err := txn.Get("deployment", "job_prefix", deployment.JobID)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+
+			// Ensure the ID is an exact match and that the deployment is active
+			d := raw.(*structs.Deployment)
+			if d.JobID != deployment.JobID || !d.Active() {
+				continue
+			}
+
+			// We need to cancel so make a copy and set its status
+			cancelled := d.Copy()
+			cancelled.ModifyIndex = index
+			cancelled.Status = structs.DeploymentStatusCancelled
+			cancelled.StatusDescription = fmt.Sprintf("Cancelled in favor of deployment %q", deployment.ID)
+
+			// Insert the cancelled deployment
+			if err := txn.Insert("deployment", cancelled); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Insert the deployment
+	if err := txn.Insert("deployment", deployment); err != nil {
+		return err
+	}
+
+	// Update the indexes table for deployment
+	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("deployment", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*structs.Deployment, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("deployment", "id", deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Deployment), nil
+	}
+
+	return nil, nil
+}
+
+func (s *StateStore) DeploymentByJobID(ws memdb.WatchSet, jobID string) ([]*structs.Deployment, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the deployments
+	iter, err := txn.Get("deployment", "job_prefix", jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	var out []*structs.Deployment
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		d := raw.(*structs.Deployment)
+
+		// Filter non-exact matches
+		if d.JobID != jobID {
+			continue
+		}
+
+		out = append(out, d)
+	}
+
+	return out, nil
+}
+
+// DeleteDeployment is used to delete a deployment by ID
+func (s *StateStore) DeleteDeployment(index uint64, deploymentID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the deployment
+	existing, err := txn.First("deployment", "id", deploymentID)
+	if err != nil {
+		return fmt.Errorf("deployment lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Delete the deployment
+	if err := txn.Delete("deployment", existing); err != nil {
+		return fmt.Errorf("deployment delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain which is set by the scheduler.
@@ -344,7 +480,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	}
 
 	if err := s.upsertJobVersion(index, job, txn); err != nil {
-		return fmt.Errorf("unable to upsert job into job_versions table: %v", err)
+		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
 	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -450,7 +586,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 
 // deleteJobVersions deletes all versions of the given job.
 func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memdb.Txn) error {
-	iter, err := txn.Get("job_versions", "id_prefix", job.ID)
+	iter, err := txn.Get("job_version", "id_prefix", job.ID)
 	if err != nil {
 		return err
 	}
@@ -467,7 +603,7 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_versions", "id", job.ID, job.Version); err != nil {
+		if _, err = txn.DeleteAll("job_version", "id", job.ID, job.Version); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
@@ -483,11 +619,11 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 // number of job versions that are tracked.
 func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb.Txn) error {
 	// Insert the job
-	if err := txn.Insert("job_versions", job); err != nil {
-		return fmt.Errorf("failed to insert job into job_versions table: %v", err)
+	if err := txn.Insert("job_version", job); err != nil {
+		return fmt.Errorf("failed to insert job into job_version table: %v", err)
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"job_versions", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{"job_version", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -521,8 +657,8 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 
 	// Delete the job outside of the set that are being kept.
 	d := all[max]
-	if err := txn.Delete("job_versions", d); err != nil {
-		return fmt.Errorf("failed to delete job %v (%d) from job_versions", d.ID, d.Version)
+	if err := txn.Delete("job_version", d); err != nil {
+		return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
 	}
 
 	return nil
@@ -570,7 +706,7 @@ func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, id string) ([]*structs.J
 // can optionally be passed in to add the job histories to the watch set.
 func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
 	// Get all the historic jobs for this ID
-	iter, err := txn.Get("job_versions", "id_prefix", id)
+	iter, err := txn.Get("job_version", "id_prefix", id)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +742,7 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 // JobByIDAndVersion returns the job identified by its ID and Version
 func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uint64) (*structs.Job, error) {
 	txn := s.db.Txn(false)
-	watchCh, existing, err := txn.FirstWatch("job_versions", "id", id, version)
+	watchCh, existing, err := txn.FirstWatch("job_version", "id", id, version)
 	if err != nil {
 		return nil, err
 	}
@@ -619,6 +755,19 @@ func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uin
 	}
 
 	return nil, nil
+}
+
+func (s *StateStore) JobVersions(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("job_version", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
 }
 
 // Jobs returns an iterator over all the jobs
@@ -2106,6 +2255,22 @@ func (r *StateRestore) PeriodicLaunchRestore(launch *structs.PeriodicLaunch) err
 func (r *StateRestore) JobSummaryRestore(jobSummary *structs.JobSummary) error {
 	if err := r.txn.Insert("job_summary", jobSummary); err != nil {
 		return fmt.Errorf("job summary insert failed: %v", err)
+	}
+	return nil
+}
+
+// JobVersionRestore is used to restore a job version
+func (r *StateRestore) JobVersionRestore(version *structs.Job) error {
+	if err := r.txn.Insert("job_version", version); err != nil {
+		return fmt.Errorf("job version insert failed: %v", err)
+	}
+	return nil
+}
+
+// DeploymentRestore is used to restore a deployment
+func (r *StateRestore) DeploymentRestore(deployment *structs.Deployment) error {
+	if err := r.txn.Insert("deployment", deployment); err != nil {
+		return fmt.Errorf("deployment insert failed: %v", err)
 	}
 	return nil
 }

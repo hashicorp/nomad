@@ -1325,6 +1325,56 @@ func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	job1 := mock.Job()
+	state.UpsertJob(1000, job1)
+	job2 := mock.Job()
+	job2.ID = job1.ID
+	state.UpsertJob(1001, job2)
+
+	// Verify the contents
+	ws := memdb.NewWatchSet()
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out1, _ := state2.JobByIDAndVersion(ws, job1.ID, job1.Version)
+	out2, _ := state2.JobByIDAndVersion(ws, job2.ID, job2.Version)
+	if !reflect.DeepEqual(job1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
+	}
+	if !reflect.DeepEqual(job2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
+	}
+	if job2.Version != 1 {
+		t.Fatalf("bad: \n%#v\n%#v", 1, job2)
+	}
+}
+
+func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	state.UpsertDeployment(1000, d1, false)
+	state.UpsertDeployment(1001, d2, false)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.DeploymentByID(ws, d1.ID)
+	out2, _ := state2.DeploymentByID(ws, d2.ID)
+	if !reflect.DeepEqual(d1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, d1)
+	}
+	if !reflect.DeepEqual(d2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, d2)
+	}
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)

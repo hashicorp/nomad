@@ -25,6 +25,197 @@ func testStateStore(t *testing.T) *StateStore {
 	return state
 }
 
+func TestStateStore_UpsertDeployment(t *testing.T) {
+	state := testStateStore(t)
+	deployment := mock.Deployment()
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.DeploymentByJobID(ws, deployment.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	err = state.UpsertDeployment(1000, deployment, false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, deployment.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(deployment, out) {
+		t.Fatalf("bad: %#v %#v", deployment, out)
+	}
+
+	index, err := state.Index("deployment")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_UpsertDeployment_Cancel(t *testing.T) {
+	state := testStateStore(t)
+	deployment := mock.Deployment()
+	deployment2 := mock.Deployment()
+	deployment2.JobID = deployment.JobID
+
+	// Create a deployment that shares the job id prefix
+	deployment3 := mock.Deployment()
+	deployment3.JobID = deployment.JobID + "foo"
+
+	if err := state.UpsertDeployment(1000, deployment, false); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.UpsertDeployment(1001, deployment2, true); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.UpsertDeployment(1002, deployment3, true); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	ws := memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, deployment.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check to see that the deployment was cancelled
+	if out.Status != structs.DeploymentStatusCancelled {
+		t.Fatalf("got status %v; want %v", out.Status, structs.DeploymentStatusCancelled)
+	} else if out.ModifyIndex != 1001 {
+		t.Fatalf("got modify index %v; want %v", out.ModifyIndex, 1001)
+	}
+
+	// Get the deployments by job
+	deployments, err := state.DeploymentByJobID(ws, deployment.JobID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if l := len(deployments); l != 2 {
+		t.Fatalf("got %d deployments; want %v", l, 2)
+	}
+
+	index, err := state.Index("deployment")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1002 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_DeleteDeployment(t *testing.T) {
+	state := testStateStore(t)
+	deployment := mock.Deployment()
+
+	err := state.UpsertDeployment(1000, deployment, false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	if _, err := state.DeploymentByID(ws, deployment.ID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	err = state.DeleteDeployment(1001, deployment.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, deployment.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if out != nil {
+		t.Fatalf("bad: %#v %#v", deployment, out)
+	}
+
+	index, err := state.Index("deployment")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_Deployments(t *testing.T) {
+	state := testStateStore(t)
+	var deployments []*structs.Deployment
+
+	for i := 0; i < 10; i++ {
+		deployment := mock.Deployment()
+		deployments = append(deployments, deployment)
+
+		err := state.UpsertDeployment(1000+uint64(i), deployment, false)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	ws := memdb.NewWatchSet()
+	iter, err := state.Deployments(ws)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*structs.Deployment
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Deployment))
+	}
+
+	lessThan := func(i, j int) bool {
+		return deployments[i].ID < deployments[j].ID
+	}
+	sort.Slice(deployments, lessThan)
+	sort.Slice(out, lessThan)
+
+	if !reflect.DeepEqual(deployments, out) {
+		t.Fatalf("bad: %#v %#v", deployments, out)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
 func TestStateStore_UpsertNode_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
@@ -736,7 +927,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	index, err := state.Index("job_versions")
+	index, err := state.Index("job_version")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -917,6 +1108,46 @@ func TestStateStore_Jobs(t *testing.T) {
 
 	ws := memdb.NewWatchSet()
 	iter, err := state.Jobs(ws)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var out []*structs.Job
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Job))
+	}
+
+	sort.Sort(JobIDSort(jobs))
+	sort.Sort(JobIDSort(out))
+
+	if !reflect.DeepEqual(jobs, out) {
+		t.Fatalf("bad: %#v %#v", jobs, out)
+	}
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_JobVersions(t *testing.T) {
+	state := testStateStore(t)
+	var jobs []*structs.Job
+
+	for i := 0; i < 10; i++ {
+		job := mock.Job()
+		jobs = append(jobs, job)
+
+		err := state.UpsertJob(1000+uint64(i), job)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	ws := memdb.NewWatchSet()
+	iter, err := state.JobVersions(ws)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1537,6 +1768,66 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 
 	if !reflect.DeepEqual(out, launch) {
 		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_RestoreJobVersion(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.JobVersionRestore(job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByIDAndVersion(ws, job.ID, job.Version)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, job) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_RestoreDeployment(t *testing.T) {
+	state := testStateStore(t)
+	d := mock.Deployment()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.DeploymentRestore(d)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, d) {
+		t.Fatalf("Bad: %#v %#v", out, d)
 	}
 
 	if watchFired(ws) {

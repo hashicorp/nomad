@@ -3492,6 +3492,31 @@ type Deployment struct {
 	ModifyIndex uint64
 }
 
+func (d *Deployment) Copy() *Deployment {
+	c := &Deployment{}
+	*c = *d
+
+	c.TaskGroups = nil
+	if l := len(d.TaskGroups); l != 0 {
+		c.TaskGroups = make(map[string]*DeploymentState, l)
+		for tg, s := range d.TaskGroups {
+			c.TaskGroups[tg] = s.Copy()
+		}
+	}
+
+	return c
+}
+
+// Active returns whether the deployment is active or terminal.
+func (d *Deployment) Active() bool {
+	switch d.Status {
+	case DeploymentStatusRunning, DeploymentStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
 	// Promoted marks whether the canaries have been. Promotion by
@@ -3521,6 +3546,12 @@ type DeploymentState struct {
 
 	// UnhealthyAllocs are allocations that have been marked as unhealthy.
 	UnhealthyAllocs int
+}
+
+func (d *DeploymentState) Copy() *DeploymentState {
+	c := &DeploymentState{}
+	*c = *d
+	return c
 }
 
 const (

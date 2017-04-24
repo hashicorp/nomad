@@ -308,6 +308,20 @@ func VaultAccessor() *structs.VaultAccessor {
 	}
 }
 
+func Deployment() *structs.Deployment {
+	return &structs.Deployment{
+		ID:                structs.GenerateUUID(),
+		JobID:             structs.GenerateUUID(),
+		JobVersion:        2,
+		JobModifyIndex:    20,
+		JobCreateIndex:    18,
+		Status:            structs.DeploymentStatusRunning,
+		StatusDescription: structs.DeploymentStatusRunning,
+		ModifyIndex:       23,
+		CreateIndex:       21,
+	}
+}
+
 func Plan() *structs.Plan {
 	return &structs.Plan{
 		Priority: 50,
