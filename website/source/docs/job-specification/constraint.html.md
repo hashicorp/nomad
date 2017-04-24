@@ -204,7 +204,7 @@ constraint {
 }
 ```
 
-### Distint Property
+### Distinct Property
 
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
