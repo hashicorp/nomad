@@ -298,7 +298,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 		}
 
 		if pre06ScriptCheck(snap.Version, r.task.Driver, r.task.Services) {
-			restartReason = "upgrading pre-0.6 script checks"
+			restartReason = pre06ScriptCheckReason
 		}
 
 		if err := r.registerServices(d, handle); err != nil {
@@ -320,11 +320,16 @@ func (r *TaskRunner) RestoreState() (string, error) {
 	return restartReason, nil
 }
 
+// ver06 is used for checking for pre-0.6 script checks
 var ver06 = version.Must(version.NewVersion("0.6.0dev"))
+
+// pre06ScriptCheckReason is the restart reason given when a pre-0.6 script
+// check is found on an exec/java task.
+const pre06ScriptCheckReason = "upgrading pre-0.6 script checks"
 
 // pre06ScriptCheck returns true if version is prior to 0.6.0dev.
 func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
-	if driver != "exec" && driver != "java" {
+	if driver != "exec" && driver != "java" && driver != "mock_driver" {
 		// Only exec and java are affected
 		return false
 	}
@@ -352,6 +357,7 @@ func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 
+	r.logger.Printf("[XXX] task_runner: %q", r.config.Version)
 	snap := taskRunnerState{
 		Task:               r.task,
 		Version:            r.config.Version,

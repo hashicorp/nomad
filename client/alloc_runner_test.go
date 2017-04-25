@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"text/template"
 	"time"
@@ -474,6 +475,84 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+// TestAllocRunner_SaveRestoreState_Upgrade asserts that pre-0.6 exec tasks are
+// restarted on upgrade.
+func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+
+	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	// Hack in old version to cause an upgrade on RestoreState
+	origConfig := ar.config.Copy()
+	ar.config.Version = "0.5.6"
+	go ar.Run()
+
+	// Snapshot state
+	testutil.WaitForResult(func() (bool, error) {
+		return len(ar.tasks) == 1, nil
+	}, func(err error) {
+		t.Fatalf("task never started: %v", err)
+	})
+
+	err := ar.SaveState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a new alloc runner
+	l2 := prefixedTestLogger("----- ar2:  ")
+	ar2 := NewAllocRunner(l2, origConfig, upd.Update,
+		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient,
+		ar.consulClient)
+	err = ar2.RestoreState()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	go ar2.Run()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if len(ar2.tasks) != 1 {
+			return false, fmt.Errorf("Incorrect number of tasks")
+		}
+
+		if upd.Count < 3 {
+			return false, nil
+		}
+
+		for _, ev := range ar2.alloc.TaskStates["web"].Events {
+			if strings.HasSuffix(ev.RestartReason, pre06ScriptCheckReason) {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no restart with proper reason found")
+	}, func(err error) {
+		t.Fatalf("err: %v\nAllocs: %#v\nWeb State: %#v", err, upd.Allocs, ar2.alloc.TaskStates["web"])
+	})
+
+	// Destroy and wait
+	ar2.Destroy()
+	start := time.Now()
+
+	testutil.WaitForResult(func() (bool, error) {
+		alloc := ar2.Alloc()
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("Bad client status; got %v; want %v", alloc.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+	})
+
+	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
+		t.Fatalf("took too long to terminate")
+	}
 }
 
 // Ensure pre-#2132 state files containing the Context struct are properly

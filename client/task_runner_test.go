@@ -369,7 +369,7 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.upd.Update,
 		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient, ctx.tr.consul)
 	tr2.restartTracker = noRestartsTracker()
-	if err := tr2.RestoreState(); err != nil {
+	if _, err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
