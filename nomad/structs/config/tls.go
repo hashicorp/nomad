@@ -28,6 +28,12 @@ type TLSConfig struct {
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
+	
+	// VerifyIncoming
+	VerifyIncoming bool `mapstructure:"verify_incoming"`
+	
+	// VerifyOutgoing
+	VerifyOutgoing bool `mapstructure:"verify_outgoing"`
 }
 
 // Merge is used to merge two TLS configs together
@@ -51,6 +57,12 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	}
 	if b.KeyFile != "" {
 		result.KeyFile = b.KeyFile
+	}
+	if b.VerifyIncoming {
+		result.VerifyIncoming = true
+	}
+	if b.VerifyOutgoing {
+		result.VerifyOutgoing = true
 	}
 
 	return &result
