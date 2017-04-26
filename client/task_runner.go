@@ -1442,7 +1442,7 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.getTaskEnv(), r.task)
+	interpolateServices(r.getTaskEnv(), new)
 	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
 }
 

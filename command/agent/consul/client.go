@@ -221,6 +221,7 @@ func (c *ServiceClient) merge(ops *operations) {
 		if script, ok := c.runningScripts[cid]; ok {
 			script.cancel()
 			delete(c.scripts, cid)
+			delete(c.runningScripts, cid)
 		}
 		delete(c.checks, cid)
 	}
@@ -673,14 +674,15 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 
 	switch check.Type {
 	case structs.ServiceCheckHTTP:
-		if check.Protocol == "" {
-			check.Protocol = "http"
+		proto := check.Protocol
+		if proto == "" {
+			proto = "http"
 		}
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true
 		}
 		base := url.URL{
-			Scheme: check.Protocol,
+			Scheme: proto,
 			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
 		}
 		relative, err := url.Parse(check.Path)
