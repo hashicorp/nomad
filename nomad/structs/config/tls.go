@@ -28,10 +28,10 @@ type TLSConfig struct {
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
-	
+
 	// VerifyIncoming
 	VerifyIncoming bool `mapstructure:"verify_incoming"`
-	
+
 	// VerifyOutgoing
 	VerifyOutgoing bool `mapstructure:"verify_outgoing"`
 }
