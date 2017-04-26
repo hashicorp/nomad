@@ -138,4 +138,6 @@ tls {
     ca_file = "foo"
     cert_file = "bar"
     key_file = "pipe"
+    verify_incoming = true
+    verify_outgoing = true
 }
