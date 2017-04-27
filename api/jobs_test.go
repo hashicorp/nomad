@@ -487,6 +487,54 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	assertWriteMeta(t, wm)
 }
 
+func TestJobs_Revert(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Register twice
+	job := testJob()
+	eval, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if eval == "" {
+		t.Fatalf("missing eval id")
+	}
+	assertWriteMeta(t, wm)
+
+	eval, wm, err = jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if eval == "" {
+		t.Fatalf("missing eval id")
+	}
+	assertWriteMeta(t, wm)
+
+	// Fail revert at incorrect enforce
+	_, wm, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
+	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
+		t.Fatalf("expected enforcement error: %v", err)
+	}
+
+	// Works at correct index
+	revertResp, wm, err := jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(1), nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if revertResp.EvalID == "" {
+		t.Fatalf("missing eval id")
+	}
+	if revertResp.EvalCreateIndex == 0 {
+		t.Fatalf("bad eval create index")
+	}
+	if revertResp.JobModifyIndex == 0 {
+		t.Fatalf("bad job modify index")
+	}
+	assertWriteMeta(t, wm)
+}
+
 func TestJobs_Info(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

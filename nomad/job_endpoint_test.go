@@ -9,6 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -684,6 +685,155 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	}
 	if out.VaultToken != "" {
 		t.Fatalf("vault token not cleared")
+	}
+}
+
+func TestJobEndpoint_Revert(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the initial register request
+	job := mock.Job()
+	job.Priority = 100
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Reregister again to get another version
+	job2 := job.Copy()
+	job2.Priority = 1
+	req = &structs.JobRegisterRequest{
+		Job:          job2,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create revert request and enforcing it be at an incorrect version
+	revertReq := &structs.JobRevertRequest{
+		JobID:               job.ID,
+		JobVersion:          0,
+		EnforcePriorVersion: helper.Uint64ToPtr(10),
+		WriteRequest:        structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "enforcing version 10") {
+		t.Fatalf("expected enforcement error")
+	}
+
+	// Create revert request and enforcing it be at the current version
+	revertReq = &structs.JobRevertRequest{
+		JobID:        job.ID,
+		JobVersion:   1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "current version") {
+		t.Fatalf("expected current version err: %v", err)
+	}
+
+	// Create revert request and enforcing it be at version 1
+	revertReq = &structs.JobRevertRequest{
+		JobID:               job.ID,
+		JobVersion:          0,
+		EnforcePriorVersion: helper.Uint64ToPtr(1),
+		WriteRequest:        structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+	if resp.EvalID == "" || resp.EvalCreateIndex == 0 {
+		t.Fatalf("bad created eval: %+v", resp)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad job modify index: %d", resp.JobModifyIndex)
+	}
+
+	// Create revert request and don't enforce
+	revertReq = &structs.JobRevertRequest{
+		JobID:        job.ID,
+		JobVersion:   0,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+	if resp.EvalID == "" || resp.EvalCreateIndex == 0 {
+		t.Fatalf("bad created eval: %+v", resp)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad job modify index: %d", resp.JobModifyIndex)
+	}
+
+	// Check that the job is at the correct version and that the eval was
+	// created
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.Priority != job.Priority {
+		t.Fatalf("priority mis-match")
+	}
+	if out.Version != 3 {
+		t.Fatalf("got version %d; want %d", out.Version, 3)
+	}
+
+	eout, err := state.EvalByID(ws, resp.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("expected eval")
+	}
+	if eout.JobID != job.ID {
+		t.Fatalf("job id mis-match")
+	}
+
+	versions, err := state.JobVersionsByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(versions) != 4 {
+		t.Fatalf("got %d versions; want %d", len(versions), 4)
 	}
 }
 

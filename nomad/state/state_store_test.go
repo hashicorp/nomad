@@ -433,6 +433,16 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 	if a := allVersions[0]; a.ID != job.ID || a.Version != 0 {
 		t.Fatalf("bad: %v", a)
 	}
+
+	// Test the looking up the job by version returns the same results
+	vout, err := state.JobByIDAndVersion(ws, job.ID, 0)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, vout) {
+		t.Fatalf("bad: %#v %#v", out, vout)
+	}
 }
 
 func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
@@ -478,6 +488,9 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	if out.ModifyIndex != 1001 {
 		t.Fatalf("bad: %#v", out)
 	}
+	if out.Version != 1 {
+		t.Fatalf("bad: %#v", out)
+	}
 
 	index, err := state.Index("jobs")
 	if err != nil {
@@ -485,6 +498,16 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 	}
 	if index != 1001 {
 		t.Fatalf("bad: %d", index)
+	}
+
+	// Test the looking up the job by version returns the same results
+	vout, err := state.JobByIDAndVersion(ws, job.ID, 1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, vout) {
+		t.Fatalf("bad: %#v %#v", out, vout)
 	}
 
 	// Test that the job summary remains the same if the job is updated but

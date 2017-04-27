@@ -294,17 +294,19 @@ type JobValidateRequest struct {
 	WriteRequest
 }
 
-// JobValidateResponse is the response from validate request
-type JobValidateResponse struct {
-	// DriverConfigValidated indicates whether the agent validated the driver
-	// config
-	DriverConfigValidated bool
+// JobRevertRequest is used to revert a job to a prior version.
+type JobRevertRequest struct {
+	// JobID is the ID of the job  being reverted
+	JobID string
 
-	// ValidationErrors is a list of validation errors
-	ValidationErrors []string
+	// JobVersion the version to revert to.
+	JobVersion uint64
 
-	// Error is a string version of any error that may have occured
-	Error string
+	// EnforcePriorVersion if set will enforce that the job is at the given
+	// version before reverting.
+	EnforcePriorVersion *uint64
+
+	WriteRequest
 }
 
 // NodeListRequest is used to parameterize a list request
@@ -491,6 +493,19 @@ type JobDeregisterResponse struct {
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
 	QueryMeta
+}
+
+// JobValidateResponse is the response from validate request
+type JobValidateResponse struct {
+	// DriverConfigValidated indicates whether the agent validated the driver
+	// config
+	DriverConfigValidated bool
+
+	// ValidationErrors is a list of validation errors
+	ValidationErrors []string
+
+	// Error is a string version of any error that may have occured
+	Error string
 }
 
 // NodeUpdateResponse is used to respond to a node update

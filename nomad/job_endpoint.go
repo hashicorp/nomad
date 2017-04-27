@@ -286,8 +286,8 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 }
 
 // Validate validates a job
-func (j *Job) Validate(args *structs.JobValidateRequest,
-	reply *structs.JobValidateResponse) error {
+func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	if err := validateJob(args.Job); err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
@@ -300,8 +300,67 @@ func (j *Job) Validate(args *structs.JobValidateRequest,
 			reply.Error = err.Error()
 		}
 	}
+
 	reply.DriverConfigValidated = true
 	return nil
+}
+
+// Revert is used to revert the job to a prior version
+func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterResponse) error {
+	if done, err := j.srv.forward("Job.Revert", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "revert"}, time.Now())
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for evaluation")
+	}
+
+	// Lookup the job by version
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	cur, err := snap.JobByID(ws, args.JobID)
+	if err != nil {
+		return err
+	}
+	if cur == nil {
+		return fmt.Errorf("job %q not found", args.JobID)
+	}
+	if args.JobVersion == cur.Version {
+		return fmt.Errorf("can't revert to current version")
+	}
+
+	jobV, err := snap.JobByIDAndVersion(ws, args.JobID, args.JobVersion)
+	if err != nil {
+		return err
+	}
+	if jobV == nil {
+		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
+	}
+
+	// Build the register request
+	reg := &structs.JobRegisterRequest{
+		Job:          jobV.Copy(),
+		WriteRequest: args.WriteRequest,
+	}
+
+	// If the request is enforcing the existing version do a check.
+	if args.EnforcePriorVersion != nil {
+		if cur.Version != *args.EnforcePriorVersion {
+			return fmt.Errorf("Current job has version %d; enforcing version %d", cur.Version, *args.EnforcePriorVersion)
+		}
+
+		reg.EnforceIndex = true
+		reg.JobModifyIndex = cur.JobModifyIndex
+	}
+
+	// Register the version.
+	return j.Register(reg, reply)
 }
 
 // Evaluate is used to force a job for re-evaluation
