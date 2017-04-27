@@ -1,5 +1,3 @@
-// +build windows
-
 package winio
 
 import (
@@ -63,6 +61,7 @@ type win32File struct {
 	handle        syscall.Handle
 	wg            sync.WaitGroup
 	closing       bool
+	closingLock   sync.RWMutex
 	readDeadline  time.Time
 	writeDeadline time.Time
 }
@@ -89,15 +88,24 @@ func MakeOpenFile(h syscall.Handle) (io.ReadWriteCloser, error) {
 
 // closeHandle closes the resources associated with a Win32 handle
 func (f *win32File) closeHandle() {
-	if !f.closing {
+	f.closingLock.Lock()
+	alreadyClosing := f.closing
+	f.closing = true
+	f.closingLock.Unlock()
+	if !alreadyClosing {
 		// cancel all IO and wait for it to complete
-		f.closing = true
 		cancelIoEx(f.handle, nil)
 		f.wg.Wait()
 		// at this point, no new IO can start
 		syscall.Close(f.handle)
 		f.handle = 0
 	}
+}
+
+func (f *win32File) isClosing() bool {
+	f.closingLock.RLock()
+	defer f.closingLock.RUnlock()
+	return f.closing
 }
 
 // Close closes a win32File.
@@ -110,7 +118,8 @@ func (f *win32File) Close() error {
 // prepareIo prepares for a new IO operation
 func (f *win32File) prepareIo() (*ioOperation, error) {
 	f.wg.Add(1)
-	if f.closing {
+	if f.isClosing() {
+		f.wg.Done()
 		return nil, ErrFileClosed
 	}
 	c := &ioOperation{}
@@ -144,7 +153,7 @@ func (f *win32File) asyncIo(c *ioOperation, deadline time.Time, bytes uint32, er
 		var r ioResult
 		wait := true
 		timedout := false
-		if f.closing {
+		if f.isClosing() {
 			cancelIoEx(f.handle, &c.o)
 		} else if !deadline.IsZero() {
 			now := time.Now()
@@ -168,7 +177,7 @@ func (f *win32File) asyncIo(c *ioOperation, deadline time.Time, bytes uint32, er
 		}
 		err = r.err
 		if err == syscall.ERROR_OPERATION_ABORTED {
-			if f.closing {
+			if f.isClosing() {
 				err = ErrFileClosed
 			} else if timedout {
 				err = ErrTimeout
