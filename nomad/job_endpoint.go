@@ -324,14 +324,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 
 	ws := memdb.NewWatchSet()
-	jobV, err := snap.JobByIDAndVersion(ws, args.JobID, args.JobVersion)
-	if err != nil {
-		return err
-	}
-	if jobV == nil {
-		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
-	}
-
 	cur, err := snap.JobByID(ws, args.JobID)
 	if err != nil {
 		return err
@@ -339,9 +331,16 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	if cur == nil {
 		return fmt.Errorf("job %q not found", args.JobID)
 	}
-
 	if args.JobVersion == cur.Version {
 		return fmt.Errorf("can't revert to current version")
+	}
+
+	jobV, err := snap.JobByIDAndVersion(ws, args.JobID, args.JobVersion)
+	if err != nil {
+		return err
+	}
+	if jobV == nil {
+		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
 	}
 
 	// Build the register request
