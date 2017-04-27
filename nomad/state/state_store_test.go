@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -2639,6 +2640,19 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 
 	if watchFired(ws) {
 		t.Fatalf("bad")
+	}
+}
+
+// Testing to ensure we keep issue
+// https://github.com/hashicorp/nomad/issues/2583 fixed
+func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	alloc.Job = nil
+
+	err := state.UpsertAllocs(999, []*structs.Allocation{alloc})
+	if err == nil || !strings.Contains(err.Error(), "without a job") {
+		t.Fatalf("expect err: %v", err)
 	}
 }
 
