@@ -65,8 +65,8 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
 		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       config.TLSConfig.VerifyIncoming,
-			VerifyOutgoing:       config.TLSConfig.VerifyOutgoing,
+			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
+			VerifyOutgoing:       config.TLSConfig.VerifyHTTPSClient,
 			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
 			CAFile:               config.TLSConfig.CAFile,
 			CertFile:             config.TLSConfig.CertFile,

@@ -29,11 +29,8 @@ type TLSConfig struct {
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
 
-	// VerifyIncoming
-	VerifyIncoming bool `mapstructure:"verify_incoming"`
-
-	// VerifyOutgoing
-	VerifyOutgoing bool `mapstructure:"verify_outgoing"`
+	// Verify connections to the HTTPS API
+	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
 }
 
 // Merge is used to merge two TLS configs together
@@ -58,12 +55,8 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	if b.KeyFile != "" {
 		result.KeyFile = b.KeyFile
 	}
-	if b.VerifyIncoming {
-		result.VerifyIncoming = true
+	if b.VerifyHTTPSClient {
+		result.VerifyHTTPSClient = true
 	}
-	if b.VerifyOutgoing {
-		result.VerifyOutgoing = true
-	}
-
 	return &result
 }
