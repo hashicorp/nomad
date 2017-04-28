@@ -279,7 +279,16 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
+
+	// Clear the job before copying
+	job := r.alloc.Job
+	r.alloc.Job = nil
+
 	alloc := r.alloc.Copy()
+
+	// Restore
+	r.alloc.Job = job
+	alloc.Job = job
 
 	// The status has explicitly been set.
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {

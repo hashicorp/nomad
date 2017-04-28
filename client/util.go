@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/ugorji/go/codec"
 )
 
 type allocTuple struct {
@@ -78,15 +80,17 @@ func shuffleStrings(list []string) {
 
 // persistState is used to help with saving state
 func persistState(path string, data interface{}) error {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to encode state: %v", err)
+	var buf bytes.Buffer
+	enc := codec.NewEncoder(&buf, structs.JsonHandlePretty)
+	if err := enc.Encode(data); err != nil {
+		return err
 	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
 	}
 	tmpPath := path + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, buf, 0600); err != nil {
+	if err := ioutil.WriteFile(tmpPath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to save state to tmp: %v", err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
