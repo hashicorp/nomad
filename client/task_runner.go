@@ -918,7 +918,6 @@ func (r *TaskRunner) run() {
 			select {
 			case success := <-prestartResultCh:
 				if !success {
-					r.consulCleanup()
 					r.cleanup()
 					r.setState(structs.TaskStateDead, nil)
 					return
@@ -1026,16 +1025,15 @@ func (r *TaskRunner) run() {
 				r.runningLock.Lock()
 				running := r.running
 				r.runningLock.Unlock()
-
-				// Remove from consul before killing the task so that traffic
-				// can be rerouted
-				r.consulCleanup()
-
 				if !running {
 					r.cleanup()
 					r.setState(structs.TaskStateDead, r.destroyEvent)
 					return
 				}
+
+				// Remove from consul before killing the task so that traffic
+				// can be rerouted
+				r.consul.RemoveTask(r.alloc.ID, r.task)
 
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
@@ -1065,7 +1063,6 @@ func (r *TaskRunner) run() {
 		// shouldRestart will block if the task should restart after a delay.
 		restart := r.shouldRestart()
 		if !restart {
-			r.consulCleanup()
 			r.cleanup()
 			r.setState(structs.TaskStateDead, nil)
 			return
@@ -1080,14 +1077,12 @@ func (r *TaskRunner) run() {
 	}
 }
 
-func (r *TaskRunner) consulCleanup() {
-	// Remove from Consul
-	r.consul.RemoveTask(r.alloc.ID, r.task)
-}
-
-// cleanup calls Driver.Cleanup when a task is
+// cleanup removes Consul entries and calls Driver.Cleanup when a task is
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
+	// Remove from Consul
+	r.consul.RemoveTask(r.alloc.ID, r.task)
+
 	drv, err := r.createDriver()
 	if err != nil {
 		r.logger.Printf("[ERR] client: error creating driver to cleanup resources: %v", err)
