@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
@@ -98,6 +99,9 @@ type ClientStatsReporter interface {
 type Client struct {
 	config *config.Config
 	start  time.Time
+
+	// stateDB is used to efficiently store client state.
+	stateDB *bolt.DB
 
 	// configCopy is a copy that should be passed to alloc-runners.
 	configCopy *config.Config
@@ -340,6 +344,13 @@ func (c *Client) init() error {
 	}
 	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 
+	// Create or open the state database
+	db, err := bolt.Open(filepath.Join(c.config.StateDir, "state.db"), 0600, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create state database", err)
+	}
+	c.stateDB = db
+
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {
 		if err := os.MkdirAll(c.config.AllocDir, 0755); err != nil {
@@ -409,6 +420,13 @@ func (c *Client) Shutdown() error {
 	if c.shutdown {
 		return nil
 	}
+
+	// Defer closing the database
+	defer func() {
+		if err := c.stateDB.Close(); err != nil {
+			c.logger.Printf("[ERR] client: failed to close state database on shutdown: %v", err)
+		}
+	}()
 
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
@@ -590,6 +608,8 @@ func (c *Client) restoreState() error {
 		return nil
 	}
 
+	// XXX Needs to be updated and handle the upgrade case
+
 	// Scan the directory
 	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
 	if err != nil && os.IsNotExist(err) {
@@ -604,7 +624,7 @@ func (c *Client) restoreState() error {
 		id := entry.Name()
 		alloc := &structs.Allocation{ID: id}
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 		c.configLock.RUnlock()
 		c.allocLock.Lock()
 		c.allocs[id] = ar
@@ -1892,7 +1912,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
 	go ar.Run()

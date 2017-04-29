@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -25,6 +26,13 @@ const (
 	// update will transfer all past state information. If not other transition
 	// has occurred up to this limit, we will send to the server.
 	taskReceivedSyncLimit = 30 * time.Second
+)
+
+var (
+	// The following are the key paths written to the state database
+	allocRunnerStateImmutableKey = []byte("immutable")
+	allocRunnerStateMutableKey   = []byte("mutable")
+	allocRunnerStateAllocDirKey  = []byte("alloc-dir")
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -69,8 +77,15 @@ type AllocRunner struct {
 	destroyLock sync.Mutex
 	waitCh      chan struct{}
 
-	// serialize saveAllocRunnerState calls
-	persistLock sync.Mutex
+	// State related fields
+	// stateDB is used to store the alloc runners state
+	stateDB *bolt.DB
+
+	// immutablePersisted and allocDirPersisted are used to track whether the
+	// immutable data and the alloc dir have been persisted. Once persisted we
+	// can lower write volume by not re-writing these values
+	immutablePersisted bool
+	allocDirPersisted  bool
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -95,13 +110,29 @@ type allocRunnerState struct {
 	} `json:"Context,omitempty"`
 }
 
+// allocRunnerImmutableState is state that only has to be written once as it
+// doesn't change over the life-cycle of the alloc_runner.
+type allocRunnerImmutableState struct {
+	Version string
+	Alloc   *structs.Allocation
+}
+
+// allocRunnerMutableState is state that has to be written on each save as it
+// changes over the life-cycle of the alloc_runner.
+type allocRunnerMutableState struct {
+	AllocClientStatus      string
+	AllocClientDescription string
+	TaskStates             map[string]*structs.TaskState
+}
+
 // NewAllocRunner is used to create a new allocation context
-func NewAllocRunner(logger *log.Logger, config *config.Config, updater AllocStateUpdater,
+func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,
 	alloc *structs.Allocation, vaultClient vaultclient.VaultClient,
 	consulClient ConsulServiceAPI) *AllocRunner {
 
 	ar := &AllocRunner{
 		config:       config,
+		stateDB:      stateDB,
 		updater:      updater,
 		logger:       logger,
 		alloc:        alloc,
@@ -144,6 +175,8 @@ func (r *AllocRunner) RestoreState() error {
 		}
 	}
 
+	// XXX needs to be updated and handle the upgrade path
+
 	// Restore fields
 	r.alloc = snap.Alloc
 	r.allocDir = snap.AllocDir
@@ -178,7 +211,7 @@ func (r *AllocRunner) RestoreState() error {
 		}
 
 		task := &structs.Task{Name: name}
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
+		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
 		r.tasks[name] = tr
 
 		// Skip tasks in terminal states.
@@ -224,10 +257,19 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
-	r.persistLock.Lock()
-	defer r.persistLock.Unlock()
+	// Start the transaction.
+	tx, err := r.stateDB.Begin(true)
+	if err != nil {
+		return err
+	}
 
-	// Create the snapshot.
+	// Grab the allocation bucket
+	allocBkt, err := getAllocationBucket(tx, r.alloc.ID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+	}
+
+	// Grab all the relevant data
 	alloc := r.Alloc()
 
 	r.allocLock.Lock()
@@ -239,14 +281,45 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	allocDir := r.allocDir
 	r.allocDirLock.Unlock()
 
-	snap := allocRunnerState{
-		Version:                r.config.Version,
-		Alloc:                  alloc,
-		AllocDir:               allocDir,
+	// Write the immutable data
+	if !r.immutablePersisted {
+		immutable := &allocRunnerImmutableState{
+			Alloc:   alloc,
+			Version: r.config.Version,
+		}
+
+		if err := putObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+			return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+		}
+
+		tx.OnCommit(func() {
+			r.immutablePersisted = true
+		})
+	}
+
+	// Write the alloc dir data if it hasn't been written before and it exists.
+	if !r.allocDirPersisted && r.allocDir != nil {
+		if err := putObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
+			return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
+		}
+
+		tx.OnCommit(func() {
+			r.allocDirPersisted = true
+		})
+	}
+
+	// Write the mutable state every time
+	mutable := &allocRunnerMutableState{
 		AllocClientStatus:      allocClientStatus,
 		AllocClientDescription: allocClientDescription,
+		TaskStates:             alloc.TaskStates,
 	}
-	return persistState(r.stateFilePath(), &snap)
+
+	if err := putObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
+		return fmt.Errorf("failed to write alloc_runner mutable state: %v", err)
+	}
+
+	return tx.Commit()
 }
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
@@ -525,7 +598,7 @@ func (r *AllocRunner) Run() {
 		taskdir := r.allocDir.NewTaskDir(task.Name)
 		r.allocDirLock.Unlock()
 
-		tr := NewTaskRunner(r.logger, r.config, r.setTaskState, taskdir, r.Alloc(), task.Copy(), r.vaultClient, r.consulClient)
+		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, taskdir, r.Alloc(), task.Copy(), r.vaultClient, r.consulClient)
 		r.tasks[task.Name] = tr
 		tr.MarkReceived()
 
