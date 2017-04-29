@@ -66,7 +66,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	if config.TLSConfig.EnableHTTP {
 		tlsConf := &tlsutil.Config{
 			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
-			VerifyOutgoing:       config.TLSConfig.VerifyHTTPSClient,
+			VerifyOutgoing:       true,
 			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
 			CAFile:               config.TLSConfig.CAFile,
 			CertFile:             config.TLSConfig.CertFile,
