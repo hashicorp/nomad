@@ -1150,6 +1150,21 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
+
+			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
+			// the a race between a forced garbage collection and the scheduler
+			// marking an allocation as terminal. The issue is that the
+			// allocation from the scheduler has its job normalized and the FSM
+			// will only denormalize if the allocation is not terminal.  However
+			// if the allocation is garbage collected, that will result in a
+			// allocation being upserted for the first time without a job
+			// attached. By returning an error here, it will cause the FSM to
+			// error, causing the plan_apply to error and thus causing the
+			// evaluation to be failed. This will force an index refresh that
+			// should solve this issue.
+			if alloc.Job == nil {
+				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
+			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
