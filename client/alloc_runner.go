@@ -257,18 +257,6 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
-	// Start the transaction.
-	tx, err := r.stateDB.Begin(true)
-	if err != nil {
-		return err
-	}
-
-	// Grab the allocation bucket
-	allocBkt, err := getAllocationBucket(tx, r.alloc.ID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-	}
-
 	// Grab all the relevant data
 	alloc := r.Alloc()
 
@@ -281,45 +269,55 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	allocDir := r.allocDir
 	r.allocDirLock.Unlock()
 
-	// Write the immutable data
-	if !r.immutablePersisted {
-		immutable := &allocRunnerImmutableState{
-			Alloc:   alloc,
-			Version: r.config.Version,
+	// Start the transaction.
+	return r.stateDB.Batch(func(tx *bolt.Tx) error {
+
+		// Grab the allocation bucket
+		allocBkt, err := getAllocationBucket(tx, r.alloc.ID)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		if err := putObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
-			return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+		// Write the immutable data
+		if !r.immutablePersisted {
+			immutable := &allocRunnerImmutableState{
+				Alloc:   alloc,
+				Version: r.config.Version,
+			}
+
+			if err := putObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+				return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+			}
+
+			tx.OnCommit(func() {
+				r.immutablePersisted = true
+			})
 		}
 
-		tx.OnCommit(func() {
-			r.immutablePersisted = true
-		})
-	}
+		// Write the alloc dir data if it hasn't been written before and it exists.
+		if !r.allocDirPersisted && r.allocDir != nil {
+			if err := putObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
+				return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
+			}
 
-	// Write the alloc dir data if it hasn't been written before and it exists.
-	if !r.allocDirPersisted && r.allocDir != nil {
-		if err := putObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
-			return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
+			tx.OnCommit(func() {
+				r.allocDirPersisted = true
+			})
 		}
 
-		tx.OnCommit(func() {
-			r.allocDirPersisted = true
-		})
-	}
+		// Write the mutable state every time
+		mutable := &allocRunnerMutableState{
+			AllocClientStatus:      allocClientStatus,
+			AllocClientDescription: allocClientDescription,
+			TaskStates:             alloc.TaskStates,
+		}
 
-	// Write the mutable state every time
-	mutable := &allocRunnerMutableState{
-		AllocClientStatus:      allocClientStatus,
-		AllocClientDescription: allocClientDescription,
-		TaskStates:             alloc.TaskStates,
-	}
+		if err := putObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
+			return fmt.Errorf("failed to write alloc_runner mutable state: %v", err)
+		}
 
-	if err := putObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
-		return fmt.Errorf("failed to write alloc_runner mutable state: %v", err)
-	}
-
-	return tx.Commit()
+		return nil
+	})
 }
 
 func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {

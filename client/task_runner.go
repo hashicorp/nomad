@@ -361,27 +361,24 @@ func (r *TaskRunner) SaveState() error {
 	}
 
 	// Start the transaction.
-	tx, err := r.stateDB.Begin(true)
-	if err != nil {
-		return err
-	}
+	return r.stateDB.Batch(func(tx *bolt.Tx) error {
+		// Grab the task bucket
+		taskBkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+		}
 
-	// Grab the task bucket
-	taskBkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-	}
+		if err := putObject(taskBkt, taskRunnerStateAllKey, &snap); err != nil {
+			return fmt.Errorf("failed to write task_runner state: %v", err)
+		}
 
-	if err := putObject(taskBkt, taskRunnerStateAllKey, &snap); err != nil {
-		return fmt.Errorf("failed to write task_runner state: %v", err)
-	}
+		// Store the hash that was persisted
+		tx.OnCommit(func() {
+			r.persistedHash = h
+		})
 
-	// Store the hash that was persisted
-	tx.OnCommit(func() {
-		r.persistedHash = h
+		return nil
 	})
-
-	return tx.Commit()
 }
 
 // DestroyState is used to cleanup after ourselves
