@@ -1490,8 +1490,6 @@ func (c *Client) watchNodeUpdates() {
 
 // runAllocs is invoked when we get an updated set of allocations
 func (c *Client) runAllocs(update *allocUpdates) {
-	defer metrics.MeasureSince([]string{"client", "client", "runAllocs"}, time.Now())
-
 	// Get the existing allocs
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
