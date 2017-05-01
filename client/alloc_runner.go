@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -539,6 +540,7 @@ func (r *AllocRunner) appendTaskEvent(state *structs.TaskState, event *structs.T
 
 // Run is a long running goroutine used to manage an allocation
 func (r *AllocRunner) Run() {
+	start := time.Now()
 	defer close(r.waitCh)
 	go r.dirtySyncState()
 
@@ -603,6 +605,8 @@ func (r *AllocRunner) Run() {
 		go tr.Run()
 	}
 	r.taskLock.Unlock()
+
+	metrics.MeasureSince([]string{"client", "alloc_runner", "run_delay"}, start)
 
 	// taskDestroyEvent contains an event that caused the destroyment of a task
 	// in the allocation.

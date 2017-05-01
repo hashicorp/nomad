@@ -797,6 +797,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 // prestart handles life-cycle tasks that occur before the task has started.
 func (r *TaskRunner) prestart(resultCh chan bool) {
+	defer metrics.MeasureSince([]string{"client", "task_runner", "prestart"}, time.Now())
 	if r.task.Vault != nil {
 		// Wait for the token
 		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
@@ -940,6 +941,7 @@ func (r *TaskRunner) postrun() {
 // run is the main run loop that handles starting the application, destroying
 // it, restarts and signals.
 func (r *TaskRunner) run() {
+	start := time.Now()
 	// Predeclare things so we can jump to the RESTART
 	var stopCollection chan struct{}
 	var handleWaitCh chan *dstructs.WaitResult
@@ -978,6 +980,7 @@ func (r *TaskRunner) run() {
 				handleEmpty := r.handle == nil
 				r.handleLock.Unlock()
 				if handleEmpty {
+					metrics.MeasureSince([]string{"client", "task_runner", "run_delay"}, start)
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
 					if startErr != nil {
@@ -1255,6 +1258,7 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 
 // startTask creates the driver, task dir, and starts the task.
 func (r *TaskRunner) startTask() error {
+	defer metrics.MeasureSince([]string{"client", "task_runner", "startTask"}, time.Now())
 	// Create a driver
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1342,6 +1346,7 @@ func interpolateServices(taskEnv *env.TaskEnvironment, task *structs.Task) {
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
 // to call multiple times as its state is persisted.
 func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
+	defer metrics.MeasureSince([]string{"client", "task_runner", "buildTaskDir"}, time.Now())
 	r.persistLock.Lock()
 	built := r.taskDirBuilt
 	r.persistLock.Unlock()
