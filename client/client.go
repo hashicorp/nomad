@@ -645,15 +645,26 @@ func (c *Client) saveState() error {
 		return nil
 	}
 
-	var mErr multierror.Error
 	for id, ar := range c.getAllocRunners() {
-		if err := ar.SaveState(); err != nil {
-			c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
-				id, err)
-			mErr.Errors = append(mErr.Errors, err)
-		}
+		go func() {
+			local := ar
+			if err := local.SaveState(); err != nil {
+				c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
+					id, err)
+			}
+		}()
 	}
-	return mErr.ErrorOrNil()
+	return nil
+
+	//var mErr multierror.Error
+	//for id, ar := range c.getAllocRunners() {
+	//if err := ar.SaveState(); err != nil {
+	//c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
+	//id, err)
+	//mErr.Errors = append(mErr.Errors, err)
+	//}
+	//}
+	//return mErr.ErrorOrNil()
 }
 
 // getAllocRunners returns a snapshot of the current set of alloc runners.
