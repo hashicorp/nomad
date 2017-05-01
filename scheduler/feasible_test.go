@@ -463,6 +463,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 		},
 
@@ -470,6 +471,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 		},
 	}
@@ -477,6 +479,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 		},
 
@@ -484,6 +487,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 		},
 	}
@@ -658,6 +662,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        alloc1ID,
 			NodeID:    nodes[0].ID,
 		},
@@ -666,6 +671,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
 		},
@@ -674,6 +680,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[2].ID,
 		},
@@ -682,6 +689,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[2].ID,
 		},
@@ -693,6 +701,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			NodeID:    nodes[4].ID,
 		},
@@ -704,6 +713,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        alloc1ID,
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
@@ -712,6 +722,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[1].ID,
@@ -721,6 +732,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[1].ID,
@@ -728,6 +740,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[3].ID,
@@ -737,6 +750,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[3].ID,
@@ -744,6 +758,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[4].ID,
@@ -803,6 +818,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
 		},
@@ -813,6 +829,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			NodeID:    nodes[0].ID,
 		},
@@ -822,6 +839,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
@@ -886,6 +904,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
 		},
@@ -894,6 +913,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[1].ID,
@@ -961,6 +981,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			NodeID:    nodes[0].ID,
 		},
@@ -972,6 +993,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			NodeID:    nodes[2].ID,
 		},
@@ -981,6 +1003,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[1].ID,
@@ -990,6 +1013,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
+			Job:       job,
 			ID:        structs.GenerateUUID(),
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[2].ID,
@@ -998,6 +1022,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		&structs.Allocation{
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
+			Job:       job,
 			ID:        stoppingAllocID,
 			EvalID:    structs.GenerateUUID(),
 			NodeID:    nodes[2].ID,
