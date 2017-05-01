@@ -422,13 +422,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// Attach the job to all the allocations. It is pulled out in the
 	// payload to avoid the redundancy of encoding, but should be denormalized
 	// prior to being inserted into MemDB.
-	if j := req.Job; j != nil {
-		for _, alloc := range req.Alloc {
-			if alloc.Job == nil && !alloc.TerminalStatus() {
-				alloc.Job = j
-			}
-		}
-	}
+	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be

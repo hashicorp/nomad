@@ -201,3 +201,16 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	}
 	return flattened
 }
+
+// DenormalizeAllocationJobs is used to attach a job to all allocations that are
+// non-terminal and do not have a job already. This is useful in cases where the
+// job is normalized.
+func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
+	if job != nil {
+		for _, alloc := range allocs {
+			if alloc.Job == nil && !alloc.TerminalStatus() {
+				alloc.Job = job
+			}
+		}
+	}
+}

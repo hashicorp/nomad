@@ -155,6 +155,11 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 
 	// Optimistically apply to our state view
 	if snap != nil {
+		// Attach the job to all the allocations. It is pulled out in the
+		// payload to avoid the redundancy of encoding, but should be denormalized
+		// prior to being inserted into MemDB.
+		structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
+
 		nextIdx := s.raft.AppliedIndex() + 1
 		if err := snap.UpsertAllocs(nextIdx, req.Alloc); err != nil {
 			return future, err
