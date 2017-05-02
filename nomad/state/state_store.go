@@ -1330,7 +1330,7 @@ func (s *StateStore) AllocsByJob(ws memdb.WatchSet, jobID string, all bool) ([]*
 		// If the allocation belongs to a job with the same ID but a different
 		// create index and we are not getting all the allocations whose Jobs
 		// matches the same Job ID then we skip it
-		if !all && job != nil && alloc.Job.CreateIndex != job.CreateIndex {
+		if !all && job != nil && alloc.Job != nil && alloc.Job.CreateIndex != job.CreateIndex {
 			continue
 		}
 		out = append(out, raw.(*structs.Allocation))
