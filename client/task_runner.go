@@ -1031,6 +1031,10 @@ func (r *TaskRunner) run() {
 					return
 				}
 
+				// Remove from consul before killing the task so that traffic
+				// can be rerouted
+				r.consul.RemoveTask(r.alloc.ID, r.task)
+
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
 				// doesn't add detail
