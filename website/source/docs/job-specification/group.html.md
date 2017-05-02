@@ -81,7 +81,7 @@ will restrict the tasks to 64-bit operating systems.
 ```hcl
 group "example" {
   constraint {
-    attribute = "${attr.arch}"
+    attribute = "${attr.cpu.arch}"
     value     = "amd64"
   }
 
