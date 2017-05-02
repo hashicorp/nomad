@@ -138,4 +138,5 @@ tls {
     ca_file = "foo"
     cert_file = "bar"
     key_file = "pipe"
+    verify_https_client = true
 }
