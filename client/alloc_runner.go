@@ -88,6 +88,7 @@ type AllocRunner struct {
 	allocDirPersisted  bool
 }
 
+// COMPAT: Remove in 0.7.0
 // allocRunnerState is used to snapshot the state of the alloc runner
 type allocRunnerState struct {
 	Version                string
@@ -149,8 +150,10 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 	return ar
 }
 
-// stateFilePath returns the path to our state file
-func (r *AllocRunner) stateFilePath() string {
+// pre060StateFilePath returns the path to our state file that would have been
+// written pre v0.6.0
+// COMPAT: Remove in 0.7.0
+func (r *AllocRunner) pre060StateFilePath() string {
 	r.allocLock.Lock()
 	defer r.allocLock.Unlock()
 	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, "state.json")
@@ -159,29 +162,72 @@ func (r *AllocRunner) stateFilePath() string {
 
 // RestoreState is used to restore the state of the alloc runner
 func (r *AllocRunner) RestoreState() error {
-	// Load the snapshot
-	var snap allocRunnerState
-	if err := restoreState(r.stateFilePath(), &snap); err != nil {
-		return err
-	}
 
-	// #2132 Upgrade path: if snap.AllocDir is nil, try to convert old
-	// Context struct to new AllocDir struct
-	if snap.AllocDir == nil && snap.Context != nil {
-		r.logger.Printf("[DEBUG] client: migrating state snapshot for alloc %q", r.alloc.ID)
-		snap.AllocDir = allocdir.NewAllocDir(r.logger, snap.Context.AllocDir.AllocDir)
-		for taskName := range snap.Context.AllocDir.TaskDirs {
-			snap.AllocDir.NewTaskDir(taskName)
+	// Check if the old snapshot is there
+	oldPath := r.pre060StateFilePath()
+	var snap allocRunnerState
+	if err := pre060RestoreState(oldPath, &snap); err == nil {
+		// Restore fields
+		r.alloc = snap.Alloc
+		r.allocDir = snap.AllocDir
+		r.allocClientStatus = snap.AllocClientStatus
+		r.allocClientDescription = snap.AllocClientDescription
+
+		if r.alloc != nil {
+			r.taskStates = snap.Alloc.TaskStates
+		}
+
+		// #2132 Upgrade path: if snap.AllocDir is nil, try to convert old
+		// Context struct to new AllocDir struct
+		if snap.AllocDir == nil && snap.Context != nil {
+			r.logger.Printf("[DEBUG] client: migrating state snapshot for alloc %q", r.alloc.ID)
+			snap.AllocDir = allocdir.NewAllocDir(r.logger, snap.Context.AllocDir.AllocDir)
+			for taskName := range snap.Context.AllocDir.TaskDirs {
+				snap.AllocDir.NewTaskDir(taskName)
+			}
+		}
+
+		// Delete the old state
+		os.RemoveAll(oldPath)
+	} else if !os.IsNotExist(err) {
+		// Something corrupt in the old state file
+		return err
+	} else {
+		// We are doing a normal restore
+		err := r.stateDB.View(func(tx *bolt.Tx) error {
+			bkt, err := getAllocationBucket(tx, r.alloc.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get allocation bucket: %v", err)
+			}
+
+			// Get the state objects
+			var mutable allocRunnerMutableState
+			var immutable allocRunnerImmutableState
+			var allocDir allocdir.AllocDir
+
+			if err := getObject(bkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+				return fmt.Errorf("failed to read alloc runner immutable state: %v", err)
+			}
+			if err := getObject(bkt, allocRunnerStateMutableKey, &mutable); err != nil {
+				return fmt.Errorf("failed to read alloc runner mutable state: %v", err)
+			}
+			if err := getObject(bkt, allocRunnerStateAllocDirKey, &allocDir); err != nil {
+				return fmt.Errorf("failed to read alloc runner alloc_dir state: %v", err)
+			}
+
+			// Populate the fields
+			r.alloc = immutable.Alloc
+			r.allocDir = &allocDir
+			r.allocClientStatus = mutable.AllocClientStatus
+			r.allocClientDescription = mutable.AllocClientDescription
+			r.taskStates = mutable.TaskStates
+			return nil
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to read allocation state: %v", err)
 		}
 	}
-
-	// XXX needs to be updated and handle the upgrade path
-
-	// Restore fields
-	r.alloc = snap.Alloc
-	r.allocDir = snap.AllocDir
-	r.allocClientStatus = snap.AllocClientStatus
-	r.allocClientDescription = snap.AllocClientDescription
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -194,11 +240,17 @@ func (r *AllocRunner) RestoreState() error {
 		return e
 	}
 
-	r.taskStates = snap.Alloc.TaskStates
+	tg := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
+	if tg == nil {
+		return fmt.Errorf("restored allocation doesn't contain task group %q", r.alloc.TaskGroup)
+	}
 
 	// Restore the task runners
 	var mErr multierror.Error
-	for name, state := range r.taskStates {
+	for _, task := range tg.Tasks {
+		name := task.Name
+		state := r.taskStates[name]
+
 		// Mark the task as restored.
 		r.restored[name] = struct{}{}
 
@@ -210,7 +262,6 @@ func (r *AllocRunner) RestoreState() error {
 			return err
 		}
 
-		task := &structs.Task{Name: name}
 		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
 		r.tasks[name] = tr
 
@@ -229,11 +280,6 @@ func (r *AllocRunner) RestoreState() error {
 	}
 
 	return mErr.ErrorOrNil()
-}
-
-// GetAllocDir returns the alloc dir for the alloc runner
-func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
-	return r.allocDir
 }
 
 // SaveState is used to snapshot the state of the alloc runner
@@ -330,12 +376,22 @@ func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
 
 // DestroyState is used to cleanup after ourselves
 func (r *AllocRunner) DestroyState() error {
-	return os.RemoveAll(filepath.Dir(r.stateFilePath()))
+	return r.stateDB.Update(func(tx *bolt.Tx) error {
+		if err := deleteAllocationBucket(tx, r.alloc.ID); err != nil {
+			return fmt.Errorf("failed to delete allocation bucket: %v", err)
+		}
+		return nil
+	})
 }
 
 // DestroyContext is used to destroy the context
 func (r *AllocRunner) DestroyContext() error {
 	return r.allocDir.Destroy()
+}
+
+// GetAllocDir returns the alloc dir for the alloc runner
+func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
+	return r.allocDir
 }
 
 // copyTaskStates returns a copy of the passed task states.
@@ -543,7 +599,7 @@ func (r *AllocRunner) Run() {
 	go r.dirtySyncState()
 
 	// Find the task group to run in the allocation
-	alloc := r.alloc
+	alloc := r.Alloc()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		r.logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
@@ -628,6 +684,10 @@ OUTER:
 			runners := r.getTaskRunners()
 			for _, tr := range runners {
 				tr.Update(update)
+			}
+
+			if err := r.syncStatus(); err != nil {
+				r.logger.Printf("[WARN] client: failed to sync status upon receiving alloc update: %v", err)
 			}
 		case <-r.destroyCh:
 			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)

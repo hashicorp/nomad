@@ -106,14 +106,12 @@ func persistState(path string, data interface{}) error {
 	return nil
 }
 
-// restoreState is used to read back in the persisted state
-func restoreState(path string, data interface{}) error {
+// pre060RestoreState is used to read back in the persisted state for pre v0.6.0
+// state
+func pre060RestoreState(path string, data interface{}) error {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to read state: %v", err)
+		return err
 	}
 	if err := json.Unmarshal(buf, data); err != nil {
 		return fmt.Errorf("failed to decode state: %v", err)

@@ -249,34 +249,61 @@ func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
-// stateFilePath returns the path to our state file
-func (r *TaskRunner) stateFilePath() string {
+// pre060StateFilePath returns the path to our state file that would have been
+// written pre v0.6.0
+// COMPAT: Remove in 0.7.0
+func (r *TaskRunner) pre060StateFilePath() string {
 	// Get the MD5 of the task name
 	hashVal := md5.Sum([]byte(r.task.Name))
 	hashHex := hex.EncodeToString(hashVal[:])
 	dirName := fmt.Sprintf("task-%s", hashHex)
 
 	// Generate the path
-	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID,
-		dirName, "state.json")
-	return path
+	return filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, dirName, "state.json")
 }
 
 // RestoreState is used to restore our state
 func (r *TaskRunner) RestoreState() error {
-	// XXX needs to be updated and handle the upgrade path
+	// COMPAT: Remove in 0.7.0
+	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// The upgrade path is to:
+	// Check if old state exists
+	//   If so, restore from that and delete old state
+	// Restore using state database
 
-	// Load the snapshot
 	var snap taskRunnerState
-	if err := restoreState(r.stateFilePath(), &snap); err != nil {
+
+	// Check if the old snapshot is there
+	oldPath := r.pre060StateFilePath()
+	if err := pre060RestoreState(oldPath, &snap); err == nil {
+		// Delete the old state
+		os.RemoveAll(oldPath)
+	} else if !os.IsNotExist(err) {
+		// Something corrupt in the old state file
 		return err
+	} else {
+		// We are doing a normal restore
+		err := r.stateDB.View(func(tx *bolt.Tx) error {
+			bkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get task bucket: %v", err)
+			}
+
+			if err := getObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
+				return fmt.Errorf("failed to read task runner state: %v", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
 	}
 
-	// Restore fields
+	// Restore fields from the snapshot
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 	r.taskDirBuilt = snap.TaskDirBuilt
 	r.payloadRendered = snap.PayloadRendered
-
 	r.setCreatedResources(snap.CreatedResources)
 
 	if err := r.setTaskEnv(); err != nil {
@@ -333,14 +360,13 @@ func (r *TaskRunner) RestoreState() error {
 		r.running = true
 		r.runningLock.Unlock()
 	}
+
 	return nil
 }
 
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
-	// XXX needs to be updated
 	r.persistLock.Lock()
-
 	snap := taskRunnerState{
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
@@ -355,6 +381,7 @@ func (r *TaskRunner) SaveState() error {
 	}
 	r.handleLock.Unlock()
 
+	// If nothing has changed avoid the write
 	h := snap.Hash()
 	if bytes.Equal(h, r.persistedHash) {
 		r.persistLock.Unlock()
@@ -394,11 +421,21 @@ func (r *TaskRunner) DestroyState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 
-	return os.RemoveAll(r.stateFilePath())
+	return r.stateDB.Update(func(tx *bolt.Tx) error {
+		if err := deleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
+			return fmt.Errorf("failed to delete task bucket: %v", err)
+		}
+		return nil
+	})
 }
 
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
+	// Persist our state to disk.
+	if err := r.SaveState(); err != nil {
+		r.logger.Printf("[ERR] client: failed to save state of Task Runner for task %q: %v", r.task.Name, err)
+	}
+
 	// Indicate the task has been updated.
 	r.updater(r.task.Name, state, event)
 }
