@@ -410,6 +410,9 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 
 	// Clear the job before copying
 	job := r.alloc.Job
+
+	// Since we are clearing the job, anything that access the alloc.Job field
+	// must acquire the lock or access it via this method.
 	r.alloc.Job = nil
 
 	alloc := r.alloc.Copy()
