@@ -1,4 +1,9 @@
+// +build windows
+
 package winio
+
+// #include <stdlib.h>
+import "C"
 
 import (
 	"errors"
@@ -19,7 +24,7 @@ import (
 
 type securityAttributes struct {
 	Length             uint32
-	SecurityDescriptor *byte
+	SecurityDescriptor unsafe.Pointer
 	InheritHandle      uint32
 }
 
@@ -85,7 +90,11 @@ func (f *win32MessageBytePipe) CloseWrite() error {
 	if f.writeClosed {
 		return errPipeWriteClosed
 	}
-	_, err := f.win32File.Write(nil)
+	err := f.win32File.Flush()
+	if err != nil {
+		return err
+	}
+	_, err = f.win32File.Write(nil)
 	if err != nil {
 		return err
 	}
@@ -225,12 +234,13 @@ func makeServerPipeHandle(path string, securityDescriptor []byte, c *PipeConfig,
 		mode |= cPIPE_TYPE_MESSAGE
 	}
 
-	var sa securityAttributes
-	sa.Length = uint32(unsafe.Sizeof(sa))
+	sa := &securityAttributes{}
+	sa.Length = uint32(unsafe.Sizeof(*sa))
 	if securityDescriptor != nil {
-		sa.SecurityDescriptor = &securityDescriptor[0]
+		sa.SecurityDescriptor = C.CBytes(securityDescriptor)
+		defer C.free(sa.SecurityDescriptor)
 	}
-	h, err := createNamedPipe(path, flags, mode, cPIPE_UNLIMITED_INSTANCES, uint32(c.OutputBufferSize), uint32(c.InputBufferSize), 0, &sa)
+	h, err := createNamedPipe(path, flags, mode, cPIPE_UNLIMITED_INSTANCES, uint32(c.OutputBufferSize), uint32(c.InputBufferSize), 0, sa)
 	if err != nil {
 		return 0, &os.PathError{Op: "open", Path: path, Err: err}
 	}

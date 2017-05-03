@@ -1,3 +1,5 @@
+// +build windows
+
 package winio
 
 import (
@@ -61,7 +63,6 @@ type win32File struct {
 	handle        syscall.Handle
 	wg            sync.WaitGroup
 	closing       bool
-	closingLock   sync.RWMutex
 	readDeadline  time.Time
 	writeDeadline time.Time
 }
@@ -78,7 +79,6 @@ func makeWin32File(h syscall.Handle) (*win32File, error) {
 	if err != nil {
 		return nil, err
 	}
-	runtime.SetFinalizer(f, (*win32File).closeHandle)
 	return f, nil
 }
 
@@ -88,12 +88,9 @@ func MakeOpenFile(h syscall.Handle) (io.ReadWriteCloser, error) {
 
 // closeHandle closes the resources associated with a Win32 handle
 func (f *win32File) closeHandle() {
-	f.closingLock.Lock()
-	alreadyClosing := f.closing
-	f.closing = true
-	f.closingLock.Unlock()
-	if !alreadyClosing {
+	if !f.closing {
 		// cancel all IO and wait for it to complete
+		f.closing = true
 		cancelIoEx(f.handle, nil)
 		f.wg.Wait()
 		// at this point, no new IO can start
@@ -102,24 +99,16 @@ func (f *win32File) closeHandle() {
 	}
 }
 
-func (f *win32File) isClosing() bool {
-	f.closingLock.RLock()
-	defer f.closingLock.RUnlock()
-	return f.closing
-}
-
 // Close closes a win32File.
 func (f *win32File) Close() error {
 	f.closeHandle()
-	runtime.SetFinalizer(f, nil)
 	return nil
 }
 
 // prepareIo prepares for a new IO operation
 func (f *win32File) prepareIo() (*ioOperation, error) {
 	f.wg.Add(1)
-	if f.isClosing() {
-		f.wg.Done()
+	if f.closing {
 		return nil, ErrFileClosed
 	}
 	c := &ioOperation{}
@@ -153,7 +142,7 @@ func (f *win32File) asyncIo(c *ioOperation, deadline time.Time, bytes uint32, er
 		var r ioResult
 		wait := true
 		timedout := false
-		if f.isClosing() {
+		if f.closing {
 			cancelIoEx(f.handle, &c.o)
 		} else if !deadline.IsZero() {
 			now := time.Now()
@@ -175,9 +164,15 @@ func (f *win32File) asyncIo(c *ioOperation, deadline time.Time, bytes uint32, er
 		if wait {
 			r = <-c.ch
 		}
+
+		// runtime.KeepAlive is needed, as c is passed via native
+		// code to ioCompletionProcessor, c must remain alive
+		// until the channel read is complete.
+		runtime.KeepAlive(c)
+
 		err = r.err
 		if err == syscall.ERROR_OPERATION_ABORTED {
-			if f.isClosing() {
+			if f.closing {
 				err = ErrFileClosed
 			} else if timedout {
 				err = ErrTimeout
@@ -197,6 +192,7 @@ func (f *win32File) Read(b []byte) (int, error) {
 	var bytes uint32
 	err = syscall.ReadFile(f.handle, b, &bytes, &c.o)
 	n, err := f.asyncIo(c, f.readDeadline, bytes, err)
+	runtime.KeepAlive(b)
 
 	// Handle EOF conditions.
 	if err == nil && n == 0 && len(b) != 0 {
@@ -216,7 +212,9 @@ func (f *win32File) Write(b []byte) (int, error) {
 	}
 	var bytes uint32
 	err = syscall.WriteFile(f.handle, b, &bytes, &c.o)
-	return f.asyncIo(c, f.writeDeadline, bytes, err)
+	n, err := f.asyncIo(c, f.writeDeadline, bytes, err)
+	runtime.KeepAlive(b)
+	return n, err
 }
 
 func (f *win32File) SetReadDeadline(t time.Time) error {
@@ -227,4 +225,8 @@ func (f *win32File) SetReadDeadline(t time.Time) error {
 func (f *win32File) SetWriteDeadline(t time.Time) error {
 	f.writeDeadline = t
 	return nil
+}
+
+func (f *win32File) Flush() error {
+	return syscall.FlushFileBuffers(f.handle)
 }
