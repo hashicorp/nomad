@@ -691,7 +691,7 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 
 	// Determine version for TLSSkipVerify
-	if self, err := client.Agent().Self(); err != nil {
+	if self, err := client.Agent().Self(); err == nil {
 		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
 	}
 
