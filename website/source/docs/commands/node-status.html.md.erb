@@ -149,6 +149,24 @@ ed3665f5  8bf94335  example  cache       run             running
 24cfd201  8bf94335  example  cache       run             running
 ```
 
+You will note that in the above examples, the **Allocations** output contains
+columns labeled **Desired Status** and **Client status**.
+
+Desired Status represents the goal of the scheduler on the allocation with
+the following valid statuses:
+
+- *run*: The allocation should run
+- *stop*: The allocation should stop
+
+Client Status represents the emergent state of the allocation and include
+the following:
+
+- *pending*: The allocation is pending and will be running
+- *running*: The allocation is currently running
+- *complete*: The allocation was running and completed successfully
+- *failed*: The allocation was running and completed with a non-zero exit code
+- *lost*: The node that was running the allocation has failed or has been partitioned
+
 Using `-stats` to see detailed to resource usage information on the node:
 
 ```
