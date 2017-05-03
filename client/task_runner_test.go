@@ -74,6 +74,7 @@ func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
 func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) *taskRunnerTestCtx {
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockTaskStateUpdater{}

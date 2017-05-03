@@ -54,6 +54,7 @@ func TestConsul_Integration(t *testing.T) {
 	defer testconsul.Stop()
 
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.ConsulConfig.Addr = testconsul.HTTPAddr
 	consulConfig, err := conf.ConsulConfig.ApiConfig()
 	if err != nil {

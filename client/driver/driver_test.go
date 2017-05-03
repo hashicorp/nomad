@@ -74,6 +74,8 @@ func testConfig() *config.Config {
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	conf.MaxKillTimeout = 10 * time.Second
+	conf.Region = "global"
+	conf.Node = mock.Node()
 	return conf
 }
 
@@ -163,7 +165,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	conf := testConfig()
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	taskDir := allocDir.NewTaskDir(task.Name)
-	env, err := GetTaskEnv(taskDir, nil, task, alloc, conf, "")
+	env, err := GetTaskEnv(taskDir, conf.Node, task, alloc, conf, "")
 	if err != nil {
 		t.Fatalf("GetTaskEnv() failed: %v", err)
 	}
@@ -210,6 +212,8 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"NOMAD_ALLOC_NAME":              alloc.Name,
 		"NOMAD_TASK_NAME":               task.Name,
 		"NOMAD_JOB_NAME":                alloc.Job.Name,
+		"NOMAD_DC":                      "dc1",
+		"NOMAD_REGION":                  "global",
 	}
 
 	act := env.EnvMap()
