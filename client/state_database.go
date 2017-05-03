@@ -108,6 +108,17 @@ func getAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
 	return alloc, nil
 }
 
+func allocationBucketExists(tx *bolt.Tx, allocID string) bool {
+	allocations := tx.Bucket(allocationsBucket)
+	if allocations == nil {
+		return false
+	}
+
+	// Retrieve the specific allocations bucket
+	alloc := allocations.Bucket([]byte(allocID))
+	return alloc != nil
+}
+
 // getTaskBucket returns the bucket used to persist state about a
 // particular task. If the root allocation bucket, the specific
 // allocation or task bucket doesn't exist, they will be created as long as the

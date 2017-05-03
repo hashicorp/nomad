@@ -5,10 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"text/template"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,13 +36,15 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
+	tmp, _ := ioutil.TempFile("", "state-db")
+	db, _ := bolt.Open(tmp.Name(), 0600, nil)
 	upd := &MockAllocStateUpdater{}
 	if !restarts {
 		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient, newMockConsulServiceClient())
+	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, newMockConsulServiceClient())
 	return upd, ar
 }
 
@@ -169,9 +173,15 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
 
-		// Check the state still exists
-		if _, err := os.Stat(ar.stateFilePath()); err != nil {
-			return false, fmt.Errorf("state file destroyed: %v", err)
+		// Check the allocation state still exists
+		if err := ar.stateDB.View(func(tx *bolt.Tx) error {
+			if !allocationBucketExists(tx, ar.Alloc().ID) {
+				return fmt.Errorf("no bucket for alloc")
+			}
+
+			return nil
+		}); err != nil {
+			return false, fmt.Errorf("state destroyed")
 		}
 
 		// Check the alloc directory still exists
@@ -199,10 +209,14 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 		}
 
 		// Check the state was cleaned
-		if _, err := os.Stat(ar.stateFilePath()); err == nil {
-			return false, fmt.Errorf("state file still exists: %v", ar.stateFilePath())
-		} else if !os.IsNotExist(err) {
-			return false, fmt.Errorf("stat err: %v", err)
+		if err := ar.stateDB.View(func(tx *bolt.Tx) error {
+			if allocationBucketExists(tx, ar.Alloc().ID) {
+				return fmt.Errorf("bucket for alloc exists")
+			}
+
+			return nil
+		}); err != nil {
+			return false, fmt.Errorf("state not destroyed")
 		}
 
 		// Check the alloc directory was cleaned
@@ -247,10 +261,14 @@ func TestAllocRunner_Destroy(t *testing.T) {
 		}
 
 		// Check the state was cleaned
-		if _, err := os.Stat(ar.stateFilePath()); err == nil {
-			return false, fmt.Errorf("state file still exists: %v", ar.stateFilePath())
-		} else if !os.IsNotExist(err) {
-			return false, fmt.Errorf("stat err: %v", err)
+		if err := ar.stateDB.View(func(tx *bolt.Tx) error {
+			if allocationBucketExists(tx, ar.Alloc().ID) {
+				return fmt.Errorf("bucket for alloc exists")
+			}
+
+			return nil
+		}); err != nil {
+			return false, fmt.Errorf("state not destroyed")
 		}
 
 		// Check the alloc directory was cleaned
@@ -322,7 +340,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
-	ar2 := NewAllocRunner(l2, ar.config, upd.Update,
+	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
 		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient,
 		ar.consulClient)
 	err = ar2.RestoreState()
@@ -366,12 +384,10 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 	ar.logger = prefixedTestLogger("ar1: ")
 
 	// Ensure task takes some time
-
 	ar.alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Config["run_for"] = "10s"
@@ -408,14 +424,14 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	}
 
 	// Ensure ar1 doesn't recreate the state file
-	ar.persistLock.Lock()
-	defer ar.persistLock.Unlock()
+	ar.allocLock.Lock()
+	defer ar.allocLock.Unlock()
 
 	// Ensure both alloc runners don't destroy
 	ar.destroy = true
 
 	// Create a new alloc runner
-	ar2 := NewAllocRunner(ar.logger, ar.config, upd.Update,
+	ar2 := NewAllocRunner(ar.logger, ar.config, ar.stateDB, upd.Update,
 		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient, ar.consulClient)
 	ar2.logger = prefixedTestLogger("ar2: ")
 	err = ar2.RestoreState()
@@ -427,8 +443,14 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Check the state still exists
-		if _, err := os.Stat(ar.stateFilePath()); err != nil {
-			return false, fmt.Errorf("state file destroyed: %v", err)
+		if err := ar.stateDB.View(func(tx *bolt.Tx) error {
+			if !allocationBucketExists(tx, ar2.Alloc().ID) {
+				return fmt.Errorf("no bucket for alloc")
+			}
+
+			return nil
+		}); err != nil {
+			return false, fmt.Errorf("state destroyed")
 		}
 
 		// Check the alloc directory still exists
@@ -457,10 +479,14 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 		}
 
 		// Check the state was cleaned
-		if _, err := os.Stat(ar.stateFilePath()); err == nil {
-			return false, fmt.Errorf("state file still exists: %v", ar.stateFilePath())
-		} else if !os.IsNotExist(err) {
-			return false, fmt.Errorf("stat err: %v", err)
+		if err := ar.stateDB.View(func(tx *bolt.Tx) error {
+			if allocationBucketExists(tx, ar2.Alloc().ID) {
+				return fmt.Errorf("bucket for alloc exists")
+			}
+
+			return nil
+		}); err != nil {
+			return false, fmt.Errorf("state not destroyed")
 		}
 
 		// Check the alloc directory was cleaned
@@ -504,6 +530,14 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
+	tmp, err := ioutil.TempFile("", "state-db")
+	if err != nil {
+		t.Fatalf("error creating state db file: %v", err)
+	}
+	db, err := bolt.Open(tmp.Name(), 0600, nil)
+	if err != nil {
+		t.Fatalf("error creating state db: %v", err)
+	}
 
 	if err := os.MkdirAll(filepath.Join(conf.StateDir, "alloc", alloc.ID), 0777); err != nil {
 		t.Fatalf("error creating state dir: %v", err)
@@ -575,7 +609,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := newMockConsulServiceClient()
-	ar := NewAllocRunner(logger, conf, upd.Update, alloc, vclient, cclient)
+	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, cclient)
 	defer ar.Destroy()
 
 	// RestoreState should fail on the task state since we only test the
@@ -591,7 +625,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	if len(merr.Errors) != 1 {
 		t.Fatalf("expected exactly 1 error from RestoreState but found: %d: %v", len(merr.Errors), err)
 	}
-	if expected := "task runner snapshot includes nil Task"; merr.Errors[0].Error() != expected {
+	if expected := "failed to get task bucket"; !strings.Contains(merr.Errors[0].Error(), expected) {
 		t.Fatalf("expected %q but got: %q", expected, merr.Errors[0].Error())
 	}
 

@@ -168,6 +168,7 @@ func (r *AllocRunner) RestoreState() error {
 	var snap allocRunnerState
 	if err := pre060RestoreState(oldPath, &snap); err == nil {
 		// Restore fields
+		r.logger.Printf("[DEBUG] client: restoring pre v0.6.0 alloc runner state for alloc %q", r.alloc.ID)
 		r.alloc = snap.Alloc
 		r.allocDir = snap.AllocDir
 		r.allocClientStatus = snap.AllocClientStatus
@@ -181,9 +182,9 @@ func (r *AllocRunner) RestoreState() error {
 		// Context struct to new AllocDir struct
 		if snap.AllocDir == nil && snap.Context != nil {
 			r.logger.Printf("[DEBUG] client: migrating state snapshot for alloc %q", r.alloc.ID)
-			snap.AllocDir = allocdir.NewAllocDir(r.logger, snap.Context.AllocDir.AllocDir)
+			r.allocDir = allocdir.NewAllocDir(r.logger, snap.Context.AllocDir.AllocDir)
 			for taskName := range snap.Context.AllocDir.TaskDirs {
-				snap.AllocDir.NewTaskDir(taskName)
+				r.allocDir.NewTaskDir(taskName)
 			}
 		}
 
