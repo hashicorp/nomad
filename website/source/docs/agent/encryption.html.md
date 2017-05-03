@@ -69,8 +69,18 @@ export NOMAD_CACERT=/path/to/ca.pem
 Run any command except `agent` with `-h` to see all environment variables and
 flags. For example: `nomad status -h`
 
-Since HTTPS currently does not validate client certificates you do not need to
+By default HTTPS does not validate client certificates, so you do not need to
 give the command line tool access to any private keys.
+
+### Network Isolation with TLS
+
+If you want to isolate Nomad agents on a network with TLS you need to enable
+both [`verify_https_client`][tls] and [`verify_server_hostname`][tls]. This
+will cause agents to require client certificates for all incoming HTTPS
+connections as well as verify proper names on all other certificates.
+
+Consul will not attempt to health check agents with `verify_https_client` set
+as it is unable to use client certificates.
 
 ## Encryption Examples
 
