@@ -447,6 +447,8 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 		}
 		return &c, nil
 	}
+	transport = &http.Transport{TLSClientConfig: tlsConf}
+	client = &http.Client{Transport: transport}
 	req, err = http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		t.Fatalf("error creating request: %v", err)
