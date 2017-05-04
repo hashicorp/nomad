@@ -32,6 +32,7 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	upd := &MockAllocStateUpdater{}
