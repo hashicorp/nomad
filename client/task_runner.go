@@ -327,7 +327,8 @@ var ver06 = version.Must(version.NewVersion("0.6.0dev"))
 // check is found on an exec/java task.
 const pre06ScriptCheckReason = "upgrading pre-0.6 script checks"
 
-// pre06ScriptCheck returns true if version is prior to 0.6.0dev.
+// pre06ScriptCheck returns true if version is prior to 0.6.0dev, has a script
+// check, and uses exec or java drivers.
 func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
 	if driver != "exec" && driver != "java" && driver != "mock_driver" {
 		// Only exec and java are affected

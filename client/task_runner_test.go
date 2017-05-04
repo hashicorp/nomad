@@ -1520,3 +1520,49 @@ func TestTaskRunner_CleanupFail(t *testing.T) {
 		t.Fatalf("expected %#v but found: %#v", expected, ctx.tr.createdResources.Resources)
 	}
 }
+
+func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
+	run := func(ver, driver, checkType string, exp bool) (string, func(t *testing.T)) {
+		name := fmt.Sprintf("%s %s %s returns %t", ver, driver, checkType, exp)
+		return name, func(t *testing.T) {
+			services := []*structs.Service{
+				{
+					Checks: []*structs.ServiceCheck{
+						{
+							Type: checkType,
+						},
+					},
+				},
+			}
+			if act := pre06ScriptCheck(ver, driver, services); act != exp {
+				t.Errorf("expected %t received %t", exp, act)
+			}
+		}
+	}
+	t.Run(run("0.5.6", "exec", "script", true))
+	t.Run(run("0.5.6", "java", "script", true))
+	t.Run(run("0.5.6", "mock_driver", "script", true))
+	t.Run(run("0.5.9", "exec", "script", true))
+	t.Run(run("0.5.9", "java", "script", true))
+	t.Run(run("0.5.9", "mock_driver", "script", true))
+
+	t.Run(run("0.6.0dev", "exec", "script", false))
+	t.Run(run("0.6.0dev", "java", "script", false))
+	t.Run(run("0.6.0dev", "mock_driver", "script", false))
+	t.Run(run("0.6.0", "exec", "script", false))
+	t.Run(run("0.6.0", "java", "script", false))
+	t.Run(run("0.6.0", "mock_driver", "script", false))
+	t.Run(run("1.0.0", "exec", "script", false))
+	t.Run(run("1.0.0", "java", "script", false))
+	t.Run(run("1.0.0", "mock_driver", "script", false))
+
+	t.Run(run("0.5.6", "rkt", "script", false))
+	t.Run(run("0.5.6", "docker", "script", false))
+	t.Run(run("0.5.6", "qemu", "script", false))
+	t.Run(run("0.5.6", "raw_exec", "script", false))
+	t.Run(run("0.5.6", "invalid", "script", false))
+
+	t.Run(run("0.5.6", "exec", "tcp", false))
+	t.Run(run("0.5.6", "java", "tcp", false))
+	t.Run(run("0.5.6", "mock_driver", "tcp", false))
+}
