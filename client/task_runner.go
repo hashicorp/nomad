@@ -1418,7 +1418,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 
-		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
+		if err := r.updateServices(drv, r.handle, r.task, updatedTask, update); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1436,13 +1436,17 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 }
 
 // updateServices and checks with Consul.
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task, newAlloc *structs.Allocation) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.getTaskEnv(), new)
+	newTaskEnv, err := driver.GetTaskEnv(r.taskDir, r.config.Node, new, newAlloc, r.config, r.vaultFuture.Get())
+	if err != nil {
+		return err
+	}
+	interpolateServices(newTaskEnv, new)
 	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
 }
 
