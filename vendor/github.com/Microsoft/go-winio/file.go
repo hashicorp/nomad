@@ -79,7 +79,6 @@ func makeWin32File(h syscall.Handle) (*win32File, error) {
 	if err != nil {
 		return nil, err
 	}
-	runtime.SetFinalizer(f, (*win32File).closeHandle)
 	return f, nil
 }
 
@@ -103,7 +102,6 @@ func (f *win32File) closeHandle() {
 // Close closes a win32File.
 func (f *win32File) Close() error {
 	f.closeHandle()
-	runtime.SetFinalizer(f, nil)
 	return nil
 }
 
@@ -166,6 +164,12 @@ func (f *win32File) asyncIo(c *ioOperation, deadline time.Time, bytes uint32, er
 		if wait {
 			r = <-c.ch
 		}
+
+		// runtime.KeepAlive is needed, as c is passed via native
+		// code to ioCompletionProcessor, c must remain alive
+		// until the channel read is complete.
+		runtime.KeepAlive(c)
+
 		err = r.err
 		if err == syscall.ERROR_OPERATION_ABORTED {
 			if f.closing {
@@ -188,6 +192,7 @@ func (f *win32File) Read(b []byte) (int, error) {
 	var bytes uint32
 	err = syscall.ReadFile(f.handle, b, &bytes, &c.o)
 	n, err := f.asyncIo(c, f.readDeadline, bytes, err)
+	runtime.KeepAlive(b)
 
 	// Handle EOF conditions.
 	if err == nil && n == 0 && len(b) != 0 {
@@ -207,7 +212,9 @@ func (f *win32File) Write(b []byte) (int, error) {
 	}
 	var bytes uint32
 	err = syscall.WriteFile(f.handle, b, &bytes, &c.o)
-	return f.asyncIo(c, f.writeDeadline, bytes, err)
+	n, err := f.asyncIo(c, f.writeDeadline, bytes, err)
+	runtime.KeepAlive(b)
+	return n, err
 }
 
 func (f *win32File) SetReadDeadline(t time.Time) error {
@@ -218,4 +225,8 @@ func (f *win32File) SetReadDeadline(t time.Time) error {
 func (f *win32File) SetWriteDeadline(t time.Time) error {
 	f.writeDeadline = t
 	return nil
+}
+
+func (f *win32File) Flush() error {
+	return syscall.FlushFileBuffers(f.handle)
 }

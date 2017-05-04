@@ -20,7 +20,8 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential curl git-
      liblxc1 lxc-dev lxc-templates                      \
      gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \
      libc6-dev-i386 linux-libc-dev:i386                 \
-     gcc-5-arm-linux-gnueabihf gcc-5-multilib-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+     gcc-5-arm-linux-gnueabihf gcc-5-multilib-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \
+     gcc-mingw-w64 binutils-mingw-w64
 
 # Setup go, for development of Nomad
 SRCROOT="/opt/go"
