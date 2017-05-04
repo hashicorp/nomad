@@ -22,6 +22,7 @@ BUG FIXES:
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
+ * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]
