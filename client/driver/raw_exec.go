@@ -255,7 +255,7 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 }
 
 func (h *rawExecHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
-	return execScript(ctx, h.taskDir.Dir, h.taskEnv, cmd, args)
+	return executor.ExecScript(ctx, h.taskDir.Dir, h.taskEnv, nil, cmd, args)
 }
 
 func (h *rawExecHandle) Signal(s os.Signal) error {

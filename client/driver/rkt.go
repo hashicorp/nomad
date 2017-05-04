@@ -573,7 +573,7 @@ func (h *rktHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte
 	enterArgs[1] = h.uuid
 	enterArgs[2] = cmd
 	copy(enterArgs[3:], args)
-	return execScript(ctx, h.taskDir.Dir, h.env, rktCmd, enterArgs)
+	return executor.ExecScript(ctx, h.taskDir.Dir, h.env, nil, rktCmd, enterArgs)
 }
 
 func (h *rktHandle) Signal(s os.Signal) error {

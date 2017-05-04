@@ -290,14 +290,20 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
+	return ExecScript(ctx, e.cmd.Dir, e.ctx.TaskEnv, e.cmd.SysProcAttr, name, args)
+}
 
-	name = e.ctx.TaskEnv.ReplaceEnv(name)
-	cmd := exec.CommandContext(ctx, name, e.ctx.TaskEnv.ParseAndReplace(args)...)
+// ExecScript executes cmd with args and returns the output, exit code, and
+// error. Output is truncated to client/driver/structs.CheckBufSize
+func ExecScript(ctx context.Context, dir string, env *env.TaskEnvironment, attrs *syscall.SysProcAttr,
+	name string, args []string) ([]byte, int, error) {
+	name = env.ReplaceEnv(name)
+	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
 
 	// Copy runtime environment from the main command
-	cmd.SysProcAttr = e.cmd.SysProcAttr
-	cmd.Dir = e.cmd.Dir
-	cmd.Env = e.ctx.TaskEnv.EnvList()
+	cmd.SysProcAttr = attrs
+	cmd.Dir = dir
+	cmd.Env = env.EnvList()
 
 	// Capture output
 	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))

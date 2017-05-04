@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,14 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/armon/circbuf"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
@@ -181,36 +177,4 @@ func getExecutorUser(task *structs.Task) string {
 		return cstructs.DefaultUnpriviledgedUser
 	}
 	return task.User
-}
-
-// execScript executes cmd with args and returns the output, exit code, and
-// error. Output is truncated to client/driver/structs.CheckBufSize
-func execScript(ctx context.Context, dir string, env *env.TaskEnvironment, name string, args []string) ([]byte, int, error) {
-	name = env.ReplaceEnv(name)
-	args = env.ParseAndReplace(args)
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	cmd.Env = env.EnvList()
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-	if err := cmd.Run(); err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if !ok {
-			// Non-exit error, return it and let the caller treat
-			// it as a critical failure
-			return nil, 0, err
-		}
-
-		// Some kind of error happened; default to critical
-		exitCode := 2
-		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-			exitCode = status.ExitStatus()
-		}
-
-		// Don't return the exitError as the caller only needs the
-		// output and code.
-		return buf.Bytes(), exitCode, nil
-	}
-	return buf.Bytes(), 0, nil
 }
