@@ -27,9 +27,9 @@ functionality was changed. Even if more than one item was specificed prior to
 
 To do a zero-downtime deploy with jobs that use the `load` option:
 
-* Upgrade to servers to 0.5.5 or later.
+* Upgrade servers to version 0.5.5 or later.
 
-* Deploy new client nodes on the same version.
+* Deploy new client nodes on the same version as the servers.
 
 * Resubmit jobs with the `load` option fixed and a constraint to only run on
   version 0.5.5 or later:
