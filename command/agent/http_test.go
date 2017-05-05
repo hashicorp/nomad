@@ -440,10 +440,8 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	// PASS: Requests that specify a valid hostname, CA cert, and client
 	// certificate succeed.
 	tlsConf.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-		s.Agent.logger.Printf("Loading certificate")
 		c, err := tls.LoadX509KeyPair(foocert, fookey)
 		if err != nil {
-			s.Agent.logger.Printf("error loading client certificate: %v", err)
 			return nil, err
 		}
 		return &c, nil
