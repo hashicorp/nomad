@@ -155,6 +155,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
 	case structs.VaultAccessorDegisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
+	case structs.ApplyPlanResultsRequestType:
+		return n.applyPlanResults(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -539,6 +541,22 @@ func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interf
 
 	if err := n.state.DeleteVaultAccessors(index, req.Accessors); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeregisterVaultAccessor failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyPlanApply applies the results of a plan application
+func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
+	var req structs.ApplyPlanResultsRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertPlanResults(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: ApplyPlan failed: %v", err)
 		return err
 	}
 

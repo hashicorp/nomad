@@ -53,6 +53,7 @@ const (
 	ReconcileJobSummariesRequestType
 	VaultAccessorRegisterRequestType
 	VaultAccessorDegisterRequestType
+	ApplyPlanResultsRequestType
 )
 
 const (
@@ -358,6 +359,19 @@ type EvalListRequest struct {
 type PlanRequest struct {
 	Plan *Plan
 	WriteRequest
+}
+
+// ApplyPlanResultsRequest is used by the planner to apply a Raft transaction
+// committing the result of a plan.
+type ApplyPlanResultsRequest struct {
+	// AllocUpdateRequest holds the allocation updates to be made by the
+	// scheduler.
+	AllocUpdateRequest
+
+	// CreatedDeployment is the deployment created as a result of a scheduling
+	// event. Any existing deployment should be cancelled when the new
+	// deployment is created.
+	CreatedDeployment *Deployment
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either

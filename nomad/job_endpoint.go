@@ -559,7 +559,7 @@ func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
 				reply.Index = out[0].ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
-				index, err := state.Index("job_versions")
+				index, err := state.Index("job_version")
 				if err != nil {
 					return err
 				}

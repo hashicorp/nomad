@@ -310,11 +310,16 @@ func VaultAccessor() *structs.VaultAccessor {
 
 func Deployment() *structs.Deployment {
 	return &structs.Deployment{
-		ID:                structs.GenerateUUID(),
-		JobID:             structs.GenerateUUID(),
-		JobVersion:        2,
-		JobModifyIndex:    20,
-		JobCreateIndex:    18,
+		ID:             structs.GenerateUUID(),
+		JobID:          structs.GenerateUUID(),
+		JobVersion:     2,
+		JobModifyIndex: 20,
+		JobCreateIndex: 18,
+		TaskGroups: map[string]*structs.DeploymentState{
+			"web": &structs.DeploymentState{
+				DesiredTotal: 10,
+			},
+		},
 		Status:            structs.DeploymentStatusRunning,
 		StatusDescription: structs.DeploymentStatusRunning,
 		ModifyIndex:       23,
