@@ -2,12 +2,16 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"testing"
@@ -15,6 +19,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -334,6 +339,126 @@ func TestParseRegion(t *testing.T) {
 	s.Server.parseRegion(req, &region)
 	if region != "global" {
 		t.Fatalf("bad %s", region)
+	}
+}
+
+// TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
+// appropriate CA is required when VerifyHTTPSClient=true.
+func TestHTTP_VerifyHTTPSClient(t *testing.T) {
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Region = "foo" // match the region on foocert
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert,
+			KeyFile:           fookey,
+		}
+	})
+	defer s.Cleanup()
+
+	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
+
+	// FAIL: Requests that expect 127.0.0.1 as the name should fail
+	resp, err := http.Get(reqURL)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
+	}
+	urlErr, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
+	}
+	hostErr, ok := urlErr.Err.(x509.HostnameError)
+	if !ok {
+		t.Fatalf("expected a x509.HostnameError but received: %T -> %v", urlErr.Err, urlErr.Err)
+	}
+	if expected := "127.0.0.1"; hostErr.Host != expected {
+		t.Fatalf("expected hostname on error to be %q but found %q", expected, hostErr.Host)
+	}
+
+	// FAIL: Requests that specify a valid hostname but not the CA should
+	// fail
+	tlsConf := &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+	}
+	transport := &http.Transport{TLSClientConfig: tlsConf}
+	client := &http.Client{Transport: transport}
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		t.Fatalf("error creating request: %v", err)
+	}
+	resp, err = client.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
+	}
+	urlErr, ok = err.(*url.Error)
+	if !ok {
+		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
+	}
+	_, ok = urlErr.Err.(x509.UnknownAuthorityError)
+	if !ok {
+		t.Fatalf("expected a x509.UnknownAuthorityError but received: %T -> %v", urlErr.Err, urlErr.Err)
+	}
+
+	// FAIL: Requests that specify a valid hostname and CA cert but lack a
+	// client certificate should fail
+	cacertBytes, err := ioutil.ReadFile(cafile)
+	if err != nil {
+		t.Fatalf("error reading cacert: %v", err)
+	}
+	tlsConf.RootCAs = x509.NewCertPool()
+	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
+	req, err = http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		t.Fatalf("error creating request: %v", err)
+	}
+	resp, err = client.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
+	}
+	urlErr, ok = err.(*url.Error)
+	if !ok {
+		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
+	}
+	opErr, ok := urlErr.Err.(*net.OpError)
+	if !ok {
+		t.Fatalf("expected a *net.OpErr but received: %T -> %v", urlErr.Err, urlErr.Err)
+	}
+	const badCertificate = "tls: bad certificate" // from crypto/tls/alert.go:52 and RFC 5246 § A.3
+	if opErr.Err.Error() != badCertificate {
+		t.Fatalf("expected tls.alert bad_certificate but received: %q", opErr.Err.Error())
+	}
+
+	// PASS: Requests that specify a valid hostname, CA cert, and client
+	// certificate succeed.
+	tlsConf.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		c, err := tls.LoadX509KeyPair(foocert, fookey)
+		if err != nil {
+			return nil, err
+		}
+		return &c, nil
+	}
+	transport = &http.Transport{TLSClientConfig: tlsConf}
+	client = &http.Client{Transport: transport}
+	req, err = http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		t.Fatalf("error creating request: %v", err)
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200 status code but got: %d", resp.StatusCode)
 	}
 }
 

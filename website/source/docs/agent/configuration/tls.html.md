@@ -54,6 +54,10 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
   a Nomad client makes the client use TLS for making RPC requests to the Nomad
   servers.
 
+- `verify_https_client` `(bool: false)` - Specifies agents should require
+  client certificates for all incoming HTTPS requests. The client certificates
+  must be signed by the same CA as Nomad.
+
 - `verify_server_hostname` `(bool: false)` - Specifies if outgoing TLS
   connections should verify the server's hostname.
 

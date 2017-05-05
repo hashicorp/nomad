@@ -351,43 +351,22 @@ func (a *Agent) setupServer() error {
 	a.server = server
 
 	// Consul check addresses default to bind but can be toggled to use advertise
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
 	if *a.config.Consul.ChecksUseAdvertise {
-		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
-	// TODO re-introduce HTTP/S checks when Consul 0.7.1 comes out
 	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
-			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
-					Name:      "Nomad Server HTTP Check",
-					Type:      "http",
-					Path:      "/v1/status/peers",
-					Protocol:  "http",
-					Interval:  serverHttpCheckInterval,
-					Timeout:   serverHttpCheckTimeout,
-					PortLabel: httpCheckAddr,
-				},
-			},
 		}
-		if conf.TLSConfig.EnableHTTP {
-			if a.consulSupportsTLSSkipVerify {
-				httpServ.Checks[0].Protocol = "https"
-				httpServ.Checks[0].TLSSkipVerify = true
-			} else {
-				// No TLSSkipVerify support, don't register https check
-				a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
-				httpServ.Checks = []*structs.ServiceCheck{}
-			}
+		if check := a.agentHTTPCheck(); check != nil {
+			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
@@ -482,39 +461,15 @@ func (a *Agent) setupClient() error {
 	}
 	a.client = client
 
-	// Resolve the http check address
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
-	if *a.config.Consul.ChecksUseAdvertise {
-		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
-	}
-
 	// Create the Nomad Client  services for Consul
 	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
-			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
-					Name:      "Nomad Client HTTP Check",
-					Type:      "http",
-					Path:      "/v1/agent/servers",
-					Protocol:  "http",
-					Interval:  clientHttpCheckInterval,
-					Timeout:   clientHttpCheckTimeout,
-					PortLabel: httpCheckAddr,
-				},
-			},
 		}
-		if conf.TLSConfig.EnableHTTP {
-			if a.consulSupportsTLSSkipVerify {
-				httpServ.Checks[0].Protocol = "https"
-				httpServ.Checks[0].TLSSkipVerify = true
-			} else {
-				// No TLSSkipVerify support, don't register https check
-				a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
-				httpServ.Checks = []*structs.ServiceCheck{}
-			}
+		if check := a.agentHTTPCheck(); check != nil {
+			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
 			return err
@@ -522,6 +477,42 @@ func (a *Agent) setupClient() error {
 	}
 
 	return nil
+}
+
+// agentHTTPCheck returns a health check for the agent's HTTP API if possible.
+// If no HTTP health check can be supported nil is returned.
+func (a *Agent) agentHTTPCheck() *structs.ServiceCheck {
+	// Resolve the http check address
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	if *a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
+	}
+	check := structs.ServiceCheck{
+		Name:      "Nomad Client HTTP Check",
+		Type:      "http",
+		Path:      "/v1/agent/servers",
+		Protocol:  "http",
+		Interval:  clientHttpCheckInterval,
+		Timeout:   clientHttpCheckTimeout,
+		PortLabel: httpCheckAddr,
+	}
+	if !a.config.TLSConfig.EnableHTTP {
+		// No HTTPS, return a plain http check
+		return &check
+	}
+	if !a.consulSupportsTLSSkipVerify {
+		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
+		return nil
+	}
+	if a.config.TLSConfig.VerifyHTTPSClient {
+		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
+		return nil
+	}
+
+	// HTTPS enabled; skip verification
+	check.Protocol = "https"
+	check.TLSSkipVerify = true
+	return &check
 }
 
 // reservePortsForClient reserves a range of ports for the client to use when
@@ -691,7 +682,7 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 
 	// Determine version for TLSSkipVerify
-	if self, err := client.Agent().Self(); err != nil {
+	if self, err := client.Agent().Self(); err == nil {
 		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
 	}
 
