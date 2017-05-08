@@ -36,7 +36,7 @@ To do a zero-downtime deploy with jobs that use the `load` option:
 
 ```hcl
     constraint {
-      attribute = "nomad.version"
+      attribute = "${attr.nomad.version}"
       operator  = "version"
       value     = ">= 0.5.5"
     }
