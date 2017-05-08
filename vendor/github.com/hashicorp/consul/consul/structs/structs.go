@@ -40,6 +40,8 @@ const (
 	CoordinateBatchUpdateType
 	PreparedQueryRequestType
 	TxnRequestType
+	AutopilotRequestType
+	AreaRequestType
 )
 
 const (
@@ -199,6 +201,14 @@ type RegisterRequest struct {
 	Service         *NodeService
 	Check           *HealthCheck
 	Checks          HealthChecks
+
+	// SkipNodeUpdate can be used when a register request is intended for
+	// updating a service and/or checks, but doesn't want to overwrite any
+	// node information if the node is already registered. If the node
+	// doesn't exist, it will still be created, but if the node exists, any
+	// node portion of this update will not apply.
+	SkipNodeUpdate bool
+
 	WriteRequest
 }
 
@@ -213,6 +223,12 @@ func (r *RegisterRequest) ChangesNode(node *Node) bool {
 	// This means it's creating the node.
 	if node == nil {
 		return true
+	}
+
+	// If we've been asked to skip the node update, then say there are no
+	// changes.
+	if r.SkipNodeUpdate {
+		return false
 	}
 
 	// Check if any of the node-level fields are being changed.
@@ -899,9 +915,11 @@ type IndexedCoordinates struct {
 }
 
 // DatacenterMap is used to represent a list of nodes with their raw coordinates,
-// associated with a datacenter.
+// associated with a datacenter. Coordinates are only compatible between nodes in
+// the same area.
 type DatacenterMap struct {
 	Datacenter  string
+	AreaID      types.AreaID
 	Coordinates Coordinates
 }
 

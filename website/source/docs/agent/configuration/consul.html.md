@@ -44,7 +44,8 @@ configuration, Nomad will automatically connect and configure with Consul.
 ## `consul` Parameters
 
 - `address` `(string: "127.0.0.1:8500")` - Specifies the address to the local
-  Consul agent, given in the format `host:port`.
+  Consul agent, given in the format `host:port`. Supports Unix sockets with the
+  format: `unix:///tmp/consul/consul.sock`
 
 - `auth` `(string: "")` - Specifies the HTTP Basic Authentication information to
   use for access to the Consul Agent, given in the format `username:password`.

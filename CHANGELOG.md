@@ -11,6 +11,7 @@ IMPROVEMENTS:
    addresses [GH-2536]
  * client: Hash host ID so its stable and well distributed [GH-2541]
  * client: Environment variables for client DC and Region [GH-2507]
+ * config: Support Unix socket addresses for Consul [GH-2622]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
