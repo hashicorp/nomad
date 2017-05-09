@@ -689,6 +689,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"ca_file",
 		"cert_file",
 		"key_file",
+		"verify_https_client",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {

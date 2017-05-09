@@ -22,7 +22,7 @@ import (
 
 func TestRktVersionRegex(t *testing.T) {
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
+		t.Skip("NOMAD_TEST_RKT unset, skipping")
 	}
 
 	input_rkt := "rkt version 0.8.1"

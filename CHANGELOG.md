@@ -4,10 +4,14 @@ IMPROVEMENTS:
  * core: Back-pressure when evaluations are nacked and ensure scheduling
    progress on evaluation failures [GH-2555]
  * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
+ * api: Add `verify_https_client` to require certificates from HTTP clients
+   [GH-2587]
  * api/job: Ability to revert job to older versions [GH-2575]
  * client: Fingerprint all routable addresses on an interface including IPv6
    addresses [GH-2536]
  * client: Hash host ID so its stable and well distributed [GH-2541]
+ * client: Environment variables for client DC and Region [GH-2507]
+ * config: Support Unix socket addresses for Consul [GH-2622]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
@@ -22,6 +26,7 @@ BUG FIXES:
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
+ * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]

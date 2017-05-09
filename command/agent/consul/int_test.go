@@ -45,16 +45,20 @@ func TestConsul_Integration(t *testing.T) {
 		}
 	}
 	// Create an embedded Consul server
-	testconsul := testutil.NewTestServerConfig(t, func(c *testutil.TestServerConfig) {
+	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
 			c.Stderr = ioutil.Discard
 		}
 	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
 	defer testconsul.Stop()
 
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.ConsulConfig.Addr = testconsul.HTTPAddr
 	consulConfig, err := conf.ConsulConfig.ApiConfig()
 	if err != nil {

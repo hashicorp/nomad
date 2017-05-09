@@ -48,6 +48,12 @@ const (
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 
+	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
+	Datacenter = "NOMAD_DC"
+
+	// Region is the environment variable for passing the region in which the alloc is running.
+	Region = "NOMAD_REGION"
+
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
@@ -72,10 +78,11 @@ const (
 
 // The node values that can be interpreted.
 const (
-	nodeIdKey    = "node.unique.id"
-	nodeDcKey    = "node.datacenter"
-	nodeNameKey  = "node.unique.name"
-	nodeClassKey = "node.class"
+	nodeIdKey     = "node.unique.id"
+	nodeDcKey     = "node.datacenter"
+	nodeRegionKey = "node.region"
+	nodeNameKey   = "node.unique.name"
+	nodeClassKey  = "node.class"
 
 	// Prefixes used for lookups.
 	nodeAttributePrefix = "attr."
@@ -94,6 +101,8 @@ type TaskEnvironment struct {
 	MemLimit         int
 	TaskName         string
 	AllocIndex       int
+	Datacenter       string
+	Region           string
 	AllocId          string
 	AllocName        string
 	Node             *structs.Node
@@ -195,6 +204,12 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 	if t.JobName != "" {
 		t.TaskEnv[JobName] = t.JobName
 	}
+	if t.Datacenter != "" {
+		t.TaskEnv[Datacenter] = t.Datacenter
+	}
+	if t.Region != "" {
+		t.TaskEnv[Region] = t.Region
+	}
 
 	// Build the addr of the other tasks
 	if t.Alloc != nil {
@@ -227,6 +242,7 @@ func (t *TaskEnvironment) Build() *TaskEnvironment {
 		// Set up the node values.
 		t.NodeValues[nodeIdKey] = t.Node.ID
 		t.NodeValues[nodeDcKey] = t.Node.Datacenter
+		t.NodeValues[nodeRegionKey] = t.Region
 		t.NodeValues[nodeNameKey] = t.Node.Name
 		t.NodeValues[nodeClassKey] = t.Node.NodeClass
 
@@ -488,18 +504,38 @@ func (t *TaskEnvironment) SetTaskName(name string) *TaskEnvironment {
 	return t
 }
 
-func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
-	t.JobName = name
-	return t
-}
-
 func (t *TaskEnvironment) ClearTaskName() *TaskEnvironment {
 	t.TaskName = ""
 	return t
 }
 
+func (t *TaskEnvironment) SetJobName(name string) *TaskEnvironment {
+	t.JobName = name
+	return t
+}
+
 func (t *TaskEnvironment) ClearJobName() *TaskEnvironment {
 	t.JobName = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetDatacenterName(name string) *TaskEnvironment {
+	t.Datacenter = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearDatacenterName() *TaskEnvironment {
+	t.Datacenter = ""
+	return t
+}
+
+func (t *TaskEnvironment) SetRegionName(name string) *TaskEnvironment {
+	t.Region = name
+	return t
+}
+
+func (t *TaskEnvironment) ClearRegionName() *TaskEnvironment {
+	t.Region = ""
 	return t
 }
 

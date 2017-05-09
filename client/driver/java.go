@@ -390,7 +390,12 @@ func (h *javaHandle) Update(task *structs.Task) error {
 }
 
 func (h *javaHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
-	return execChroot(ctx, h.taskDir, cmd, args)
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		// No deadline set on context; default to 1 minute
+		deadline = time.Now().Add(time.Minute)
+	}
+	return h.executor.Exec(deadline, cmd, args)
 }
 
 func (h *javaHandle) Signal(s os.Signal) error {

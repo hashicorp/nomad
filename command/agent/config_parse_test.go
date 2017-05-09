@@ -154,6 +154,7 @@ func TestConfig_Parse(t *testing.T) {
 					CAFile:               "foo",
 					CertFile:             "bar",
 					KeyFile:              "pipe",
+					VerifyHTTPSClient:    true,
 				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",

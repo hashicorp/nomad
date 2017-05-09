@@ -94,7 +94,7 @@ driver.
   <tr>
     <td><tt>${attr.&lt;property&gt;}</tt></td>
     <td>Property given by <tt>property</tt> on the client</td>
-    <td><tt>${attr.arch} => amd64</tt></td>
+    <td><tt>${attr.cpu.arch} => amd64</tt></td>
   </tr>
   <tr>
     <td><tt>${meta.&lt;key&gt;}</tt></td>
@@ -111,7 +111,7 @@ Below is a table documenting common node properties:
     <th>Description</th>
   </tr>
   <tr>
-    <td><tt>${attr.arch}</tt></td>
+    <td><tt>${attr.cpu.arch}</tt></td>
     <td>CPU architecture of the client (e.g. <tt>amd64</tt>, <tt>386</tt>)</td>
   </tr>
   <tr>
@@ -166,7 +166,7 @@ Here are some examples of using node attributes and properties in a job file:
 job "docs" {
   # This will constrain this job to only run on 64-bit clients.
   constraint {
-    attribute = "${attr.arch}"
+    attribute = "${attr.cpu.arch}"
     value     = "amd64"
   }
 

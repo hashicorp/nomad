@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/armon/circbuf"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
 	"github.com/shirou/gopsutil/process"
@@ -57,6 +59,7 @@ type Executor interface {
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
 	Signal(s os.Signal) error
+	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
 // ExecutorContext holds context to configure the command user
@@ -203,8 +206,8 @@ func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
 	return nil
 }
 
-// LaunchCmd launches a process and returns it's state. It also configures an
-// applies isolation on certain platforms.
+// LaunchCmd launches the main process and returns its state. It also
+// configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
@@ -281,6 +284,51 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
+}
+
+// Exec a command inside a container for exec and java drivers.
+func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	return ExecScript(ctx, e.cmd.Dir, e.ctx.TaskEnv, e.cmd.SysProcAttr, name, args)
+}
+
+// ExecScript executes cmd with args and returns the output, exit code, and
+// error. Output is truncated to client/driver/structs.CheckBufSize
+func ExecScript(ctx context.Context, dir string, env *env.TaskEnvironment, attrs *syscall.SysProcAttr,
+	name string, args []string) ([]byte, int, error) {
+	name = env.ReplaceEnv(name)
+	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
+
+	// Copy runtime environment from the main command
+	cmd.SysProcAttr = attrs
+	cmd.Dir = dir
+	cmd.Env = env.EnvList()
+
+	// Capture output
+	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+
+	if err := cmd.Run(); err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if !ok {
+			// Non-exit error, return it and let the caller treat
+			// it as a critical failure
+			return nil, 0, err
+		}
+
+		// Some kind of error happened; default to critical
+		exitCode := 2
+		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+			exitCode = status.ExitStatus()
+		}
+
+		// Don't return the exitError as the caller only needs the
+		// output and code.
+		return buf.Bytes(), exitCode, nil
+	}
+	return buf.Bytes(), 0, nil
 }
 
 // configureLoggers sets up the standard out/error file rotators

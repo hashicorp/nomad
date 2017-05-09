@@ -283,7 +283,8 @@ func TestExecDriverUser(t *testing.T) {
 	}
 }
 
-// TestExecDriver_HandlerExec ensures the exec driver's handle properly executes commands inside the chroot.
+// TestExecDriver_HandlerExec ensures the exec driver's handle properly
+// executes commands inside the container.
 func TestExecDriver_HandlerExec(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
@@ -315,20 +316,60 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		t.Fatalf("missing handle")
 	}
 
-	// Exec a command that should work
-	out, code, err := handle.Exec(context.TODO(), "/usr/bin/stat", []string{"/alloc"})
+	// Exec a command that should work and dump the environment
+	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep NOMAD"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}
 	if code != 0 {
 		t.Fatalf("expected `stat /alloc` to succeed but exit code was: %d", code)
 	}
-	if expected := 100; len(out) < expected {
-		t.Fatalf("expected at least %d bytes of output but found %d:\n%s", expected, len(out), out)
+
+	// Assert exec'd commands are run in a task-like environment
+	scriptEnv := make(map[string]string)
+	for _, line := range strings.Split(string(out), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(string(line), "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("Invalid env var: %q", line)
+		}
+		scriptEnv[parts[0]] = parts[1]
+	}
+	if v, ok := scriptEnv["NOMAD_SECRETS_DIR"]; !ok || v != "/secrets" {
+		t.Errorf("Expected NOMAD_SECRETS_DIR=/secrets but found=%t value=%q", ok, v)
+	}
+	if v, ok := scriptEnv["NOMAD_ALLOC_ID"]; !ok || v != ctx.DriverCtx.allocID {
+		t.Errorf("Expected NOMAD_SECRETS_DIR=%q but found=%t value=%q", ok, v)
+	}
+
+	// Assert cgroup membership
+	out, code, err = handle.Exec(context.Background(), "/bin/cat", []string{"/proc/self/cgroup"})
+	if err != nil {
+		t.Fatalf("error exec'ing cat /proc/self/cgroup: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected `cat /proc/self/cgroup` to succeed but exit code was: %d", code)
+	}
+	found := false
+	for _, line := range strings.Split(string(out), "\n") {
+		// Every cgroup entry should be /nomad/$ALLOC_ID
+		if line == "" {
+			continue
+		}
+		if !strings.Contains(line, ":/nomad/") {
+			t.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+			continue
+		}
+		found = true
+	}
+	if !found {
+		t.Errorf("exec'd command isn't in the task's cgroup")
 	}
 
 	// Exec a command that should fail
-	out, code, err = handle.Exec(context.TODO(), "/usr/bin/stat", []string{"lkjhdsaflkjshowaisxmcvnlia"})
+	out, code, err = handle.Exec(context.Background(), "/usr/bin/stat", []string{"lkjhdsaflkjshowaisxmcvnlia"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}

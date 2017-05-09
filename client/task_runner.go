@@ -19,6 +19,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -262,8 +263,11 @@ func (r *TaskRunner) pre060StateFilePath() string {
 	return filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, dirName, "state.json")
 }
 
-// RestoreState is used to restore our state
-func (r *TaskRunner) RestoreState() error {
+// RestoreState is used to restore our state. If a non-empty string is returned
+// the task is restarted with the string as the reason. This is useful for
+// backwards incompatible upgrades that need to restart tasks with a new
+// executor.
+func (r *TaskRunner) RestoreState() (string, error) {
 	// COMPAT: Remove in 0.7.0
 	// 0.6.0 transistioned from individual state files to a single bolt-db.
 	// The upgrade path is to:
@@ -280,7 +284,7 @@ func (r *TaskRunner) RestoreState() error {
 		os.RemoveAll(oldPath)
 	} else if !os.IsNotExist(err) {
 		// Something corrupt in the old state file
-		return err
+		return "", err
 	} else {
 		// We are doing a normal restore
 		err := r.stateDB.View(func(tx *bolt.Tx) error {
@@ -295,7 +299,7 @@ func (r *TaskRunner) RestoreState() error {
 			return nil
 		})
 		if err != nil {
-			return err
+			return "", err
 		}
 
 	}
@@ -307,7 +311,7 @@ func (r *TaskRunner) RestoreState() error {
 	r.setCreatedResources(snap.CreatedResources)
 
 	if err := r.setTaskEnv(); err != nil {
-		return fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
+		return "", fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
 			r.task.Name, r.alloc.ID, err)
 	}
 
@@ -317,7 +321,7 @@ func (r *TaskRunner) RestoreState() error {
 		data, err := ioutil.ReadFile(tokenPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
+				return "", fmt.Errorf("failed to read token for task %q in alloc %q: %v", r.task.Name, r.alloc.ID, err)
 			}
 
 			// Token file doesn't exist
@@ -328,10 +332,11 @@ func (r *TaskRunner) RestoreState() error {
 	}
 
 	// Restore the driver
+	restartReason := ""
 	if snap.HandleID != "" {
 		d, err := r.createDriver()
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		ctx := driver.NewExecContext(r.taskDir)
@@ -341,7 +346,11 @@ func (r *TaskRunner) RestoreState() error {
 		if err != nil {
 			r.logger.Printf("[ERR] client: failed to open handle to task %q for alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
-			return nil
+			return "", nil
+		}
+
+		if pre06ScriptCheck(snap.Version, r.task.Driver, r.task.Services) {
+			restartReason = pre06ScriptCheckReason
 		}
 
 		if err := r.registerServices(d, handle); err != nil {
@@ -360,8 +369,40 @@ func (r *TaskRunner) RestoreState() error {
 		r.running = true
 		r.runningLock.Unlock()
 	}
+	return restartReason, nil
+}
 
-	return nil
+// ver06 is used for checking for pre-0.6 script checks
+var ver06 = version.Must(version.NewVersion("0.6.0dev"))
+
+// pre06ScriptCheckReason is the restart reason given when a pre-0.6 script
+// check is found on an exec/java task.
+const pre06ScriptCheckReason = "upgrading pre-0.6 script checks"
+
+// pre06ScriptCheck returns true if version is prior to 0.6.0dev, has a script
+// check, and uses exec or java drivers.
+func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
+	if driver != "exec" && driver != "java" && driver != "mock_driver" {
+		// Only exec and java are affected
+		return false
+	}
+	v, err := version.NewVersion(ver)
+	if err != nil {
+		// Treat it as old
+		return true
+	}
+	if !v.LessThan(ver06) {
+		// >= 0.6.0dev
+		return false
+	}
+	for _, service := range services {
+		for _, check := range service.Checks {
+			if check.Type == "script" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // SaveState is used to snapshot our state
@@ -1117,6 +1158,10 @@ func (r *TaskRunner) run() {
 					r.setState(structs.TaskStateDead, r.destroyEvent)
 					return
 				}
+
+				// Remove from consul before killing the task so that traffic
+				// can be rerouted
+				r.consul.RemoveTask(r.alloc.ID, r.task)
 
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
