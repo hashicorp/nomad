@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
@@ -23,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/ugorji/go/codec"
 
 	"github.com/hashicorp/nomad/client/driver/env"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -55,8 +59,15 @@ const (
 	vaultTokenFile = "vault_token"
 )
 
+var (
+	// taskRunnerStateAllKey holds all the task runners state. At the moment
+	// there is no need to split it
+	taskRunnerStateAllKey = []byte("simple-all")
+)
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
+	stateDB        *bolt.DB
 	config         *config.Config
 	updater        TaskStateUpdater
 	logger         *log.Logger
@@ -143,17 +154,33 @@ type TaskRunner struct {
 	// AllocRunner, so all state fields must be synchronized using this
 	// lock.
 	persistLock sync.Mutex
+
+	// persistedHash is the hash of the last persisted snapshot. It is used to
+	// detect if a new snapshot has to be writen to disk.
+	persistedHash []byte
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
 type taskRunnerState struct {
 	Version            string
-	Task               *structs.Task
 	HandleID           string
 	ArtifactDownloaded bool
 	TaskDirBuilt       bool
-	CreatedResources   *driver.CreatedResources
 	PayloadRendered    bool
+	CreatedResources   *driver.CreatedResources
+}
+
+func (s *taskRunnerState) Hash() []byte {
+	h := md5.New()
+
+	io.WriteString(h, s.Version)
+	io.WriteString(h, s.HandleID)
+	io.WriteString(h, fmt.Sprintf("%v", s.ArtifactDownloaded))
+	io.WriteString(h, fmt.Sprintf("%v", s.TaskDirBuilt))
+	io.WriteString(h, fmt.Sprintf("%v", s.PayloadRendered))
+	h.Write(s.CreatedResources.Hash())
+
+	return h.Sum(nil)
 }
 
 // TaskStateUpdater is used to signal that tasks state has changed.
@@ -173,7 +200,7 @@ type SignalEvent struct {
 
 // NewTaskRunner is used to create a new task context
 func NewTaskRunner(logger *log.Logger, config *config.Config,
-	updater TaskStateUpdater, taskDir *allocdir.TaskDir,
+	stateDB *bolt.DB, updater TaskStateUpdater, taskDir *allocdir.TaskDir,
 	alloc *structs.Allocation, task *structs.Task,
 	vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI) *TaskRunner {
 
@@ -190,6 +217,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 
 	tc := &TaskRunner{
 		config:           config,
+		stateDB:          stateDB,
 		updater:          updater,
 		logger:           logger,
 		restartTracker:   restartTracker,
@@ -222,17 +250,17 @@ func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
-// stateFilePath returns the path to our state file
-func (r *TaskRunner) stateFilePath() string {
+// pre060StateFilePath returns the path to our state file that would have been
+// written pre v0.6.0
+// COMPAT: Remove in 0.7.0
+func (r *TaskRunner) pre060StateFilePath() string {
 	// Get the MD5 of the task name
 	hashVal := md5.Sum([]byte(r.task.Name))
 	hashHex := hex.EncodeToString(hashVal[:])
 	dirName := fmt.Sprintf("task-%s", hashHex)
 
 	// Generate the path
-	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID,
-		dirName, "state.json")
-	return path
+	return filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, dirName, "state.json")
 }
 
 // RestoreState is used to restore our state. If a non-empty string is returned
@@ -240,22 +268,46 @@ func (r *TaskRunner) stateFilePath() string {
 // backwards incompatible upgrades that need to restart tasks with a new
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
-	// Load the snapshot
+	// COMPAT: Remove in 0.7.0
+	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// The upgrade path is to:
+	// Check if old state exists
+	//   If so, restore from that and delete old state
+	// Restore using state database
+
 	var snap taskRunnerState
-	if err := restoreState(r.stateFilePath(), &snap); err != nil {
+
+	// Check if the old snapshot is there
+	oldPath := r.pre060StateFilePath()
+	if err := pre060RestoreState(oldPath, &snap); err == nil {
+		// Delete the old state
+		os.RemoveAll(oldPath)
+	} else if !os.IsNotExist(err) {
+		// Something corrupt in the old state file
 		return "", err
+	} else {
+		// We are doing a normal restore
+		err := r.stateDB.View(func(tx *bolt.Tx) error {
+			bkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get task bucket: %v", err)
+			}
+
+			if err := getObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
+				return fmt.Errorf("failed to read task runner state: %v", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+
 	}
 
-	// Restore fields
-	if snap.Task == nil {
-		return "", fmt.Errorf("task runner snapshot includes nil Task")
-	} else {
-		r.task = snap.Task
-	}
+	// Restore fields from the snapshot
 	r.artifactsDownloaded = snap.ArtifactDownloaded
 	r.taskDirBuilt = snap.TaskDirBuilt
 	r.payloadRendered = snap.PayloadRendered
-
 	r.setCreatedResources(snap.CreatedResources)
 
 	if err := r.setTaskEnv(); err != nil {
@@ -357,9 +409,7 @@ func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
 func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
-
 	snap := taskRunnerState{
-		Task:               r.task,
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
@@ -372,7 +422,38 @@ func (r *TaskRunner) SaveState() error {
 		snap.HandleID = r.handle.ID()
 	}
 	r.handleLock.Unlock()
-	return persistState(r.stateFilePath(), &snap)
+
+	// If nothing has changed avoid the write
+	h := snap.Hash()
+	if bytes.Equal(h, r.persistedHash) {
+		return nil
+	}
+
+	// Serialize the object
+	var buf bytes.Buffer
+	if err := codec.NewEncoder(&buf, structs.MsgpackHandle).Encode(&snap); err != nil {
+		return fmt.Errorf("failed to serialize snapshot: %v", err)
+	}
+
+	// Start the transaction.
+	return r.stateDB.Batch(func(tx *bolt.Tx) error {
+		// Grab the task bucket
+		taskBkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+		}
+
+		if err := putData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
+			return fmt.Errorf("failed to write task_runner state: %v", err)
+		}
+
+		// Store the hash that was persisted
+		tx.OnCommit(func() {
+			r.persistedHash = h
+		})
+
+		return nil
+	})
 }
 
 // DestroyState is used to cleanup after ourselves
@@ -380,7 +461,12 @@ func (r *TaskRunner) DestroyState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 
-	return os.RemoveAll(r.stateFilePath())
+	return r.stateDB.Update(func(tx *bolt.Tx) error {
+		if err := deleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
+			return fmt.Errorf("failed to delete task bucket: %v", err)
+		}
+		return nil
+	})
 }
 
 // setState is used to update the state of the task runner

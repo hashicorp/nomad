@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/ugorji/go/codec"
 )
@@ -123,7 +124,7 @@ func TestStreamFramer_Flush(t *testing.T) {
 	sf.Run()
 
 	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
+	dec := codec.NewDecoder(r, structs.JsonHandle)
 
 	f := "foo"
 	fe := "bar"
@@ -191,7 +192,7 @@ func TestStreamFramer_Batch(t *testing.T) {
 	sf.Run()
 
 	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
+	dec := codec.NewDecoder(r, structs.JsonHandle)
 
 	f := "foo"
 	fe := "bar"
@@ -268,7 +269,7 @@ func TestStreamFramer_Heartbeat(t *testing.T) {
 	sf.Run()
 
 	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
+	dec := codec.NewDecoder(r, structs.JsonHandle)
 
 	// Start the reader
 	resultCh := make(chan struct{})
@@ -320,7 +321,7 @@ func TestStreamFramer_Order(t *testing.T) {
 	sf.Run()
 
 	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
+	dec := codec.NewDecoder(r, structs.JsonHandle)
 
 	files := []string{"1", "2", "3", "4", "5"}
 	input := bytes.NewBuffer(make([]byte, 0, 100000))
@@ -592,7 +593,7 @@ func TestHTTP_Stream_Modify(t *testing.T) {
 		r, w := io.Pipe()
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		data := []byte("helloworld")
 
@@ -668,7 +669,7 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 		r, w := io.Pipe()
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		data := []byte("helloworld")
 
@@ -778,7 +779,7 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 		wrappedW := &WriteCloseChecker{WriteCloser: w}
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		data := []byte("helloworld")
 
@@ -869,7 +870,7 @@ func TestHTTP_Logs_NoFollow(t *testing.T) {
 		wrappedW := &WriteCloseChecker{WriteCloser: w}
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		var received []byte
 
@@ -955,7 +956,7 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 		wrappedW := &WriteCloseChecker{WriteCloser: w}
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		var received []byte
 
@@ -1071,7 +1072,7 @@ func BenchmarkHTTP_Logs_Follow(t *testing.B) {
 		wrappedW := &WriteCloseChecker{WriteCloser: w}
 		defer r.Close()
 		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		dec := codec.NewDecoder(r, structs.JsonHandle)
 
 		var received []byte
 
