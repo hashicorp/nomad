@@ -70,7 +70,8 @@ type AllocRunner struct {
 	waitCh      chan struct{}
 
 	// serialize saveAllocRunnerState calls
-	persistLock sync.Mutex
+	jobPersisted bool
+	persistLock  sync.Mutex
 }
 
 // allocRunnerState is used to snapshot the state of the alloc runner
@@ -126,11 +127,24 @@ func (r *AllocRunner) stateFilePath() string {
 	return path
 }
 
+// jobFilePath returns the path to our job file
+func (r *AllocRunner) jobFilePath() string {
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
+	path := filepath.Join(r.config.StateDir, "alloc", r.alloc.ID, "job.json")
+	return path
+}
+
 // RestoreState is used to restore the state of the alloc runner
 func (r *AllocRunner) RestoreState() error {
-	// Load the snapshot
+	// Load the snapshot and the job
 	var snap allocRunnerState
 	if err := restoreState(r.stateFilePath(), &snap); err != nil {
+		return err
+	}
+
+	var job structs.Job
+	if err := restoreState(r.jobFilePath(), &job); err != nil {
 		return err
 	}
 
@@ -152,11 +166,23 @@ func (r *AllocRunner) RestoreState() error {
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
-		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil allocation"))
+		snapshotErrors.Errors = append(snapshotErrors.Errors,
+			fmt.Errorf("alloc_runner snapshot includes a nil allocation"))
 	}
 	if r.allocDir == nil {
-		snapshotErrors.Errors = append(snapshotErrors.Errors, fmt.Errorf("alloc_runner snapshot includes a nil alloc dir"))
+		snapshotErrors.Errors = append(snapshotErrors.Errors,
+			fmt.Errorf("alloc_runner snapshot includes a nil alloc dir"))
 	}
+
+	// Handle the upgrade path of the job file potentially not existing
+	if r.alloc.Job == nil && job.ID == "" {
+		snapshotErrors.Errors = append(snapshotErrors.Errors,
+			fmt.Errorf("alloc_runner snapshot doesn't include job and job not persisted seperately"))
+	} else if job.ID != "" {
+		r.jobPersisted = true
+		r.alloc.Job = &job
+	}
+
 	if e := snapshotErrors.ErrorOrNil(); e != nil {
 		return e
 	}
@@ -236,6 +262,20 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	// Create the snapshot.
 	alloc := r.Alloc()
 
+	// Strip the job as that is the largest part of the allocation and we want
+	// to avoid rewriting it many times
+	job := alloc.Job
+	alloc.Job = nil
+
+	// Persist the job only if it doesn't exist
+	if !r.jobPersisted {
+		if err := persistState(r.jobFilePath(), job); err != nil {
+			return err
+		}
+
+		r.jobPersisted = true
+	}
+
 	r.allocLock.Lock()
 	allocClientStatus := r.allocClientStatus
 	allocClientDescription := r.allocClientDescription
@@ -285,7 +325,16 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
+
+	// Clear the job before copying
+	job := r.alloc.Job
+	r.alloc.Job = nil
+
 	alloc := r.alloc.Copy()
+
+	// Restore
+	r.alloc.Job = job
+	alloc.Job = job
 
 	// The status has explicitly been set.
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {

@@ -4231,6 +4231,18 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	return h
 }()
 
+var (
+	// JsonHandle and JsonHandlePretty are the codec handles to JSON encode
+	// structs. The pretty handle will add indents for easier human consumption.
+	JsonHandle = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+	}
+	JsonHandlePretty = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+		Indent:        4,
+	}
+)
+
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
 	h := &hcodec.MsgpackHandle{RawToString: true}
 
