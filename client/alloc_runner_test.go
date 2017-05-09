@@ -522,7 +522,14 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
-		return len(ar.tasks) == 1, nil
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
+		}
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("task never started: %v", err)
 	})
@@ -534,9 +541,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
-	ar2 := NewAllocRunner(l2, origConfig, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient,
-		ar.consulClient)
+	ar2 := NewAllocRunner(l2, origConfig, ar.stateDB, upd.Update, &structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient, ar.consulClient)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -552,14 +557,14 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 			return false, nil
 		}
 
-		for _, ev := range ar2.alloc.TaskStates["web"].Events {
+		for _, ev := range ar2.taskStates["web"].Events {
 			if strings.HasSuffix(ev.RestartReason, pre06ScriptCheckReason) {
 				return true, nil
 			}
 		}
 		return false, fmt.Errorf("no restart with proper reason found")
 	}, func(err error) {
-		t.Fatalf("err: %v\nAllocs: %#v\nWeb State: %#v", err, upd.Allocs, ar2.alloc.TaskStates["web"])
+		t.Fatalf("err: %v\nAllocs: %#v\nWeb State: %#v", err, upd.Allocs, ar2.taskStates["web"])
 	})
 
 	// Destroy and wait
