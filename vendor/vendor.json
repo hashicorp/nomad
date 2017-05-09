@@ -25,10 +25,10 @@
 			"revisionTime": "2016-08-22T16:14:30Z"
 		},
 		{
-			"checksumSHA1": "A6wxSCZcKyTwZP9b7ErXPZE3Ijg=",
+			"checksumSHA1": "Rjy2uYZkQ8Kjht6ZFU0qzm2I/kI=",
 			"path": "github.com/Microsoft/go-winio",
-			"revision": "13736c32520969a64987228c21c138a4cfdb3720",
-			"revisionTime": "2017-05-03T19:50:31Z"
+			"revision": "d311c76e775b5092c023569caacdbb4e569c3243",
+			"revisionTime": "2017-05-08T21:01:43Z"
 		},
 		{
 			"checksumSHA1": "XeG94RjA9o/0wo9Fuw6NSRGYnjk=",
