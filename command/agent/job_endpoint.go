@@ -465,10 +465,13 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{
-			Stagger:     job.Update.Stagger,
-			MaxParallel: job.Update.MaxParallel,
+			Stagger: job.Update.Stagger,
+		}
+		if job.Update.MaxParallel != nil {
+			j.Update.MaxParallel = *job.Update.MaxParallel
 		}
 	}
 
@@ -530,6 +533,17 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
+	}
+
+	if taskGroup.Update != nil {
+		tg.Update = &structs.UpdateStrategy{
+			MaxParallel:     *taskGroup.Update.MaxParallel,
+			HealthCheck:     *taskGroup.Update.HealthCheck,
+			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
+			HealthyDeadline: *taskGroup.Update.HealthyDeadline,
+			AutoRevert:      *taskGroup.Update.AutoRevert,
+			Canary:          *taskGroup.Update.Canary,
+		}
 	}
 
 	if l := len(taskGroup.Tasks); l != 0 {

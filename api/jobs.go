@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -247,10 +248,109 @@ type periodicForceResponse struct {
 	EvalID string
 }
 
-// UpdateStrategy is for serializing update strategy for a job.
+// UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger     time.Duration
-	MaxParallel int `mapstructure:"max_parallel"`
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	Stagger         time.Duration  `mapstructure:"stagger"`
+	MaxParallel     *int           `mapstructure:"max_parallel"`
+	HealthCheck     *string        `mapstructure:"health_check"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+	AutoRevert      *bool          `mapstructure:"auto_revert"`
+	Canary          *int           `mapstructure:"canary"`
+}
+
+func (u *UpdateStrategy) Copy() *UpdateStrategy {
+	if u == nil {
+		return nil
+	}
+
+	copy := new(UpdateStrategy)
+
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	copy.Stagger = u.Stagger
+
+	if u.MaxParallel != nil {
+		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
+	}
+
+	if u.HealthCheck != nil {
+		copy.HealthCheck = helper.StringToPtr(*u.HealthCheck)
+	}
+
+	if u.MinHealthyTime != nil {
+		copy.MinHealthyTime = helper.TimeToPtr(*u.MinHealthyTime)
+	}
+
+	if u.HealthyDeadline != nil {
+		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+	}
+
+	if u.AutoRevert != nil {
+		copy.AutoRevert = helper.BoolToPtr(*u.AutoRevert)
+	}
+
+	if u.Canary != nil {
+		copy.Canary = helper.IntToPtr(*u.Canary)
+	}
+
+	return copy
+}
+
+func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
+	if o == nil {
+		return
+	}
+
+	if o.MaxParallel != nil {
+		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
+	}
+
+	if o.HealthCheck != nil {
+		u.HealthCheck = helper.StringToPtr(*o.HealthCheck)
+	}
+
+	if o.MinHealthyTime != nil {
+		u.MinHealthyTime = helper.TimeToPtr(*o.MinHealthyTime)
+	}
+
+	if o.HealthyDeadline != nil {
+		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
+	}
+
+	if o.AutoRevert != nil {
+		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
+	}
+
+	if o.Canary != nil {
+		u.Canary = helper.IntToPtr(*o.Canary)
+	}
+}
+
+func (u *UpdateStrategy) Canonicalize() {
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(0)
+	}
+
+	if u.HealthCheck == nil {
+		u.HealthCheck = helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks)
+	}
+
+	if u.HealthyDeadline == nil {
+		u.HealthyDeadline = helper.TimeToPtr(5 * time.Minute)
+	}
+
+	if u.MinHealthyTime == nil {
+		u.MinHealthyTime = helper.TimeToPtr(10 * time.Second)
+	}
+
+	if u.AutoRevert == nil {
+		u.AutoRevert = helper.BoolToPtr(false)
+	}
+
+	if u.Canary == nil {
+		u.Canary = helper.IntToPtr(0)
+	}
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -398,6 +498,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
+	}
+	if j.Update != nil {
+		j.Update.Canonicalize()
 	}
 
 	for _, tg := range j.TaskGroups {

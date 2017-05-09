@@ -46,8 +46,13 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:     60 * time.Second,
-					MaxParallel: 2,
+					Stagger:         60 * time.Second,
+					MaxParallel:     helper.IntToPtr(2),
+					HealthCheck:     helper.StringToPtr("manual"),
+					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:      helper.BoolToPtr(true),
+					Canary:          helper.IntToPtr(1),
 				},
 
 				TaskGroups: []*api.TaskGroup{
@@ -91,6 +96,14 @@ func TestParse(t *testing.T) {
 						EphemeralDisk: &api.EphemeralDisk{
 							Sticky: helper.BoolToPtr(true),
 							SizeMB: helper.IntToPtr(150),
+						},
+						Update: &api.UpdateStrategy{
+							MaxParallel:     helper.IntToPtr(3),
+							HealthCheck:     helper.StringToPtr("checks"),
+							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
+							AutoRevert:      helper.BoolToPtr(false),
+							Canary:          helper.IntToPtr(2),
 						},
 						Tasks: []*api.Task{
 							&api.Task{

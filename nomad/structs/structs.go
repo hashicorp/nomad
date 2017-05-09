@@ -1181,7 +1181,7 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
-	// Update is used to control the update strategy
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 	Update UpdateStrategy
 
 	// Periodic is used to define the interval the job is run at.
@@ -1586,15 +1586,92 @@ type TaskGroupSummary struct {
 	Lost     int
 }
 
+const (
+	// Checks uses any registered health check state in combination with task
+	// states to determine if a allocation is healthy.
+	UpdateStrategyHealthCheck_Checks = "checks"
+
+	// TaskStates uses the task states of an allocation to determine if the
+	// allocation is healthy.
+	UpdateStrategyHealthCheck_TaskStates = "task_states"
+
+	// Manual allows the operator to manually signal to Nomad when an
+	// allocations is healthy. This allows more advanced health checking that is
+	// outside of the scope of Nomad.
+	UpdateStrategyHealthCheck_Manual = "manual"
+)
+
 // UpdateStrategy is used to modify how updates are done
 type UpdateStrategy struct {
-	// Stagger is the amount of time between the updates
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
 	MaxParallel int
+
+	// HealthCheck specifies the mechanism in which allocations are marked
+	// healthy or unhealthy as part of a deployment.
+	HealthCheck string
+
+	// MinHealthyTime is the minimum time an allocation must be in the healthy
+	// state before it is marked as healthy, unblocking more alllocations to be
+	// rolled.
+	MinHealthyTime time.Duration
+
+	// HealthyDeadline is the time in which an allocation must be marked as
+	// healthy before it is automatically transistioned to unhealthy. This time
+	// period doesn't count against the MinHealthyTime.
+	HealthyDeadline time.Duration
+
+	// AutoRevert declares that if a deployment fails because of unhealthy
+	// allocations, there should be an attempt to auto-revert the job to a
+	// stable version.
+	AutoRevert bool
+
+	// Canary is the number of canaries to deploy when a change to the task
+	// group is detected.
+	Canary int
 }
 
+func (u *UpdateStrategy) Copy() *UpdateStrategy {
+	if u == nil {
+		return nil
+	}
+
+	copy := new(UpdateStrategy)
+	*copy = *u
+	return copy
+}
+
+func (u *UpdateStrategy) Validate() error {
+	if u == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+	switch u.HealthCheck {
+	case UpdateStrategyHealthCheck_Checks, UpdateStrategyHealthCheck_TaskStates, UpdateStrategyHealthCheck_Manual:
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
+	}
+
+	if u.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+	}
+	if u.Canary < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
+	}
+	if u.MinHealthyTime < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
+	}
+	if u.HealthyDeadline <= 0 {
+		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// TODO(alexdadgar): Remove once no longer used by the scheduler.
 // Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
@@ -1942,6 +2019,9 @@ type TaskGroup struct {
 	// be scheduled.
 	Count int
 
+	// Update is used to control the update strategy for this task group
+	Update *UpdateStrategy
+
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
 	Constraints []*Constraint
@@ -1966,8 +2046,8 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 	ntg := new(TaskGroup)
 	*ntg = *tg
+	ntg.Update = ntg.Update.Copy()
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
-
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 
 	if tg.Tasks != nil {
@@ -2055,6 +2135,23 @@ func (tg *TaskGroup) Validate() error {
 		}
 	} else {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
+	}
+
+	// Validate the update strategy
+	if u := tg.Update; u != nil {
+		if err := u.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		// Validate the counts are appropriate
+		if u.MaxParallel > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update max parallel count is greater than task group count: %d > %d", u.MaxParallel, tg.Count))
+		}
+		if u.Canary > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update canary count is greater than task group count: %d > %d", u.Canary, tg.Count))
+		}
 	}
 
 	// Check for duplicate tasks and that there is only leader task if any

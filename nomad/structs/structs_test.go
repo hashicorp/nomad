@@ -429,6 +429,14 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
+		Update: &UpdateStrategy{
+			MaxParallel:     3,
+			HealthCheck:     UpdateStrategyHealthCheck_Manual,
+			MinHealthyTime:  1 * time.Second,
+			HealthyDeadline: 1 * time.Second,
+			AutoRevert:      false,
+			Canary:          3,
+		},
 	}
 
 	err = tg.Validate()
@@ -436,16 +444,22 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[1].Error(), "max parallel count is greater") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
+	if !strings.Contains(mErr.Errors[2].Error(), "canary count is greater") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
+	if !strings.Contains(mErr.Errors[3].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[4].Error(), "Task 3 missing name") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[5].Error(), "Only one task may be marked as leader") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -829,6 +843,35 @@ func TestConstraint_Validate(t *testing.T) {
 	err = c.Validate()
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestUpdateStrategy_Validate(t *testing.T) {
+	u := &UpdateStrategy{
+		MaxParallel:     -1,
+		HealthCheck:     "foo",
+		MinHealthyTime:  -10,
+		HealthyDeadline: -10,
+		AutoRevert:      false,
+		Canary:          -1,
+	}
+
+	err := u.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Minimum healthy time may not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
 		t.Fatalf("err: %s", err)
 	}
 }
