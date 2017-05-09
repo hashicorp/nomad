@@ -1,16 +1,12 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"os"
-	"path/filepath"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 type allocTuple struct {
@@ -76,34 +72,6 @@ func shuffleStrings(list []string) {
 		j := rand.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
-}
-
-// persistState is used to help with saving state
-func persistState(path string, data interface{}) error {
-	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, structs.JsonHandlePretty)
-	if err := enc.Encode(data); err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
-	}
-	tmpPath := path + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, buf.Bytes(), 0600); err != nil {
-		return fmt.Errorf("failed to save state to tmp: %v", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("failed to rename tmp to path: %v", err)
-	}
-
-	// Sanity check since users have reported empty state files on disk
-	if stat, err := os.Stat(path); err != nil {
-		return fmt.Errorf("unable to stat state file %s: %v", path, err)
-	} else if stat.Size() == 0 {
-		return fmt.Errorf("persisted invalid state file %s; see https://github.com/hashicorp/nomad/issues/1367", path)
-	}
-	return nil
 }
 
 // pre060RestoreState is used to read back in the persisted state for pre v0.6.0

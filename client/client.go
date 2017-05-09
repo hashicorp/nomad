@@ -447,7 +447,7 @@ func (c *Client) Shutdown() error {
 	c.shutdown = true
 	close(c.shutdownCh)
 	c.connPool.Shutdown()
-	return c.saveState(true)
+	return c.saveState()
 }
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
@@ -663,6 +663,12 @@ func (c *Client) restoreState() error {
 			mErr.Errors = append(mErr.Errors, err)
 		} else {
 			go ar.Run()
+
+			if upgrading {
+				if err := ar.SaveState(); err != nil {
+					c.logger.Printf("[WARN] client: initial save state for alloc %s failed: %v", id, err)
+				}
+			}
 		}
 	}
 
@@ -676,10 +682,8 @@ func (c *Client) restoreState() error {
 	return mErr.ErrorOrNil()
 }
 
-// saveState is used to snapshot our state into the data dir. If blocking is set
-// to true, the function will only return once state has been saved. If false,
-// the errors will be logged and state saving will be asyncronous
-func (c *Client) saveState(blocking bool) error {
+// saveState is used to snapshot our state into the data dir.
+func (c *Client) saveState() error {
 	if c.config.DevMode {
 		return nil
 	}
@@ -703,12 +707,8 @@ func (c *Client) saveState(blocking bool) error {
 		}(id, ar)
 	}
 
-	if blocking {
-		wg.Wait()
-		return mErr.ErrorOrNil()
-	}
-
-	return nil
+	wg.Wait()
+	return mErr.ErrorOrNil()
 }
 
 // getAllocRunners returns a snapshot of the current set of alloc runners.
@@ -1062,7 +1062,7 @@ func (c *Client) periodicSnapshot() {
 		select {
 		case <-snapshot:
 			snapshot = time.After(stateSnapshotIntv)
-			if err := c.saveState(false); err != nil {
+			if err := c.saveState(); err != nil {
 				c.logger.Printf("[ERR] client: failed to save state: %v", err)
 			}
 

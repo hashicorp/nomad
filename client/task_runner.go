@@ -367,6 +367,7 @@ func (r *TaskRunner) RestoreState() error {
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
+	defer r.persistLock.Unlock()
 	snap := taskRunnerState{
 		Version:            r.config.Version,
 		ArtifactDownloaded: r.artifactsDownloaded,
@@ -384,7 +385,6 @@ func (r *TaskRunner) SaveState() error {
 	// If nothing has changed avoid the write
 	h := snap.Hash()
 	if bytes.Equal(h, r.persistedHash) {
-		r.persistLock.Unlock()
 		return nil
 	}
 
@@ -393,7 +393,6 @@ func (r *TaskRunner) SaveState() error {
 	if err := codec.NewEncoder(&buf, structs.MsgpackHandle).Encode(&snap); err != nil {
 		return fmt.Errorf("failed to serialize snapshot: %v", err)
 	}
-	r.persistLock.Unlock()
 
 	// Start the transaction.
 	return r.stateDB.Batch(func(tx *bolt.Tx) error {

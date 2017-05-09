@@ -163,12 +163,14 @@ func (r *AllocRunner) pre060StateFilePath() string {
 // RestoreState is used to restore the state of the alloc runner
 func (r *AllocRunner) RestoreState() error {
 
+	// COMPAT: Remove in 0.7.0
 	// Check if the old snapshot is there
 	oldPath := r.pre060StateFilePath()
 	var snap allocRunnerState
+	var upgrading bool
 	if err := pre060RestoreState(oldPath, &snap); err == nil {
 		// Restore fields
-		r.logger.Printf("[DEBUG] client: restoring pre v0.6.0 alloc runner state for alloc %q", r.alloc.ID)
+		r.logger.Printf("[INFO] client: restoring pre v0.6.0 alloc runner state for alloc %q", r.alloc.ID)
 		r.alloc = snap.Alloc
 		r.allocDir = snap.AllocDir
 		r.allocClientStatus = snap.AllocClientStatus
@@ -178,6 +180,7 @@ func (r *AllocRunner) RestoreState() error {
 			r.taskStates = snap.Alloc.TaskStates
 		}
 
+		// COMPAT: Remove in 0.7.0
 		// #2132 Upgrade path: if snap.AllocDir is nil, try to convert old
 		// Context struct to new AllocDir struct
 		if snap.AllocDir == nil && snap.Context != nil {
@@ -190,6 +193,7 @@ func (r *AllocRunner) RestoreState() error {
 
 		// Delete the old state
 		os.RemoveAll(oldPath)
+		upgrading = true
 	} else if !os.IsNotExist(err) {
 		// Something corrupt in the old state file
 		return err
@@ -222,6 +226,7 @@ func (r *AllocRunner) RestoreState() error {
 			r.allocClientStatus = mutable.AllocClientStatus
 			r.allocClientDescription = mutable.AllocClientDescription
 			r.taskStates = mutable.TaskStates
+			r.alloc.ClientStatus = getClientStatus(r.taskStates)
 			return nil
 		})
 
@@ -277,6 +282,12 @@ func (r *AllocRunner) RestoreState() error {
 		} else if !r.alloc.TerminalStatus() {
 			// Only start if the alloc isn't in a terminal status.
 			go tr.Run()
+
+			if upgrading {
+				if err := tr.SaveState(); err != nil {
+					r.logger.Printf("[WARN] client: initial save state for alloc %s task %s failed: %v", r.alloc.ID, name, err)
+				}
+			}
 		}
 	}
 
@@ -437,10 +448,19 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Unlock()
 
 	// Scan the task states to determine the status of the alloc
-	var pending, running, dead, failed bool
 	r.taskStatusLock.RLock()
 	alloc.TaskStates = copyTaskStates(r.taskStates)
-	for _, state := range r.taskStates {
+	alloc.ClientStatus = getClientStatus(r.taskStates)
+	r.taskStatusLock.RUnlock()
+
+	return alloc
+}
+
+// getClientStatus takes in the task states for a given allocation and computes
+// the client status
+func getClientStatus(taskStates map[string]*structs.TaskState) string {
+	var pending, running, dead, failed bool
+	for _, state := range taskStates {
 		switch state.State {
 		case structs.TaskStateRunning:
 			running = true
@@ -454,20 +474,19 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 			}
 		}
 	}
-	r.taskStatusLock.RUnlock()
 
 	// Determine the alloc status
 	if failed {
-		alloc.ClientStatus = structs.AllocClientStatusFailed
+		return structs.AllocClientStatusFailed
 	} else if running {
-		alloc.ClientStatus = structs.AllocClientStatusRunning
+		return structs.AllocClientStatusRunning
 	} else if pending {
-		alloc.ClientStatus = structs.AllocClientStatusPending
+		return structs.AllocClientStatusPending
 	} else if dead {
-		alloc.ClientStatus = structs.AllocClientStatusComplete
+		return structs.AllocClientStatusComplete
 	}
 
-	return alloc
+	return ""
 }
 
 // dirtySyncState is used to watch for state being marked dirty to sync
