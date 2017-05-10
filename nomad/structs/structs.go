@@ -1257,6 +1257,45 @@ func (j *Job) Canonicalize() {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
+
+	// COMPAT: Remove in 0.7.0
+	// Rewrite any job that has an update block with pre 0.6.0 syntax.
+	if j.Update.Stagger > 0 && j.Update.MaxParallel > 0 {
+		// Build an appropriate update block and copy it down to each task group
+		base := DefaultUpdateStrategy.Copy()
+		base.MaxParallel = j.Update.MaxParallel
+		base.MinHealthyTime = j.Update.Stagger
+
+		// Add to each task group, modifying as needed
+		l := len(j.TaskGroups)
+		for _, tg := range j.TaskGroups {
+			// The task group doesn't need upgrading if it has an update block with the new syntax
+			u := tg.Update
+			if u != nil && u.Stagger == 0 && u.MaxParallel > 0 &&
+				u.HealthCheck != "" && u.MinHealthyTime > 0 && u.HealthyDeadline > 0 {
+				continue
+			}
+
+			// The MaxParallel for the job should be 10% of the total count
+			// unless there is just one task group then we can infer the old
+			// max parallel should be the new
+			tgu := base.Copy()
+			if l != 1 {
+				// RoundTo 10%
+				var percent float64 = float64(tg.Count) * 0.1
+				tgu.MaxParallel = int(percent + 0.5)
+			}
+
+			// Safety guards
+			if tgu.MaxParallel == 0 {
+				tgu.MaxParallel = 1
+			} else if tgu.MaxParallel > tg.Count {
+				tgu.MaxParallel = tg.Count
+			}
+
+			tg.Update = tgu
+		}
+	}
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -1624,6 +1663,19 @@ const (
 	// allocations is healthy. This allows more advanced health checking that is
 	// outside of the scope of Nomad.
 	UpdateStrategyHealthCheck_Manual = "manual"
+)
+
+var (
+	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
+	// jobs with the old policy
+	DefaultUpdateStrategy = &UpdateStrategy{
+		MaxParallel:     0,
+		HealthCheck:     UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+		AutoRevert:      false,
+		Canary:          0,
+	}
 )
 
 // UpdateStrategy is used to modify how updates are done

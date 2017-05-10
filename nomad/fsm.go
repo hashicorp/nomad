@@ -247,11 +247,13 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT: Remove in 0.6
-	// Empty maps and slices should be treated as nil to avoid
-	// un-intended destructive updates in scheduler since we use
-	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
-	// the incoming job.
+	/* Handle upgrade paths:
+	 * - Empty maps and slices should be treated as nil to avoid
+	 *   un-intended destructive updates in scheduler since we use
+	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	 *   the incoming job.
+	 * - Migrate from old style upgrade stanza that used only a stagger.
+	 */
 	req.Job.Canonicalize()
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
@@ -615,11 +617,13 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
-			// COMPAT: Remove in 0.5
-			// Empty maps and slices should be treated as nil to avoid
-			// un-intended destructive updates in scheduler since we use
-			// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
-			// the incoming job.
+			/* Handle upgrade paths:
+			 * - Empty maps and slices should be treated as nil to avoid
+			 *   un-intended destructive updates in scheduler since we use
+			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			 *   the incoming job.
+			 * - Migrate from old style upgrade stanza that used only a stagger.
+			 */
 			job.Canonicalize()
 
 			if err := restore.JobRestore(job); err != nil {

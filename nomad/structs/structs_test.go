@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/kr/pretty"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -129,6 +130,166 @@ func TestJob_Warnings(t *testing.T) {
 				if !strings.Contains(a, e) {
 					t.Fatalf("Got warnings %q; didn't contain %q", a, e)
 				}
+			}
+		})
+	}
+}
+
+func TestJob_Canonicalize_Update(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Job      *Job
+		Expected *Job
+	}{
+		{
+			Name: "One task group",
+			Job: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							MaxParallel:     2,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "One task group; too high of parallelism",
+			Job: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 200,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 200,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							MaxParallel:     2,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Multiple task group; rounding",
+			Job: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+					{
+						Name:  "bar",
+						Count: 14,
+					},
+					{
+						Name:  "foo",
+						Count: 26,
+					},
+				},
+			},
+			Expected: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							MaxParallel:     1,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+					{
+						Name:          "bar",
+						Count:         14,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							MaxParallel:     1,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+					{
+						Name:          "foo",
+						Count:         26,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							MaxParallel:     3,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			c.Job.Canonicalize()
+			if !reflect.DeepEqual(c.Job, c.Expected) {
+				t.Fatalf("Got %# v; want %# v", pretty.Formatter(c.Job), pretty.Formatter(c.Expected))
 			}
 		})
 	}
