@@ -484,6 +484,11 @@ type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+
 	QueryMeta
 }
 
@@ -506,6 +511,10 @@ type JobValidateResponse struct {
 
 	// Error is a string version of any error that may have occured
 	Error string
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 // NodeUpdateResponse is used to respond to a node update
@@ -619,6 +628,10 @@ type JobPlanResponse struct {
 	// NextPeriodicLaunch is the time duration till the job would be launched if
 	// submitted.
 	NextPeriodicLaunch time.Time
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 
 	WriteMeta
 }
@@ -1352,6 +1365,18 @@ func (j *Job) Validate() error {
 		if err := j.ParameterizedJob.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (j *Job) Warnings() error {
+	var mErr multierror.Error
+
+	if j.Update.Stagger > 0 {
+		multierror.Append(&mErr, fmt.Errorf("Update stagger deprecated. A best effort conversion to new syntax will be applied. Please update upgrade stanza before v0.7.0"))
 	}
 
 	return mErr.ErrorOrNil()

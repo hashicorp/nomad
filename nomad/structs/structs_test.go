@@ -95,6 +95,45 @@ func TestJob_Validate(t *testing.T) {
 	}
 }
 
+func TestJob_Warnings(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Job      *Job
+		Expected []string
+	}{
+		{
+			Name: "Old Update spec",
+			Job: &Job{
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+			},
+			Expected: []string{"Update stagger deprecated"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			warnings := c.Job.Warnings()
+			if warnings == nil {
+				if len(c.Expected) == 0 {
+					return
+				} else {
+					t.Fatal("Got no warnings when they were expected")
+				}
+			}
+
+			a := warnings.Error()
+			for _, e := range c.Expected {
+				if !strings.Contains(a, e) {
+					t.Fatalf("Got warnings %q; didn't contain %q", a, e)
+				}
+			}
+		})
+	}
+}
+
 func testJob() *Job {
 	return &Job{
 		Region:      "global",

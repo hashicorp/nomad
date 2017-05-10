@@ -51,20 +51,20 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // Register is used to register a new job. It returns the ID
 // of the evaluation, along with any errors encountered.
-func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) Register(job *Job, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{Job: job}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // EnforceRegister is used to register a job enforcing its job modify index.
-func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 
@@ -75,9 +75,9 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (s
 	}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // List is used to list all of the existing jobs.
@@ -659,6 +659,10 @@ type JobValidateResponse struct {
 
 	// Error is a string version of any error that may have occured
 	Error string
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 // JobRevertRequest is used to revert a job to a prior version.
@@ -700,6 +704,11 @@ type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+
 	QueryMeta
 }
 
@@ -724,6 +733,10 @@ type JobPlanResponse struct {
 	Annotations        *PlanAnnotations
 	FailedTGAllocs     map[string]*AllocationMetric
 	NextPeriodicLaunch time.Time
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 type JobDiff struct {

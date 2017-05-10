@@ -61,9 +61,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
 
-	// Validate the job.
-	if err := validateJob(args.Job); err != nil {
+	// Validate the job and capture any warnings
+	err, warnings := validateJob(args.Job)
+	if err != nil {
 		return err
+	} else if warnings != nil {
+		reply.Warnings = warnings.Error()
 	}
 
 	if args.EnforceIndex {
@@ -289,7 +292,8 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
-	if err := validateJob(args.Job); err != nil {
+	err, warnings := validateJob(args.Job)
+	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, err := range merr.Errors {
 				reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
@@ -299,6 +303,10 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 			reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
 			reply.Error = err.Error()
 		}
+	}
+
+	if warnings != nil {
+		reply.Warnings = warnings.Error()
 	}
 
 	reply.DriverConfigValidated = true
@@ -723,9 +731,12 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
 
-	// Validate the job.
-	if err := validateJob(args.Job); err != nil {
+	// Validate the job and capture any warnings
+	err, warnings := validateJob(args.Job)
+	if err != nil {
 		return err
+	} else if warnings != nil {
+		reply.Warnings = warnings.Error()
 	}
 
 	// Acquire a snapshot of the state
@@ -818,11 +829,14 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 // validateJob validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-func validateJob(job *structs.Job) error {
+func validateJob(job *structs.Job) (invalid, warnings error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
 	}
+
+	// Get any warnings
+	warnings = job.Warnings()
 
 	// Get the signals required
 	signals := job.RequiredSignals()
@@ -873,7 +887,7 @@ func validateJob(job *structs.Job) error {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
 	}
 
-	return validationErrors.ErrorOrNil()
+	return validationErrors.ErrorOrNil(), warnings
 }
 
 // Dispatch a parameterized job.

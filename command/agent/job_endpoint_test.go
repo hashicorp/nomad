@@ -708,16 +708,16 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 func TestHTTP_JobPlan(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobPlanRequest{
+		job := api.MockJob()
+		args := api.JobPlanRequest{
 			Job:          job,
 			Diff:         true,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/plan", buf)
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

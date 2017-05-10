@@ -87,6 +87,12 @@ func (c *ValidateCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Print any warnings if there are any
+	if jr.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", jr.Warnings)))
+	}
+
 	// Done!
 	c.Ui.Output(
 		c.Colorize().Color("[bold][green]Job validation successful[reset]"))
@@ -110,6 +116,10 @@ func (c *ValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, 
 			out.ValidationErrors = append(out.ValidationErrors, vErr.Error())
 			out.Error = vErr.Error()
 		}
+	}
+
+	if warnings := job.Warnings(); warnings != nil {
+		out.Warnings = warnings.Error()
 	}
 
 	return &out, nil
