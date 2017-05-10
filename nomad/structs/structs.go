@@ -1667,7 +1667,7 @@ const (
 
 var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
-	// jobs with the old policy
+	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
 		MaxParallel:     0,
 		HealthCheck:     UpdateStrategyHealthCheck_Checks,

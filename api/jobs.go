@@ -332,24 +332,26 @@ func (u *UpdateStrategy) Canonicalize() {
 		u.MaxParallel = helper.IntToPtr(0)
 	}
 
+	d := structs.DefaultUpdateStrategy
+
 	if u.HealthCheck == nil {
-		u.HealthCheck = helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks)
+		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
 	}
 
 	if u.HealthyDeadline == nil {
-		u.HealthyDeadline = helper.TimeToPtr(5 * time.Minute)
+		u.HealthyDeadline = helper.TimeToPtr(d.HealthyDeadline)
 	}
 
 	if u.MinHealthyTime == nil {
-		u.MinHealthyTime = helper.TimeToPtr(10 * time.Second)
+		u.MinHealthyTime = helper.TimeToPtr(d.MinHealthyTime)
 	}
 
 	if u.AutoRevert == nil {
-		u.AutoRevert = helper.BoolToPtr(false)
+		u.AutoRevert = helper.BoolToPtr(d.AutoRevert)
 	}
 
 	if u.Canary == nil {
-		u.Canary = helper.IntToPtr(0)
+		u.Canary = helper.IntToPtr(d.Canary)
 	}
 }
 
