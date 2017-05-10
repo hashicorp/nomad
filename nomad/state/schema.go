@@ -238,27 +238,14 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
-			// Job index is used to lookup deployments by job and the deployment
-			// status
+			// Job index is used to lookup deployments by job
 			"job": &memdb.IndexSchema{
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
-
-				// Use a compound index so that the scheduler can quickly get
-				// any paused/deploying deployment
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field:     "JobID",
-							Lowercase: true,
-						},
-
-						&memdb.StringFieldIndex{
-							Field:     "Status",
-							Lowercase: true,
-						},
-					},
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "JobID",
+					Lowercase: true,
 				},
 			},
 		},

@@ -3511,7 +3511,7 @@ func (d *Deployment) Copy() *Deployment {
 	*c = *d
 
 	c.TaskGroups = nil
-	if l := len(d.TaskGroups); l != 0 {
+	if l := len(d.TaskGroups); d.TaskGroups != nil {
 		c.TaskGroups = make(map[string]*DeploymentState, l)
 		for tg, s := range d.TaskGroups {
 			c.TaskGroups[tg] = s.Copy()
