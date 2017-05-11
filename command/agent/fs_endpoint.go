@@ -637,7 +637,7 @@ OUTER:
 		}
 
 		// Send the frame
-		if n != 0 {
+		if n != 0 || lastEvent != "" {
 			if err := framer.Send(path, lastEvent, data[:n], offset); err != nil {
 				return parseFramerErr(err)
 			}
