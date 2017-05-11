@@ -347,7 +347,7 @@ func (c *Client) init() error {
 	// Create or open the state database
 	db, err := bolt.Open(filepath.Join(c.config.StateDir, "state.db"), 0600, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create state database", err)
+		return fmt.Errorf("failed to create state database: %v", err)
 	}
 	c.stateDB = db
 
