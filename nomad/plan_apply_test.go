@@ -70,7 +70,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Register alloc
 	alloc := mock.Alloc()
 	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
-	plan := &structs.PlanResult{
+	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc},
 		},
@@ -82,8 +82,14 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Create the plan with a deployment
+	plan := &structs.Plan{
+		Job:               alloc.Job,
+		CreatedDeployment: mock.Deployment(),
+	}
+
 	// Apply the plan
-	future, err := s1.applyPlan(alloc.Job, plan, snap)
+	future, err := s1.applyPlan(plan, planRes, snap)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -91,6 +97,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
 	if out, err := snap.AllocByID(ws, alloc.ID); err != nil || out == nil {
+		t.Fatalf("bad: %v %v", out, err)
+	}
+
+	if out, err := snap.DeploymentByID(ws, plan.CreatedDeployment.ID); err != nil || out == nil {
 		t.Fatalf("bad: %v %v", out, err)
 	}
 
@@ -104,12 +114,22 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the allocation
-	out, err := s1.fsm.State().AllocByID(ws, alloc.ID)
+	fsmState := s1.fsm.State()
+	out, err := fsmState.AllocByID(ws, alloc.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if out == nil {
 		t.Fatalf("missing alloc")
+	}
+
+	// Lookup the deployment
+	dout, err := fsmState.DeploymentByID(ws, plan.CreatedDeployment.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if dout == nil {
+		t.Fatalf("missing deployment")
 	}
 
 	// Evict alloc, Register alloc2
@@ -120,7 +140,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
 	s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID))
-	plan = &structs.PlanResult{
+	planRes = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{allocEvict},
 		},
@@ -136,7 +156,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Apply the plan
-	future, err = s1.applyPlan(job, plan, snap)
+	plan = &structs.Plan{
+		Job: job,
+	}
+	future, err = s1.applyPlan(plan, planRes, snap)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
