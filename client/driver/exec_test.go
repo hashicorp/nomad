@@ -341,7 +341,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		t.Errorf("Expected NOMAD_SECRETS_DIR=/secrets but found=%t value=%q", ok, v)
 	}
 	if v, ok := scriptEnv["NOMAD_ALLOC_ID"]; !ok || v != ctx.DriverCtx.allocID {
-		t.Errorf("Expected NOMAD_SECRETS_DIR=%q but found=%t value=%q", ok, v)
+		t.Errorf("Expected NOMAD_SECRETS_DIR=%q but found=%t value=%q", ctx.DriverCtx.allocID, ok, v)
 	}
 
 	// Assert cgroup membership

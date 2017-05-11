@@ -1,9 +1,6 @@
 package client
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -73,44 +70,5 @@ func TestShuffleStrings(t *testing.T) {
 	// Ensure order is not the same
 	if reflect.DeepEqual(inp, orig) {
 		t.Fatalf("shuffle failed")
-	}
-}
-
-func TestPersistRestoreState(t *testing.T) {
-	t.Parallel()
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
-
-	// Use a state path inside a non-existent directory. This
-	// verifies that the directory is created properly.
-	statePath := filepath.Join(dir, "subdir", "test-persist")
-
-	type stateTest struct {
-		Foo int
-		Bar string
-		Baz bool
-	}
-	state := stateTest{
-		Foo: 42,
-		Bar: "the quick brown fox",
-		Baz: true,
-	}
-
-	err = persistState(statePath, &state)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	var out stateTest
-	err = restoreState(statePath, &out)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(state, out) {
-		t.Fatalf("bad: %#v %#v", state, out)
 	}
 }

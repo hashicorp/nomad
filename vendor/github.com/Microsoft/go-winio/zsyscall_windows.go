@@ -52,6 +52,8 @@ var (
 	procWaitNamedPipeW                                       = modkernel32.NewProc("WaitNamedPipeW")
 	procGetNamedPipeInfo                                     = modkernel32.NewProc("GetNamedPipeInfo")
 	procGetNamedPipeHandleStateW                             = modkernel32.NewProc("GetNamedPipeHandleStateW")
+	procLocalAlloc                                           = modkernel32.NewProc("LocalAlloc")
+	procRtlCopyMemory                                        = modkernel32.NewProc("RtlCopyMemory")
 	procLookupAccountNameW                                   = modadvapi32.NewProc("LookupAccountNameW")
 	procConvertSidToStringSidW                               = modadvapi32.NewProc("ConvertSidToStringSidW")
 	procConvertStringSecurityDescriptorToSecurityDescriptorW = modadvapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
@@ -225,6 +227,17 @@ func getNamedPipeHandleState(pipe syscall.Handle, state *uint32, curInstances *u
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func localAlloc(uFlags uint32, length uint32) (ptr uintptr) {
+	r0, _, _ := syscall.Syscall(procLocalAlloc.Addr(), 2, uintptr(uFlags), uintptr(length), 0)
+	ptr = uintptr(r0)
+	return
+}
+
+func copyMemory(dst uintptr, src uintptr, length uint32) {
+	syscall.Syscall(procRtlCopyMemory.Addr(), 3, uintptr(dst), uintptr(src), uintptr(length))
 	return
 }
 

@@ -1,16 +1,19 @@
 ## 0.6.0 (Unreleased)
 
 IMPROVEMENTS:
+ * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
  * core: Back-pressure when evaluations are nacked and ensure scheduling
    progress on evaluation failures [GH-2555]
- * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
  * api: Add `verify_https_client` to require certificates from HTTP clients
    [GH-2587]
  * api/job: Ability to revert job to older versions [GH-2575]
+ * client: Environment variables for client DC and Region [GH-2507]
+ * client: Hash host ID so its stable and well distributed [GH-2541]
+ * client: Persist state using bolt-db and more efficient write patterns
+   [GH-2610]
  * client: Fingerprint all routable addresses on an interface including IPv6
    addresses [GH-2536]
- * client: Hash host ID so its stable and well distributed [GH-2541]
- * client: Environment variables for client DC and Region [GH-2507]
+ * config: Support Unix socket addresses for Consul [GH-2622]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]

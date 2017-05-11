@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
 	"github.com/ugorji/go/codec"
 )
@@ -290,7 +291,7 @@ func NewStreamFramer(out io.WriteCloser, plainTxt bool,
 	heartbeatRate, batchWindow time.Duration, frameSize int) *StreamFramer {
 
 	// Create a JSON encoder
-	enc := codec.NewEncoder(out, jsonHandle)
+	enc := codec.NewEncoder(out, structs.JsonHandle)
 
 	// Create the heartbeat and flush ticker
 	heartbeat := time.NewTicker(heartbeatRate)
@@ -636,7 +637,7 @@ OUTER:
 		}
 
 		// Send the frame
-		if n != 0 {
+		if n != 0 || lastEvent != "" {
 			if err := framer.Send(path, lastEvent, data[:n], offset); err != nil {
 				return parseFramerErr(err)
 			}

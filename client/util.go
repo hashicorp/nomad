@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"os"
-	"path/filepath"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -76,40 +74,12 @@ func shuffleStrings(list []string) {
 	}
 }
 
-// persistState is used to help with saving state
-func persistState(path string, data interface{}) error {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to encode state: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
-	}
-	tmpPath := path + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, buf, 0600); err != nil {
-		return fmt.Errorf("failed to save state to tmp: %v", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("failed to rename tmp to path: %v", err)
-	}
-
-	// Sanity check since users have reported empty state files on disk
-	if stat, err := os.Stat(path); err != nil {
-		return fmt.Errorf("unable to stat state file %s: %v", path, err)
-	} else if stat.Size() == 0 {
-		return fmt.Errorf("persisted invalid state file %s; see https://github.com/hashicorp/nomad/issues/1367", path)
-	}
-	return nil
-}
-
-// restoreState is used to read back in the persisted state
-func restoreState(path string, data interface{}) error {
+// pre060RestoreState is used to read back in the persisted state for pre v0.6.0
+// state
+func pre060RestoreState(path string, data interface{}) error {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to read state: %v", err)
+		return err
 	}
 	if err := json.Unmarshal(buf, data); err != nil {
 		return fmt.Errorf("failed to decode state: %v", err)

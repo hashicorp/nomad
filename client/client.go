@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
@@ -98,6 +99,9 @@ type ClientStatsReporter interface {
 type Client struct {
 	config *config.Config
 	start  time.Time
+
+	// stateDB is used to efficiently store client state.
+	stateDB *bolt.DB
 
 	// configCopy is a copy that should be passed to alloc-runners.
 	configCopy *config.Config
@@ -340,6 +344,13 @@ func (c *Client) init() error {
 	}
 	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 
+	// Create or open the state database
+	db, err := bolt.Open(filepath.Join(c.config.StateDir, "state.db"), 0600, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create state database: %v", err)
+	}
+	c.stateDB = db
+
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {
 		if err := os.MkdirAll(c.config.AllocDir, 0755); err != nil {
@@ -409,6 +420,13 @@ func (c *Client) Shutdown() error {
 	if c.shutdown {
 		return nil
 	}
+
+	// Defer closing the database
+	defer func() {
+		if err := c.stateDB.Close(); err != nil {
+			c.logger.Printf("[ERR] client: failed to close state database on shutdown: %v", err)
+		}
+	}()
 
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
@@ -590,49 +608,106 @@ func (c *Client) restoreState() error {
 		return nil
 	}
 
+	// COMPAT: Remove in 0.7.0
+	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// The upgrade path is to:
+	// Check if old state exists
+	//   If so, restore from that and delete old state
+	// Restore using state database
+
+	// Allocs holds the IDs of the allocations being restored
+	var allocs []string
+
+	// Upgrading tracks whether this is a pre 0.6.0 upgrade path
+	var upgrading bool
+
 	// Scan the directory
-	list, err := ioutil.ReadDir(filepath.Join(c.config.StateDir, "alloc"))
-	if err != nil && os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
+	allocDir := filepath.Join(c.config.StateDir, "alloc")
+	list, err := ioutil.ReadDir(allocDir)
+	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to list alloc state: %v", err)
+	} else if err == nil && len(list) != 0 {
+		upgrading = true
+		for _, entry := range list {
+			allocs = append(allocs, entry.Name())
+		}
+	} else {
+		// Normal path
+		err := c.stateDB.View(func(tx *bolt.Tx) error {
+			allocs, err = getAllAllocationIDs(tx)
+			if err != nil {
+				return fmt.Errorf("failed to list allocations: %v", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// Load each alloc back
 	var mErr multierror.Error
-	for _, entry := range list {
-		id := entry.Name()
+	for _, id := range allocs {
 		alloc := &structs.Allocation{ID: id}
+
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 		c.configLock.RUnlock()
+
 		c.allocLock.Lock()
 		c.allocs[id] = ar
 		c.allocLock.Unlock()
+
 		if err := ar.RestoreState(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else {
 			go ar.Run()
+
+			if upgrading {
+				if err := ar.SaveState(); err != nil {
+					c.logger.Printf("[WARN] client: initial save state for alloc %s failed: %v", id, err)
+				}
+			}
 		}
 	}
+
+	// Delete all the entries
+	if upgrading {
+		if err := os.RemoveAll(allocDir); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
-// saveState is used to snapshot our state into the data dir
+// saveState is used to snapshot our state into the data dir.
 func (c *Client) saveState() error {
 	if c.config.DevMode {
 		return nil
 	}
 
+	var wg sync.WaitGroup
+	var l sync.Mutex
 	var mErr multierror.Error
-	for id, ar := range c.getAllocRunners() {
-		if err := ar.SaveState(); err != nil {
-			c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v",
-				id, err)
-			mErr.Errors = append(mErr.Errors, err)
-		}
+	runners := c.getAllocRunners()
+	wg.Add(len(runners))
+
+	for id, ar := range runners {
+		go func(id string, ar *AllocRunner) {
+			err := ar.SaveState()
+			if err != nil {
+				c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v", id, err)
+				l.Lock()
+				multierror.Append(&mErr, err)
+				l.Unlock()
+			}
+			wg.Done()
+		}(id, ar)
 	}
+
+	wg.Wait()
 	return mErr.ErrorOrNil()
 }
 
@@ -1466,8 +1541,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Remove the old allocations
 	for _, remove := range diff.removed {
 		if err := c.removeAlloc(remove); err != nil {
-			c.logger.Printf("[ERR] client: failed to remove alloc '%s': %v",
-				remove.ID, err)
+			c.logger.Printf("[ERR] client: failed to remove alloc '%s': %v", remove.ID, err)
 		}
 	}
 
@@ -1541,11 +1615,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
 		}
-	}
-
-	// Persist our state
-	if err := c.saveState(); err != nil {
-		c.logger.Printf("[ERR] client: failed to save state: %v", err)
 	}
 }
 
@@ -1892,9 +1961,14 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
+
+	if err := ar.SaveState(); err != nil {
+		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
+	}
+
 	go ar.Run()
 
 	// Store the alloc runner.

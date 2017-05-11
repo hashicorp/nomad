@@ -53,6 +53,7 @@ const (
 	ReconcileJobSummariesRequestType
 	VaultAccessorRegisterRequestType
 	VaultAccessorDegisterRequestType
+	ApplyPlanResultsRequestType
 )
 
 const (
@@ -358,6 +359,24 @@ type EvalListRequest struct {
 type PlanRequest struct {
 	Plan *Plan
 	WriteRequest
+}
+
+// ApplyPlanResultsRequest is used by the planner to apply a Raft transaction
+// committing the result of a plan.
+type ApplyPlanResultsRequest struct {
+	// AllocUpdateRequest holds the allocation updates to be made by the
+	// scheduler.
+	AllocUpdateRequest
+
+	// CreatedDeployment is the deployment created as a result of a scheduling
+	// event. Any existing deployment should be cancelled when the new
+	// deployment is created.
+	CreatedDeployment *Deployment
+
+	// DeploymentUpdates is a set of status updates to apply to the given
+	// deployments. This allows the scheduler to cancel any unneeded deployment
+	// because the job is stopped or the update block is removed.
+	DeploymentUpdates []*DeploymentStatusUpdate
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -3623,6 +3642,124 @@ func (v *Vault) Validate() error {
 }
 
 const (
+	// DeploymentStatuses are the various states a deployment can be be in
+	DeploymentStatusRunning    = "running"
+	DeploymentStatusFailed     = "failed"
+	DeploymentStatusSuccessful = "successful"
+	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusPaused     = "paused"
+)
+
+// Deployment is the object that represents a job deployment which is used to
+// transistion a job between versions.
+type Deployment struct {
+	// ID is a generated UUID for the deployment
+	ID string
+
+	// JobID is the job the deployment is created for
+	JobID string
+
+	// JobVersion is the version of the job at which the deployment is tracking
+	JobVersion uint64
+
+	// JobModifyIndex is the modify index of the job at which the deployment is tracking
+	JobModifyIndex uint64
+
+	// JobCreateIndex is the create index of the job which the deployment is
+	// tracking. It is needed so that if the job gets stopped and reran we can
+	// present the correct list of deployments for the job and not old ones.
+	JobCreateIndex uint64
+
+	// TaskGroups is the set of task groups effected by the deployment and their
+	// current deployment status.
+	TaskGroups map[string]*DeploymentState
+
+	// The status of the deployment
+	Status string
+
+	// StatusDescription allows a human readable description of the deployment
+	// status.
+	StatusDescription string
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (d *Deployment) Copy() *Deployment {
+	c := &Deployment{}
+	*c = *d
+
+	c.TaskGroups = nil
+	if l := len(d.TaskGroups); d.TaskGroups != nil {
+		c.TaskGroups = make(map[string]*DeploymentState, l)
+		for tg, s := range d.TaskGroups {
+			c.TaskGroups[tg] = s.Copy()
+		}
+	}
+
+	return c
+}
+
+// Active returns whether the deployment is active or terminal.
+func (d *Deployment) Active() bool {
+	switch d.Status {
+	case DeploymentStatusRunning, DeploymentStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
+
+// DeploymentState tracks the state of a deployment for a given task group.
+type DeploymentState struct {
+	// Promoted marks whether the canaries have been. Promotion by
+	// task group is not allowed since that doesn’t allow a single
+	// job to transition into the “stable” state.
+	Promoted bool
+
+	// RequiresPromotion marks whether the deployment is expecting
+	// a promotion. This is computable by checking if the job has canaries
+	// specified, but is stored in the deployment to make it so that consumers
+	// do not need to query job history and deployments to know whether a
+	// promotion is needed.
+	RequiresPromotion bool
+
+	// DesiredCanaries is the number of canaries that should be created.
+	DesiredCanaries int
+
+	// DesiredTotal is the total number of allocations that should be created as
+	// part of the deployment.
+	DesiredTotal int
+
+	// PlacedAllocs is the number of allocations that have been placed
+	PlacedAllocs int
+
+	// HealthyAllocs is the number of allocations that have been marked healthy.
+	HealthyAllocs int
+
+	// UnhealthyAllocs are allocations that have been marked as unhealthy.
+	UnhealthyAllocs int
+}
+
+func (d *DeploymentState) Copy() *DeploymentState {
+	c := &DeploymentState{}
+	*c = *d
+	return c
+}
+
+// DeploymentStatusUpdate is used to update the status of a given deployment
+type DeploymentStatusUpdate struct {
+	// DeploymentID is the ID of the deployment to update
+	DeploymentID string
+
+	// Status is the new status of the deployment.
+	Status string
+
+	// StatusDescription is the new status description of the deployment.
+	StatusDescription string
+}
+
+const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
 	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
@@ -3692,6 +3829,17 @@ type Allocation struct {
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
+	// DeploymentID identifies an allocation as being created from a
+	// particular deployment
+	DeploymentID string
+
+	// DeploymentStatus captures the status of the allocation as part of the
+	// given deployment
+	DeploymentStatus *AllocDeploymentStatus
+
+	// Canary marks this allocation as being a canary
+	Canary bool
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -3725,6 +3873,7 @@ func (a *Allocation) Copy() *Allocation {
 	}
 
 	na.Metrics = na.Metrics.Copy()
+	na.DeploymentStatus = na.DeploymentStatus.Copy()
 
 	if a.TaskStates != nil {
 		ts := make(map[string]*TaskState, len(na.TaskStates))
@@ -3965,6 +4114,30 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 	}
 	key := fmt.Sprintf("%s.%s", node.ID, name)
 	a.Scores[key] = score
+}
+
+// AllocDeploymentStatus captures the status of the allocation as part of the
+// deployment. This can include things like if the allocation has been marked as
+// heatlhy.
+type AllocDeploymentStatus struct {
+	// Healthy marks whether the allocation has been marked healthy or unhealthy
+	// as part of a deployment. It can be unset if it has neither been marked
+	// healthy or unhealthy.
+	Healthy *bool
+}
+
+func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
+	if a == nil {
+		return nil
+	}
+
+	c := new(AllocDeploymentStatus)
+
+	if a.Healthy != nil {
+		c.Healthy = helper.BoolToPtr(*a.Healthy)
+	}
+
+	return c
 }
 
 const (
@@ -4282,6 +4455,17 @@ type Plan struct {
 	// Annotations contains annotations by the scheduler to be used by operators
 	// to understand the decisions made by the scheduler.
 	Annotations *PlanAnnotations
+
+	// CreatedDeployment is the deployment created by the scheduler that should
+	// be applied by the planner. A created deployment will cancel all other
+	// deployments for a given job as there can only be a single running
+	// deployment.
+	CreatedDeployment *Deployment
+
+	// DeploymentUpdates is a set of status updates to apply to the given
+	// deployments. This allows the scheduler to cancel any unneeded deployment
+	// because the job is stopped or the update block is removed.
+	DeploymentUpdates []*DeploymentStatusUpdate
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
@@ -4404,6 +4588,18 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	return h
 }()
+
+var (
+	// JsonHandle and JsonHandlePretty are the codec handles to JSON encode
+	// structs. The pretty handle will add indents for easier human consumption.
+	JsonHandle = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+	}
+	JsonHandlePretty = &codec.JsonHandle{
+		HTMLCharsAsIs: true,
+		Indent:        4,
+	}
+)
 
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
 	h := &hcodec.MsgpackHandle{RawToString: true}

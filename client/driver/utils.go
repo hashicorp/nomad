@@ -90,10 +90,10 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}
 	// 0.6 Upgrade path: Deregister services from the executor as the Nomad
-	// client agent now handles all Consul interactions.
-	if err := executorPlugin.DeregisterServices(); err != nil {
-		return nil, nil, err
-	}
+	// client agent now handles all Consul interactions. Ignore errors as
+	// this shouldn't cause the alloc to fail and there's nothing useful to
+	// do with them.
+	executorPlugin.DeregisterServices()
 	return executorPlugin, executorClient, nil
 }
 

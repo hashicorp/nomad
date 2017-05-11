@@ -121,7 +121,10 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	harness.taskDir = d
 
 	if consul {
-		harness.consul = ctestutil.NewTestServer(t)
+		harness.consul, err = ctestutil.NewTestServer()
+		if err != nil {
+			t.Fatalf("error starting test Consul server: %v", err)
+		}
 		harness.config.ConsulConfig = &sconfig.ConsulConfig{
 			Addr: harness.consul.HTTPAddr,
 		}
@@ -445,7 +448,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key, []byte(content))
+	harness.consul.SetKV(t, key, []byte(content))
 
 	// Wait for the unblock
 	select {
@@ -563,7 +566,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(consulKey, []byte(consulContent))
+	harness.consul.SetKV(t, consulKey, []byte(consulContent))
 
 	// Wait for the unblock
 	select {
@@ -612,7 +615,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key, []byte(content1))
+	harness.consul.SetKV(t, key, []byte(content1))
 
 	// Wait for the unblock
 	select {
@@ -633,7 +636,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Update the key in Consul
-	harness.consul.SetKV(key, []byte(content2))
+	harness.consul.SetKV(t, key, []byte(content2))
 
 	select {
 	case <-harness.mockHooks.RestartCh:
@@ -697,8 +700,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1_1))
-	harness.consul.SetKV(key2, []byte(content2_1))
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content2_1))
 
 	// Wait for the unblock
 	select {
@@ -712,8 +715,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(key1, []byte(content1_2))
-	harness.consul.SetKV(key2, []byte(content2_2))
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+	harness.consul.SetKV(t, key2, []byte(content2_2))
 
 	// Wait for signals
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -782,7 +785,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1_1))
+	harness.consul.SetKV(t, key1, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
@@ -792,7 +795,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(key1, []byte(content1_2))
+	harness.consul.SetKV(t, key1, []byte(content1_2))
 
 	// Wait for restart
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -878,7 +881,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	harness.mockHooks.SignalError = fmt.Errorf("test error")
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1))
+	harness.consul.SetKV(t, key1, []byte(content1))
 
 	// Wait a little
 	select {
@@ -888,7 +891,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content2))
+	harness.consul.SetKV(t, key1, []byte(content2))
 
 	// Wait for kill channel
 	select {

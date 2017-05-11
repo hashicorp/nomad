@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -77,6 +78,16 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
+
+	tmp, err := ioutil.TempFile("", "state-db")
+	if err != nil {
+		t.Fatalf("error creating state db file: %v", err)
+	}
+	db, err := bolt.Open(tmp.Name(), 0600, nil)
+	if err != nil {
+		t.Fatalf("error creating state db: %v", err)
+	}
+
 	upd := &MockTaskStateUpdater{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	// Initialize the port listing. This should be done by the offer process but
@@ -106,7 +117,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := newMockConsulServiceClient()
-	tr := NewTaskRunner(logger, conf, upd.Update, taskDir, alloc, task, vclient, cclient)
+	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, cclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -366,8 +377,8 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new task runner
-	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver}
-	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.upd.Update,
+	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver, Vault: ctx.tr.task.Vault}
+	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.tr.stateDB, ctx.upd.Update,
 		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient, ctx.tr.consul)
 	tr2.restartTracker = noRestartsTracker()
 	if _, err := tr2.RestoreState(); err != nil {

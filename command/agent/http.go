@@ -29,18 +29,6 @@ const (
 	scadaHTTPAddr = "SCADA"
 )
 
-var (
-	// jsonHandle and jsonHandlePretty are the codec handles to JSON encode
-	// structs. The pretty handle will add indents for easier human consumption.
-	jsonHandle = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-	}
-	jsonHandlePretty = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-		Indent:        4,
-	}
-)
-
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
 	agent    *Agent
@@ -186,6 +174,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }
 
@@ -248,13 +237,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if obj != nil {
 			var buf bytes.Buffer
 			if prettyPrint {
-				enc := codec.NewEncoder(&buf, jsonHandlePretty)
+				enc := codec.NewEncoder(&buf, structs.JsonHandlePretty)
 				err = enc.Encode(obj)
 				if err == nil {
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, jsonHandle)
+				enc := codec.NewEncoder(&buf, structs.JsonHandle)
 				err = enc.Encode(obj)
 			}
 			if err != nil {

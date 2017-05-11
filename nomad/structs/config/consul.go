@@ -143,7 +143,7 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	return result
 }
 
-// ApiConfig() returns a usable Consul config that can be passed directly to
+// ApiConfig returns a usable Consul config that can be passed directly to
 // hashicorp/consul/api.  NOTE: datacenter is not set
 func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	config := consul.DefaultConfig()

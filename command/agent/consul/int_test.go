@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client"
@@ -44,13 +45,16 @@ func TestConsul_Integration(t *testing.T) {
 		}
 	}
 	// Create an embedded Consul server
-	testconsul := testutil.NewTestServerConfig(t, func(c *testutil.TestServerConfig) {
+	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
 			c.Stderr = ioutil.Discard
 		}
 	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
 	defer testconsul.Stop()
 
 	conf := config.DefaultConfig()
@@ -71,6 +75,15 @@ func TestConsul_Integration(t *testing.T) {
 		t.Fatalf("error creating temp dir: %v", err)
 	}
 	defer os.RemoveAll(conf.AllocDir)
+
+	tmp, err := ioutil.TempFile("", "state-db")
+	if err != nil {
+		t.Fatalf("error creating state db file: %v", err)
+	}
+	db, err := bolt.Open(tmp.Name(), 0600, nil)
+	if err != nil {
+		t.Fatalf("error creating state db: %v", err)
+	}
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -132,7 +145,7 @@ func TestConsul_Integration(t *testing.T) {
 		serviceClient.Run()
 		close(consulRan)
 	}()
-	tr := client.NewTaskRunner(logger, conf, logUpdate, taskDir, alloc, task, vclient, serviceClient)
+	tr := client.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
 	tr.MarkReceived()
 	go tr.Run()
 	defer func() {

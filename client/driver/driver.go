@@ -2,8 +2,10 @@ package driver
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -148,6 +150,20 @@ func (r *CreatedResources) Merge(o *CreatedResources) {
 			r.Resources[k] = append(r.Resources[k], item)
 		}
 	}
+}
+
+func (r *CreatedResources) Hash() []byte {
+	h := md5.New()
+
+	for k, values := range r.Resources {
+		io.WriteString(h, k)
+		io.WriteString(h, "values")
+		for i, v := range values {
+			io.WriteString(h, fmt.Sprintf("%d-%v", i, v))
+		}
+	}
+
+	return h.Sum(nil)
 }
 
 // Driver is used for execution of tasks. This allows Nomad
