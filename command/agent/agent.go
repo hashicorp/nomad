@@ -321,6 +321,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.GCParallelDestroys = a.config.Client.GCParallelDestroys
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
+	conf.GCMaxAllocs = a.config.Client.GCMaxAllocs
 	conf.NoHostUUID = a.config.Client.NoHostUUID
 
 	return conf, nil

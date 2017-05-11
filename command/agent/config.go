@@ -209,13 +209,17 @@ type ClientConfig struct {
 	// collector will allow.
 	GCParallelDestroys int `mapstructure:"gc_parallel_destroys"`
 
-	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
-	// client triggers GC of the terminal allocations
+	// GCDiskUsageThreshold is the disk usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of terminal allocations
 	GCDiskUsageThreshold float64 `mapstructure:"gc_disk_usage_threshold"`
 
 	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
 	// client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64 `mapstructure:"gc_inode_usage_threshold"`
+
+	// GCMaxAllocs is the maximum number of allocations a node can have
+	// before garbage collection is triggered.
+	GCMaxAllocs int `mapstructure:"gc_max_allocs"`
 
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
@@ -503,6 +507,7 @@ func DevConfig() *Config {
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
+	conf.Client.GCMaxAllocs = 200
 
 	return conf
 }
@@ -532,8 +537,9 @@ func DefaultConfig() *Config {
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
-			GCInodeUsageThreshold: 70,
 			GCDiskUsageThreshold:  80,
+			GCInodeUsageThreshold: 70,
+			GCMaxAllocs:           200,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -948,6 +954,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCInodeUsageThreshold != 0 {
 		result.GCInodeUsageThreshold = b.GCInodeUsageThreshold
+	}
+	if b.GCMaxAllocs != 0 {
+		result.GCMaxAllocs = b.GCMaxAllocs
 	}
 	if b.NoHostUUID {
 		result.NoHostUUID = b.NoHostUUID

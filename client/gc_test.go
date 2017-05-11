@@ -1,8 +1,6 @@
 package client
 
 import (
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -11,11 +9,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var gcConfig = GCConfig{
-	DiskUsageThreshold:  80,
-	InodeUsageThreshold: 70,
-	Interval:            1 * time.Minute,
-	ReservedDiskMB:      0,
+func gcConfig() *GCConfig {
+	return &GCConfig{
+		DiskUsageThreshold:  80,
+		InodeUsageThreshold: 70,
+		Interval:            1 * time.Minute,
+		ReservedDiskMB:      0,
+		MaxAllocs:           100,
+	}
 }
 
 func TestIndexedGCAllocPQ(t *testing.T) {
@@ -57,6 +58,15 @@ func TestIndexedGCAllocPQ(t *testing.T) {
 	}
 }
 
+// MockAllocCounter implements AllocCounter interface.
+type MockAllocCounter struct {
+	allocs int
+}
+
+func (m *MockAllocCounter) NumAllocs() int {
+	return m.allocs
+}
+
 type MockStatsCollector struct {
 	availableValues []uint64
 	usedPercents    []float64
@@ -90,8 +100,8 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 }
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
-	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &gcConfig)
+	logger := testLogger()
+	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	if err := gc.MarkForCollection(ar1); err != nil {
@@ -105,8 +115,8 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
-	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &gcConfig)
+	logger := testLogger()
+	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
@@ -131,8 +141,8 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
-	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &gcConfig)
+	logger := testLogger()
+	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
@@ -153,10 +163,11 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -190,10 +201,11 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -228,10 +240,11 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -262,10 +275,11 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -294,11 +308,49 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	}
 }
 
+func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
+	const (
+		liveAllocs   = 3
+		maxAllocs    = 6
+		gcAllocs     = 4
+		gcAllocsLeft = 1
+	)
+
+	logger := testLogger()
+	statsCollector := &MockStatsCollector{
+		availableValues: []uint64{10 * 1024 * MB},
+		usedPercents:    []float64{0},
+		inodePercents:   []float64{0},
+	}
+	allocCounter := &MockAllocCounter{allocs: liveAllocs}
+	conf := gcConfig()
+	conf.MaxAllocs = maxAllocs
+	gc := NewAllocGarbageCollector(logger, statsCollector, allocCounter, conf)
+
+	for i := 0; i < gcAllocs; i++ {
+		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
+		close(ar.waitCh)
+		if err := gc.MarkForCollection(ar); err != nil {
+			t.Fatalf("error marking alloc for gc: %v", err)
+		}
+	}
+
+	if err := gc.MakeRoomFor([]*structs.Allocation{mock.Alloc(), mock.Alloc()}); err != nil {
+		t.Fatalf("error making room for 2 new allocs: %v", err)
+	}
+
+	// There should be gcAllocsLeft alloc runners left to be collected
+	if n := len(gc.allocRunners.index); n != gcAllocsLeft {
+		t.Fatalf("expected %d remaining GC-able alloc runners but found %d", gcAllocsLeft, n)
+	}
+}
+
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -329,10 +381,11 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
-	logger := log.New(os.Stdout, "", 0)
+	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
-	gcConfig.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &gcConfig)
+	conf := gcConfig()
+	conf.ReservedDiskMB = 20
+	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar1.waitCh)
@@ -361,5 +414,42 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 
 	if gcAlloc := gc.allocRunners.Pop(); gcAlloc != nil {
 		t.Fatalf("gcAlloc: %v", gcAlloc)
+	}
+}
+
+func TestAllocGarbageCollector_MaxAllocsThreshold(t *testing.T) {
+	const (
+		liveAllocs   = 3
+		maxAllocs    = 6
+		gcAllocs     = 4
+		gcAllocsLeft = 1
+	)
+
+	logger := testLogger()
+	statsCollector := &MockStatsCollector{
+		availableValues: []uint64{1000},
+		usedPercents:    []float64{0},
+		inodePercents:   []float64{0},
+	}
+	allocCounter := &MockAllocCounter{allocs: liveAllocs}
+	conf := gcConfig()
+	conf.MaxAllocs = 4
+	gc := NewAllocGarbageCollector(logger, statsCollector, allocCounter, conf)
+
+	for i := 0; i < gcAllocs; i++ {
+		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
+		close(ar.waitCh)
+		if err := gc.MarkForCollection(ar); err != nil {
+			t.Fatalf("error marking alloc for gc: %v", err)
+		}
+	}
+
+	if err := gc.keepUsageBelowThreshold(); err != nil {
+		t.Fatalf("error gc'ing: %v", err)
+	}
+
+	// We should have gc'd down to MaxAllocs
+	if n := len(gc.allocRunners.index); n != gcAllocsLeft {
+		t.Fatalf("expected remaining gc allocs (%d) to equal %d", n, gcAllocsLeft)
 	}
 }
