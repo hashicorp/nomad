@@ -2199,17 +2199,19 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// If there was no existing allocation, this is a placement and we increment
 	// the placement
+	existingHealthSet := existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
+	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
 	if existing == nil {
 		placed++
-	} else if existing.DeploymentHealth == nil && alloc.DeploymentHealth != nil {
-		if *alloc.DeploymentHealth {
+	} else if !existingHealthSet && allocHealthSet {
+		if *alloc.DeploymentStatus.Healthy {
 			healthy++
 		} else {
 			unhealthy++
 		}
-	} else if existing.DeploymentHealth != nil && alloc.DeploymentHealth != nil {
+	} else if existingHealthSet && allocHealthSet {
 		// See if it has gone from healthy to unhealthy
-		if *existing.DeploymentHealth && !*alloc.DeploymentHealth {
+		if *existing.DeploymentStatus.Healthy && !*alloc.DeploymentStatus.Healthy {
 			healthy--
 			unhealthy++
 		}

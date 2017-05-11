@@ -3642,10 +3642,9 @@ type Allocation struct {
 	// particular deployment
 	DeploymentID string
 
-	// DeploymentHealth marks whether the allocation has been marked healthy or
-	// unhealthy as part of a deployment. It can be unset if it has neither been
-	// marked healthy or unhealthy.
-	DeploymentHealth *bool
+	// DeploymentStatus captures the status of the allocation as part of the
+	// given deployment
+	DeploymentStatus *AllocDeploymentStatus
 
 	// Canary marks this allocation as being a canary
 	Canary bool
@@ -3683,6 +3682,7 @@ func (a *Allocation) Copy() *Allocation {
 	}
 
 	na.Metrics = na.Metrics.Copy()
+	na.DeploymentStatus = na.DeploymentStatus.Copy()
 
 	if a.TaskStates != nil {
 		ts := make(map[string]*TaskState, len(na.TaskStates))
@@ -3923,6 +3923,30 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 	}
 	key := fmt.Sprintf("%s.%s", node.ID, name)
 	a.Scores[key] = score
+}
+
+// AllocDeploymentStatus captures the status of the allocation as part of the
+// deployment. This can include things like if the allocation has been marked as
+// heatlhy.
+type AllocDeploymentStatus struct {
+	// Healthy marks whether the allocation has been marked healthy or unhealthy
+	// as part of a deployment. It can be unset if it has neither been marked
+	// healthy or unhealthy.
+	Healthy *bool
+}
+
+func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
+	if a == nil {
+		return nil
+	}
+
+	c := new(AllocDeploymentStatus)
+
+	if a.Healthy != nil {
+		c.Healthy = helper.BoolToPtr(*a.Healthy)
+	}
+
+	return c
 }
 
 const (
