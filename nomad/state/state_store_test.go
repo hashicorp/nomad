@@ -184,7 +184,7 @@ func TestStateStore_UpsertPlanResults_Deployment_CancelOld(t *testing.T) {
 		CreatedDeployment: dnew,
 	}
 
-	err := state.UpsertPlanResults(1000, &res)
+	err := state.UpsertPlanResults(1001, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -221,7 +221,87 @@ func TestStateStore_UpsertPlanResults_Deployment_CancelOld(t *testing.T) {
 	if err != nil || doutstandingout == nil {
 		t.Fatalf("bad: %v %v", err, doutstandingout)
 	}
-	if doutstandingout.Status != structs.DeploymentStatusCancelled || doutstandingout.ModifyIndex != 1000 {
+	if doutstandingout.Status != structs.DeploymentStatusCancelled || doutstandingout.ModifyIndex != 1001 {
+		t.Fatalf("bad: %v", doutstandingout)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+// This test checks that deployment updates are applied correctly
+func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job that applies to all
+	job := mock.Job()
+	if err := state.UpsertJob(998, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a deployment that we will update its status
+	doutstanding := mock.Deployment()
+	doutstanding.JobID = job.ID
+
+	if err := state.UpsertDeployment(1000, doutstanding, false); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	alloc := mock.Alloc()
+	alloc.Job = nil
+
+	dnew := mock.Deployment()
+	dnew.JobID = job.ID
+	alloc.DeploymentID = dnew.ID
+
+	// Update the old deployment
+	update := &structs.DeploymentStatusUpdate{
+		DeploymentID:      doutstanding.ID,
+		Status:            "foo",
+		StatusDescription: "bar",
+	}
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		CreatedDeployment: dnew,
+		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
+	}
+
+	err := state.UpsertPlanResults(1000, &res)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	ws := memdb.NewWatchSet()
+
+	// Check the deployments are correctly updated.
+	dout, err := state.DeploymentByID(ws, dnew.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if dout == nil {
+		t.Fatalf("bad: nil deployment")
+	}
+
+	tg, ok := dout.TaskGroups[alloc.TaskGroup]
+	if !ok {
+		t.Fatalf("bad: nil deployment state")
+	}
+	if tg == nil || tg.PlacedAllocs != 1 {
+		t.Fatalf("bad: %v", dout)
+	}
+
+	doutstandingout, err := state.DeploymentByID(ws, doutstanding.ID)
+	if err != nil || doutstandingout == nil {
+		t.Fatalf("bad: %v %v", err, doutstandingout)
+	}
+	if doutstandingout.Status != update.Status || doutstandingout.StatusDescription != update.StatusDescription || doutstandingout.ModifyIndex != 1000 {
 		t.Fatalf("bad: %v", doutstandingout)
 	}
 

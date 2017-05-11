@@ -372,6 +372,11 @@ type ApplyPlanResultsRequest struct {
 	// event. Any existing deployment should be cancelled when the new
 	// deployment is created.
 	CreatedDeployment *Deployment
+
+	// DeploymentUpdates is a set of status updates to apply to the given
+	// deployments. This allows the scheduler to cancel any unneeded deployment
+	// because the job is stopped or the update block is removed.
+	DeploymentUpdates []*DeploymentStatusUpdate
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -3568,6 +3573,18 @@ func (d *DeploymentState) Copy() *DeploymentState {
 	return c
 }
 
+// DeploymentStatusUpdate is used to update the status of a given deployment
+type DeploymentStatusUpdate struct {
+	// DeploymentID is the ID of the deployment to update
+	DeploymentID string
+
+	// Status is the new status of the deployment.
+	Status string
+
+	// StatusDescription is the new status description of the deployment.
+	StatusDescription string
+}
+
 const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
@@ -4266,8 +4283,15 @@ type Plan struct {
 	Annotations *PlanAnnotations
 
 	// CreatedDeployment is the deployment created by the scheduler that should
-	// be applied by the planner.
+	// be applied by the planner. A created deployment will cancel all other
+	// deployments for a given job as there can only be a single running
+	// deployment.
 	CreatedDeployment *Deployment
+
+	// DeploymentUpdates is a set of status updates to apply to the given
+	// deployments. This allows the scheduler to cancel any unneeded deployment
+	// because the job is stopped or the update block is removed.
+	DeploymentUpdates []*DeploymentStatusUpdate
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the

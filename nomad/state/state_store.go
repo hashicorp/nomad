@@ -97,6 +97,11 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
+	// Update the status of deployments effected by the plan.
+	if len(results.DeploymentUpdates) != 0 {
+		s.upsertDeploymentUpdates(index, results.DeploymentUpdates, txn)
+	}
+
 	// Attach the job to all the allocations. It is pulled out in the payload to
 	// avoid the redundancy of encoding, but should be denormalized prior to
 	// being inserted into MemDB.
@@ -125,6 +130,38 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	}
 
 	txn.Commit()
+	return nil
+}
+
+// upsertDeploymentUpdates updates the deployments given the passed status
+// updates.
+func (s *StateStore) upsertDeploymentUpdates(index uint64, updates []*structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
+	for _, d := range updates {
+		raw, err := txn.First("deployment", "id", d.DeploymentID)
+		if err != nil {
+			return err
+		}
+		if raw == nil {
+			return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", d.DeploymentID)
+		}
+
+		copy := raw.(*structs.Deployment).Copy()
+
+		// Apply the new status
+		copy.Status = d.Status
+		copy.StatusDescription = d.StatusDescription
+		copy.ModifyIndex = index
+
+		// Insert the deployment
+		if err := txn.Insert("deployment", copy); err != nil {
+			return err
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -2199,7 +2236,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// If there was no existing allocation, this is a placement and we increment
 	// the placement
-	existingHealthSet := existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
+	existingHealthSet := existing != nil && existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
 	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
 	if existing == nil {
 		placed++

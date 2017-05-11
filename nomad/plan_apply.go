@@ -136,6 +136,7 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 			Alloc: make([]*structs.Allocation, 0, minUpdates),
 		},
 		CreatedDeployment: plan.CreatedDeployment,
+		DeploymentUpdates: plan.DeploymentUpdates,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
