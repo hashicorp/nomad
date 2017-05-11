@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
+	"path"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -115,9 +117,13 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
 	s1 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
+		c.DevMode = false
 		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -129,23 +135,54 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 	})
 	defer s1.Shutdown()
 
-	cb := func(c *Config) {
+	s2 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
+		c.DevMode = false
 		c.DevDisableBootstrap = true
-	}
-	s2 := testServer(t, cb)
+		c.DataDir = path.Join(dir, "node2")
+	})
 	defer s2.Shutdown()
-	s3 := testServer(t, cb)
+	s3 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node3")
+	})
 	defer s3.Shutdown()
 
 	testJoin(t, s1, s2, s3)
-	testutil.WaitForLeader(t, s2.RPC)
-	testutil.WaitForLeader(t, s3.RPC)
 
-	// s1 shouldn't be able to join
-	leader := ""
-	if err := s1.RPC("Status.Leader", &structs.GenericRequest{}, &leader); err == nil {
-		t.Errorf("expected a connection error from TLS server but received none; found leader: %q", leader)
+	l1, l2, l3, shutdown := make(chan error, 1), make(chan error, 1), make(chan error, 1), make(chan struct{}, 1)
+
+	wait := func(done chan error, rpc func(string, interface{}, interface{}) error) {
+		for {
+			select {
+			case <-shutdown:
+				return
+			default:
+			}
+
+			args := &structs.GenericRequest{}
+			var leader string
+			err := rpc("Status.Leader", args, &leader)
+			if err != nil || leader != "" {
+				done <- err
+			}
+		}
+	}
+
+	go wait(l1, s1.RPC)
+	go wait(l2, s2.RPC)
+	go wait(l3, s3.RPC)
+
+	select {
+	case <-time.After(5 * time.Second):
+	case err := <-l1:
+		t.Fatalf("Server 1 has leader or error: %v", err)
+	case err := <-l2:
+		t.Fatalf("Server 2 has leader or error: %v", err)
+	case err := <-l3:
+		t.Fatalf("Server 3 has leader or error: %v", err)
 	}
 }
 
