@@ -20,7 +20,8 @@ func stateStoreSchema() *memdb.DBSchema {
 		nodeTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
-		jobVersionsSchema,
+		jobVersionSchema,
+		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
@@ -142,11 +143,11 @@ func jobSummarySchema() *memdb.TableSchema {
 	}
 }
 
-// jobVersionsSchema returns the memdb schema for the job version table which
+// jobVersionSchema returns the memdb schema for the job version table which
 // keeps a historical view of job versions.
-func jobVersionsSchema() *memdb.TableSchema {
+func jobVersionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "job_versions",
+		Name: "job_version",
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": &memdb.IndexSchema{
 				Name:         "id",
@@ -221,6 +222,34 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// deploymentSchema returns the MemDB schema tracking a job's deployments
+func deploymentSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "deployment",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "ID",
+				},
+			},
+
+			// Job index is used to lookup deployments by job
+			"job": &memdb.IndexSchema{
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "JobID",
+					Lowercase: true,
+				},
+			},
+		},
+	}
 }
 
 // periodicLaunchTableSchema returns the MemDB schema tracking the most recent

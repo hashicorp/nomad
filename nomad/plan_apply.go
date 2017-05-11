@@ -106,7 +106,7 @@ func (s *Server) planApply() {
 		}
 
 		// Dispatch the Raft transaction for the plan
-		future, err := s.applyPlan(pending.plan.Job, result, snap)
+		future, err := s.applyPlan(pending.plan, result, snap)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
 			pending.respond(nil, err)
@@ -120,16 +120,23 @@ func (s *Server) planApply() {
 }
 
 // applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
 	// Determine the miniumum number of updates, could be more if there
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
 
+	// Grab the job
+	job := plan.Job
+
 	// Setup the update request
-	req := structs.AllocUpdateRequest{
-		Job:   job,
-		Alloc: make([]*structs.Allocation, 0, minUpdates),
+	req := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job:   job,
+			Alloc: make([]*structs.Allocation, 0, minUpdates),
+		},
+		CreatedDeployment: plan.CreatedDeployment,
+		DeploymentUpdates: plan.DeploymentUpdates,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -148,20 +155,15 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 	}
 
 	// Dispatch the Raft transaction
-	future, err := s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
+	future, err := s.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Optimistically apply to our state view
 	if snap != nil {
-		// Attach the job to all the allocations. It is pulled out in the
-		// payload to avoid the redundancy of encoding, but should be denormalized
-		// prior to being inserted into MemDB.
-		structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
-
 		nextIdx := s.raft.AppliedIndex() + 1
-		if err := snap.UpsertAllocs(nextIdx, req.Alloc); err != nil {
+		if err := snap.UpsertPlanResults(nextIdx, &req); err != nil {
 			return future, err
 		}
 	}
