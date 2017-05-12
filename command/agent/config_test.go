@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -520,6 +521,189 @@ func TestConfig_Listener(t *testing.T) {
 
 	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
 		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	}
+}
+
+func TestConfig_normalizeAddrs(t *testing.T) {
+	// allow to advertise 127.0.0.1 if dev-mode is enabled
+	c := &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
+		DevMode:        true,
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.BindAddr != "127.0.0.1" {
+		t.Fatalf("expected BindAddr 127.0.0.1, got %s", c.BindAddr)
+	}
+
+	if c.normalizedAddrs.HTTP != "127.0.0.1:4646" {
+		t.Fatalf("expected HTTP address 127.0.0.1:4646, got %s", c.normalizedAddrs.HTTP)
+	}
+
+	if c.normalizedAddrs.RPC != "127.0.0.1:4647" {
+		t.Fatalf("expected RPC address 127.0.0.1:4647, got %s", c.normalizedAddrs.RPC)
+	}
+
+	if c.normalizedAddrs.Serf != "127.0.0.1:4648" {
+		t.Fatalf("expected Serf address 127.0.0.1:4648, got %s", c.normalizedAddrs.Serf)
+	}
+
+	if c.AdvertiseAddrs.HTTP != "127.0.0.1:4646" {
+		t.Fatalf("expected HTTP advertise address 127.0.0.1:4646, got %s", c.AdvertiseAddrs.HTTP)
+	}
+
+	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
+		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
+	}
+
+	// Client mode, no Serf address defined
+	if c.AdvertiseAddrs.Serf != "" {
+		t.Fatalf("expected unset Serf advertise address, got %s", c.AdvertiseAddrs.Serf)
+	}
+
+	// default to non-localhost address in non-dev mode
+	c = &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
+		DevMode:        false,
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.AdvertiseAddrs.HTTP == "127.0.0.1:4646" {
+		t.Fatalf("expected non-localhost HTTP advertise address, got %s", c.AdvertiseAddrs.HTTP)
+	}
+
+	if c.AdvertiseAddrs.RPC == "127.0.0.1:4647" {
+		t.Fatalf("expected non-localhost RPC advertise address, got %s", c.AdvertiseAddrs.RPC)
+	}
+
+	if c.AdvertiseAddrs.Serf == "127.0.0.1:4648" {
+		t.Fatalf("expected non-localhost Serf advertise address, got %s", c.AdvertiseAddrs.Serf)
+	}
+
+	c = &Config{
+		BindAddr: "169.254.1.5",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{
+			HTTP: "169.254.1.10",
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC: "169.254.1.40",
+		},
+		Server: &ServerConfig{
+			Enabled: true,
+		},
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.BindAddr != "169.254.1.5" {
+		t.Fatalf("expected BindAddr 169.254.1.5, got %s", c.BindAddr)
+	}
+
+	if c.AdvertiseAddrs.HTTP != "169.254.1.10:4646" {
+		t.Fatalf("expected HTTP advertise address 169.254.1.10:4646, got %s", c.AdvertiseAddrs.HTTP)
+	}
+
+	if c.AdvertiseAddrs.RPC != "169.254.1.40:4647" {
+		t.Fatalf("expected RPC advertise address 169.254.1.40:4647, got %s", c.AdvertiseAddrs.RPC)
+	}
+
+	if c.AdvertiseAddrs.Serf != "169.254.1.5:4648" {
+		t.Fatalf("expected Serf advertise address 169.254.1.5:4648, got %s", c.AdvertiseAddrs.Serf)
+	}
+
+	c = &Config{
+		BindAddr: "{{ GetPrivateIP }}",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			RPC: "{{ GetPrivateIP }}:8888",
+		},
+		Server: &ServerConfig{
+			Enabled: true,
+		},
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.AdvertiseAddrs.HTTP != fmt.Sprintf("%s:4646", c.BindAddr) {
+		t.Fatalf("expected HTTP advertise address %s:4646, got %s", c.BindAddr, c.AdvertiseAddrs.HTTP)
+	}
+
+	if c.AdvertiseAddrs.RPC != fmt.Sprintf("%s:8888", c.BindAddr) {
+		t.Fatalf("expected RPC advertise address %s:8888, got %s", c.BindAddr, c.AdvertiseAddrs.RPC)
+	}
+
+	if c.AdvertiseAddrs.Serf != fmt.Sprintf("%s:4648", c.BindAddr) {
+		t.Fatalf("expected Serf advertise address %s:4648, got %s", c.BindAddr, c.AdvertiseAddrs.Serf)
+	}
+
+	// allow to advertise 127.0.0.1 in non-dev mode, if explicitly configured to do so
+	c = &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "127.0.0.1:4646",
+			RPC:  "127.0.0.1:4647",
+			Serf: "127.0.0.1:4648",
+		},
+		DevMode: false,
+		Server: &ServerConfig{
+			Enabled: true,
+		},
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.AdvertiseAddrs.HTTP != "127.0.0.1:4646" {
+		t.Fatalf("expected HTTP advertise address 127.0.0.1:4646, got %s", c.AdvertiseAddrs.HTTP)
+	}
+
+	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
+		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
+	}
+
+	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
+		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
 	}
 }
 

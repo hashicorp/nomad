@@ -81,6 +81,7 @@ testing.
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
   precedence over the default [bind_addr](#bind_addr).
+  The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address the HTTP server is bound to. This is the most common
     bind address to change.
@@ -100,6 +101,7 @@ testing.
   values configured in this stanza take precedence over the default
   [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the hostname
   is advertised. You may advertise an alternate port as well.
+  The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address to advertise for the HTTP interface. This should be
     reachable by all the nodes from which end users are going to use the Nomad
@@ -122,6 +124,7 @@ testing.
   the same address. It is also possible to bind the individual services to
   different addresses using the [addresses](#addresses) configuration option.
   Dev mode (`-dev`) defaults to localhost.
+  The value supports [go-sockaddr/template format][go-sockaddr/template].
 
 - `client` <code>([Client][client]: nil)</code> - Specifies configuration which is specific to the Nomad client.
 
@@ -228,6 +231,7 @@ http_api_response_headers {
 ```
 
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
+[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
 [consul]: /docs/agent/configuration/consul.html "Nomad Agent consul Configuration"
 [atlas]: /docs/agent/configuration/atlas.html "Nomad Agent atlas Configuration"
 [vault]: /docs/agent/configuration/vault.html "Nomad Agent vault Configuration"
