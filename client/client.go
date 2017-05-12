@@ -724,7 +724,13 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 // fulfill the AllocCounter interface for the GC.
 func (c *Client) NumAllocs() int {
 	c.allocLock.RLock()
+	c.blockedAllocsLock.Lock()
+	c.migratingAllocsLock.Lock()
 	n := len(c.allocs)
+	n += len(c.blockedAllocations)
+	n += len(c.migratingAllocs)
+	c.migratingAllocsLock.Unlock()
+	c.blockedAllocsLock.Unlock()
 	c.allocLock.RUnlock()
 	return n
 }
