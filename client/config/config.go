@@ -209,7 +209,7 @@ func DefaultConfig() *Config {
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
 		GCInodeUsageThreshold:   70,
-		GCMaxAllocs:             200,
+		GCMaxAllocs:             50,
 	}
 }
 

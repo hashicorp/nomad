@@ -507,7 +507,7 @@ func DevConfig() *Config {
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
-	conf.Client.GCMaxAllocs = 200
+	conf.Client.GCMaxAllocs = 50
 
 	return conf
 }
@@ -539,7 +539,7 @@ func DefaultConfig() *Config {
 			GCParallelDestroys:    2,
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
-			GCMaxAllocs:           200,
+			GCMaxAllocs:           50,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
