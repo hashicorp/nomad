@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/md5"
 	"errors"
@@ -8,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -314,6 +317,26 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 		SetEnvvars(task.Env).
 		SetTaskName(task.Name)
 
+	// Set env vars from env files
+	for _, tmpl := range task.Templates {
+		if !tmpl.Envvars {
+			continue
+		}
+		f, err := os.Open(filepath.Join(taskDir.Dir, tmpl.DestPath))
+		if err != nil {
+			//FIXME GetTaskEnv may be called before env files are written
+			log.Printf("[DEBUG] driver: XXX FIXME Templates not rendered yet, skipping")
+			continue
+		}
+		defer f.Close()
+		vars, err := parseEnvFile(f)
+		if err != nil {
+			//TODO soft or hard fail?!
+			return nil, err
+		}
+		env.AppendEnvvars(vars)
+	}
+
 	// Vary paths by filesystem isolation used
 	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())
 	if err != nil {
@@ -353,6 +376,41 @@ func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
 	}
 
 	return env.Build(), nil
+}
+
+// parseEnvFile and return a map of the environment variables suitable for
+// TaskEnvironment.AppendEnvvars or an error.
+//
+// See nomad/structs#Template.Envvars comment for format.
+func parseEnvFile(r io.Reader) (map[string]string, error) {
+	vars := make(map[string]string, 50)
+	lines := 0
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		lines++
+		buf := scanner.Bytes()
+		if len(buf) == 0 {
+			// Skip empty lines
+			continue
+		}
+		if buf[0] == '#' {
+			// Skip lines starting with a #
+			continue
+		}
+		n := bytes.IndexByte(buf, '=')
+		if n == -1 {
+			return nil, fmt.Errorf("error on line %d: no '=' sign: %q", lines, string(buf))
+		}
+		if len(buf) > n {
+			vars[string(buf[0:n])] = string(buf[n+1 : len(buf)])
+		} else {
+			vars[string(buf[0:n])] = ""
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return vars, nil
 }
 
 func mapMergeStrInt(maps ...map[string]int) map[string]int {

@@ -861,6 +861,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"right_delimiter",
 			"source",
 			"splay",
+			"env",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err

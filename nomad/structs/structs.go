@@ -2943,6 +2943,18 @@ type Template struct {
 	// delimiter is utilized when parsing the template.
 	LeftDelim  string
 	RightDelim string
+
+	// Envvars enables exposing the template as environment variables
+	// instead of as a file. The template must be of the form:
+	//
+	//	VAR_NAME_1={{ key service/my-key }}
+	//	VAR_NAME_2=raw string and {{ env "attr.kernel.name" }}
+	//
+	// Lines will be split on the initial "=" with the first part being the
+	// key name and the second part the value.
+	// Empty lines and lines starting with # will be ignored, but to avoid
+	// escaping issues #s within lines will not be treated as comments.
+	Envvars bool
 }
 
 // DefaultTemplate returns a default template.

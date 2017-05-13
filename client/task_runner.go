@@ -1339,6 +1339,12 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 
 // startTask creates the driver, task dir, and starts the task.
 func (r *TaskRunner) startTask() error {
+	// Env vars may have been updated prior to task starting, so update the
+	// env vars before starting the task
+	if err := r.setTaskEnv(); err != nil {
+		return fmt.Errorf("failed updating environment before starting task: %v", err)
+	}
+
 	// Create a driver
 	drv, err := r.createDriver()
 	if err != nil {

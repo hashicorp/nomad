@@ -336,6 +336,7 @@ type Template struct {
 	Perms        *string        `mapstructure:"perms"`
 	LeftDelim    *string        `mapstructure:"left_delimiter"`
 	RightDelim   *string        `mapstructure:"right_delimiter"`
+	Envvars      *bool          `mapstructure:"env"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -372,6 +373,9 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.RightDelim == nil {
 		tmpl.RightDelim = helper.StringToPtr("}}")
+	}
+	if tmpl.Envvars == nil {
+		tmpl.Envvars = helper.BoolToPtr(false)
 	}
 }
 
