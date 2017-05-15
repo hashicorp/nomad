@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -84,7 +82,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		AutoAdvertise:      helper.BoolToPtr(true),
 		ChecksUseAdvertise: helper.BoolToPtr(false),
 		EnableSSL:          helper.BoolToPtr(false),
-		VerifySSL:          helper.BoolToPtr(false),
+		VerifySSL:          helper.BoolToPtr(true),
 		ServerAutoJoin:     helper.BoolToPtr(true),
 		ClientAutoJoin:     helper.BoolToPtr(true),
 		Timeout:            5 * time.Second,
@@ -173,22 +171,14 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	}
 	if c.EnableSSL != nil && *c.EnableSSL {
 		config.Scheme = "https"
-		tlsConfig := consul.TLSConfig{
+		config.TLSConfig = consul.TLSConfig{
 			Address:  config.Address,
 			CAFile:   c.CAFile,
 			CertFile: c.CertFile,
 			KeyFile:  c.KeyFile,
 		}
 		if c.VerifySSL != nil {
-			tlsConfig.InsecureSkipVerify = !*c.VerifySSL
-		}
-
-		tlsClientCfg, err := consul.SetupTLSConfig(&tlsConfig)
-		if err != nil {
-			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
-		}
-		config.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsClientCfg,
+			config.TLSConfig.InsecureSkipVerify = !*c.VerifySSL
 		}
 	}
 
