@@ -1,0 +1,8 @@
+region			= "us-east-1"
+ami     		= "ami-28a1dd3e"
+instance_type		= "t2.micro"
+key_name		= "hashi-us-east-1"
+key_file 		= "/home/vagrant/.ssh/hashi-us-east-1.pem"
+server_count 		= "1"
+client_count		= "1"
+cluster_tag_value	= "auto-join"
