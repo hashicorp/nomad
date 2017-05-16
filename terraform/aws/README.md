@@ -2,7 +2,7 @@
 
 Deploys one or more servers running Nomad,  Consul and Vault as well a configurable number of clients.
 
-### Setup
+## Setup
 
 Clone the repo and (optionally) use the included Vagrantfile to bootstrap a local staging environment:
 
@@ -29,7 +29,7 @@ $ export AWS_ACCESS_KEY_ID=[ACCESS_KEY_ID]
 $ export AWS_SECRET_ACCESS_KEY=[SECRET_ACCESS_KEY]
 ```
 
-### Provision
+## Provision
 
 `cd` to one of the environment subdirectories:
 
@@ -68,7 +68,7 @@ terraform plan
 terraform apply
 ```
 
-## Usage
+## Access the cluster
 
 SSH to a server using its public IP. For example:
 
