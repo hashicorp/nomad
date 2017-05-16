@@ -20,14 +20,14 @@ You will need the following:
 - [API access keys](http://aws.amazon.com/developers/access-keys/)
 - [SSH key pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
 
-Set the following environment variables:
+If you provisioned a Vagrant environment using the included Vagrantfile, you will need to copy your private key to it. If not, you will need to [install Terraform](https://www.terraform.io/intro/getting-started/install.html).
+
+Set environment variables for your AWS credentials:
 
 ```bash
 $ export AWS_ACCESS_KEY_ID=[ACCESS_KEY_ID]
 $ export AWS_SECRET_ACCESS_KEY=[SECRET_ACCESS_KEY]
 ```
-
-If you provisioned a Vagrant environment, you will need to copy your private key to it. 
 
 ### Provision
 
@@ -41,23 +41,23 @@ Update terraform.tfvars with your SSH key name:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-62a60374"
-instance_type           = "t2.small"
+ami                     = "ami-28a1dd3e"
+instance_type           = "t2.medium"
 key_name                = "KEY"
 key_file                = "/home/vagrant/.ssh/KEY.pem"
-server_count            = "1"
-client_count            = "2"
+server_count            = "3"
+client_count            = "4"
 ```
 For example:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-62a60374"
+ami                     = "ami-28a1dd3e"
 instance_type           = "t2.medium"
 key_name                = "hashi-us-east-1"
 key_file                = "/home/vagrant/.ssh/hashi-us-east-1.pem"
-server_count            = "1"
-client_count            = "2"
+server_count            = "3"
+client_count            = "4"
 ```
 
 Provision:

@@ -1,6 +1,9 @@
 # Provision a Nomad cluster with Terraform
 
-Easily provision a fully functional and integrated HashiCorp sandbox environment in the cloud. The goal is to allow easy exploration of Nomad, including the integrations with Consul and Vault. A number of [examples] (examples/README.md) are included.
+Provision a fully functional Nomad cluster in the cloud with [Packer](https://packer.io) and [Terraform](https://terraform.io). The goal is to allow easy exploration of Nomad, including the integrations with Consul and Vault. To get started, use one of the per cloud provider links below:
 
-See the README in the [AWS] (aws/README.md) subdirectory to get started. 
+[AWS](aws/README.md)
+Google Cloud (coming soon)
+Microsoft Azure (coming soon)
 
+A number of [examples](examples/README.md) and guides are also included.
