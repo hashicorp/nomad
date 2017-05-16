@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,8 +24,11 @@ const (
 	vaultStartPort uint64 = 40000
 )
 
-// vaultPortOffset is used to atomically increment the port numbers.
-var vaultPortOffset uint64
+var (
+	// vaultPortOffset is used to atomically increment the port numbers.
+	vaultPortOffset uint64
+	vaultPortLock   sync.Mutex
+)
 
 // TestVault wraps a test Vault server launched in dev mode, suitable for
 // testing.
@@ -124,6 +128,8 @@ func (tv *TestVault) waitForAPI() {
 
 // getPort returns the next available port to bind Vault against
 func getPort() uint64 {
+	vaultPortLock.Lock()
+	defer vaultPortLock.Unlock()
 	p := vaultStartPort + vaultPortOffset
 	vaultPortOffset += 1
 	return p
