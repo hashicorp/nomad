@@ -4,7 +4,7 @@ Spark supports using a Nomad cluster to run Spark applications. When running on 
 
 To give the Spark integration a test drive `cd` to `examples/spark/spark` on one of the servers (the `examples/spark/spark` subdirectory will be created when the cluster is provisioned).
 
-A number of sample Spark commands are listed below. These demonstrate some of the official examples as well as features like spark-sql, spark-shell and dataframes.
+A number of sample Spark commands are listed below. These demonstrate some of the official examples as well as features like `spark-sql`, `spark-shell` and dataframes.
 
 You can monitor Nomad status simulaneously with:
 
@@ -26,7 +26,9 @@ $ ./bin/spark-submit --class org.apache.spark.examples.JavaSparkPi --master noma
 
 Java (cluster mode)
 
-./bin/spark-submit --class org.apache.spark.examples.JavaSparkPi --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
+```bash
+$ ./bin/spark-submit --class org.apache.spark.examples.JavaSparkPi --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
+```
 
 Python (client mode)
 
@@ -36,7 +38,9 @@ $ ./bin/spark-submit --master nomad --conf spark.executor.instances=8 --conf spa
 
 Python (cluster mode)
 
-./bin/spark-submit --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz examples/src/main/python/pi.py 100
+```bash
+$ ./bin/spark-submit --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz examples/src/main/python/pi.py 100
+```
 
 Scala, (client mode)
 
@@ -63,11 +67,11 @@ $ ./bin/spark-submit --class org.apache.spark.examples.SparkLR --master nomad --
 Run these commands simultaneously:
 
 ```bash
-bin/spark-submit --class org.apache.spark.examples.streaming.clickstream.PageViewGenerator --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 44444 10
+$ bin/spark-submit --class org.apache.spark.examples.streaming.clickstream.PageViewGenerator --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 44444 10
 ```
 
 ```bash
-bin/spark-submit --class org.apache.spark.examples.streaming.clickstream.PageViewStream --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar errorRatePerZipCode localhost 44444
+$ bin/spark-submit --class org.apache.spark.examples.streaming.clickstream.PageViewStream --master nomad --deploy-mode cluster --conf spark.executor.instances=4 --conf spark.nomad.cluster.monitorUntil=complete --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar errorRatePerZipCode localhost 44444
 ```
 
 ###  pyspark
@@ -77,12 +81,12 @@ $ ./bin/pyspark --master nomad --conf spark.executor.instances=8 --conf spark.no
 ```
 
 ```bash
-df = spark.read.json("examples/src/main/resources/people.json")
-df.show()
-df.printSchema()
-df.createOrReplaceTempView("people")
-sqlDF = spark.sql("SELECT * FROM people")
-sqlDF.show()
+$ df = spark.read.json("examples/src/main/resources/people.json")
+$ df.show()
+$ df.printSchema()
+$ df.createOrReplaceTempView("people")
+$ sqlDF = spark.sql("SELECT * FROM people")
+$ sqlDF.show()
 ```
 
 ### spark-shell
@@ -94,18 +98,18 @@ $ ./bin/spark-shell --master nomad --conf spark.executor.instances=8 --conf spar
 From spark-shell:
 
 ```bash
-:type spark
-spark.version
+$ :type spark
+$ spark.version
 
-val data = 1 to 10000
-val distData = sc.parallelize(data)
-distData.filter(_ < 10).collect()
+$ val data = 1 to 10000
+$ val distData = sc.parallelize(data)
+$ distData.filter(_ < 10).collect()
 ```
 
 ### spark-sql
 
 ```bash
-bin/spark-sql --master nomad --conf spark.executor.instances=8 --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz jars/spark-sql_2.11-2.1.0-SNAPSHOT.jar
+$ bin/spark-sql --master nomad --conf spark.executor.instances=8 --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz jars/spark-sql_2.11-2.1.0-SNAPSHOT.jar
 ```
 
 From spark-shell:
@@ -123,12 +127,12 @@ SELECT * FROM usersTable;
 ### Data frames
 
 ```bash
-bin/spark-shell --master nomad --conf spark.executor.instances=8 --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz
+$ bin/spark-shell --master nomad --conf spark.executor.instances=8 --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz
 ```
 
 From spark-shell:
 
 ```bash
-val usersDF = spark.read.load("examples/src/main/resources/users.parquet")
-usersDF.select("name", "favorite_color").write.save("/tmp/namesAndFavColors.parquet")
+$ val usersDF = spark.read.load("examples/src/main/resources/users.parquet")
+$ usersDF.select("name", "favorite_color").write.save("/tmp/namesAndFavColors.parquet")
 ```

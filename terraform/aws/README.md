@@ -1,4 +1,4 @@
-## Deploy a Nomad cluster in AWS
+# Deploy a Nomad cluster in AWS
 
 Deploys one or more servers running Nomad,  Consul and Vault as well a configurable number of clients.
 
@@ -20,7 +20,7 @@ You will need the following:
 - [API access keys](http://aws.amazon.com/developers/access-keys/)
 - [SSH key pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
 
-If you provisioned a Vagrant environment using the included Vagrantfile, you will need to copy your private key to it. If not, you will need to [install Terraform](https://www.terraform.io/intro/getting-started/install.html).
+If you are using a Vagrant environment, you will need to copy your private key to it. If not, you will need to [install Terraform](https://www.terraform.io/intro/getting-started/install.html).
 
 Set environment variables for your AWS credentials:
 
@@ -75,6 +75,8 @@ SSH to a server using its public IP. For example:
 ```bash
 $ ssh -i /home/vagrant/.ssh/KEY.pem ubuntu@SERVER_PUBLIC_IP
 ```
+
+Please note that the AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
 
 Optionally, initialize and Unseal Vault:
 
