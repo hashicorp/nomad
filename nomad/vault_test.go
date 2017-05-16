@@ -247,6 +247,45 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	}
 }
 
+func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
+	v := testutil.NewTestVault(t).Start()
+	defer v.Stop()
+
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = v.RootToken
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+	v.Config.Role = "test-nonexistant"
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	// Wait for an error
+	var conn bool
+	var connErr error
+	testutil.WaitForResult(func() (bool, error) {
+		conn, connErr = client.ConnectionEstablished()
+		if conn {
+			return false, fmt.Errorf("Should not connect")
+		}
+
+		if connErr == nil {
+			return false, fmt.Errorf("expect an error")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("bad: %v", err)
+	})
+
+	errStr := connErr.Error()
+	if !strings.Contains(errStr, "does not exist") {
+		t.Fatalf("Expect orphan error")
+	}
+}
+
 func TestVaultClient_ValidateToken(t *testing.T) {
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
