@@ -960,8 +960,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	if driverConfig.MacAddress != "" {
 		config.MacAddress = driverConfig.MacAddress
-		d.logger.Printf("[DEBUG] driver.docker: using pinned mac address: %q",
-			config.MacAddress)
+		d.logger.Printf("[DEBUG] driver.docker: using pinned mac address: %q", config.MacAddress)
 	}
 
 	return docker.CreateContainerOptions{
