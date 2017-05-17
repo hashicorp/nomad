@@ -157,6 +157,9 @@ The `docker` driver supports the following configuration in the job spec:
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
 
+* `mac_address` - (Optional) The mac address for the container to use
+  (e.g. "02:68:b3:29:da:98").
+
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
