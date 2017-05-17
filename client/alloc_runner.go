@@ -425,18 +425,8 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 
-	// Clear the job before copying
-	job := r.alloc.Job
-
-	// Since we are clearing the job, anything that access the alloc.Job field
-	// must acquire the lock or access it via this method.
-	r.alloc.Job = nil
-
-	alloc := r.alloc.Copy()
-
-	// Restore
-	r.alloc.Job = job
-	alloc.Job = job
+	// Don't do a deep copy of the job
+	alloc := r.alloc.CopySkipJob()
 
 	// The status has explicitly been set.
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {
@@ -774,7 +764,7 @@ func (r *AllocRunner) handleDestroy() {
 
 			return
 		case <-r.updateCh:
-			r.logger.Printf("[ERR] client: dropping update to terminal alloc '%s'", r.alloc.ID)
+			r.logger.Printf("[DEBUG] client: dropping update to terminal alloc '%s'", r.alloc.ID)
 		}
 	}
 }

@@ -3680,13 +3680,25 @@ type Allocation struct {
 }
 
 func (a *Allocation) Copy() *Allocation {
+	return a.copyImpl(true)
+}
+
+// Copy provides a copy of the allocation but doesn't deep copy the job
+func (a *Allocation) CopySkipJob() *Allocation {
+	return a.copyImpl(false)
+}
+
+func (a *Allocation) copyImpl(job bool) *Allocation {
 	if a == nil {
 		return nil
 	}
 	na := new(Allocation)
 	*na = *a
 
-	na.Job = na.Job.Copy()
+	if job {
+		na.Job = na.Job.Copy()
+	}
+
 	na.Resources = na.Resources.Copy()
 	na.SharedResources = na.SharedResources.Copy()
 
