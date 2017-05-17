@@ -2122,7 +2122,6 @@ func (tg *TaskGroup) GoString() string {
 }
 
 const (
-	// TODO add Consul TTL check
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
 	ServiceCheckScript = "script"
