@@ -767,3 +767,90 @@ func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
 		}
 	}
 }
+
+// TestConsul_RemoveScript assert removing a script check removes all objects
+// related to that check.
+func TestConsul_CancelScript(t *testing.T) {
+	ctx := setupFake()
+	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:     "scriptcheckDel",
+			Type:     "script",
+			Interval: 9000 * time.Hour,
+			Timeout:  9000 * time.Hour,
+		},
+		{
+			Name:     "scriptcheckKeep",
+			Type:     "script",
+			Interval: 9000 * time.Hour,
+			Timeout:  9000 * time.Hour,
+		},
+	}
+
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx); err != nil {
+		t.Fatalf("unexpected error registering task: %v", err)
+	}
+
+	if err := ctx.syncOnce(); err != nil {
+		t.Fatalf("unexpected error syncing task: %v", err)
+	}
+
+	if len(ctx.FakeConsul.checks) != 2 {
+		t.Errorf("expected 2 checks but found %d", len(ctx.FakeConsul.checks))
+	}
+
+	if len(ctx.ServiceClient.scripts) != 2 && len(ctx.ServiceClient.runningScripts) != 2 {
+		t.Errorf("expected 2 running script but found scripts=%d runningScripts=%d",
+			len(ctx.ServiceClient.scripts), len(ctx.ServiceClient.runningScripts))
+	}
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-ctx.execs:
+			// Script ran as expected!
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timed out waiting for script check to run")
+		}
+	}
+
+	// Remove a check and update the task
+	origTask := ctx.Task.Copy()
+	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:     "scriptcheckKeep",
+			Type:     "script",
+			Interval: 9000 * time.Hour,
+			Timeout:  9000 * time.Hour,
+		},
+	}
+
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx); err != nil {
+		t.Fatalf("unexpected error registering task: %v", err)
+	}
+
+	if err := ctx.syncOnce(); err != nil {
+		t.Fatalf("unexpected error syncing task: %v", err)
+	}
+
+	if len(ctx.FakeConsul.checks) != 1 {
+		t.Errorf("expected 1 check but found %d", len(ctx.FakeConsul.checks))
+	}
+
+	if len(ctx.ServiceClient.scripts) != 1 && len(ctx.ServiceClient.runningScripts) != 1 {
+		t.Errorf("expected 1 running script but found scripts=%d runningScripts=%d",
+			len(ctx.ServiceClient.scripts), len(ctx.ServiceClient.runningScripts))
+	}
+
+	// Make sure exec wasn't called again
+	select {
+	case <-ctx.execs:
+		t.Errorf("unexpected execution of script; was goroutine not cancelled?")
+	case <-time.After(100 * time.Millisecond):
+		// No unexpected script execs
+	}
+
+	// Don't leak goroutines
+	for _, scriptHandle := range ctx.ServiceClient.runningScripts {
+		scriptHandle.cancel()
+	}
+}

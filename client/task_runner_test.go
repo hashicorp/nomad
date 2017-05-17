@@ -291,6 +291,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	// Change command to ensure we run for a bit
 	ctx.tr.task.Config["command"] = "/bin/sleep"
 	ctx.tr.task.Config["args"] = []string{"100"}
+	ctx.tr.task.Services[0].Checks[0].Args[0] = "${NOMAD_META_foo}"
 	go ctx.tr.Run()
 	defer ctx.Cleanup()
 
@@ -302,8 +303,12 @@ func TestTaskRunner_Update(t *testing.T) {
 	newMode := "foo"
 	newTG.RestartPolicy.Mode = newMode
 
-	newTask := updateAlloc.Job.TaskGroups[0].Tasks[0]
-	newTask.Driver = "foobar"
+	newTask := newTG.Tasks[0]
+	newTask.Driver = "mock_driver"
+
+	// Update meta to make sure service checks are interpolated correctly
+	// #2180
+	newTask.Meta["foo"] = "UPDATE"
 
 	// Update the kill timeout
 	testutil.WaitForResult(func() (bool, error) {
@@ -333,6 +338,21 @@ func TestTaskRunner_Update(t *testing.T) {
 		}
 		if ctx.tr.handle.ID() == oldHandle {
 			return false, fmt.Errorf("handle not ctx.updated")
+		}
+		// Make sure Consul services were interpolated correctly during
+		// the update #2180
+		consul := ctx.tr.consul.(*mockConsulServiceClient)
+		consul.mu.Lock()
+		defer consul.mu.Unlock()
+		if len(consul.ops) < 2 {
+			return false, fmt.Errorf("expected at least 2 consul ops found: %d", len(consul.ops))
+		}
+		lastOp := consul.ops[len(consul.ops)-1]
+		if lastOp.op != "update" {
+			return false, fmt.Errorf("expected last consul op to be update not %q", lastOp.op)
+		}
+		if found := lastOp.task.Services[0].Checks[0].Args[0]; found != "UPDATE" {
+			return false, fmt.Errorf("expected consul check to be UPDATE but found: %q", found)
 		}
 		return true, nil
 	}, func(err error) {
