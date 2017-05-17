@@ -179,7 +179,7 @@ func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, e
 	return nil, nil
 }
 
-func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDriverConfig, error) {
+func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfig, error) {
 	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDri
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	driverConfig, err := NewJavaDriverConfig(task, d.taskEnv)
+	driverConfig, err := NewJavaDriverConfig(task, d.envBuilder.Build())
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Set the context
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: d.envBuilder.Build(),
 		Driver:  "java",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,

@@ -76,7 +76,7 @@ type TaskTemplateManager struct {
 
 func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	config *config.Config, vaultToken, taskDir string,
-	taskEnv *env.TaskEnvironment) (*TaskTemplateManager, error) {
+	taskEnv *env.TaskEnv) (*TaskTemplateManager, error) {
 
 	// Check pre-conditions
 	if hook == nil {
@@ -317,7 +317,7 @@ func (tm *TaskTemplateManager) allTemplatesNoop() bool {
 // lookup by destination to the template. If no templates are given, a nil
 // template runner and lookup is returned.
 func templateRunner(tmpls []*structs.Template, config *config.Config,
-	vaultToken, taskDir string, taskEnv *env.TaskEnvironment) (
+	vaultToken, taskDir string, taskEnv *env.TaskEnv) (
 	*manager.Runner, map[string][]*structs.Template, error) {
 
 	if len(tmpls) == 0 {
@@ -350,7 +350,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 	}
 
 	// Set Nomad's environment variables
-	runner.Env = taskEnv.Build().EnvMapAll()
+	runner.Env = taskEnv.All()
 
 	// Build the lookup
 	idMap := runner.TemplateConfigMapping()
@@ -368,9 +368,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 
 // parseTemplateConfigs converts the tasks templates into consul-templates
 func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
-	taskEnv *env.TaskEnvironment, allowAbs bool) (map[ctconf.TemplateConfig]*structs.Template, error) {
-	// Build the task environment
-	taskEnv.Build()
+	taskEnv *env.TaskEnv, allowAbs bool) (map[ctconf.TemplateConfig]*structs.Template, error) {
 
 	ctmpls := make(map[ctconf.TemplateConfig]*structs.Template, len(tmpls))
 	for _, tmpl := range tmpls {

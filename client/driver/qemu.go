@@ -238,7 +238,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: d.envBuilder.Build(),
 		Driver:  "qemu",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,

@@ -51,8 +51,7 @@ func getClient(src, dst string) *gg.Client {
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
-func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) (string, error) {
-	taskEnv.Build()
+func getGetterUrl(taskEnv *env.TaskEnv, artifact *structs.TaskArtifact) (string, error) {
 	source := taskEnv.ReplaceEnv(artifact.GetterSource)
 
 	// Handle an invalid URL when given a go-getter url such as
@@ -85,7 +84,7 @@ func getGetterUrl(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact) 
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv *env.TaskEnvironment, artifact *structs.TaskArtifact, taskDir string) error {
+func GetArtifact(taskEnv *env.TaskEnv, artifact *structs.TaskArtifact, taskDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)

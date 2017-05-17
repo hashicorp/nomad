@@ -1,8 +1,11 @@
 package client
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 
@@ -85,4 +88,39 @@ func pre060RestoreState(path string, data interface{}) error {
 		return fmt.Errorf("failed to decode state: %v", err)
 	}
 	return nil
+}
+
+// parseEnvFile and return a map of the environment variables suitable for
+// TaskEnvironment.AppendEnvvars or an error.
+//
+// See nomad/structs#Template.Envvars comment for format.
+func parseEnvFile(r io.Reader) (map[string]string, error) {
+	vars := make(map[string]string, 50)
+	lines := 0
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		lines++
+		buf := scanner.Bytes()
+		if len(buf) == 0 {
+			// Skip empty lines
+			continue
+		}
+		if buf[0] == '#' {
+			// Skip lines starting with a #
+			continue
+		}
+		n := bytes.IndexByte(buf, '=')
+		if n == -1 {
+			return nil, fmt.Errorf("error on line %d: no '=' sign: %q", lines, string(buf))
+		}
+		if len(buf) > n {
+			vars[string(buf[0:n])] = string(buf[n+1 : len(buf)])
+		} else {
+			vars[string(buf[0:n])] = ""
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return vars, nil
 }

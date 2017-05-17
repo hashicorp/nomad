@@ -1,8 +1,6 @@
 package driver
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/md5"
 	"errors"
@@ -10,8 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -50,8 +46,8 @@ func NewDriver(name string, ctx *DriverContext) (Driver, error) {
 	}
 
 	// Instantiate the driver
-	f := factory(ctx)
-	return f, nil
+	d := factory(ctx)
+	return d, nil
 }
 
 // Factory is used to instantiate a new Driver
@@ -224,12 +220,12 @@ type LogEventFn func(message string, args ...interface{})
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjection with Factory, above.
 type DriverContext struct {
-	taskName string
-	allocID  string
-	config   *config.Config
-	logger   *log.Logger
-	node     *structs.Node
-	taskEnv  *env.TaskEnvironment
+	taskName   string
+	allocID    string
+	config     *config.Config
+	logger     *log.Logger
+	node       *structs.Node
+	envBuilder *env.Builder
 
 	emitEvent LogEventFn
 }
@@ -245,15 +241,15 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
-	logger *log.Logger, taskEnv *env.TaskEnvironment, eventEmitter LogEventFn) *DriverContext {
+	logger *log.Logger, envBuilder *env.Builder, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName:  taskName,
-		allocID:   allocID,
-		config:    config,
-		node:      node,
-		logger:    logger,
-		taskEnv:   taskEnv,
-		emitEvent: eventEmitter,
+		taskName:   taskName,
+		allocID:    allocID,
+		config:     config,
+		node:       node,
+		logger:     logger,
+		envBuilder: envBuilder,
+		emitEvent:  eventEmitter,
 	}
 }
 
@@ -301,116 +297,6 @@ func NewExecContext(td *allocdir.TaskDir) *ExecContext {
 	return &ExecContext{
 		TaskDir: td,
 	}
-}
-
-// GetTaskEnv converts the alloc dir, the node, task and alloc into a
-// TaskEnvironment.
-func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
-	task *structs.Task, alloc *structs.Allocation, conf *config.Config,
-	vaultToken string) (*env.TaskEnvironment, error) {
-
-	env := env.NewTaskEnvironment(node).
-		SetTaskMeta(alloc.Job.CombinedTaskMeta(alloc.TaskGroup, task.Name)).
-		SetJobName(alloc.Job.Name).
-		SetDatacenterName(node.Datacenter).
-		SetRegionName(conf.Region).
-		SetEnvvars(task.Env).
-		SetTaskName(task.Name)
-
-	// Set env vars from env files
-	for _, tmpl := range task.Templates {
-		if !tmpl.Envvars {
-			continue
-		}
-		f, err := os.Open(filepath.Join(taskDir.Dir, tmpl.DestPath))
-		if err != nil {
-			//FIXME GetTaskEnv may be called before env files are written
-			log.Printf("[DEBUG] driver: XXX FIXME Templates not rendered yet, skipping")
-			continue
-		}
-		defer f.Close()
-		vars, err := parseEnvFile(f)
-		if err != nil {
-			//TODO soft or hard fail?!
-			return nil, err
-		}
-		env.AppendEnvvars(vars)
-	}
-
-	// Vary paths by filesystem isolation used
-	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())
-	if err != nil {
-		return nil, err
-	}
-	switch drv.FSIsolation() {
-	case cstructs.FSIsolationNone:
-		// Use host paths
-		env.SetAllocDir(taskDir.SharedAllocDir)
-		env.SetTaskLocalDir(taskDir.LocalDir)
-		env.SetSecretsDir(taskDir.SecretsDir)
-	default:
-		// filesystem isolation; use container paths
-		env.SetAllocDir(allocdir.SharedAllocContainerPath)
-		env.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-		env.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	}
-
-	if task.Resources != nil {
-		env.SetMemLimit(task.Resources.MemoryMB).
-			SetCpuLimit(task.Resources.CPU).
-			SetNetworks(task.Resources.Networks)
-	}
-
-	if alloc != nil {
-		env.SetAlloc(alloc)
-	}
-
-	if task.Vault != nil {
-		env.SetVaultToken(vaultToken, task.Vault.Env)
-	}
-
-	// Set the host environment variables for non-image based drivers
-	if drv.FSIsolation() != cstructs.FSIsolationImage {
-		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-		env.AppendHostEnvvars(filter)
-	}
-
-	return env.Build(), nil
-}
-
-// parseEnvFile and return a map of the environment variables suitable for
-// TaskEnvironment.AppendEnvvars or an error.
-//
-// See nomad/structs#Template.Envvars comment for format.
-func parseEnvFile(r io.Reader) (map[string]string, error) {
-	vars := make(map[string]string, 50)
-	lines := 0
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		lines++
-		buf := scanner.Bytes()
-		if len(buf) == 0 {
-			// Skip empty lines
-			continue
-		}
-		if buf[0] == '#' {
-			// Skip lines starting with a #
-			continue
-		}
-		n := bytes.IndexByte(buf, '=')
-		if n == -1 {
-			return nil, fmt.Errorf("error on line %d: no '=' sign: %q", lines, string(buf))
-		}
-		if len(buf) > n {
-			vars[string(buf[0:n])] = string(buf[n+1 : len(buf)])
-		} else {
-			vars[string(buf[0:n])] = ""
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return vars, nil
 }
 
 func mapMergeStrInt(maps ...map[string]int) map[string]int {

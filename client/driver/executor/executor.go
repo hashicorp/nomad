@@ -66,7 +66,7 @@ type Executor interface {
 // wants to run and isolate it
 type ExecutorContext struct {
 	// TaskEnv holds information about the environment of a Task
-	TaskEnv *env.TaskEnvironment
+	TaskEnv *env.TaskEnv
 
 	// Task is the task whose executor is being launched
 	Task *structs.Task
@@ -229,7 +229,6 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
 
-	e.ctx.TaskEnv.Build()
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
@@ -274,7 +273,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// Set the commands arguments
 	e.cmd.Path = path
 	e.cmd.Args = append([]string{e.cmd.Path}, e.ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	e.cmd.Env = e.ctx.TaskEnv.EnvList()
+	e.cmd.Env = e.ctx.TaskEnv.List()
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
@@ -295,7 +294,7 @@ func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string)
 
 // ExecScript executes cmd with args and returns the output, exit code, and
 // error. Output is truncated to client/driver/structs.CheckBufSize
-func ExecScript(ctx context.Context, dir string, env *env.TaskEnvironment, attrs *syscall.SysProcAttr,
+func ExecScript(ctx context.Context, dir string, env *env.TaskEnv, attrs *syscall.SysProcAttr,
 	name string, args []string) ([]byte, int, error) {
 	name = env.ReplaceEnv(name)
 	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
@@ -303,7 +302,7 @@ func ExecScript(ctx context.Context, dir string, env *env.TaskEnvironment, attrs
 	// Copy runtime environment from the main command
 	cmd.SysProcAttr = attrs
 	cmd.Dir = dir
-	cmd.Env = env.EnvList()
+	cmd.Env = env.List()
 
 	// Capture output
 	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
