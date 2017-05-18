@@ -825,7 +825,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 		// Create a new templateManager
 		var err error
 		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder.Build())
+			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
 			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
@@ -886,8 +886,6 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 	}
 
 	for {
-		taskEnv := r.envBuilder.Build()
-
 		r.persistLock.Lock()
 		downloaded := r.artifactsDownloaded
 		r.persistLock.Unlock()
@@ -895,6 +893,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// Download the task's artifacts
 		if !downloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+			taskEnv := r.envBuilder.Build()
 			for _, artifact := range r.task.Artifacts {
 				if err := getter.GetArtifact(taskEnv, artifact, r.taskDir.Dir); err != nil {
 					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
@@ -927,7 +926,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if r.templateManager == nil {
 			var err error
 			r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-				r.config, r.vaultFuture.Get(), r.taskDir.Dir, taskEnv)
+				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
 			if err != nil {
 				err := fmt.Errorf("failed to build task's template manager: %v", err)
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
@@ -1295,12 +1294,6 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 
 // startTask creates the driver, task dir, and starts the task.
 func (r *TaskRunner) startTask() error {
-	// Load any env templates into environment
-	if err := r.loadTemplateEnv(); err != nil {
-		//FIXME should we soft fail here?
-		return fmt.Errorf("failed to load env vars from templates: %v", err)
-	}
-
 	// Create a driver
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1352,37 +1345,6 @@ func (r *TaskRunner) startTask() error {
 	r.handleLock.Unlock()
 
 	return nil
-}
-
-// loadTemplateEnv loads task environment variables from templates.
-func (r *TaskRunner) loadTemplateEnv() error {
-	var merr multierror.Error
-	all := make(map[string]string)
-	for _, tmpl := range r.task.Templates {
-		if !tmpl.Envvars {
-			continue
-		}
-		f, err := os.Open(filepath.Join(r.taskDir.Dir, tmpl.DestPath))
-		if err != nil {
-			r.logger.Printf("[DEBUG] client: cannot load env vars from %q", tmpl.DestPath)
-			// It's not an error for the template to not be rendered yet
-			if !os.IsNotExist(err) {
-				merr.Errors = append(merr.Errors, err)
-			}
-			continue
-		}
-		defer f.Close()
-		vars, err := parseEnvFile(f)
-		if err != nil {
-			merr.Errors = append(merr.Errors, err)
-			continue
-		}
-		for k, v := range vars {
-			all[k] = v
-		}
-	}
-	r.envBuilder.SetTemplateEnv(all)
-	return merr.ErrorOrNil()
 }
 
 // registerServices and checks with Consul.

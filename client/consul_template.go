@@ -1,7 +1,10 @@
 package client
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -76,7 +79,7 @@ type TaskTemplateManager struct {
 
 func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	config *config.Config, vaultToken, taskDir string,
-	taskEnv *env.TaskEnv) (*TaskTemplateManager, error) {
+	envBuilder *env.Builder) (*TaskTemplateManager, error) {
 
 	// Check pre-conditions
 	if hook == nil {
@@ -85,7 +88,7 @@ func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 		return nil, fmt.Errorf("Invalid config given")
 	} else if taskDir == "" {
 		return nil, fmt.Errorf("Invalid task directory given")
-	} else if taskEnv == nil {
+	} else if envBuilder == nil {
 		return nil, fmt.Errorf("Invalid task environment given")
 	}
 
@@ -114,14 +117,14 @@ func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	}
 
 	// Build the consul-template runner
-	runner, lookup, err := templateRunner(tmpls, config, vaultToken, taskDir, taskEnv)
+	runner, lookup, err := templateRunner(tmpls, config, vaultToken, taskDir, envBuilder.Build())
 	if err != nil {
 		return nil, err
 	}
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
+	go tm.run(envBuilder, taskDir)
 	return tm, nil
 }
 
@@ -144,7 +147,7 @@ func (tm *TaskTemplateManager) Stop() {
 }
 
 // run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+func (tm *TaskTemplateManager) run(envBuilder *env.Builder, taskDir string) {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -192,6 +195,11 @@ WAIT:
 		}
 	}
 
+	for _, t := range tm.templates {
+		if err := loadTemplateEnv(envBuilder, taskDir, t); err != nil {
+			tm.hook.Kill("consul-template", err.Error(), true)
+		}
+	}
 	allRenderedTime = time.Now()
 	tm.hook.UnblockStart("consul-template")
 
@@ -243,6 +251,10 @@ WAIT:
 				}
 
 				for _, tmpl := range tmpls {
+					if err := loadTemplateEnv(envBuilder, taskDir, tmpl); err != nil {
+
+						tm.hook.Kill("consul-template", err.Error(), true)
+					}
 					switch tmpl.ChangeMode {
 					case structs.TemplateChangeModeSignal:
 						signals[tmpl.ChangeSignal] = struct{}{}
@@ -489,4 +501,61 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 
 	conf.Finalize()
 	return conf, nil
+}
+
+// loadTemplateEnv loads task environment variables from templates.
+func loadTemplateEnv(builder *env.Builder, taskDir string, t *structs.Template) error {
+	if !t.Envvars {
+		return nil
+	}
+	f, err := os.Open(filepath.Join(taskDir, t.DestPath))
+	if err != nil {
+		return fmt.Errorf("error opening env template: %v", err)
+	}
+	defer f.Close()
+
+	// Parse environment fil
+	vars, err := parseEnvFile(f)
+	if err != nil {
+		return fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
+	}
+
+	// Set the environment variables
+	builder.SetTemplateEnv(vars)
+	return nil
+}
+
+// parseEnvFile and return a map of the environment variables suitable for
+// TaskEnvironment.AppendEnvvars or an error.
+//
+// See nomad/structs#Template.Envvars comment for format.
+func parseEnvFile(r io.Reader) (map[string]string, error) {
+	vars := make(map[string]string, 50)
+	lines := 0
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		lines++
+		buf := scanner.Bytes()
+		if len(buf) == 0 {
+			// Skip empty lines
+			continue
+		}
+		if buf[0] == '#' {
+			// Skip lines starting with a #
+			continue
+		}
+		n := bytes.IndexByte(buf, '=')
+		if n == -1 {
+			return nil, fmt.Errorf("line %d: no '=' sign: %q", lines, string(buf))
+		}
+		if len(buf) > n {
+			vars[string(buf[0:n])] = string(buf[n+1 : len(buf)])
+		} else {
+			vars[string(buf[0:n])] = ""
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return vars, nil
 }
