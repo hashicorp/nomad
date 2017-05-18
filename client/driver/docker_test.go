@@ -1318,9 +1318,9 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		act, err := authOptionFrom(path, c.Repo)
-		if err != nil {
-			t.Fatalf("Test %d failed: %v", i+1, err)
+		act, warning, err := authOptionFrom(path, c.Repo)
+		if err != nil || warning != nil {
+			t.Fatalf("Test %d failed: %v, %v", i+1, warning, err)
 		}
 
 		if !reflect.DeepEqual(act, c.AuthConfig) {
