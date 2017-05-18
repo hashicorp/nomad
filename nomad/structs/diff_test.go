@@ -187,26 +187,6 @@ func TestJobDiff(t *testing.T) {
 						New:  "",
 					},
 				},
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "Update",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeDeleted,
-								Name: "MaxParallel",
-								Old:  "0",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "Stagger",
-								Old:  "0",
-								New:  "",
-							},
-						},
-					},
-				},
 			},
 		},
 		{
@@ -268,26 +248,6 @@ func TestJobDiff(t *testing.T) {
 						Name: "Type",
 						Old:  "",
 						New:  "batch",
-					},
-				},
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "Update",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "MaxParallel",
-								Old:  "",
-								New:  "0",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "Stagger",
-								Old:  "",
-								New:  "0",
-							},
-						},
 					},
 				},
 			},
@@ -454,83 +414,6 @@ func TestJobDiff(t *testing.T) {
 								Name: "Datacenters",
 								Old:  "foo",
 								New:  "foo",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			// Update strategy edited
-			Old: &Job{
-				Update: UpdateStrategy{
-					Stagger:     10 * time.Second,
-					MaxParallel: 5,
-				},
-			},
-			New: &Job{
-				Update: UpdateStrategy{
-					Stagger:     60 * time.Second,
-					MaxParallel: 10,
-				},
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Update",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "MaxParallel",
-								Old:  "5",
-								New:  "10",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "Stagger",
-								Old:  "10000000000",
-								New:  "60000000000",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			// Update strategy edited with context
-			Contextual: true,
-			Old: &Job{
-				Update: UpdateStrategy{
-					Stagger:     10 * time.Second,
-					MaxParallel: 5,
-				},
-			},
-			New: &Job{
-				Update: UpdateStrategy{
-					Stagger:     60 * time.Second,
-					MaxParallel: 5,
-				},
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Update",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeNone,
-								Name: "MaxParallel",
-								Old:  "5",
-								New:  "5",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "Stagger",
-								Old:  "10000000000",
-								New:  "60000000000",
 							},
 						},
 					},
@@ -1605,6 +1488,247 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Mode",
 								Old:  "fail",
 								New:  "fail",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Update strategy deleted
+			Old: &TaskGroup{
+				Update: &UpdateStrategy{
+					AutoRevert: true,
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "AutoRevert",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Canary",
+								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "HealthyDeadline",
+								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "MaxParallel",
+								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "MinHealthyTime",
+								Old:  "0",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Update strategy added
+			Old: &TaskGroup{},
+			New: &TaskGroup{
+				Update: &UpdateStrategy{
+					AutoRevert: true,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "AutoRevert",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Canary",
+								Old:  "",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "HealthyDeadline",
+								Old:  "",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "MaxParallel",
+								Old:  "",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "MinHealthyTime",
+								Old:  "",
+								New:  "0",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Update strategy edited
+			Old: &TaskGroup{
+				Update: &UpdateStrategy{
+					MaxParallel:     5,
+					HealthCheck:     "foo",
+					MinHealthyTime:  1 * time.Second,
+					HealthyDeadline: 30 * time.Second,
+					AutoRevert:      true,
+					Canary:          2,
+				},
+			},
+			New: &TaskGroup{
+				Update: &UpdateStrategy{
+					MaxParallel:     7,
+					HealthCheck:     "bar",
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 31 * time.Second,
+					AutoRevert:      false,
+					Canary:          1,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "AutoRevert",
+								Old:  "true",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Canary",
+								Old:  "2",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "HealthCheck",
+								Old:  "foo",
+								New:  "bar",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "HealthyDeadline",
+								Old:  "30000000000",
+								New:  "31000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "MaxParallel",
+								Old:  "5",
+								New:  "7",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "MinHealthyTime",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Update strategy edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				Update: &UpdateStrategy{
+					MaxParallel:     5,
+					HealthCheck:     "foo",
+					MinHealthyTime:  1 * time.Second,
+					HealthyDeadline: 30 * time.Second,
+					AutoRevert:      true,
+					Canary:          2,
+				},
+			},
+			New: &TaskGroup{
+				Update: &UpdateStrategy{
+					MaxParallel:     7,
+					HealthCheck:     "foo",
+					MinHealthyTime:  1 * time.Second,
+					HealthyDeadline: 30 * time.Second,
+					AutoRevert:      true,
+					Canary:          2,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Update",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AutoRevert",
+								Old:  "true",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Canary",
+								Old:  "2",
+								New:  "2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "HealthCheck",
+								Old:  "foo",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "HealthyDeadline",
+								Old:  "30000000000",
+								New:  "30000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "MaxParallel",
+								Old:  "5",
+								New:  "7",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MinHealthyTime",
+								Old:  "1000000000",
+								New:  "1000000000",
 							},
 						},
 					},

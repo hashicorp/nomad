@@ -178,7 +178,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
-	evalID, _, err := client.Jobs().Register(job, nil)
+	resp, _, err := client.Jobs().Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -188,7 +188,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID, false)
+		code = mon.monitor(resp.EvalID, false)
 	}()
 
 	// Wait for completion
@@ -206,7 +206,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, evalID) {
+	if !strings.Contains(out, resp.EvalID) {
 		t.Fatalf("missing eval\n\n%s", out)
 	}
 	if !strings.Contains(out, "finished with status") {
@@ -224,7 +224,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
-	evalID, _, err := client.Jobs().Register(job, nil)
+	resp, _, err := client.Jobs().Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -234,7 +234,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID[:8], true)
+		code = mon.monitor(resp.EvalID[:8], true)
 	}()
 
 	// Wait for completion
@@ -252,10 +252,10 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, evalID[:8]) {
+	if !strings.Contains(out, resp.EvalID[:8]) {
 		t.Fatalf("missing eval\n\n%s", out)
 	}
-	if strings.Contains(out, evalID) {
+	if strings.Contains(out, resp.EvalID) {
 		t.Fatalf("expected truncated eval id, got: %s", out)
 	}
 	if !strings.Contains(out, "finished with status") {
@@ -263,7 +263,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	}
 
 	// Fail on identifier with too few characters
-	code = mon.monitor(evalID[:1], true)
+	code = mon.monitor(resp.EvalID[:1], true)
 	if code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
@@ -272,7 +272,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	code = mon.monitor(evalID[:3], true)
+	code = mon.monitor(resp.EvalID[:3], true)
 	if code != 2 {
 		t.Fatalf("expect exit 2, got: %d", code)
 	}

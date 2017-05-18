@@ -119,6 +119,36 @@ func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_UpdateWarning(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job containing an invalid driver
+	// config
+	job := mock.Job()
+	job.Update.Stagger = 1 * time.Second
+	job.Update.MaxParallel = 1
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !strings.Contains(resp.Warnings, "Update stagger deprecated") {
+		t.Fatalf("expected a deprecation warning but got: %v", err)
+	}
+}
+
 func TestJobEndpoint_Register_Payload(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2240,8 +2270,13 @@ func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
 		"foo": "bar",
 	}
 
-	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "-> config") {
+	err, warnings := validateJob(job)
+	if err == nil || !strings.Contains(err.Error(), "-> config") {
 		t.Fatalf("Expected config error; got %v", err)
+	}
+
+	if warnings != nil {
+		t.Fatalf("got unexpected warnings: %v", warnings)
 	}
 }
 
@@ -2255,8 +2290,29 @@ func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
 		ChangeSignal: "SIGUSR1",
 	}
 
-	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "support sending signals") {
+	err, warnings := validateJob(job)
+	if err == nil || !strings.Contains(err.Error(), "support sending signals") {
 		t.Fatalf("Expected signal feasibility error; got %v", err)
+	}
+
+	if warnings != nil {
+		t.Fatalf("got unexpected warnings: %v", warnings)
+	}
+}
+
+func TestJobEndpoint_ValidateJob_UpdateWarning(t *testing.T) {
+	// Create a mock job with an invalid config
+	job := mock.Job()
+	job.Update.Stagger = 1 * time.Second
+	job.Update.MaxParallel = 1
+
+	err, warnings := validateJob(job)
+	if err != nil {
+		t.Fatalf("Unexpected validation error; got %v", err)
+	}
+
+	if !strings.Contains(warnings.Error(), "Update stagger deprecated") {
+		t.Fatalf("expected a deprecation warning but got: %v", err)
 	}
 }
 

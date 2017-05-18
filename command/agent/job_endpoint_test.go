@@ -708,16 +708,16 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 func TestHTTP_JobPlan(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobPlanRequest{
+		job := api.MockJob()
+		args := api.JobPlanRequest{
 			Job:          job,
 			Diff:         true,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/plan", buf)
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -858,8 +858,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:     1 * time.Second,
-			MaxParallel: 5,
+			Stagger:         1 * time.Second,
+			MaxParallel:     helper.IntToPtr(5),
+			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
+			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
+			HealthyDeadline: helper.TimeToPtr(3 * time.Minute),
+			AutoRevert:      helper.BoolToPtr(false),
+			Canary:          helper.IntToPtr(1),
 		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
@@ -899,6 +904,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Sticky:  helper.BoolToPtr(true),
 					Migrate: helper.BoolToPtr(true),
 				},
+				Update: &api.UpdateStrategy{
+					HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
+					MinHealthyTime:  helper.TimeToPtr(2 * time.Minute),
+					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+					AutoRevert:      helper.BoolToPtr(true),
+				},
+
 				Meta: map[string]string{
 					"key": "value",
 				},
@@ -1077,6 +1089,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					SizeMB:  100,
 					Sticky:  true,
 					Migrate: true,
+				},
+				Update: &structs.UpdateStrategy{
+					MaxParallel:     5,
+					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:  2 * time.Minute,
+					HealthyDeadline: 5 * time.Minute,
+					AutoRevert:      true,
+					Canary:          1,
 				},
 				Meta: map[string]string{
 					"key": "value",

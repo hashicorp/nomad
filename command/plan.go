@@ -134,6 +134,12 @@ func (c *PlanCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
 	c.Ui.Output("")
 
+	// Print any warnings if there are any
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
+	}
+
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)

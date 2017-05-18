@@ -57,25 +57,22 @@ type JobDiff struct {
 // diffable. If contextual diff is enabled, objects within the job will contain
 // field information even if unchanged.
 func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
+	// COMPAT: Remove "Update" in 0.7.0. Update pushed down to task groups
+	// in 0.6.0
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
-		"ModifyIndex", "JobModifyIndex"}
-
-	// Have to treat this special since it is a struct literal, not a pointer
-	var jUpdate, otherUpdate *UpdateStrategy
+		"ModifyIndex", "JobModifyIndex", "Update"}
 
 	if j == nil && other == nil {
 		return diff, nil
 	} else if j == nil {
 		j = &Job{}
-		otherUpdate = &other.Update
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 		diff.ID = other.ID
 	} else if other == nil {
 		other = &Job{}
-		jUpdate = &j.Update
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(j, filter, true)
 		diff.ID = j.ID
@@ -84,8 +81,6 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 			return nil, fmt.Errorf("can not diff jobs with different IDs: %q and %q", j.ID, other.ID)
 		}
 
-		jUpdate = &j.Update
-		otherUpdate = &other.Update
 		oldPrimitiveFlat = flatmap.Flatten(j, filter, true)
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 		diff.ID = other.ID
@@ -116,11 +111,6 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		return nil, err
 	}
 	diff.TaskGroups = tgs
-
-	// Update diff
-	if uDiff := primitiveObjectDiff(jUpdate, otherUpdate, nil, "Update", contextual); uDiff != nil {
-		diff.Objects = append(diff.Objects, uDiff)
-	}
 
 	// Periodic diff
 	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
@@ -248,6 +238,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 	diskDiff := primitiveObjectDiff(tg.EphemeralDisk, other.EphemeralDisk, nil, "EphemeralDisk", contextual)
 	if diskDiff != nil {
 		diff.Objects = append(diff.Objects, diskDiff)
+	}
+
+	// Update diff
+	// COMPAT: Remove "Stagger" in 0.7.0.
+	if uDiff := primitiveObjectDiff(tg.Update, other.Update, []string{"Stagger"}, "Update", contextual); uDiff != nil {
+		diff.Objects = append(diff.Objects, uDiff)
 	}
 
 	// Tasks diff

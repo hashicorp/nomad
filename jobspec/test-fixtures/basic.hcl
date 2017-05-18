@@ -18,6 +18,11 @@ job "binstore-storagelocker" {
   update {
     stagger      = "60s"
     max_parallel = 2
+    health_check = "manual"
+    min_healthy_time = "10s"
+    healthy_deadline = "10m"
+    auto_revert = true
+    canary = 1
   }
 
   task "outside" {
@@ -45,6 +50,15 @@ job "binstore-storagelocker" {
     ephemeral_disk {
         sticky = true
         size = 150
+    }
+
+    update {
+        max_parallel = 3
+        health_check = "checks"
+        min_healthy_time = "1s"
+        healthy_deadline = "1m"
+        auto_revert = false
+        canary = 2
     }
 
     task "binstore" {

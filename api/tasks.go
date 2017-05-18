@@ -143,6 +143,7 @@ type TaskGroup struct {
 	Tasks         []*Task
 	RestartPolicy *RestartPolicy
 	EphemeralDisk *EphemeralDisk
+	Update        *UpdateStrategy
 	Meta          map[string]string
 }
 
@@ -168,6 +169,22 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		g.EphemeralDisk = DefaultEphemeralDisk()
 	} else {
 		g.EphemeralDisk.Canonicalize()
+	}
+
+	// Merge the update policy from the job
+	if ju, tu := job.Update != nil, g.Update != nil; ju && tu {
+		// Merge the jobs and task groups definition of the update strategy
+		jc := job.Update.Copy()
+		jc.Merge(g.Update)
+		g.Update = jc
+	} else if ju {
+		// Inherit the jobs
+		jc := job.Update.Copy()
+		g.Update = jc
+	}
+
+	if g.Update != nil {
+		g.Update.Canonicalize()
 	}
 
 	var defaultRestartPolicy *RestartPolicy
