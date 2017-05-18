@@ -2845,3 +2845,140 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
+
+// This test ensures that when a job is stopped, the scheduler properly cancels
+// an outstanding deployment.
+func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
+	h := NewHarness(t)
+
+	// Generate a fake job
+	job := mock.Job()
+	job.JobModifyIndex = job.CreateIndex + 1
+	job.ModifyIndex = job.CreateIndex + 1
+	job.Stop = true
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.JobID = job.ID
+	d.JobCreateIndex = job.CreateIndex
+	d.JobModifyIndex = job.JobModifyIndex - 1
+	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d, false))
+
+	// Create a mock evaluation to deregister the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobDeregister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan cancelled the existing deployment
+	ws := memdb.NewWatchSet()
+	out, err := h.State.LatestDeploymentByJobID(ws, job.ID)
+	noErr(t, err)
+
+	if out == nil {
+		t.Fatalf("No deployment for job")
+	}
+	if out.ID != d.ID {
+		t.Fatalf("Latest deployment for job is different than original deployment")
+	}
+	if out.Status != structs.DeploymentStatusCancelled {
+		t.Fatalf("Deployment status is %q, want %q", out.Status, structs.DeploymentStatusCancelled)
+	}
+	if out.StatusDescription != structs.DeploymentStatusDescriptionStoppedJob {
+		t.Fatalf("Deployment status description is %q, want %q",
+			out.StatusDescription, structs.DeploymentStatusDescriptionStoppedJob)
+	}
+
+	// Ensure the plan didn't allocate anything
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 0 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+// This test ensures that when a job is updated and had an old deployment, the scheduler properly cancels
+// the deployment.
+func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
+	h := NewHarness(t)
+
+	// Generate a fake job
+	job := mock.Job()
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a deployment for an old version of the job
+	d := mock.Deployment()
+	d.JobID = job.ID
+	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d, false))
+
+	// Upsert again to bump job version
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to kick the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan cancelled the existing deployment
+	ws := memdb.NewWatchSet()
+	out, err := h.State.LatestDeploymentByJobID(ws, job.ID)
+	noErr(t, err)
+
+	if out == nil {
+		t.Fatalf("No deployment for job")
+	}
+	if out.ID != d.ID {
+		t.Fatalf("Latest deployment for job is different than original deployment")
+	}
+	if out.Status != structs.DeploymentStatusCancelled {
+		t.Fatalf("Deployment status is %q, want %q", out.Status, structs.DeploymentStatusCancelled)
+	}
+	if out.StatusDescription != structs.DeploymentStatusDescriptionNewerJob {
+		t.Fatalf("Deployment status description is %q, want %q",
+			out.StatusDescription, structs.DeploymentStatusDescriptionNewerJob)
+	}
+	// Ensure the plan didn't allocate anything
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 0 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}

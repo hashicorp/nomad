@@ -126,13 +126,10 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
 
-	// Grab the job
-	job := plan.Job
-
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
+			Job:   plan.Job,
 			Alloc: make([]*structs.Allocation, 0, minUpdates),
 		},
 		CreatedDeployment: plan.CreatedDeployment,

@@ -79,6 +79,10 @@ type State interface {
 
 	// GetJobByID is used to lookup a job by ID
 	JobByID(ws memdb.WatchSet, id string) (*structs.Job, error)
+
+	// LatestDeploymentByJobID returns the latest deployment matching the given
+	// job ID
+	LatestDeploymentByJobID(ws memdb.WatchSet, jobID string) (*structs.Deployment, error)
 }
 
 // Planner interface is used to submit a task allocation plan.
