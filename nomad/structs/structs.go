@@ -3659,6 +3659,11 @@ const (
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
 	DeploymentStatusPaused     = "paused"
+
+	// DeploymentStatusDescriptions are the various descriptions of the states a
+	// deployment can be in.
+	DeploymentStatusDescriptionStoppedJob = "Cancelled because job is stopped"
+	DeploymentStatusDescriptionNewerJob   = "Cancelled due to newer version of job"
 )
 
 // Deployment is the object that represents a job deployment which is used to
@@ -4540,9 +4545,23 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
+// AppendDeploymentUpdate attaches an deployment update to the plan for the
+// given deployment ID.
+func (p *Plan) AppendDeploymentUpdate(id, status, description string) {
+	update := &DeploymentStatusUpdate{
+		DeploymentID:      id,
+		Status:            status,
+		StatusDescription: description,
+	}
+	p.DeploymentUpdates = append(p.DeploymentUpdates, update)
+}
+
 // IsNoOp checks if this plan would do nothing
 func (p *Plan) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
+	return len(p.NodeUpdate) == 0 &&
+		len(p.NodeAllocation) == 0 &&
+		p.CreatedDeployment == nil &&
+		len(p.DeploymentUpdates) == 0
 }
 
 // PlanResult is the result of a plan submitted to the leader.

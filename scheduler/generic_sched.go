@@ -73,6 +73,8 @@ type GenericScheduler struct {
 	limitReached bool
 	nextEval     *structs.Evaluation
 
+	deployment *structs.Deployment
+
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
@@ -187,17 +189,42 @@ func (s *GenericScheduler) process() (bool, error) {
 	ws := memdb.NewWatchSet()
 	s.job, err = s.state.JobByID(ws, s.eval.JobID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get job '%s': %v",
-			s.eval.JobID, err)
+		return false, fmt.Errorf("failed to get job %q: %v", s.eval.JobID, err)
 	}
+
 	numTaskGroups := 0
-	if !s.job.Stopped() {
+	stopped := s.job.Stopped()
+	if !stopped {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
+
+	if !s.batch {
+		// Get any existing deployment
+		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.JobID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
+		}
+
+		// If there is an existing deployment, it should be cancelled under the
+		// following scenarios:
+		// 1) The current job is stopped.
+		// 2) The deployment is for an older version of the job.
+		if d := s.deployment; d != nil {
+			if stopped {
+				s.plan.AppendDeploymentUpdate(d.ID, structs.DeploymentStatusCancelled,
+					structs.DeploymentStatusDescriptionStoppedJob)
+				s.deployment = nil
+			} else if d.JobCreateIndex != s.job.CreateIndex || d.JobModifyIndex != s.job.JobModifyIndex {
+				s.plan.AppendDeploymentUpdate(d.ID, structs.DeploymentStatusCancelled,
+					structs.DeploymentStatusDescriptionNewerJob)
+				s.deployment = nil
+			}
+		}
+	}
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil
@@ -234,6 +261,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
+	// XXX Don't need a next rolling update eval
 	// If the limit of placements was reached we need to create an evaluation
 	// to pickup from here after the stagger period.
 	if s.limitReached && s.nextEval == nil {
