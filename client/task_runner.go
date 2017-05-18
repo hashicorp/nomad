@@ -501,26 +501,6 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 			r.task.Driver, r.alloc.ID, err)
 	}
 
-	// Set driver-specific environment variables
-	switch d.FSIsolation() {
-	case cstructs.FSIsolationNone:
-		// Use host paths
-		r.envBuilder.SetAllocDir(r.taskDir.SharedAllocDir)
-		r.envBuilder.SetTaskLocalDir(r.taskDir.LocalDir)
-		r.envBuilder.SetSecretsDir(r.taskDir.SecretsDir)
-	default:
-		// filesystem isolation; use container paths
-		r.envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
-		r.envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-		r.envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	}
-
-	// Set the host environment variables for non-image based drivers
-	if d.FSIsolation() != cstructs.FSIsolationImage {
-		filter := strings.Split(r.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-		r.envBuilder.SetHostEnvvars(filter)
-	}
-
 	return d, err
 }
 
@@ -537,8 +517,10 @@ func (r *TaskRunner) Run() {
 		return
 	}
 
-	// Create a driver so that we can determine the FSIsolation required
-	drv, err := r.createDriver()
+	// Create a temporary driver so that we can determine the FSIsolation
+	// required. run->startTask will create a new driver after environment
+	// has been setup (env vars, templates, artifacts, secrets, etc).
+	tmpDrv, err := r.createDriver()
 	if err != nil {
 		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
 		r.setState(
@@ -550,7 +532,7 @@ func (r *TaskRunner) Run() {
 	// Build base task directory structure regardless of FS isolation abilities.
 	// This needs to happen before we start the Vault manager and call prestart
 	// as both those can write to the task directories
-	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
+	if err := r.buildTaskDir(tmpDrv.FSIsolation()); err != nil {
 		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
 		r.setState(
 			structs.TaskStateDead,
@@ -1467,6 +1449,26 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	r.persistLock.Lock()
 	r.taskDirBuilt = true
 	r.persistLock.Unlock()
+
+	// Set driver-specific environment variables
+	switch fsi {
+	case cstructs.FSIsolationNone:
+		// Use host paths
+		r.envBuilder.SetAllocDir(r.taskDir.SharedAllocDir)
+		r.envBuilder.SetTaskLocalDir(r.taskDir.LocalDir)
+		r.envBuilder.SetSecretsDir(r.taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		r.envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		r.envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		r.envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != cstructs.FSIsolationImage {
+		filter := strings.Split(r.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		r.envBuilder.SetHostEnvvars(filter)
+	}
 	return nil
 }
 
