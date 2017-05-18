@@ -215,13 +215,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
 	// Initialize the environment builder
-	envBuilder := env.NewBuilder(config.Node, task.Name).
-		SetTaskMeta(alloc.Job.CombinedTaskMeta(alloc.TaskGroup, task.Name)).
-		SetJobName(alloc.Job.Name).
-		SetRegion(config.Region).
-		MergeEnvvars(task.Env).
-		SetResources(task.Resources).
-		SetAlloc(alloc)
+	envBuilder := env.NewBuilder(config.Node, alloc, task, config.Region)
 
 	tc := &TaskRunner{
 		config:           config,

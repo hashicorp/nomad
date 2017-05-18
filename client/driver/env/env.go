@@ -210,21 +210,23 @@ type Builder struct {
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
 
-	// networks related environment variables
-	networks map[string]string
+	// network resources from the task; must be lazily turned into env vars
+	// because portMaps can change after builder creation and affect
+	// network env vars.
+	networks []*structs.NetworkResource
 
 	mu *sync.RWMutex
 }
 
 // NewBuilder creates a new task environment builder.
-func NewBuilder(node *structs.Node, taskName string) *Builder {
+func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Task, region string) *Builder {
 	b := &Builder{
-		taskName:  taskName,
+		region:    region,
 		envvars:   make(map[string]string),
 		nodeAttrs: make(map[string]string),
 		mu:        &sync.RWMutex{},
 	}
-	return b.setNode(node)
+	return b.setTask(task).setAlloc(alloc).setNode(node)
 }
 
 // Build must be called after all the tasks environment values have been set.
@@ -280,6 +282,22 @@ func (b *Builder) Build() *TaskEnv {
 		nodeAttrs[nodeRegionKey] = b.region
 	}
 
+	// Build the addrs for this task
+	for _, network := range b.networks {
+		for label, intVal := range network.MapLabelToValues(nil) {
+			value := strconv.Itoa(intVal)
+			envMap[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
+			envMap[fmt.Sprintf("%s%s", HostPortPrefix, label)] = value
+			if forwardedPort, ok := b.portMap[label]; ok {
+				value = forwardedPort
+			}
+			envMap[fmt.Sprintf("%s%s", PortPrefix, label)] = value
+			ipPort := net.JoinHostPort(network.IP, value)
+			envMap[fmt.Sprintf("%s%s", AddrPrefix, label)] = ipPort
+
+		}
+	}
+
 	// Build the addr of the other tasks
 	for k, v := range b.otherPorts {
 		envMap[k] = v
@@ -320,6 +338,58 @@ func (b *Builder) Build() *TaskEnv {
 	return NewTaskEnv(cleanedEnv, nodeAttrs)
 }
 
+// setTask is called from NewBuilder to populate task related environment
+// variables.
+func (b *Builder) setTask(task *structs.Task) *Builder {
+	b.taskName = task.Name
+	for k, v := range task.Env {
+		b.envvars[k] = v
+	}
+	if task.Resources != nil {
+		b.memLimit = task.Resources.MemoryMB
+		b.cpuLimit = task.Resources.CPU
+		// Copy networks to prevent sharing
+		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
+		for i, n := range task.Resources.Networks {
+			b.networks[i] = n.Copy()
+		}
+	}
+	return b
+}
+
+// setAlloc is called from NewBuilder to populate alloc related environment
+// variables.
+func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
+	b.allocId = alloc.ID
+	b.allocName = alloc.Name
+	b.allocIndex = alloc.Index()
+	b.jobName = alloc.Job.Name
+
+	// Set meta
+	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
+	b.taskMeta = make(map[string]string, len(combined)*2)
+	for k, v := range combined {
+		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
+		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
+	}
+
+	// Add ports from other tasks
+	for taskName, resources := range alloc.TaskResources {
+		if taskName == b.taskName {
+			continue
+		}
+		for _, nw := range resources.Networks {
+			for _, p := range nw.ReservedPorts {
+				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
+			}
+			for _, p := range nw.DynamicPorts {
+				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
+			}
+		}
+	}
+	return b
+}
+
 // setNode is called from NewBuilder to populate node attributes.
 func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeIdKey] = n.ID
@@ -336,20 +406,6 @@ func (b *Builder) setNode(n *structs.Node) *Builder {
 	for k, v := range n.Meta {
 		b.nodeAttrs[fmt.Sprintf("%s%s", nodeMetaPrefix, k)] = v
 	}
-	return b
-}
-
-func (b *Builder) SetJobName(name string) *Builder {
-	b.mu.Lock()
-	b.jobName = name
-	b.mu.Unlock()
-	return b
-}
-
-func (b *Builder) SetRegion(r string) *Builder {
-	b.mu.Lock()
-	b.region = r
-	b.mu.Unlock()
 	return b
 }
 
@@ -374,36 +430,6 @@ func (b *Builder) SetSecretsDir(dir string) *Builder {
 	return b
 }
 
-func (b *Builder) SetResources(r *structs.Resources) *Builder {
-	if r == nil {
-		return b
-	}
-
-	// Build up env map for network addresses
-	newNetworks := make(map[string]string, len(r.Networks)*4)
-	for _, network := range r.Networks {
-		for label, intVal := range network.MapLabelToValues(nil) {
-			value := strconv.Itoa(intVal)
-			newNetworks[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
-			newNetworks[fmt.Sprintf("%s%s", HostPortPrefix, label)] = value
-			if forwardedPort, ok := b.portMap[label]; ok {
-				value = forwardedPort
-			}
-			newNetworks[fmt.Sprintf("%s%s", PortPrefix, label)] = value
-			IPPort := net.JoinHostPort(network.IP, value)
-			newNetworks[fmt.Sprintf("%s%s", AddrPrefix, label)] = IPPort
-
-		}
-	}
-
-	b.mu.Lock()
-	b.memLimit = r.MemoryMB
-	b.cpuLimit = r.CPU
-	b.networks = newNetworks
-	b.mu.Unlock()
-	return b
-}
-
 func (b *Builder) SetPortMap(portMap map[string]int) *Builder {
 	newPortMap := make(map[string]string, len(portMap))
 	for k, v := range portMap {
@@ -411,32 +437,6 @@ func (b *Builder) SetPortMap(portMap map[string]int) *Builder {
 	}
 	b.mu.Lock()
 	b.portMap = newPortMap
-	b.mu.Unlock()
-	return b
-}
-
-// Takes a map of meta values to be passed to the task. The keys are capatilized
-// when the environent variable is set.
-func (b *Builder) SetTaskMeta(m map[string]string) *Builder {
-	newM := make(map[string]string, len(m)*2)
-
-	for k, v := range m {
-		newM[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
-		newM[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
-	}
-
-	b.mu.Lock()
-	b.taskMeta = newM
-	b.mu.Unlock()
-	return b
-}
-
-// Merge the given environment variables into existing ones.
-func (b *Builder) MergeEnvvars(m map[string]string) *Builder {
-	b.mu.Lock()
-	for k, v := range m {
-		b.envvars[k] = v
-	}
 	b.mu.Unlock()
 	return b
 }
@@ -466,31 +466,6 @@ func (b *Builder) SetHostEnvvars(filter []string) *Builder {
 	b.mu.Lock()
 	b.hostEnv = filteredHostEnv
 	b.mu.Unlock()
-	return b
-}
-
-// SetAlloc related environment variables.
-func (b *Builder) SetAlloc(alloc *structs.Allocation) *Builder {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.allocId = alloc.ID
-	b.allocName = alloc.Name
-	b.allocIndex = alloc.Index()
-
-	// Add ports from other tasks
-	for taskName, resources := range alloc.TaskResources {
-		if taskName == b.taskName {
-			continue
-		}
-		for _, nw := range resources.Networks {
-			for _, p := range nw.ReservedPorts {
-				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
-			}
-			for _, p := range nw.DynamicPorts {
-				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
-			}
-		}
-	}
 	return b
 }
 
