@@ -688,6 +688,60 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
+	task, _, _ := dockerTask()
+	expectedUlimits := map[string]string{
+		"nproc":  "4242",
+		"nofile": "2048:4096",
+	}
+	task.Config["sysctl"] = []map[string]string{
+		map[string]string{
+			"net.core.somaxconn": "16384",
+		},
+	}
+	task.Config["ulimit"] = []map[string]string{
+		expectedUlimits,
+	}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if want, got := "16384", container.HostConfig.Sysctls["net.core.somaxconn"]; want != got {
+		t.Errorf("Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got)
+	}
+
+	if want, got := 2, len(container.HostConfig.Ulimits); want != got {
+		t.Errorf("Wrong number of ulimit configs for docker job. Expect: %d, got: %d", want, got)
+	}
+	for _, got := range container.HostConfig.Ulimits {
+		if expectedStr, ok := expectedUlimits[got.Name]; ok == false {
+			t.Errorf("%s config unexpected for docker job.", got.Name)
+		} else {
+			if strings.Contains(expectedStr, ":") == false {
+				expectedStr = expectedStr + ":" + expectedStr
+			}
+
+			splitted := strings.SplitN(expectedStr, ":", 2)
+			soft, _ := strconv.Atoi(splitted[0])
+			hard, _ := strconv.Atoi(splitted[1])
+
+			if got.Soft != int64(soft) {
+				t.Errorf("Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft)
+			}
+			if got.Hard != int64(hard) {
+				t.Errorf("Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard)
+			}
+		}
+	}
+}
+
 func TestDockerDriver_Labels(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["labels"] = []map[string]string{

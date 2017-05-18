@@ -146,6 +146,10 @@ type DockerDriverConfig struct {
 	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
+	SysctlRaw        []map[string]string `mapstructure:"sysctl"`             //
+	Sysctl           map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
+	UlimitRaw        []map[string]string `mapstructure:"ulimit"`             //
+	Ulimit           []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
@@ -163,6 +167,35 @@ type DockerDriverConfig struct {
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 }
 
+func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
+	var ulimits []docker.ULimit
+
+	for name, ulimitRaw := range ulimitsRaw {
+		// hard limit is optional
+		if strings.Contains(ulimitRaw, ":") == false {
+			ulimitRaw = ulimitRaw + ":" + ulimitRaw
+		}
+
+		splitted := strings.SplitN(ulimitRaw, ":", 2)
+		soft, err := strconv.Atoi(splitted[0])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+		}
+		hard, err := strconv.Atoi(splitted[1])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+		}
+
+		ulimit := docker.ULimit{
+			Name: name,
+			Soft: int64(soft),
+			Hard: int64(hard),
+		}
+		ulimits = append(ulimits, ulimit)
+	}
+	return ulimits, nil
+}
+
 // Validate validates a docker driver config
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
@@ -170,10 +203,18 @@ func (c *DockerDriverConfig) Validate() error {
 	}
 
 	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
+	c.Sysctl = mapMergeStrStr(c.SysctlRaw...)
 	c.Labels = mapMergeStrStr(c.LabelsRaw...)
 	if len(c.Logging) > 0 {
 		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
 	}
+
+	mergedUlimitsRaw := mapMergeStrStr(c.UlimitRaw...)
+	ulimit, err := sliceMergeUlimit(mergedUlimitsRaw)
+	if err != nil {
+		return err
+	}
+	c.Ulimit = ulimit
 	return nil
 }
 
@@ -204,6 +245,20 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
+
+	for _, m := range dconf.SysctlRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
+
+	for _, m := range dconf.UlimitRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -363,6 +418,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"userns_mode": &fields.FieldSchema{
 				Type: fields.TypeString,
+			},
+			"sysctl": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"ulimit": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 			"port_map": &fields.FieldSchema{
 				Type: fields.TypeArray,
@@ -831,6 +892,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.PidMode = driverConfig.PidMode
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
+	hostConfig.Sysctls = driverConfig.Sysctl
+	hostConfig.Ulimits = driverConfig.Ulimit
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
