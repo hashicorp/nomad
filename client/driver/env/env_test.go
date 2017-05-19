@@ -29,20 +29,13 @@ const (
 )
 
 var (
-	// Networks that tests can rely on
-	networks = []*structs.NetworkResource{
-		&structs.NetworkResource{
-			IP:            "127.0.0.1",
-			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
-			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
-		},
-	}
+	// portMap for use in tests as its set after Builder creation
 	portMap = map[string]int{
 		"https": 443,
 	}
 )
 
-func testTaskEnvironment() *TaskEnvironment {
+func testEnvBuilder() *Builder {
 	n := mock.Node()
 	n.Attributes = map[string]string{
 		attrKey: attrVal,
@@ -53,18 +46,19 @@ func testTaskEnvironment() *TaskEnvironment {
 	n.Name = nodeName
 	n.NodeClass = nodeClass
 
-	envvars := map[string]string{
+	task := mock.Job().TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{
 		envOneKey: envOneVal,
 		envTwoKey: envTwoVal,
 	}
-	return NewTaskEnvironment(n).SetEnvvars(envvars).Build()
+	return NewBuilder(n, mock.Alloc(), task, "global")
 }
 
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
-	env := testTaskEnvironment()
+	env := testEnvBuilder()
 
 	input := []string{fmt.Sprintf(`"${%v}"!`, envOneKey), fmt.Sprintf("${%s}${%s}", envOneKey, envTwoKey)}
-	act := env.ParseAndReplace(input)
+	act := env.Build().ParseAndReplace(input)
 	exp := []string{fmt.Sprintf(`"%s"!`, envOneVal), fmt.Sprintf("%s%s", envOneVal, envTwoVal)}
 
 	if !reflect.DeepEqual(act, exp) {
@@ -75,8 +69,8 @@ func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
 func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
 	input := []string{fmt.Sprintf("${%v%v}", nodeMetaPrefix, metaKey)}
 	exp := []string{metaVal}
-	env := testTaskEnvironment()
-	act := env.ParseAndReplace(input)
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
@@ -86,8 +80,8 @@ func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
 func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
 	input := []string{fmt.Sprintf("${%v%v}", nodeAttributePrefix, attrKey)}
 	exp := []string{attrVal}
-	env := testTaskEnvironment()
-	act := env.ParseAndReplace(input)
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
@@ -97,8 +91,8 @@ func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
 func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
 	input := []string{fmt.Sprintf("${%v}", nodeNameKey), fmt.Sprintf("${%v}", nodeClassKey)}
 	exp := []string{nodeName, nodeClass}
-	env := testTaskEnvironment()
-	act := env.ParseAndReplace(input)
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
@@ -116,8 +110,8 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 		fmt.Sprintf("%v%v", nodeClass, metaVal),
 		fmt.Sprintf("%v%v", envTwoVal, nodeClass),
 	}
-	env := testTaskEnvironment()
-	act := env.ParseAndReplace(input)
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
 
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
@@ -127,8 +121,8 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 	input := fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey)
 	exp := fmt.Sprintf("%v%v", nodeName, attrVal)
-	env := testTaskEnvironment()
-	act := env.ReplaceEnv(input)
+	env := testEnvBuilder()
+	act := env.Build().ReplaceEnv(input)
 
 	if act != exp {
 		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
@@ -137,6 +131,9 @@ func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 
 func TestEnvironment_AsList(t *testing.T) {
 	n := mock.Node()
+	n.Meta = map[string]string{
+		"metaKey": "metaVal",
+	}
 	a := mock.Alloc()
 	a.Resources.Networks[0].ReservedPorts = append(a.Resources.Networks[0].ReservedPorts,
 		structs.Port{Label: "ssh", Value: 22},
@@ -156,15 +153,22 @@ func TestEnvironment_AsList(t *testing.T) {
 			},
 		},
 	}
-	env := NewTaskEnvironment(n).
-		SetNetworks(networks).
-		SetPortMap(portMap).
-		SetTaskMeta(map[string]string{"foo": "baz"}).
-		SetAlloc(a).
-		SetTaskName("taskA").Build()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{
+		"taskEnvKey": "taskEnvVal",
+	}
+	task.Resources.Networks = []*structs.NetworkResource{
+		&structs.NetworkResource{
+			IP:            "127.0.0.1",
+			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
+			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
+		},
+	}
+	env := NewBuilder(n, a, task, "global").SetPortMap(map[string]int{"https": 443})
 
-	act := env.EnvList()
+	act := env.Build().List()
 	exp := []string{
+		"taskEnvKey=taskEnvVal",
 		"NOMAD_ADDR_http=127.0.0.1:80",
 		"NOMAD_PORT_http=80",
 		"NOMAD_IP_http=127.0.0.1",
@@ -173,110 +177,101 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_IP_https=127.0.0.1",
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
-		"NOMAD_META_FOO=baz",
-		"NOMAD_META_foo=baz",
-		"NOMAD_ADDR_web_main=192.168.0.100:5000",
-		"NOMAD_ADDR_web_http=192.168.0.100:2000",
-		"NOMAD_PORT_web_main=5000",
-		"NOMAD_PORT_web_http=2000",
-		"NOMAD_IP_web_main=192.168.0.100",
-		"NOMAD_IP_web_http=192.168.0.100",
-		"NOMAD_TASK_NAME=taskA",
+		"NOMAD_TASK_NAME=web",
 		"NOMAD_ADDR_ssh_other=192.168.0.100:1234",
 		"NOMAD_ADDR_ssh_ssh=192.168.0.100:22",
 		"NOMAD_IP_ssh_other=192.168.0.100",
 		"NOMAD_IP_ssh_ssh=192.168.0.100",
 		"NOMAD_PORT_ssh_other=1234",
 		"NOMAD_PORT_ssh_ssh=22",
+		"NOMAD_CPU_LIMIT=500",
+		"NOMAD_REGION=global",
+		"NOMAD_MEMORY_LIMIT=256",
+		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
 	if len(act) != len(exp) {
-		t.Fatalf("wat: %d != %d", len(act), len(exp))
+		t.Fatalf("wat: %d != %d, actual: %s\n\nexpected: %s\n",
+			len(act), len(exp), strings.Join(act, "\n"), strings.Join(exp, "\n"))
 	}
 	for i := range act {
 		if act[i] != exp[i] {
-			t.Errorf("%d %q != %q", i, act[i], exp[i])
+			t.Errorf("%d actual %q != %q expected", i, act[i], exp[i])
 		}
 	}
 }
 
 func TestEnvironment_VaultToken(t *testing.T) {
 	n := mock.Node()
-	env := NewTaskEnvironment(n).SetVaultToken("123", false).Build()
+	a := mock.Alloc()
+	env := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
+	env.SetVaultToken("123", false)
 
-	act := env.EnvList()
-	if len(act) != 0 {
-		t.Fatalf("Unexpected environment variables: %v", act)
+	{
+		act := env.Build().All()
+		if act[VaultToken] != "" {
+			t.Fatalf("Unexpected environment variables: %s=%q", VaultToken, act[VaultToken])
+		}
 	}
 
-	env = env.SetVaultToken("123", true).Build()
-	act = env.EnvList()
-	exp := []string{"VAULT_TOKEN=123"}
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
+	{
+		act := env.SetVaultToken("123", true).Build().List()
+		exp := "VAULT_TOKEN=123"
+		found := false
+		for _, entry := range act {
+			if entry == exp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("did not find %q in:\n%s", exp, strings.Join(act, "\n"))
+		}
 	}
 }
 
-func TestEnvironment_ClearEnvvars(t *testing.T) {
+func TestEnvironment_Envvars(t *testing.T) {
+	envMap := map[string]string{"foo": "baz", "bar": "bang"}
 	n := mock.Node()
-	env := NewTaskEnvironment(n).
-		SetNetworks(networks).
-		SetPortMap(portMap).
-		SetEnvvars(map[string]string{"foo": "baz", "bar": "bang"}).Build()
-
-	act := env.EnvList()
-	exp := []string{
-		"NOMAD_ADDR_http=127.0.0.1:80",
-		"NOMAD_PORT_http=80",
-		"NOMAD_IP_http=127.0.0.1",
-		"NOMAD_ADDR_https=127.0.0.1:443",
-		"NOMAD_PORT_https=443",
-		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_http=80",
-		"NOMAD_HOST_PORT_https=8080",
-		"bar=bang",
-		"foo=baz",
-	}
-	sort.Strings(act)
-	sort.Strings(exp)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
-	}
-
-	// Clear the environent variables.
-	env.ClearEnvvars().Build()
-
-	act = env.EnvList()
-	exp = []string{
-		"NOMAD_ADDR_http=127.0.0.1:80",
-		"NOMAD_PORT_http=80",
-		"NOMAD_IP_http=127.0.0.1",
-		"NOMAD_ADDR_https=127.0.0.1:443",
-		"NOMAD_PORT_https=443",
-		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_https=8080",
-		"NOMAD_HOST_PORT_http=80",
-	}
-	sort.Strings(act)
-	sort.Strings(exp)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = envMap
+	act := NewBuilder(n, a, task, "global").SetPortMap(portMap).Build().All()
+	for k, v := range envMap {
+		actV, ok := act[k]
+		if !ok {
+			t.Fatalf("missing %q in %#v", k, act)
+		}
+		if v != actV {
+			t.Fatalf("expected %s=%q but found %q", k, v, actV)
+		}
 	}
 }
 
 func TestEnvironment_Interpolate(t *testing.T) {
-	env := testTaskEnvironment().
-		SetEnvvars(map[string]string{"test": "${node.class}", "test2": "${attr.arch}"}).
-		Build()
+	n := mock.Node()
+	n.Attributes["arch"] = "x86"
+	n.NodeClass = "test class"
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{"test": "${node.class}", "test2": "${attr.arch}"}
+	env := NewBuilder(n, a, task, "global").Build()
 
-	act := env.EnvList()
-	exp := []string{fmt.Sprintf("test=%s", nodeClass), fmt.Sprintf("test2=%s", attrVal)}
-	sort.Strings(act)
-	sort.Strings(exp)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("env.List() returned %v; want %v", act, exp)
+	exp := []string{fmt.Sprintf("test=%s", n.NodeClass), fmt.Sprintf("test2=%s", n.Attributes["arch"])}
+	found1, found2 := false, false
+	for _, entry := range env.List() {
+		switch entry {
+		case exp[0]:
+			found1 = true
+		case exp[1]:
+			found2 = true
+		}
+	}
+	if !found1 || !found2 {
+		t.Fatalf("expected to find %q and %q but got:\n%s",
+			exp[0], exp[1], strings.Join(env.List(), "\n"))
 	}
 }
 
@@ -286,11 +281,11 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 		t.Skip("No host environment variables. Can't test")
 	}
 	skip := strings.Split(host[0], "=")[0]
-	env := testTaskEnvironment().
-		AppendHostEnvvars([]string{skip}).
+	env := testEnvBuilder().
+		SetHostEnvvars([]string{skip}).
 		Build()
 
-	act := env.EnvMap()
+	act := env.Map()
 	if len(act) < 1 {
 		t.Fatalf("Host environment variables not properly set")
 	}
@@ -303,21 +298,12 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 // converted to underscores in environment variables.
 // See: https://github.com/hashicorp/nomad/issues/2405
 func TestEnvironment_DashesInTaskName(t *testing.T) {
-	env := testTaskEnvironment()
-	env.SetNetworks([]*structs.NetworkResource{
-		{
-			Device: "eth0",
-			DynamicPorts: []structs.Port{
-				{
-					Label: "just-some-dashes",
-					Value: 9000,
-				},
-			},
-		},
-	})
-	env.Build()
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{"test-one-two": "three-four"}
+	envMap := NewBuilder(mock.Node(), a, task, "global").Build().Map()
 
-	if env.TaskEnv["NOMAD_PORT_just_some_dashes"] != "9000" {
-		t.Fatalf("Expected NOMAD_PORT_just_some_dashes=9000 in TaskEnv; found:\n%#v", env.TaskEnv)
+	if envMap["test_one_two"] != "three-four" {
+		t.Fatalf("Expected test_one_two=three-four in TaskEnv; found:\n%#v", envMap)
 	}
 }

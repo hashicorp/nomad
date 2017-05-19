@@ -221,10 +221,11 @@ type Builder struct {
 // NewBuilder creates a new task environment builder.
 func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Task, region string) *Builder {
 	b := &Builder{
-		region:    region,
-		envvars:   make(map[string]string),
-		nodeAttrs: make(map[string]string),
-		mu:        &sync.RWMutex{},
+		region:     region,
+		envvars:    make(map[string]string),
+		nodeAttrs:  make(map[string]string),
+		otherPorts: make(map[string]string),
+		mu:         &sync.RWMutex{},
 	}
 	return b.setTask(task).setAlloc(alloc).setNode(node)
 }
@@ -318,9 +319,9 @@ func (b *Builder) Build() *TaskEnv {
 		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
-	// Copy task env vars second as they override host env vars
+	// Copy interpolated task env vars second as they override host env vars
 	for k, v := range b.envvars {
-		envMap[k] = v
+		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
 	// Copy template env vars third as they override task env vars
@@ -380,10 +381,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 		for _, nw := range resources.Networks {
 			for _, p := range nw.ReservedPorts {
-				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
+				addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
 			}
 			for _, p := range nw.DynamicPorts {
-				addPort(b.otherPorts, b.taskName, nw.IP, p.Label, p.Value)
+				addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
 			}
 		}
 	}
