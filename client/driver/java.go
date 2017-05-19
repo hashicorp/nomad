@@ -175,7 +175,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
@@ -203,7 +203,7 @@ func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfi
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	driverConfig, err := NewJavaDriverConfig(task, d.envBuilder.Build())
+	driverConfig, err := NewJavaDriverConfig(task, d.taskEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Set the context
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.envBuilder.Build(),
+		TaskEnv: d.taskEnv,
 		Driver:  "java",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,

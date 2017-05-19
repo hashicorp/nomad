@@ -106,7 +106,7 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 	return false, nil
 }
 
-func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
@@ -133,7 +133,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.envBuilder.Build(),
+		TaskEnv: d.taskEnv,
 		Driver:  "raw_exec",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -169,7 +169,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.envBuilder.Build(),
+		taskEnv:        d.taskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
@@ -218,7 +218,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.envBuilder.Build(),
+		taskEnv:        d.taskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()

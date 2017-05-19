@@ -223,7 +223,7 @@ func (d *RktDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
+func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
@@ -310,8 +310,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
-	taskEnv := d.envBuilder.Build()
-	for k, v := range taskEnv.Map() {
+	for k, v := range d.taskEnv.Map() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%q", k, v))
 	}
 
@@ -401,7 +400,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
-		parsed := taskEnv.ParseAndReplace(driverConfig.Args)
+		parsed := d.taskEnv.ParseAndReplace(driverConfig.Args)
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {
@@ -412,12 +411,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 			cmdArgs = append(cmdArgs, fmt.Sprintf("%v", arg))
 		}
 	}
-
-	// Set the host environment variables as by default they aren't set for
-	// image based drivers.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.envBuilder.SetHostEnvvars(filter)
-	taskEnv = d.envBuilder.Build()
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	executorConfig := &dstructs.ExecutorConfig{
@@ -430,7 +423,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: taskEnv,
+		TaskEnv: d.taskEnv,
 		Driver:  "rkt",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -480,7 +473,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
-		env:            taskEnv,
+		env:            d.taskEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
@@ -522,7 +515,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		uuid:           id.UUID,
-		env:            d.envBuilder.Build(),
+		env:            d.taskEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,

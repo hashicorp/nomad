@@ -173,7 +173,7 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	return true, nil
 }
 
-func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 

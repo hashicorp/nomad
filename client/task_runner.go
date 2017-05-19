@@ -488,7 +488,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, r.envBuilder, eventEmitter)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, r.envBuilder.Build(), eventEmitter)
 	d, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -1303,12 +1303,17 @@ func (r *TaskRunner) startTask() error {
 
 	// Run prestart
 	ctx := driver.NewExecContext(r.taskDir)
-	res, err := drv.Prestart(ctx, r.task)
+	resp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
 	r.createdResourcesLock.Lock()
-	r.createdResources.Merge(res)
+	r.createdResources.Merge(resp.CreatedResources)
 	r.createdResourcesLock.Unlock()
+
+	// Update environment with PortMap if it was returned
+	if len(resp.PortMap) > 0 {
+		r.envBuilder.SetPortMap(resp.PortMap)
+	}
 
 	if err != nil {
 		wrapped := fmt.Sprintf("failed to initialize task %q for alloc %q: %v",

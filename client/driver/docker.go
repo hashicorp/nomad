@@ -180,7 +180,7 @@ func (c *DockerDriverConfig) Validate() error {
 
 // NewDockerDriverConfig returns a docker driver config by parsing the HCL
 // config
-func NewDockerDriverConfig(task *structs.Task, envBuilder *env.Builder) (*DockerDriverConfig, error) {
+func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverConfig, error) {
 	var dconf DockerDriverConfig
 
 	if err := mapstructure.WeakDecode(task.Config, &dconf); err != nil {
@@ -188,7 +188,6 @@ func NewDockerDriverConfig(task *structs.Task, envBuilder *env.Builder) (*Docker
 	}
 
 	// Interpolate everthing that is a string
-	env := envBuilder.Build()
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
@@ -456,8 +455,8 @@ func (d *DockerDriver) getDockerCoordinator(client *docker.Client) (*dockerCoord
 	return GetDockerCoordinator(config), fmt.Sprintf("%s-%s", d.DriverContext.allocID, d.DriverContext.taskName)
 }
 
-func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
-	driverConfig, err := NewDockerDriverConfig(task, d.envBuilder)
+func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartResponse, error) {
+	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -477,10 +476,11 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedR
 		return nil, err
 	}
 
-	res := NewCreatedResources()
-	res.Add(dockerImageResKey, id)
+	resp := NewPrestartResponse()
+	resp.CreatedResources.Add(dockerImageResKey, id)
+	resp.PortMap = d.driverConfig.PortMap
 	d.imageID = id
-	return res, nil
+	return resp, nil
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -496,7 +496,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:        d.envBuilder.Build(),
+		TaskEnv:        d.taskEnv,
 		Task:           task,
 		Driver:         "docker",
 		AllocID:        d.DriverContext.allocID,
@@ -900,14 +900,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", containerPort)
 		}
 
-		d.envBuilder.SetPortMap(driverConfig.PortMap)
-
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
 	}
 
-	taskEnv := d.envBuilder.Build()
-	parsedArgs := taskEnv.ParseAndReplace(driverConfig.Args)
+	parsedArgs := d.taskEnv.ParseAndReplace(driverConfig.Args)
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
@@ -931,7 +928,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
-	config.Env = taskEnv.List()
+	config.Env = d.taskEnv.List()
 
 	containerName := fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)

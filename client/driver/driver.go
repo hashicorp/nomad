@@ -53,6 +53,24 @@ func NewDriver(name string, ctx *DriverContext) (Driver, error) {
 // Factory is used to instantiate a new Driver
 type Factory func(*DriverContext) Driver
 
+// PrestartResponse is driver state returned by Driver.Prestart.
+type PrestartResponse struct {
+	// CreatedResources by the driver.
+	CreatedResources *CreatedResources
+
+	// PortMap can be set by drivers to replace ports in environment
+	// variables with driver-specific mappings.
+	PortMap map[string]int
+}
+
+// NewPrestartResponse creates a new PrestartResponse with CreatedResources
+// initialized.
+func NewPrestartResponse() *PrestartResponse {
+	return &PrestartResponse{
+		CreatedResources: NewCreatedResources(),
+	}
+}
+
 // CreatedResources is a map of resources (eg downloaded images) created by a driver
 // that must be cleaned up.
 type CreatedResources struct {
@@ -176,7 +194,7 @@ type Driver interface {
 	// intialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
-	Prestart(*ExecContext, *structs.Task) (*CreatedResources, error)
+	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
 
 	// Start is used to being task execution
 	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
@@ -220,12 +238,12 @@ type LogEventFn func(message string, args ...interface{})
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjection with Factory, above.
 type DriverContext struct {
-	taskName   string
-	allocID    string
-	config     *config.Config
-	logger     *log.Logger
-	node       *structs.Node
-	envBuilder *env.Builder
+	taskName string
+	allocID  string
+	config   *config.Config
+	logger   *log.Logger
+	node     *structs.Node
+	taskEnv  *env.TaskEnv
 
 	emitEvent LogEventFn
 }
@@ -241,15 +259,15 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
-	logger *log.Logger, envBuilder *env.Builder, eventEmitter LogEventFn) *DriverContext {
+	logger *log.Logger, taskEnv *env.TaskEnv, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName:   taskName,
-		allocID:    allocID,
-		config:     config,
-		node:       node,
-		logger:     logger,
-		envBuilder: envBuilder,
-		emitEvent:  eventEmitter,
+		taskName:  taskName,
+		allocID:   allocID,
+		config:    config,
+		node:      node,
+		logger:    logger,
+		taskEnv:   taskEnv,
+		emitEvent: eventEmitter,
 	}
 }
 

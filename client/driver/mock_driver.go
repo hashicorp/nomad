@@ -1,4 +1,4 @@
-// +build nomad_test
+//+build nomad_test
 
 package driver
 
@@ -84,7 +84,7 @@ func (d *MockDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationNone
 }
 
-func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 

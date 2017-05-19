@@ -131,7 +131,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
@@ -238,7 +238,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.envBuilder.Build(),
+		TaskEnv: d.taskEnv,
 		Driver:  "qemu",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,

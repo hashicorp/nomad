@@ -98,7 +98,7 @@ func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
@@ -124,7 +124,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.envBuilder.Build(),
+		TaskEnv: d.taskEnv,
 		Driver:  "exec",
 		AllocID: d.DriverContext.allocID,
 		LogDir:  ctx.TaskDir.LogDir,
