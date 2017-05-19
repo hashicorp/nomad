@@ -747,7 +747,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 
 func TestDockerDriver_SecurityOpt(t *testing.T) {
 	task, _, _ := dockerTask()
-	task.Config["security_opt"] = []string{"credentials=file://gmsa.json", "anotherflag"}
+	task.Config["security_opt"] = []string{"seccomp=unconfined"}
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
