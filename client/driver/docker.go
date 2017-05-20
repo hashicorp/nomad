@@ -161,6 +161,7 @@ type DockerDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
+	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 }
 
 // Validate validates a docker driver config
@@ -204,6 +205,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
+	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -415,6 +417,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"force_pull": &fields.FieldSchema{
 				Type: fields.TypeBool,
+			},
+			"security_opt": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 		},
 	}
@@ -831,6 +836,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.PidMode = driverConfig.PidMode
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
+	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {

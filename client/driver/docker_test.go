@@ -745,6 +745,25 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_SecurityOpt(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["security_opt"] = []string{"seccomp=unconfined"}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(task.Config["security_opt"], container.HostConfig.SecurityOpt) {
+		t.Errorf("Security Opts don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["security_opt"], container.HostConfig.SecurityOpt)
+	}
+}
+
 func TestDockerDriver_DNS(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
