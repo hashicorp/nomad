@@ -18,6 +18,7 @@ client {
     meta {
         ssd = "true"
     }
+    no_host_uuid = true
 }
 
 # Modify our port to avoid a collision with server1 and client1
