@@ -23,6 +23,7 @@ client {
     reserved {
        cpu = 500
     }
+    no_host_uuid = true
 }
 
 # Modify our port to avoid a collision with server1
