@@ -99,6 +99,11 @@ client {
     # this should be like "nomad.service.consul:4647" and a system
     # like Consul used for service discovery.
     servers = ["127.0.0.1:4647"]
+
+    # Since we are starting two clients on the same host, we need to set
+    # this in order to force nomad to generate client UUIDs randomly,
+    # instead of based on the host UUID.
+    no_host_uuid = true
 }
 
 # Modify our port to avoid a collision with server1
