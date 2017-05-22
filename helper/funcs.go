@@ -64,6 +64,13 @@ func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
 }
 
+func IntMin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // MapStringStringSliceValueSet returns the set of values in a map[string][]string
 func MapStringStringSliceValueSet(m map[string][]string) []string {
 	set := make(map[string]struct{})

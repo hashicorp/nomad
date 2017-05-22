@@ -1491,6 +1491,16 @@ func (j *Job) Stopped() bool {
 	return j == nil || j.Stop
 }
 
+func (j *Job) HasUpdateStrategy() bool {
+	for _, tg := range j.TaskGroups {
+		if tg.Update != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
@@ -3701,6 +3711,17 @@ type Deployment struct {
 	ModifyIndex uint64
 }
 
+func NewDeployment(job *Job) *Deployment {
+	return &Deployment{
+		ID:             GenerateUUID(),
+		JobID:          job.ID,
+		JobVersion:     job.Version,
+		JobModifyIndex: job.ModifyIndex,
+		JobCreateIndex: job.CreateIndex,
+		Status:         DeploymentStatusRunning,
+	}
+}
+
 func (d *Deployment) Copy() *Deployment {
 	c := &Deployment{}
 	*c = *d
@@ -3728,17 +3749,8 @@ func (d *Deployment) Active() bool {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
-	// Promoted marks whether the canaries have been. Promotion by
-	// task group is not allowed since that doesn’t allow a single
-	// job to transition into the “stable” state.
+	// Promoted marks whether the canaries have been promoted
 	Promoted bool
-
-	// RequiresPromotion marks whether the deployment is expecting
-	// a promotion. This is computable by checking if the job has canaries
-	// specified, but is stored in the deployment to make it so that consumers
-	// do not need to query job history and deployments to know whether a
-	// promotion is needed.
-	RequiresPromotion bool
 
 	// DesiredCanaries is the number of canaries that should be created.
 	DesiredCanaries int
