@@ -90,6 +90,8 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	//s.logger.Printf("ALEX: INSERTING %# v", pretty.Formatter(results))
+
 	// Upsert the newly created deployment
 	if results.CreatedDeployment != nil {
 		if err := s.upsertDeploymentImpl(index, results.CreatedDeployment, true, txn); err != nil {
