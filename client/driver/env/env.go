@@ -221,11 +221,8 @@ type Builder struct {
 // NewBuilder creates a new task environment builder.
 func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Task, region string) *Builder {
 	b := &Builder{
-		region:     region,
-		envvars:    make(map[string]string),
-		nodeAttrs:  make(map[string]string),
-		otherPorts: make(map[string]string),
-		mu:         &sync.RWMutex{},
+		region: region,
+		mu:     &sync.RWMutex{},
 	}
 	return b.setTask(task).setAlloc(alloc).setNode(node)
 }
@@ -344,14 +341,26 @@ func (b *Builder) Build() *TaskEnv {
 	return NewTaskEnv(cleanedEnv, nodeAttrs)
 }
 
+// Update task updates the environment based on a new alloc and task.
+func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Builder {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.setTask(task).setAlloc(alloc)
+}
+
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
 	b.taskName = task.Name
+	b.envvars = make(map[string]string, len(task.Env))
 	for k, v := range task.Env {
 		b.envvars[k] = v
 	}
-	if task.Resources != nil {
+	if task.Resources == nil {
+		b.memLimit = 0
+		b.cpuLimit = 0
+		b.networks = []*structs.NetworkResource{}
+	} else {
 		b.memLimit = task.Resources.MemoryMB
 		b.cpuLimit = task.Resources.CPU
 		// Copy networks to prevent sharing
@@ -380,6 +389,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	}
 
 	// Add ports from other tasks
+	b.otherPorts = make(map[string]string, len(alloc.TaskResources)*2)
 	for taskName, resources := range alloc.TaskResources {
 		if taskName == b.taskName {
 			continue
@@ -398,6 +408,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 // setNode is called from NewBuilder to populate node attributes.
 func (b *Builder) setNode(n *structs.Node) *Builder {
+	b.nodeAttrs = make(map[string]string, 4+len(n.Attributes)+len(n.Meta))
 	b.nodeAttrs[nodeIdKey] = n.ID
 	b.nodeAttrs[nodeNameKey] = n.Name
 	b.nodeAttrs[nodeClassKey] = n.NodeClass

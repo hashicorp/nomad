@@ -1503,6 +1503,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
+	// Update the task's environment
+	r.envBuilder.UpdateTask(update, updatedTask)
+
 	var mErr multierror.Error
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -1518,7 +1521,8 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 
-		if err := r.updateServices(drv, r.handle, r.task, updatedTask, update); err != nil {
+		// Update services in Consul
+		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1536,7 +1540,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 }
 
 // updateServices and checks with Consul.
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task, newAlloc *structs.Allocation) error {
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
