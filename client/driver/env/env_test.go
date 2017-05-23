@@ -185,15 +185,26 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_PORT_ssh_other=1234",
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
+		"NOMAD_DC=dc1",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
+		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
+		"NOMAD_META_ELB_CHECK_MIN=3",
+		"NOMAD_META_ELB_CHECK_TYPE=http",
+		"NOMAD_META_FOO=bar",
+		"NOMAD_META_OWNER=armon",
+		"NOMAD_META_elb_check_interval=30s",
+		"NOMAD_META_elb_check_min=3",
+		"NOMAD_META_elb_check_type=http",
+		"NOMAD_META_foo=bar",
+		"NOMAD_META_owner=armon",
 		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
 	if len(act) != len(exp) {
-		t.Fatalf("wat: %d != %d, actual: %s\n\nexpected: %s\n",
+		t.Fatalf("expected %d vars != %d actual, actual: %s\n\nexpected: %s\n",
 			len(act), len(exp), strings.Join(act, "\n"), strings.Join(exp, "\n"))
 	}
 	for i := range act {
@@ -305,5 +316,53 @@ func TestEnvironment_DashesInTaskName(t *testing.T) {
 
 	if envMap["test_one_two"] != "three-four" {
 		t.Fatalf("Expected test_one_two=three-four in TaskEnv; found:\n%#v", envMap)
+	}
+}
+
+// TestEnvironment_UpdateTask asserts env vars and task meta are updated when a
+// task is updated.
+func TestEnvironment_UpdateTask(t *testing.T) {
+	a := mock.Alloc()
+	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta": "tgmetaval"}
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = "orig"
+	task.Env = map[string]string{"taskenv": "taskenvval"}
+	task.Meta = map[string]string{"taskmeta": "taskmetaval"}
+	builder := NewBuilder(mock.Node(), a, task, "global")
+
+	origMap := builder.Build().Map()
+	if origMap["NOMAD_TASK_NAME"] != "orig" {
+		t.Errorf("Expected NOMAD_TASK_NAME=orig but found %q", origMap["NOMAD_TASK_NAME"])
+	}
+	if origMap["NOMAD_META_taskmeta"] != "taskmetaval" {
+		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", origMap["NOMAD_META_taskmeta"])
+	}
+	if origMap["taskenv"] != "taskenvval" {
+		t.Errorf("Expected taskenv=taskenvva but found %q", origMap["taskenv"])
+	}
+	if origMap["NOMAD_META_tgmeta"] != "tgmetaval" {
+		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", origMap["NOMAD_META_tgmeta"])
+	}
+
+	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta2": "tgmetaval2"}
+	task.Name = "new"
+	task.Env = map[string]string{"taskenv2": "taskenvval2"}
+	task.Meta = map[string]string{"taskmeta2": "taskmetaval2"}
+
+	newMap := builder.UpdateTask(a, task).Build().Map()
+	if newMap["NOMAD_TASK_NAME"] != "new" {
+		t.Errorf("Expected NOMAD_TASK_NAME=new but found %q", newMap["NOMAD_TASK_NAME"])
+	}
+	if newMap["NOMAD_META_taskmeta2"] != "taskmetaval2" {
+		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", newMap["NOMAD_META_taskmeta2"])
+	}
+	if newMap["taskenv2"] != "taskenvval2" {
+		t.Errorf("Expected taskenv=taskenvva but found %q", newMap["taskenv2"])
+	}
+	if newMap["NOMAD_META_tgmeta2"] != "tgmetaval2" {
+		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", newMap["NOMAD_META_tgmeta2"])
+	}
+	if v, ok := newMap["NOMAD_META_taskmeta"]; ok {
+		t.Errorf("Expected NOMAD_META_taskmeta to be unset but found: %q", v)
 	}
 }
