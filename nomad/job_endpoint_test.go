@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -232,6 +233,9 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	if out.Priority != 100 {
 		t.Fatalf("expected update")
 	}
+	if out.Version != 1 {
+		t.Fatalf("expected update")
+	}
 
 	// Lookup the evaluation
 	eval, err := state.EvalByID(ws, resp.EvalID)
@@ -262,6 +266,28 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check to ensure the job version didn't get bumped becasue we submitted
+	// the same job
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.Version != 1 {
+		t.Fatalf("expected no update; got %v; diff %v", out.Version, pretty.Diff(job2, out))
 	}
 }
 

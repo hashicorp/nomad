@@ -142,15 +142,20 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
-	// Commit this update via Raft
-	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
-		return err
-	}
+	// Check if the job has changed at all
+	if currentJob == nil || currentJob.SpecChanged(args.Job) {
+		// Commit this update via Raft
+		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		if err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			return err
+		}
 
-	// Populate the reply with job information
-	reply.JobModifyIndex = index
+		// Populate the reply with job information
+		reply.JobModifyIndex = index
+	} else {
+		reply.JobModifyIndex = currentJob.JobModifyIndex
+	}
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
@@ -164,7 +169,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
 		JobID:          args.Job.ID,
-		JobModifyIndex: index,
+		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
 	}
 	update := &structs.EvalUpdateRequest{

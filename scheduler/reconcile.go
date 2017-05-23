@@ -106,7 +106,8 @@ func NewAllocReconciler(ctx Context, stack Stack, batch bool,
 func (a *allocReconciler) Compute() *reconcileResults {
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
-	if a.job == nil || a.job.Stop {
+	stopped := a.job == nil || a.job.Stop
+	if stopped {
 		a.handleStop()
 
 		// Cancel the deployment since it is not needed
@@ -119,6 +120,29 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		}
 
 		return a.result
+	}
+
+	// Check if the deployment is referencing an older job
+	if d := a.deployment; d != nil {
+		if d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex {
+			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      a.deployment.ID,
+				Status:            structs.DeploymentStatusCancelled,
+				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
+			})
+			a.deployment = nil
+		}
+	}
+
+	// Create a new deployment
+	if a.deployment == nil && !stopped && a.job.HasUpdateStrategy() {
+		a.deployment = structs.NewDeployment(a.job)
+		a.result.createDeployment = a.deployment
+		a.ctx.Logger().Printf("ALEX: MADE DEPLOYMENT %q", a.deployment.ID)
+	}
+
+	if a.deployment != nil {
+		a.ctx.Logger().Printf("ALEX: CURRENT DEPLOYMENT %q", a.deployment.ID)
 	}
 
 	m := newAllocMatrix(a.job, a.existingAllocs)
@@ -225,13 +249,6 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	_, inplace, destructive := a.computeUpdates(tg, untainted)
 	a.ctx.Logger().Printf("RECONCILER -- Inplace (%d); Destructive (%d)", len(inplace), len(destructive))
 
-	// XXX Not clear if this is needed
-	// Update untainted so that it contains all existing allocations that have
-	// been inplace updated or do not have to be updated and does not include
-	// any canaries.
-	//untainted = untainted.difference(destructive)
-	//a.ctx.Logger().Printf("RECONCILER -- untainted %#v", untainted)
-
 	// Get the update strategy of the group
 	strategy, update := a.groupUpdateStrategy[group]
 
@@ -239,8 +256,9 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 
 	// The fact that we have destructive updates and have less canaries than is
 	// desired means we need to create canaries
-	requireCanary := len(destructive) != 0 && update && strategy.Canary != 0 && len(canaries) < strategy.Canary
-	if requireCanary && !a.deploymentPaused {
+	requireCanary := len(destructive) != 0 && update && len(canaries) < strategy.Canary
+	placeCanaries := requireCanary && !a.deploymentPaused
+	if placeCanaries {
 		a.ctx.Logger().Printf("RECONCILER -- Canary (%d)", strategy.Canary-len(canaries))
 		for i := len(canaries); i < strategy.Canary; i++ {
 			a.result.place = append(a.result.place, allocPlaceResult{
@@ -253,12 +271,8 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	}
 
 	// Determine how many we can place
-	limit := tg.Count
-	if update {
-		// XXX This is wrong. Need to detect health first. Probably only within
-		// the truly untainted set
-		limit = strategy.MaxParallel
-	}
+	haveCanaries := len(canaries) != 0 || placeCanaries
+	limit := a.computeLimit(tg, strategy, untainted, haveCanaries)
 	a.ctx.Logger().Printf("RECONCILER -- LIMIT %v", limit)
 
 	// Place if:
@@ -299,18 +313,9 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 		limit -= min
 	}
 
-	// Migrations should be done under the rolling update strategy, however we
-	// do not abide by the paused state of the deployment since this could block
-	// node draining.
-	min := helper.IntMin(len(migrate), limit)
-	i := 0
-	a.ctx.Logger().Printf("RECONCILER -- Migrating (%d)", min)
+	// TODO Migrations should be done using a stagger and max_parallel.
+	a.ctx.Logger().Printf("RECONCILER -- Migrating (%d)", len(migrate))
 	for _, alloc := range migrate {
-		if i == min {
-			break
-		}
-		i++
-
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			statusDescription: allocMigrating,
@@ -322,6 +327,38 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 			previousAlloc: alloc,
 		})
 	}
+}
+
+func (a *allocReconciler) computeLimit(group *structs.TaskGroup, strategy *structs.UpdateStrategy, untainted allocSet, canaries bool) int {
+	// If there is no update stategy or deployment for the group we can deploy
+	// as many as the group has
+	if strategy == nil || a.deployment == nil {
+		return group.Count
+	} else if a.deploymentPaused {
+		// If the deployment is paused, do not create anything else
+		return 0
+	}
+
+	// Get the state of the deployment for the group
+	deploymentState := a.deployment.TaskGroups[group.Name]
+
+	// If we have canaries and they have not been promoted the limit is 0
+	if canaries && (deploymentState == nil || !deploymentState.Promoted) {
+		return 0
+	}
+
+	// If we have been promoted or there are no canaries, the limit is the
+	// configured MaxParallel - any outstanding non-healthy alloc for the
+	// deployment
+	limit := strategy.MaxParallel
+	partOf, _ := untainted.filterByDeployment(a.deployment.ID)
+	for _, alloc := range partOf {
+		if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.Healthy == nil {
+			limit--
+		}
+	}
+
+	return limit
 }
 
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup, untainted, destructiveUpdates allocSet) []allocPlaceResult {

@@ -1627,6 +1627,47 @@ func (j *Job) RequiredSignals() map[string]map[string][]string {
 	return signals
 }
 
+// SpecChanged determines if the functional specification has changed between
+// two job versions. The new job will be mutated but returned to its original
+// value before returning, thus concurrent access to the job should be blocked.
+func (j *Job) SpecChanged(new *Job) bool {
+	if j == nil {
+		return new != nil
+	}
+
+	// Capture the original mutable values so they can be restored.
+	oStatus := new.Status
+	oStatusDescription := new.StatusDescription
+	oStable := new.Stable
+	oVersion := new.Version
+	oCreateIndex := new.CreateIndex
+	oModifyIndex := new.ModifyIndex
+	oJobModifyIndex := new.JobModifyIndex
+
+	// Update the new job so we can do a reflect
+	new.Status = j.Status
+	new.StatusDescription = j.StatusDescription
+	new.Stable = j.Stable
+	new.Version = j.Version
+	new.CreateIndex = j.CreateIndex
+	new.ModifyIndex = j.ModifyIndex
+	new.JobModifyIndex = j.JobModifyIndex
+
+	// Deep equals the jobs
+	equal := reflect.DeepEqual(j, new)
+
+	// Restore the new jobs values
+	new.Status = oStatus
+	new.StatusDescription = oStatusDescription
+	new.Stable = oStable
+	new.Version = oVersion
+	new.CreateIndex = oCreateIndex
+	new.ModifyIndex = oModifyIndex
+	new.JobModifyIndex = oJobModifyIndex
+
+	return !equal
+}
+
 // JobListStub is used to return a subset of job information
 // for the job list
 type JobListStub struct {
