@@ -390,6 +390,11 @@ func (s *GenericScheduler) computeJobAllocs2() error {
 	s.plan.CreatedDeployment = results.createDeployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
 
+	// Update the stored deployment
+	if results.createDeployment != nil {
+		s.deployment = results.createDeployment
+	}
+
 	// Handle the stop
 	for _, stop := range results.stop {
 		s.plan.AppendUpdate(stop.alloc, structs.AllocDesiredStatusStop, stop.statusDescription, stop.clientStatus)

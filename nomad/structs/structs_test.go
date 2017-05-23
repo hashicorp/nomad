@@ -295,6 +295,48 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 	}
 }
 
+func TestJob_SpecChanged(t *testing.T) {
+	// Get a base test job
+	base := testJob()
+
+	// Only modify the indexes/mutable state of the job
+	mutatedBase := base.Copy()
+	mutatedBase.Status = "foo"
+	mutatedBase.ModifyIndex = base.ModifyIndex + 100
+
+	// changed contains a spec change that should be detected
+	change := base.Copy()
+	change.Priority = 99
+
+	cases := []struct {
+		Name     string
+		Original *Job
+		New      *Job
+		Changed  bool
+	}{
+		{
+			Name:     "Same job except mutable indexes",
+			Changed:  false,
+			Original: base,
+			New:      mutatedBase,
+		},
+		{
+			Name:     "Different",
+			Changed:  true,
+			Original: base,
+			New:      change,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if actual := c.Original.SpecChanged(c.New); actual != c.Changed {
+				t.Fatalf("SpecChanged() returned %v; want %v", actual, c.Changed)
+			}
+		})
+	}
+}
+
 func testJob() *Job {
 	return &Job{
 		Region:      "global",
