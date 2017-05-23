@@ -113,7 +113,9 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 
 	// Build the task environment
 	a := mock.Alloc()
-	harness.envBuilder = env.NewBuilder(harness.node, a, a.Job.TaskGroups[0].Tasks[0], region)
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+	harness.envBuilder = env.NewBuilder(harness.node, a, task, region)
 
 	// Make a tempdir
 	d, err := ioutil.TempDir("", "ct_test")
