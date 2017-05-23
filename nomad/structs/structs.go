@@ -1515,6 +1515,7 @@ func (j *Job) Stopped() bool {
 	return j == nil || j.Stop
 }
 
+// HasUpdateStrategy returns if any task group in the job has an update strategy
 func (j *Job) HasUpdateStrategy() bool {
 	for _, tg := range j.TaskGroups {
 		if tg.Update != nil {
@@ -3803,6 +3804,7 @@ type Deployment struct {
 	ModifyIndex uint64
 }
 
+// NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
 		ID:             GenerateUUID(),
@@ -4647,17 +4649,6 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
 	p.NodeAllocation[node] = append(existing, alloc)
-}
-
-// AppendDeploymentUpdate attaches an deployment update to the plan for the
-// given deployment ID.
-func (p *Plan) AppendDeploymentUpdate(id, status, description string) {
-	update := &DeploymentStatusUpdate{
-		DeploymentID:      id,
-		Status:            status,
-		StatusDescription: description,
-	}
-	p.DeploymentUpdates = append(p.DeploymentUpdates, update)
 }
 
 // IsNoOp checks if this plan would do nothing
