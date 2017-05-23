@@ -612,6 +612,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	tmp, err := ioutil.TempFile("", "state-db")

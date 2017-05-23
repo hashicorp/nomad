@@ -1306,13 +1306,15 @@ func (r *TaskRunner) startTask() error {
 	resp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
-	r.createdResourcesLock.Lock()
-	r.createdResources.Merge(resp.CreatedResources)
-	r.createdResourcesLock.Unlock()
+	if resp != nil {
+		r.createdResourcesLock.Lock()
+		r.createdResources.Merge(resp.CreatedResources)
+		r.createdResourcesLock.Unlock()
 
-	// Update environment with PortMap if it was returned
-	if len(resp.PortMap) > 0 {
-		r.envBuilder.SetPortMap(resp.PortMap)
+		// Update environment with PortMap if it was returned
+		if len(resp.PortMap) > 0 {
+			r.envBuilder.SetPortMap(resp.PortMap)
+		}
 	}
 
 	if err != nil {

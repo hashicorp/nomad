@@ -91,7 +91,7 @@ type testHarness struct {
 	manager    *TaskTemplateManager
 	mockHooks  *MockTaskHooks
 	templates  []*structs.Template
-	taskEnv    *env.TaskEnvironment
+	envBuilder *env.Builder
 	node       *structs.Node
 	config     *config.Config
 	vaultToken string
@@ -103,18 +103,20 @@ type testHarness struct {
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
+	region := "global"
 	harness := &testHarness{
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
 		node:      mock.Node(),
-		config:    &config.Config{},
+		config:    &config.Config{Region: region},
 	}
 
 	// Build the task environment
-	harness.taskEnv = env.NewTaskEnvironment(harness.node).SetTaskName(TestTaskName)
+	a := mock.Alloc()
+	harness.envBuilder = env.NewBuilder(harness.node, a, a.Job.TaskGroups[0].Tasks[0], region)
 
 	// Make a tempdir
-	d, err := ioutil.TempDir("", "")
+	d, err := ioutil.TempDir("", "ct_test")
 	if err != nil {
 		t.Fatalf("Failed to make tmpdir: %v", err)
 	}
@@ -141,7 +143,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 
 func (h *testHarness) start(t *testing.T) {
 	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.taskEnv)
+		h.config, h.vaultToken, h.taskDir, h.envBuilder)
 	if err != nil {
 		t.Fatalf("failed to build task template manager: %v", err)
 	}
@@ -151,7 +153,7 @@ func (h *testHarness) start(t *testing.T) {
 
 func (h *testHarness) startWithErr() error {
 	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.taskEnv)
+		h.config, h.vaultToken, h.taskDir, h.envBuilder)
 	h.manager = manager
 	return err
 }
@@ -175,27 +177,29 @@ func (h *testHarness) stop() {
 func TestTaskTemplateManager_Invalid(t *testing.T) {
 	hooks := NewMockTaskHooks()
 	var tmpls []*structs.Template
-	config := &config.Config{}
+	region := "global"
+	config := &config.Config{Region: region}
 	taskDir := "foo"
 	vaultToken := ""
-	taskEnv := env.NewTaskEnvironment(mock.Node())
+	a := mock.Alloc()
+	envBuilder := env.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], config.Region)
 
 	_, err := NewTaskTemplateManager(nil, nil, nil, "", "", nil)
 	if err == nil {
 		t.Fatalf("Expected error")
 	}
 
-	_, err = NewTaskTemplateManager(nil, tmpls, config, vaultToken, taskDir, taskEnv)
+	_, err = NewTaskTemplateManager(nil, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "task hook") {
 		t.Fatalf("Expected invalid task hook error: %v", err)
 	}
 
-	_, err = NewTaskTemplateManager(hooks, tmpls, nil, vaultToken, taskDir, taskEnv)
+	_, err = NewTaskTemplateManager(hooks, tmpls, nil, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "config") {
 		t.Fatalf("Expected invalid config error: %v", err)
 	}
 
-	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, "", taskEnv)
+	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, "", envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "task directory") {
 		t.Fatalf("Expected invalid task dir error: %v", err)
 	}
@@ -205,7 +209,7 @@ func TestTaskTemplateManager_Invalid(t *testing.T) {
 		t.Fatalf("Expected invalid task environment error: %v", err)
 	}
 
-	tm, err := NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, taskEnv)
+	tm, err := NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	} else if tm == nil {
@@ -221,7 +225,7 @@ func TestTaskTemplateManager_Invalid(t *testing.T) {
 	}
 
 	tmpls = append(tmpls, tmpl)
-	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, taskEnv)
+	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "Failed to parse signal") {
 		t.Fatalf("Expected signal parsing error: %v", err)
 	}
