@@ -203,7 +203,7 @@ func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfi
 }
 
 func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	driverConfig, err := NewJavaDriverConfig(task, d.taskEnv)
+	driverConfig, err := NewJavaDriverConfig(task, ctx.TaskEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Set the context
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "java",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,

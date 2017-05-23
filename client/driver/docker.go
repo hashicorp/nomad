@@ -456,7 +456,7 @@ func (d *DockerDriver) getDockerCoordinator(client *docker.Client) (*dockerCoord
 }
 
 func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartResponse, error) {
-	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
+	driverConfig, err := NewDockerDriverConfig(task, ctx.TaskEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +496,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:        d.taskEnv,
+		TaskEnv:        ctx.TaskEnv,
 		Task:           task,
 		Driver:         "docker",
 		AllocID:        d.DriverContext.allocID,
@@ -904,7 +904,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		config.ExposedPorts = exposedPorts
 	}
 
-	parsedArgs := d.taskEnv.ParseAndReplace(driverConfig.Args)
+	parsedArgs := ctx.TaskEnv.ParseAndReplace(driverConfig.Args)
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
@@ -928,7 +928,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
-	config.Env = d.taskEnv.List()
+	config.Env = ctx.TaskEnv.List()
 
 	containerName := fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)

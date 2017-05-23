@@ -309,6 +309,11 @@ func (b *Builder) Build() *TaskEnv {
 		envMap[VaultToken] = b.vaultToken
 	}
 
+	// Copy task meta
+	for k, v := range b.taskMeta {
+		envMap[k] = v
+	}
+
 	// Copy node attributes
 	for k, v := range b.nodeAttrs {
 		nodeAttrs[k] = v
@@ -394,9 +399,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 // setNode is called from NewBuilder to populate node attributes.
 func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeIdKey] = n.ID
-	b.nodeAttrs[nodeDcKey] = n.Datacenter
 	b.nodeAttrs[nodeNameKey] = n.Name
 	b.nodeAttrs[nodeClassKey] = n.NodeClass
+	b.nodeAttrs[nodeDcKey] = n.Datacenter
+	b.datacenter = n.Datacenter
 
 	// Set up the attributes.
 	for k, v := range n.Attributes {

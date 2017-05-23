@@ -337,7 +337,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			return "", err
 		}
 
-		ctx := driver.NewExecContext(r.taskDir)
+		ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 		handle, err := d.Open(ctx, snap.HandleID)
 
 		// In the case it fails, we relaunch the task in the Run() method.
@@ -488,7 +488,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, r.envBuilder.Build(), eventEmitter)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, eventEmitter)
 	d, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -1174,7 +1174,7 @@ func (r *TaskRunner) cleanup() {
 
 	res := r.getCreatedResources()
 
-	ctx := driver.NewExecContext(r.taskDir)
+	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 	attempts := 1
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
@@ -1302,7 +1302,7 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	// Run prestart
-	ctx := driver.NewExecContext(r.taskDir)
+	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 	resp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
@@ -1321,6 +1321,9 @@ func (r *TaskRunner) startTask() error {
 		r.logger.Printf("[WARN] client: error from prestart: %s", wrapped)
 		return structs.WrapRecoverable(wrapped, err)
 	}
+
+	// Create a new context for Start since the environment may have been updated.
+	ctx = driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 
 	// Start the job
 	handle, err := drv.Start(ctx, r.task)
@@ -1411,25 +1414,8 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	r.taskDirBuilt = true
 	r.persistLock.Unlock()
 
-	// Set driver-specific environment variables
-	switch fsi {
-	case cstructs.FSIsolationNone:
-		// Use host paths
-		r.envBuilder.SetAllocDir(r.taskDir.SharedAllocDir)
-		r.envBuilder.SetTaskLocalDir(r.taskDir.LocalDir)
-		r.envBuilder.SetSecretsDir(r.taskDir.SecretsDir)
-	default:
-		// filesystem isolation; use container paths
-		r.envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
-		r.envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-		r.envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	}
-
-	// Set the host environment variables for non-image based drivers
-	if fsi != cstructs.FSIsolationImage {
-		filter := strings.Split(r.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-		r.envBuilder.SetHostEnvvars(filter)
-	}
+	// Set path and host related env vars
+	driver.SetEnvvars(r.envBuilder, fsi, r.taskDir, r.config)
 	return nil
 }
 

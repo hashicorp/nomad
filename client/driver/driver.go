@@ -243,7 +243,6 @@ type DriverContext struct {
 	config   *config.Config
 	logger   *log.Logger
 	node     *structs.Node
-	taskEnv  *env.TaskEnv
 
 	emitEvent LogEventFn
 }
@@ -259,14 +258,13 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
-	logger *log.Logger, taskEnv *env.TaskEnv, eventEmitter LogEventFn) *DriverContext {
+	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
 		taskName:  taskName,
 		allocID:   allocID,
 		config:    config,
 		node:      node,
 		logger:    logger,
-		taskEnv:   taskEnv,
 		emitEvent: eventEmitter,
 	}
 }
@@ -308,12 +306,16 @@ type ScriptExecutor interface {
 type ExecContext struct {
 	// TaskDir contains information about the task directory structure.
 	TaskDir *allocdir.TaskDir
+
+	// TaskEnv contains the task's environment variables.
+	TaskEnv *env.TaskEnv
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext(td *allocdir.TaskDir) *ExecContext {
+func NewExecContext(td *allocdir.TaskDir, te *env.TaskEnv) *ExecContext {
 	return &ExecContext{
 		TaskDir: td,
+		TaskEnv: te,
 	}
 }
 

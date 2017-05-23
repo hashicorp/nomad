@@ -133,7 +133,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "raw_exec",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -169,7 +169,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.taskEnv,
+		taskEnv:        ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
@@ -218,7 +218,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.taskEnv,
+		taskEnv:        ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()

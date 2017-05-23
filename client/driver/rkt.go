@@ -55,6 +55,9 @@ const (
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
 
+	// envCmd it the command for injecting environment variables.
+	envCmd = "env"
+
 	// rktUuidDeadline is how long to wait for the uuid file to be written
 	rktUuidDeadline = 5 * time.Second
 )
@@ -240,7 +243,20 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	img := driverConfig.ImageName
 
 	// Build the command.
-	cmdArgs := make([]string, 0, 32)
+	cmdArgs := make([]string, 0, 50)
+
+	// Run rkt with env command to inject PATH as rkt needs to be able to find iptables
+	envAbsPath, err := GetAbsolutePath(envCmd)
+	if err != nil {
+		return nil, fmt.Errorf("unable to locate env command which is required for rkt")
+	}
+	cmdArgs = append(cmdArgs, fmt.Sprintf("PATH=%q", os.Getenv("PATH")))
+
+	rktAbsPath, err := GetAbsolutePath(rktCmd)
+	if err != nil {
+		return nil, err
+	}
+	cmdArgs = append(cmdArgs, rktAbsPath)
 
 	// Add debug option to rkt command.
 	debug := driverConfig.Debug
@@ -310,7 +326,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
-	for k, v := range d.taskEnv.Map() {
+	for k, v := range ctx.TaskEnv.Map() {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%q", k, v))
 	}
 
@@ -400,7 +416,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
-		parsed := d.taskEnv.ParseAndReplace(driverConfig.Args)
+		parsed := ctx.TaskEnv.ParseAndReplace(driverConfig.Args)
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {
@@ -423,7 +439,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "rkt",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -435,13 +451,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	absPath, err := GetAbsolutePath(rktCmd)
-	if err != nil {
-		return nil, err
-	}
-
 	execCmd := &executor.ExecCommand{
-		Cmd:  absPath,
+		Cmd:  envAbsPath,
 		Args: cmdArgs,
 		User: task.User,
 	}
@@ -473,7 +484,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
-		env:            d.taskEnv,
+		env:            ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
@@ -515,7 +526,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	// Return a driver handle
 	h := &rktHandle{
 		uuid:           id.UUID,
-		env:            d.taskEnv,
+		env:            ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,

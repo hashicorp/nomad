@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -108,11 +109,15 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 	driver := NewDockerDriver(tctx.DriverCtx)
 	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
 
-	res, err := driver.Prestart(tctx.ExecCtx, task)
+	resp, err := driver.Prestart(tctx.ExecCtx, task)
 	if err != nil {
 		tctx.AllocDir.Destroy()
 		t.Fatalf("error in prestart: %v", err)
 	}
+
+	// At runtime this is handled by TaskRunner
+	tctx.EnvBuilder.SetPortMap(resp.PortMap)
+	tctx.ExecCtx.TaskEnv = tctx.EnvBuilder.Build()
 
 	handle, err := driver.Start(tctx.ExecCtx, task)
 	if err != nil {
@@ -126,7 +131,7 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 	}
 
 	cleanup := func() {
-		driver.Cleanup(tctx.ExecCtx, res)
+		driver.Cleanup(tctx.ExecCtx, resp.CreatedResources)
 		handle.Kill()
 		tctx.AllocDir.Destroy()
 	}
@@ -913,10 +918,12 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		"NOMAD_HOST_PORT_main": strconv.Itoa(docker_reserved),
 	}
 
+	log.Println(strings.Join(container.Config.Env, "\n"))
+
 	for key, val := range expectedEnvironment {
 		search := fmt.Sprintf("%s=%s", key, val)
 		if !inSlice(search, container.Config.Env) {
-			t.Errorf("Expected to find %s in container environment: %+v", search, container.Config.Env)
+			t.Errorf("Expected to find %s in container environment:\n%s\n\n", search, strings.Join(container.Config.Env, "\n"))
 		}
 	}
 }
@@ -1106,7 +1113,8 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 	}
 
 	alloc := mock.Alloc()
-	execCtx := NewExecContext(taskDir)
+	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
+	execCtx := NewExecContext(taskDir, envBuilder.Build())
 	cleanup := func() {
 		allocDir.Destroy()
 		if filepath.IsAbs(hostpath) {
@@ -1114,17 +1122,11 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		}
 	}
 
-	taskEnv, err := GetTaskEnv(taskDir, cfg.Node, task, alloc, cfg, "")
-	if err != nil {
-		cleanup()
-		t.Fatalf("Failed to get task env: %v", err)
-	}
-
 	logger := testLogger()
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, testLogger(), taskEnv, emitter)
+	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
 	driver := NewDockerDriver(driverCtx)
 	copyImage(t, taskDir, "busybox.tar")
 
@@ -1255,10 +1257,11 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	// Run Prestart
 	driver := NewDockerDriver(tctx.DriverCtx).(*DockerDriver)
-	res, err := driver.Prestart(tctx.ExecCtx, task)
+	resp, err := driver.Prestart(tctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
+	res := resp.CreatedResources
 	if len(res.Resources) == 0 || len(res.Resources[dockerImageResKey]) == 0 {
 		t.Fatalf("no created resources: %#v", res)
 	}
