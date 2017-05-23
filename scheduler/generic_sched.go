@@ -386,6 +386,12 @@ func (s *GenericScheduler) computeJobAllocs2() error {
 	reconciler := NewAllocReconciler(s.ctx, s.stack, s.batch, s.eval, s.job, s.deployment, allocs, tainted)
 	results := reconciler.Compute()
 
+	if s.eval.AnnotatePlan {
+		s.plan.Annotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: results.desiredTGUpdates,
+		}
+	}
+
 	// Add the deployment changes to the plan
 	s.plan.CreatedDeployment = results.createDeployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
@@ -403,6 +409,21 @@ func (s *GenericScheduler) computeJobAllocs2() error {
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
 		s.ctx.Plan().AppendAlloc(update)
+	}
+
+	// Nothing remaining to do if placement is not required
+	if len(results.place) == 0 {
+		if !s.job.Stopped() {
+			for _, tg := range s.job.TaskGroups {
+				s.queuedAllocs[tg.Name] = 0
+			}
+		}
+		return nil
+	}
+
+	// Record the number of allocations that needs to be placed per Task Group
+	for _, place := range results.place {
+		s.queuedAllocs[place.taskGroup.Name] += 1
 	}
 
 	// Compute the placements

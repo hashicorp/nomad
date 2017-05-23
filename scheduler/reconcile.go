@@ -13,8 +13,6 @@ import (
  * between the existing allocations and handles canaries replacing certain
  * allocations.
  * 2) Need to populate the desired state of a created deployment
- * 3) Need to capture the overall desired transformations so that annotated
- * plans work.
  */
 
 // allocReconciler is used to determine the set of allocations that require
@@ -75,7 +73,9 @@ type reconcileResults struct {
 	// stop is the set of allocations to stop
 	stop []allocStopResult
 
-	// TODO track the desired of the deployment
+	// desiredTGUpdates captures the desired set of changes to make for each
+	// task group.
+	desiredTGUpdates map[string]*structs.DesiredUpdates
 }
 
 // allocPlaceResult contains the information required to place a single
@@ -109,7 +109,9 @@ func NewAllocReconciler(ctx Context, stack Stack, batch bool,
 		deployment:     deployment,
 		existingAllocs: existingAllocs,
 		taintedNodes:   taintedNodes,
-		result:         new(reconcileResults),
+		result: &reconcileResults{
+			desiredTGUpdates: make(map[string]*structs.DesiredUpdates),
+		},
 	}
 
 	// Detect if the deployment is paused
@@ -195,15 +197,16 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 
 // computeGroup reconciles state for a particular task group.
 func (a *allocReconciler) computeGroup(group string, as allocSet) {
+	// Create the desired update object for the group
+	desiredChanges := new(structs.DesiredUpdates)
+	a.result.desiredTGUpdates[group] = desiredChanges
+
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
 	tg := a.job.LookupTaskGroup(group)
 
 	// Determine what set of alloations are on tainted nodes
 	untainted, migrate, lost := as.filterByTainted(a.taintedNodes)
-
-	a.ctx.Logger().Printf("RECONCILER -- untainted (%d); migrate (%d); lost (%d)", len(untainted), len(migrate), len(lost))
-	a.ctx.Logger().Printf("RECONCILER -- untainted %#v", untainted)
 
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
@@ -212,14 +215,15 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 		a.markStop(untainted, "", allocNotNeeded)
 		a.markStop(migrate, "", allocNotNeeded)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+		desiredChanges.Stop = uint64(len(untainted) + len(migrate) + len(lost))
 		return
 	}
 
-	// Get the deployment state for the group
-	var dstate *structs.DeploymentState
-	if a.deployment != nil {
-		dstate = a.deployment.TaskGroups[group]
-	}
+	// Track the lost and migrating
+	desiredChanges.Migrate += uint64(len(migrate) + len(lost))
+
+	a.ctx.Logger().Printf("RECONCILER -- untainted (%d); migrate (%d); lost (%d)", len(untainted), len(migrate), len(lost))
+	a.ctx.Logger().Printf("RECONCILER -- untainted %#v", untainted)
 
 	// Mark all lost allocations for stop. Previous allocation doesn't matter
 	// here since it is on a lost node
@@ -239,6 +243,7 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 		if a.deployment != nil {
 			current, older := canaries.filterByDeployment(a.deployment.ID)
 			a.markStop(older, "", allocNotNeeded)
+			desiredChanges.Stop += uint64(len(older))
 
 			a.ctx.Logger().Printf("RECONCILER -- older canaries %#v", older)
 			a.ctx.Logger().Printf("RECONCILER -- current canaries %#v", current)
@@ -250,6 +255,7 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 			// We don't need any of those canaries since there no longer is a
 			// deployment
 			a.markStop(canaries, "", allocNotNeeded)
+			desiredChanges.Stop += uint64(len(canaries))
 			untainted = untainted.difference(canaries)
 			canaries = nil
 			a.ctx.Logger().Printf("RECONCILER -- untainted - remove canaries %#v", untainted)
@@ -260,11 +266,15 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	// included stopped allocations
 	keep, stop := a.computeStop(tg, untainted)
 	a.markStop(stop, "", allocNotNeeded)
+	desiredChanges.Stop += uint64(len(stop))
 	untainted = keep
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	_, inplace, destructive := a.computeUpdates(tg, untainted)
+	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
+	desiredChanges.Ignore += uint64(len(ignore))
+	desiredChanges.InPlaceUpdate += uint64(len(inplace))
+	desiredChanges.DestructiveUpdate += uint64(len(destructive))
 
 	a.ctx.Logger().Printf("RECONCILER -- Stopping (%d); Untainted (%d)", len(stop), len(keep))
 	a.ctx.Logger().Printf("RECONCILER -- Inplace (%d); Destructive (%d)", len(inplace), len(destructive))
@@ -279,8 +289,10 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	requireCanary := len(destructive) != 0 && strategy != nil && len(canaries) < strategy.Canary
 	placeCanaries := requireCanary && !a.deploymentPaused
 	if placeCanaries {
-		a.ctx.Logger().Printf("RECONCILER -- Canary (%d)", strategy.Canary-len(canaries))
-		for i := len(canaries); i < strategy.Canary; i++ {
+		number := strategy.Canary - len(canaries)
+		desiredChanges.Canary += uint64(number)
+		a.ctx.Logger().Printf("RECONCILER -- Canary (%d)", number)
+		for i := 0; i < number; i++ {
 			a.result.place = append(a.result.place, allocPlaceResult{
 				// XXX Pick better name
 				name:      structs.GenerateUUID(),
@@ -295,6 +307,12 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	limit := a.computeLimit(tg, untainted, haveCanaries)
 	a.ctx.Logger().Printf("RECONCILER -- LIMIT %v", limit)
 
+	// Get the deployment state for the group
+	var dstate *structs.DeploymentState
+	if a.deployment != nil {
+		dstate = a.deployment.TaskGroups[group]
+	}
+
 	// Place if:
 	// * The deployment is not paused
 	// * Not placing any canaries
@@ -305,6 +323,7 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	if canPlace {
 		// Place all new allocations
 		place := a.computePlacements(tg, untainted)
+		desiredChanges.Place += uint64(len(place))
 		a.ctx.Logger().Printf("RECONCILER -- Placing (%d)", len(place))
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)

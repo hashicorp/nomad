@@ -4662,6 +4662,7 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+	Canary            uint64
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
