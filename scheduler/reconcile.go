@@ -12,7 +12,6 @@ import (
  * 1) We need a structure that yields names in an order that fills the gaps
  * between the existing allocations and handles canaries replacing certain
  * allocations.
- * 2) Need to populate the desired state of a created deployment
  */
 
 // allocReconciler is used to determine the set of allocations that require
@@ -284,13 +283,31 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 
 	// XXX need a structure for picking names
 
+	// Get the deployment state for the group
+	creatingDeployment := a.result.createDeployment != nil
+	var dstate *structs.DeploymentState
+	if a.deployment != nil {
+		var ok bool
+		dstate, ok = a.deployment.TaskGroups[group]
+
+		// We are creating a deployment
+		if !ok && creatingDeployment {
+			dstate = &structs.DeploymentState{}
+			a.deployment.TaskGroups[group] = dstate
+		}
+	}
+
 	// The fact that we have destructive updates and have less canaries than is
 	// desired means we need to create canaries
 	requireCanary := len(destructive) != 0 && strategy != nil && len(canaries) < strategy.Canary
-	placeCanaries := requireCanary && !a.deploymentPaused
-	if placeCanaries {
+	if requireCanary && !a.deploymentPaused {
 		number := strategy.Canary - len(canaries)
 		desiredChanges.Canary += uint64(number)
+		if creatingDeployment {
+			dstate.DesiredCanaries = strategy.Canary
+			dstate.DesiredTotal += strategy.Canary
+		}
+
 		a.ctx.Logger().Printf("RECONCILER -- Canary (%d)", number)
 		for i := 0; i < number; i++ {
 			a.result.place = append(a.result.place, allocPlaceResult{
@@ -303,27 +320,26 @@ func (a *allocReconciler) computeGroup(group string, as allocSet) {
 	}
 
 	// Determine how many we can place
-	haveCanaries := len(canaries) != 0 || placeCanaries
+	haveCanaries := dstate != nil && dstate.DesiredCanaries != 0
 	limit := a.computeLimit(tg, untainted, haveCanaries)
 	a.ctx.Logger().Printf("RECONCILER -- LIMIT %v", limit)
-
-	// Get the deployment state for the group
-	var dstate *structs.DeploymentState
-	if a.deployment != nil {
-		dstate = a.deployment.TaskGroups[group]
-	}
 
 	// Place if:
 	// * The deployment is not paused
 	// * Not placing any canaries
 	// * If there are any canaries that they have been promoted
+	place := a.computePlacements(tg, untainted)
+	if creatingDeployment {
+		dstate.DesiredTotal += len(place)
+	}
+
 	existingCanariesPromoted := dstate == nil || dstate.DesiredCanaries == 0 || dstate.Promoted
-	canPlace := !a.deploymentPaused && !requireCanary && existingCanariesPromoted
-	a.ctx.Logger().Printf("RECONCILER -- CAN PLACE %v", canPlace)
-	if canPlace {
-		// Place all new allocations
-		place := a.computePlacements(tg, untainted)
+	if !a.deploymentPaused && existingCanariesPromoted {
+		// Update the desired changes and if we are creating a deployment update
+		// the state.
 		desiredChanges.Place += uint64(len(place))
+
+		// Place all new allocations
 		a.ctx.Logger().Printf("RECONCILER -- Placing (%d)", len(place))
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)

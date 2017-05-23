@@ -3762,6 +3762,7 @@ func NewDeployment(job *Job) *Deployment {
 		JobModifyIndex: job.ModifyIndex,
 		JobCreateIndex: job.CreateIndex,
 		Status:         DeploymentStatusRunning,
+		TaskGroups:     make(map[string]*DeploymentState, len(job.TaskGroups)),
 	}
 }
 
