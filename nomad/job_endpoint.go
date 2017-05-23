@@ -760,13 +760,19 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	var index uint64
 	var updatedIndex uint64
-	if oldJob != nil {
+
+	// We want to reused deployments where possible, so only insert the job if
+	// it has changed or the job didn't exist
+	if oldJob != nil && oldJob.SpecChanged(args.Job) {
 		index = oldJob.JobModifyIndex
 		updatedIndex = oldJob.JobModifyIndex + 1
-	}
 
-	// Insert the updated Job into the snapshot
-	snap.UpsertJob(updatedIndex, args.Job)
+		// Insert the updated Job into the snapshot
+		snap.UpsertJob(updatedIndex, args.Job)
+	} else if oldJob == nil {
+		// Insert the updated Job into the snapshot
+		snap.UpsertJob(100, args.Job)
+	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
