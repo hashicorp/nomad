@@ -8,6 +8,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+/* TODO
+ * 1) We need a structure that yields names in an order that fills the gaps
+ * between the existing allocations and handles canaries replacing certain
+ * allocations.
+ * 2) Need to populate the desired state of a created deployment
+ * 3) Need to capture the overall desired transformations so that annotated
+ * plans work.
+ */
+
 // allocReconciler is used to determine the set of allocations that require
 // placement, inplace updating or stopping given the job specification and
 // existing cluster state. The reconciler should only be used for batch and
