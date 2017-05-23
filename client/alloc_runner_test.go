@@ -138,6 +138,14 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
+	// Shrink chroot
+	ar.config.ChrootEnv = map[string]string{
+		"/bin":   "/bin",
+		"/lib":   "/lib",
+		"/lib32": "/lib32",
+		"/lib64": "/lib64",
+	}
+
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Config["command"] = "/bin/sleep"
