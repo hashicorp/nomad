@@ -911,3 +911,45 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", harness.mockHooks.KillReason)
 	}
 }
+
+// TestTaskTemplateManager_Env asserts templates with the env flag set are read
+// into the task's environment.
+func TestTaskTemplateManager_Env(t *testing.T) {
+	template := &structs.Template{
+		EmbeddedTmpl: `
+# Comment lines are ok
+
+FOO=bar
+foo=123
+ANYTHING-goes=Spaces are=ok!
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeNoop,
+		Envvars:    true,
+	}
+	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait a little
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(2*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
+	}
+
+	// Validate environment
+	env := harness.envBuilder.Build().Map()
+	if len(env) < 3 {
+		t.Fatalf("expected at least 3 env vars but found %d:\n%#v\n", len(env), env)
+	}
+	if env["FOO"] != "bar" {
+		t.Errorf("expected FOO=bar but found %q", env["FOO"])
+	}
+	if env["foo"] != "123" {
+		t.Errorf("expected foo=123 but found %q", env["foo"])
+	}
+	if env["ANYTHING_goes"] != "Spaces are=ok!" {
+		t.Errorf("expected ANYTHING_GOES='Spaces are ok!' but found %q", env["ANYTHING_goes"])
+	}
+}
