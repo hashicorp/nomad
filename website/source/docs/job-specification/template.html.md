@@ -72,7 +72,7 @@ README][ct].
   template. The default is "{{" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
 
-- `perms` `(string: "666")` - Specifies the rendered template's permissions.
+- `perms` `(string: "644")` - Specifies the rendered template's permissions.
   File permissions are given as octal of the unix file permissions rwxrwxrwx.
 
 * `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
