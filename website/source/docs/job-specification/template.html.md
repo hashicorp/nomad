@@ -184,7 +184,8 @@ EOH
 }
 ```
 
-Would add the variables similar to the following to the task's environment:
+The task's environment would then have environment variables like the
+following:
 
 ```
 CORES=4
@@ -193,7 +194,7 @@ SERVICE_KEY=12345678-1234-1234-1234-1234-123456789abc
 
 This allows [12factor app](https://12factor.net/config) style environment
 variable based configuration while keeping all of the familiar features and
-semantics of standard templates.
+semantics of Nomad templates.
 
 The parser reads each line, discards empty lines or lines starting
 with a `#`, and then splits on the first `=`. The first part of the split is
