@@ -353,7 +353,7 @@ func (c *Client) init() error {
 
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {
-		if err := os.MkdirAll(c.config.AllocDir, 0755); err != nil {
+		if err := os.MkdirAll(c.config.AllocDir, 0711); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
@@ -369,7 +369,7 @@ func (c *Client) init() error {
 		}
 
 		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0755); err != nil {
+		if err := os.Chmod(p, 0711); err != nil {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
