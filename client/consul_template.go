@@ -195,12 +195,14 @@ WAIT:
 		}
 	}
 
+	// Read environment variables from env templates
 	for _, t := range tm.templates {
 		if err := loadTemplateEnv(envBuilder, taskDir, t); err != nil {
 			tm.hook.Kill("consul-template", err.Error(), true)
 			return
 		}
 	}
+
 	allRenderedTime = time.Now()
 	tm.hook.UnblockStart("consul-template")
 
