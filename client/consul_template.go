@@ -254,11 +254,12 @@ WAIT:
 				}
 
 				for _, tmpl := range tmpls {
+					// Read environment variables from templates
 					if err := loadTemplateEnv(envBuilder, taskDir, tmpl); err != nil {
-
 						tm.hook.Kill("consul-template", err.Error(), true)
 						return
 					}
+
 					switch tmpl.ChangeMode {
 					case structs.TemplateChangeModeSignal:
 						signals[tmpl.ChangeSignal] = struct{}{}
