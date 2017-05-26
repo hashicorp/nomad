@@ -181,6 +181,7 @@ func TestParse(t *testing.T) {
 										ChangeSignal: helper.StringToPtr("foo"),
 										Splay:        helper.TimeToPtr(10 * time.Second),
 										Perms:        helper.StringToPtr("0644"),
+										Envvars:      helper.BoolToPtr(true),
 									},
 									{
 										SourcePath: helper.StringToPtr("bar"),

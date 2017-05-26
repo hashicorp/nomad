@@ -156,6 +156,7 @@ job "binstore-storagelocker" {
         change_mode = "foo"
         change_signal = "foo"
         splay = "10s"
+        env = true
       }
 
       template {
