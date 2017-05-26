@@ -1,0 +1,86 @@
+#
+# REDIRECTS FILE
+#
+# This is a sample redirect file. Redirects allow individual projects to add
+# their own redirect rules in a declarative manner using Fastly edge
+# dictionaries.
+#
+# FORMAT
+#
+# Redirects are in the format. There must be at least one space between the
+# original path and the new path, and there must be exactly two entries per
+# line.
+#
+#     /original-path    /new-path
+#
+# GLOB MATCHING
+#
+# Because of the way lookup tables work, there is no support for glob matching.
+# Fastly does not provide a way to iterate through the lookup table, so it is
+# not possible to run through the table and find anything that matches. As such
+# URLs must match directly.
+#
+# More complex redirects are possible, but must be added directly to the
+# configuration. Please contact the release engineering team for assistance.
+#
+# DELETING
+#
+# Deleting items is not supported at this time. To delete an item, contact the
+# release engineering team and they will delete the dictionary item.
+#
+# MISC
+#
+# - Blank lines are ignored
+# - Comments are hash-style
+# - URLs are limited to 256 characters
+# - Items are case-sensitive (please use all lowercase)
+#
+
+# Docs
+/docs/agent/config.html                 /docs/agent/configuration/index.html
+/docs/jobops                            /docs/operating-a-job/index.html
+/docs/jobops/                           /docs/operating-a-job/index.html
+/docs/jobops/index.html                 /docs/operating-a-job/index.html
+/docs/jobops/taskconfig.html            /docs/operating-a-job/configuring-tasks.html
+/docs/jobops/inspecting.html            /docs/operating-a-job/inspecting-state.html
+/docs/jobops/resources.html             /docs/operating-a-job/resource-utilization.html
+/docs/jobops/servicediscovery.html      /docs/service-discovery/index.html
+/docs/jobops/logs.html                  /docs/operating-a-job/accessing-logs.html
+/docs/jobops/updating.html              /docs/operating-a-job/update-strategies/index.html
+/docs/jobspec                           /docs/job-specification/index.html
+/docs/jobspec/                          /docs/job-specification/index.html
+/docs/jobspec/index.html                /docs/job-specification/index.html
+/docs/jobspec/interpreted.html          /docs/runtime/interpolation.html
+/docs/jobspec/json.html                 /docs/http/json-jobs.html
+/docs/jobspec/environment.html          /docs/runtime/environment.html
+/docs/jobspec/schedulers.html           /docs/runtime/schedulers.html
+/docs/jobspec/servicediscovery.html     /docs/job-specification/service.html
+/docs/jobspec/networking.html           /docs/job-specification/network.html
+/docs/cluster/automatic.html            /guides/cluster/automatic.html
+/docs/cluster/manual.html               /guides/cluster/manual.html
+/docs/cluster/federation.html           /guides/cluster/federation.html
+/docs/cluster/requirements.html         /guides/cluster/requirements.html
+
+# API
+/docs/http/index.html                   /api/index.html
+/docs/http/json-jobs.html               /api/json-jobs.html
+/docs/http/job.html                     /api/jobs.html
+/docs/http/jobs.html                    /api/jobs.html
+/docs/http/node.html                    /api/nodes.html
+/docs/http/nodes.html                   /api/nodes.html
+/docs/http/alloc.html                   /api/allocations.html
+/docs/http/allocs.html                  /api/allocations.html
+/docs/http/eval.html                    /api/evaluations.html
+/docs/http/evals.html                   /api/evaluations.html
+/docs/http/agent-self.html              /api/agent.html
+/docs/http/agent-join.html              /api/agent.html
+/docs/http/agent-members.html           /api/agent.html
+/docs/http/agent-force-leave.html       /api/agent.html
+/docs/http/agent-servers.html           /api/agent.html
+/docs/http/client-fs.html               /api/client.html
+/docs/http/client-stats.html            /api/client.html
+/docs/http/client-allocation-stats.html /api/client.html
+/docs/http/regions.html                 /api/regions.html
+/docs/http/status.html                  /api/status.html
+/docs/http/operator.html                /api/operator.html
+/docs/http/system.html                  /api/system.html
