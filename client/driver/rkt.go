@@ -427,9 +427,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// command itself needs an evironment with PATH set to find iptables.
 	eb := env.NewEmptyBuilder()
 	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	eb.SetHostEnvvars(filter)
+	rktEnv := eb.SetHostEnvvars(filter).Build()
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: eb.Build(),
+		TaskEnv: rktEnv,
 		Driver:  "rkt",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -479,7 +479,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
-		env:            ctx.TaskEnv,
+		env:            rktEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
@@ -516,12 +516,18 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
+	// The task's environment is set via --set-env flags in Start, but the rkt
+	// command itself needs an evironment with PATH set to find iptables.
+	eb := env.NewEmptyBuilder()
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	rktEnv := eb.SetHostEnvvars(filter).Build()
+
 	ver, _ := exec.Version()
 	d.logger.Printf("[DEBUG] driver.rkt: version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &rktHandle{
 		uuid:           id.UUID,
-		env:            ctx.TaskEnv,
+		env:            rktEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,
