@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -917,8 +916,6 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		"NOMAD_ADDR_REDIS":     "127.0.0.1:6379",
 		"NOMAD_HOST_PORT_main": strconv.Itoa(docker_reserved),
 	}
-
-	log.Println(strings.Join(container.Config.Env, "\n"))
 
 	for key, val := range expectedEnvironment {
 		search := fmt.Sprintf("%s=%s", key, val)
