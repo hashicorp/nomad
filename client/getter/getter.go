@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,6 +25,12 @@ const (
 	// gitSSHPrefix is the prefix for dowwnloading via git using ssh
 	gitSSHPrefix = "git@github.com:"
 )
+
+// EnvReplacer is an interface which can interpolate environment variables and
+// is usually satisfied by env.TaskEnv.
+type EnvReplacer interface {
+	ReplaceEnv(string) string
+}
 
 // getClient returns a client that is suitable for Nomad downloading artifacts.
 func getClient(src, dst string) *gg.Client {
@@ -51,7 +56,7 @@ func getClient(src, dst string) *gg.Client {
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
-func getGetterUrl(taskEnv *env.TaskEnv, artifact *structs.TaskArtifact) (string, error) {
+func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, error) {
 	source := taskEnv.ReplaceEnv(artifact.GetterSource)
 
 	// Handle an invalid URL when given a go-getter url such as
@@ -84,7 +89,7 @@ func getGetterUrl(taskEnv *env.TaskEnv, artifact *structs.TaskArtifact) (string,
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv *env.TaskEnv, artifact *structs.TaskArtifact, taskDir string) error {
+func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
