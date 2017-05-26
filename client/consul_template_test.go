@@ -953,3 +953,83 @@ ANYTHING-goes=Spaces are=ok!
 		t.Errorf("expected ANYTHING_GOES='Spaces are ok!' but found %q", env["ANYTHING_goes"])
 	}
 }
+
+// TestTaskTemplateManager_Env_Missing asserts the core env
+// template processing function returns errors when files don't exist
+func TestTaskTemplateManager_Env_Missing(t *testing.T) {
+	d, err := ioutil.TempDir("", "ct_env_missing")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	// Fake writing the file so we don't have to run the whole template manager
+	err = ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file: %v", err)
+	}
+
+	templates := []*structs.Template{
+		{
+			EmbeddedTmpl: "FOO=bar\n",
+			DestPath:     "exists.env",
+			Envvars:      true,
+		},
+		{
+			EmbeddedTmpl: "WHAT=ever\n",
+			DestPath:     "missing.env",
+			Envvars:      true,
+		},
+	}
+
+	if vars, err := loadTemplateEnv(templates, d); err == nil {
+		t.Fatalf("expected an error but instead got env vars: %#v", vars)
+	}
+}
+
+// TestTaskTemplateManager_Env_Multi asserts the core env
+// template processing function returns combined env vars from multiple
+// templates correctly.
+func TestTaskTemplateManager_Env_Multi(t *testing.T) {
+	d, err := ioutil.TempDir("", "ct_env_missing")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	// Fake writing the files so we don't have to run the whole template manager
+	err = ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file 1: %v", err)
+	}
+	err = ioutil.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file 2: %v", err)
+	}
+
+	// Templates will get loaded in order (not alpha sorted)
+	templates := []*structs.Template{
+		{
+			DestPath: "zzz.env",
+			Envvars:  true,
+		},
+		{
+			DestPath: "aaa.env",
+			Envvars:  true,
+		},
+	}
+
+	vars, err := loadTemplateEnv(templates, d)
+	if err != nil {
+		t.Fatalf("expected an error but instead got env vars: %#v", vars)
+	}
+	if vars["FOO"] != "bar" {
+		t.Error("expected FOO=bar but found %q", vars["FOO"])
+	}
+	if vars["BAR"] != "foo" {
+		t.Error("expected BAR=foo but found %q", vars["BAR"])
+	}
+	if vars["SHARED"] != "yup" {
+		t.Error("expected FOO=bar but found %q", vars["yup"])
+	}
+}

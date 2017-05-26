@@ -196,12 +196,12 @@ WAIT:
 	}
 
 	// Read environment variables from env templates
-	for _, t := range tm.templates {
-		if err := loadTemplateEnv(envBuilder, taskDir, t); err != nil {
-			tm.hook.Kill("consul-template", err.Error(), true)
-			return
-		}
+	envMap, err := loadTemplateEnv(tm.templates, taskDir)
+	if err != nil {
+		tm.hook.Kill("consul-template", err.Error(), true)
+		return
 	}
+	envBuilder.SetTemplateEnv(envMap)
 
 	allRenderedTime = time.Now()
 	tm.hook.UnblockStart("consul-template")
@@ -253,13 +253,15 @@ WAIT:
 					return
 				}
 
-				for _, tmpl := range tmpls {
-					// Read environment variables from templates
-					if err := loadTemplateEnv(envBuilder, taskDir, tmpl); err != nil {
-						tm.hook.Kill("consul-template", err.Error(), true)
-						return
-					}
+				// Read environment variables from templates
+				envMap, err := loadTemplateEnv(tmpls, taskDir)
+				if err != nil {
+					tm.hook.Kill("consul-template", err.Error(), true)
+					return
+				}
+				envBuilder.SetTemplateEnv(envMap)
 
+				for _, tmpl := range tmpls {
 					switch tmpl.ChangeMode {
 					case structs.TemplateChangeModeSignal:
 						signals[tmpl.ChangeSignal] = struct{}{}
@@ -508,26 +510,29 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 	return conf, nil
 }
 
-// loadTemplateEnv loads task environment variables from templates.
-func loadTemplateEnv(builder *env.Builder, taskDir string, t *structs.Template) error {
-	if !t.Envvars {
-		return nil
-	}
-	f, err := os.Open(filepath.Join(taskDir, t.DestPath))
-	if err != nil {
-		return fmt.Errorf("error opening env template: %v", err)
-	}
-	defer f.Close()
+// loadTemplateEnv loads task environment variables from all templates.
+func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]string, error) {
+	all := make(map[string]string, 50)
+	for _, t := range tmpls {
+		if !t.Envvars {
+			continue
+		}
+		f, err := os.Open(filepath.Join(taskDir, t.DestPath))
+		if err != nil {
+			return nil, fmt.Errorf("error opening env template: %v", err)
+		}
+		defer f.Close()
 
-	// Parse environment fil
-	vars, err := parseEnvFile(f)
-	if err != nil {
-		return fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
+		// Parse environment fil
+		vars, err := parseEnvFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
+		}
+		for k, v := range vars {
+			all[k] = v
+		}
 	}
-
-	// Set the environment variables
-	builder.SetTemplateEnv(vars)
-	return nil
+	return all, nil
 }
 
 // parseEnvFile and return a map of the environment variables suitable for
