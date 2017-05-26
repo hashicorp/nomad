@@ -1,124 +1,129 @@
 ---
-layout: "http"
-page_title: "HTTP API: JSON Job Specification"
-sidebar_current: "docs-http-json-jobs"
+layout: api
+page_title: JSON Job Specification - HTTP API
+sidebar_current: api-jobs
 description: |-
   Jobs can also be specified via the HTTP API using a JSON format. This guide
   discusses the job specification in JSON format.
 ---
 
-# Job Specification
+# JSON Job Specification
 
 This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
-for generating valid JSON versions of HCL jobs is
-`nomad run -output <job.nomad>` which will emit a JSON version of the job.
+for generating valid JSON versions of HCL jobs is:
 
-## JSON Syntax
+```shell
+$ nomad run -output my-job.nomad
+```
+
+## Syntax
 
 Below is an example of a JSON object that submits a `periodic` job to Nomad:
 
 ```json
 {
-  "Job":{
-    "Region":"global",
-    "ID":"example",
-    "Name":"example",
-    "Type":"batch",
-    "Priority":50,
-    "AllAtOnce":false,
-    "Datacenters":[
+  "Job": {
+    "Region": "global",
+    "ID": "example",
+    "Name": "example",
+    "Type": "batch",
+    "Priority": 50,
+    "AllAtOnce": false,
+    "Datacenters": [
       "dc1"
     ],
-    "Constraints":[
+    "Constraints": [
       {
-        "LTarget":"${attr.kernel.name}",
-        "RTarget":"linux",
-        "Operand":"="
+        "LTarget": "${attr.kernel.name}",
+        "RTarget": "linux",
+        "Operand": "="
       }
     ],
-    "TaskGroups":[
+    "TaskGroups": [
       {
-        "Name":"cache",
-        "Count":1,
-        "Constraints":null,
-        "Tasks":[
+        "Name": "cache",
+        "Count": 1,
+        "Constraints": null,
+        "Tasks": [
           {
-            "Name":"redis",
-            "Driver":"docker",
-            "User":"foo-user",
-            "Config":{
-              "image":"redis:latest",
-              "port_map":[
+            "Name": "redis",
+            "Driver": "docker",
+            "User": "foo-user",
+            "Config": {
+              "image": "redis:latest",
+              "port_map": [
                 {
-                  "db":6379
+                  "db": 6379
                 }
               ]
             },
-            "Constraints":null,
-            "Env":{
-              "foo":"bar",
-              "baz":"pipe"
+            "Constraints": null,
+            "Env": {
+              "foo": "bar",
+              "baz": "pipe"
             },
-            "Services":[
+            "Services": [
               {
-                "Name":"cache-redis",
-                "Tags":[
+                "Name": "cache-redis",
+                "Tags": [
                   "global",
                   "cache"
                 ],
-                "PortLabel":"db",
-                "Checks":[
+                "PortLabel": "db",
+                "Checks": [
                   {
-                    "Id":"",
-                    "Name":"alive",
-                    "Type":"tcp",
-                    "Command":"",
-                    "Args":null,
-                    "Path":"",
-                    "Protocol":"",
-                    "Interval":10000000000,
-                    "Timeout":2000000000
+                    "Id": "",
+                    "Name": "alive",
+                    "Type": "tcp",
+                    "Command": "",
+                    "Args": null,
+                    "Path": "",
+                    "Protocol": "",
+                    "Interval": 10000000000,
+                    "Timeout": 2000000000
                   }
                 ]
               }
             ],
             "Vault": {
-              "Policies": ["policy-name"],
+              "Policies": [
+                "policy-name"
+              ],
               "Env": true,
               "ChangeMode": "restart",
               "ChangeSignal": ""
             },
-            "Resources":{
-              "CPU":500,
-              "MemoryMB":256,
-              "IOPS":0,
-              "Networks":[
+            "Resources": {
+              "CPU": 500,
+              "MemoryMB": 256,
+              "IOPS": 0,
+              "Networks": [
                 {
-                  "ReservedPorts":[
+                  "ReservedPorts": [
                     {
-                      "Label":"rpc",
-                      "Value":25566
+                      "Label": "rpc",
+                      "Value": 25566
                     }
                   ],
-                  "DynamicPorts":[
+                  "DynamicPorts": [
                     {
-                      "Label":"db"
+                      "Label": "db"
                     }
                   ],
-                  "MBits":10
+                  "MBits": 10
                 }
               ]
             },
-            "Meta":{
-              "foo":"bar",
-              "baz":"pipe"
+            "Meta": {
+              "foo": "bar",
+              "baz": "pipe"
             },
-            "KillTimeout":5000000000,
-            "LogConfig":{
-              "MaxFiles":10,
-              "MaxFileSizeMB":10
+            "KillTimeout": 5000000000,
+            "LogConfig": {
+              "MaxFiles": 10,
+              "MaxFileSizeMB": 10
             },
-            "Templates":[
+            "Templates": [
               {
                 "SourcePath": "local/config.conf.tpl",
                 "DestPath": "local/config.conf",
@@ -128,13 +133,13 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
                 "Splay": 5000000000
               }
             ],
-            "Artifacts":[
+            "Artifacts": [
               {
-                "GetterSource":"http://foo.com/artifact.tar.gz",
-                "GetterOptions":{
-                  "checksum":"md5:c4aa853ad2215426eb7d70a21922e794"
+                "GetterSource": "http://foo.com/artifact.tar.gz",
+                "GetterOptions": {
+                  "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
                 },
-                "RelativeDest":"local/"
+                "RelativeDest": "local/"
               }
             ],
             "DispatchPayload": {
@@ -142,31 +147,31 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
             }
           }
         ],
-        "RestartPolicy":{
-          "Interval":300000000000,
-          "Attempts":10,
-          "Delay":25000000000,
-          "Mode":"delay"
+        "RestartPolicy": {
+          "Interval": 300000000000,
+          "Attempts": 10,
+          "Delay": 25000000000,
+          "Mode": "delay"
         },
-        "Meta":{
-          "foo":"bar",
-          "baz":"pipe"
+        "Meta": {
+          "foo": "bar",
+          "baz": "pipe"
         }
       }
     ],
-    "Update":{
-      "Stagger":10000000000,
-      "MaxParallel":1
+    "Update": {
+      "Stagger": 10000000000,
+      "MaxParallel": 1
     },
-    "Periodic":{
-      "Enabled":true,
-      "Spec":"* * * * *",
-      "SpecType":"cron",
-      "ProhibitOverlap":true
+    "Periodic": {
+      "Enabled": true,
+      "Spec": "- *",
+      "SpecType": "cron",
+      "ProhibitOverlap": true
     },
-    "Meta":{
-      "foo":"bar",
-      "baz":"pipe"
+    "Meta": {
+      "foo": "bar",
+      "baz": "pipe"
     },
     "ParameterizedJob": {
       "Payload": "required",
@@ -175,7 +180,7 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
       ],
       "MetaOptional": [
         "bar"
-       ]
+      ]
     },
     "Payload": null
   }
@@ -184,65 +189,65 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
 
 ## Syntax Reference
 
-Following is a syntax reference for the possible keys that are supported
-and their default values if any for each type of object.
+Following is a syntax reference for the possible keys that are supported and
+their default values if any for each type of object.
 
 ### Job
 
 The `Job` object supports the following keys:
 
-* `AllAtOnce` - Controls if the entire set of tasks in the job must
+- `AllAtOnce` - Controls if the entire set of tasks in the job must
   be placed atomically or if they can be scheduled incrementally.
   This should only be used for special circumstances. Defaults to `false`.
 
-* `Constraints` - A list to define additional constraints where a job can be
+- `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.
 
-* `Datacenters` - A list of datacenters in the region which are eligible
+- `Datacenters` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
-* `TaskGroups` - A list to define additional task groups. See the task group
+- `TaskGroups` - A list to define additional task groups. See the task group
   reference for more details.
 
-* `Meta` - Annotates the job with opaque metadata.
+- `Meta` - Annotates the job with opaque metadata.
 
-* `ParameterizedJob` - Specifies the job as a paramterized job such that it can
+- `ParameterizedJob` - Specifies the job as a paramterized job such that it can
   be dispatched against. The `ParamaterizedJob` object supports the following
   attributes:
 
-  * `MetaOptional` - Specifies the set of metadata keys that may be provided
+  - `MetaOptional` - Specifies the set of metadata keys that may be provided
     when dispatching against the job as a string array.
 
-  * `MetaRequired` - Specifies the set of metadata keys that must be provided
+  - `MetaRequired` - Specifies the set of metadata keys that must be provided
     when dispatching against the job as a string array.
 
-  * `Payload` - Specifies the requirement of providing a payload when
+  - `Payload` - Specifies the requirement of providing a payload when
     dispatching against the parameterized job. The options for this field are
     "optional", "required" and "forbidden". The default value is "optional".
 
-* `Payload` - The payload may not be set when submitting a job but may appear in
+- `Payload` - The payload may not be set when submitting a job but may appear in
   a dispatched job. The `Payload` will be a base64 encoded string containing the
   payload that the job was dispatched with. The `payload` has a **maximum size
   of 16 KiB**.
 
-* `Priority` - Specifies the job priority which is used to prioritize
+- `Priority` - Specifies the job priority which is used to prioritize
   scheduling and access to resources. Must be between 1 and 100 inclusively,
   and defaults to 50.
 
-* `Region` - The region to run the job in, defaults to "global".
+- `Region` - The region to run the job in, defaults to "global".
 
-* `Type` - Specifies the job type and switches which scheduler
+- `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/runtime/schedulers.html)
 
-* `Update` - Specifies the task's update strategy. When omitted, rolling
+- `Update` - Specifies the task's update strategy. When omitted, rolling
   updates are disabled. The `Update` object supports the following attributes:
 
-  * `MaxParallel` - `MaxParallel` is given as an integer value and specifies
+  - `MaxParallel` - `MaxParallel` is given as an integer value and specifies
   the number of tasks that can be updated at the same time.
 
-  * `Stagger` - `Stagger` introduces a delay between sets of task updates and
+  - `Stagger` - `Stagger` introduces a delay between sets of task updates and
   is given in nanoseconds.
 
     An example `Update` block:
@@ -256,29 +261,29 @@ The `Job` object supports the following keys:
     }
     ```
 
-*   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
+-   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The periodic expression is always evaluated in the UTC
     timezone to ensure consistent evaluation when Nomad Servers span multiple
     time zones. The `Periodic` object is optional and supports the following attributes:
 
-    * `Enabled` - `Enabled` determines whether the periodic job will spawn child
+    - `Enabled` - `Enabled` determines whether the periodic job will spawn child
     jobs.
 
-    * `time_zone` - Specifies the time zone to evaluate the next launch interval
+    - `time_zone` - Specifies the time zone to evaluate the next launch interval
       against. This is useful when wanting to account for day light savings in
       various time zones. The time zone must be parsable by Golang's
       [LoadLocation](https://golang.org/pkg/time/#LoadLocation). The default is
       UTC.
 
-    * `SpecType` - `SpecType` determines how Nomad is going to interpret the
+    - `SpecType` - `SpecType` determines how Nomad is going to interpret the
       periodic expression. `cron` is the only supported `SpecType` currently.
 
-    * `Spec` - A cron expression configuring the interval the job is launched
+    - `Spec` - A cron expression configuring the interval the job is launched
     at. Supports predefined expressions such as "@daily" and "@weekly" See
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
 
-    * <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can
+    - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can
       be set to true to enforce that the periodic job doesn't spawn a new
       instance of the job if any of the previous jobs are still running. It is
       defaulted to false.
@@ -288,7 +293,7 @@ The `Job` object supports the following keys:
     ```json
     {
       "Periodic": {
-          "Spec": "*/15 * * * * *"
+          "Spec": "*/15 - *"
           "SpecType": "cron",
           "Enabled": true,
           "ProhibitOverlap": true
@@ -301,51 +306,51 @@ The `Job` object supports the following keys:
 `TaskGroups` is a list of `TaskGroup` objects, each supports the following
 attributes:
 
-* `Constraints` - This is a list of `Constraint` objects. See the constraint
+- `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
 
-* `Count` - Specifies the number of the task groups that should
+- `Count` - Specifies the number of the task groups that should
   be running. Must be non-negative, defaults to one.
 
-* `Meta` - A key-value map that annotates the task group with opaque metadata.
+- `Meta` - A key-value map that annotates the task group with opaque metadata.
 
-* `Name` - The name of the task group. Must be specified.
+- `Name` - The name of the task group. Must be specified.
 
-* `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
+- `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
   job type. See the [restart policy reference](#restart_policy) for more details.
 
-* `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
+- `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
 
-* `Tasks` - A list of `Task` object that are part of the task group.
+- `Tasks` - A list of `Task` object that are part of the task group.
 
 ### Task
 
 The `Task` object supports the following keys:
 
-* `Artifacts` - `Artifacts` is a list of `Artifact` objects which define
+- `Artifacts` - `Artifacts` is a list of `Artifact` objects which define
   artifacts to be downloaded before the task is run. See the artifacts
   reference for more details.
 
-* `Config` - A map of key-value configuration passed into the driver
+- `Config` - A map of key-value configuration passed into the driver
   to start the task. The details of configurations are specific to
   each driver.
 
-* `Constraints` - This is a list of `Constraint` objects. See the constraint
+- `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
 
 - `DispatchPayload` - Configures the task to have access to dispatch payloads.
   The `DispatchPayload` object supports the following attributes:
 
-  * `File` - Specifies the file name to write the content of dispatch payload
+  - `File` - Specifies the file name to write the content of dispatch payload
     to. The file is written relative to the task's local directory.
 
-* `Driver` - Specifies the task driver that should be used to run the
+- `Driver` - Specifies the task driver that should be used to run the
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
-*   `Env` - A map of key-value representing environment variables that
+-   `Env` - A map of key-value representing environment variables that
     will be passed along to the running process. Nomad variables are
     interpreted when set in the environment variable values. See the table of
     interpreted variables [here](/docs/runtime/interpolation.html).
@@ -360,34 +365,34 @@ The `Task` object supports the following keys:
     }
     ```
 
-* `KillTimeout` - `KillTimeout` is a time duration in nanoseconds. It can be
+- `KillTimeout` - `KillTimeout` is a time duration in nanoseconds. It can be
   used to configure the time between signaling a task it will be killed and
   actually killing it. Drivers first sends a task the `SIGINT` signal and then
   sends `SIGTERM` if the task doesn't die after the `KillTimeout` duration has
   elapsed. The default `KillTimeout` is 5 seconds.
 
-* `leader` - Specifies whether the task is the leader task of the task group. If
+- `leader` - Specifies whether the task is the leader task of the task group. If
   set to true, when the leader task completes, all other tasks within the task
   group will be gracefully shutdown.
 
-* `LogConfig` - This allows configuring log rotation for the `stdout` and `stderr`
+- `LogConfig` - This allows configuring log rotation for the `stdout` and `stderr`
   buffers of a Task. See the log rotation reference below for more details.
 
-* `Meta` - Annotates the task group with opaque metadata.
+- `Meta` - Annotates the task group with opaque metadata.
 
-* `Name` - The name of the task. This field is required.
+- `Name` - The name of the task. This field is required.
 
-* `Resources` - Provides the resource requirements of the task.
+- `Resources` - Provides the resource requirements of the task.
   See the resources reference for more details.
 
-* `Services` - `Services` is a list of `Service` objects. Nomad integrates with
+- `Services` - `Services` is a list of `Service` objects. Nomad integrates with
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
   [Click here](/docs/service-discovery/index.html) to learn more about
   services. Below is the fields in the `Service` object:
 
-     * `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
+     - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
        `${TASKGROUP}` and `${TASK}` by the name of the job, task group or task,
        respectively. `${BASE}` expands to the equivalent of
        `${JOB}-${TASKGROUP}-${TASK}`, and is the default name for a Service.
@@ -398,78 +403,78 @@ The `Task` object supports the following keys:
        limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
        less than 64 characters in length.
 
-     * `Tags`: A list of string tags associated with this Service. String
+     - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
 
-     * `PortLabel`: `PortLabel` is an optional string and is used to associate
+     - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
        defined in the resources block.  This could be a label of either a
        dynamic or a static port.
 
-     * `Checks`: `Checks` is an array of check objects. A check object defines a
+     - `Checks`: `Checks` is an array of check objects. A check object defines a
        health check associated with the service. Nomad supports the `script`,
        `http` and `tcp` Consul Checks. Script checks are not supported for the
        qemu driver since the Nomad client doesn't have access to the file system
        of a task using the Qemu driver.
 
-         * `Type`:  This indicates the check types supported by Nomad. Valid
+         - `Type`:  This indicates the check types supported by Nomad. Valid
            options are currently `script`, `http` and `tcp`.
 
-         * `Name`: The name of the health check.
+         - `Name`: The name of the health check.
 
-         * `Interval`: This indicates the frequency of the health checks that
+         - `Interval`: This indicates the frequency of the health checks that
            Consul will perform.
 
-         * `Timeout`: This indicates how long Consul will wait for a health
+         - `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
 
-         * `Path`: The path of the http endpoint which Consul will query to query
+         - `Path`: The path of the http endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
            to add the relative URL of the health check endpoint.
 
-         * `Protocol`: This indicates the protocol for the http checks. Valid
+         - `Protocol`: This indicates the protocol for the http checks. Valid
            options are `http` and `https`. We default it to `http`.
 
-         * `Command`: This is the command that the Nomad client runs for doing
+         - `Command`: This is the command that the Nomad client runs for doing
            script based health check.
 
-         * `Args`: Additional arguments to the `command` for script based health
+         - `Args`: Additional arguments to the `command` for script based health
            checks.
 
-	 * `TLSSkipVerify`: If true, Consul will not attempt to verify the
+	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
 
-* `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
+- `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with
   data populated from environment variables, Consul and Vault.
 
-* `User` - Set the user that will run the task. It defaults to the same user
+- `User` - Set the user that will run the task. It defaults to the same user
   the Nomad client is being run as. This can only be set on Linux platforms.
 
 ### Resources
 
 The `Resources` object supports the following keys:
 
-* `CPU` - The CPU required in MHz.
+- `CPU` - The CPU required in MHz.
 
-* `IOPS` - The number of IOPS required given as a weight between 10-1000.
+- `IOPS` - The number of IOPS required given as a weight between 10-1000.
 
-* `MemoryMB` - The memory required in MB.
+- `MemoryMB` - The memory required in MB.
 
-* `Networks` - A list of network objects.
+- `Networks` - A list of network objects.
 
 The Network object supports the following keys:
 
-* `MBits` - The number of MBits in bandwidth required.
+- `MBits` - The number of MBits in bandwidth required.
 
 Nomad can allocate two types of ports to a task - Dynamic and Static/Reserved
 ports. A network object allows the user to specify a list of `DynamicPorts` and
 `ReservedPorts`. Each object supports the following attributes:
 
-* `Value` - The port number for static ports. If the port is dynamic, then this
+- `Value` - The port number for static ports. If the port is dynamic, then this
   attribute is ignored.
-* `Label` - The label to annotate a port so that it can be referred in the
+- `Label` - The label to annotate a port so that it can be referred in the
   service discovery block or environment variables.
 
 <a id="ephemeral_disk"></a>
@@ -478,14 +483,14 @@ ports. A network object allows the user to specify a list of `DynamicPorts` and
 
 The `EphemeralDisk` object supports the following keys:
 
-* `Migrate` - Specifies that the Nomad client should make a best-effort attempt
+- `Migrate` - Specifies that the Nomad client should make a best-effort attempt
   to migrate the data from a remote machine if placement cannot be made on the
   original node. During data migration, the task will block starting until the
   data migration has completed. Value is a boolean and the default is false.
 
-* `SizeMB` - Specifies the size of the ephemeral disk in MB. Default is 300.
+- `SizeMB` - Specifies the size of the ephemeral disk in MB. Default is 300.
 
-* `Sticky` - Specifies that Nomad should make a best-effort attempt to place the
+- `Sticky` - Specifies that Nomad should make a best-effort attempt to place the
   updated allocation on the same machine. This will move the `local/` and
   `alloc/data` directories to the new allocation. Value is a boolean and the
   default is false.
@@ -496,45 +501,45 @@ The `EphemeralDisk` object supports the following keys:
 
 The `RestartPolicy` object supports the following keys:
 
-* `Attempts` - `Attempts` is the number of restarts allowed in an `Interval`.
+- `Attempts` - `Attempts` is the number of restarts allowed in an `Interval`.
 
-* `Interval` - `Interval` is a time duration that is specified in nanoseconds.
+- `Interval` - `Interval` is a time duration that is specified in nanoseconds.
   The `Interval` begins when the first task starts and ensures that only
   `Attempts` number of restarts happens within it. If more than `Attempts`
   number of failures happen, behavior is controlled by `Mode`.
 
-* `Delay` - A duration to wait before restarting a task. It is specified in
+- `Delay` - A duration to wait before restarting a task. It is specified in
   nanoseconds. A random jitter of up to 25% is added to the delay.
 
-*   `Mode` - `Mode` is given as a string and controls the behavior when the task
+-   `Mode` - `Mode` is given as a string and controls the behavior when the task
     fails more than `Attempts` times in an `Interval`. Possible values are listed
     below:
 
-    * `delay` - `delay` will delay the next restart until the next `Interval` is
+    - `delay` - `delay` will delay the next restart until the next `Interval` is
       reached.
 
-    * `fail` - `fail` will not restart the task again.
+    - `fail` - `fail` will not restart the task again.
 
 ### Constraint
 
 The `Constraint` object supports the following keys:
 
-* `LTarget` - Specifies the attribute to examine for the
+- `LTarget` - Specifies the attribute to examine for the
   constraint. See the table of attributes [here](/docs/runtime/interpolation.html#interpreted_node_vars).
 
-* `RTarget` - Specifies the value to compare the attribute against.
+- `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
   the `Operator` is in "regexp" mode.
 
-* `Operand` - Specifies the test to be performed on the two targets. It takes on the
+- `Operand` - Specifies the test to be performed on the two targets. It takes on the
   following values:
 
-  * `regexp` - Allows the `RTarget` to be a regular expression to be matched.
+  - `regexp` - Allows the `RTarget` to be a regular expression to be matched.
 
-  * `set_contains` - Allows the `RTarget` to be a comma separated list of values
+  - `set_contains` - Allows the `RTarget` to be a comma separated list of values
     that should be contained in the LTarget's value.
 
-  * `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
+  - `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which
         scopes the effect to just that group. The constraint may not be
@@ -545,7 +550,7 @@ The `Constraint` object supports the following keys:
         to all task groups. When specified, `LTarget` and `RTarget` should be
         omitted.
 
-  * `distinct_property` - If set, the scheduler selects nodes that have a
+  - `distinct_property` - If set, the scheduler selects nodes that have a
         distinct value of the specified property for each allocation. This can
         be specified as a job constraint which applies the constraint to all
         task groups in the job, or as a task group constraint which scopes the
@@ -557,7 +562,7 @@ The `Constraint` object supports the following keys:
         to all task groups. When specified, `LTarget` should be the property
         that should be distinct and and `RTarget` should be omitted.
 
-  * Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+  - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
 
 ### Log Rotation
@@ -565,10 +570,10 @@ The `Constraint` object supports the following keys:
 The `LogConfig` object configures the log rotation policy for a task's `stdout` and
 `stderr`. The `LogConfig` object supports the following attributes:
 
-* `MaxFiles` - The maximum number of rotated files Nomad will retain for
+- `MaxFiles` - The maximum number of rotated files Nomad will retain for
   `stdout` and `stderr`, each tracked individually.
 
-* `MaxFileSizeMB` - The size of each rotated file. The size is specified in
+- `MaxFileSizeMB` - The size of each rotated file. The size is specified in
   `MB`.
 
 If the amount of disk resource requested for the task is less than the total
@@ -605,12 +610,12 @@ is started.
 
 The `Artifact` object supports the following keys:
 
-* `GetterSource` - The path to the artifact to download.
+- `GetterSource` - The path to the artifact to download.
 
-* `RelativeDest` - An optional path to download the artifact into relative to the
+- `RelativeDest` - An optional path to download the artifact into relative to the
   root of the task's directory. If omitted, it will default to `local/`.
 
-* `GetterOptions` - A `map[string]string` block of options for `go-getter`.
+- `GetterOptions` - A `map[string]string` block of options for `go-getter`.
   Full documentation of supported options are available
   [here](https://github.com/hashicorp/go-getter/tree/ef5edd3d8f6f482b775199be2f3734fd20e04d4a#protocol-specific-options-1).
   An example is given below:
@@ -708,35 +713,35 @@ README][ct].
   - `"restart"` - restart the task
   - `"signal"` - send a configurable signal to the task
 
-* `ChangeSignal` - Specifies the signal to send to the task as a string like
+- `ChangeSignal` - Specifies the signal to send to the task as a string like
   "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
   `signal`.
 
-* `DestPath` - Specifies the location where the resulting template should be
+- `DestPath` - Specifies the location where the resulting template should be
   rendered, relative to the task directory.
 
-* `EmbeddedTmpl` -  Specifies the raw template to execute. One of `SourcePath`
+- `EmbeddedTmpl` -  Specifies the raw template to execute. One of `SourcePath`
   or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
   templates, but we recommend using `SourcePath` for larger templates.
 
-* `LeftDelim` - Specifies the left delimiter to use in the template. The default
+- `LeftDelim` - Specifies the left delimiter to use in the template. The default
   is "{{" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
 
-* `Perms` - Specifies the rendered template's permissions. File permissions are
+- `Perms` - Specifies the rendered template's permissions. File permissions are
   given as octal of the unix file permissions rwxrwxrwx.
 
-* `RightDelim` - Specifies the right delimiter to use in the template. The default
+- `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
 
-* `SourcePath` - Specifies the path to the template to be rendered. `SourcePath`
+- `SourcePath` - Specifies the path to the template to be rendered. `SourcePath`
   is mutually exclusive with `EmbeddedTmpl` attribute. The source can be fetched
   using an [`Artifact`](#artifact) resource. The template must exist on the
   machine prior to starting the task; it is not possible to reference a template
   inside of a Docker container, for example.
 
-* `Splay` - Specifies a random amount of time to wait between 0ms and the given
+- `Splay` - Specifies a random amount of time to wait between 0ms and the given
   splay value before invoking the change mode. Should be specified in
   nanoseconds.
 
