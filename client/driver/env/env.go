@@ -227,6 +227,13 @@ func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Tas
 	return b.setTask(task).setAlloc(alloc).setNode(node)
 }
 
+// NewEmptyBuilder creates a new environment builder.
+func NewEmptyBuilder() *Builder {
+	return &Builder{
+		mu: &sync.RWMutex{},
+	}
+}
+
 // Build must be called after all the tasks environment values have been set.
 func (b *Builder) Build() *TaskEnv {
 	nodeAttrs := make(map[string]string)

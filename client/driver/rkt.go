@@ -55,9 +55,6 @@ const (
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
 
-	// envCmd it the command for injecting environment variables.
-	envCmd = "env"
-
 	// rktUuidDeadline is how long to wait for the uuid file to be written
 	rktUuidDeadline = 5 * time.Second
 )
@@ -245,19 +242,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	// Build the command.
 	cmdArgs := make([]string, 0, 50)
 
-	// Run rkt with env command to inject PATH as rkt needs to be able to find iptables
-	envAbsPath, err := GetAbsolutePath(envCmd)
-	if err != nil {
-		return nil, fmt.Errorf("unable to locate env command which is required for rkt")
-	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("PATH=%q", os.Getenv("PATH")))
-
-	rktAbsPath, err := GetAbsolutePath(rktCmd)
-	if err != nil {
-		return nil, err
-	}
-	cmdArgs = append(cmdArgs, rktAbsPath)
-
 	// Add debug option to rkt command.
 	debug := driverConfig.Debug
 
@@ -438,8 +422,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err != nil {
 		return nil, err
 	}
+
+	// The task's environment is set via --set-env flags above, but the rkt
+	// command itself needs an evironment with PATH set to find iptables.
+	eb := env.NewEmptyBuilder()
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	eb.SetHostEnvvars(filter)
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
+		TaskEnv: eb.Build(),
 		Driver:  "rkt",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -451,8 +441,13 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
+	absPath, err := GetAbsolutePath(rktCmd)
+	if err != nil {
+		return nil, err
+	}
+
 	execCmd := &executor.ExecCommand{
-		Cmd:  envAbsPath,
+		Cmd:  absPath,
 		Args: cmdArgs,
 		User: task.User,
 	}
