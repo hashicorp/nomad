@@ -184,13 +184,3 @@ GET /v1/jobs
 
 Even though these share a path, the `PUT` operation creates a new job whereas
 the `GET` operation reads all jobs.
-
-## Translated Addresses
-
-Nomad 0.7 added the ability to translate addresses in HTTP response based on
-the configuration setting for
-[`translate_wan_addrs`](/docs/agent/options.html#translate_wan_addrs). In order
-to allow clients to know if address translation is in effect, the
-`X-Nomad-Translate-Addresses` header will be added if translation is enabled,
-and will have a value of `true`. If translation is not enabled then this header
-will not be present.

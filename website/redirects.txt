@@ -51,7 +51,7 @@
 /docs/jobspec/                          /docs/job-specification/index.html
 /docs/jobspec/index.html                /docs/job-specification/index.html
 /docs/jobspec/interpreted.html          /docs/runtime/interpolation.html
-/docs/jobspec/json.html                 /docs/http/json-jobs.html
+/docs/jobspec/json.html                 /api/json-jobs.html
 /docs/jobspec/environment.html          /docs/runtime/environment.html
 /docs/jobspec/schedulers.html           /docs/runtime/schedulers.html
 /docs/jobspec/servicediscovery.html     /docs/job-specification/service.html
