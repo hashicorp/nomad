@@ -259,9 +259,14 @@ This is not configurable.
 ### Authentication
 
 If you want to pull from a private repo (for example on dockerhub or quay.io),
-you will need to specify credentials in your job via the `auth` option or by
-storing the credentials in a file and setting the
-[docker.auth.config](#auth_file) value on the client.
+you will need to specify credentials in your job via:
+
+ * the `auth` option in the task config.
+
+ * by storing credentials or `credHelpers` in a file and setting the
+   [docker.auth.config](#auth_file) value on the client.
+
+ * by specifying a [docker.auth.helper](#auth_helper) on the client
 
 The `auth` object supports the following keys:
 
@@ -274,7 +279,7 @@ The `auth` object supports the following keys:
 * `server_address` - (Optional) The server domain/IP without the protocol.
   Docker Hub is used by default.
 
-Example:
+Example task-config:
 
 ```hcl
 task "example" {
@@ -290,6 +295,22 @@ task "example" {
   }
 }
 ```
+
+Example docker-config, using two helper scripts in $PATH,
+"docker-credential-ecr" and "docker-credential-vault":
+
+```json
+{
+  "auths": {
+    "internal.repo": { "auth": "`echo -n '<username>:<password>' | base64 -w0`" }
+  },
+  "credHelpers": {
+      "<XYZ>.dkr.ecr.<region>.amazonaws.com": "ecr-login"
+  },
+  "credsStore": "secretservice"
+}
+```
+
 
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
@@ -420,7 +441,13 @@ options](/docs/agent/configuration/client.html#options):
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication
-  information for a private registry.
+  information for a private registry, from either (in order) `auths`,
+  `credHelpers` or `credsStore`.
+
+* `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
+  a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
+  -like script on $PATH to lookup authentication information from external
+  sources.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
