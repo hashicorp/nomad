@@ -3781,6 +3781,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP2",
 						Splay:        2,
 						Perms:        "0666",
+						Envvars:      true,
 					},
 				},
 			},
@@ -3839,6 +3840,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "Envvars",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Perms",
 								Old:  "",
 								New:  "0776",
@@ -3883,6 +3890,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "EmbeddedTmpl",
 								Old:  "baz2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Envvars",
+								Old:  "true",
 								New:  "",
 							},
 							{

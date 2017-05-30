@@ -12,9 +12,12 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -29,7 +32,7 @@ func cgroupsMounted(node *structs.Node) bool {
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
 func createExecutor(w io.Writer, clientConfig *config.Config,
-	executorConfig *cstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
+	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
@@ -171,10 +174,33 @@ func GetAbsolutePath(bin string) (string, error) {
 }
 
 // getExecutorUser returns the user of the task, defaulting to
-// cstructs.DefaultUnprivilegedUser if none was given.
+// dstructs.DefaultUnprivilegedUser if none was given.
 func getExecutorUser(task *structs.Task) string {
 	if task.User == "" {
-		return cstructs.DefaultUnpriviledgedUser
+		return dstructs.DefaultUnpriviledgedUser
 	}
 	return task.User
+}
+
+// SetEnvvars sets path and host env vars depending on the FS isolation used.
+func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+	// Set driver-specific environment variables
+	switch fsi {
+	case cstructs.FSIsolationNone:
+		// Use host paths
+		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
+		envBuilder.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != cstructs.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		envBuilder.SetHostEnvvars(filter)
+	}
 }

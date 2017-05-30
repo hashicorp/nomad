@@ -680,6 +680,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Perms:        *template.Perms,
 				LeftDelim:    *template.LeftDelim,
 				RightDelim:   *template.RightDelim,
+				Envvars:      *template.Envvars,
 			}
 		}
 	}

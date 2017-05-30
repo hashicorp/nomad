@@ -610,10 +610,6 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	ctx := testTaskRunner(t, false)
 	defer ctx.Cleanup()
 
-	if err := ctx.tr.setTaskEnv(); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-
 	// Try to run as root with exec.
 	ctx.tr.task.Driver = "exec"
 	ctx.tr.task.User = "root"

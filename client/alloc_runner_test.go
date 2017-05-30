@@ -135,13 +135,12 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 }
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -234,13 +233,12 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 	start := time.Now()
 
@@ -269,7 +267,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 			return nil
 		}); err != nil {
-			return false, fmt.Errorf("state not destroyed")
+			return false, fmt.Errorf("state not destroyed: %v", err)
 		}
 
 		// Check the alloc directory was cleaned
@@ -290,13 +288,12 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Update(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	_, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -612,6 +609,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	tmp, err := ioutil.TempFile("", "state-db")

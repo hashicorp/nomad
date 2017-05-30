@@ -44,7 +44,7 @@ Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
 template can reference [Nomad's runtime environment variables][env]. Since Nomad
 v0.5.6, the template can reference [Node attributes and metadata][nodevars]. For
 a full list of the API template functions, please refer to the [Consul Template
-README][ct].
+README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
 
 ## `template` Parameters
 
@@ -68,14 +68,17 @@ README][ct].
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the task directory.
 
-* `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
+- `env` `(bool: false)` - Specifies the template should be read back in as
+  environment variables for the task. (See below)
+
+- `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
 
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
   File permissions are given as octal of the unix file permissions rwxrwxrwx.
 
-* `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
+- `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
 
@@ -156,6 +159,46 @@ template {
   destination = "local/file.yml"
 }
 ```
+
+### Environment Variables
+
+Since v0.6.0 templates may be used to create environment variables for tasks.
+Env templates work exactly like other templates except once they're written,
+they're read back in as `KEY=value` pairs. Those key value pairs are included
+in the task's environment.
+
+For example the following template stanza:
+
+```hcl
+template {
+  data = <<EOH
+# Lines starting with a # are ignored
+
+# Empty lines are also ignored
+CORES={{ env "attr.cpu.numcores" }}
+SERVICE_KEY={{ key "service/my-key" }}
+EOH
+
+  destination = "local/file.env"
+  env         = true
+}
+```
+
+The task's environment would then have environment variables like the
+following:
+
+```
+CORES=4
+SERVICE_KEY=12345678-1234-1234-1234-1234-123456789abc
+```
+
+This allows [12factor app](https://12factor.net/config) style environment
+variable based configuration while keeping all of the familiar features and
+semantics of Nomad templates.
+
+The parser reads each line, discards empty lines or lines starting
+with a `#`, and then splits on the first `=`. The first part of the split is
+the key name, the second part is the key's value.
 
 ## Client Configuration
 
