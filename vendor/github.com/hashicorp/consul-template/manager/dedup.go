@@ -295,6 +295,9 @@ func (d *DedupManager) watchTemplate(client *consulapi.Client, t *template.Templ
 		WaitTime:   60 * time.Second,
 	}
 
+	var lastData []byte
+	var lastIndex uint64
+
 START:
 	// Stop listening if we're stopped
 	select {
@@ -330,6 +333,13 @@ START:
 	}
 	opts.WaitIndex = meta.LastIndex
 
+	// Stop listening if we're stopped
+	select {
+	case <-d.stopCh:
+		return
+	default:
+	}
+
 	// If we've exceeded the maximum staleness, retry without stale
 	if allowStale && meta.LastContact > *d.config.MaxStale {
 		allowStale = false
@@ -342,12 +352,27 @@ START:
 		allowStale = true
 	}
 
-	// Stop listening if we're stopped
-	select {
-	case <-d.stopCh:
-		return
-	default:
+	if meta.LastIndex == lastIndex {
+		log.Printf("[TRACE] (dedup) %s no new data (index was the same)", path)
+		goto START
 	}
+
+	if meta.LastIndex < lastIndex {
+		log.Printf("[TRACE] (dedup) %s had a lower index, resetting", path)
+		lastIndex = 0
+		goto START
+	}
+	lastIndex = meta.LastIndex
+
+	var data []byte
+	if pair != nil {
+		data = pair.Value
+	}
+	if bytes.Equal(lastData, data) {
+		log.Printf("[TRACE] (dedup) %s no new data (contents were the same)", path)
+		goto START
+	}
+	lastData = data
 
 	// If we are current the leader, wait for leadership lost
 	d.leaderLock.RLock()
