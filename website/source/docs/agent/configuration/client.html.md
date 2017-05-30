@@ -100,7 +100,7 @@ client {
 - `gc_inode_usage_threshold` `(float: 70)` - Specifies the inode usage percent
   which Nomad tries to maintain by garbage collecting terminal allocations.
 
-- `gc_max_allocs` `(int: 200)` - Specifies the maximum number of allocations
+- `gc_max_allocs` `(int: 50)` - Specifies the maximum number of allocations
   which a client will track before triggering a garbage collection of terminal
   allocations. This will *not* limit the number of allocations a node can run at
   a time, however after `gc_max_allocs` every new allocation will cause terminal
