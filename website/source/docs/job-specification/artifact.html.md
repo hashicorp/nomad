@@ -78,7 +78,7 @@ artifact {
 ### Download with Custom Destination
 
 This example downloads the artifact from the provided URL and places it at
-`/tmp/example/file.text`, as specified by the optional `destination` parameter.
+`/tmp/example/file.txt`, as specified by the optional `destination` parameter.
 
 ```hcl
 artifact {
