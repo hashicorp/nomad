@@ -155,6 +155,7 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		config.Token = c.Token
 	}
 	if c.Timeout != 0 {
+		// Create a custom Client to set the timeout
 		if config.HttpClient == nil {
 			config.HttpClient = &http.Client{}
 		}
