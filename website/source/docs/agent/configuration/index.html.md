@@ -99,8 +99,8 @@ testing.
   configurations such as NAT. This configuration is optional, and defaults to
   the bind address of the specific network service if it is not provided. Any
   values configured in this stanza take precedence over the default
-  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the hostname
-  is advertised. You may advertise an alternate port as well.
+  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the first
+  private IP found is advertised. You may advertise an alternate port as well.
   The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address to advertise for the HTTP interface. This should be

@@ -800,9 +800,8 @@ func parseSingleIPTemplate(ipTmpl string) (string, error) {
 func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
-	} else {
-		return parseSingleIPTemplate(addr)
 	}
+	return parseSingleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -825,16 +824,17 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 
 	if addr != "" {
 		// Default to using manually configured address
-		host, port, err := net.SplitHostPort(addr)
+		_, _, err = net.SplitHostPort(addr)
 		if err != nil {
 			if !isMissingPort(err) {
 				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
-			host = addr
-			port = strconv.Itoa(defport)
+
+			// missing port, append the default
+			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 		}
 
-		return net.JoinHostPort(host, port), nil
+		return addr, nil
 	}
 
 	// Fallback to bind address first, and then try resolving the local hostname
@@ -843,18 +843,21 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
 	}
 
-	// Return the first unicast address
+	// Return the first non-localhost unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
 			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
-		if !ip.IsLoopback() || (ip.IsLoopback() && dev) {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		if ip.IsLoopback() {
+			if dev {
+				// loopback is fine for dev mode
+				return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+			}
+			return "", fmt.Errorf("Defaulting advertise to localhost is unsafe, please set advertise manually")
 		}
 	}
 
-	// Otherwise, default to the private IP address
+	// Bind is not localhost but not a valid advertise IP, use first private IP
 	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
