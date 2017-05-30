@@ -1024,12 +1024,12 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 		t.Fatalf("expected an error but instead got env vars: %#v", vars)
 	}
 	if vars["FOO"] != "bar" {
-		t.Error("expected FOO=bar but found %q", vars["FOO"])
+		t.Errorf("expected FOO=bar but found %q", vars["FOO"])
 	}
 	if vars["BAR"] != "foo" {
-		t.Error("expected BAR=foo but found %q", vars["BAR"])
+		t.Errorf("expected BAR=foo but found %q", vars["BAR"])
 	}
 	if vars["SHARED"] != "yup" {
-		t.Error("expected FOO=bar but found %q", vars["yup"])
+		t.Errorf("expected FOO=bar but found %q", vars["yup"])
 	}
 }
