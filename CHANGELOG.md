@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
  * core: Rolling updates based on allocation health [GH-2621, GH-2634]
+ * core: Default advertise to private IP address if bind is 0.0.0.0 [GH-2399]
  * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
  * core: Back-pressure when evaluations are nacked and ensure scheduling
    progress on evaluation failures [GH-2555]
