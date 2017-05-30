@@ -240,13 +240,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Add the garbage collector
 	gcConfig := &GCConfig{
+		MaxAllocs:           cfg.GCMaxAllocs,
 		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
 		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
 		Interval:            cfg.GCInterval,
 		ParallelDestroys:    cfg.GCParallelDestroys,
 		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
 	}
-	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, gcConfig)
+	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, c, gcConfig)
+	go c.garbageCollector.Run()
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {
@@ -482,17 +484,13 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
-	c.allocLock.RLock()
-	numAllocs := len(c.allocs)
-	c.allocLock.RUnlock()
-
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
 	stats := map[string]map[string]string{
 		"client": map[string]string{
 			"node_id":         c.Node().ID,
 			"known_servers":   c.servers.all().String(),
-			"num_allocations": strconv.Itoa(numAllocs),
+			"num_allocations": strconv.Itoa(c.NumAllocs()),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
@@ -720,6 +718,21 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 		runners[id] = ar
 	}
 	return runners
+}
+
+// NumAllocs returns the number of allocs this client has. Used to
+// fulfill the AllocCounter interface for the GC.
+func (c *Client) NumAllocs() int {
+	c.allocLock.RLock()
+	c.blockedAllocsLock.Lock()
+	c.migratingAllocsLock.Lock()
+	n := len(c.allocs)
+	n += len(c.blockedAllocations)
+	n += len(c.migratingAllocs)
+	c.migratingAllocsLock.Unlock()
+	c.blockedAllocsLock.Unlock()
+	c.allocLock.RUnlock()
+	return n
 }
 
 // nodeID restores, or generates if necessary, a unique node ID and SecretID.

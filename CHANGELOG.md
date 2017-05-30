@@ -11,6 +11,7 @@ IMPROVEMENTS:
  * api/job: Ability to revert job to older versions [GH-2575]
  * client: Environment variables for client DC and Region [GH-2507]
  * client: Hash host ID so its stable and well distributed [GH-2541]
+ * client: GC dead allocs if total allocs > `gc_max_allocs` tunable [GH-2636]
  * client: Persist state using bolt-db and more efficient write patterns
    [GH-2610]
  * client: Fingerprint all routable addresses on an interface including IPv6
