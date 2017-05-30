@@ -30,7 +30,7 @@ job "docs" {
     task "server" {
       artifact {
         source      = "https://example.com/file.tar.gz"
-        destination = "/tmp/file"
+        destination = "/tmp/directory"
         options {
           checksum = "md5:df6a4178aec9fbdc1d6d7e3634d1bc33"
         }
@@ -46,7 +46,7 @@ unarchived before the starting the task.
 
 ## `artifact` Parameters
 
-- `destination` `(string: "local/$1")` - Specifies the path to download the
+- `destination` `(string: "local/$1")` - Specifies the directory path to download the
   artifact, relative to the root of the task's directory. If omitted, the
   default value is to place the binary in `local/`. The destination is treated
   as a directory and source files will be downloaded into that directory path.
@@ -78,12 +78,12 @@ artifact {
 ### Download with Custom Destination
 
 This example downloads the artifact from the provided URL and places it at
-`/tmp/example.txt`, as specified by the optional `destination` parameter.
+`/tmp/example/file.text`, as specified by the optional `destination` parameter.
 
 ```hcl
 artifact {
   source      = "https://example.com/file.txt"
-  destination = "/tmp/example.txt"
+  destination = "/tmp/example"
 }
 ```
 
