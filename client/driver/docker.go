@@ -106,7 +106,8 @@ const (
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
 
-	// Authentication-helper is a binary in $PATH named ${prefix-}${helper-name}
+	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
+	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
 )
 
@@ -1022,11 +1023,11 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
 }
 
-// Definition of a function that resolves credentials when needed. These are invoked in a priority-chain.
-// First non-nil AuthConfiguration is used. Any error before that propagates as an error
+// authBackend encapsulates a function that resolves registry credentials.
 type authBackend func(string) (*docker.AuthConfiguration, error)
 
-// Tries all authentication-backends in order
+// resolveRegistryAuthentication attempts to retrieve auth credentials for the
+// repo, trying all authentication-backends possible.
 func (d *DockerDriver) resolveRegistryAuthentication(driverConfig *DockerDriverConfig, repo string) (*docker.AuthConfiguration, error) {
 	return firstValidAuth(repo, []authBackend{
 		authFromTaskConfig(driverConfig),
@@ -1466,6 +1467,8 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }
 
+// loadDockerConfig loads the docker config at the specified path, returning an
+// error if it couldn't be read.
 func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -1480,6 +1483,8 @@ func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
 	return cfile, nil
 }
 
+// parseRepositoryInfo takes a repo and returns the Docker RepositoryInfo. This
+// is useful for interacting with a Docker config object.
 func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
 	name, err := reference.ParseNamed(repo)
 	if err != nil {
@@ -1494,7 +1499,7 @@ func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
 	return repoInfo, nil
 }
 
-// Tries a list of auth backends, returning first error or AuthConfiguration
+// firstValidAuth tries a list of auth backends, returning first error or AuthConfiguration
 func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfiguration, error) {
 	for _, backend := range backends {
 		auth, err := backend(repo)
@@ -1505,7 +1510,7 @@ func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfigurat
 	return nil, nil
 }
 
-// Generate an authBackend for any auth given in the task-configuration
+// authFromTaskConfig generates an authBackend for any auth given in the task-configuration
 func authFromTaskConfig(driverConfig *DockerDriverConfig) authBackend {
 	return func(string) (*docker.AuthConfiguration, error) {
 		if len(driverConfig.Auth) == 0 {
@@ -1521,8 +1526,9 @@ func authFromTaskConfig(driverConfig *DockerDriverConfig) authBackend {
 	}
 }
 
-// Generate an authBackend for a dockercfg-compatible file.
-// Either from explicit auths, or through given helpers
+// authFromDockerConfig generate an authBackend for a dockercfg-compatible file.
+// The authBacken can either be from explicit auth definitions or via credential
+// helpers
 func authFromDockerConfig(file string) authBackend {
 	return func(repo string) (*docker.AuthConfiguration, error) {
 		if file == "" {
@@ -1558,8 +1564,9 @@ func authFromDockerConfig(file string) authBackend {
 	}
 }
 
-// Generate an authBackend for a docker-credentials-helper;
-// A script taking the requested domain on input, outputting JSON with ["Username"]
+// authFromHelper generates an authBackend for a docker-credentials-helper;
+// A script taking the requested domain on input, outputting JSON with
+// "Username" and "Secret"
 func authFromHelper(helperName string) authBackend {
 	return func(repo string) (*docker.AuthConfiguration, error) {
 		if helperName == "" {
@@ -1596,7 +1603,7 @@ func authFromHelper(helperName string) authBackend {
 	}
 }
 
-// Check if auth is nil or an empty structure
+// authIsEmpty returns if auth is nil or an empty structure
 func authIsEmpty(auth *docker.AuthConfiguration) bool {
 	if auth == nil {
 		return false

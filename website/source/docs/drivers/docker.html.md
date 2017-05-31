@@ -263,8 +263,9 @@ you will need to specify credentials in your job via:
 
  * the `auth` option in the task config.
 
- * by storing credentials or `credHelpers` in a file and setting the
-   [docker.auth.config](#auth_file) value on the client.
+ * by storing explicit repository credentials or by specifying Docker
+   `credHelpers` in a file and setting the [docker.auth.config](#auth_file)
+   value on the client.
 
  * by specifying a [docker.auth.helper](#auth_helper) on the client
 

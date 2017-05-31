@@ -19,6 +19,7 @@ IMPROVEMENTS:
  * config: Support Unix socket addresses for Consul [GH-2622]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting seccomp profiles [GH-2658]
+ * driver/docker: Support Docker credential helpers [GH-2651]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
 
