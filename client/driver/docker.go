@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -104,6 +105,9 @@ const (
 
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
+
+	// Authentication-helper is a binary in $PATH named ${prefix-}${helper-name}
+	dockerAuthHelperPrefix = "docker-credential-"
 )
 
 type DockerDriver struct {
@@ -1004,31 +1008,31 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 
 // pullImage creates an image by pulling it from a docker registry
 func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo, tag string) (id string, err error) {
-	var authOptions *docker.AuthConfiguration
-	if len(driverConfig.Auth) != 0 {
-		authOptions = &docker.AuthConfiguration{
-			Username:      driverConfig.Auth[0].Username,
-			Password:      driverConfig.Auth[0].Password,
-			Email:         driverConfig.Auth[0].Email,
-			ServerAddress: driverConfig.Auth[0].ServerAddress,
-		}
-	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-		var err error
-		authOptions, err = authOptionFrom(authConfigFile, repo)
-		if err != nil {
-			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
-			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
-		}
+	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
+	if err != nil {
+		return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+	}
 
-		if authOptions.Email == "" && authOptions.Password == "" &&
-			authOptions.ServerAddress == "" && authOptions.Username == "" {
-			d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
-		}
+	if authIsEmpty(authOptions) {
+		d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 	}
 
 	d.emitEvent("Downloading image %s:%s", repo, tag)
 	coordinator, callerID := d.getDockerCoordinator(client)
 	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
+}
+
+// Definition of a function that resolves credentials when needed. These are invoked in a priority-chain.
+// First non-nil AuthConfiguration is used. Any error before that propagates as an error
+type authBackend func(string) (*docker.AuthConfiguration, error)
+
+// Tries all authentication-backends in order
+func (d *DockerDriver) resolveRegistryAuthentication(driverConfig *DockerDriverConfig, repo string) (*docker.AuthConfiguration, error) {
+	return firstValidAuth(repo, []authBackend{
+		authFromTaskConfig(driverConfig),
+		authFromDockerConfig(d.config.Read("docker.auth.config")),
+		authFromHelper(d.config.Read("docker.auth.helper")),
+	})
 }
 
 // loadImage creates an image by loading it from the file system
@@ -1462,10 +1466,21 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }
 
-// authOptionFrom takes the Docker auth config file and the repo being pulled
-// and returns an AuthConfiguration or an error if the file/repo could not be
-// parsed or looked up.
-func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
+func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+	}
+	defer f.Close()
+
+	cfile := new(configfile.ConfigFile)
+	if err = cfile.LoadFromReader(f); err != nil {
+		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+	}
+	return cfile, nil
+}
+
+func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
 	name, err := reference.ParseNamed(repo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
@@ -1476,26 +1491,118 @@ func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
 		return nil, fmt.Errorf("Failed to parse repository: %v", err)
 	}
 
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+	return repoInfo, nil
+}
+
+// Tries a list of auth backends, returning first error or AuthConfiguration
+func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfiguration, error) {
+	for _, backend := range backends {
+		auth, err := backend(repo)
+		if auth != nil || err != nil {
+			return auth, err
+		}
 	}
-	defer f.Close()
+	return nil, nil
+}
 
-	cfile := new(configfile.ConfigFile)
-	if err := cfile.LoadFromReader(f); err != nil {
-		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+// Generate an authBackend for any auth given in the task-configuration
+func authFromTaskConfig(driverConfig *DockerDriverConfig) authBackend {
+	return func(string) (*docker.AuthConfiguration, error) {
+		if len(driverConfig.Auth) == 0 {
+			return nil, nil
+		}
+		auth := driverConfig.Auth[0]
+		return &docker.AuthConfiguration{
+			Username:      auth.Username,
+			Password:      auth.Password,
+			Email:         auth.Email,
+			ServerAddress: auth.ServerAddress,
+		}, nil
 	}
+}
 
-	dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+// Generate an authBackend for a dockercfg-compatible file.
+// Either from explicit auths, or through given helpers
+func authFromDockerConfig(file string) authBackend {
+	return func(repo string) (*docker.AuthConfiguration, error) {
+		if file == "" {
+			return nil, nil
+		}
+		repoInfo, err := parseRepositoryInfo(repo)
+		if err != nil {
+			return nil, err
+		}
 
-	// Convert to Api version
-	apiAuthConfig := &docker.AuthConfiguration{
-		Username:      dockerAuthConfig.Username,
-		Password:      dockerAuthConfig.Password,
-		Email:         dockerAuthConfig.Email,
-		ServerAddress: dockerAuthConfig.ServerAddress,
+		cfile, err := loadDockerConfig(file)
+		if err != nil {
+			return nil, err
+		}
+
+		return firstValidAuth(repo, []authBackend{
+			func(string) (*docker.AuthConfiguration, error) {
+				dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+				auth := &docker.AuthConfiguration{
+					Username:      dockerAuthConfig.Username,
+					Password:      dockerAuthConfig.Password,
+					Email:         dockerAuthConfig.Email,
+					ServerAddress: dockerAuthConfig.ServerAddress,
+				}
+				if authIsEmpty(auth) {
+					return nil, nil
+				}
+				return auth, nil
+			},
+			authFromHelper(cfile.CredentialHelpers[registry.GetAuthConfigKey(repoInfo.Index)]),
+			authFromHelper(cfile.CredentialsStore),
+		})
 	}
+}
 
-	return apiAuthConfig, nil
+// Generate an authBackend for a docker-credentials-helper;
+// A script taking the requested domain on input, outputting JSON with ["Username"]
+func authFromHelper(helperName string) authBackend {
+	return func(repo string) (*docker.AuthConfiguration, error) {
+		if helperName == "" {
+			return nil, nil
+		}
+		helper := dockerAuthHelperPrefix + helperName
+		cmd := exec.Command(helper, "get")
+		cmd.Stdin = strings.NewReader(repo)
+
+		output, err := cmd.Output()
+		if err != nil {
+			switch e := err.(type) {
+			default:
+				return nil, err
+			case *exec.ExitError:
+				return nil, fmt.Errorf("%s failed with stderr: %s", helper, string(e.Stderr))
+			}
+		}
+
+		var response map[string]string
+		if err := json.Unmarshal(output, &response); err != nil {
+			return nil, err
+		}
+
+		auth := &docker.AuthConfiguration{
+			Username: response["Username"],
+			Password: response["Secret"],
+		}
+
+		if authIsEmpty(auth) {
+			return nil, nil
+		}
+		return auth, nil
+	}
+}
+
+// Check if auth is nil or an empty structure
+func authIsEmpty(auth *docker.AuthConfiguration) bool {
+	if auth == nil {
+		return false
+	}
+	return auth.Username == "" &&
+		auth.Password == "" &&
+		auth.Email == "" &&
+		auth.ServerAddress == ""
 }

@@ -1305,7 +1305,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	}{
 		{
 			Repo:       "lolwhat.com/what:1337",
-			AuthConfig: &docker.AuthConfiguration{},
+			AuthConfig: nil,
 		},
 		{
 			Repo: "redis:3.2",
@@ -1337,7 +1337,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		act, err := authOptionFrom(path, c.Repo)
+		act, err := authFromDockerConfig(path)(c.Repo)
 		if err != nil {
 			t.Fatalf("Test %d failed: %v", i+1, err)
 		}
