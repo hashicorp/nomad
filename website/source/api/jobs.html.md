@@ -19,8 +19,7 @@ This endpoint lists all known jobs in the system registered with Nomad.
 | `GET`  | `/v1/jobs`                | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -92,8 +91,7 @@ This endpoint creates (aka "registers") a new job in the system.
 | `POST`  | `/v1/jobs`                | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -142,8 +140,7 @@ status.
 | `GET`  | `/v1/job/:job_id`         | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -357,8 +354,7 @@ This endpoint reads information about all versions of a job.
 | `GET`  | `/v1/job/:job_id/versions` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -530,8 +526,7 @@ This endpoint reads information about a single job's allocations.
 | `GET`  | `/v1/job/:job_id/allocations` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -683,8 +678,7 @@ This endpoint reads information about a single job's evaluations
 | `GET`  | `/v1/job/:job_id/evaluations` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -745,8 +739,7 @@ This endpoint reads summary information about a job.
 | `GET`  | `/v1/job/:job_id/summary`  | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -799,8 +792,7 @@ This endpoint registers a new job or updates an existing job.
 | `POST`  | `/v1/job/:job_id`          | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -862,8 +854,7 @@ This endpoint dispatches a new instance of a parameterized job.
 | `POST`  | `/v1/job/:job_id/dispatch` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -922,8 +913,7 @@ force run the scheduling logic if necessary.
 | `POST`  | `/v1/job/:job_id/evaluate` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -962,8 +952,7 @@ This endpoint invokes a dry-run of the scheduler for the job.
 | `POST`  | `/v1/job/:job_id/plan`     | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -1178,8 +1167,7 @@ settings. As such, this should be only used to immediately run a periodic job.
 | `POST`  | `/v1/job/:job_id/periodic/force` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -1217,8 +1205,7 @@ This endpoint deregisters a job, and stops all allocations part of it.
 | `DELETE` | `/v1/job/:job_id`          | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |

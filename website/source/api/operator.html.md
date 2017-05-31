@@ -29,8 +29,7 @@ This endpoint queries the status of a client node registered with Nomad.
 | `GET`  | `/v1/operator/raft/configuration` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -100,8 +99,7 @@ configuration. The return code signifies success or failure.
 | `DELETE` | `/v1/operator/raft/peer`   | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |

@@ -19,8 +19,7 @@ This endpoint lists all evaluations.
 | `GET`  | `/v1/evaluations`        | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -86,8 +85,7 @@ This endpoint reads information about a specific evaluation by ID.
 | `GET`  | `/v1/evaluation/:eval_id` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -148,8 +146,7 @@ evaluation.
 | `GET`  | `/v1/evaluation/:eval_id/allocations` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |

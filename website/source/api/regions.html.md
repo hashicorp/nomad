@@ -17,8 +17,7 @@ The `/regions` endpoints list all known regions.
 | `GET`  | `/status/regions`            | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |

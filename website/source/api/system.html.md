@@ -21,8 +21,7 @@ nodes. This is an asynchronous operation.
 | `PUT`  | `/v1/system/gc`            | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -46,8 +45,7 @@ This endpoint reconciles the summaries of all registered jobs.
 | `PUT`  | `/v1/system/reconcile/summaries`  | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |

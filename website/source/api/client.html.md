@@ -24,8 +24,7 @@ whose resource usage metrics are of interest.
 | `GET`  | `/client/stats`              | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -145,8 +144,7 @@ interest.
 | `GET`  | `/client/allocation/:alloc_id/stats` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -247,8 +245,7 @@ This endpoint reads the contents of a file in an allocation directory.
 | `GET`  | `/client/fs/cat/:alloc_id`   | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -293,8 +290,7 @@ particular offset and limit.
 | `GET`  | `/client/fs/readat/:alloc_id` | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -338,8 +334,7 @@ This endpoint streams the contents of a file in an allocation directory.
 | `GET`  | `/client/fs/stream/:alloc_id` | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -405,8 +400,7 @@ This endpoint streams a task's stderr/stdout logs.
 | `GET`  | `/client/fs/logs/:alloc_id`  | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -479,8 +473,7 @@ This endpoint lists files in an allocation directory.
 | `GET`  | `/client/fs/ls/:alloc_id`    | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
@@ -533,8 +526,7 @@ This endpoint stats a file in an allocation.
 | `GET`  | `/client/fs/stat/:alloc_id`  | `text/plain`               |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
 | Blocking Queries | ACL Required |
