@@ -220,6 +220,7 @@ func (f *FileRotator) purgeOldFiles() {
 			var fIndexes []int
 			files, err := ioutil.ReadDir(f.path)
 			if err != nil {
+				f.logger.Printf("[ERROR] driver.rotator: error getting directory listing: %v", err)
 				return
 			}
 			// Inserting all the rotated files in a slice
@@ -228,6 +229,7 @@ func (f *FileRotator) purgeOldFiles() {
 					fileIdx := strings.TrimPrefix(fi.Name(), fmt.Sprintf("%s.", f.baseFileName))
 					n, err := strconv.Atoi(fileIdx)
 					if err != nil {
+						f.logger.Printf("[ERROR] driver.rotator: error extracting file index: %v", err)
 						continue
 					}
 					fIndexes = append(fIndexes, n)
@@ -246,7 +248,10 @@ func (f *FileRotator) purgeOldFiles() {
 			toDelete := fIndexes[0 : len(fIndexes)-f.MaxFiles]
 			for _, fIndex := range toDelete {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
-				os.RemoveAll(fname)
+				err := os.RemoveAll(fname)
+				if err != nil {
+					f.logger.Printf("[ERROR] driver.rotator: error removing file: %v", err)
+				}
 			}
 			f.oldestLogFileIdx = fIndexes[0]
 		case <-f.doneCh:
