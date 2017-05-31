@@ -383,7 +383,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Filter out the allocations in a terminal state
 	allocs, _ = s.filterCompleteAllocs(allocs)
 
-	reconciler := NewAllocReconciler(s.ctx, s.stack, s.batch, s.eval, s.job, s.deployment, allocs, tainted)
+	reconciler := NewAllocReconciler(s.ctx.Logger(),
+		newAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
+		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted)
 	results := reconciler.Compute()
 
 	if s.eval.AnnotatePlan {

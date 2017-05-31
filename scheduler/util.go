@@ -732,3 +732,78 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 		}
 	}
 }
+
+func newAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
+	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
+		// Same index, so nothing to do
+		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
+			return true, false, nil
+		}
+
+		// Check if the task drivers or config has changed, requires
+		// a destructive upgrade since that cannot be done in-place.
+		if tasksUpdated(newJob, existing.Job, newTG.Name) {
+			return false, true, nil
+		}
+
+		// Terminal batch allocations are not filtered when they are completed
+		// successfully. We should avoid adding the allocation to the plan in
+		// the case that it is an in-place update to avoid both additional data
+		// in the plan and work for the clients.
+		if existing.TerminalStatus() {
+			return true, false, nil
+		}
+
+		// Get the existing node
+		ws := memdb.NewWatchSet()
+		node, err := ctx.State().NodeByID(ws, existing.NodeID)
+		if err != nil {
+			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v", evalID, existing.NodeID, err)
+			return true, false, nil
+		}
+		if node == nil {
+			return false, true, nil
+		}
+
+		// Set the existing node as the base set
+		stack.SetNodes([]*structs.Node{node})
+
+		// Stage an eviction of the current allocation. This is done so that
+		// the current allocation is discounted when checking for feasability.
+		// Otherwise we would be trying to fit the tasks current resources and
+		// updated resources. After select is called we can remove the evict.
+		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")
+
+		// Attempt to match the task group
+		option, _ := stack.Select(newTG)
+
+		// Pop the allocation
+		ctx.Plan().PopUpdate(existing)
+
+		// Require destructive if we could not do an in-place update
+		if option == nil {
+			return false, true, nil
+		}
+
+		// Restore the network offers from the existing allocation.
+		// We do not allow network resources (reserved/dynamic ports)
+		// to be updated. This is guarded in taskUpdated, so we can
+		// safely restore those here.
+		for task, resources := range option.TaskResources {
+			existingResources := existing.TaskResources[task]
+			resources.Networks = existingResources.Networks
+		}
+
+		// Create a shallow copy
+		newAlloc := new(structs.Allocation)
+		*newAlloc = *existing
+
+		// Update the allocation
+		newAlloc.EvalID = evalID
+		newAlloc.Job = nil       // Use the Job in the Plan
+		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.TaskResources = option.TaskResources
+		newAlloc.Metrics = ctx.Metrics()
+		return false, false, newAlloc
+	}
+}
