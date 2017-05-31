@@ -9,11 +9,11 @@ description: >
 # Command: `operator raft list-peers`
 
 The Raft list-peers command is used to display the current Raft peer
-configuration. 
+configuration.
 
 See the [Outage Recovery](/guides/outage.html) guide for some examples of how
 this command is used. For an API to perform these operations programatically,
-please see the documentation for the [Operator](/docs/http/operator.html)
+please see the documentation for the [Operator](/api/operator.html)
 endpoint.
 
 ## Usage
@@ -36,7 +36,7 @@ server.
 ## Examples
 
 An example output with three servers is as follows:
- 
+
 ```
 $ nomad operator raft list-peers
 Node                   ID               Address          State     Voter
@@ -58,4 +58,3 @@ Raft configuration.
 
 - `Voter` is "true" or "false", indicating if the server has a vote in the Raft
 configuration. Future versions of Nomad may add support for non-voting servers.
-
