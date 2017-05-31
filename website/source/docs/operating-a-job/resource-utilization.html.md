@@ -94,4 +94,4 @@ documentation](/docs/agent/telemetry.html).
 
 For more advanced use cases, the resource usage data is also accessible via the
 client's HTTP API. See the documentation of the Client's [allocation HTTP
-API](/docs/http/client-allocation-stats.html).
+API](/api/client.html).

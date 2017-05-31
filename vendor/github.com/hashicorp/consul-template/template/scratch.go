@@ -101,7 +101,7 @@ func (s *Scratch) MapValues(k string) ([]interface{}, error) {
 
 	typed, ok := s.values[k].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("%q is not a map", k)
+		return nil, nil
 	}
 
 	keys := make([]string, 0, len(typed))

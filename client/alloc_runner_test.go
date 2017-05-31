@@ -323,6 +323,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
+	defer ar.Destroy()
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
@@ -390,6 +391,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Config["run_for"] = "10s"
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -436,8 +438,9 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	ar2.logger.Println("[TESTING] running second alloc runner")
 	go ar2.Run()
-	ar2.logger.Println("[TESTING] starting second alloc runner")
+	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Check the state still exists
@@ -516,6 +519,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	origConfig := ar.config.Copy()
 	ar.config.Version = "0.5.6"
 	go ar.Run()
+	defer ar.Destroy()
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
@@ -544,6 +548,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
+	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
 		if len(ar2.tasks) != 1 {
@@ -736,6 +741,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
 	ar.alloc.TaskResources[task2.Name] = task2.Resources
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -862,6 +868,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	}
 	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -893,6 +900,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
 	ar1.SetPreviousAllocDir(ar.allocDir)
 	go ar1.Run()
+	defer ar1.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd1.Count == 0 {

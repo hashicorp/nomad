@@ -28,6 +28,7 @@ type Node struct {
 	ID              string
 	Node            string
 	Address         string
+	Datacenter      string
 	TaggedAddresses map[string]string
 	Meta            map[string]string
 }
@@ -86,6 +87,7 @@ func (d *CatalogNodesQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inter
 			ID:              node.ID,
 			Node:            node.Node,
 			Address:         node.Address,
+			Datacenter:      node.Datacenter,
 			TaggedAddresses: node.TaggedAddresses,
 			Meta:            node.Meta,
 		})

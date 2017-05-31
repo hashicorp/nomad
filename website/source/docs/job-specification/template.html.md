@@ -203,7 +203,7 @@ the key name, the second part is the key's value.
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/docs/agent/config.html#options):
+options](/docs/agent/configuration/client.html#options):
 
 * `template.allow_host_source` - Allows templates to specify their source
   template as an absolute path referencing host directories. Defaults to `true`.
