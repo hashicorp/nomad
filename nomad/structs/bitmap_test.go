@@ -96,4 +96,26 @@ func TestBitmap(t *testing.T) {
 			t.Fatalf("bad")
 		}
 	}
+
+	// Set a few bits
+	b.Set(0)
+	b.Set(255)
+	b.Unset(0)
+	b.Unset(255)
+
+	// Clear the bits
+	if b[0] != 0 {
+		t.Fatalf("bad")
+	}
+	if b.Check(0) {
+		t.Fatalf("bad")
+	}
+
+	// Verify the bytes
+	if b[len(b)-1] != 0 {
+		t.Fatalf("bad")
+	}
+	if b.Check(255) {
+		t.Fatalf("bad")
+	}
 }

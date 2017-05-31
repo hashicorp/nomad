@@ -380,7 +380,7 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.allocId = alloc.ID
 	b.allocName = alloc.Name
-	b.allocIndex = alloc.Index()
+	b.allocIndex = int(alloc.Index())
 	b.jobName = alloc.Job.Name
 
 	// Set meta

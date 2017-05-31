@@ -73,6 +73,22 @@ OUTER:
 	return diff
 }
 
+// union returns a new allocSet that has the union of the two allocSets.
+// Conflicts prefer the last passed allocSet containing the value
+func (a allocSet) union(others ...allocSet) allocSet {
+	union := make(map[string]*structs.Allocation, len(a))
+	order := []allocSet{a}
+	order = append(order, others...)
+
+	for _, set := range order {
+		for k, v := range set {
+			union[k] = v
+		}
+	}
+
+	return union
+}
+
 // fitlerByTainted takes a set of tainted nodes and filters the allocation set
 // into three groups:
 // 1. Those that exist on untainted nodes

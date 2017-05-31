@@ -214,3 +214,8 @@ func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
 		}
 	}
 }
+
+// AllocName returns the name of the allocation given the input.
+func AllocName(job, group string, idx uint) string {
+	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
+}

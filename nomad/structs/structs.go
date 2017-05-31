@@ -3976,6 +3976,20 @@ type Allocation struct {
 	CreateTime int64
 }
 
+// Index returns the index of the allocation. If the allocation is from a task
+// group with count greater than 1, there will be multiple allocations for it.
+func (a *Allocation) Index() uint {
+	l := len(a.Name)
+	prefix := len(a.JobID) + len(a.TaskGroup) + 2
+	if l <= 3 || l <= prefix {
+		return uint(0)
+	}
+
+	strNum := a.Name[prefix : len(a.Name)-1]
+	num, _ := strconv.Atoi(strNum)
+	return uint(num)
+}
+
 func (a *Allocation) Copy() *Allocation {
 	return a.copyImpl(true)
 }
@@ -4107,27 +4121,6 @@ func (a *Allocation) ShouldMigrate() bool {
 	}
 
 	return true
-}
-
-var (
-	// AllocationIndexRegex is a regular expression to find the allocation index.
-	AllocationIndexRegex = regexp.MustCompile(".+\\[(\\d+)\\]$")
-)
-
-// Index returns the index of the allocation. If the allocation is from a task
-// group with count greater than 1, there will be multiple allocations for it.
-func (a *Allocation) Index() int {
-	matches := AllocationIndexRegex.FindStringSubmatch(a.Name)
-	if len(matches) != 2 {
-		return -1
-	}
-
-	index, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return -1
-	}
-
-	return index
 }
 
 // AllocListStub is used to return a subset of alloc information
