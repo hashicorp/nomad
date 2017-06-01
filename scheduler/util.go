@@ -733,6 +733,8 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 	}
 }
 
+// newAllocUpdateFn is a factory for the scheduler to create an allocUpdateType
+// function for the reconciler
 func newAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
