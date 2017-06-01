@@ -21,11 +21,14 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 		}
 		s[a.ID] = a
 	}
-	for _, tg := range job.TaskGroups {
-		s, ok := m[tg.Name]
-		if !ok {
-			s = make(map[string]*structs.Allocation)
-			m[tg.Name] = s
+
+	if job != nil {
+		for _, tg := range job.TaskGroups {
+			s, ok := m[tg.Name]
+			if !ok {
+				s = make(map[string]*structs.Allocation)
+				m[tg.Name] = s
+			}
 		}
 	}
 	return m
