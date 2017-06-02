@@ -196,9 +196,17 @@ This allows [12factor app](https://12factor.net/config) style environment
 variable based configuration while keeping all of the familiar features and
 semantics of Nomad templates.
 
-The parser reads each line, discards empty lines or lines starting
-with a `#`, and then splits on the first `=`. The first part of the split is
-the key name, the second part is the key's value.
+If a value may include newlines you should JSON encode it:
+
+```
+CERT_PEM={{ file "path/to/cert.pem" | toJSON }}
+```
+
+The parser will read the JSON string, so the `$CERT_PEM` environment variable
+will be identical to the contents of the file.
+
+For more details see [go-envparser's
+README](https://github.com/schmichael/go-envparse#readme).
 
 ## Client Configuration
 
