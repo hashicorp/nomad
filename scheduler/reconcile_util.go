@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -54,10 +56,30 @@ func (a allocSet) GoString() string {
 	}
 
 	start := fmt.Sprintf("len(%d) [\n", len(a))
-	for k := range a {
-		start += k + ",\n"
+	var s []string
+	for k, v := range a {
+		s = append(s, fmt.Sprintf("%q: %v", k, v.Name))
 	}
-	return start + "]"
+	return start + strings.Join(s, "\n") + "]"
+}
+
+func (a allocSet) nameSet() map[string]struct{} {
+	names := make(map[string]struct{}, len(a))
+	for _, alloc := range a {
+		names[alloc.Name] = struct{}{}
+	}
+	return names
+}
+
+func (a allocSet) nameOrder() []*structs.Allocation {
+	allocs := make([]*structs.Allocation, 0, len(a))
+	for _, alloc := range a {
+		allocs = append(allocs, alloc)
+	}
+	sort.Slice(allocs, func(i, j int) bool {
+		return allocs[i].Index() < allocs[j].Index()
+	})
+	return allocs
 }
 
 // difference returns a new allocSet that has all the existing item except those

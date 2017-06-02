@@ -4029,26 +4029,6 @@ func (a *Allocation) RanSuccessfully() bool {
 	return allSuccess
 }
 
-// Stub returns a list stub for the allocation
-func (a *Allocation) Stub() *AllocListStub {
-	return &AllocListStub{
-		ID:                 a.ID,
-		EvalID:             a.EvalID,
-		Name:               a.Name,
-		NodeID:             a.NodeID,
-		JobID:              a.JobID,
-		TaskGroup:          a.TaskGroup,
-		DesiredStatus:      a.DesiredStatus,
-		DesiredDescription: a.DesiredDescription,
-		ClientStatus:       a.ClientStatus,
-		ClientDescription:  a.ClientDescription,
-		TaskStates:         a.TaskStates,
-		CreateIndex:        a.CreateIndex,
-		ModifyIndex:        a.ModifyIndex,
-		CreateTime:         a.CreateTime,
-	}
-}
-
 // ShouldMigrate returns if the allocation needs data migration
 func (a *Allocation) ShouldMigrate() bool {
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
@@ -4070,6 +4050,33 @@ func (a *Allocation) ShouldMigrate() bool {
 	}
 
 	return true
+}
+
+// DeploymentHealthy returns if the allocation is marked as healthy as part of a
+// deployment
+func (a *Allocation) DeploymentHealthy() bool {
+	return a.DeploymentStatus != nil &&
+		a.DeploymentStatus.Healthy != nil && *a.DeploymentStatus.Healthy
+}
+
+// Stub returns a list stub for the allocation
+func (a *Allocation) Stub() *AllocListStub {
+	return &AllocListStub{
+		ID:                 a.ID,
+		EvalID:             a.EvalID,
+		Name:               a.Name,
+		NodeID:             a.NodeID,
+		JobID:              a.JobID,
+		TaskGroup:          a.TaskGroup,
+		DesiredStatus:      a.DesiredStatus,
+		DesiredDescription: a.DesiredDescription,
+		ClientStatus:       a.ClientStatus,
+		ClientDescription:  a.ClientDescription,
+		TaskStates:         a.TaskStates,
+		CreateIndex:        a.CreateIndex,
+		ModifyIndex:        a.ModifyIndex,
+		CreateTime:         a.CreateTime,
+	}
 }
 
 // AllocListStub is used to return a subset of alloc information
