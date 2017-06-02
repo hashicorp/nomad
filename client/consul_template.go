@@ -13,11 +13,11 @@ import (
 	ctconf "github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
+	envparse "github.com/hashicorp/go-envparse"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
-	envparse "github.com/schmichael/go-envparse"
 )
 
 const (

@@ -1,7 +1,6 @@
-[![GoDoc](https://godoc.org/github.com/schmichael/go-envparse?status.svg)](https://godoc.org/github.com/schmichael/go-envparse)
-[![Build Status](https://travis-ci.org/schmichael/go-envparse.svg?branch=master)](https://travis-ci.org/schmichael/go-envparse)
-[![Build status](https://ci.appveyor.com/api/projects/status/o6mdepblusp1g74d?svg=true)](https://ci.appveyor.com/project/schmichael/go-envparse)
-[![Coverage Status](https://coveralls.io/repos/github/schmichael/go-envparse/badge.svg?branch=master)](https://coveralls.io/github/schmichael/go-envparse?branch=master)
+[![GoDoc](https://godoc.org/github.com/hashicorp/go-envparse?status.svg)](https://godoc.org/github.com/hashicorp/go-envparse)
+[![Build Status](https://travis-ci.org/hashicorp/go-envparse.svg?branch=master)](https://travis-ci.org/hashicorp/go-envparse)
+[![Coverage Status](https://coveralls.io/repos/github/hashicorp/go-envparse/badge.svg?branch=master)](https://coveralls.io/github/hashicorp/go-envparse?branch=master)
 
 # go-envparse
 

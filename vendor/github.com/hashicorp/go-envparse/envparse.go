@@ -54,7 +54,7 @@ func parseError(line int, err error) error {
 	}
 }
 
-// Parse environmnet variables from an io.Reader into a map or return a
+// Parse environment variables from an io.Reader into a map or return a
 // ParseError.
 func Parse(r io.Reader) (map[string]string, error) {
 	env := make(map[string]string)

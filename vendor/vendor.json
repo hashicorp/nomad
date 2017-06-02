@@ -683,6 +683,12 @@
 			"revisionTime": "2017-02-11T00:33:01Z"
 		},
 		{
+			"checksumSHA1": "mB5JzxaVCPIvbwADY0acdnkhmT8=",
+			"path": "github.com/hashicorp/go-envparse",
+			"revision": "7953113a2936d8e5f7e2a0a3dd8089565c39ef21",
+			"revisionTime": "2017-06-02T22:43:19Z"
+		},
+		{
 			"checksumSHA1": "hHoNT6CfqcDF1+yXRKnz/duuwIk=",
 			"path": "github.com/hashicorp/go-getter",
 			"revision": "e48f67b534e614bf7fbd978fd0020f61a17b7527",
@@ -1052,12 +1058,6 @@
 			"path": "github.com/ryanuber/columnize",
 			"revision": "50b9b539927dfe231b8be1caf81b2c81d5940276",
 			"revisionTime": "2016-06-28T05:25:20Z"
-		},
-		{
-			"checksumSHA1": "0nmSguB9Hrc2vM2FTV1NRmOW1JE=",
-			"path": "github.com/schmichael/go-envparse",
-			"revision": "ec769f639d2838f80ec2aeed0e2753d8db06963a",
-			"revisionTime": "2017-06-02T21:50:00Z"
 		},
 		{
 			"checksumSHA1": "tnMZLo/kR9Kqx6GtmWwowtTLlA8=",
