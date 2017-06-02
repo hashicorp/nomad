@@ -921,7 +921,7 @@ func TestTaskTemplateManager_Env(t *testing.T) {
 
 FOO=bar
 foo=123
-ANYTHING-goes=Spaces are=ok!
+ANYTHING_goes=Spaces are=ok!
 `,
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeNoop,

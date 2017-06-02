@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -20,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
+	envparse "github.com/schmichael/go-envparse"
 )
 
 const (
@@ -524,7 +522,7 @@ func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]stri
 		defer f.Close()
 
 		// Parse environment fil
-		vars, err := parseEnvFile(f)
+		vars, err := envparse.Parse(f)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
 		}
@@ -533,39 +531,4 @@ func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]stri
 		}
 	}
 	return all, nil
-}
-
-// parseEnvFile and return a map of the environment variables suitable for
-// TaskEnvironment.AppendEnvvars or an error.
-//
-// See nomad/structs#Template.Envvars comment for format.
-func parseEnvFile(r io.Reader) (map[string]string, error) {
-	vars := make(map[string]string, 50)
-	lines := 0
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		lines++
-		buf := scanner.Bytes()
-		if len(buf) == 0 {
-			// Skip empty lines
-			continue
-		}
-		if buf[0] == '#' {
-			// Skip lines starting with a #
-			continue
-		}
-		n := bytes.IndexByte(buf, '=')
-		if n == -1 {
-			return nil, fmt.Errorf("line %d: no '=' sign: %q", lines, string(buf))
-		}
-		if len(buf) > n {
-			vars[string(buf[0:n])] = string(buf[n+1 : len(buf)])
-		} else {
-			vars[string(buf[0:n])] = ""
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return vars, nil
 }

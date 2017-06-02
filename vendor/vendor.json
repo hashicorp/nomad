@@ -1054,6 +1054,12 @@
 			"revisionTime": "2016-06-28T05:25:20Z"
 		},
 		{
+			"checksumSHA1": "0nmSguB9Hrc2vM2FTV1NRmOW1JE=",
+			"path": "github.com/schmichael/go-envparse",
+			"revision": "ec769f639d2838f80ec2aeed0e2753d8db06963a",
+			"revisionTime": "2017-06-02T21:50:00Z"
+		},
+		{
 			"checksumSHA1": "tnMZLo/kR9Kqx6GtmWwowtTLlA8=",
 			"path": "github.com/sean-/seed",
 			"revision": "e2103e2c35297fb7e17febb81e49b312087a2372",
