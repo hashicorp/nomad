@@ -118,26 +118,29 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	defer tw.Close()
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
-		// Ignore if the file is a symlink
-		if fileInfo.Mode() == os.ModeSymlink {
-			return nil
-		}
-
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		relPath, err := filepath.Rel(d.AllocDir, path)
 		if err != nil {
 			return err
 		}
-		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		link := ""
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("error reading symlink: %v", err)
+			}
+			link = target
+		}
+		hdr, err := tar.FileInfoHeader(fileInfo, link)
 		if err != nil {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = relPath
 		tw.WriteHeader(hdr)
 
-		// If it's a directory we just write the header into the tar
-		if fileInfo.IsDir() {
+		// If it's a directory or symlink we just write the header into the tar
+		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
 			return nil
 		}
 
