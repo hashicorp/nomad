@@ -939,27 +939,37 @@ func TestClient_UnarchiveAllocDir(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	f.Close()
+	if err := os.Symlink("bar", filepath.Join(dir, "foo", "baz")); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	linkInfo, err := os.Lstat(filepath.Join(dir, "foo", "baz"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
-		// Ignore if the file is a symlink
-		if fileInfo.Mode() == os.ModeSymlink {
-			return nil
-		}
-
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
-		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		link := ""
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("error reading symlink: %v", err)
+			}
+			link = target
+		}
+		hdr, err := tar.FileInfoHeader(fileInfo, link)
 		if err != nil {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = fileInfo.Name()
 		tw.WriteHeader(hdr)
 
-		// If it's a directory we just write the header into the tar
-		if fileInfo.IsDir() {
+		// If it's a directory or symlink we just write the header into the tar
+		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
 			return nil
 		}
 
@@ -1015,5 +1025,13 @@ func TestClient_UnarchiveAllocDir(t *testing.T) {
 	}
 	if fi1.Mode() != fInfo.Mode() {
 		t.Fatalf("mode: %v", fi1.Mode())
+	}
+
+	fi2, err := os.Lstat(filepath.Join(dir1, "baz"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fi2.Mode() != linkInfo.Mode() {
+		t.Fatalf("mode: %v", fi2.Mode())
 	}
 }

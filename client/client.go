@@ -1853,7 +1853,7 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 		}
 		// If the header is for a symlink we create the symlink
 		if hdr.Typeflag == tar.TypeSymlink {
-			if os.Symlink(hdr.Linkname, filepath.Join(pathToAllocDir, hdr.Name)); err != nil {
+			if err = os.Symlink(hdr.Linkname, filepath.Join(pathToAllocDir, hdr.Name)); err != nil {
 				c.logger.Printf("[ERR] client: error creating symlink: %v", err)
 			}
 			continue
