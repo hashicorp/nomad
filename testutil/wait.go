@@ -63,8 +63,12 @@ func TestMultiplier() int64 {
 }
 
 func IsTravis() bool {
-	_, ok := os.LookupEnv(TravisRunEnv)
-	return ok
+	ok := os.Getenv(TravisRunEnv)
+	if ok == "" {
+		return false
+	} else {
+		return true
+	}
 }
 
 type rpcFn func(string, interface{}, interface{}) error
