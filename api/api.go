@@ -158,7 +158,7 @@ func DefaultConfig() *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
 		HttpClient: cleanhttp.DefaultClient(),
-		TLSConfig:  &TLSConfig{},
+		TLSConfig:  &TLSConfig{Insecure: true},
 	}
 	transport := config.HttpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
