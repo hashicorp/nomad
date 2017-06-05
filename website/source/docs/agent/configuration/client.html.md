@@ -195,7 +195,6 @@ see the [drivers documentation](/docs/drivers/index.html).
     ```text
     CONSUL_TOKEN
     VAULT_TOKEN
-    ATLAS_TOKEN
     AWS_ACCESS_KEY_ID
     AWS_SECRET_ACCESS_KEY
     AWS_SESSION_TOKEN

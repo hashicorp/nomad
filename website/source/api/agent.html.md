@@ -173,11 +173,6 @@ $ curl \
       "RPC": "127.0.0.1:4647",
       "Serf": "127.0.0.1:4648"
     },
-    "Atlas": {
-      "Endpoint": "",
-      "Infrastructure": "",
-      "Join": false
-    },
     "BindAddr": "127.0.0.1",
     "Client": {
       "AllocDir": "",
