@@ -110,6 +110,11 @@ client {
 ports {
     http = 5656
 }
+advertise {
+  http = "localhost"
+  rpc = "localhost"
+  serf = "localhost"
+}
 ```
 
 Copy that file to `client2.hcl` and change the `data_dir` to
