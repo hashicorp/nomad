@@ -349,13 +349,13 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	// Returns empty config on empty dir
+	// Returns error on empty dir
 	config, err := LoadConfig(dir)
-	if err != nil {
-		t.Fatalf("err: %s", err)
+	if err == nil {
+		t.Fatalf("Expected an error")
 	}
-	if config == nil {
-		t.Fatalf("should not be nil")
+	if config != nil {
+		t.Fatalf("Config should be nil")
 	}
 
 	file1 := filepath.Join(dir, "conf1.hcl")

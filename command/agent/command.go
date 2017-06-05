@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -168,12 +167,6 @@ func (c *Command) readConfig() *Config {
 			c.Ui.Error(fmt.Sprintf(
 				"Error loading configuration from %s: %s", path, err))
 			return nil
-		}
-
-		// The user asked us to load some config here but we didn't find any,
-		// so we'll complain but continue.
-		if current == nil || reflect.DeepEqual(current, &Config{}) {
-			c.Ui.Warn(fmt.Sprintf("No configuration loaded from %s", path))
 		}
 
 		if config == nil {

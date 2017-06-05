@@ -1263,7 +1263,8 @@ func LoadConfigDir(dir string) (*Config, error) {
 
 	// Fast-path if we have no files
 	if len(files) == 0 {
-		return &Config{}, nil
+		return nil, fmt.Errorf("No config files found in %s; only files with "+
+			".hcl or .json extensions will be loaded", dir)
 	}
 
 	sort.Strings(files)
