@@ -10,5 +10,5 @@ const (
 )
 
 func getPortBinding(ip string, port string) []docker.PortBinding {
-	return []docker.PortBinding{docker.PortBinding{HostIP: ip, HostPort: port}}
+	return []docker.PortBinding{docker.PortBinding{HostIP: "", HostPort: port}}
 }
