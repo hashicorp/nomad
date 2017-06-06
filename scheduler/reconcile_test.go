@@ -44,8 +44,8 @@ Deployment Tests:
 √  JobIndex change cancels any active deployment
 √  JobIndex change doens't cancels any terminal deployment
 √  Destructive changes create deployment and get rolled out via max_parallelism
--  Don't create a deployment if there are no changes
--  Deployment created by all inplace updates
+√  Don't create a deployment if there are no changes
+√  Deployment created by all inplace updates
 √  Paused or failed deployment doesn't create any more canaries
 √  Paused or failed deployment doesn't do any placements
 √  Paused or failed deployment doesn't do destructive updates
@@ -63,7 +63,7 @@ Deployment Tests:
 √  Only place as many as are healthy in deployment
 √  Limit calculation accounts for healthy allocs on migrating/lost nodes
 √  Failed deployment should not place anything
--  Run after canaries have been promoted, new allocs have been rolled out and there is no deployment
+√  Run after canaries have been promoted, new allocs have been rolled out and there is no deployment
 */
 
 var (
@@ -252,12 +252,13 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	if exp.createDeployment != nil && r.createDeployment == nil {
 		t.Fatalf("Expect a created deployment got none")
 	} else if exp.createDeployment == nil && r.createDeployment != nil {
-		t.Fatalf("Expect no created deployment; got %v", r.createDeployment)
+		t.Fatalf("Expect no created deployment; got %#v", r.createDeployment)
 	} else if exp.createDeployment != nil && r.createDeployment != nil {
 		// Clear the deployment ID
 		r.createDeployment.ID, exp.createDeployment.ID = "", ""
 		if !reflect.DeepEqual(r.createDeployment, exp.createDeployment) {
-			t.Fatalf("Unexpected createdDeployment: %v", pretty.Diff(r.createDeployment, exp.createDeployment))
+			t.Fatalf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
+				r.createDeployment, exp.createDeployment, pretty.Diff(r.createDeployment, exp.createDeployment))
 		}
 	}
 
@@ -1272,8 +1273,9 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 	}
 }
 
-// Tests the reconciler creates a deployment and does a rolling upgrade
-func TestReconciler_CreateDeployment_RollingUpgrade(t *testing.T) {
+// Tests the reconciler creates a deployment and does a rolling upgrade with
+// destructive changes
+func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -1314,6 +1316,82 @@ func TestReconciler_CreateDeployment_RollingUpgrade(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
+}
+
+// Tests the reconciler creates a deployment for inplace updates
+func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 10 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  d,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           10,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate: 10,
+			},
+		},
+	})
+}
+
+// Tests the reconciler doesn't creates a deployment if there are no changes
+func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 10 allocations from the job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				DestructiveUpdate: 0,
+				Ignore:            10,
+			},
+		},
+	})
 }
 
 // Tests the reconciler doesn't place any more canaries when the deployment is
@@ -2462,6 +2540,10 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		alloc.DeploymentID = dID
 		if i < 2 {
 			alloc.Canary = true
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Healthy:  helper.BoolToPtr(true),
+				Promoted: true,
+			}
 		}
 		allocs = append(allocs, alloc)
 	}
