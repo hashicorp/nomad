@@ -49,7 +49,6 @@ $ sudo nomad agent -config server.hcl
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: <disabled>
                 Client: false
              Log Level: DEBUG
                 Region: global (DC: dc1)
@@ -122,7 +121,6 @@ $ sudo nomad agent -config client1.hcl
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: <disabled>
                 Client: true
              Log Level: DEBUG
                 Region: global (DC: dc1)

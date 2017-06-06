@@ -32,7 +32,6 @@ vagrant@nomad:~$ sudo nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: <disabled>
                 Client: true
              Log Level: DEBUG
                 Region: global (DC: dc1)

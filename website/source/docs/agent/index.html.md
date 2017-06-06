@@ -46,7 +46,6 @@ $ nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: (Infrastructure: 'hashicorp/example' Join: false)
                 Client: true
              Log Level: INFO
                 Region: global (DC: dc1)
@@ -60,11 +59,6 @@ $ nomad agent -dev
 ```
 
 There are several important messages that `nomad agent` outputs:
-
-- **Atlas**: This shows the [Atlas infrastructure](https://atlas.hashicorp.com)
-  with which the node is registered, if any. It also indicates if auto-join is
-  enabled. The Atlas infrastructure is set using `-atlas` and auto-join is
-  enabled by setting `-atlas-join`.
 
 - **Client**: This indicates whether the agent has enabled client mode.
   Client nodes fingerprint their host environment, register with servers,
