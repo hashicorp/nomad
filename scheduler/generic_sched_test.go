@@ -122,18 +122,20 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 
 	// Ensure the plan allocated
 	plan := h.Plans[0]
-	var planned []*structs.Allocation
+	planned := make(map[string]*structs.Allocation)
 	for _, allocList := range plan.NodeAllocation {
-		planned = append(planned, allocList...)
+		for _, alloc := range allocList {
+			planned[alloc.ID] = alloc
+		}
 	}
 	if len(planned) != 10 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
-	// Get an allocation and mark it as failed
-	alloc := planned[4].Copy()
-	alloc.ClientStatus = structs.AllocClientStatusFailed
-	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{alloc}))
+	// Update the job to force a rolling upgrade
+	updated := job.Copy()
+	updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
+	noErr(t, h.State.UpsertJob(h.NextIndex(), updated))
 
 	// Create a mock evaluation to handle the update
 	eval = &structs.Evaluation{
@@ -148,18 +150,32 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	}
 
 	// Ensure we have created only one new allocation
+	// Ensure a single plan
+	if len(h1.Plans) != 1 {
+		t.Fatalf("bad: %#v", h1.Plans)
+	}
 	plan = h1.Plans[0]
 	var newPlanned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		newPlanned = append(newPlanned, allocList...)
 	}
-	if len(newPlanned) != 1 {
+	if len(newPlanned) != 10 {
 		t.Fatalf("bad plan: %#v", plan)
 	}
-	// Ensure that the new allocation was placed on the same node as the older
-	// one
-	if newPlanned[0].NodeID != alloc.NodeID || newPlanned[0].PreviousAllocation != alloc.ID {
-		t.Fatalf("expected: %#v, actual: %#v", alloc, newPlanned[0])
+	// Ensure that the new allocations were placed on the same node as the older
+	// ones
+	for _, new := range newPlanned {
+		if new.PreviousAllocation == "" {
+			t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
+		}
+
+		old, ok := planned[new.PreviousAllocation]
+		if !ok {
+			t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
+		}
+		if new.NodeID != old.NodeID {
+			t.Fatalf("new alloc and old alloc node doesn't match; got %q; want %q", new.NodeID, old.NodeID)
+		}
 	}
 }
 
@@ -1394,9 +1410,12 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	// Update the job
 	job2 := mock.Job()
 	job2.ID = job.ID
-	job2.Update = structs.UpdateStrategy{
-		Stagger:     30 * time.Second,
-		MaxParallel: 5,
+	desiredUpdates := 4
+	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel:     desiredUpdates,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
 	}
 
 	// Update the task, such that it cannot be done in-place
@@ -1428,8 +1447,8 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	for _, updateList := range plan.NodeUpdate {
 		update = append(update, updateList...)
 	}
-	if len(update) != job2.Update.MaxParallel {
-		t.Fatalf("bad: %#v", plan)
+	if len(update) != desiredUpdates {
+		t.Fatalf("bad: got %d; want %d: %#v", len(update), desiredUpdates, plan)
 	}
 
 	// Ensure the plan allocated
@@ -1437,32 +1456,22 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != job2.Update.MaxParallel {
+	if len(planned) != desiredUpdates {
 		t.Fatalf("bad: %#v", plan)
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
-	// Ensure a follow up eval was created
-	eval = h.Evals[0]
-	if eval.NextEval == "" {
-		t.Fatalf("missing next eval")
+	// Ensure a deployment was created
+	if plan.CreatedDeployment == nil {
+		t.Fatalf("bad: %#v", plan)
 	}
-
-	// Check for create
-	if len(h.CreateEvals) == 0 {
-		t.Fatalf("missing created eval")
+	state, ok := plan.CreatedDeployment.TaskGroups[job.TaskGroups[0].Name]
+	if !ok {
+		t.Fatalf("bad: %#v", plan)
 	}
-	create := h.CreateEvals[0]
-	if eval.NextEval != create.ID {
-		t.Fatalf("ID mismatch")
-	}
-	if create.PreviousEval != eval.ID {
-		t.Fatalf("missing previous eval")
-	}
-
-	if create.TriggeredBy != structs.EvalTriggerRollingUpdate {
-		t.Fatalf("bad: %#v", create)
+	if state.DesiredTotal != 10 && state.DesiredCanaries != 0 {
+		t.Fatalf("bad: %#v", state)
 	}
 }
 

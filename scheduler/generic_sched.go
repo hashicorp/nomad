@@ -516,14 +516,12 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 
 // findPreferredNode finds the preferred node for an allocation
 func (s *GenericScheduler) findPreferredNode(place *allocPlaceResult) (node *structs.Node, err error) {
-	if place.previousAlloc != nil {
-		if place.taskGroup.EphemeralDisk.Sticky == true {
-			var preferredNode *structs.Node
-			ws := memdb.NewWatchSet()
-			preferredNode, err = s.state.NodeByID(ws, place.previousAlloc.NodeID)
-			if preferredNode.Ready() {
-				node = preferredNode
-			}
+	if place.previousAlloc != nil && place.taskGroup.EphemeralDisk.Sticky == true {
+		var preferredNode *structs.Node
+		ws := memdb.NewWatchSet()
+		preferredNode, err = s.state.NodeByID(ws, place.previousAlloc.NodeID)
+		if preferredNode.Ready() {
+			node = preferredNode
 		}
 	}
 	return

@@ -3791,6 +3791,14 @@ func (d *Deployment) Active() bool {
 	}
 }
 
+func (d *Deployment) GoString() string {
+	base := fmt.Sprintf("Deployment ID %q for job %q has status %q:", d.ID, d.JobID, d.Status)
+	for group, state := range d.TaskGroups {
+		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
+	}
+	return base
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
 	// Promoted marks whether the canaries have been promoted
@@ -3811,6 +3819,20 @@ type DeploymentState struct {
 
 	// UnhealthyAllocs are allocations that have been marked as unhealthy.
 	UnhealthyAllocs int
+}
+
+func (d *DeploymentState) GoString() string {
+	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
+	if d.DesiredCanaries > 0 {
+		base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
+		base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
+	}
+	if d.PlacedAllocs > 0 {
+		base := fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
+		base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
+		base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
+	}
+	return base
 }
 
 func (d *DeploymentState) Copy() *DeploymentState {
@@ -4052,13 +4074,6 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
-// DeploymentHealthy returns if the allocation is marked as healthy as part of a
-// deployment
-func (a *Allocation) DeploymentHealthy() bool {
-	return a.DeploymentStatus != nil &&
-		a.DeploymentStatus.Healthy != nil && *a.DeploymentStatus.Healthy
-}
-
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocListStub {
 	return &AllocListStub{
@@ -4208,6 +4223,29 @@ type AllocDeploymentStatus struct {
 	// as part of a deployment. It can be unset if it has neither been marked
 	// healthy or unhealthy.
 	Healthy *bool
+
+	// Promoted marks whether the allocation is promoted. This field is only
+	// used if the allocation is a canary.
+	Promoted bool
+}
+
+// IsHealthy returns if the allocation is marked as healthy as part of a
+// deployment
+func (a *AllocDeploymentStatus) IsHealthy() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Healthy != nil && *a.Healthy
+}
+
+// IsPromoted returns if the allocation is promoted as as part of a deployment
+func (a *AllocDeploymentStatus) IsPromoted() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Promoted
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
@@ -4216,6 +4254,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	}
 
 	c := new(AllocDeploymentStatus)
+	*c = *a
 
 	if a.Healthy != nil {
 		c.Healthy = helper.BoolToPtr(*a.Healthy)

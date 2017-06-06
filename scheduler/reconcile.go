@@ -134,8 +134,8 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Create the allocation matrix
 	m := newAllocMatrix(a.job, a.existingAllocs)
 
-	// Handle creating or stopoing deployments
-	a.computeDeployments()
+	// Handle stopping unneeded deployments
+	a.cancelDeployments()
 
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
@@ -152,11 +152,9 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	return a.result
 }
 
-// XXX Shouldn't cancel failed deployments
-// computeDeployments cancels any deployment that is not needed and creates a
-// deployment if it is needed
-func (a *allocReconciler) computeDeployments() {
-	// If the job is stopped and there is a deployment non-terminal deployment, cancel it
+// cancelDeployments cancels any deployment that is not needed
+func (a *allocReconciler) cancelDeployments() {
+	// If the job is stopped and there is a non-terminal deployment, cancel it
 	if a.job.Stopped() {
 		if a.deployment != nil && a.deployment.Active() {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
@@ -180,14 +178,6 @@ func (a *allocReconciler) computeDeployments() {
 			})
 			a.deployment = nil
 		}
-	}
-
-	// XXX Should probably do this as needed
-	// Create a new deployment if necessary
-	if a.deployment == nil && !a.job.Stopped() && a.job.HasUpdateStrategy() {
-		a.deployment = structs.NewDeployment(a.job)
-		a.result.createDeployment = a.deployment
-		a.logger.Printf("ALEX: MADE DEPLOYMENT %q", a.deployment.ID)
 	}
 }
 
@@ -229,7 +219,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		a.logger.Printf("RECONCILER -- STOPPING ALL")
 		untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 		a.markStop(untainted, "", allocNotNeeded)
 		a.markStop(migrate, "", allocNotNeeded)
@@ -239,64 +228,53 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	}
 
 	// Get the deployment state for the group
-	creatingDeployment := a.result.createDeployment != nil
 	var dstate *structs.DeploymentState
+	var existingDeployment bool
 	if a.deployment != nil {
-		var ok bool
-		dstate, ok = a.deployment.TaskGroups[group]
-
-		// We are creating a deployment
-		if !ok && creatingDeployment {
-			dstate = &structs.DeploymentState{}
-			a.deployment.TaskGroups[group] = dstate
-		}
+		dstate, existingDeployment = a.deployment.TaskGroups[group]
+	}
+	if !existingDeployment {
+		dstate = &structs.DeploymentState{}
 	}
 
-	// Get any existing canaries
+	// Handle stopping unneeded canaries and tracking placed canaries
 	canaries := all.filterByCanary()
-
-	// Cancel any canary from a prior deployment
 	if len(canaries) != 0 {
 		if a.deployment != nil {
+			// Stop all non-promoted canaries from older deployments
 			current, older := canaries.filterByDeployment(a.deployment.ID)
-
-			// Stop the older canaries
-			a.markStop(older, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(older))
-			canaries = current
+			nonPromotedOlder := older.filterByPromoted(false)
+			a.markStop(nonPromotedOlder, "", allocNotNeeded)
+			desiredChanges.Stop += uint64(len(nonPromotedOlder))
 
 			// Handle canaries on migrating/lost nodes here by just stopping
 			// them
-			untainted, migrate, lost := canaries.filterByTainted(a.taintedNodes)
+			untainted, migrate, lost := current.filterByTainted(a.taintedNodes)
 			a.markStop(migrate, "", allocMigrating)
 			a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 			canaries = untainted
 
 			// Update the all set
-			all = all.difference(older, migrate, lost)
-			a.logger.Printf("RECONCILER -- canaries %#v", canaries)
+			all = all.difference(nonPromotedOlder, migrate, lost)
 		} else {
-			// XXX this is totally wrong they may just be promoted good canaries
-			// We don't need any of those canaries since there no longer is a
-			// deployment
-			a.markStop(canaries, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(canaries))
-			all = all.difference(canaries)
+			// Stop all non-promoted canaries
+			nonPromoted := canaries.filterByPromoted(false)
+			a.markStop(nonPromoted, "", allocNotNeeded)
+			desiredChanges.Stop += uint64(len(nonPromoted))
+			all = all.difference(nonPromoted)
 			canaries = nil
 		}
 	}
 
 	// Determine what set of alloations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
-	a.logger.Printf("RECONCILER -- untainted (%d); migrate (%d); lost (%d)", len(untainted), len(migrate), len(lost))
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
 	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate))
 
 	// Stop any unneeded allocations and update the untainted set to not
-	// included stopped allocations. We ignore canaries since that can push us
-	// over the desired count
+	// included stopped allocations.
 	canaryState := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, canaryState)
 	desiredChanges.Stop += uint64(len(stop))
@@ -315,12 +293,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
-	if creatingDeployment {
+	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
-
-	a.logger.Printf("RECONCILER -- Stopping (%d)", len(stop))
-	a.logger.Printf("RECONCILER -- Inplace (%d); Destructive (%d)", len(inplace), len(destructive))
 
 	// The fact that we have destructive updates and have less canaries than is
 	// desired means we need to create canaries
@@ -331,11 +306,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		number := strategy.Canary - len(canaries)
 		number = helper.IntMin(numDestructive, number)
 		desiredChanges.Canary += uint64(number)
-		if creatingDeployment {
+		if !existingDeployment {
 			dstate.DesiredCanaries = strategy.Canary
 		}
 
-		a.logger.Printf("RECONCILER -- Place Canaries (%d)", number)
 		for _, name := range nameIndex.NextCanaries(uint(number), canaries, destructive) {
 			a.result.place = append(a.result.place, allocPlaceResult{
 				name:      name,
@@ -348,34 +322,29 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// Determine how many we can place
 	canaryState = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	limit := a.computeLimit(tg, untainted, destructive, canaryState)
-	a.logger.Printf("RECONCILER -- LIMIT %v", limit)
 
 	// Place if:
 	// * The deployment is not paused or failed
 	// * Not placing any canaries
 	// * If there are any canaries that they have been promoted
 	place := a.computePlacements(tg, nameIndex, untainted, migrate)
-	if creatingDeployment {
+	if !existingDeployment {
 		dstate.DesiredTotal += len(place)
 	}
 
 	if !a.deploymentPaused && !a.deploymentFailed && !canaryState {
 		// Place all new allocations
-		a.logger.Printf("RECONCILER -- Placing (%d)", len(place))
 		desiredChanges.Place += uint64(len(place))
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)
 		}
 
-		// XXX Needs to be done in order
 		// Do all destructive updates
 		min := helper.IntMin(len(destructive), limit)
 		limit -= min
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
-		a.logger.Printf("RECONCILER -- Destructive Updating (%d)", min)
 		for _, alloc := range destructive.nameOrder()[:min] {
-			a.logger.Printf("RECONCILER -- Destructive Updating %q %q", alloc.ID, alloc.Name)
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             alloc,
 				statusDescription: allocUpdating,
@@ -387,14 +356,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 			})
 		}
 	} else {
-		a.logger.Printf("RECONCILER -- NON PROMOTED CASE")
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
 
 	// TODO Migrations should be done using a stagger and max_parallel.
 	if !a.deploymentFailed {
 		desiredChanges.Migrate += uint64(len(migrate))
-		a.logger.Printf("RECONCILER -- Migrating (%d)", len(migrate))
 	} else {
 		desiredChanges.Stop += uint64(len(migrate))
 	}
@@ -416,6 +383,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		}
 	}
 
+	// Create a new deployment if necessary
+	if a.deployment == nil && strategy != nil && dstate.DesiredTotal != 0 {
+		a.deployment = structs.NewDeployment(a.job)
+		a.result.createDeployment = a.deployment
+		a.deployment.TaskGroups[group] = dstate
+	}
 }
 
 // computeLimit returns the placement limit for a particular group. The inputs
@@ -437,12 +410,16 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 	}
 
 	// If we have been promoted or there are no canaries, the limit is the
-	// configured MaxParallel - any outstanding non-healthy alloc for the
+	// configured MaxParallel minus any outstanding non-healthy alloc for the
 	// deployment
 	limit := group.Update.MaxParallel
-	partOf, _ := untainted.filterByDeployment(a.deployment.ID)
+	dID := "invalid"
+	if a.deployment != nil {
+		dID = a.deployment.ID
+	}
+	partOf, _ := untainted.filterByDeployment(dID)
 	for _, alloc := range partOf {
-		if !alloc.DeploymentHealthy() {
+		if !alloc.DeploymentStatus.IsHealthy() {
 			limit--
 		}
 	}
@@ -472,8 +449,9 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	return place
 }
 
-// computeStop returns the set of allocations to stop given the group definiton
-// and the set of untainted and canary allocations for the group.
+// computeStop returns the set of allocations that are marked for stopping given
+// the group definiton, the set of allocations in various states and whether we
+// are canarying.
 func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
 	untainted, migrate, lost, canaries allocSet, canaryState bool) allocSet {
 
@@ -500,7 +478,6 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		canaryNames := canaries.nameSet()
 		for id, alloc := range untainted.difference(canaries) {
 			if _, match := canaryNames[alloc.Name]; match {
-				a.logger.Printf("ALEX -- STOPPING alloc with same name as canary %q %q", id, alloc.Name)
 				stop[id] = alloc
 				a.result.stop = append(a.result.stop, allocStopResult{
 					alloc:             alloc,
@@ -524,7 +501,6 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 			if _, match := removeNames[alloc.Name]; !match {
 				continue
 			}
-			a.logger.Printf("ALEX -- STOPPING migrating alloc %q", id)
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             alloc,
 				statusDescription: allocNotNeeded,
@@ -540,12 +516,10 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		}
 	}
 
-	// nameIndex does not include the canaries
-	a.logger.Printf("ALEX -- ATTEMPTING STOP of %d normal allocs", remove)
+	// Select the allocs with the highest count to remove
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range untainted {
 		if _, remove := removeNames[alloc.Name]; remove {
-			a.logger.Printf("ALEX -- STOPPING normal alloc %q %q", id, alloc.Name)
 			stop[id] = alloc
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             alloc,
@@ -582,183 +556,4 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	}
 
 	return
-}
-
-// allocNameIndex is used to select allocation names for placement or removal
-// given an existing set of placed allocations.
-type allocNameIndex struct {
-	job, taskGroup string
-	count          int
-	b              structs.Bitmap
-}
-
-// newAllocNameIndex returns an allocNameIndex for use in selecting names of
-// allocations to create or stop. It takes the job and task group name, desired
-// count and any existing allocations as input.
-func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocNameIndex {
-	return &allocNameIndex{
-		count:     count,
-		b:         bitmapFrom(in, uint(count)),
-		job:       job,
-		taskGroup: taskGroup,
-	}
-}
-
-func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
-	var max uint
-	for _, a := range input {
-		if num := a.Index(); num > max {
-			max = num
-		}
-	}
-
-	if l := uint(len(input)); minSize < l {
-		minSize = l
-	}
-	if max < minSize {
-		max = minSize
-	}
-	if max == 0 {
-		max = 8
-	}
-
-	// byteAlign the count
-	if remainder := max % 8; remainder != 0 {
-		max = max + 8 - remainder
-	}
-
-	bitmap, err := structs.NewBitmap(max)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, a := range input {
-		bitmap.Set(a.Index())
-	}
-
-	return bitmap
-}
-
-// RemoveHighest removes and returns the hightest n used names. The returned set
-// can be less than n if there aren't n names set in the index
-func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
-	h := make(map[string]struct{}, n)
-	for i := a.b.Size(); i > uint(0) && uint(len(h)) < n; i-- {
-		// Use this to avoid wrapping around b/c of the unsigned int
-		idx := i - 1
-		if a.b.Check(idx) {
-			a.b.Unset(idx)
-			h[structs.AllocName(a.job, a.taskGroup, idx)] = struct{}{}
-		}
-	}
-
-	return h
-}
-
-// Set sets the indexes from the passed alloc set as used
-func (a *allocNameIndex) Set(set allocSet) {
-	for _, alloc := range set {
-		a.b.Set(alloc.Index())
-	}
-}
-
-// Unset unsets all indexes of the passed alloc set as being used
-func (a *allocNameIndex) Unset(as allocSet) {
-	for _, alloc := range as {
-		a.b.Unset(alloc.Index())
-	}
-}
-
-// UnsetIndex unsets the index as having its name used
-func (a *allocNameIndex) UnsetIndex(idx uint) {
-	a.b.Unset(idx)
-}
-
-// NextCanaries returns the next n names for use as canaries and sets them as
-// used. The existing canaries and destructive updates are also passed in.
-func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []string {
-	next := make([]string, 0, n)
-
-	// Create a name index
-	existingNames := existing.nameSet()
-
-	// First select indexes from the allocations that are undergoing destructive
-	// updates. This way we avoid duplicate names as they will get replaced.
-	dmap := bitmapFrom(destructive, uint(a.count))
-	var remainder uint
-	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
-		name := structs.AllocName(a.job, a.taskGroup, uint(idx))
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(uint(idx))
-
-			// If we have enough, return
-			remainder := n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
-	}
-
-	// Get the set of unset names that can be used
-	for _, idx := range a.b.IndexesInRange(false, uint(0), uint(a.count)-1) {
-		name := structs.AllocName(a.job, a.taskGroup, uint(idx))
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(uint(idx))
-
-			// If we have enough, return
-			remainder = n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
-	}
-
-	// We have exhausted the prefered and free set, now just pick overlapping
-	// indexes
-	var i uint
-	for i = 0; i < remainder; i++ {
-		name := structs.AllocName(a.job, a.taskGroup, i)
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(i)
-
-			// If we have enough, return
-			remainder = n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
-	}
-
-	return next
-}
-
-// Next returns the next n names for use as new placements and sets them as
-// used.
-func (a *allocNameIndex) Next(n uint) []string {
-	next := make([]string, 0, n)
-
-	// Get the set of unset names that can be used
-	remainder := n
-	for _, idx := range a.b.IndexesInRange(false, uint(0), uint(a.count)-1) {
-		next = append(next, structs.AllocName(a.job, a.taskGroup, uint(idx)))
-		a.b.Set(uint(idx))
-
-		// If we have enough, return
-		remainder = n - uint(len(next))
-		if remainder == 0 {
-			return next
-		}
-	}
-
-	// We have exhausted the free set, now just pick overlapping indexes
-	var i uint
-	for i = 0; i < remainder; i++ {
-		next = append(next, structs.AllocName(a.job, a.taskGroup, i))
-		a.b.Set(i)
-	}
-
-	return next
 }
