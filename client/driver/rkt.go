@@ -275,7 +275,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		cmdArgs = append(cmdArgs, "--insecure-options=all")
 	}
 
-	// same for debug
+	// debug is rkt's global argument, so add it before the actual "run"
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	cmdArgs = append(cmdArgs, "run")
