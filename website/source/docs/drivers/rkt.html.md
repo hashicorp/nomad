@@ -88,7 +88,7 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `debug` - (Optional) Enable rkt command debug option.
 
-* `no_overlay` - (Optional) When enabled, will use --no-overlay=true flag for 'rkt run'.
+* `no_overlay` - (Optional) When enabled, will use `--no-overlay=true` flag for 'rkt run'.
   Useful when running jobs on older systems affected by https://github.com/rkt/rkt/issues/1922
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
