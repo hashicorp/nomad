@@ -123,7 +123,10 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	matches := reQemuVersion.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		delete(node.Attributes, qemuDriverAttr)
-		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
+		if !currentlyEnabled {
+			d.logger.Printf("[ERR] Unable to parse Qemu version string: %#v", matches)
+		}
+		return false, nil
 	}
 
 	node.Attributes[qemuDriverAttr] = "1"
