@@ -1851,6 +1851,13 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), os.FileMode(hdr.Mode))
 			continue
 		}
+		// If the header is for a symlink we create the symlink
+		if hdr.Typeflag == tar.TypeSymlink {
+			if err = os.Symlink(hdr.Linkname, filepath.Join(pathToAllocDir, hdr.Name)); err != nil {
+				c.logger.Printf("[ERR] client: error creating symlink: %v", err)
+			}
+			continue
+		}
 		// If the header is a file, we write to a file
 		if hdr.Typeflag == tar.TypeReg {
 			f, err := os.Create(filepath.Join(pathToAllocDir, hdr.Name))
