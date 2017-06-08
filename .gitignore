@@ -57,3 +57,21 @@ TODO.md
 .terraform
 *.tfstate*
 rkt-*
+
+# UI rules
+
+# compiled output
+/ui/dist
+/ui/tmp
+
+# dependencies
+/ui/node_modules
+/ui/bower_components
+
+# misc
+/ui/.sass-cache
+/ui/connect.lock
+/ui/coverage/*
+/ui/libpeerconnection.log
+/ui/npm-debug.log*
+/ui/testem.log
