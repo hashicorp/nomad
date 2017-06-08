@@ -1,2 +1,29 @@
 <h1>Nomad UI</h1>
+
+<table>
+  <thead>
+    <tr>
+      <td>ID</td>
+      <td>Name</td>
+      <td>Type</td>
+      <td>Datacenters</td>
+      <td>Status</td>
+      <td>Periodic</td>
+      <td>Parameterized</td>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each model as |job|}}
+      <tr>
+        <td>{{job.id}}</td>
+        <td>{{job.name}}</td>
+        <td>{{job.type}}</td>
+        <td>{{job.datacenters}}</td>
+        <td>{{job.status}}</td>
+        <td>{{job.periodic}}</td>
+        <td>{{job.parameterized}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>
 {{outlet}}
