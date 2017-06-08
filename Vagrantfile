@@ -101,6 +101,9 @@ def configureVM(vmCfg, vmParams={
   vmCfg.vm.provision "shell", inline: $script, privileged: false
   vmCfg.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
 
+  # Expose the nomad api and ui to the host
+  vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646
+
   # We're going to compile go and run a concurrent system, so give ourselves
   # some extra resources. Nomad will have trouble working correctly with <2
   # CPUs so we should use at least that many.
