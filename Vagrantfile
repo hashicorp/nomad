@@ -41,7 +41,7 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
-	end	
+	end
 
 	# Test Cluster (Linux)
 	1.upto(3) do |n|
@@ -59,25 +59,28 @@ Vagrant.configure(2) do |config|
 			vmCfg.vm.provider "virtualbox" do |_|
 				vmCfg.vm.network :private_network, ip: serverIP
 			end
-		
+
 			vmCfg.vm.synced_folder '.',
 				'/opt/gopath/src/github.com/hashicorp/nomad'
-	
+
 			vmCfg.vm.provision "shell",
 				privileged: true,
 				path: './scripts/vagrant-linux-priv-zeroconf.sh'
+
+      # Expose the nomad api and ui to the host
+      vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646
 		end
-		
+
 		config.vm.define clientName, autostart: false, primary: false do |vmCfg|
 			vmCfg.vm.box = LINUX_BASE_BOX
 			vmCfg.vm.hostname = clientName
 			vmCfg = configureProviders(vmCfg)
 			vmCfg = configureLinuxProvisioners(vmCfg)
-			
+
 			vmCfg.vm.provider "virtualbox" do |_|
 				vmCfg.vm.network :private_network, ip: clientIP
 			end
-			
+
 			vmCfg.vm.synced_folder '.',
 				'/opt/gopath/src/github.com/hashicorp/nomad'
 
