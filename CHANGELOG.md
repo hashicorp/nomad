@@ -25,9 +25,10 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Protect against nil job in new allocation, avoiding panic [GH-2592]
+ * client: Add sticky bit to temp directory [GH-2519]
+ * client: Include symlinks in snapshots when migrating disks [GH-2687]
  * client: Regression for allocation directory unix perms introduced in v0.5.6
    fixed [GH-2675]
- * client: Add sticky bit to temp directory [GH-2519]
  * client: Client syncs allocation state with server before waiting for
    allocation destroy fixing a corner case in which an allocation may be blocked
    till destroy [GH-2563]
