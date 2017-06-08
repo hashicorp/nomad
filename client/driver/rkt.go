@@ -81,6 +81,7 @@ type RktDriverConfig struct {
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
 	NoOverlay        bool                `mapstructure:"no_overlay"`         // disable overlayfs for rkt run
 	Debug            bool                `mapstructure:"debug"`              // Enable debug option for rkt command
@@ -158,6 +159,8 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			},
 			"no_overlay": &fields.FieldSchema{
 				Type: fields.TypeBool,
+			"insecure_options": &fields.FieldSchema{
+				Type: fields.TypeArray,
 			},
 		},
 	}
@@ -266,6 +269,18 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		// Disble signature verification if the trust command was not run.
 		insecure = true
 	}
+
+	// if we have a selective insecure_options, prefer them
+	// insecure options are rkt's global argument, so we do this before the actual "run"
+	if len(driverConfig.InsecureOptions) > 0 {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--insecure-options=%s", strings.Join(driverConfig.InsecureOptions, ",")))
+	} else if insecure {
+		cmdArgs = append(cmdArgs, "--insecure-options=all")
+	}
+
+	// debug is rkt's global argument, so add it before the actual "run"
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
+
 	cmdArgs = append(cmdArgs, "run")
 
 	// disable overlayfs
@@ -313,10 +328,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	cmdArgs = append(cmdArgs, img)
-	if insecure {
-		cmdArgs = append(cmdArgs, "--insecure-options=all")
-	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
 	for k, v := range ctx.TaskEnv.Map() {
