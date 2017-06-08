@@ -44,6 +44,7 @@ func (c *NodeDrainCommand) Synopsis() string {
 
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, self, autoYes bool
+	var reallocate bool
 
 	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -51,6 +52,10 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
+
+	// Could use either a string or a bool flag?
+	// Using a bool first pass
+	flags.BoolVar(&reallocate, "reallocate", false, "Reallocate batch job(s)") // current bevahior is true
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -163,7 +168,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Toggle node draining
-	if _, err := client.Nodes().ToggleDrain(node.ID, enable, nil); err != nil {
+	if _, err := client.Nodes().ToggleDrain(node.ID, enable, reallocate, nil); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
 		return 1
 	}

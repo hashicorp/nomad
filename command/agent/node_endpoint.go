@@ -105,9 +105,19 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 		return nil, CodedError(400, "invalid enable value")
 	}
 
+	reallocateRaw := req.URL.Query().Get("reallocate")
+	if reallocateRaw == "" {
+		return nil, CodedError(400, "missing reallocate value")
+	}
+	reallocate, err := strconv.ParseBool(reallocateRaw)
+	if err != nil {
+		return nil, CodedError(400, "invalid reallocate value")
+	}
+
 	args := structs.NodeUpdateDrainRequest{
-		NodeID: nodeID,
-		Drain:  enable,
+		NodeID:     nodeID,
+		Drain:      enable,
+		Reallocate: reallocate,
 	}
 	s.parseRegion(req, &args.Region)
 
