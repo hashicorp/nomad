@@ -83,7 +83,8 @@ type RktDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
-	Debug bool `mapstructure:"debug"` // Enable debug option for rkt command
+	NoOverlay        bool                `mapstructure:"no_overlay"`         // disable overlayfs for rkt run
+	Debug            bool                `mapstructure:"debug"`              // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -156,6 +157,8 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			"volumes": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
+			"no_overlay": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			"insecure_options": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
@@ -279,6 +282,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	cmdArgs = append(cmdArgs, "run")
+
+	// disable overlayfs
+	if driverConfig.NoOverlay {
+		cmdArgs = append(cmdArgs, "--no-overlay=true")
+	}
 
 	// Write the UUID out to a file in the state dir so we can read it back
 	// in and access the pod by UUID from other commands
