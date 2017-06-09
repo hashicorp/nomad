@@ -8,8 +8,8 @@
   },
   "repository": "",
   "scripts": {
-    "build": "ember build",
-    "start": "ember server",
+    "build": "ember build -prod",
+    "start": "ember server --proxy=http://127.0.0.1:4646",
     "test": "ember test"
   },
   "devDependencies": {

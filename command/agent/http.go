@@ -9,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -169,6 +171,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
+	s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+	s.mux.Handle("/", handleRootRedirect())
+
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -182,6 +187,22 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 type HTTPCodedError interface {
 	error
 	Code() int
+}
+
+type UIAssetWrapper struct {
+	FileSystem *assetfs.AssetFS
+}
+
+func (fs *UIAssetWrapper) Open(name string) (http.File, error) {
+	if file, err := fs.FileSystem.Open(name); err == nil {
+		return file, nil
+	} else {
+		// serve index.html instead of 404ing
+		if err == os.ErrNotExist {
+			return fs.FileSystem.Open("index.html")
+		}
+		return nil, err
+	}
 }
 
 func CodedError(c int, s string) HTTPCodedError {
@@ -199,6 +220,22 @@ func (e *codedError) Error() string {
 
 func (e *codedError) Code() int {
 	return e.code
+}
+
+func handleUI(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		header := w.Header()
+		header.Add("Content-Security-Policy", "default-src 'none'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; form-action 'none'; frame-ancestors 'none'")
+		h.ServeHTTP(w, req)
+		return
+	})
+}
+
+func handleRootRedirect() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "/ui/", 307)
+		return
+	})
 }
 
 // wrap is used to wrap functions to make them more convenient

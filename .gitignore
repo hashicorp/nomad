@@ -75,3 +75,7 @@ rkt-*
 /ui/libpeerconnection.log
 /ui/npm-debug.log*
 /ui/testem.log
+.ignore
+
+# generated routes file
+command/agent/bindata_assetfs.go

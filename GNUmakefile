@@ -5,7 +5,9 @@ EXTERNAL_TOOLS=\
 	       golang.org/x/tools/cmd/cover \
 	       github.com/axw/gocov/gocov \
 	       gopkg.in/matm/v1/gocov-html \
-	       github.com/ugorji/go/codec/codecgen
+	       github.com/ugorji/go/codec/codecgen \
+	       github.com/jteeuwen/go-bindata/... \
+	       github.com/elazarl/go-bindata-assetfs/...
 
 TEST_TOOLS=\
 	   github.com/hashicorp/vault
@@ -18,7 +20,7 @@ dev: format generate
 bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
-release: generate
+release: ui generate
 	@sh -c "TARGETS=release '$(PWD)/scripts/build.sh'"
 
 cov:
@@ -75,4 +77,27 @@ install: bin/nomad
 travis:
 	@sh -c "'$(PWD)/scripts/travis.sh'"
 
-.PHONY: all bin cov integ test vet test-nodep
+static-assets:
+	@echo "--> Generating static assets"
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 ./ui/dist/...
+	@mv bindata_assetfs.go command/agent
+
+test-ember:
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install && bower install && yarn install phantomjs-prebuilt
+	@echo "--> Running ember tests"
+	@cd ui && node_modules/phantomjs-prebuilt/bin/phantomjs --version
+	@cd ui && npm test
+
+ember-dist:
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm rebuild node-sass
+	@echo "--> Building Ember application"
+	@cd ui && npm run build
+
+ui: ember-dist static-assets
+
+dev-ui: ui dev
+
+.PHONY: all bin cov integ test vet test-nodep static-assets ember-dist static-dist
