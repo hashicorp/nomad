@@ -124,3 +124,40 @@ func (f FSIsolation) String() string {
 		return "INVALID"
 	}
 }
+
+// DriverNetwork is the network created by driver's (eg Docker's bridge
+// network) during Prestart.
+type DriverNetwork struct {
+	// PortMap can be set by drivers to replace ports in environment
+	// variables with driver-specific mappings.
+	PortMap map[string]int
+
+	// IP is the IP address for the task created by the driver.
+	IP string
+
+	// AutoUseIP indicates whether the driver thinks services that choose
+	// to auto-advertise-addresses should use this IP instead of the host's
+	AutoUseIP bool
+}
+
+// Use returns true if the driver suggests using the IP set. May be called on a
+// nil Network in which case it returns false.
+func (d *DriverNetwork) Use() bool {
+	return d != nil && d.AutoUseIP
+}
+
+// Copy a Network struct. If it is nil, nil is returned.
+func (d *DriverNetwork) Copy() *DriverNetwork {
+	if d == nil {
+		return nil
+	}
+	pm := make(map[string]int, len(d.PortMap))
+	for k, v := range d.PortMap {
+		pm[k] = v
+	}
+	return &DriverNetwork{
+		PortMap:   pm,
+		IP:        d.IP,
+		AutoUseIP: d.AutoUseIP,
+	}
+}

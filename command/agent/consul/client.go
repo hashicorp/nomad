@@ -13,6 +13,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -420,15 +421,32 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 // serviceRegs creates service registrations, check registrations, and script
 // checks from a service.
 func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *structs.Service,
-	exec driver.ScriptExecutor, task *structs.Task) error {
+	task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 
 	id := makeTaskServiceID(allocID, task.Name, service)
-	host, port := task.FindHostAndPortFor(service.PortLabel)
+	addrMode := service.AddressMode
+	if addrMode == structs.AddressModeAuto {
+		if net == nil || !net.AutoUseIP {
+			// No driver network or shouldn't default to driver's network
+			addrMode = structs.AddressModeHost
+		} else {
+			addrMode = structs.AddressModeDriver
+		}
+	}
+	ip, port := task.Resources.Networks.Port(service.PortLabel)
+	if addrMode == structs.AddressModeDriver {
+		if net == nil {
+			//FIXME oof this is a doozy of an error condition... wording?
+			return fmt.Errorf("service %s cannot use driver's IP as it is unset", service.Name)
+		}
+		ip = net.IP
+		port = net.PortMap[service.PortLabel]
+	}
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
 		Name:    service.Name,
 		Tags:    make([]string, len(service.Tags)),
-		Address: host,
+		Address: ip,
 		Port:    port,
 	}
 	// copy isn't strictly necessary but can avoid bugs especially
@@ -452,11 +470,15 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 
 		}
 
-		host, port := serviceReg.Address, serviceReg.Port
-		if check.PortLabel != "" {
-			host, port = task.FindHostAndPortFor(check.PortLabel)
+		// Checks should always use the host ip:port
+		//FIXME right?!
+		portLabel := check.PortLabel
+		if portLabel == "" {
+			// Default to the service's port label
+			portLabel = service.PortLabel
 		}
-		checkReg, err := createCheckReg(id, checkID, check, host, port)
+		ip, port := task.Resources.Networks.Port(portLabel)
+		checkReg, err := createCheckReg(id, checkID, check, ip, port)
 		if err != nil {
 			return fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
@@ -468,11 +490,14 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 // RegisterTask with Consul. Adds all sevice entries and checks to Consul. If
 // exec is nil and a script check exists an error is returned.
 //
+// If the service IP is set it used as the address in the service registration.
+// Checks will always use the IP from the Task struct (host's IP).
+//
 // Actual communication with Consul is done asynchrously (see Run).
-func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor) error {
+func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	ops := &operations{}
 	for _, service := range task.Services {
-		if err := c.serviceRegs(ops, allocID, service, exec, task); err != nil {
+		if err := c.serviceRegs(ops, allocID, service, task, exec, net); err != nil {
 			return err
 		}
 	}
@@ -535,7 +560,8 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 
 	// Any remaining services should just be enqueued directly
 	for _, newSvc := range newIDs {
-		err := c.serviceRegs(ops, allocID, newSvc, exec, newTask)
+		//FIXME driver.Network needed
+		err := c.serviceRegs(ops, allocID, newSvc, newTask, exec, nil)
 		if err != nil {
 			return err
 		}

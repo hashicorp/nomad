@@ -137,7 +137,7 @@ func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, e
 
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
 // image and save it to the Drivers Allocation Dir
-func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig QemuDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		// reserved ports to the ports listenting in the VM
 		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
 		var forwarding []string
-		taskPorts := task.Resources.Networks[0].MapLabelToValues(nil)
+		taskPorts := task.Resources.Networks[0].PortLabels()
 		for label, guest := range driverConfig.PortMap[0] {
 			host, ok := taskPorts[label]
 			if !ok {
@@ -276,7 +276,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return h, nil
+	return &StartResponse{Handle: h}, nil
 }
 
 type qemuId struct {

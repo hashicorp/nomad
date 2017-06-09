@@ -95,11 +95,12 @@ type ServiceCheck struct {
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id        string
-	Name      string
-	Tags      []string
-	PortLabel string `mapstructure:"port"`
-	Checks    []ServiceCheck
+	Id          string
+	Name        string
+	Tags        []string
+	PortLabel   string `mapstructure:"port"`
+	AddressMode string `mapstructure:"address_mode"`
+	Checks      []ServiceCheck
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {

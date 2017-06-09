@@ -890,6 +890,26 @@ type NodeListStub struct {
 	ModifyIndex       uint64
 }
 
+// Networks defined for a task on the Resources struct.
+type Networks []*NetworkResource
+
+// Port assignment and IP for the given label or empty values.
+func (ns Networks) Port(label string) (string, int) {
+	for _, n := range ns {
+		for _, p := range n.ReservedPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+		for _, p := range n.DynamicPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+	}
+	return "", 0
+}
+
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
@@ -897,7 +917,7 @@ type Resources struct {
 	MemoryMB int
 	DiskMB   int
 	IOPS     int
-	Networks []*NetworkResource
+	Networks Networks
 }
 
 const (
@@ -1054,10 +1074,10 @@ type Port struct {
 type NetworkResource struct {
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
-	IP            string // IP address
+	IP            string // Host IP address
 	MBits         int    // Throughput
-	ReservedPorts []Port // Reserved ports
-	DynamicPorts  []Port // Dynamically assigned ports
+	ReservedPorts []Port // Host Reserved ports
+	DynamicPorts  []Port // Host Dynamically assigned ports
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -1113,15 +1133,15 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-func (n *NetworkResource) MapLabelToValues(port_map map[string]int) map[string]int {
-	labelValues := make(map[string]int)
-	ports := append(n.ReservedPorts, n.DynamicPorts...)
-	for _, port := range ports {
-		if mapping, ok := port_map[port.Label]; ok {
-			labelValues[port.Label] = mapping
-		} else {
-			labelValues[port.Label] = port.Value
-		}
+// PortLabels returns a map of port labels to their assigned host ports.
+func (n *NetworkResource) PortLabels() map[string]int {
+	num := len(n.ReservedPorts) + len(n.DynamicPorts)
+	labelValues := make(map[string]int, num)
+	for _, port := range n.ReservedPorts {
+		labelValues[port.Label] = port.Value
+	}
+	for _, port := range n.DynamicPorts {
+		labelValues[port.Label] = port.Value
 	}
 	return labelValues
 }
@@ -2430,6 +2450,12 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+const (
+	AddressModeAuto   = "auto"
+	AddressModeHost   = "host"
+	AddressModeDriver = "driver" //FIXME plugin? I forget what we decided because like 1000 other things have gone wrong since then
+)
+
 // Service represents a Consul service definition in Nomad
 type Service struct {
 	// Name of the service registered with Consul. Consul defaults the
@@ -2441,8 +2467,13 @@ type Service struct {
 	// To specify the port number using the host's Consul Advertise
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
 	PortLabel string
-	Tags      []string        // List of tags for the service
-	Checks    []*ServiceCheck // List of checks associated with the service
+
+	// AddressMode specifies whether or not to use the host ip:port for
+	// this service.
+	AddressMode string
+
+	Tags   []string        // List of tags for the service
+	Checks []*ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Copy() *Service {
@@ -2467,6 +2498,11 @@ func (s *Service) Copy() *Service {
 // Canonicalize interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) Canonicalize(job string, taskGroup string, task string) {
+	// Default to AddressModeAuto
+	if s.AddressMode == "" {
+		s.AddressMode = AddressModeAuto
+	}
+
 	// Ensure empty lists are treated as null to avoid scheduler issues when
 	// using DeepEquals
 	if len(s.Tags) == 0 {
@@ -2501,6 +2537,13 @@ func (s *Service) Validate() error {
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9\$][a-zA-Z0-9\-\$\{\}\_\.]*[a-z0-9\}])$`)
 	if !re.MatchString(s.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
+	}
+
+	switch s.AddressMode {
+	case AddressModeAuto, AddressModeHost, AddressModeDriver:
+		// OK
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
 	for _, c := range s.Checks {
@@ -2720,15 +2763,6 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
-func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
-	for _, network := range t.Resources.Networks {
-		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
-			return network.IP, p
-		}
-	}
-	return "", 0
-}
-
 // Validate is used to sanity check a task
 func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	var mErr multierror.Error
@@ -2873,7 +2907,7 @@ func validateServices(t *Task) error {
 	portLabels := make(map[string]struct{})
 	if t.Resources != nil {
 		for _, network := range t.Resources.Networks {
-			ports := network.MapLabelToValues(nil)
+			ports := network.PortLabels()
 			for portLabel, _ := range ports {
 				portLabels[portLabel] = struct{}{}
 			}
@@ -2889,6 +2923,8 @@ func validateServices(t *Task) error {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
+
+	// Ensure address mode is valid
 	return mErr.ErrorOrNil()
 }
 

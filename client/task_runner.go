@@ -351,7 +351,8 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			restartReason = pre06ScriptCheckReason
 		}
 
-		if err := r.registerServices(d, handle); err != nil {
+		//FIXME don't pass nil here
+		if err := r.registerServices(d, handle, nil); err != nil {
 			// Don't hard fail here as there's a chance this task
 			// registered with Consul properly when it initial
 			// started.
@@ -1303,18 +1304,13 @@ func (r *TaskRunner) startTask() error {
 
 	// Run prestart
 	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
-	resp, err := drv.Prestart(ctx, r.task)
+	presp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
-	if resp != nil {
+	if presp != nil {
 		r.createdResourcesLock.Lock()
-		r.createdResources.Merge(resp.CreatedResources)
+		r.createdResources.Merge(presp.CreatedResources)
 		r.createdResourcesLock.Unlock()
-
-		// Update environment with PortMap if it was returned
-		if len(resp.PortMap) > 0 {
-			r.envBuilder.SetPortMap(resp.PortMap)
-		}
 	}
 
 	if err != nil {
@@ -1328,7 +1324,7 @@ func (r *TaskRunner) startTask() error {
 	ctx = driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 
 	// Start the job
-	handle, err := drv.Start(ctx, r.task)
+	sresp, err := drv.Start(ctx, r.task)
 	if err != nil {
 		wrapped := fmt.Sprintf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
@@ -1337,13 +1333,16 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
-	if err := r.registerServices(drv, handle); err != nil {
+	// Update environment with the network defined by the driver for the task
+	r.envBuilder.SetDriverNetwork(sresp.Network)
+
+	if err := r.registerServices(drv, sresp.Handle, sresp.Network); err != nil {
 		// All IO is done asynchronously, so errors from registering
 		// services are hard failures.
 		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
 
 		// Kill the started task
-		if destroyed, err := r.handleDestroy(handle); !destroyed {
+		if destroyed, err := r.handleDestroy(sresp.Handle); !destroyed {
 			r.logger.Printf("[ERR] client: failed to kill task %q alloc %q. Resources may be leaked: %v",
 				r.task.Name, r.alloc.ID, err)
 		}
@@ -1351,21 +1350,21 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	r.handleLock.Lock()
-	r.handle = handle
+	r.handle = sresp.Handle
 	r.handleLock.Unlock()
 
 	return nil
 }
 
 // registerServices and checks with Consul.
-func (r *TaskRunner) registerServices(d driver.Driver, h driver.ScriptExecutor) error {
+func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n *cstructs.DriverNetwork) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
 	interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec)
+	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the

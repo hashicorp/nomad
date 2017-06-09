@@ -236,7 +236,7 @@ func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartRes
 }
 
 // Run an existing Rkt image.
-func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig RktDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -512,7 +512,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return h, nil
+	//TODO Set Network
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

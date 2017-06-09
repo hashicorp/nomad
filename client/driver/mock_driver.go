@@ -89,7 +89,7 @@ func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, e
 }
 
 // Start starts the mock driver
-func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig MockDriverConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
@@ -126,7 +126,7 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 	m.logger.Printf("[DEBUG] driver.mock: starting task %q", task.Name)
 	go h.run()
-	return &h, nil
+	return &StartResponse{Handle: &h}, nil
 }
 
 // Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for

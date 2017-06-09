@@ -202,7 +202,7 @@ func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfi
 	return &driverConfig, nil
 }
 
-func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	driverConfig, err := NewJavaDriverConfig(task, ctx.TaskEnv)
 	if err != nil {
 		return nil, err
@@ -296,7 +296,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return h, nil
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

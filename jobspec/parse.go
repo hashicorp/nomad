@@ -905,6 +905,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"tags",
 			"port",
 			"check",
+			"address_mode",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))

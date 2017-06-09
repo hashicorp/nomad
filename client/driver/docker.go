@@ -471,7 +471,7 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 		return nil, err
 	}
 
-	// Set state needed by Start()
+	// Set state needed by Start
 	d.driverConfig = driverConfig
 
 	// Initialize docker API clients
@@ -488,12 +488,11 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 
 	resp := NewPrestartResponse()
 	resp.CreatedResources.Add(dockerImageResKey, id)
-	resp.PortMap = d.driverConfig.PortMap
 	d.imageID = id
 	return resp, nil
 }
 
-func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
@@ -560,6 +559,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			pluginClient.Kill()
 			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
 		}
+		// InspectContainer to get all of the container metadata as
+		// much of the metadata (eg networking) isn't populated until
+		// the container is started
+		if container, err = client.InspectContainer(container.ID); err != nil {
+			err = fmt.Errorf("failed to inspect started container %s: %s", container.ID, err)
+			d.logger.Printf("[ERR] driver.docker: %v", err)
+			pluginClient.Kill()
+			return nil, structs.NewRecoverableError(err, true)
+		}
 		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 	} else {
 		d.logger.Printf("[DEBUG] driver.docker: re-attaching to container %s with status %q",
@@ -585,7 +593,51 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 	go h.collectStats()
 	go h.run()
-	return h, nil
+
+	// Detect container address
+	ip, autoUse := d.detectIP(container)
+
+	// Create a response with the driver handle and container network metadata
+	resp := &StartResponse{
+		Handle: h,
+		Network: &cstructs.DriverNetwork{
+			PortMap:   d.driverConfig.PortMap,
+			IP:        ip,
+			AutoUseIP: autoUse,
+		},
+	}
+	return resp, nil
+}
+
+func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
+	if c.NetworkSettings == nil {
+		// This should only happen if there's been a coding error (such
+		// as not calling InspetContainer after CreateContainer). Code
+		// defensively in case the Docker API changes subtly.
+		d.logger.Printf("[WARN] driver.docker: no network settings for container %s", c.ID)
+		return "", false
+	}
+	ip, ipName := "", ""
+	n := 0
+	auto := false
+	for name, net := range c.NetworkSettings.Networks {
+		if net.IPAddress == "" {
+			// Ignore networks without an IP address
+			continue
+		}
+		n++
+		ip = net.IPAddress
+		ipName = name
+
+		// Don't auto-advertise bridge IPs
+		if name != "bridge" {
+			auto = true
+		}
+	}
+	if n > 1 {
+		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+	}
+	return ip, auto
 }
 
 func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
