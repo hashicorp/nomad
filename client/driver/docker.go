@@ -148,7 +148,7 @@ type DockerDriverConfig struct {
 	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
-	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
+	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
@@ -173,12 +173,6 @@ type DockerDriverConfig struct {
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
-	}
-
-	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
-	c.Labels = mapMergeStrStr(c.LabelsRaw...)
-	if len(c.Logging) > 0 {
-		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
 	}
 	return nil
 }
@@ -218,6 +212,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 		}
 	}
+	dconf.Labels = mapMergeStrStr(dconf.LabelsRaw...)
 
 	for i, a := range dconf.Auth {
 		dconf.Auth[i].Username = env.ReplaceEnv(a.Username)
@@ -236,12 +231,22 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		}
 	}
 
+	if len(dconf.Logging) > 0 {
+		dconf.Logging[0].Config = mapMergeStrStr(dconf.Logging[0].ConfigRaw...)
+	}
+
+	portMap := make(map[string]int)
 	for _, m := range dconf.PortMapRaw {
 		for k, v := range m {
-			delete(m, k)
-			m[env.ReplaceEnv(k)] = v
+			ki, vi := env.ReplaceEnv(k), env.ReplaceEnv(v)
+			p, err := strconv.Atoi(vi)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse port map value %v to %v: %v", ki, vi, err)
+			}
+			portMap[ki] = p
 		}
 	}
+	dconf.PortMap = portMap
 
 	// Remove any http
 	if strings.Contains(dconf.ImageName, "https://") {
