@@ -185,7 +185,7 @@ dev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test ent"
+		GO_TAGS="$(GO_TAGS) nomad_test ent"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -203,13 +203,14 @@ prodev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test pro"
+		GO_TAGS="$(GO_TAGS) nomad_test pro"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: release
+release: GO_TAGS="$(GO_TAGS) ui"
 release: clean check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -257,6 +258,32 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 		nomad-client02 \
 		nomad-client03 \
 		$(if $(PROVIDER),--provider $(PROVIDER))
+
+.PHONY: static-assets
+static-assets: ## Compile the static routes to serve alongside the API
+	@echo "--> Generating static assets"
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 ./ui/dist/...
+	@mv bindata_assetfs.go command/agent
+
+.PHONY: test-ember
+test-ember: ## Run Noma UI test suite
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install && bower install && yarn install phantomjs-prebuilt
+	@echo "--> Running ember tests"
+	@cd ui && node_modules/phantomjs-prebuilt/bin/phantomjs --version
+	@cd ui && npm test
+
+.PHONY: ember-dist
+ember-dist: ## Build the static UI assets from source
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm rebuild node-sass
+	@echo "--> Building Ember application"
+	@cd ui && npm run build
+
+.PHONY: dev-ui
+dev-ui: GO_TAGS="$(GO_TAGS) ui"
+dev-ui: ember-dist static-assets dev ## Build a dev binary with the UI baked in
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help
