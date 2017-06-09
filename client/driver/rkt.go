@@ -83,8 +83,8 @@ type RktDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
-	NoOverlay        bool                `mapstructure:"no_overlay"`         // disable overlayfs for rkt run
-	Debug            bool                `mapstructure:"debug"`              // Enable debug option for rkt command
+	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool `mapstructure:"debug"`      // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -159,6 +159,7 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			},
 			"no_overlay": &fields.FieldSchema{
 				Type: fields.TypeBool,
+			},
 			"insecure_options": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
