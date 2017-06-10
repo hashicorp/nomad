@@ -79,7 +79,7 @@ travis:
 
 static-assets:
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 ./ui/dist/...
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 test-ember:
@@ -98,6 +98,7 @@ ember-dist:
 
 ui: ember-dist static-assets
 
-dev-ui: ui dev
+dev-ui: ui dev format generate
+	@scripts/build-dev.sh -ui
 
 .PHONY: all bin cov integ test vet test-nodep static-assets ember-dist static-dist

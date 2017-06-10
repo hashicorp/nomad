@@ -12,8 +12,21 @@ if [[ $(uname) == "Linux" ]]; then
 	fi
 fi
 
+while :; do
+    case $1 in
+        -ui)
+            TAGS="ui $TAGS"
+            break
+        *)
+            echo "usage: build-dev.sh [-ui]"
+            exit
+    esac
+
+    shift
+done
+
 echo "--> Installing with tags: $TAGS"
-go install -ldflags "-X $LDFLAG" -tags "${TAGS}"
+go install -ldflags "-X $LDFLAG" -tags "$TAGS"
 
 echo "--> Ensuring bin directory exists..."
 mkdir -p bin

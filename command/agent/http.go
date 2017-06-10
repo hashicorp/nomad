@@ -31,6 +31,14 @@ const (
 	scadaHTTPAddr = "SCADA"
 )
 
+var (
+	// Set to false by stub_asset if the ui build tag isn't enabled
+	uiEnabled = true
+
+	// Overridden if the ui build tag isn't enabled
+	stubHTML = ""
+)
+
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
 	agent    *Agent
@@ -171,7 +179,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
-	s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+	if uiEnabled {
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+	} else {
+		// Write the stubHTML
+		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(stubHTML))
+		})
+	}
 	s.mux.Handle("/", handleRootRedirect())
 
 	if enableDebug {
@@ -194,6 +209,7 @@ type UIAssetWrapper struct {
 }
 
 func (fs *UIAssetWrapper) Open(name string) (http.File, error) {
+	log.Printf("open: %q", name)
 	if file, err := fs.FileSystem.Open(name); err == nil {
 		return file, nil
 	} else {
