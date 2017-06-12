@@ -770,7 +770,7 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 		return fmt.Errorf("Task not yet run")
 	}
 
-	e.logger.Printf("[DEBUG] executor: sending signal %s", s)
+	e.logger.Printf("[DEBUG] executor: sending signal %s to PID %d", s, e.cmd.Process.Pid)
 	err := e.cmd.Process.Signal(s)
 	if err != nil {
 		e.logger.Printf("[ERR] executor: sending signal %v failed: %v", s, err)
