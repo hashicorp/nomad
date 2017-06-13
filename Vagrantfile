@@ -75,6 +75,22 @@ sudo service docker restart
 # Make sure we can actually use docker as the vagrant user
 sudo usermod -aG docker vagrant
 
+# Install NVM for simple node.js version management
+wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
+
+# This enables NVM without a logout/login
+export NVM_DIR="/home/vagrant/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
+
+# Install Node, Ember CLI, and Phantom for UI development
+nvm install 6.11.0
+nvm alias default 6.11.0
+npm install -g ember-cli phantomjs-prebuilt
+
+# Install Yarn for front-end dependency management
+curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 0.24.6
+export PATH="$HOME/.yarn/bin:\$PATH"
+
 # Setup Nomad for development
 cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
 
@@ -102,7 +118,11 @@ def configureVM(vmCfg, vmParams={
   vmCfg.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
 
   # Expose the nomad api and ui to the host
-  vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646
+  vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
+
+  # Expose Ember ports to the host (one for the site, one for livereload)
+  vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
+  vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
 
   # We're going to compile go and run a concurrent system, so give ourselves
   # some extra resources. Nomad will have trouble working correctly with <2
