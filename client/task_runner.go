@@ -1311,6 +1311,9 @@ func (r *TaskRunner) startTask() error {
 		r.createdResourcesLock.Lock()
 		r.createdResources.Merge(presp.CreatedResources)
 		r.createdResourcesLock.Unlock()
+
+		// Set any network configuration returned by the driver
+		r.envBuilder.SetDriverNetwork(presp.Network)
 	}
 
 	if err != nil {
@@ -1333,7 +1336,7 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
-	// Update environment with the network defined by the driver for the task
+	// Update environment with the network defined by the driver's Start method.
 	r.envBuilder.SetDriverNetwork(sresp.Network)
 
 	if err := r.registerServices(drv, sresp.Handle, sresp.Network); err != nil {

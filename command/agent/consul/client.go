@@ -426,11 +426,11 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 	id := makeTaskServiceID(allocID, task.Name, service)
 	addrMode := service.AddressMode
 	if addrMode == structs.AddressModeAuto {
-		if net == nil || !net.AutoUseIP {
+		if net.Advertise() {
+			addrMode = structs.AddressModeDriver
+		} else {
 			// No driver network or shouldn't default to driver's network
 			addrMode = structs.AddressModeHost
-		} else {
-			addrMode = structs.AddressModeDriver
 		}
 	}
 	ip, port := task.Resources.Networks.Port(service.PortLabel)

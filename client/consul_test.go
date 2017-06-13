@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,9 +19,10 @@ type mockConsulOp struct {
 	allocID string
 	task    *structs.Task
 	exec    driver.ScriptExecutor
+	net     *cstructs.DriverNetwork
 }
 
-func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptExecutor) mockConsulOp {
+func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) mockConsulOp {
 	if op != "add" && op != "remove" && op != "update" {
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
@@ -29,6 +31,7 @@ func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptE
 		allocID: allocID,
 		task:    task,
 		exec:    exec,
+		net:     net,
 	}
 }
 
@@ -56,15 +59,15 @@ func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.T
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %v, %v, %T)", allocID, old, new, exec)
-	m.ops = append(m.ops, newMockConsulOp("update", allocID, new, exec))
+	m.ops = append(m.ops, newMockConsulOp("update", allocID, new, exec, nil))
 	return nil
 }
 
-func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor) error {
+func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T)", allocID, task.Name, exec)
-	m.ops = append(m.ops, newMockConsulOp("add", allocID, task, exec))
+	m.ops = append(m.ops, newMockConsulOp("add", allocID, task, exec, net))
 	return nil
 }
 
@@ -72,5 +75,5 @@ func (m *mockConsulServiceClient) RemoveTask(allocID string, task *structs.Task)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", allocID, task.Name)
-	m.ops = append(m.ops, newMockConsulOp("remove", allocID, task, nil))
+	m.ops = append(m.ops, newMockConsulOp("remove", allocID, task, nil, nil))
 }

@@ -57,6 +57,14 @@ type Factory func(*DriverContext) Driver
 type PrestartResponse struct {
 	// CreatedResources by the driver.
 	CreatedResources *CreatedResources
+
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
+	//
+	// Since the network configuration may not be fully populated by
+	// Prestart, it will only be used for creating an environment for
+	// Start. It will be overridden by the DriverNetwork returned by Start.
+	Network *cstructs.DriverNetwork
 }
 
 // NewPrestartResponse creates a new PrestartResponse with CreatedResources
@@ -185,8 +193,8 @@ type StartResponse struct {
 	// of the task.
 	Handle DriverHandle
 
-	// DriverNetwork contains driver-specific network parameters such as
-	// the port map between the host and a container.
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
 	//
 	// Network may be nil as not all drivers or configurations create
 	// networks.

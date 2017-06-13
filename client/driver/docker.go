@@ -485,10 +485,17 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 	if err != nil {
 		return nil, err
 	}
+	d.imageID = id
 
 	resp := NewPrestartResponse()
 	resp.CreatedResources.Add(dockerImageResKey, id)
-	d.imageID = id
+
+	// Return the PortMap if it's set
+	if len(driverConfig.PortMap) > 0 {
+		resp.Network = &cstructs.DriverNetwork{
+			PortMap: driverConfig.PortMap,
+		}
+	}
 	return resp, nil
 }
 
@@ -601,9 +608,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	resp := &StartResponse{
 		Handle: h,
 		Network: &cstructs.DriverNetwork{
-			PortMap:   d.driverConfig.PortMap,
-			IP:        ip,
-			AutoUseIP: autoUse,
+			PortMap:       d.driverConfig.PortMap,
+			IP:            ip,
+			AutoAdvertise: autoUse,
 		},
 	}
 	return resp, nil

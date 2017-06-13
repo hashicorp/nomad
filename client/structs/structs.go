@@ -135,15 +135,16 @@ type DriverNetwork struct {
 	// IP is the IP address for the task created by the driver.
 	IP string
 
-	// AutoUseIP indicates whether the driver thinks services that choose
-	// to auto-advertise-addresses should use this IP instead of the host's
-	AutoUseIP bool
+	// AutoAdvertise indicates whether the driver thinks services that
+	// choose to auto-advertise-addresses should use this IP instead of the
+	// host's. eg If a Docker network plugin is used
+	AutoAdvertise bool
 }
 
-// Use returns true if the driver suggests using the IP set. May be called on a
-// nil Network in which case it returns false.
-func (d *DriverNetwork) Use() bool {
-	return d != nil && d.AutoUseIP
+// Advertise returns true if the driver suggests using the IP set. May be
+// called on a nil Network in which case it returns false.
+func (d *DriverNetwork) Advertise() bool {
+	return d != nil && d.AutoAdvertise
 }
 
 // Copy a Network struct. If it is nil, nil is returned.
@@ -156,8 +157,8 @@ func (d *DriverNetwork) Copy() *DriverNetwork {
 		pm[k] = v
 	}
 	return &DriverNetwork{
-		PortMap:   pm,
-		IP:        d.IP,
-		AutoUseIP: d.AutoUseIP,
+		PortMap:       pm,
+		IP:            d.IP,
+		AutoAdvertise: d.AutoAdvertise,
 	}
 }

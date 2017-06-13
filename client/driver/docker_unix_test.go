@@ -66,24 +66,21 @@ done
 	if err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
-	waitForExist(t, handle.(*DockerHandle).client, handle.(*DockerHandle))
+	waitForExist(t, resp.Handle.(*DockerHandle).client, resp.Handle.(*DockerHandle))
 
 	time.Sleep(1 * time.Second)
-	if err := handle.Signal(syscall.SIGUSR1); err != nil {
+	if err := resp.Handle.Signal(syscall.SIGUSR1); err != nil {
 		t.Fatalf("Signal returned an error: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatalf("should err: %v", res)
 		}

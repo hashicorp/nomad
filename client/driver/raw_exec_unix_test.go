@@ -52,17 +52,14 @@ done
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		err := handle.Signal(syscall.SIGUSR1)
+		err := resp.Handle.Signal(syscall.SIGUSR1)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -70,7 +67,7 @@ done
 
 	// Task should terminate quickly
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
 		}

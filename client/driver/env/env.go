@@ -498,30 +498,32 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 	envMap["NOMAD_HOST_PORT_"+p.Label] = portStr
 	envMap["NOMAD_HOST_ADDR_"+p.Label] = net.JoinHostPort(ip, portStr)
 
-	// Driver IP, PORT, and ADDR; use host if nil
-	if driverNet == nil {
-		envMap["NOMAD_DRIVER_IP_"+p.Label] = ip
-		envMap["NOMAD_DRIVER_PORT_"+p.Label] = portStr
-		envMap["NOMAD_DRIVER_ADDR_"+p.Label] = net.JoinHostPort(ip, portStr)
-	} else {
+	// Driver IP, PORT, and ADDR if available
+	if driverNet != nil {
 		driverPortStr := strconv.Itoa(driverNet.PortMap[p.Label])
 		envMap["NOMAD_DRIVER_IP_"+p.Label] = driverNet.IP
 		envMap["NOMAD_DRIVER_PORT_"+p.Label] = driverPortStr
 		envMap["NOMAD_DRIVER_ADDR_"+p.Label] = net.JoinHostPort(driverNet.IP, driverPortStr)
 	}
 
-	// Auto IP, PORT, and ADDR
-	if driverNet.Use() {
-		// Use driver's
+	// Auto IP, PORT, and ADDR (driver if set; otherwise host)
+	if envMap["NOMAD_DRIVER_IP_"+p.Label] != "" {
+		// Driver IP set, use it
 		envMap[IpPrefix+p.Label] = envMap["NOMAD_DRIVER_IP_"+p.Label]
-		envMap[PortPrefix+p.Label] = envMap["NOMAD_DRIVER_PORT_"+p.Label]
-		envMap[AddrPrefix+p.Label] = envMap["NOMAD_DRIVER_ADDR_"+p.Label]
 	} else {
-		// Use host's
 		envMap[IpPrefix+p.Label] = envMap["NOMAD_HOST_IP_"+p.Label]
-		envMap[PortPrefix+p.Label] = envMap["NOMAD_HOST_PORT_"+p.Label]
-		envMap[AddrPrefix+p.Label] = envMap["NOMAD_HOST_ADDR_"+p.Label]
 	}
+
+	if envMap["NOMAD_DRIVER_PORT_"+p.Label] != "" {
+		// PortMap set, use it
+		envMap[PortPrefix+p.Label] = envMap["NOMAD_DRIVER_PORT_"+p.Label]
+	} else {
+		envMap[PortPrefix+p.Label] = envMap["NOMAD_HOST_PORT_"+p.Label]
+	}
+
+	// Address just joins the two (which doesn't make sense if IP is host
+	// and Port is driver, but it maintains pre-0.6 backward compat).
+	envMap[AddrPrefix+p.Label] = net.JoinHostPort(envMap[IpPrefix+p.Label], envMap[PortPrefix+p.Label])
 }
 
 // SetHostEnvvars adds the host environment variables to the tasks. The filter
