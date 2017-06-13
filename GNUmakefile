@@ -98,7 +98,7 @@ ember-dist:
 
 ui: ember-dist static-assets
 
-dev-ui: ui dev format generate
+dev-ui: ui format generate
 	@scripts/build-dev.sh -ui
 
 .PHONY: all bin cov integ test vet test-nodep static-assets ember-dist static-dist

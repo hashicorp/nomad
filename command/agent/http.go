@@ -209,7 +209,6 @@ type UIAssetWrapper struct {
 }
 
 func (fs *UIAssetWrapper) Open(name string) (http.File, error) {
-	log.Printf("open: %q", name)
 	if file, err := fs.FileSystem.Open(name); err == nil {
 		return file, nil
 	} else {

@@ -12,16 +12,14 @@ if [[ $(uname) == "Linux" ]]; then
 	fi
 fi
 
-while :; do
+while [ "$1" != "" ]; do
     case $1 in
         -ui)
-            TAGS="ui $TAGS"
-            break
+            TAGS="$TAGS ui"
+            ;;
         *)
-            echo "usage: build-dev.sh [-ui]"
-            exit
+            ;;
     esac
-
     shift
 done
 
