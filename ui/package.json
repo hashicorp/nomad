@@ -10,7 +10,17 @@
   "scripts": {
     "build": "ember build -prod",
     "start": "ember server --proxy=http://127.0.0.1:4646",
-    "test": "ember test"
+    "test": "ember test",
+    "precommit": "lint-staged"
+  },
+  "lint-staged": {
+    "gitDir": "../",
+    "linters": {
+      "ui/{app,tests}/**/*.js": [
+        "prettier --single-quote --trailing-comma --write",
+        "git add"
+      ]
+    }
   },
   "devDependencies": {
     "broccoli-asset-rev": "^2.4.5",
@@ -36,7 +46,10 @@
     "ember-resolver": "^4.0.0",
     "ember-source": "~2.13.0",
     "ember-welcome-page": "^3.0.0",
-    "loader.js": "^4.2.3"
+    "husky": "^0.13.4",
+    "lint-staged": "^3.6.1",
+    "loader.js": "^4.2.3",
+    "prettier": "^1.4.4"
   },
   "engines": {
     "node": ">= 4"
