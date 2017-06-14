@@ -1,13 +1,17 @@
 module.exports = {
-  root: true,
-  parserOptions: {
-    ecmaVersion: 2017,
-    sourceType: 'module'
+  env: {
+    browser: true,
+    es6: true,
   },
   extends: 'eslint:recommended',
-  env: {
-    browser: true
+  parserOptions: {
+    ecmaVersion: 2017,
+    sourceType: 'module',
   },
   rules: {
-  }
+    indent: ['error', 2],
+    'linebreak-style': ['error', 'unix'],
+    quotes: ['error', 'single'],
+    semi: ['error', 'always'],
+  },
 };
