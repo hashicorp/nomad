@@ -1,9 +1,14 @@
 /* eslint-env node */
 const EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
+const environment = EmberApp.env();
+const isProd = environment === 'production';
+
 module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
-    // Add options here
+    addons: {
+      blacklist: isProd ? ['ember-freestyle'] : [],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated
