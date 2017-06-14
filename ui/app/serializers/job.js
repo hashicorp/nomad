@@ -6,7 +6,6 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(typeHash, hash) {
-    console.log(hash);
     return this._super(typeHash, hash);
   },
 });
