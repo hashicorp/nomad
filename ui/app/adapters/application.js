@@ -30,7 +30,6 @@ export default RESTAdapter.extend({
 
 // An in-place transformation from CamelCase to snake_case
 function transformKeys(object) {
-  console.log('BEGIN', object);
   Object.keys(object).forEach(key => {
     const newKey = key.underscore();
 
@@ -40,10 +39,8 @@ function transformKeys(object) {
     }
 
     if (isArray(object[newKey])) {
-      console.log('ARR --> ', newKey, object[newKey]);
       object[newKey].forEach(transformKeys);
     } else if (typeOf(object[newKey]) === 'object') {
-      console.log('OBJ --> ', newKey, object[newKey]);
       transformKeys(object[newKey]);
     }
   });
