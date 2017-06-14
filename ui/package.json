@@ -16,7 +16,7 @@
   "lint-staged": {
     "gitDir": "../",
     "linters": {
-      "ui/{app,tests}/**/*.js": [
+      "ui/{app,tests,config}/**/*.js": [
         "prettier --single-quote --trailing-comma es5 --write",
         "git add"
       ],
