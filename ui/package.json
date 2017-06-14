@@ -46,6 +46,7 @@
     "ember-resolver": "^4.0.0",
     "ember-source": "~2.13.0",
     "ember-welcome-page": "^3.0.0",
+    "eslint": "^4.0.0",
     "husky": "^0.13.4",
     "lint-staged": "^3.6.1",
     "loader.js": "^4.2.3",
