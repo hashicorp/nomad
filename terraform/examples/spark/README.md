@@ -1,6 +1,6 @@
 # Nomad / Spark integration
 
-Spark supports using a Nomad cluster to run Spark applications. When running on Nomad, the Spark executors that run Spark tasks for your application, and optionally the application driver itself, run as Nomad tasks in a Nomad job. See the [usage guide](./RunningSparkOnNomad.pdf) for more details.
+We maintain a fork of Apache Spark that natively supports using a Nomad cluster to run Spark applications. When running on Nomad, the Spark executors that run Spark tasks for your application, and optionally the application driver itself, run as Nomad tasks in a Nomad job. See the [usage guide](./RunningSparkOnNomad.pdf) for more details.
 
 To give the Spark integration a test drive `cd` to `examples/spark/spark` on one of the servers (the `examples/spark/spark` subdirectory will be created when the cluster is provisioned).
 
