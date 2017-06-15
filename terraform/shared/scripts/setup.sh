@@ -5,12 +5,12 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=0.7.5
+CONSULVERSION=0.8.4
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.6.5
+VAULTVERSION=0.7.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
@@ -19,9 +19,6 @@ NOMADVERSION=0.5.6
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
-
-PACKERVERSION=0.12.3
-PACKERDOWNLOAD=https://releases.hashicorp.com/packer/${PACKERVERSION}/packer_${PACKERVERSION}_linux_amd64.zip
 
 echo Dependencies...
 sudo apt-get install -y software-properties-common
@@ -90,16 +87,6 @@ sudo mkdir -p $NOMADCONFIGDIR
 sudo chmod 755 $NOMADCONFIGDIR
 sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
-
-## Packer
-
-echo Fetching Packer...
-curl -L $PACKERDOWNLOAD > packer.zip
-
-echo Installing Packer...
-sudo unzip packer.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/packer
-sudo chown root:root /usr/local/bin/packer
 
 ## Docker
 
