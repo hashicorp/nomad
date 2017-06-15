@@ -1,24 +1,72 @@
-{{#freestyle-guide title='Nomad UI'subtitle='Styles and Patterns'}}
-  {{#freestyle-section name='Visual Style' as |section|}}
+<div id="styleguide">
+  {{#freestyle-guide title='Nomad UI'subtitle='Styles and Patterns'}}
+    {{#freestyle-section name='Visual Style' as |section|}}
+      {{#freestyle-subsection name='Color' section=section}}
+        {{#freestyle-usage 'colors' title='Colors' usageTitle='Usage'}}
+          {{freestyle-palette
+            colorPalette=colorPalette
+            title='Dummy App Color Palette'
+            description='This component displays the color palette specified in freestyle/palette.json'}}
+        {{/freestyle-usage}}
+      {{/freestyle-subsection}}
+    {{/freestyle-section}}
 
-    {{#freestyle-subsection name='Typography' section=section}}
-      {{#freestyle-usage 'typography-times' title='Times New Roman'}}
-        {{freestyle-typeface fontFamily='Times New Roman'}}
-      {{/freestyle-usage}}
+    {{#freestyle-section name='Buttons' as |section|}}
+      {{#freestyle-subsection name='Standard' section=section}}
+        {{#freestyle-usage 'buttons-standard' title='Standard Buttons'}}
+          <div class="block">
+            <a class="button">Button</a>
+            <a class="button is-white">White</a>
+            <a class="button is-light">Light</a>
+            <a class="button is-dark">Dark</a>
+            <a class="button is-black">Black</a>
+            <a class="button is-link">Link</a>
+          </div>
+          <div class="block">
+            <a class="button is-primary">Primary</a>
+            <a class="button is-info">Info</a>
+            <a class="button is-success">Success</a>
+            <a class="button is-warning">Warning</a>
+            <a class="button is-danger">Danger</a>
+          </div>
+        {{/freestyle-usage}}
+      {{/freestyle-subsection}}
 
-      {{#freestyle-usage 'typography-helvetica' title='Helvetica'}}
-        {{freestyle-typeface fontFamily='Helvetica'}}
-      {{/freestyle-usage}}
-    {{/freestyle-subsection}}
+      {{#freestyle-subsection name='Outlines' section=section}}
+        {{#freestyle-usage 'buttons-outlines' title='Outline Buttons'}}
+          <div class="block">
+            <a class="button is-outlined">Outlined</a>
+            <a class="button is-primary is-outlined">Primary</a>
+            <a class="button is-info is-outlined">Info</a>
+            <a class="button is-success is-outlined">Success</a>
+            <a class="button is-warning is-outlined">Warning</a>
+            <a class="button is-danger is-outlined is-important">Danger</a>
+          </div>
+        {{/freestyle-usage}}
+      {{/freestyle-subsection}}
 
-    {{#freestyle-subsection name='Color' section=section}}
-      {{#freestyle-usage 'fp' title='Freestyle Palette' usageTitle='Usage'}}
-        {{freestyle-palette
-          colorPalette=colorPalette
-          title='Dummy App Color Palette'
-          description='This component displays the color palette specified in freestyle/palette.json'}}
-      {{/freestyle-usage}}
-    {{/freestyle-subsection}}
+      {{#freestyle-subsection name='Hollow' section=section}}
+        {{#freestyle-usage 'buttons-hollow' title='Hollow Buttons'}}
+          <div class="block" style="background:#25BA81; padding:30px">
+            <a class="button is-primary is-inverted is-outlined">Primary</a>
+            <a class="button is-info is-inverted is-outlined">Info</a>
+            <a class="button is-success is-inverted is-outlined">Success</a>
+            <a class="button is-warning is-inverted is-outlined">Warning</a>
+            <a class="button is-danger is-inverted is-outlined">Danger</a>
+          </div>
+        {{/freestyle-usage}}
+      {{/freestyle-subsection}}
 
-  {{/freestyle-section}}
+      {{#freestyle-subsection name='Sizing' section=section}}
+        {{#freestyle-usage 'buttons-sizing' title='Button Sizes'}}
+          <div class="block">
+            <a class="button is-small">Small</a>
+            <a class="button">Normal</a>
+            <a class="button is-medium">Medium</a>
+            <a class="button is-large">Large</a>
+          </div>
+        {{/freestyle-usage}}
+      {{/freestyle-subsection}}
+    {{/freestyle-section}}
 {{/freestyle-guide}}
+</div>
