@@ -5,7 +5,7 @@
     "source_ami": "ami-8e0b9499",
     "instance_type": "t2.medium",
     "ssh_username": "ubuntu",
-    "ami_name": "hashicorp-sandbox {{timestamp}}",
+    "ami_name": "nomad-packer {{timestamp}}",
     "ami_groups": ["all"]
   }],
   "provisioners":  [
