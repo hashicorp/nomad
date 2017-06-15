@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "broccoli-asset-rev": "^2.4.5",
+    "bulma": "^0.4.2",
     "ember-ajax": "^3.0.0",
     "ember-cli": "2.13.2",
     "ember-cli-app-version": "^3.0.0",
@@ -60,5 +61,11 @@
   "engines": {
     "node": ">= 4"
   },
-  "private": true
+  "private": true,
+  "ember-addon": {
+    "paths": [
+      "lib/bulma",
+      "lib/calendar"
+    ]
+  }
 }
