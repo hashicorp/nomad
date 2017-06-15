@@ -1,8 +1,1 @@
-@import "bourbon";
-// 1. Import the initial variables
-@import "bulma/sass/utilities/initial-variables";
-
-// 2. Set your own initial variables
-
-// 4. Import the rest of Bulma
-@import "bulma/bulma";
+@import "./core";
