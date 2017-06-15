@@ -103,7 +103,7 @@ resource "aws_instance" "client" {
 
 resource "aws_iam_instance_profile" "instance_profile" {
   name_prefix = "hashistack"
-  role        = "${aws_iam_role.instance_role.name}"
+  roles       = ["${aws_iam_role.instance_role.name}"]
 }
 
 resource "aws_iam_role" "instance_role" {
