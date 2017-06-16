@@ -31,4 +31,5 @@ $family-sans-serif: -apple-system,
 @import "bulma/bulma";
 
 // Override Bulma details where appropriate
-@import "./core/buttons.scss";
+@import "./core/buttons";
+@import "./core/nav";
