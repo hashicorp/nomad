@@ -22,7 +22,7 @@ func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
 	if err != nil {
 		return nil, err
 	}
-	e.logger.Printf("[DEBUG] sylog-server: launching syslog server on addr: %v", l.Addr().String())
+	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
 	if err := e.configureLoggers(); err != nil {
 		return nil, err
 	}
