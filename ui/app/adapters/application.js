@@ -6,6 +6,7 @@ const { isArray, typeOf } = Ember;
 export default RESTAdapter.extend({
   namespace: 'v1',
 
+  // uses plural
   findAll() {
     return this._super(...arguments).then(data => {
       data.forEach(transformKeys);
@@ -13,6 +14,7 @@ export default RESTAdapter.extend({
     });
   },
 
+  // uses plural
   findMany() {
     return this._super(...arguments).then(data => {
       data.forEach(transformKeys);
@@ -20,6 +22,7 @@ export default RESTAdapter.extend({
     });
   },
 
+  // uses singular
   findRecord() {
     return this._super(...arguments).then(data => {
       transformKeys(data);
