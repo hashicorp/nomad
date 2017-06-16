@@ -80,9 +80,9 @@ SSH to a server using its public IP. For example:
 $ ssh -i /home/vagrant/.ssh/KEY.pem ubuntu@SERVER_PUBLIC_IP
 ```
 
-Please note that the AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
+The AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
 
-Run a few basic commands to verify that  Consul, Nomad are up and running properly:
+Run a few basic commands to verify that Consul and Nomad are up and running properly:
 
 ```bash
 $ consul members
@@ -104,10 +104,10 @@ The `vault init` command above creates a single [Vault unseal key](https://www.v
 
 See:
 
-[Getting Started with Nomad](https://www.nomadproject.io/intro/getting-started/jobs.html)
-[Consul integration] (https://www.nomadproject.io/docs/service-discovery/index.html)
-[Vault integration] (https://www.nomadproject.io/docs/vault-integration/index.html)
-[consul-template integration](https://www.nomadproject.io/docs/job-specification/template.html) 
+* [Getting Started with Nomad](https://www.nomadproject.io/intro/getting-started/jobs.html)
+* [Consul integration](https://www.nomadproject.io/docs/service-discovery/index.html)
+* [Vault integration](https://www.nomadproject.io/docs/vault-integration/index.html)
+* [consul-template integration](https://www.nomadproject.io/docs/job-specification/template.html) 
 
 ## Apache Spark integration
 
