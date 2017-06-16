@@ -14,10 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Network env vars
-/*
- */
-
 // A set of environment variables that are exported by each driver.
 const (
 	// AllocDir is the environment variable with the path to the alloc directory
@@ -61,14 +57,14 @@ const (
 	Region = "NOMAD_REGION"
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
-	// allocations to tasks.
+	// allocations to tasks
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
+	//
+	// Deprecated: Use NOMAD_HOST_ADDR_ or NOMAD_DRIVER_ADDR_ instead as
+	// this environment variable will only ever use the host IP. If a port
+	// map is used this variable will be set to the Host IP and Driver's
+	// Port which likely won't work in either context.
 	AddrPrefix = "NOMAD_ADDR_"
-
-	// HostAddrPrefix is the prefix for passing both dynamic and static
-	// port allocations to tasks with the host's IP address for cases where
-	// the task advertises a different address.
-	HostAddrPrefix = "NOMAD_HOST_ADDR_"
 
 	// IpPrefix is the prefix for passing the IP of a port allocation to a
 	// task. This may not be the host's address depending on task
@@ -78,13 +74,32 @@ const (
 	// PortPrefix is the prefix for passing the port allocation to a task.
 	PortPrefix = "NOMAD_PORT_"
 
-	// HostIPPrefix is the prefix for passing the host's IP to a task for
+	// HostAddrPrefix is the prefix for passing both dynamic and static
+	// port allocations to tasks with the host's IP address for cases where
+	// the task advertises a different address.
+	HostAddrPrefix = "NOMAD_HOST_ADDR_"
+
+	// HostIpPrefix is the prefix for passing the host's IP to a task for
 	// cases where the task advertises a different address.
-	HostIPPrefix = "NOMAD_HOST_IP_"
+	HostIpPrefix = "NOMAD_HOST_IP_"
 
 	// HostPortPrefix is the prefix for passing the host port when a portmap is
 	// specified.
 	HostPortPrefix = "NOMAD_HOST_PORT_"
+
+	// DriverAddrPrefix is the prefix for passing the address of port
+	// allocations to tasks with the driver's IP address if on exists.
+	// Service's will advertise this address if address_mode=true or
+	// address_mode=auto and the driver determines it should be used.
+	DriverAddrPrefix = "NOMAD_DRIVER_ADDR_"
+
+	// DriverIpPrefix is the prefix for environemnt variables containing
+	// the driver's IP address if it returned one.
+	DriverIpPrefix = "NOMAD_DRIVER_IP_"
+
+	// DriverPortPrefix is the prefix for environment variables containing
+	// the driver's port if a port map is used.
+	DriverPortPrefix = "NOMAD_DRIVER_PORT_"
 
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
@@ -494,31 +509,31 @@ func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet 
 func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *cstructs.DriverNetwork) {
 	// Host IP, PORT, and ADDR
 	portStr := strconv.Itoa(p.Value)
-	envMap["NOMAD_HOST_IP_"+p.Label] = ip
-	envMap["NOMAD_HOST_PORT_"+p.Label] = portStr
-	envMap["NOMAD_HOST_ADDR_"+p.Label] = net.JoinHostPort(ip, portStr)
+	envMap[HostIpPrefix+p.Label] = ip
+	envMap[HostPortPrefix+p.Label] = portStr
+	envMap[HostAddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
 
 	// Driver IP, PORT, and ADDR if available
 	if driverNet != nil {
 		driverPortStr := strconv.Itoa(driverNet.PortMap[p.Label])
-		envMap["NOMAD_DRIVER_IP_"+p.Label] = driverNet.IP
-		envMap["NOMAD_DRIVER_PORT_"+p.Label] = driverPortStr
-		envMap["NOMAD_DRIVER_ADDR_"+p.Label] = net.JoinHostPort(driverNet.IP, driverPortStr)
+		envMap[DriverIpPrefix+p.Label] = driverNet.IP
+		envMap[DriverPortPrefix+p.Label] = driverPortStr
+		envMap[DriverAddrPrefix+p.Label] = net.JoinHostPort(driverNet.IP, driverPortStr)
 	}
 
 	// Auto IP, PORT, and ADDR (driver if set; otherwise host)
-	if envMap["NOMAD_DRIVER_IP_"+p.Label] != "" {
+	if envMap[DriverIpPrefix+p.Label] != "" {
 		// Driver IP set, use it
-		envMap[IpPrefix+p.Label] = envMap["NOMAD_DRIVER_IP_"+p.Label]
+		envMap[IpPrefix+p.Label] = envMap[DriverIpPrefix+p.Label]
 	} else {
-		envMap[IpPrefix+p.Label] = envMap["NOMAD_HOST_IP_"+p.Label]
+		envMap[IpPrefix+p.Label] = envMap[HostIpPrefix+p.Label]
 	}
 
-	if envMap["NOMAD_DRIVER_PORT_"+p.Label] != "" {
+	if envMap[DriverPortPrefix+p.Label] != "" {
 		// PortMap set, use it
-		envMap[PortPrefix+p.Label] = envMap["NOMAD_DRIVER_PORT_"+p.Label]
+		envMap[PortPrefix+p.Label] = envMap[DriverPortPrefix+p.Label]
 	} else {
-		envMap[PortPrefix+p.Label] = envMap["NOMAD_HOST_PORT_"+p.Label]
+		envMap[PortPrefix+p.Label] = envMap[HostPortPrefix+p.Label]
 	}
 
 	// Address just joins the two (which doesn't make sense if IP is host

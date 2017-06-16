@@ -1,5 +1,11 @@
 package structs
 
+import (
+	"crypto/md5"
+	"io"
+	"strconv"
+)
+
 // MemoryStats holds memory usage related stats
 type MemoryStats struct {
 	RSS            uint64
@@ -147,7 +153,7 @@ func (d *DriverNetwork) Advertise() bool {
 	return d != nil && d.AutoAdvertise
 }
 
-// Copy a Network struct. If it is nil, nil is returned.
+// Copy a DriverNetwork struct. If it is nil, nil is returned.
 func (d *DriverNetwork) Copy() *DriverNetwork {
 	if d == nil {
 		return nil
@@ -161,4 +167,20 @@ func (d *DriverNetwork) Copy() *DriverNetwork {
 		IP:            d.IP,
 		AutoAdvertise: d.AutoAdvertise,
 	}
+}
+
+// Hash the contents of a DriverNetwork struct to detect changes. If it is nil,
+// an empty slice is returned.
+func (d *DriverNetwork) Hash() []byte {
+	if d == nil {
+		return []byte{}
+	}
+	h := md5.New()
+	io.WriteString(h, d.IP)
+	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
+	for k, v := range d.PortMap {
+		io.WriteString(h, k)
+		io.WriteString(h, strconv.Itoa(v))
+	}
+	return h.Sum(nil)
 }

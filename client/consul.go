@@ -11,5 +11,5 @@ import (
 type ConsulServiceAPI interface {
 	RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
 	RemoveTask(allocID string, task *structs.Task)
-	UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor) error
+	UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
 }

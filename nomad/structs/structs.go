@@ -2580,6 +2580,7 @@ func (s *Service) Hash() string {
 	io.WriteString(h, s.Name)
 	io.WriteString(h, strings.Join(s.Tags, ""))
 	io.WriteString(h, s.PortLabel)
+	io.WriteString(h, s.AddressMode)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

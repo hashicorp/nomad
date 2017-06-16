@@ -55,18 +55,18 @@ func newMockConsulServiceClient() *mockConsulServiceClient {
 	return &m
 }
 
-func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.Task, exec driver.ScriptExecutor) error {
+func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %v, %v, %T)", allocID, old, new, exec)
-	m.ops = append(m.ops, newMockConsulOp("update", allocID, new, exec, nil))
+	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %v, %v, %T, %x)", allocID, old, new, exec, net.Hash())
+	m.ops = append(m.ops, newMockConsulOp("update", allocID, new, exec, net))
 	return nil
 }
 
 func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T)", allocID, task.Name, exec)
+	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T, %x)", allocID, task.Name, exec, net.Hash())
 	m.ops = append(m.ops, newMockConsulOp("add", allocID, task, exec, net))
 	return nil
 }
