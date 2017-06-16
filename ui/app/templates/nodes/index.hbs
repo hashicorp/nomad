@@ -1,0 +1,28 @@
+<section class="section">
+  <table class="table">
+    <thead>
+      <tr>
+        <td>ID</td>
+        <td>Name</td>
+        <td>Status</td>
+        <td>Leader</td>
+        <td>Address</td>
+        <td>Port</td>
+        <td>Datacenter</td>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each model as |node|}}
+        <tr>
+          <td><a href="{{href-to "nodes.node" node.id}}">{{node.id}}</a></td>
+          <td>{{node.name}}</td>
+          <td>{{node.status}}</td>
+          <td>{{node.isLeader}}</td>
+          <td>{{node.address}}</td>
+          <td>{{node.port}}</td>
+          <td>{{node.datacenter}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+</table>
+</section>
