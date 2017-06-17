@@ -36,7 +36,9 @@ job "docs" {
 }
 ```
 
-Please note that the behavior is subtly different for Docker-based tasks. In
-this case a `docker stop` command is issued that will send a `SIGTERM` to your
-container entry point instead. The `kill_timeout` option is still respected
-though.
+The behavior is slightly different for Docker-based tasks. Nomad will run the
+`docker stop` command with the specified `kill_timeout`. The signal that `docker
+stop` sends to your container entrypoint is configurable using the
+[`STOPSIGNAL` configuration directive]
+(https://docs.docker.com/engine/reference/builder/#stopsignal), however please
+note that the default is `SIGTERM`.
