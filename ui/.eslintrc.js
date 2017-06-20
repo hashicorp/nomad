@@ -1,4 +1,7 @@
 module.exports = {
+  globals: {
+    server: true,
+  },
   env: {
     browser: true,
     es6: true,

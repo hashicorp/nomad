@@ -6,6 +6,7 @@
         <td>Type</td>
         <td>Priority</td>
         <td>Status</td>
+        <td>Datacenters</td>
         <td>Groups</td>
         <td>Allocation Status</td>
       </tr>
@@ -17,8 +18,9 @@
           <td>{{job.type}}</td>
           <td>{{job.priority}}</td>
           <td>{{job.status}}</td>
-          <td>--stub--</td>
-          <td>--stub--</td>
+          <td>{{job.datacenters}}</td>
+          <td>{{job.taskGroups.length}}</td>
+          <td>{{job.queuedAllocs}} | {{job.completeAllocs}} | {{job.failedAllocs}} | {{job.runningAllocs}} | {{job.startingAllocs}} | {{job.lostAllocs}}</td>
         </tr>
       {{/each}}
     </tbody>
