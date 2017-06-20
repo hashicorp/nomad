@@ -16,10 +16,17 @@ export default Model.extend({
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
 
-  // data centers (hasMany)
-  // constraints (model fragment? hasMany)
-  // task groups (model fragment? embedded record? hasMany)
-  // tasks (model fragment? hasMany)
-  // stagger (from update) number
-  // max parallel (from update) number
+  datacenters: attr(),
+  taskGroups: attr(),
+
+  queuedAllocs: attr('number'),
+  completeAllocs: attr('number'),
+  failedAllocs: attr('number'),
+  runningAllocs: attr('number'),
+  startingAllocs: attr('number'),
+  lostAllocs: attr('number'),
+
+  pendingChildren: attr('number'),
+  runningChildren: attr('number'),
+  deadChildren: attr('number'),
 });
