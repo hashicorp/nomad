@@ -355,7 +355,7 @@ container.
 
 These ports will be identified via environment variables. For example:
 
-```
+```hcl
 port "http" {}
 ```
 
@@ -400,6 +400,25 @@ container, so it will just work!
 Note that by default this only works with `bridged` networking mode. It may
 also work with custom networking plugins which implement the same API for
 expose and port forwarding.
+
+### Using Docker IPs and Ports
+
+*New in Nomad 0.6.*
+
+Other than `host` and `none`, Docker network modes create an IP for the
+container. This IP is set when the container is run and exposed as a
+`NOMAD_DRIVER_IP_<label>` environment variable for use in script checks.
+
+The ports specified in the `port_map` are exposed via the
+`NOMAD_DRIVER_PORT_<label>` environment variables. Unlike the IP, ports are
+available *when* the container is run and can be used in `args` or as
+environment variables within the container.
+
+When using network plugins like `weave` that assign containers a routable IP
+address, that address will automatically be used in any `service`
+advertisements for the task. You may override what address is advertised by
+using the `address_mode` parameter on a `service`. See
+[service](/docs/job-specification/service.html) for details.
 
 ### Networking Protocols
 
