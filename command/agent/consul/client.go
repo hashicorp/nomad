@@ -312,7 +312,6 @@ func (c *ServiceClient) sync() error {
 
 	// Add Nomad checks missing from Consul
 	for id, check := range c.checks {
-		c.logger.Printf("[DEBUG] consul.sync: registering check %q -> %s --- exists %p", id, check.Name, consulChecks[id])
 		if check, ok := consulChecks[id]; ok {
 			if _, changed := portsChanged[check.ServiceID]; !changed {
 				// Already in Consul and ports didn't change; skipping
