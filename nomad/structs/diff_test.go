@@ -3119,8 +3119,9 @@ func TestTaskDiff(t *testing.T) {
 			New: &Task{
 				Services: []*Service{
 					{
-						Name:      "foo",
-						PortLabel: "bar",
+						Name:        "foo",
+						PortLabel:   "bar",
+						AddressMode: "driver",
 					},
 				},
 			},
@@ -3131,6 +3132,11 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "AddressMode",
+								New:  "driver",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "Name",
@@ -3410,6 +3416,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+								Old:  "",
+								New:  "",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "Name",

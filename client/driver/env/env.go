@@ -514,9 +514,9 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 	envMap[HostAddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
 
 	// Driver IP, PORT, and ADDR if available
-	if driverNet != nil {
-		driverPortStr := strconv.Itoa(driverNet.PortMap[p.Label])
+	if driverNet != nil && driverNet.PortMap[p.Label] != 0 {
 		envMap[DriverIpPrefix+p.Label] = driverNet.IP
+		driverPortStr := strconv.Itoa(driverNet.PortMap[p.Label])
 		envMap[DriverPortPrefix+p.Label] = driverPortStr
 		envMap[DriverAddrPrefix+p.Label] = net.JoinHostPort(driverNet.IP, driverPortStr)
 	}
