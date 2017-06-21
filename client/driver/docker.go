@@ -625,14 +625,12 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		return "", false
 	}
 	ip, ipName := "", ""
-	n := 0
 	auto := false
 	for name, net := range c.NetworkSettings.Networks {
 		if net.IPAddress == "" {
 			// Ignore networks without an IP address
 			continue
 		}
-		n++
 		ip = net.IPAddress
 		ipName = name
 
@@ -640,8 +638,9 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		if name != "bridge" {
 			auto = true
 		}
+		break
 	}
-	if n > 1 {
+	if n := len(c.NetworkSettings.Networks); n > 1 {
 		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
 	}
 	return ip, auto
