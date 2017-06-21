@@ -40,6 +40,8 @@ const (
 type QemuDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+
+	driverConfig *QemuDriverConfig
 }
 
 type QemuDriverConfig struct {
@@ -131,13 +133,7 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
-	return nil, nil
-}
-
-// Run an existing Qemu image. Start() will pull down an existing, valid Qemu
-// image and save it to the Drivers Allocation Dir
-func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
+func (d *QemuDriver) Prestart(_ *ExecContext, task *structs.Task) (*PrestartResponse, error) {
 	var driverConfig QemuDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -147,8 +143,22 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, fmt.Errorf("Only one port_map block is allowed in the qemu driver config")
 	}
 
+	d.driverConfig = &driverConfig
+
+	r := NewPrestartResponse()
+	if len(driverConfig.PortMap) == 1 {
+		r.Network = &cstructs.DriverNetwork{
+			PortMap: driverConfig.PortMap[0],
+		}
+	}
+	return r, nil
+}
+
+// Run an existing Qemu image. Start() will pull down an existing, valid Qemu
+// image and save it to the Drivers Allocation Dir
+func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	// Get the image source
-	vmPath := driverConfig.ImagePath
+	vmPath := d.driverConfig.ImagePath
 	if vmPath == "" {
 		return nil, fmt.Errorf("image_path must be set")
 	}
@@ -157,8 +167,8 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// Parse configuration arguments
 	// Create the base arguments
 	accelerator := "tcg"
-	if driverConfig.Accelerator != "" {
-		accelerator = driverConfig.Accelerator
+	if d.driverConfig.Accelerator != "" {
+		accelerator = d.driverConfig.Accelerator
 	}
 	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
@@ -182,7 +192,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// passed directly to the qemu driver as command line options.
 	// For example, args = [ "-nodefconfig", "-nodefaults" ]
 	// This will allow a VM with embedded configuration to boot successfully.
-	args = append(args, driverConfig.Args...)
+	args = append(args, d.driverConfig.Args...)
 
 	// Check the Resources required Networks to add port mappings. If no resources
 	// are required, we assume the VM is a purely compute job and does not require
@@ -190,13 +200,13 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// still reach out to the world, but without port mappings it is effectively
 	// firewalled
 	protocols := []string{"udp", "tcp"}
-	if len(task.Resources.Networks) > 0 && len(driverConfig.PortMap) == 1 {
+	if len(task.Resources.Networks) > 0 && len(d.driverConfig.PortMap) == 1 {
 		// Loop through the port map and construct the hostfwd string, to map
 		// reserved ports to the ports listenting in the VM
 		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
 		var forwarding []string
 		taskPorts := task.Resources.Networks[0].PortLabels()
-		for label, guest := range driverConfig.PortMap[0] {
+		for label, guest := range d.driverConfig.PortMap[0] {
 			host, ok := taskPorts[label]
 			if !ok {
 				return nil, fmt.Errorf("Unknown port label %q", label)
@@ -276,7 +286,13 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return &StartResponse{Handle: h}, nil
+	resp := &StartResponse{Handle: h}
+	if len(d.driverConfig.PortMap) == 1 {
+		resp.Network = &cstructs.DriverNetwork{
+			PortMap: d.driverConfig.PortMap[0],
+		}
+	}
+	return resp, nil
 }
 
 type qemuId struct {
