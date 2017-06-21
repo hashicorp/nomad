@@ -413,14 +413,12 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 	// configured MaxParallel minus any outstanding non-healthy alloc for the
 	// deployment
 	limit := group.Update.MaxParallel
-	dID := "invalid"
 	if a.deployment != nil {
-		dID = a.deployment.ID
-	}
-	partOf, _ := untainted.filterByDeployment(dID)
-	for _, alloc := range partOf {
-		if !alloc.DeploymentStatus.IsHealthy() {
-			limit--
+		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
+		for _, alloc := range partOf {
+			if !alloc.DeploymentStatus.IsHealthy() {
+				limit--
+			}
 		}
 	}
 
