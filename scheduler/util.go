@@ -733,9 +733,13 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 	}
 }
 
-// newAllocUpdateFn is a factory for the scheduler to create an allocUpdateType
-// function for the reconciler
-func newAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
+// genericAllocUpdateFn is a factory for the scheduler to create an allocUpdateType
+// function to be passed into the reconciler. The factory takes objects that
+// exist only in the scheduler context and returns a function that can be used
+// by the reconciler to make decsions about how to update an allocation. The
+// factory allows the reconciler to be unaware of how to determine the type of
+// update necessary and can minimize the set of objects it is exposed to.
+func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
