@@ -621,7 +621,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		// This should only happen if there's been a coding error (such
 		// as not calling InspetContainer after CreateContainer). Code
 		// defensively in case the Docker API changes subtly.
-		d.logger.Printf("[WARN] driver.docker: no network settings for container %s", c.ID)
+		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
 	}
 	ip, ipName := "", ""
