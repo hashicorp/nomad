@@ -384,7 +384,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	allocs, _ = s.filterCompleteAllocs(allocs)
 
 	reconciler := NewAllocReconciler(s.ctx.Logger(),
-		newAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
+		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted)
 	results := reconciler.Compute()
 
