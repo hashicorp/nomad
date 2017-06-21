@@ -385,7 +385,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 
 	t.Run("Plain HTTP Check", func(t *testing.T) {
 		a := agent()
-		check := a.agentHTTPCheck()
+		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
 		}
@@ -406,7 +406,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
 		a.config.Consul.ChecksUseAdvertise = helper.BoolToPtr(true)
-		check := a.agentHTTPCheck()
+		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
 		}
@@ -420,7 +420,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		a.consulSupportsTLSSkipVerify = true
 		a.config.TLSConfig.EnableHTTP = true
 
-		check := a.agentHTTPCheck()
+		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
 		}
@@ -437,7 +437,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		a.consulSupportsTLSSkipVerify = false
 		a.config.TLSConfig.EnableHTTP = true
 
-		if check := a.agentHTTPCheck(); check != nil {
+		if check := a.agentHTTPCheck(false); check != nil {
 			t.Fatalf("expected nil check not: %#v", check)
 		}
 	})
@@ -448,7 +448,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		a.config.TLSConfig.EnableHTTP = true
 		a.config.TLSConfig.VerifyHTTPSClient = true
 
-		if check := a.agentHTTPCheck(); check != nil {
+		if check := a.agentHTTPCheck(false); check != nil {
 			t.Fatalf("expected nil check not: %#v", check)
 		}
 	})
@@ -556,4 +556,40 @@ func TestAgent_ConsulSupportsTLSSkipVerify(t *testing.T) {
             "vsn_min": "2",
             "wan_join_port": "8302"
         }}`)
+}
+
+// TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
+// for healthchecks.
+func TestAgent_HTTPCheckPath(t *testing.T) {
+	// Agent.agentHTTPCheck only needs a config and logger
+	a := &Agent{
+		config: DevConfig(),
+		logger: log.New(ioutil.Discard, "", 0),
+	}
+	if err := a.config.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
+	}
+	if testing.Verbose() {
+		a.logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+
+	// Assert server check uses /v1/status/peers
+	isServer := true
+	check := a.agentHTTPCheck(isServer)
+	if expected := "Nomad Server HTTP Check"; check.Name != expected {
+		t.Errorf("expected server check name to be %q but found %q", expected, check.Name)
+	}
+	if expected := "/v1/status/peers"; check.Path != expected {
+		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
+	}
+
+	// Assert client check uses /v1/agent/servers
+	isServer = false
+	check = a.agentHTTPCheck(isServer)
+	if expected := "Nomad Client HTTP Check"; check.Name != expected {
+		t.Errorf("expected client check name to be %q but found %q", expected, check.Name)
+	}
+	if expected := "/v1/agent/servers"; check.Path != expected {
+		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
+	}
 }
