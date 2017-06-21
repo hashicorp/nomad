@@ -2453,7 +2453,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 const (
 	AddressModeAuto   = "auto"
 	AddressModeHost   = "host"
-	AddressModeDriver = "driver" //FIXME plugin? I forget what we decided because like 1000 other things have gone wrong since then
+	AddressModeDriver = "driver"
 )
 
 // Service represents a Consul service definition in Nomad
