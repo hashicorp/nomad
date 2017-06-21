@@ -2498,11 +2498,6 @@ func (s *Service) Copy() *Service {
 // Canonicalize interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
 func (s *Service) Canonicalize(job string, taskGroup string, task string) {
-	// Default to AddressModeAuto
-	if s.AddressMode == "" {
-		s.AddressMode = AddressModeAuto
-	}
-
 	// Ensure empty lists are treated as null to avoid scheduler issues when
 	// using DeepEquals
 	if len(s.Tags) == 0 {

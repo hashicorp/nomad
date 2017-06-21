@@ -107,6 +107,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	if s.Name == "" {
 		s.Name = fmt.Sprintf("%s-%s-%s", *job.Name, *tg.Name, t.Name)
 	}
+
+	// Default to AddressModeAuto
+	if s.AddressMode == "" {
+		s.AddressMode = "auto"
+	}
 }
 
 // EphemeralDisk is an ephemeral disk object

@@ -356,9 +356,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:      "global-redis-check",
-										Tags:      []string{"global", "cache"},
-										PortLabel: "db",
+										Name:        "global-redis-check",
+										Tags:        []string{"global", "cache"},
+										PortLabel:   "db",
+										AddressMode: "auto",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
