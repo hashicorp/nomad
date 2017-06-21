@@ -1491,6 +1491,17 @@ func (j *Job) Stopped() bool {
 	return j == nil || j.Stop
 }
 
+// HasUpdateStrategy returns if any task group in the job has an update strategy
+func (j *Job) HasUpdateStrategy() bool {
+	for _, tg := range j.TaskGroups {
+		if tg.Update != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
@@ -1591,6 +1602,29 @@ func (j *Job) RequiredSignals() map[string]map[string][]string {
 	}
 
 	return signals
+}
+
+// SpecChanged determines if the functional specification has changed between
+// two job versions.
+func (j *Job) SpecChanged(new *Job) bool {
+	if j == nil {
+		return new != nil
+	}
+
+	// Create a copy of the new job
+	c := new.Copy()
+
+	// Update the new job so we can do a reflect
+	c.Status = j.Status
+	c.StatusDescription = j.StatusDescription
+	c.Stable = j.Stable
+	c.Version = j.Version
+	c.CreateIndex = j.CreateIndex
+	c.ModifyIndex = j.ModifyIndex
+	c.JobModifyIndex = j.JobModifyIndex
+
+	// Deep equals the jobs
+	return !reflect.DeepEqual(j, c)
 }
 
 // JobListStub is used to return a subset of job information
@@ -3659,6 +3693,11 @@ const (
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
 	DeploymentStatusPaused     = "paused"
+
+	// DeploymentStatusDescriptions are the various descriptions of the states a
+	// deployment can be in.
+	DeploymentStatusDescriptionStoppedJob = "Cancelled because job is stopped"
+	DeploymentStatusDescriptionNewerJob   = "Cancelled due to newer version of job"
 )
 
 // Deployment is the object that represents a job deployment which is used to
@@ -3696,6 +3735,19 @@ type Deployment struct {
 	ModifyIndex uint64
 }
 
+// NewDeployment creates a new deployment given the job.
+func NewDeployment(job *Job) *Deployment {
+	return &Deployment{
+		ID:             GenerateUUID(),
+		JobID:          job.ID,
+		JobVersion:     job.Version,
+		JobModifyIndex: job.ModifyIndex,
+		JobCreateIndex: job.CreateIndex,
+		Status:         DeploymentStatusRunning,
+		TaskGroups:     make(map[string]*DeploymentState, len(job.TaskGroups)),
+	}
+}
+
 func (d *Deployment) Copy() *Deployment {
 	c := &Deployment{}
 	*c = *d
@@ -3721,19 +3773,18 @@ func (d *Deployment) Active() bool {
 	}
 }
 
+func (d *Deployment) GoString() string {
+	base := fmt.Sprintf("Deployment ID %q for job %q has status %q:", d.ID, d.JobID, d.Status)
+	for group, state := range d.TaskGroups {
+		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
+	}
+	return base
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
-	// Promoted marks whether the canaries have been. Promotion by
-	// task group is not allowed since that doesn’t allow a single
-	// job to transition into the “stable” state.
+	// Promoted marks whether the canaries have been promoted
 	Promoted bool
-
-	// RequiresPromotion marks whether the deployment is expecting
-	// a promotion. This is computable by checking if the job has canaries
-	// specified, but is stored in the deployment to make it so that consumers
-	// do not need to query job history and deployments to know whether a
-	// promotion is needed.
-	RequiresPromotion bool
 
 	// DesiredCanaries is the number of canaries that should be created.
 	DesiredCanaries int
@@ -3750,6 +3801,20 @@ type DeploymentState struct {
 
 	// UnhealthyAllocs are allocations that have been marked as unhealthy.
 	UnhealthyAllocs int
+}
+
+func (d *DeploymentState) GoString() string {
+	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
+	if d.DesiredCanaries > 0 {
+		base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
+		base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
+	}
+	if d.PlacedAllocs > 0 {
+		base := fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
+		base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
+		base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
+	}
+	return base
 }
 
 func (d *DeploymentState) Copy() *DeploymentState {
@@ -3864,6 +3929,20 @@ type Allocation struct {
 	CreateTime int64
 }
 
+// Index returns the index of the allocation. If the allocation is from a task
+// group with count greater than 1, there will be multiple allocations for it.
+func (a *Allocation) Index() uint {
+	l := len(a.Name)
+	prefix := len(a.JobID) + len(a.TaskGroup) + 2
+	if l <= 3 || l <= prefix {
+		return uint(0)
+	}
+
+	strNum := a.Name[prefix : len(a.Name)-1]
+	num, _ := strconv.Atoi(strNum)
+	return uint(num)
+}
+
 func (a *Allocation) Copy() *Allocation {
 	return a.copyImpl(true)
 }
@@ -3954,26 +4033,6 @@ func (a *Allocation) RanSuccessfully() bool {
 	return allSuccess
 }
 
-// Stub returns a list stub for the allocation
-func (a *Allocation) Stub() *AllocListStub {
-	return &AllocListStub{
-		ID:                 a.ID,
-		EvalID:             a.EvalID,
-		Name:               a.Name,
-		NodeID:             a.NodeID,
-		JobID:              a.JobID,
-		TaskGroup:          a.TaskGroup,
-		DesiredStatus:      a.DesiredStatus,
-		DesiredDescription: a.DesiredDescription,
-		ClientStatus:       a.ClientStatus,
-		ClientDescription:  a.ClientDescription,
-		TaskStates:         a.TaskStates,
-		CreateIndex:        a.CreateIndex,
-		ModifyIndex:        a.ModifyIndex,
-		CreateTime:         a.CreateTime,
-	}
-}
-
 // ShouldMigrate returns if the allocation needs data migration
 func (a *Allocation) ShouldMigrate() bool {
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
@@ -3997,25 +4056,24 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
-var (
-	// AllocationIndexRegex is a regular expression to find the allocation index.
-	AllocationIndexRegex = regexp.MustCompile(".+\\[(\\d+)\\]$")
-)
-
-// Index returns the index of the allocation. If the allocation is from a task
-// group with count greater than 1, there will be multiple allocations for it.
-func (a *Allocation) Index() int {
-	matches := AllocationIndexRegex.FindStringSubmatch(a.Name)
-	if len(matches) != 2 {
-		return -1
+// Stub returns a list stub for the allocation
+func (a *Allocation) Stub() *AllocListStub {
+	return &AllocListStub{
+		ID:                 a.ID,
+		EvalID:             a.EvalID,
+		Name:               a.Name,
+		NodeID:             a.NodeID,
+		JobID:              a.JobID,
+		TaskGroup:          a.TaskGroup,
+		DesiredStatus:      a.DesiredStatus,
+		DesiredDescription: a.DesiredDescription,
+		ClientStatus:       a.ClientStatus,
+		ClientDescription:  a.ClientDescription,
+		TaskStates:         a.TaskStates,
+		CreateIndex:        a.CreateIndex,
+		ModifyIndex:        a.ModifyIndex,
+		CreateTime:         a.CreateTime,
 	}
-
-	index, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return -1
-	}
-
-	return index
 }
 
 // AllocListStub is used to return a subset of alloc information
@@ -4147,6 +4205,29 @@ type AllocDeploymentStatus struct {
 	// as part of a deployment. It can be unset if it has neither been marked
 	// healthy or unhealthy.
 	Healthy *bool
+
+	// Promoted marks whether the allocation is promoted. This field is only
+	// used if the allocation is a canary.
+	Promoted bool
+}
+
+// IsHealthy returns if the allocation is marked as healthy as part of a
+// deployment
+func (a *AllocDeploymentStatus) IsHealthy() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Healthy != nil && *a.Healthy
+}
+
+// IsPromoted returns if the allocation is promoted as as part of a deployment
+func (a *AllocDeploymentStatus) IsPromoted() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Promoted
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
@@ -4155,6 +4236,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	}
 
 	c := new(AllocDeploymentStatus)
+	*c = *a
 
 	if a.Healthy != nil {
 		c.Healthy = helper.BoolToPtr(*a.Healthy)
@@ -4542,7 +4624,10 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 
 // IsNoOp checks if this plan would do nothing
 func (p *Plan) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
+	return len(p.NodeUpdate) == 0 &&
+		len(p.NodeAllocation) == 0 &&
+		p.CreatedDeployment == nil &&
+		len(p.DeploymentUpdates) == 0
 }
 
 // PlanResult is the result of a plan submitted to the leader.
@@ -4599,6 +4684,7 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+	Canary            uint64
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

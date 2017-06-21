@@ -69,24 +69,25 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		reply.Warnings = warnings.Error()
 	}
 
+	// Lookup the current job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	currentJob, err := snap.JobByID(ws, args.Job.ID)
+	if err != nil {
+		return err
+	}
+
 	if args.EnforceIndex {
-		// Lookup the job
-		snap, err := j.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-		ws := memdb.NewWatchSet()
-		job, err := snap.JobByID(ws, args.Job.ID)
-		if err != nil {
-			return err
-		}
 		jmi := args.JobModifyIndex
-		if job != nil {
+		if currentJob != nil {
 			if jmi == 0 {
 				return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
-			} else if jmi != job.JobModifyIndex {
+			} else if jmi != currentJob.JobModifyIndex {
 				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					RegisterEnforceIndexErrPrefix, jmi, job.JobModifyIndex)
+					RegisterEnforceIndexErrPrefix, jmi, currentJob.JobModifyIndex)
 			}
 		} else if jmi != 0 {
 			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
@@ -133,15 +134,20 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
-	// Commit this update via Raft
-	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
-		return err
-	}
+	// Check if the job has changed at all
+	if currentJob == nil || currentJob.SpecChanged(args.Job) {
+		// Commit this update via Raft
+		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		if err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			return err
+		}
 
-	// Populate the reply with job information
-	reply.JobModifyIndex = index
+		// Populate the reply with job information
+		reply.JobModifyIndex = index
+	} else {
+		reply.JobModifyIndex = currentJob.JobModifyIndex
+	}
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
@@ -155,7 +161,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
 		JobID:          args.Job.ID,
-		JobModifyIndex: index,
+		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
 	}
 	update := &structs.EvalUpdateRequest{
@@ -754,13 +760,19 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	var index uint64
 	var updatedIndex uint64
-	if oldJob != nil {
+
+	// We want to reused deployments where possible, so only insert the job if
+	// it has changed or the job didn't exist
+	if oldJob != nil && oldJob.SpecChanged(args.Job) {
 		index = oldJob.JobModifyIndex
 		updatedIndex = oldJob.JobModifyIndex + 1
-	}
 
-	// Insert the updated Job into the snapshot
-	snap.UpsertJob(updatedIndex, args.Job)
+		// Insert the updated Job into the snapshot
+		snap.UpsertJob(updatedIndex, args.Job)
+	} else if oldJob == nil {
+		// Insert the updated Job into the snapshot
+		snap.UpsertJob(100, args.Job)
+	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{

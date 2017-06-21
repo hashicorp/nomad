@@ -295,6 +295,48 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 	}
 }
 
+func TestJob_SpecChanged(t *testing.T) {
+	// Get a base test job
+	base := testJob()
+
+	// Only modify the indexes/mutable state of the job
+	mutatedBase := base.Copy()
+	mutatedBase.Status = "foo"
+	mutatedBase.ModifyIndex = base.ModifyIndex + 100
+
+	// changed contains a spec change that should be detected
+	change := base.Copy()
+	change.Priority = 99
+
+	cases := []struct {
+		Name     string
+		Original *Job
+		New      *Job
+		Changed  bool
+	}{
+		{
+			Name:     "Same job except mutable indexes",
+			Changed:  false,
+			Original: base,
+			New:      mutatedBase,
+		},
+		{
+			Name:     "Different",
+			Changed:  true,
+			Original: base,
+			New:      change,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if actual := c.Original.SpecChanged(c.New); actual != c.Changed {
+				t.Fatalf("SpecChanged() returned %v; want %v", actual, c.Changed)
+			}
+		})
+	}
+}
+
 func testJob() *Job {
 	return &Job{
 		Region:      "global",
@@ -1616,13 +1658,21 @@ func TestRestartPolicy_Validate(t *testing.T) {
 }
 
 func TestAllocation_Index(t *testing.T) {
-	a1 := Allocation{Name: "example.cache[0]"}
-	e1 := 0
-	a2 := Allocation{Name: "ex[123]am123ple.c311ac[123]he12[1][77]"}
-	e2 := 77
+	a1 := Allocation{
+		Name:      "example.cache[1]",
+		TaskGroup: "cache",
+		JobID:     "example",
+		Job: &Job{
+			ID:         "example",
+			TaskGroups: []*TaskGroup{{Name: "cache"}}},
+	}
+	e1 := uint(1)
+	a2 := a1.Copy()
+	a2.Name = "example.cache[713127]"
+	e2 := uint(713127)
 
 	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatal()
+		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
 	}
 }
 
