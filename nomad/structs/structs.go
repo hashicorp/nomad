@@ -1605,44 +1605,26 @@ func (j *Job) RequiredSignals() map[string]map[string][]string {
 }
 
 // SpecChanged determines if the functional specification has changed between
-// two job versions. The new job will be mutated but returned to its original
-// value before returning, thus concurrent access to the job should be blocked.
+// two job versions.
 func (j *Job) SpecChanged(new *Job) bool {
 	if j == nil {
 		return new != nil
 	}
 
-	// Capture the original mutable values so they can be restored.
-	oStatus := new.Status
-	oStatusDescription := new.StatusDescription
-	oStable := new.Stable
-	oVersion := new.Version
-	oCreateIndex := new.CreateIndex
-	oModifyIndex := new.ModifyIndex
-	oJobModifyIndex := new.JobModifyIndex
+	// Create a copy of the new job
+	c := new.Copy()
 
 	// Update the new job so we can do a reflect
-	new.Status = j.Status
-	new.StatusDescription = j.StatusDescription
-	new.Stable = j.Stable
-	new.Version = j.Version
-	new.CreateIndex = j.CreateIndex
-	new.ModifyIndex = j.ModifyIndex
-	new.JobModifyIndex = j.JobModifyIndex
+	c.Status = j.Status
+	c.StatusDescription = j.StatusDescription
+	c.Stable = j.Stable
+	c.Version = j.Version
+	c.CreateIndex = j.CreateIndex
+	c.ModifyIndex = j.ModifyIndex
+	c.JobModifyIndex = j.JobModifyIndex
 
 	// Deep equals the jobs
-	equal := reflect.DeepEqual(j, new)
-
-	// Restore the new jobs values
-	new.Status = oStatus
-	new.StatusDescription = oStatusDescription
-	new.Stable = oStable
-	new.Version = oVersion
-	new.CreateIndex = oCreateIndex
-	new.ModifyIndex = oModifyIndex
-	new.JobModifyIndex = oJobModifyIndex
-
-	return !equal
+	return !reflect.DeepEqual(j, c)
 }
 
 // JobListStub is used to return a subset of job information
