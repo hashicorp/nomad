@@ -82,7 +82,7 @@ export default Component.extend({
 
     slices = slicesEnter.merge(slices);
     slices
-      .attr('class', d => d.className)
+      .attr('class', d => d.className || `slice-${_data.indexOf(d)}`)
       .transition()
       .duration(200)
       .attr('width', d => `${d.percent}%`)

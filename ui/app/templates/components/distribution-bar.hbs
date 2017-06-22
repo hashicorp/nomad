@@ -4,10 +4,10 @@
 </svg>
 <div class="tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
   <ol>
-    {{#each _data as |datum|}}
+    {{#each _data as |datum index|}}
       <li class="{{if (eq datum activeDatum) "active"}}">
         <span class="label">
-          <span class="color-swatch {{datum.className}}" />
+          <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
           {{datum.label}}
         </span>
         <span class="value">{{datum.value}}</span>
