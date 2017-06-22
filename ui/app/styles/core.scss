@@ -27,9 +27,12 @@ $family-sans-serif: -apple-system,
   "Helvetica Neue",
   sans-serif;
 
+$text: $black;
+
 // Bring in the rest of Bulma
 @import "bulma/bulma";
 
 // Override Bulma details where appropriate
 @import "./core/buttons";
 @import "./core/nav";
+@import "./core/table";

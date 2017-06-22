@@ -1,0 +1,10 @@
+.table {
+  color: $text;
+
+  thead {
+    td, th {
+      font-weight: $weight-bold;
+      color: $text;
+    }
+  }
+}

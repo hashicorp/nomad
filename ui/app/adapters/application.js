@@ -1,31 +1,10 @@
 import Ember from 'ember';
 import RESTAdapter from 'ember-data/adapters/rest';
 
-const { isArray, typeOf, get } = Ember;
+const { get } = Ember;
 
 export default RESTAdapter.extend({
   namespace: 'v1',
-
-  // findAll() {
-  //   return this._super(...arguments).then(data => {
-  //     data.forEach(transformKeys);
-  //     return data;
-  //   });
-  // },
-
-  // findMany() {
-  //   return this._super(...arguments).then(data => {
-  //     data.forEach(transformKeys);
-  //     return data;
-  //   });
-  // },
-
-  // findRecord() {
-  //   return this._super(...arguments).then(data => {
-  //     transformKeys(data);
-  //     return data;
-  //   });
-  // },
 
   // Single record requests deviate from REST practice by using
   // the singular form of the resource name.

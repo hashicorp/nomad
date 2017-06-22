@@ -1,5 +1,5 @@
 <section class="section">
-  <table class="table">
+  <table class="table is-striped">
     <thead>
       <tr>
         <td>Name</td>
@@ -8,21 +8,14 @@
         <td>Status</td>
         <td>Datacenters</td>
         <td>Groups</td>
-        <td>Allocation Status</td>
+        <td style="width:20%">Allocation Status</td>
+        <td>Lost Rate</td>
       </tr>
     </thead>
     <tbody>
       {{#each model as |job|}}
-        <tr>
-          <td><a href="{{href-to "jobs.job" job.id}}">{{job.name}}</a></td>
-          <td>{{job.type}}</td>
-          <td>{{job.priority}}</td>
-          <td>{{job.status}}</td>
-          <td>{{job.datacenters}}</td>
-          <td>{{job.taskGroups.length}}</td>
-          <td>{{job.queuedAllocs}} | {{job.completeAllocs}} | {{job.failedAllocs}} | {{job.runningAllocs}} | {{job.startingAllocs}} | {{job.lostAllocs}}</td>
-        </tr>
+        {{job-row job=job}}
       {{/each}}
     </tbody>
-</table>
+  </table>
 </section>
