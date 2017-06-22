@@ -1,61 +1,47 @@
 import Ember from 'ember';
 import FreestyleController from 'ember-freestyle/controllers/freestyle';
 
-const { inject } = Ember;
+const { inject, computed } = Ember;
 
 export default FreestyleController.extend({
   emberFreestyle: inject.service(),
 
-  /* BEGIN-FREESTYLE-USAGE
-### A few notes regarding freestyle-palette
+  timerTicks: 0,
 
-- Accepts a colorPalette POJO like the one found in the freestyle.js blueprint controller
-- Looks very nice
+  startTimer: function() {
+    this.set(
+      'timer',
+      setInterval(() => {
+        this.incrementProperty('timerTicks');
+      }, 500)
+    );
+  }.on('init'),
 
-And another thing...
+  stopTimer: function() {
+    clearInterval(this.get('timer'));
+  }.on('willDestroy'),
 
-###### Markdown note demonstrating prettified code
+  distributionBarData: computed(() => {
+    return [
+      { label: 'one', value: 10 },
+      { label: 'two', value: 20 },
+      { label: 'three', value: 30 },
+    ];
+  }),
 
-```
-import Ember from 'ember';
+  distributionBarDataWithClasses: computed(() => {
+    return [
+      { label: 'Queued', value: 10, className: 'queued' },
+      { label: 'Complete', value: 20, className: 'complete' },
+      { label: 'Failed', value: 30, className: 'failed' },
+    ];
+  }),
 
-export default Ember.Component.extend({
-  // ...
-  colorPalette: {
-    'primary': {
-      'name': 'cyan',
-      'base': '#00bcd4'
-    },
-    'accent': {
-      'name': 'amber',
-      'base': '#ffc107'
-    }
-  }
-  // ...
-});
-```
-  END-FREESTYLE-USAGE */
-
-  colorPalette: {
-    primary: {
-      name: 'cyan',
-      base: '#00bcd4',
-    },
-    accent: {
-      name: 'amber',
-      base: '#ffc107',
-    },
-    secondary: {
-      name: 'greyish',
-      base: '#b6b6b6',
-    },
-    foreground: {
-      name: 'blackish',
-      base: '#212121',
-    },
-    background: {
-      name: 'white',
-      base: '#ffffff',
-    },
-  },
+  distributionBarDataRotating: computed('timerTicks', () => {
+    return [
+      { label: 'one', value: Math.round(Math.random() * 50) },
+      { label: 'two', value: Math.round(Math.random() * 50) },
+      { label: 'three', value: Math.round(Math.random() * 50) },
+    ];
+  }),
 });

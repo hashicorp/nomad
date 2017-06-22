@@ -7,13 +7,26 @@
     height: 100%;
     width: 100%;
 
-    rect {
+    .bars rect {
       height: 100%;
       transition: opacity 0.3s ease-in-out;
       opacity: 1;
 
       &.inactive {
         opacity: 0.2;
+      }
+
+      $color-sequence: $orange,
+        $yellow,
+        $green,
+        $turquoise,
+        $blue,
+        $purple,
+        $red;
+      @for $i from 1 through length($color-sequence) {
+        &.slice-#{$i - 1} {
+          fill: nth($color-sequence, $i);
+        }
       }
     }
 
