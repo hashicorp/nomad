@@ -75,75 +75,29 @@
   <tr>
     <td><tt>NOMAD_IP_&lt;label&gt;</tt></td>
     <td>
-      IP for the given port <tt>label</tt>. Driver-specified IP when available,
-      otherwise the host's IP. See [here](/docs/job-specification/network.html)
-      for more information.
+      Host IP for the given port <tt>label</tt>. See
+      [here](/docs/job-specification/network.html) for more information.
     </td>
   </tr>
   <tr>
     <td><tt>NOMAD_PORT_&lt;label&gt;</tt></td>
     <td>
       Port for the given port <tt>label</tt>. Driver-specified port when a port
-      map is used, otherwise the host's static or dynamic port allocation. See
+      map is used, otherwise the host's static or dynamic port allocation.
+      Services should bind to this port. See
       [here](/docs/job-specification/network.html) for more information.
     </td>
   </tr>
   <tr>
     <td><tt>NOMAD_ADDR_&lt;label&gt;</tt></td>
     <td>
-      *Deprecated:* The <tt>ip:port</tt> pair for the given port
-      <tt>label</tt>. For backward compatibility it always uses the host's IP
-      but will use the drvier's port if a port map is used. Use the
-      corresponding `HOST` or `DRIVER` variables instead as they have explicit
-      predictable values.
-    </td>
-  </tr>
-  <tr>
-    <td><tt>NOMAD_HOST_IP_&lt;label&gt;</tt></td>
-    <td>
-	    IP of the host for the port <tt>label</tt>. See
-	    [here](/docs/job-specification/network.html#mapped_ports) for more
-	    information.
+      Host <tt>IP:Port</tt> pair for the given port <tt>label</tt>.
     </td>
   </tr>
   <tr>
     <td><tt>NOMAD_HOST_PORT_&lt;label&gt;</tt></td>
     <td>
       Port on the host for the port <tt>label</tt>. See
-      [here](/docs/job-specification/network.html#mapped_ports) for more
-      information.
-    </td>
-  </tr>
-  <tr>
-    <td><tt>NOMAD_HOST_ADDR_&lt;label&gt;</tt></td>
-    <td>
-      The host's <tt>ip:port</tt> pair for the given port <tt>label</tt>. See
-      [here](/docs/job-specification/network.html#mapped_ports) for more
-      information.
-    </td>
-  </tr>
-  <tr>
-    <td><tt>NOMAD_DRIVER_IP_&lt;label&gt;</tt></td>
-    <td>
-      IP from the driver for the port <tt>label</tt> if the driver configured
-      an IP. Not available until after the task is started. See
-      [here](/docs/job-specification/network.html#mapped_ports) for more
-      information.
-    </td>
-  </tr>
-  <tr>
-    <td><tt>NOMAD_DRIVER_PORT_&lt;label&gt;</tt></td>
-    <td>
-      Port in the driver for the port <tt>label</tt> if a port map is
-      configured. See [here](/docs/job-specification/network.html#mapped_ports)
-      for more information.
-    </td>
-  </tr>
-  <tr>
-    <td><tt>NOMAD_DRIVER_ADDR_&lt;label&gt;</tt></td>
-    <td>
-      The driver's <tt>ip:port</tt> pair for the given port <tt>label</tt> if
-      the driver configured an IP and port. See
       [here](/docs/job-specification/network.html#mapped_ports) for more
       information.
     </td>
