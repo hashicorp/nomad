@@ -81,7 +81,7 @@ job "weave-example" {
           name     = "container-script"
           type     = "script"
           command  = "/usr/local/bin/redis-cli"
-          args     = ["-h", "\${NOMAD_DRIVER_IP_db}", "-p", "\${NOMAD_DRIVER_PORT_db}", "QUIT"]
+          args     = ["-p", "\${NOMAD_PORT_db}", "QUIT"]
           interval = "10s"
           timeout  = "2s"
         }
