@@ -57,49 +57,24 @@ const (
 	Region = "NOMAD_REGION"
 
 	// AddrPrefix is the prefix for passing both dynamic and static port
-	// allocations to tasks
+	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
 	//
-	// Deprecated: Use NOMAD_HOST_ADDR_ or NOMAD_DRIVER_ADDR_ instead as
-	// this environment variable will only ever use the host IP. If a port
-	// map is used this variable will be set to the Host IP and Driver's
-	// Port which likely won't work in either context.
+	// The ip:port are always the host's.
 	AddrPrefix = "NOMAD_ADDR_"
 
-	// IpPrefix is the prefix for passing the IP of a port allocation to a
-	// task. This may not be the host's address depending on task
-	// configuration.
+	// IpPrefix is the prefix for passing the host IP of a port allocation
+	// to a task.
 	IpPrefix = "NOMAD_IP_"
 
 	// PortPrefix is the prefix for passing the port allocation to a task.
+	// It will be the task's port if a port map is specified. Task's should
+	// bind to this port.
 	PortPrefix = "NOMAD_PORT_"
 
-	// HostAddrPrefix is the prefix for passing both dynamic and static
-	// port allocations to tasks with the host's IP address for cases where
-	// the task advertises a different address.
-	HostAddrPrefix = "NOMAD_HOST_ADDR_"
-
-	// HostIpPrefix is the prefix for passing the host's IP to a task for
-	// cases where the task advertises a different address.
-	HostIpPrefix = "NOMAD_HOST_IP_"
-
-	// HostPortPrefix is the prefix for passing the host port when a portmap is
-	// specified.
+	// HostPortPrefix is the prefix for passing the host port when a port
+	// map is specified.
 	HostPortPrefix = "NOMAD_HOST_PORT_"
-
-	// DriverAddrPrefix is the prefix for passing the address of port
-	// allocations to tasks with the driver's IP address if on exists.
-	// Service's will advertise this address if address_mode=true or
-	// address_mode=auto and the driver determines it should be used.
-	DriverAddrPrefix = "NOMAD_DRIVER_ADDR_"
-
-	// DriverIpPrefix is the prefix for environemnt variables containing
-	// the driver's IP address if it returned one.
-	DriverIpPrefix = "NOMAD_DRIVER_IP_"
-
-	// DriverPortPrefix is the prefix for environment variables containing
-	// the driver's port if a port map is used.
-	DriverPortPrefix = "NOMAD_DRIVER_PORT_"
 
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
@@ -507,38 +482,19 @@ func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet 
 }
 
 func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *cstructs.DriverNetwork) {
-	// Host IP, PORT, and ADDR
+	// Host IP, port, and address
 	portStr := strconv.Itoa(p.Value)
-	envMap[HostIpPrefix+p.Label] = ip
+	envMap[IpPrefix+p.Label] = ip
 	envMap[HostPortPrefix+p.Label] = portStr
-	envMap[HostAddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
+	envMap[AddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
 
-	// Driver IP, PORT, and ADDR if available
+	// Set Port to task's value if there's a port map
 	if driverNet != nil && driverNet.PortMap[p.Label] != 0 {
-		envMap[DriverIpPrefix+p.Label] = driverNet.IP
-		driverPortStr := strconv.Itoa(driverNet.PortMap[p.Label])
-		envMap[DriverPortPrefix+p.Label] = driverPortStr
-		envMap[DriverAddrPrefix+p.Label] = net.JoinHostPort(driverNet.IP, driverPortStr)
-	}
-
-	// Auto IP, PORT, and ADDR (driver if set; otherwise host)
-	if envMap[DriverIpPrefix+p.Label] != "" {
-		// Driver IP set, use it
-		envMap[IpPrefix+p.Label] = envMap[DriverIpPrefix+p.Label]
+		envMap[PortPrefix+p.Label] = strconv.Itoa(driverNet.PortMap[p.Label])
 	} else {
-		envMap[IpPrefix+p.Label] = envMap[HostIpPrefix+p.Label]
+		// Default to host's
+		envMap[PortPrefix+p.Label] = portStr
 	}
-
-	if envMap[DriverPortPrefix+p.Label] != "" {
-		// PortMap set, use it
-		envMap[PortPrefix+p.Label] = envMap[DriverPortPrefix+p.Label]
-	} else {
-		envMap[PortPrefix+p.Label] = envMap[HostPortPrefix+p.Label]
-	}
-
-	// Address just joins the two (which doesn't make sense if IP is host
-	// and Port is driver, but it maintains pre-0.6 backward compat).
-	envMap[AddrPrefix+p.Label] = net.JoinHostPort(envMap[IpPrefix+p.Label], envMap[PortPrefix+p.Label])
 }
 
 // SetHostEnvvars adds the host environment variables to the tasks. The filter
