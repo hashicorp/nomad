@@ -1,38 +1,48 @@
-.nav.is-primary {
-  background-color: $primary;
-  color: $primary-invert;
-  font-weight: $weight-bold;
-  padding-left: 30px;
-  padding-right: 30px;
+.nav {
+  &.is-primary {
+    background-color: $primary;
+    color: $primary-invert;
+    font-weight: $weight-bold;
+    padding-left: 30px;
+    padding-right: 30px;
 
-  .nav-item {
-    color: rgba($primary-invert, 0.8);
+    .nav-item {
+      color: rgba($primary-invert, 0.8);
 
-    &:hover {
-      color: $primary-invert;
-    }
+      &:hover {
+        color: $primary-invert;
+      }
 
-    &.is-active, &.active {
-      color: $primary-invert;
-      border-bottom-color: $primary-invert;
-    }
+      &.is-active, &.active {
+        color: $primary-invert;
+        border-bottom-color: $primary-invert;
+      }
 
-    + .nav-item {
-      position: relative;
+      + .nav-item {
+        position: relative;
 
-      &::before {
-        width: 1px;
-        height: 1em;
-        background: rgba($primary-invert, 0.4);
-        content: ' ';
-        display: block;
-        position: absolute;
-        left: 0px;
+        &::before {
+          width: 1px;
+          height: 1em;
+          background: rgba($primary-invert, 0.4);
+          content: ' ';
+          display: block;
+          position: absolute;
+          left: 0px;
+        }
+      }
+
+      &.is-logo img {
+        height: 1.5rem;
       }
     }
+  }
 
-    &.is-logo img {
-      height: 1.5rem;
-    }
+  &.is-secondary {
+    background-color: $nomad-green-dark;
+    padding: 1.25rem 30px;
+    height: 4rem;
+    font-weight: $weight-bold;
+    color: $primary-invert;
   }
 }
