@@ -20,7 +20,23 @@
       content: "";
       width: 0;
       height: 0;
-      border-top: 6px solid $grey;
+      border-top: 7px solid $grey;
+      border-right: 7px solid transparent;
+      border-left: 7px solid transparent;
+      position: absolute;
+      transform: translateX(-7px);
+      left: 50%;
+      bottom: -8px;
+      z-index: 2;
+    }
+
+    &::after {
+      pointer-events: none;
+      display: inline-block;
+      content: "";
+      width: 0;
+      height: 0;
+      border-top: 6px solid $white;
       border-right: 6px solid transparent;
       border-left: 6px solid transparent;
       position: absolute;
