@@ -81,11 +81,16 @@ type AllocRunner struct {
 	// stateDB is used to store the alloc runners state
 	stateDB *bolt.DB
 
-	// immutablePersisted and allocDirPersisted are used to track whether the
-	// immutable data and the alloc dir have been persisted. Once persisted we
-	// can lower write volume by not re-writing these values
-	immutablePersisted bool
-	allocDirPersisted  bool
+	// persistedEval is the last persisted evaluation ID. Since evaluation
+	// IDs change on every allocation update we only need to persist the
+	// allocation when its eval ID != the last persisted eval ID.
+	persistedEvalLock sync.Mutex
+	persistedEval     string
+
+	// allocDirPersisted is used to track whether the alloc dir has been
+	// persisted. Once persisted we can lower write volume by not
+	// re-writing it
+	allocDirPersisted bool
 }
 
 // COMPAT: Remove in 0.7.0
@@ -342,8 +347,11 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		// Write the immutable data
-		if !r.immutablePersisted {
+		// Write the allocation if the eval has changed
+		r.persistedEvalLock.Lock()
+		lastPersisted := r.persistedEval
+		r.persistedEvalLock.Unlock()
+		if alloc.EvalID != lastPersisted {
 			immutable := &allocRunnerImmutableState{
 				Alloc:   alloc,
 				Version: r.config.Version,
@@ -354,7 +362,9 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 			}
 
 			tx.OnCommit(func() {
-				r.immutablePersisted = true
+				r.persistedEvalLock.Lock()
+				r.persistedEval = alloc.EvalID
+				r.persistedEvalLock.Unlock()
 			})
 		}
 
