@@ -1,12 +1,19 @@
-<div class="block">
-  <h2><a href="{{href-to "jobs"}}">Jobs</a> / Job Detail: {{model.name}}</h2>
-  <dl>
-    <dt>ID</dt> <dd>{{model.id}}</dd>
-    <dt>Name</dt> <dd>{{model.name}}</dd>
-    <dt>Type</dt> <dd>{{model.type}}</dd>
-    <dt>Datacenters</dt> <dd>{{model.datacenters}}</dd>
-    <dt>Status</dt> <dd>{{model.status}}</dd>
-    <dt>Periodic</dt> <dd>{{model.periodic}}</dd>
-    <dt>Parameterized</dt> <dd>{{model.parameterized}}</dd>
-  </dl>
+<nav class="nav is-secondary">
+  <div class="nav-left breadcrumbs">
+    <a href="{{href-to "jobs"}}" class="breadcrumb">Jobs</a>
+    <span class="breadcrumb">{{model.name}}</span>
+  </div>
+</nav>
+<div class="container">
+  <div class="block">
+    <dl>
+      <dt>ID</dt> <dd>{{model.id}}</dd>
+      <dt>Name</dt> <dd>{{model.name}}</dd>
+      <dt>Type</dt> <dd>{{model.type}}</dd>
+      <dt>Datacenters</dt> <dd>{{model.datacenters}}</dd>
+      <dt>Status</dt> <dd>{{model.status}}</dd>
+      <dt>Periodic</dt> <dd>{{model.periodic}}</dd>
+      <dt>Parameterized</dt> <dd>{{model.parameterized}}</dd>
+    </dl>
+  </div>
 </div>

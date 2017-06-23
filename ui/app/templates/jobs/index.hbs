@@ -1,21 +1,23 @@
-<section class="section">
-  <table class="table is-striped">
-    <thead>
-      <tr>
-        <td>Name</td>
-        <td>Type</td>
-        <td>Priority</td>
-        <td>Status</td>
-        <td>Datacenters</td>
-        <td>Groups</td>
-        <td style="width:20%">Allocation Status</td>
-        <td>Lost Rate</td>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each model as |job|}}
-        {{job-row job=job}}
-      {{/each}}
-    </tbody>
-  </table>
+<div class="container">
+  <section class="section">
+    <table class="table is-striped">
+      <thead>
+        <tr>
+          <td>Name</td>
+          <td>Type</td>
+          <td>Priority</td>
+          <td>Status</td>
+          <td>Datacenters</td>
+          <td>Groups</td>
+          <td style="width:20%">Allocation Status</td>
+          <td>Lost Rate</td>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each model as |job|}}
+          {{job-row job=job}}
+        {{/each}}
+      </tbody>
+    </table>
 </section>
+</div>
