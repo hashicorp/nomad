@@ -133,7 +133,7 @@ constraint {
     ```hcl
     constraint {
       operator  = "distinct_property"
-      attribute = "${meta.rack"}
+      attribute = "${meta.rack}"
     }
     ```
 
