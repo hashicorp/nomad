@@ -436,6 +436,10 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 
 	t, f := true, false
 
+	// retry config
+	retryForever := 0
+	conf.Consul.Retry.Attempts = &retryForever
+
 	// Force faster retries
 	if testRetryRate != 0 {
 		rate := testRetryRate
