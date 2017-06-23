@@ -616,6 +616,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	return resp, nil
 }
 
+// detectIP of Docker container. Returns the first IP found as well as true if
+// the IP should be advertised (bridge network IPs return false). Returns an
+// empty string and false if no IP could be found.
 func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	if c.NetworkSettings == nil {
 		// This should only happen if there's been a coding error (such
@@ -624,6 +627,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
 	}
+
 	ip, ipName := "", ""
 	auto := false
 	for name, net := range c.NetworkSettings.Networks {
@@ -631,6 +635,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 			// Ignore networks without an IP address
 			continue
 		}
+
 		ip = net.IPAddress
 		ipName = name
 
@@ -638,11 +643,14 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		if name != "bridge" {
 			auto = true
 		}
+
 		break
 	}
+
 	if n := len(c.NetworkSettings.Networks); n > 1 {
 		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
 	}
+
 	return ip, auto
 }
 

@@ -462,9 +462,8 @@ func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
 
 // buildNetworkEnv env vars in the given map.
 //
-//	Auto:   NOMAD_{IP,PORT,ADDR}_<label>
-//	Host:   NOMAD_HOST_{IP,PORT,ADDR}_<label>
-//	Driver: NOMAD_DRIVER_{IP,PORT,ADDR}_<label>
+//	Auto:   NOMAD_PORT_<label>
+//	Host:   NOMAD_IP_<label>, NOMAD_ADDR_<label>, NOMAD_HOST_PORT_<label>
 //
 // Handled by setAlloc -> otherPorts:
 //
