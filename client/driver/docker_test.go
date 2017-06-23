@@ -132,8 +132,7 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 	}
 
 	// At runtime this is handled by TaskRunner
-	tctx.EnvBuilder.SetDriverNetwork(sresp.Network)
-	tctx.ExecCtx.TaskEnv = tctx.EnvBuilder.Build()
+	tctx.ExecCtx.TaskEnv = tctx.EnvBuilder.SetDriverNetwork(sresp.Network).Build()
 
 	cleanup := func() {
 		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
@@ -916,8 +915,8 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	}
 
 	expectedEnvironment := map[string]string{
-		"NOMAD_ADDR_main":      "127.0.0.1:8080",
-		"NOMAD_ADDR_REDIS":     "127.0.0.1:6379",
+		"NOMAD_PORT_main":      "8080",
+		"NOMAD_PORT_REDIS":     "6379",
 		"NOMAD_HOST_PORT_main": strconv.Itoa(docker_reserved),
 	}
 

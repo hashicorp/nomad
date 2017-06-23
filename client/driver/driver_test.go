@@ -211,15 +211,6 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"NOMAD_JOB_NAME":                alloc.Job.Name,
 		"NOMAD_DC":                      "dc1",
 		"NOMAD_REGION":                  "global",
-		// Added in 0.6 via DriverNetworks
-		"NOMAD_HOST_IP_admin":   "1.2.3.4",
-		"NOMAD_HOST_ADDR_admin": "1.2.3.4:8081",
-		"NOMAD_HOST_ADDR_two":   "1.2.3.4:443",
-		"NOMAD_HOST_ADDR_web":   "1.2.3.4:8086",
-		"NOMAD_HOST_IP_two":     "1.2.3.4",
-		"NOMAD_HOST_ADDR_one":   "1.2.3.4:80",
-		"NOMAD_HOST_IP_one":     "1.2.3.4",
-		"NOMAD_HOST_IP_web":     "1.2.3.4",
 	}
 
 	act := eb.Build().Map()
