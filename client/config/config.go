@@ -210,6 +210,7 @@ func DefaultConfig() *Config {
 		GCDiskUsageThreshold:    80,
 		GCInodeUsageThreshold:   70,
 		GCMaxAllocs:             50,
+		NoHostUUID:              true,
 	}
 }
 
