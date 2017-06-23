@@ -30,9 +30,10 @@ const (
 
 var (
 	// The following are the key paths written to the state database
-	allocRunnreStateAllocKey    = []byte("alloc")
-	allocRunnerStateMutableKey  = []byte("mutable")
-	allocRunnerStateAllocDirKey = []byte("alloc-dir")
+	allocRunnerStateAllocKey     = []byte("alloc")
+	allocRunnerStateImmutableKey = []byte("immutable")
+	allocRunnerStateMutableKey   = []byte("mutable")
+	allocRunnerStateAllocDirKey  = []byte("alloc-dir")
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -87,10 +88,11 @@ type AllocRunner struct {
 	persistedEvalLock sync.Mutex
 	persistedEval     string
 
-	// allocDirPersisted is used to track whether the alloc dir has been
-	// persisted. Once persisted we can lower write volume by not
-	// re-writing it
-	allocDirPersisted bool
+	// immutablePersisted and allocDirPersisted are used to track whether the
+	// immutable data and the alloc dir have been persisted. Once persisted we
+	// can lower write volume by not re-writing these values
+	immutablePersisted bool
+	allocDirPersisted  bool
 }
 
 // COMPAT: Remove in 0.7.0
@@ -119,8 +121,12 @@ type allocRunnerState struct {
 // allocRunnerAllocState is state that only has to be written when the alloc
 // changes.
 type allocRunnerAllocState struct {
+	Alloc *structs.Allocation
+}
+
+// allocRunnerImmutableState is state that only has to be written once.
+type allocRunnerImmutableState struct {
 	Version string
-	Alloc   *structs.Allocation
 }
 
 // allocRunnerMutableState is state that has to be written on each save as it
@@ -212,10 +218,14 @@ func (r *AllocRunner) RestoreState() error {
 
 			// Get the state objects
 			var mutable allocRunnerMutableState
+			var immutable allocRunnerImmutableState
 			var allocState allocRunnerAllocState
 			var allocDir allocdir.AllocDir
 
-			if err := getObject(bkt, allocRunnreStateAllocKey, &allocState); err != nil {
+			if err := getObject(bkt, allocRunnerStateAllocKey, &allocState); err != nil {
+				return fmt.Errorf("failed to read alloc runner alloc state: %v", err)
+			}
+			if err := getObject(bkt, allocRunnerStateImmutableKey, &immutable); err != nil {
 				return fmt.Errorf("failed to read alloc runner immutable state: %v", err)
 			}
 			if err := getObject(bkt, allocRunnerStateMutableKey, &mutable); err != nil {
@@ -353,18 +363,32 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		r.persistedEvalLock.Unlock()
 		if alloc.EvalID != lastPersisted {
 			allocState := &allocRunnerAllocState{
-				Alloc:   alloc,
-				Version: r.config.Version,
+				Alloc: alloc,
 			}
 
-			if err := putObject(allocBkt, allocRunnreStateAllocKey, &allocState); err != nil {
-				return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+			if err := putObject(allocBkt, allocRunnerStateAllocKey, &allocState); err != nil {
+				return fmt.Errorf("failed to write alloc_runner alloc state: %v", err)
 			}
 
 			tx.OnCommit(func() {
 				r.persistedEvalLock.Lock()
 				r.persistedEval = alloc.EvalID
 				r.persistedEvalLock.Unlock()
+			})
+		}
+
+		// Write immutable data iff it hasn't been written yet
+		if !r.immutablePersisted {
+			immutable := &allocRunnerImmutableState{
+				Version: r.config.Version,
+			}
+
+			if err := putObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+				return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+			}
+
+			tx.OnCommit(func() {
+				r.immutablePersisted = true
 			})
 		}
 
