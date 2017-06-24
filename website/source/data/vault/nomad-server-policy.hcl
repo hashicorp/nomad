@@ -10,7 +10,7 @@ path "auth/token/roles/nomad-cluster" {
   capabilities = ["read"]
 }
 
-# Allow looking up the token passed to Nomad to validate # the token has the
+# Allow looking up the token passed to Nomad to validate the token has the
 # proper capabilities. This is provided by the "default" policy.
 path "auth/token/lookup-self" {
   capabilities = ["read"]
