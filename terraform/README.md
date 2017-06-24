@@ -29,9 +29,9 @@ $ export AWS_ACCESS_KEY_ID=[ACCESS_KEY_ID]
 $ export AWS_SECRET_ACCESS_KEY=[SECRET_ACCESS_KEY]
 ```
 
-## Provision
+## Provision a cluster
 
-`cd` to one of the environment subdirectories:
+`cd` to an environment subdirectory:
 
 ```bash
 $ cd env/us-east
@@ -41,9 +41,9 @@ Update terraform.tfvars with your SSH key name:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-28a1dd3e"
+ami                     = "ami-feac99e8"
 instance_type           = "t2.medium"
-key_name                = "KEY"
+key_name                = "KEY_NAME"
 server_count            = "3"
 client_count            = "4"
 ```
@@ -51,7 +51,7 @@ For example:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-28a1dd3e"
+ami                     = "ami-feac99e8"
 instance_type           = "t2.medium"
 key_name                = "hashi-us-east-1"
 server_count            = "3"
@@ -70,10 +70,10 @@ terraform apply
 
 ## Access the cluster
 
-SSH to a server using its public IP. For example:
+SSH to any client or server using its public IP. For example:
 
 ```bash
-$ ssh -i /home/vagrant/.ssh/KEY.pem ubuntu@SERVER_PUBLIC_IP
+$ ssh -i /home/vagrant/.ssh/KEY.pem ubuntu@PUBLIC_IP
 ```
 
 The AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
@@ -107,10 +107,4 @@ See:
 
 ## Apache Spark integration
 
-Nomad is well-suited for analytical workloads, given its performance characteristics and first-class support for batch scheduling. Apache Spark is a popular data processing engine/framework that has been architected to use third-party schedulers. We maintain a fork that natively integrates Nomad with Spark. Sample job files and documentation are included [here](examples/spark/README.md) and also provisioned into the cluster itself under the `HOME` directory.
-
-
-
-
-
-
+Nomad is well-suited for analytical workloads, given its performance characteristics and first-class support for batch scheduling. Apache Spark is a popular data processing engine/framework that has been architected to use third-party schedulers. The Nomad ecosystem includes a fork that natively integrates Nomad with Spark. A detailed walkthrough of the integration is included [here](examples/spark/README.md).

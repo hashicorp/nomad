@@ -38,21 +38,20 @@ $ hdfs dfs -ls /
 Finally, deploy the Spark history server:
 
 ```bash
-$ cd $HOME/examples/spark
 $ nomad run spark-history-server-hdfs.nomad
 ```
 
-You can find the private IP for the service with a Consul DNS lookup:
+You can get the private IP for the history server with a Consul DNS lookup:
 
 ```bash
 $ dig spark-history.service.consul
 ```
 
-Cross-reference the private IP with the `terraforom apply` output to get the corresponding public IP. You can access the history server at http://PUBLIC_IP:18080
+Cross-reference the private IP with the `terraforom apply` output to get the corresponding public IP. You can access the history server at `http://PUBLIC_IP:18080`.
 
 ## Sample Spark jobs
 
-A number of sample spark-submit commands are listed below that demonstrate several of the official Spark examples. Features like `spark-sql`, `spark-shell` and pyspark are included as well. The commands can be executed from any client or server.
+The sample `spark-submit` commands listed below demonstrate several of the official Spark examples. Features like `spark-sql`, `spark-shell` and pyspark are included. The commands can be executed from any client or server.
 
 ### SparkPi (Java)
 
