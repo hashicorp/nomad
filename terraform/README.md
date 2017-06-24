@@ -22,8 +22,6 @@ You will need the following:
 - [API access keys](http://aws.amazon.com/developers/access-keys/)
 - [SSH key pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
 
-You will need to copy your private SSH key to the Vagrant environment if you are using it. 
-
 Set environment variables for your AWS credentials:
 
 ```bash
@@ -46,7 +44,6 @@ region                  = "us-east-1"
 ami                     = "ami-28a1dd3e"
 instance_type           = "t2.medium"
 key_name                = "KEY"
-key_file                = "/home/vagrant/.ssh/KEY.pem"
 server_count            = "3"
 client_count            = "4"
 ```
@@ -57,7 +54,6 @@ region                  = "us-east-1"
 ami                     = "ami-28a1dd3e"
 instance_type           = "t2.medium"
 key_name                = "hashi-us-east-1"
-key_file                = "/home/vagrant/.ssh/hashi-us-east-1.pem"
 server_count            = "3"
 client_count            = "4"
 ```
@@ -111,8 +107,7 @@ See:
 
 ## Apache Spark integration
 
-Nomad is well-suited for analytical workloads, given its performance characteristics and first-class support for batch scheduling. Apache Spark is a popular data processing engine/framework that has been architected to use third-party schedulers.
-We maintain a fork that natively integrates Nomad with Spark. Sample job files and documentation are included [here](examples/spark/README.md) and also provisioned into the cluster itself under the `HOME` directory.
+Nomad is well-suited for analytical workloads, given its performance characteristics and first-class support for batch scheduling. Apache Spark is a popular data processing engine/framework that has been architected to use third-party schedulers. We maintain a fork that natively integrates Nomad with Spark. Sample job files and documentation are included [here](examples/spark/README.md) and also provisioned into the cluster itself under the `HOME` directory.
 
 
 
