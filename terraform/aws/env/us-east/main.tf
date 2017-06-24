@@ -12,8 +12,6 @@ variable "instance_type" {
 
 variable "key_name" { }
 
-variable "key_file" { }
-
 variable "server_count" {
   description = "The number of servers to provision."
   default = "3"
@@ -41,7 +39,6 @@ module "hashistack" {
   ami            	= "${var.ami}"
   instance_type        	= "${var.instance_type}"
   key_name		= "${var.key_name}"
-  key_file		= "${var.key_file}"
   server_count		= "${var.server_count}"
   client_count		= "${var.client_count}"
   cluster_tag_value     = "${var.cluster_tag_value}"

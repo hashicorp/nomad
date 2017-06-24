@@ -2,7 +2,6 @@ variable "region"		{ }
 variable "ami"                  { }
 variable "instance_type"        { }
 variable "key_name"             { }
-variable "key_file"             { }
 variable "server_count"         { }
 variable "client_count"		{ }
 variable "cluster_tag_value"    { }
@@ -18,6 +17,27 @@ resource "aws_security_group" "primary" {
   ingress {
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 50070
+    to_port     = 50070
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 50075
+    to_port     = 50075
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 18080
+    to_port     = 18080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -62,10 +82,6 @@ resource "aws_instance" "primary" {
     key_name = "${var.key_name}"
     vpc_security_group_ids = ["${aws_security_group.primary.id}"]
     count = "${var.server_count}"
-    connection {
-        user = "ubuntu"
-        private_key = "${file("${var.key_file}")}"
-    }
 
     #Instance tags
     tags {
@@ -85,10 +101,6 @@ resource "aws_instance" "client" {
     vpc_security_group_ids = ["${aws_security_group.primary.id}"]
     count = "${var.client_count}"
     depends_on = ["aws_instance.primary"]
-    connection {
-        user = "ubuntu"
-        private_key = "${file("${var.key_file}")}"
-    }
 
     #Instance tags
     tags {
@@ -103,7 +115,7 @@ resource "aws_instance" "client" {
 
 resource "aws_iam_instance_profile" "instance_profile" {
   name_prefix = "hashistack"
-  roles       = ["${aws_iam_role.instance_role.name}"]
+  role       = "${aws_iam_role.instance_role.name}"
 }
 
 resource "aws_iam_role" "instance_role" {
