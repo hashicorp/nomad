@@ -4,6 +4,8 @@ CONFIGDIR=/ops/shared/config
 CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
+HADOOP_VERSION=hadoop-2.7.3
+HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
 IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
@@ -41,13 +43,16 @@ sudo service nomad start
 sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
+# Hadoop
+sudo cp $CONFIGDIR/core-site.xml $HADOOPCONFIGDIR
+
+# Set env vars for tool CLIs
 echo "export CONSUL_RPC_ADDR=$IP_ADDRESS:8400" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export VAULT_ADDR=http://$IP_ADDRESS:8200" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export NOMAD_ADDR=http://$IP_ADDRESS:4646" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre"  | sudo tee --append /home/$HOME_DIR/.bashrc
 
-# Move examples directory to $HOME
-sudo mv /ops/examples /home/$HOME_DIR
-sudo chown -R $HOME_DIR:$HOME_DIR /home/$HOME_DIR/examples
+# Update PATH in .bashrc
 
+echo "export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin" | sudo tee --append /home/$HOME_DIR/.bashrc

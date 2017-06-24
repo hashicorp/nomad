@@ -6,7 +6,6 @@
   "client_addr": "IP_ADDRESS",
   "advertise_addr": "IP_ADDRESS",
   "bootstrap_expect": SERVER_COUNT,
-  "node_name": "consul@IP_ADDRESS",
   "service": {
     "name": "consul"
   },

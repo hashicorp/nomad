@@ -22,19 +22,16 @@ NOMADDIR=/opt/nomad
 
 echo Dependencies...
 sudo apt-get install -y software-properties-common
-sudo add-apt-repository ppa:mc3man/trusty-media
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq s3cmd ffmpeg
+sudo apt-get install -y unzip tree redis-tools jq
+sudo apt-get install -y upstart-sysv
+sudo update-initramfs -u
 
-# Numpy
+# Numpy (for Spark)
 
 sudo apt-get install -y python-setuptools
 sudo easy_install pip
 sudo pip install numpy
-
-# Instead of symlink, move ffmpeg to be inside the chroot for Nomad
-sudo rm /usr/bin/ffmpeg
-sudo cp /opt/ffmpeg/bin/ffmpeg /usr/bin/ffmpeg
 
 # Disable the firewall
 
@@ -106,6 +103,10 @@ JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 sudo wget -P /ops/examples/spark https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz
 sudo tar -xvf /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6 /ops/examples/spark/spark
-sudo rm /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6.tgz
+sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6 /usr/local/bin/spark
+sudo chown -R root:root /usr/local/bin/spark
 
+## Install Hadoop to enable the HDFS CLI
+
+export HADOOP_VERSION=2.7.3
+wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz | sudo tar xz -C /usr/local/
