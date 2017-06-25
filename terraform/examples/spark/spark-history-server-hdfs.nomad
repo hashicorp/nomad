@@ -7,6 +7,7 @@ job "spark-history-server" {
 
     task "history-server" {
       driver = "docker"
+      
       config {
         image = "barnardb/spark"
         command = "/spark/spark-2.1.0-bin-nomad/bin/spark-class"
