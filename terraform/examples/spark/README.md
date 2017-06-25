@@ -53,6 +53,17 @@ Cross-reference the private IP with the `terraforom apply` output to get the cor
 
 The sample `spark-submit` commands listed below demonstrate several of the official Spark examples. Features like `spark-sql`, `spark-shell` and pyspark are included. The commands can be executed from any client or server.
 
+You can monitor the status of a Spark job in a second terminal session with:
+
+```bash
+$ nomad status
+$ nomad status JOB_ID
+$ nomad alloc-status DRIVER_ALLOC_ID
+$ nomad logs DRIVER_ALLOC_ID
+```
+
+To view the output of the job, run `nomad logs` for the driver's Allocation ID.
+
 ### SparkPi (Java)
 
 ```bash

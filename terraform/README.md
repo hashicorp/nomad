@@ -41,24 +41,14 @@ Update terraform.tfvars with your SSH key name:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-feac99e8"
+ami                     = "ami-68291d7e"
 instance_type           = "t2.medium"
 key_name                = "KEY_NAME"
 server_count            = "3"
 client_count            = "4"
 ```
-For example:
 
-```bash
-region                  = "us-east-1"
-ami                     = "ami-feac99e8"
-instance_type           = "t2.medium"
-key_name                = "hashi-us-east-1"
-server_count            = "3"
-client_count            = "4"
-```
-
-Note that a pre-provisioned, publicly available AMI is used by default. To provision your own customized AMI with [Packer](https://www.packer.io/intro/index.html), follow the instructions [here](aws/packer/README.md). You will need to replace the AMI ID in terraform.tfvars with your own.
+Note that a pre-provisioned, publicly available AMI is used by default (for the `us-east-1` region). To provision your own customized AMI with [Packer](https://www.packer.io/intro/index.html), follow the instructions [here](aws/packer/README.md). You will need to replace the AMI ID in terraform.tfvars with your own. You can also modify the `region`, `instance_type`, `server_count` and `client_count`. At least one client and one server are required.
 
 Provision the cluster:
 
@@ -70,13 +60,13 @@ terraform apply
 
 ## Access the cluster
 
-SSH to any client or server using its public IP. For example:
+SSH to one of the servers using its public IP:
 
 ```bash
-$ ssh -i /home/vagrant/.ssh/KEY.pem ubuntu@PUBLIC_IP
+$ ssh -i /path/to/key ubuntu@PUBLIC_IP
 ```
 
-The AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
+Note that the AWS security group is configured by default to allow all traffic over port 22. This is not recommended for production deployments.
 
 Run a few basic commands to verify that Consul and Nomad are up and running properly:
 
@@ -94,7 +84,13 @@ $ vault unseal
 $ export VAULT_TOKEN=[INITIAL_ROOT_TOKEN]
 ```
 
-The `vault init` command above creates a single [Vault unseal key](https://www.vaultproject.io/docs/concepts/seal.html). For a production environment, it is recommended that you create at least three unseal key shares and securely distribute them to independent operators. 
+The `vault init` command above creates a single [Vault unseal key](https://www.vaultproject.io/docs/concepts/seal.html). For a production environment, it is recommended that you create at least five unseal key shares and securely distribute them to independent operators. The `vault init` command defaults to five key shares and a key threshold of three. If you provisioned more than one server, the others will become standby nodes (but should still be unsealed). You can query the active and standby nodes independently:
+
+```bash
+$ dig active.vault.service.consul
+$ dig active.vault.service.consul SRV
+$ dig standby.vault.service.consul
+``` 
 
 ## Getting started with Nomad & the HashiCorp stack
 
