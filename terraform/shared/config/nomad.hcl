@@ -15,7 +15,7 @@ consul {
 
 vault {
   enabled = false
-  address = "http://IP_ADDRESS:8200"
+  address = "vault.service.consul"
   task_token_ttl = "1h"
   create_from_role = "nomad-cluster"
   token = ""

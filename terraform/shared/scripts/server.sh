@@ -8,7 +8,10 @@ HADOOP_VERSION=hadoop-2.7.3
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
+sleep 15
+
 IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
+DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
 SERVER_COUNT=$1
 REGION=$2
 CLUSTER_TAG_VALUE=$3
@@ -42,6 +45,16 @@ sudo cp $CONFIGDIR/nomad_upstart.conf /etc/init/nomad.conf
 sudo service nomad start
 sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
+
+# Add hostname to /etc/hosts
+
+echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
+
+# Add Docker bridge network IP to /etc/resolv.conf (at the top)
+
+echo "nameserver $DOCKER_BRIDGE_IP_ADDRESS" | sudo tee /etc/resolv.conf.new
+cat /etc/resolv.conf | sudo tee --append /etc/resolv.conf.new
+sudo mv /etc/resolv.conf.new /etc/resolv.conf
 
 # Hadoop
 sudo cp $CONFIGDIR/core-site.xml $HADOOPCONFIGDIR

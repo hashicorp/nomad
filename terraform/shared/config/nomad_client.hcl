@@ -24,5 +24,5 @@ consul {
 
 vault {
   enabled = true
-  address = "http://SERVER_IP_ADDRESS:8200"
+  address = "vault.service.consul"
 }
