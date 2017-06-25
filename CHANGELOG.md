@@ -1,6 +1,8 @@
 ## 0.6.0 (Unreleased)
 
 IMPROVEMENTS:
+ * agent/config: Late binding to IP addresses using go-sockaddr/template syntax
+   [GH-2399]
  * core: Rolling updates based on allocation health [GH-2621, GH-2634]
  * core: Default advertise to private IP address if bind is 0.0.0.0 [GH-2399]
  * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
