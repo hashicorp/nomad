@@ -98,6 +98,8 @@ testing.
   [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the first
   private IP found is advertised. You may advertise an alternate port as well.
   The values support [go-sockaddr/template format][go-sockaddr/template].
+  Note that if you specify an IPv6 address, you need to enclose it into square
+  brackets and explicitly specify the port number.
 
   - `http` - The address to advertise for the HTTP interface. This should be
     reachable by all the nodes from which end users are going to use the Nomad
