@@ -25,7 +25,7 @@ After you make your modifications to `packer.json`, execute the following
 command to build the AMI:
 
 ```bash
-packer build packer.json
+$ packer build packer.json
 ```
 
 Don't forget to copy the AMI Id to your [terraform.tfvars file](../env/us-east/terraform.tfvars).
