@@ -9,22 +9,27 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(typeHash, hash) {
-    // Lift the summary cache and children stats out of the deeply
-    // nested objects to make them simple attributes.
-    const allocStats = get(hash, 'JobSummary.Summary.cache');
-    if (allocStats) {
-      Object.keys(allocStats).forEach(
-        allocKey => (hash[`${allocKey}Allocs`] = allocStats[allocKey])
-      );
-    }
+    // Transform the map-based JobSummary object into an array-based
+    // JobSummary fragment list
+    hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary')).map(key => {
+      const allocStats = get(hash, `JobSummary.Summary.${key}`);
+      const summary = { Name: key };
 
+      Object.keys(allocStats).forEach(
+        allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
+      );
+
+      return summary;
+    });
+
+    // Lift the children stats out of the JobSummary object
     const childrenStats = get(hash, 'JobSummary.Children');
     if (childrenStats) {
       Object.keys(childrenStats).forEach(
-        childrenKey =>
-          (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
+        childrenKey => (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
       );
     }
+
     return this._super(typeHash, hash);
   },
 });
