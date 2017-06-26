@@ -161,16 +161,17 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status   *Status
-	Node     *Node
-	Job      *Job
-	Eval     *Eval
-	Plan     *Plan
-	Alloc    *Alloc
-	Region   *Region
-	Periodic *Periodic
-	System   *System
-	Operator *Operator
+	Status     *Status
+	Node       *Node
+	Job        *Job
+	Eval       *Eval
+	Plan       *Plan
+	Alloc      *Alloc
+	Deployment *Deployment
+	Region     *Region
+	Periodic   *Periodic
+	System     *System
+	Operator   *Operator
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -679,6 +680,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Node = &Node{srv: s}
+	s.endpoints.Deployment = &Deployment{srv: s}
 	s.endpoints.Operator = &Operator{s}
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.Plan = &Plan{s}
@@ -691,6 +693,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Job)
 	s.rpcServer.Register(s.endpoints.Node)
+	s.rpcServer.Register(s.endpoints.Deployment)
 	s.rpcServer.Register(s.endpoints.Operator)
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.Plan)

@@ -3252,6 +3252,61 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
+	state := testStateStore(t)
+	deployment := mock.Deployment()
+	alloc := mock.Alloc()
+	alloc.DeploymentID = deployment.ID
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertDeployment(1000, deployment, false); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watch set so we can test that update fires the watch
+	ws := memdb.NewWatchSet()
+	if _, err := state.AllocsByDeployment(ws, alloc.DeploymentID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	err := state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("watch not fired")
+	}
+
+	ws = memdb.NewWatchSet()
+	allocs, err := state.AllocsByDeployment(ws, alloc.DeploymentID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(allocs) != 1 {
+		t.Fatalf("bad: %#v", allocs)
+	}
+
+	if !reflect.DeepEqual(alloc, allocs[0]) {
+		t.Fatalf("bad: %#v %#v", alloc, allocs[0])
+	}
+
+	index, err := state.Index("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
 // Testing to ensure we keep issue
 // https://github.com/hashicorp/nomad/issues/2583 fixed
 func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
