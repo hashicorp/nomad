@@ -24,8 +24,7 @@ export default Component.extend({
       value,
       className,
       percent: value / sum * 100,
-      offset:
-        data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum * 100,
+      offset: data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum * 100,
     }));
   }),
 
@@ -33,19 +32,10 @@ export default Component.extend({
     const chart = d3.select(this.$('svg')[0]);
     this.set('chart', chart);
 
-    chart.on('mouseenter', () => {
-      run(() => {
-        this.set('isActive', true);
-      });
-    });
-
     chart.on('mouseleave', () => {
       run(() => {
         this.set('isActive', false);
-        chart
-          .selectAll('rect')
-          .classed('active', false)
-          .classed('inactive', false);
+        chart.selectAll('rect').classed('active', false).classed('inactive', false);
       });
     });
 
@@ -65,7 +55,7 @@ export default Component.extend({
       .append('rect')
       .attr('width', d => `${d.percent + 1}%`)
       .attr('x', d => `${d.offset}%`)
-      .on('mouseover', d => {
+      .on('mouseenter', d => {
         run(() => {
           const slice = slices.filter(datum => datum === d);
           slices.classed('active', false).classed('inactive', true);
@@ -74,6 +64,9 @@ export default Component.extend({
 
           const box = slice.node().getBBox();
           const pos = box.x + box.width / 2;
+
+          // Ensure that the position is set before the tooltip is visible
+          run.schedule('afterRender', this, () => this.set('isActive', true));
           this.set('tooltipPosition', {
             left: pos,
           });
