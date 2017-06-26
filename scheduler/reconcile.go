@@ -301,7 +301,8 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// desired means we need to create canaries
 	numDestructive := len(destructive)
 	strategy := tg.Update
-	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary
+	canariesPromoted := dstate != nil && dstate.Promoted
+	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
 		number := strategy.Canary - len(canaries)
 		number = helper.IntMin(numDestructive, number)
@@ -416,6 +417,11 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 	if a.deployment != nil {
 		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
 		for _, alloc := range partOf {
+			// An unhealthy allocation means nothing else should be happen.
+			if alloc.DeploymentStatus.IsUnhealthy() {
+				return 0
+			}
+
 			if !alloc.DeploymentStatus.IsHealthy() {
 				limit--
 			}
