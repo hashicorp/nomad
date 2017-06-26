@@ -5,15 +5,99 @@
   </div>
 </nav>
 <div class="container">
-  <div class="block">
-    <dl>
-      <dt>ID</dt> <dd>{{model.id}}</dd>
-      <dt>Name</dt> <dd>{{model.name}}</dd>
-      <dt>Type</dt> <dd>{{model.type}}</dd>
-      <dt>Datacenters</dt> <dd>{{model.datacenters}}</dd>
-      <dt>Status</dt> <dd>{{model.status}}</dd>
-      <dt>Periodic</dt> <dd>{{model.periodic}}</dd>
-      <dt>Parameterized</dt> <dd>{{model.parameterized}}</dd>
-    </dl>
-  </div>
+  <section class="section">
+    <div class="message">
+      <div class="message-body">
+        <span>{{model.type}} | </span>
+        <span>{{model.status}} | </span>
+        <span>Priority: {{model.priority}}</span>
+      </div>
+    </div>
+    <div class="columns">
+      <div class="column">
+        <div class="message">
+          <div class="message-header has-text-centered">
+            <p>Allocations</p>
+          </div>
+          <div class="message-body">
+            Allocation info here
+          </div>
+        </div>
+      </div>
+      <div class="column">
+        <div class="message">
+          <div class="message-header has-text-centered">
+            <p>CPU</p>
+          </div>
+          <div class="message-body">
+            CPU info here
+          </div>
+        </div>
+      </div>
+      <div class="column">
+        <div class="message">
+          <div class="message-header has-text-centered">
+            <p>Memory</p>
+          </div>
+          <div class="message-body">
+            Memory info here
+          </div>
+        </div>
+      </div>
+      <div class="column">
+        <div class="message">
+          <div class="message-header has-text-centered">
+            Disk
+          </div>
+          <div class="message-body">
+            Disk info here
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="message">
+      <div class="message-header">
+        Task Groups
+      </div>
+      <div class="message-body">
+        <table class="table is-striped">
+          <thead>
+            <tr>
+              <td>Name</td>
+              <td>Count</td>
+              <td>Allocation Status</td>
+              <td>CPU</td>
+              <td>Memory</td>
+              <td>Disk</td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each model.taskGroups as |group|}}
+              {{task-group-row taskGroup=group}}
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="message">
+      <div class="message-header">
+        Evaluations
+      </div>
+      <div class="message-body">
+        Evaluation
+      </div>
+    </div>
+    <div class="message">
+      <div class="message-header">
+        Job Definition
+      </div>
+      <div class="message-body">
+        <pre>
+Code {
+  goes: here
+}
+        </pre>
+      </div>
+    </div>
+  </section>
 </div>

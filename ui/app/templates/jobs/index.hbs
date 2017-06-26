@@ -1,5 +1,31 @@
 <div class="container">
   <section class="section">
+    <div class="level">
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{model.length}}</h3>
+          <p class="heading">Total Jobs</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{pendingJobs.length}}</h3>
+          <p class="heading">Pending</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{runningJobs.length}}</h3>
+          <p class="heading">Running</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{deadJobs.length}}</h3>
+          <p class="heading">Dead</p>
+        </div>
+      </div>
+    </div>
     <table class="table is-striped">
       <thead>
         <tr>
@@ -10,7 +36,7 @@
           <td>Datacenters</td>
           <td>Groups</td>
           <td style="width:20%">Allocation Status</td>
-          <td>Lost Rate</td>
+          <td># Lost</td>
         </tr>
       </thead>
       <tbody>
@@ -19,5 +45,5 @@
         {{/each}}
       </tbody>
     </table>
-</section>
+  </section>
 </div>

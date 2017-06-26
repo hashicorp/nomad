@@ -4,17 +4,11 @@ import { provide, provider } from '../utils';
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
 const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
-const DATACENTERS = provide(
-  15,
-  (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`
-);
+const DATACENTERS = provide(15, (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`);
 
 export default Factory.extend({
-  id: i =>
-    `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun()}-${i}`,
-  name() {
-    return this.id;
-  },
+  id: i => `job-${i}`,
+  name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun()}-${i}`,
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
@@ -48,10 +42,7 @@ export default Factory.extend({
 
   afterCreate(job, server) {
     job.update({
-      task_groups: server.createList(
-        'task-group',
-        faker.random.number({ min: 1, max: 10 })
-      ),
+      task_groups: server.createList('task-group', faker.random.number({ min: 1, max: 10 })),
     });
   },
 });
