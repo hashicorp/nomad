@@ -2851,6 +2851,17 @@ ember-cli@2.13.2:
     walk-sync "^0.3.0"
     yam "0.0.22"
 
+ember-data-model-fragments@^2.11.5:
+  version "2.11.5"
+  resolved "https://registry.yarnpkg.com/ember-data-model-fragments/-/ember-data-model-fragments-2.11.5.tgz#756809c0931eab78b90aaf4973ff8010a9c251b2"
+  dependencies:
+    broccoli-file-creator "^1.1.1"
+    broccoli-merge-trees "^2.0.0"
+    ember-cli-babel "^6.0.0"
+    exists-sync "^0.0.4"
+    git-repo-info "^1.4.1"
+    npm-git-info "^1.0.3"
+
 ember-data@^2.13.0:
   version "2.13.1"
   resolved "https://registry.yarnpkg.com/ember-data/-/ember-data-2.13.1.tgz#fd85daf3c4c7bfe6a0c2e42cedf72048979f94ae"
@@ -3411,7 +3422,7 @@ exists-sync@0.0.3:
   version "0.0.3"
   resolved "https://registry.yarnpkg.com/exists-sync/-/exists-sync-0.0.3.tgz#b910000bedbb113b378b82f5f5a7638107622dcf"
 
-exists-sync@0.0.4:
+exists-sync@0.0.4, exists-sync@^0.0.4:
   version "0.0.4"
   resolved "https://registry.yarnpkg.com/exists-sync/-/exists-sync-0.0.4.tgz#9744c2c428cc03b01060db454d4b12f0ef3c8879"
 
@@ -5417,7 +5428,7 @@ normalize-path@^2.0.1:
   dependencies:
     remove-trailing-separator "^1.0.1"
 
-npm-git-info@^1.0.0:
+npm-git-info@^1.0.0, npm-git-info@^1.0.3:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/npm-git-info/-/npm-git-info-1.0.3.tgz#a933c42ec321e80d3646e0d6e844afe94630e1d5"
 
