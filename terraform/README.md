@@ -5,8 +5,8 @@ Use this to easily provision a Nomad sandbox environment on AWS with
 [Consul](https://www.consul.io/intro/index.html) and 
 [Vault](https://www.vaultproject.io/intro/index.html) are also installed 
 (colocated for convenience). The intention is to allow easy exploration of 
-Nomad and its integrations with the HashiCorp stack. This is not meant to be a 
-production ready environment. A demonstration of [Nomad's Apache Spark 
+Nomad and its integrations with the HashiCorp stack. This is *not* meant to be
+a production ready environment. A demonstration of [Nomad's Apache Spark 
 integration](examples/spark/README.md) is included. 
 
 ## Setup
@@ -20,7 +20,7 @@ $ cd terraform/aws
 $ vagrant up && vagrant ssh
 ```
 
-The Vagrant staging environment pre-installs Packer, Terraform and Docker.
+The Vagrant staging environment pre-installs Packer, Terraform, and Docker.
 
 ### Pre-requisites
 
@@ -60,9 +60,9 @@ Note that a pre-provisioned, publicly available AMI is used by default
 (for the `us-east-1` region). To provision your own customized AMI with 
 [Packer](https://www.packer.io/intro/index.html), follow the instructions 
 [here](aws/packer/README.md). You will need to replace the AMI ID in 
-terraform.tfvars with your own. You can also modify the `region`, 
-`instance_type`, `server_count` and `client_count`. At least one client and one 
-server are required.
+`terraform.tfvars` with your own. You can also modify the `region`, 
+`instance_type`, `server_count`, and `client_count`. At least one client and
+one server are required.
 
 Provision the cluster:
 
@@ -81,7 +81,7 @@ $ ssh -i /path/to/key ubuntu@PUBLIC_IP
 ```
 
 Note that the AWS security group is configured by default to allow all traffic 
-over port 22. This is not recommended for production deployments.
+over port 22. This is *not* recommended for production deployments.
 
 Run a few basic commands to verify that Consul and Nomad are up and running 
 properly:
@@ -129,6 +129,6 @@ See:
 Nomad is well-suited for analytical workloads, given its performance 
 characteristics and first-class support for batch scheduling. Apache Spark is a 
 popular data processing engine/framework that has been architected to use 
-third-party schedulers. The Nomad ecosystem includes a fork that natively 
-integrates Nomad with Spark. A detailed walkthrough of the integration is 
-included [here](examples/spark/README.md).
+third-party schedulers. The Nomad ecosystem includes a [fork that natively 
+integrates Nomad with Spark](https://github.com/hashicorp/nomad-spark). A
+detailed walkthrough of the integration is included [here](examples/spark/README.md).
