@@ -1040,7 +1040,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 			// be the same as their order in the Task definition,
 			// so check in a loop
 			if expected := 2; len(v.Checks) != expected {
-				t.Errorf("expected %d checks but found %d", len(v.Checks))
+				t.Errorf("expected %d checks but found %d", expected, len(v.Checks))
 			}
 			for _, c := range v.Checks {
 				// No name on AgentServiceChecks, use type
@@ -1077,7 +1077,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 			}
 		case ctx.Task.Services[2].Name: // y + host mode
 			if v.Port != yPort {
-				t.Errorf("expected service %s's port to be %d but found %s",
+				t.Errorf("expected service %s's port to be %d but found %d",
 					v.Name, yPort, v.Port)
 			}
 		default:
@@ -1151,7 +1151,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 			}
 		case ctx.Task.Services[2].Name: // y + host mode
 			if v.Port != yPort {
-				t.Errorf("expected service %s's port to be %d but found %s",
+				t.Errorf("expected service %s's port to be %d but found %d",
 					v.Name, yPort, v.Port)
 			}
 		default:
