@@ -17,7 +17,7 @@
     "gitDir": "../",
     "linters": {
       "ui/{app,tests,config,lib,mirage}/**/*.js": [
-        "prettier --single-quote --trailing-comma es5 --write",
+        "prettier --single-quote --trailing-comma es5 --print-width 100 --write",
         "git add"
       ],
       "ui/app/styles/**/*.*": [
