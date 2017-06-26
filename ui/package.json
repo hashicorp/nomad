@@ -49,6 +49,7 @@
     "ember-cli-sri": "^2.1.0",
     "ember-cli-uglify": "^1.2.0",
     "ember-data": "^2.13.0",
+    "ember-data-model-fragments": "^2.11.5",
     "ember-export-application-global": "^2.0.0",
     "ember-freestyle": "^0.4.1",
     "ember-href-to": "^1.13.0",
