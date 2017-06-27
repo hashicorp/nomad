@@ -3792,10 +3792,10 @@ func (v *Vault) Validate() error {
 const (
 	// DeploymentStatuses are the various states a deployment can be be in
 	DeploymentStatusRunning    = "running"
+	DeploymentStatusPaused     = "paused"
 	DeploymentStatusFailed     = "failed"
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
-	DeploymentStatusPaused     = "paused"
 
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
