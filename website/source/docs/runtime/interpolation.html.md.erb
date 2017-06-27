@@ -115,12 +115,18 @@ Below is a table documenting common node properties:
     <td>CPU architecture of the client (e.g. <tt>amd64</tt>, <tt>386</tt>)</td>
   </tr>
   <tr>
-    <td><tt>${attr.consul.datacenter}</tt></td>
-    <td>The Consul datacenter of the client (if Consul is found)</td>
-  </tr>
-  <tr>
     <td><tt>${attr.cpu.numcores}</tt></td>
     <td>Number of CPU cores on the client</td>
+  </tr>
+  <tr>
+    <td><tt>${attr.cpu.totalcompute}</tt></td>
+    <td>
+      <tt>cpu.frequency &times; cpu.numcores</tt> but may be overridden by <tt>client.cpu_total_compute</tt>
+    </td>
+  </tr>
+  <tr>
+    <td><tt>${attr.consul.datacenter}</tt></td>
+    <td>The Consul datacenter of the client (if Consul is found)</td>
   </tr>
   <tr>
     <td><tt>${attr.driver.&lt;property&gt;}</tt></td>
