@@ -1846,7 +1846,6 @@ func (s *StateStore) VaultAccessorsByNode(ws memdb.WatchSet, nodeID string) ([]*
 	return out, nil
 }
 
-// TODO test
 // UpsertDeploymentStatusUpdate is used to upsert deployment status updates and
 // potentially make a evaluation
 func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
@@ -1877,22 +1876,19 @@ func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.Dep
 
 // upsertDeploymentStatusUpdateImpl is used to upsert deployment status updates
 func (s *StateStore) upsertDeploymentStatusUpdateImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
-	raw, err := txn.First("deployment", "id", u.DeploymentID)
+	// Retrieve deployment
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, u.DeploymentID, txn)
 	if err != nil {
 		return err
-	}
-	if raw == nil {
+	} else if deployment == nil {
 		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", u.DeploymentID)
-	}
-
-	// Ensure that the deployment is not already terminal
-	act := raw.(*structs.Deployment)
-	if !act.Active() {
-		return fmt.Errorf("Deployment %q has terminal status %q:", u.DeploymentID, act.Status)
+	} else if !deployment.Active() {
+		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
 	}
 
 	// Apply the new status
-	copy := act.Copy()
+	copy := deployment.Copy()
 	copy.Status = u.Status
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
@@ -1910,24 +1906,20 @@ func (s *StateStore) upsertDeploymentStatusUpdateImpl(index uint64, u *structs.D
 	return nil
 }
 
-// TODO test
 // UpsertDeploymentPromotion is used to promote canaries in a deployment and
 // potentially make a evaluation
 func (s *StateStore) UpsertDeploymentPromotion(index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Retrieve deployment and ensure it is not terminal
-	rawd, err := txn.First("deployment", "id", req.DeploymentID)
+	// Retrieve deployment and ensure it is not terminal and is active
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, req.DeploymentID, txn)
 	if err != nil {
 		return err
-	} else if rawd == nil {
+	} else if deployment == nil {
 		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", req.DeploymentID)
-	}
-
-	// Ensure that the deployment is not already terminal
-	deployment := rawd.(*structs.Deployment)
-	if !deployment.Active() {
+	} else if !deployment.Active() {
 		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
 	}
 
@@ -2021,6 +2013,17 @@ func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.Appl
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// Retrieve deployment and ensure it is not terminal and is active
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, req.DeploymentID, txn)
+	if err != nil {
+		return err
+	} else if deployment == nil {
+		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", req.DeploymentID)
+	} else if !deployment.Active() {
+		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
+	}
+
 	// Update the health status of each allocation
 	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
 		setAllocHealth := func(id string, healthy bool) error {
@@ -2033,13 +2036,16 @@ func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.Appl
 			}
 
 			old := existing.(*structs.Allocation)
-			copy := old.Copy()
+			if old.DeploymentID != req.DeploymentID {
+				return fmt.Errorf("alloc %q is not part of deployment %q", id, req.DeploymentID)
+			}
 
 			// Set the health
+			copy := old.Copy()
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
 			copy.DeploymentStatus.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
@@ -2545,11 +2551,6 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
-
-	if unhealthy != 0 {
-		deploymentCopy.Status = structs.DeploymentStatusFailed
-		deploymentCopy.StatusDescription = "Allocation(s) marked as unhealthy"
-	}
 
 	state := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	state.PlacedAllocs += placed
