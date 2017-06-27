@@ -1016,7 +1016,7 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo, tag string) (id string, err error) {
 	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
 	if err != nil {
-		return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+		d.logger.Printf("[WARN] Failed to find docker auth for repo %q: %v", repo, err)
 	}
 
 	if authIsEmpty(authOptions) {
