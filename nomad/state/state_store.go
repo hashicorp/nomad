@@ -312,6 +312,19 @@ func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error
 	return iter, nil
 }
 
+func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("deployment", "id_prefix", deploymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 	return s.deploymentByIDImpl(ws, deploymentID, txn)

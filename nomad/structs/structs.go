@@ -492,6 +492,11 @@ type GenericRequest struct {
 	QueryOptions
 }
 
+// DeploymentListRequest is used to list the deployments
+type DeploymentListRequest struct {
+	QueryOptions
+}
+
 // DeploymentStatusUpdateRequest is used to update the status of a deployment as
 // well as optionally creating an evaluation atomically.
 type DeploymentStatusUpdateRequest struct {
@@ -788,6 +793,12 @@ type PlanResponse struct {
 // AllocListResponse is used for a list request
 type AllocListResponse struct {
 	Allocations []*AllocListStub
+	QueryMeta
+}
+
+// DeploymentListResponse is used for a list request
+type DeploymentListResponse struct {
+	Deployments []*Deployment
 	QueryMeta
 }
 

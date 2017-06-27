@@ -511,6 +511,92 @@ func TestStateStore_Deployments(t *testing.T) {
 	}
 }
 
+func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	deploy := mock.Deployment()
+
+	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
+	err := state.UpsertDeployment(1000, deploy, false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.DeploymentsByIDPrefix(ws, deploy.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
+		var deploys []*structs.Deployment
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			deploy := raw.(*structs.Deployment)
+			deploys = append(deploys, deploy)
+		}
+		return deploys
+	}
+
+	deploys := gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploy = mock.Deployment()
+	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
+	err = state.UpsertDeployment(1001, deploy, false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 2 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.DeploymentsByIDPrefix(ws, "1111")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
 func TestStateStore_UpsertNode_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
