@@ -571,7 +571,6 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-// TODO test
 // applyDeploymentStatusUpdate is used to update the status of an existing
 // deployment
 func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interface{} {
@@ -593,7 +592,6 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 	return nil
 }
 
-// TODO test
 // applyDeploymentPromotion is used to promote canaries in a deployment
 func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
@@ -614,7 +612,6 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 	return nil
 }
 
-// TODO test
 // applyDeploymentAllocHealth is used to set the health of allocations as part
 // of a deployment
 func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interface{} {

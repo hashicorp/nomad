@@ -56,7 +56,7 @@ const (
 	ApplyPlanResultsRequestType
 	DeploymentStatusUpdateRequestType
 	DeploymentPromoteRequestType
-	DeploymentAllocHealtRequestType
+	DeploymentAllocHealthRequestType
 )
 
 const (
