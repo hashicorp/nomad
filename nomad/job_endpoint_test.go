@@ -2316,6 +2316,38 @@ func TestJobEndpoint_ValidateJob_UpdateWarning(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
+	old := mock.Job()
+	new := mock.Job()
+
+	if err := validateJobUpdate(old, new); err != nil {
+		t.Errorf("expected update to be valid but got: %v", err)
+	}
+
+	new.Type = "batch"
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to a different type")
+	} else {
+		t.Log(err)
+	}
+
+	new = mock.Job()
+	new.Periodic = &structs.PeriodicConfig{Enabled: true}
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to periodic")
+	} else {
+		t.Log(err)
+	}
+
+	new = mock.Job()
+	new.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to parameterized")
+	} else {
+		t.Log(err)
+	}
+}
+
 func TestJobEndpoint_Dispatch(t *testing.T) {
 
 	// No requirements
