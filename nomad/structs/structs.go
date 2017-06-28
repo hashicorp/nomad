@@ -3857,6 +3857,12 @@ const (
 	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
 )
 
+// DeploymentStatusDescriptionRollback is used to get the status description of
+// a deployment when rolling back to an older job.
+func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint64) string {
+	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
+}
+
 // Deployment is the object that represents a job deployment which is used to
 // transistion a job between versions.
 type Deployment struct {

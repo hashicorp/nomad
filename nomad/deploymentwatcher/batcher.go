@@ -8,6 +8,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// evalBatchDuration is the duration in which evaluations are batched before
+	// commiting to Raft.
+	evalBatchDuration = 200 * time.Millisecond
+)
+
 // EvalBatcher is used to batch the creation of evaluations
 type EvalBatcher struct {
 	// raft is used to actually commit the evaluations
@@ -32,6 +38,7 @@ func NewEvalBatcher(raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatc
 	b := &EvalBatcher{
 		raft: raft,
 		ctx:  ctx,
+		inCh: make(chan *structs.Evaluation, 10),
 	}
 
 	go b.batcher()
@@ -54,7 +61,7 @@ func (b *EvalBatcher) CreateEval(e *structs.Evaluation) *EvalFuture {
 
 // batcher is the long lived batcher goroutine
 func (b *EvalBatcher) batcher() {
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(evalBatchDuration)
 	evals := make(map[string]*structs.Evaluation)
 	for {
 		select {
