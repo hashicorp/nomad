@@ -336,6 +336,24 @@ func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *str
 	return watcher.PauseDeployment(req, resp)
 }
 
+// FailDeployment is used to fail the deployment.
+func (w *Watcher) FailDeployment(req *structs.DeploymentSpecificRequest, resp *structs.DeploymentUpdateResponse) error {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	// Not enabled so no-op
+	if !w.enabled {
+		return nil
+	}
+
+	watcher, ok := w.watchers[req.DeploymentID]
+	if !ok {
+		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+	}
+
+	return watcher.FailDeployment(req, resp)
+}
+
 // createEvaluation commits the given evaluation to Raft but batches the commit
 // with other calls.
 func (w *Watcher) createEvaluation(eval *structs.Evaluation) (uint64, error) {

@@ -234,6 +234,29 @@ func (w *deploymentWatcher) PauseDeployment(
 	return nil
 }
 
+func (w *deploymentWatcher) FailDeployment(
+	req *structs.DeploymentSpecificRequest,
+	resp *structs.DeploymentUpdateResponse) error {
+
+	// Determine the status we should transistion to and if we need to create an
+	// evaluation
+	status, desc := structs.DeploymentStatusFailed, structs.DeploymentStatusDescriptionFailedByUser
+	update, eval := w.getDeploymentStatusUpdate(status, desc), w.getEval()
+
+	// Commit the change
+	i, err := w.upsertDeploymentStatusUpdate(update, eval, nil)
+	if err != nil {
+		return err
+	}
+
+	// Build the response
+	resp.EvalID = eval.ID
+	resp.EvalCreateIndex = i
+	resp.DeploymentModifyIndex = i
+	w.setLatestEval(i)
+	return nil
+}
+
 // StopWatch stops watching the deployment. This should be called whenever a
 // deployment is completed or the watcher is no longer needed.
 func (w *deploymentWatcher) StopWatch() {
