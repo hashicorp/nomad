@@ -101,39 +101,52 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(
-	logger *log.Logger,
-	w DeploymentStateWatchers,
-	raft DeploymentRaftEndpoints,
-	stateQueriesPerSecond float64,
+func NewDeploymentsWatcher(logger *log.Logger, stateQueriesPerSecond float64,
 	evalBatchDuration time.Duration) *Watcher {
-	ctx, exitFn := context.WithCancel(context.Background())
+
 	return &Watcher{
 		queryLimiter:      rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
 		evalBatchDuration: evalBatchDuration,
-		stateWatchers:     w,
-		raft:              raft,
-		watchers:          make(map[string]*deploymentWatcher, 32),
-		evalBatcher:       NewEvalBatcher(evalBatchDuration, raft, ctx),
 		logger:            logger,
-		ctx:               ctx,
-		exitFn:            exitFn,
 	}
+}
+
+// SetStateWatchers sets the interface for accessing state watchers
+func (w *Watcher) SetStateWatchers(watchers DeploymentStateWatchers) {
+	w.l.Lock()
+	defer w.l.Unlock()
+	w.stateWatchers = watchers
+}
+
+// SetRaftEndpoints sets the interface for writing to Raft
+func (w *Watcher) SetRaftEndpoints(raft DeploymentRaftEndpoints) {
+	w.l.Lock()
+	defer w.l.Unlock()
+	w.raft = raft
 }
 
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader.
-func (w *Watcher) SetEnabled(enabled bool) {
+func (w *Watcher) SetEnabled(enabled bool) error {
 	w.l.Lock()
+	// Ensure our state is correct
+	if w.stateWatchers == nil || w.raft == nil {
+		return fmt.Errorf("State watchers and Raft endpoints must be set before starting")
+	}
+
 	wasEnabled := w.enabled
 	w.enabled = enabled
 	w.l.Unlock()
-	if !enabled {
-		w.Flush()
-	} else if !wasEnabled {
-		// Start the watcher if we are transistioning to an enabled state
+
+	// Flush the state to create the necessary objects
+	w.Flush()
+
+	// If we are starting now, launch the watch daemon
+	if enabled && !wasEnabled {
 		go w.watchDeployments()
 	}
+
+	return nil
 }
 
 // Flush is used to clear the state of the watcher
@@ -147,7 +160,9 @@ func (w *Watcher) Flush() {
 	}
 
 	// Kill everything associated with the watcher
-	w.exitFn()
+	if w.exitFn != nil {
+		w.exitFn()
+	}
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -124,20 +125,24 @@ type Server struct {
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
 
-	// evalBroker is used to manage the in-progress evaluations
-	// that are waiting to be brokered to a sub-scheduler
-	evalBroker *EvalBroker
-
 	// BlockedEvals is used to manage evaluations that are blocked on node
 	// capacity changes.
 	blockedEvals *BlockedEvals
 
-	// planQueue is used to manage the submitted allocation
-	// plans that are waiting to be assessed by the leader
-	planQueue *PlanQueue
+	// deploymentWatcher is used to watch deployments and their allocations and
+	// make the required calls to continue to transistion the deployment.
+	deploymentWatcher *deploymentwatcher.Watcher
+
+	// evalBroker is used to manage the in-progress evaluations
+	// that are waiting to be brokered to a sub-scheduler
+	evalBroker *EvalBroker
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
 	periodicDispatcher *PeriodicDispatch
+
+	// planQueue is used to manage the submitted allocation
+	// plans that are waiting to be assessed by the leader
+	planQueue *PlanQueue
 
 	// heartbeatTimers track the expiration time of each heartbeat that has
 	// a TTL. On expiration, the node status is updated to be 'down'.
@@ -219,22 +224,28 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		incomingTLS = itls
 	}
 
+	// Create the deployment watcher
+	watcher := deploymentwatcher.NewDeploymentsWatcher(logger,
+		deploymentwatcher.LimitStateQueriesPerSecond,
+		deploymentwatcher.EvalBatchDuration)
+
 	// Create the server
 	s := &Server{
-		config:        config,
-		consulCatalog: consulCatalog,
-		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        logger,
-		rpcServer:     rpc.NewServer(),
-		peers:         make(map[string][]*serverParts),
-		localPeers:    make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:   make(chan serf.Member, 32),
-		eventCh:       make(chan serf.Event, 256),
-		evalBroker:    evalBroker,
-		blockedEvals:  blockedEvals,
-		planQueue:     planQueue,
-		rpcTLS:        incomingTLS,
-		shutdownCh:    make(chan struct{}),
+		config:            config,
+		consulCatalog:     consulCatalog,
+		connPool:          NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:            logger,
+		rpcServer:         rpc.NewServer(),
+		peers:             make(map[string][]*serverParts),
+		localPeers:        make(map[raft.ServerAddress]*serverParts),
+		reconcileCh:       make(chan serf.Member, 32),
+		eventCh:           make(chan serf.Event, 256),
+		evalBroker:        evalBroker,
+		blockedEvals:      blockedEvals,
+		deploymentWatcher: watcher,
+		planQueue:         planQueue,
+		rpcTLS:            incomingTLS,
+		shutdownCh:        make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -279,6 +290,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Setup the Consul syncer
 	if err := s.setupConsulSyncer(); err != nil {
 		return nil, fmt.Errorf("failed to create server Consul syncer: %v", err)
+	}
+
+	// Setup the deployment watcher.
+	if err := s.setupDeploymentWatcher(); err != nil {
+		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
 
 	// Monitor leadership changes
@@ -660,6 +676,28 @@ func (s *Server) setupConsulSyncer() error {
 		}
 	}
 
+	return nil
+}
+
+// setupDeploymentWatcher creates a deployment watcher that consumes the RPC
+// endpoints for state information and makes transistions via Raft through a
+// shim that provides the appropriate methods.
+func (s *Server) setupDeploymentWatcher() error {
+
+	// Create the shims
+	stateShim := &deploymentWatcherStateShim{
+		evaluations:    s.endpoints.Job.Evaluations,
+		allocations:    s.endpoints.Deployment.Allocations,
+		list:           s.endpoints.Deployment.List,
+		getJobVersions: s.endpoints.Job.GetJobVersions,
+		getJob:         s.endpoints.Job.GetJob,
+	}
+	raftShim := &deploymentWatcherRaftShim{
+		apply: s.raftApply,
+	}
+
+	s.deploymentWatcher.SetStateWatchers(stateShim)
+	s.deploymentWatcher.SetRaftEndpoints(raftShim)
 	return nil
 }
 
