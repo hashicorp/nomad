@@ -1,9 +1,12 @@
 package deploymentwatcher
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
+
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -50,12 +53,21 @@ type DeploymentStateWatchers interface {
 	GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error
 }
 
+const (
+	// limitStateQueriesPerSecond is the number of state queries allowed per
+	// second
+	limitStateQueriesPerSecond = 10.0
+)
+
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
 // transistions.
 type Watcher struct {
 	enabled bool
 	logger  *log.Logger
+
+	// queryLimiter is used to limit the rate of blocking queries
+	queryLimiter *rate.Limiter
 
 	// raft contains the set of Raft endpoints that can be used by the
 	// deployments watcher
@@ -71,8 +83,9 @@ type Watcher struct {
 	// evalBatcher is used to batch the creation of evaluations
 	evalBatcher *EvalBatcher
 
-	// exitCh is used to exit any goroutines spawned by the watcher
-	exitCh chan struct{}
+	// ctx and exitFn are used to cancel the watcher
+	ctx    context.Context
+	exitFn context.CancelFunc
 
 	l sync.RWMutex
 }
@@ -80,14 +93,16 @@ type Watcher struct {
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
 func NewDeploymentsWatcher(logger *log.Logger, w DeploymentStateWatchers, raft DeploymentRaftEndpoints) *Watcher {
-	exitCh := make(chan struct{})
+	ctx, exitFn := context.WithCancel(context.Background())
 	return &Watcher{
+		queryLimiter:  rate.NewLimiter(limitStateQueriesPerSecond, 100),
 		stateWatchers: w,
 		raft:          raft,
 		watchers:      make(map[string]*deploymentWatcher, 32),
-		evalBatcher:   NewEvalBatcher(raft, exitCh),
-		exitCh:        exitCh,
+		evalBatcher:   NewEvalBatcher(raft, ctx),
 		logger:        logger,
+		ctx:           ctx,
+		exitFn:        exitFn,
 	}
 }
 
@@ -116,11 +131,12 @@ func (w *Watcher) Flush() {
 		watcher.StopWatch()
 	}
 
-	close(w.exitCh)
+	// Kill everything associated with the watcher
+	w.exitFn()
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
-	w.exitCh = make(chan struct{})
-	w.evalBatcher = NewEvalBatcher(w.raft, w.exitCh)
+	w.ctx, w.exitFn = context.WithCancel(context.Background())
+	w.evalBatcher = NewEvalBatcher(w.raft, w.ctx)
 }
 
 // watchDeployments is the long lived go-routine that watches for deployments to
@@ -129,11 +145,13 @@ func (w *Watcher) watchDeployments() {
 	dindex := uint64(0)
 	for {
 		// Block getting all deployments using the last deployment index.
-		var resp *structs.DeploymentListResponse
-		select {
-		case <-w.exitCh:
-			return
-		case resp = <-w.getDeploys(dindex):
+		resp, err := w.getDeploys(dindex)
+		if err != nil {
+			if err == context.Canceled {
+				return
+			}
+
+			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
 		}
 
 		// Guard against npe
@@ -159,28 +177,26 @@ func (w *Watcher) watchDeployments() {
 }
 
 // getDeploys retrieves all deployments blocking at the given index.
-func (w *Watcher) getDeploys(index uint64) <-chan *structs.DeploymentListResponse {
-	c := make(chan *structs.DeploymentListResponse, 1)
-	go func() {
-		// Build the request
-		args := &structs.DeploymentListRequest{
-			QueryOptions: structs.QueryOptions{
-				MinQueryIndex: index,
-			},
-		}
-		var resp structs.DeploymentListResponse
+func (w *Watcher) getDeploys(index uint64) (*structs.DeploymentListResponse, error) {
+	// Build the request
+	args := &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			MinQueryIndex: index,
+		},
+	}
+	var resp structs.DeploymentListResponse
 
-		for resp.Index <= index {
-			if err := w.stateWatchers.List(args, &resp); err != nil {
-				w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deployments: %v", err)
-				close(c)
-				return
-			}
+	for resp.Index <= index {
+		if err := w.queryLimiter.Wait(w.ctx); err != nil {
+			return nil, err
 		}
 
-		c <- &resp
-	}()
-	return c
+		if err := w.stateWatchers.List(args, &resp); err != nil {
+			return nil, err
+		}
+	}
+
+	return &resp, nil
 }
 
 // add adds a deployment to the watch list
@@ -210,7 +226,8 @@ func (w *Watcher) add(d *structs.Deployment) error {
 		return fmt.Errorf("deployment %q references unknown job %q", d.ID, d.JobID)
 	}
 
-	w.watchers[d.ID] = newDeploymentWatcher(w.logger, w.stateWatchers, d, resp.Job, w)
+	w.watchers[d.ID] = newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.stateWatchers, d, resp.Job, w)
+	w.logger.Printf("[TRACE] nomad.deployments_watcher: tracking deployment %q", d.ID)
 	return nil
 }
 
@@ -228,69 +245,67 @@ func (w *Watcher) remove(d *structs.Deployment) {
 	if watcher, ok := w.watchers[d.ID]; ok {
 		watcher.StopWatch()
 		delete(w.watchers, d.ID)
+		w.logger.Printf("[TRACE] nomad.deployments_watcher: untracking deployment %q", d.ID)
 	}
 }
 
 // SetAllocHealth is used to set the health of allocations for a deployment. If
 // there are any unhealthy allocations, the deployment is updated to be failed.
 // Otherwise the allocations are updated and an evaluation is created.
-func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest) (
-	*structs.DeploymentUpdateResponse, error) {
+func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp *structs.DeploymentUpdateResponse) error {
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	// Not enabled so no-op
 	if !w.enabled {
-		return nil, nil
+		return nil
 	}
 
 	watcher, ok := w.watchers[req.DeploymentID]
 	if !ok {
-		return nil, fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
 	}
 
-	return watcher.SetAllocHealth(req)
+	return watcher.SetAllocHealth(req, resp)
 }
 
 // PromoteDeployment is used to promote a deployment. If promote is false,
 // deployment is marked as failed. Otherwise the deployment is updated and an
 // evaluation is created.
-func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest) (
-	*structs.DeploymentUpdateResponse, error) {
+func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest, resp *structs.DeploymentUpdateResponse) error {
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	// Not enabled so no-op
 	if !w.enabled {
-		return nil, nil
+		return nil
 	}
 
 	watcher, ok := w.watchers[req.DeploymentID]
 	if !ok {
-		return nil, fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
 	}
 
-	return watcher.PromoteDeployment(req)
+	return watcher.PromoteDeployment(req, resp)
 }
 
 // PauseDeployment is used to toggle the pause state on a deployment. If the
 // deployment is being unpaused, an evaluation is created.
-func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest) (
-	*structs.DeploymentUpdateResponse, error) {
+func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *structs.DeploymentUpdateResponse) error {
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	// Not enabled so no-op
 	if !w.enabled {
-		return nil, nil
+		return nil
 	}
 
 	watcher, ok := w.watchers[req.DeploymentID]
 	if !ok {
-		return nil, fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
 	}
 
-	return watcher.PauseDeployment(req)
+	return watcher.PauseDeployment(req, resp)
 }
 
 // createEvaluation commits the given evaluation to Raft but batches the commit

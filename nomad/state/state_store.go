@@ -2019,7 +2019,6 @@ func (s *StateStore) UpsertDeploymentPromotion(index uint64, req *structs.ApplyD
 	return nil
 }
 
-// TODO test
 // UpsertDeploymentAllocHealth is used to update the health of allocations as
 // part of the deployment and potentially make a evaluation
 func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
