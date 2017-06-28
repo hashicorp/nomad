@@ -686,6 +686,7 @@ func (s *Server) setupDeploymentWatcher() error {
 
 	// Create the shims
 	stateShim := &deploymentWatcherStateShim{
+		region:         s.Region(),
 		evaluations:    s.endpoints.Job.Evaluations,
 		allocations:    s.endpoints.Deployment.Allocations,
 		list:           s.endpoints.Deployment.List,

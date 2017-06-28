@@ -6,6 +6,10 @@ import "github.com/hashicorp/nomad/nomad/structs"
 // methods. These should be set by the server and passed to the deployment
 // watcher.
 type deploymentWatcherStateShim struct {
+	// region is the region the server is a member of. It is used to
+	// auto-populate requests that do not have it set
+	region string
+
 	// evaluations returns the set of evaluations for the given job
 	evaluations func(args *structs.JobSpecificRequest, reply *structs.JobEvaluationsResponse) error
 
@@ -25,22 +29,42 @@ type deploymentWatcherStateShim struct {
 }
 
 func (d *deploymentWatcherStateShim) Evaluations(args *structs.JobSpecificRequest, reply *structs.JobEvaluationsResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
 	return d.evaluations(args, reply)
 }
 
 func (d *deploymentWatcherStateShim) Allocations(args *structs.DeploymentSpecificRequest, reply *structs.AllocListResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
 	return d.allocations(args, reply)
 }
 
 func (d *deploymentWatcherStateShim) List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
 	return d.list(args, reply)
 }
 
 func (d *deploymentWatcherStateShim) GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
 	return d.getJobVersions(args, reply)
 }
 
 func (d *deploymentWatcherStateShim) GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
 	return d.getJob(args, reply)
 }
 
