@@ -1,6 +1,7 @@
 package deploymentwatcher
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -18,8 +19,8 @@ type EvalBatcher struct {
 	// inCh is used to pass evaluations to the daemon process
 	inCh chan *structs.Evaluation
 
-	// exitCh is used to exit the daemon batcher
-	exitCh chan struct{}
+	// ctx is used to exit the daemon batcher
+	ctx context.Context
 
 	l sync.Mutex
 }
@@ -27,10 +28,10 @@ type EvalBatcher struct {
 // NewEvalBatcher returns an EvalBatcher that uses the passed raft endpoints to
 // create the evaluations and exits the batcher when the passed exit channel is
 // closed.
-func NewEvalBatcher(raft DeploymentRaftEndpoints, exitCh chan struct{}) *EvalBatcher {
+func NewEvalBatcher(raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatcher {
 	b := &EvalBatcher{
-		raft:   raft,
-		exitCh: exitCh,
+		raft: raft,
+		ctx:  ctx,
 	}
 
 	go b.batcher()
@@ -57,7 +58,7 @@ func (b *EvalBatcher) batcher() {
 	evals := make(map[string]*structs.Evaluation)
 	for {
 		select {
-		case <-b.exitCh:
+		case <-b.ctx.Done():
 			ticker.Stop()
 			return
 		case e := <-b.inCh:
@@ -70,6 +71,7 @@ func (b *EvalBatcher) batcher() {
 			// Capture the future
 			b.l.Lock()
 			f := b.f
+			b.f = nil
 			b.l.Unlock()
 
 			// Shouldn't be possible but protect ourselves
