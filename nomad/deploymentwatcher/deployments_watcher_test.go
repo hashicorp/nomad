@@ -18,7 +18,7 @@ import (
 func TestWatcher_WatchDeployments(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Return no allocations or evals
 	m.On("Allocations", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
@@ -100,7 +100,7 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 func TestWatcher_UnknownDeployment(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 	w.SetEnabled(true)
 
 	// Set up the calls for retrieving deployments
@@ -146,7 +146,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, and a deployment
 	j := mock.Job()
@@ -195,7 +195,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -245,7 +245,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -302,7 +302,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -371,7 +371,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, canary alloc, and a deployment
 	j := mock.Job()
@@ -430,7 +430,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job, canary alloc, and a deployment
 	j := mock.Job()
@@ -489,7 +489,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job and a deployment
 	j := mock.Job()
@@ -537,7 +537,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job and a deployment
 	j := mock.Job()
@@ -586,7 +586,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job and a deployment
 	j := mock.Job()
@@ -636,7 +636,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, LimitStateQueriesPerSecond, EvalBatchDuration)
 
 	// Create a job and a deployment
 	j := mock.Job()
@@ -686,7 +686,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 func TestDeploymentWatcher_Watch(t *testing.T) {
 	assert := assert.New(t)
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, 1000.0, 1*time.Millisecond)
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -735,8 +735,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		i := m.nextIndex()
-		assert.Nil(m.state.UpsertDeploymentAllocHealth(i, req), "UpsertDeploymentAllocHealth")
+		assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -775,8 +774,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	i := m.nextIndex()
-	assert.Nil(m.state.UpsertDeploymentAllocHealth(i, req2), "UpsertDeploymentAllocHealth")
+	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -813,3 +811,108 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 }
 
 // Test evaluations are batched between watchers
+func TestWatcher_BatchEvals(t *testing.T) {
+	assert := assert.New(t)
+	m := newMockBackend(t)
+	w := NewDeploymentsWatcher(testLogger(), m, m, 1000.0, EvalBatchDuration)
+
+	// Create a job, alloc, for two deployments
+	j1 := mock.Job()
+	d1 := mock.Deployment()
+	d1.JobID = j1.ID
+	a1 := mock.Alloc()
+	a1.DeploymentID = d1.ID
+
+	j2 := mock.Job()
+	d2 := mock.Deployment()
+	d2.JobID = j2.ID
+	a2 := mock.Alloc()
+	a2.DeploymentID = d2.ID
+
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j1), "UpsertJob")
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d1, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d2, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a1}), "UpsertAllocs")
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
+
+	// Assert the following methods will be called
+	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
+
+	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d1.ID)),
+		mocker.Anything).Return(nil).Run(m.allocationsFromState)
+	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d2.ID)),
+		mocker.Anything).Return(nil).Run(m.allocationsFromState)
+
+	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
+		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
+	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
+		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
+
+	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
+		mocker.Anything).Return(nil).Run(m.getJobFromState)
+	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
+		mocker.Anything).Return(nil).Run(m.getJobFromState)
+
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
+		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
+		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
+
+	w.SetEnabled(true)
+	testutil.WaitForResult(func() (bool, error) { return 2 == len(w.watchers), nil },
+		func(err error) { assert.Equal(2, len(w.watchers), "Should have 2 deployment") })
+
+	// Assert that we will get a createEvaluation call only once and it contains
+	// both deployments. This will verify that the watcher is batching
+	// allocation changes
+	m1 := matchUpsertEvals([]string{d1.ID, d2.ID})
+	m.On("UpsertEvals", mocker.MatchedBy(m1)).Return(nil).Once()
+
+	// Update the allocs health to healthy which should create an evaluation
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         d1.ID,
+			HealthyAllocationIDs: []string{a1.ID},
+		},
+	}
+	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+
+	req2 := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         d2.ID,
+			HealthyAllocationIDs: []string{a2.ID},
+		},
+	}
+	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+
+	// Wait for there to be one eval for each job
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals1, err := m.state.EvalsByJob(ws, j1.ID)
+		if err != nil {
+			return false, err
+		}
+
+		evals2, err := m.state.EvalsByJob(ws, j2.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals1); l != 1 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		if l := len(evals2); l != 1 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	m.AssertCalled(t, "UpsertEvals", mocker.MatchedBy(m1))
+	testutil.WaitForResult(func() (bool, error) { return 2 == len(w.watchers), nil },
+		func(err error) { assert.Equal(2, len(w.watchers), "Should have 2 deployment") })
+}

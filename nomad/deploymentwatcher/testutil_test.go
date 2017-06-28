@@ -15,7 +15,7 @@ import (
 )
 
 func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
+	return log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 }
 
 type mockBackend struct {
