@@ -56,7 +56,7 @@ type DeploymentStateWatchers interface {
 const (
 	// limitStateQueriesPerSecond is the number of state queries allowed per
 	// second
-	limitStateQueriesPerSecond = 10.0
+	limitStateQueriesPerSecond = 15.0
 )
 
 // Watcher is used to watch deployments and their allocations created

@@ -241,7 +241,7 @@ func (w *deploymentWatcher) watch() {
 		// Block getting all allocations that are part of the deployment using
 		// the last evaluation index. This will have us block waiting for
 		// something to change past what the scheduler has evaluated.
-		allocs, err := w.getAllocs(latestEval)
+		allocResp, err := w.getAllocs(latestEval)
 		if err != nil {
 			if err == context.Canceled {
 				return
@@ -263,7 +263,7 @@ func (w *deploymentWatcher) watch() {
 		// Create an evaluation trigger if there is any allocation whose
 		// deployment status has been updated past the latest eval index.
 		createEval, failDeployment, rollback := false, false, false
-		for _, alloc := range allocs {
+		for _, alloc := range allocResp.Allocations {
 			if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.ModifyIndex <= latestEval {
 				continue
 			}
@@ -303,7 +303,9 @@ func (w *deploymentWatcher) watch() {
 
 				// Description should include that the job is being rolled back to
 				// version N
-				desc = fmt.Sprintf("%s - rolling back to job version %d", desc, j.Version)
+				if j != nil {
+					desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+				}
 			}
 
 			// Update the status of the deployment to failed and create an
@@ -316,7 +318,7 @@ func (w *deploymentWatcher) watch() {
 			}
 		} else if createEval {
 			// Create an eval to push the deployment along
-			w.createEvalBatched()
+			w.createEvalBatched(allocResp.Index)
 		}
 	}
 }
@@ -348,13 +350,16 @@ func (w *deploymentWatcher) createEval() (evalID string, evalCreateIndex uint64,
 }
 
 // createEvalBatched creates an eval but batches calls together
-func (w *deploymentWatcher) createEvalBatched() {
+func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	if w.outstandingBatch {
 		return
 	}
+
+	w.logger.Printf("[TRACE] nomad.deployment_watcher: creating eval for index %d %q", forIndex, w.d.ID)
+	w.outstandingBatch = true
 
 	go func() {
 		// Sleep til the batching period is over
@@ -394,7 +399,7 @@ func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *stru
 
 // getAllocs retrieves the allocations that are part of the deployment blocking
 // at the given index.
-func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, error) {
+func (w *deploymentWatcher) getAllocs(index uint64) (*structs.AllocListResponse, error) {
 	// Build the request
 	args := &structs.DeploymentSpecificRequest{
 		DeploymentID: w.d.ID,
@@ -414,7 +419,7 @@ func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, e
 		}
 	}
 
-	return resp.Allocations, nil
+	return &resp, nil
 }
 
 // latestEvalIndex returns the index of the last evaluation created for
