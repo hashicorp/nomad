@@ -67,7 +67,9 @@ type deploymentWatcher struct {
 	// the evaluation. Access should be done through the lock
 	outstandingBatch bool
 
-	// latestEval is the latest eval for the job
+	// latestEval is the latest eval for the job. It is updated by the watch
+	// loop and any time an evaluation is created. The field should be accessed
+	// by holding the lock or using the setter and getter methods.
 	latestEval uint64
 
 	logger *log.Logger
@@ -78,14 +80,9 @@ type deploymentWatcher struct {
 
 // newDeploymentWatcher returns a deployment watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func newDeploymentWatcher(
-	parent context.Context,
-	queryLimiter *rate.Limiter,
-	logger *log.Logger,
-	watchers DeploymentStateWatchers,
-	d *structs.Deployment,
-	j *structs.Job,
-	triggers deploymentTriggers) *deploymentWatcher {
+func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
+	logger *log.Logger, watchers DeploymentStateWatchers, d *structs.Deployment,
+	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
 	w := &deploymentWatcher{
@@ -100,6 +97,7 @@ func newDeploymentWatcher(
 		exitFn:                  exitFn,
 	}
 
+	// Determine what task groups will trigger an autorevert
 	for _, tg := range j.TaskGroups {
 		autorevert := false
 		if tg.Update != nil && tg.Update.AutoRevert {
@@ -108,7 +106,9 @@ func newDeploymentWatcher(
 		w.autorevert[tg.Name] = autorevert
 	}
 
+	// Start the long lived watcher that scans for allocation updates
 	go w.watch()
+
 	return w
 }
 
@@ -255,7 +255,7 @@ func (w *deploymentWatcher) watch() {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.d.ID, err)
 		}
 
-		// Get the latest evaluation snapshot index
+		// Get the latest evaluation index
 		latestEval, err := w.latestEvalIndex()
 		if err != nil {
 			if err == context.Canceled {
@@ -347,16 +347,6 @@ func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 	return stable, nil
 }
 
-// createEval creates an evaluation for the job and commits it to Raft.
-func (w *deploymentWatcher) createEval() (evalID string, evalCreateIndex uint64, err error) {
-	e := w.getEval()
-	evalCreateIndex, err = w.createEvaluation(e)
-	if err != nil {
-		w.setLatestEval(evalCreateIndex)
-	}
-	return e.ID, evalCreateIndex, err
-}
-
 // createEvalBatched creates an eval but batches calls together
 func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 	w.l.Lock()
@@ -372,8 +362,12 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 		// Sleep til the batching period is over
 		time.Sleep(evalBatchPeriod)
 
-		if _, _, err := w.createEval(); err != nil {
+		// Create the eval
+		evalCreateIndex, err := w.createEvaluation(w.getEval())
+		if err != nil {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.d.ID, err)
+		} else {
+			w.setLatestEval(evalCreateIndex)
 		}
 
 		w.l.Lock()
@@ -463,6 +457,8 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 	return e.CreateIndex, nil
 }
 
+// setLatestEval sets the given index as the latest eval unless the currently
+// stored index is higher.
 func (w *deploymentWatcher) setLatestEval(index uint64) {
 	w.l.Lock()
 	defer w.l.Unlock()
@@ -471,6 +467,7 @@ func (w *deploymentWatcher) setLatestEval(index uint64) {
 	}
 }
 
+// getLatestEval returns the latest eval index.
 func (w *deploymentWatcher) getLatestEval() uint64 {
 	w.l.Lock()
 	defer w.l.Unlock()
