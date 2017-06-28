@@ -227,7 +227,6 @@ func (w *Watcher) add(d *structs.Deployment) error {
 	}
 
 	w.watchers[d.ID] = newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.stateWatchers, d, resp.Job, w)
-	w.logger.Printf("[TRACE] nomad.deployments_watcher: tracking deployment %q", d.ID)
 	return nil
 }
 
@@ -245,7 +244,6 @@ func (w *Watcher) remove(d *structs.Deployment) {
 	if watcher, ok := w.watchers[d.ID]; ok {
 		watcher.StopWatch()
 		delete(w.watchers, d.ID)
-		w.logger.Printf("[TRACE] nomad.deployments_watcher: untracking deployment %q", d.ID)
 	}
 }
 
