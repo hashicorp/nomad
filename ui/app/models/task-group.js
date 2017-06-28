@@ -12,7 +12,6 @@ export default Fragment.extend({
   count: attr('number'),
 
   summary: computed('job.taskGroupSummaries.[]', function() {
-    console.log(this.get('job.taskGroupSummaries').mapBy('name'), this.get('name'));
     return this.get('job.taskGroupSummaries').findBy('name', this.get('name'));
   }),
 });
