@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -54,9 +55,13 @@ type DeploymentStateWatchers interface {
 }
 
 const (
-	// limitStateQueriesPerSecond is the number of state queries allowed per
+	// LimitStateQueriesPerSecond is the number of state queries allowed per
 	// second
-	limitStateQueriesPerSecond = 15.0
+	LimitStateQueriesPerSecond = 15.0
+
+	// EvalBatchDuration is the duration in which evaluations are batched before
+	// commiting to Raft.
+	EvalBatchDuration = 250 * time.Millisecond
 )
 
 // Watcher is used to watch deployments and their allocations created
@@ -68,6 +73,10 @@ type Watcher struct {
 
 	// queryLimiter is used to limit the rate of blocking queries
 	queryLimiter *rate.Limiter
+
+	// evalBatchDuration is the duration to batch eval creation across all
+	// deployment watchers
+	evalBatchDuration time.Duration
 
 	// raft contains the set of Raft endpoints that can be used by the
 	// deployments watcher
@@ -92,17 +101,23 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(logger *log.Logger, w DeploymentStateWatchers, raft DeploymentRaftEndpoints) *Watcher {
+func NewDeploymentsWatcher(
+	logger *log.Logger,
+	w DeploymentStateWatchers,
+	raft DeploymentRaftEndpoints,
+	stateQueriesPerSecond float64,
+	evalBatchDuration time.Duration) *Watcher {
 	ctx, exitFn := context.WithCancel(context.Background())
 	return &Watcher{
-		queryLimiter:  rate.NewLimiter(limitStateQueriesPerSecond, 100),
-		stateWatchers: w,
-		raft:          raft,
-		watchers:      make(map[string]*deploymentWatcher, 32),
-		evalBatcher:   NewEvalBatcher(raft, ctx),
-		logger:        logger,
-		ctx:           ctx,
-		exitFn:        exitFn,
+		queryLimiter:      rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
+		evalBatchDuration: evalBatchDuration,
+		stateWatchers:     w,
+		raft:              raft,
+		watchers:          make(map[string]*deploymentWatcher, 32),
+		evalBatcher:       NewEvalBatcher(evalBatchDuration, raft, ctx),
+		logger:            logger,
+		ctx:               ctx,
+		exitFn:            exitFn,
 	}
 }
 
@@ -136,7 +151,7 @@ func (w *Watcher) Flush() {
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.evalBatcher = NewEvalBatcher(w.raft, w.ctx)
+	w.evalBatcher = NewEvalBatcher(w.evalBatchDuration, w.raft, w.ctx)
 }
 
 // watchDeployments is the long lived go-routine that watches for deployments to
@@ -309,11 +324,7 @@ func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *str
 // createEvaluation commits the given evaluation to Raft but batches the commit
 // with other calls.
 func (w *Watcher) createEvaluation(eval *structs.Evaluation) (uint64, error) {
-	w.l.Lock()
-	f := w.evalBatcher.CreateEval(eval)
-	w.l.Unlock()
-
-	return f.Results()
+	return w.evalBatcher.CreateEval(eval).Results()
 }
 
 // upsertJob commits the given job to Raft

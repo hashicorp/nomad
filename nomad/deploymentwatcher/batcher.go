@@ -8,14 +8,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// evalBatchDuration is the duration in which evaluations are batched before
-	// commiting to Raft.
-	evalBatchDuration = 200 * time.Millisecond
-)
-
 // EvalBatcher is used to batch the creation of evaluations
 type EvalBatcher struct {
+	// batch is the batching duration
+	batch time.Duration
+
 	// raft is used to actually commit the evaluations
 	raft DeploymentRaftEndpoints
 
@@ -34,11 +31,12 @@ type EvalBatcher struct {
 // NewEvalBatcher returns an EvalBatcher that uses the passed raft endpoints to
 // create the evaluations and exits the batcher when the passed exit channel is
 // closed.
-func NewEvalBatcher(raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatcher {
+func NewEvalBatcher(batchDuration time.Duration, raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatcher {
 	b := &EvalBatcher{
-		raft: raft,
-		ctx:  ctx,
-		inCh: make(chan *structs.Evaluation, 10),
+		batch: batchDuration,
+		raft:  raft,
+		ctx:   ctx,
+		inCh:  make(chan *structs.Evaluation, 10),
 	}
 
 	go b.batcher()
@@ -49,11 +47,10 @@ func NewEvalBatcher(raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatc
 // tracks the evaluations creation.
 func (b *EvalBatcher) CreateEval(e *structs.Evaluation) *EvalFuture {
 	b.l.Lock()
-	defer b.l.Unlock()
-
 	if b.f == nil {
 		b.f = NewEvalFuture()
 	}
+	b.l.Unlock()
 
 	b.inCh <- e
 	return b.f
@@ -61,17 +58,26 @@ func (b *EvalBatcher) CreateEval(e *structs.Evaluation) *EvalFuture {
 
 // batcher is the long lived batcher goroutine
 func (b *EvalBatcher) batcher() {
-	ticker := time.NewTicker(evalBatchDuration)
+	timer := time.NewTimer(b.batch)
 	evals := make(map[string]*structs.Evaluation)
 	for {
 		select {
 		case <-b.ctx.Done():
-			ticker.Stop()
+			timer.Stop()
 			return
 		case e := <-b.inCh:
-			evals[e.DeploymentID] = e
-		case <-ticker.C:
 			if len(evals) == 0 {
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(b.batch)
+			}
+
+			evals[e.DeploymentID] = e
+		case <-timer.C:
+			if len(evals) == 0 {
+				// Reset the timer
+				timer.Reset(b.batch)
 				continue
 			}
 
@@ -83,6 +89,8 @@ func (b *EvalBatcher) batcher() {
 
 			// Shouldn't be possible but protect ourselves
 			if f == nil {
+				// Reset the timer
+				timer.Reset(b.batch)
 				continue
 			}
 
@@ -97,6 +105,9 @@ func (b *EvalBatcher) batcher() {
 
 			// Reset the evals list
 			evals = make(map[string]*structs.Evaluation)
+
+			// Reset the timer
+			timer.Reset(b.batch)
 		}
 	}
 }
