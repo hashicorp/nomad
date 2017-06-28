@@ -4,6 +4,7 @@ const { Component, computed } = Ember;
 
 export default Component.extend({
   tagName: 'tr',
+  classNames: ['job-row'],
 
   job: null,
 

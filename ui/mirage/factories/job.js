@@ -20,29 +20,24 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
-  job_summary: () => ({
-    Summary: {
-      cache: {
-        Queued: faker.random.number(10),
-        Complete: faker.random.number(10),
-        Failed: faker.random.number(10),
-        Running: faker.random.number(10),
-        Starting: faker.random.number(10),
-        Lost: faker.random.number(10),
-      },
-    },
-    Children: {
-      Pending: faker.random.number(3),
-      Running: faker.random.number(3),
-      Dead: faker.random.number(3),
-    },
-  }),
-
-  task_groups: () => [],
-
   afterCreate(job, server) {
+    const groups = server.createList('task-group', faker.random.number({ min: 1, max: 10 }), {
+      job,
+    });
+
     job.update({
-      task_groups: server.createList('task-group', faker.random.number({ min: 1, max: 10 })),
+      taskGroupIds: groups.mapBy('id'),
+      task_group_ids: groups.mapBy('id'),
+    });
+
+    const jobSummary = server.create('job-summary', {
+      groupNames: groups.mapBy('name'),
+      job,
+    });
+
+    job.update({
+      jobSummaryId: jobSummary.id,
+      job_summary_id: jobSummary.id,
     });
   },
 });

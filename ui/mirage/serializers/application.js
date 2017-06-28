@@ -1,5 +1,7 @@
 import { RestSerializer } from 'ember-cli-mirage';
 
+const keyCase = str => (str === 'id' ? 'ID' : str.camelize().capitalize());
+
 export default RestSerializer.extend({
   serialize() {
     const json = RestSerializer.prototype.serialize.apply(this, arguments);
@@ -11,10 +13,7 @@ export default RestSerializer.extend({
     }
   },
 
-  keyForAttribute(attr) {
-    if (attr === 'id') {
-      return 'ID';
-    }
-    return attr.camelize().capitalize();
-  },
+  keyForAttribute: keyCase,
+  keyForRelationship: keyCase,
+  keyForEmbeddedRelationship: keyCase,
 });

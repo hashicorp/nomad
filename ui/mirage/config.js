@@ -34,6 +34,10 @@ export default function() {
   });
 
   this.get('/job/:id');
+
+  this.get('/job/:id/summary', function({ jobSummaries }, { params }) {
+    return this.serialize(jobSummaries.findBy({ jobId: params.id }));
+  });
 }
 
 function filterKeys(object, ...keys) {

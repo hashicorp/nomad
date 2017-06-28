@@ -59,25 +59,23 @@
       <div class="message-header">
         Task Groups
       </div>
-      <div class="message-body">
-        <table class="table is-striped">
-          <thead>
-            <tr>
-              <td>Name</td>
-              <td>Count</td>
-              <td>Allocation Status</td>
-              <td>CPU</td>
-              <td>Memory</td>
-              <td>Disk</td>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each model.taskGroups as |group|}}
-              {{task-group-row taskGroup=group}}
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
+      <table class="table is-striped">
+        <thead>
+          <tr>
+            <td>Name</td>
+            <td>Count</td>
+            <td>Allocation Status</td>
+            <td>CPU</td>
+            <td>Memory</td>
+            <td>Disk</td>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each model.taskGroups as |group|}}
+            {{task-group-row taskGroup=group}}
+          {{/each}}
+        </tbody>
+      </table>
     </div>
     <div class="message">
       <div class="message-header">
@@ -91,13 +89,11 @@
       <div class="message-header">
         Job Definition
       </div>
-      <div class="message-body">
-        <pre>
+      <pre>
 Code {
   goes: here
 }
-        </pre>
-      </div>
+      </pre>
     </div>
   </section>
 </div>
