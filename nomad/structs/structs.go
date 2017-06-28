@@ -3804,6 +3804,7 @@ const (
 	DeploymentStatusDescriptionStoppedJob        = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob          = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionFailedByUser      = "Deployment marked as failed"
 )
 
 // DeploymentStatusDescriptionRollback is used to get the status description of
