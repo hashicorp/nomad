@@ -95,6 +95,11 @@ does not automatically enable service discovery.
 
 ### `check` Parameters
 
+Note that health checks run inside the task. If your task is a Docker container,
+the script will run inside the Docker container. If your task is running in a
+chroot, it will run in the chroot. Please keep this in mind when authoring check
+scripts.
+
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
