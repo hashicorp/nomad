@@ -142,9 +142,17 @@ type Config struct {
 	// NodeGCInterval is how often we dispatch a job to GC failed nodes.
 	NodeGCInterval time.Duration
 
-	// NodeGCThreshold is how "old" a nodemust be to be eligible
+	// NodeGCThreshold is how "old" a node must be to be eligible
 	// for GC. This gives users some time to view and debug a failed nodes.
 	NodeGCThreshold time.Duration
+
+	// DeploymentGCInterval is how often we dispatch a job to GC terminal
+	// deployments.
+	DeploymentGCInterval time.Duration
+
+	// DeploymentGCThreshold is how "old" a deployment must be to be eligible
+	// for GC. This gives users some time to view terminal deployments.
+	DeploymentGCThreshold time.Duration
 
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
@@ -255,6 +263,8 @@ func DefaultConfig() *Config {
 		JobGCThreshold:                   4 * time.Hour,
 		NodeGCInterval:                   5 * time.Minute,
 		NodeGCThreshold:                  24 * time.Hour,
+		DeploymentGCInterval:             5 * time.Minute,
+		DeploymentGCThreshold:            1 * time.Hour,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,

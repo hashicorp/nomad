@@ -504,6 +504,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"node_gc_threshold",
 		"eval_gc_threshold",
 		"job_gc_threshold",
+		"deployment_gc_threshold",
 		"heartbeat_grace",
 		"start_join",
 		"retry_join",

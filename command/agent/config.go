@@ -270,6 +270,11 @@ type ServerConfig struct {
 	// can be used to filter by age.
 	EvalGCThreshold string `mapstructure:"eval_gc_threshold"`
 
+	// DeploymentGCThreshold controls how "old" a deployment must be to be
+	// collected by GC.  Age is not the only requirement for a deployment to be
+	// GCed but the threshold can be used to filter by age.
+	DeploymentGCThreshold string `mapstructure:"deployment_gc_threshold"`
+
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
 	HeartbeatGrace string `mapstructure:"heartbeat_grace"`
@@ -906,6 +911,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
+	}
+	if b.DeploymentGCThreshold != "" {
+		result.DeploymentGCThreshold = b.DeploymentGCThreshold
 	}
 	if b.HeartbeatGrace != "" {
 		result.HeartbeatGrace = b.HeartbeatGrace
