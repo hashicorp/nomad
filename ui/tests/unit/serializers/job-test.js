@@ -1,27 +1,14 @@
-import Ember from 'ember';
-import { test, moduleForModel } from 'ember-qunit';
+import { test } from 'ember-qunit';
 import JobModel from 'nomad-ui/models/job';
-import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import moduleForSerializer from '../../helpers/module-for-serializer';
 
-const { getOwner } = Ember;
-
-moduleForModel('job', 'Unit | Serializer | Job', {
-  unit: true,
+moduleForSerializer('job', 'Unit | Serializer | Job', {
   needs: [
     'serializer:job',
     'model:task-group-summary',
     'model:task-group',
     'transform:fragment-array',
   ],
-  beforeEach: function() {
-    const model = this.subject();
-
-    // Initializers don't run automatically in unit tests
-    fragmentSerializerInitializer(getOwner(model));
-
-    // The serializer is being tested; get it from the store on the model
-    this.serializer = model.store.serializerFor('job');
-  },
 });
 
 test('The JobSummary object is transformed from a map to a list', function(assert) {
@@ -64,7 +51,7 @@ test('The JobSummary object is transformed from a map to a list', function(asser
     JobModifyIndex: 7,
   };
 
-  const normalized = this.serializer.normalize(JobModel, original);
+  const normalized = this.subject().normalize(JobModel, original);
 
   assert.deepEqual(normalized, {
     data: {
@@ -132,7 +119,7 @@ test('The children stats are lifted out of the JobSummary object', function(asse
     JobModifyIndex: 7,
   };
 
-  const normalized = this.serializer.normalize(JobModel, original);
+  const normalized = this.subject().normalize(JobModel, original);
 
   assert.deepEqual(normalized, {
     data: {
