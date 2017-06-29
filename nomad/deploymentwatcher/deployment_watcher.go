@@ -178,6 +178,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.EvalID = areq.Eval.ID
 	resp.EvalCreateIndex = index
 	resp.DeploymentModifyIndex = index
+	resp.Index = index
 	w.setLatestEval(index)
 	return nil
 }
@@ -201,6 +202,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 	resp.EvalID = areq.Eval.ID
 	resp.EvalCreateIndex = index
 	resp.DeploymentModifyIndex = index
+	resp.Index = index
 	w.setLatestEval(index)
 	return nil
 }
@@ -227,15 +229,18 @@ func (w *deploymentWatcher) PauseDeployment(
 	}
 
 	// Build the response
-	resp.EvalID = evalID
-	resp.EvalCreateIndex = i
+	if evalID != "" {
+		resp.EvalID = evalID
+		resp.EvalCreateIndex = i
+	}
 	resp.DeploymentModifyIndex = i
+	resp.Index = i
 	w.setLatestEval(i)
 	return nil
 }
 
 func (w *deploymentWatcher) FailDeployment(
-	req *structs.DeploymentSpecificRequest,
+	req *structs.DeploymentFailRequest,
 	resp *structs.DeploymentUpdateResponse) error {
 
 	// Determine the status we should transistion to and if we need to create an
@@ -253,6 +258,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.EvalID = eval.ID
 	resp.EvalCreateIndex = i
 	resp.DeploymentModifyIndex = i
+	resp.Index = i
 	w.setLatestEval(i)
 	return nil
 }

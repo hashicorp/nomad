@@ -1,6 +1,8 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // deploymentWatcherStateShim is the shim that provides the state watching
 // methods. These should be set by the server and passed to the deployment
@@ -19,6 +21,9 @@ type deploymentWatcherStateShim struct {
 
 	// list is used to list all the deployments in the system
 	list func(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error
+
+	// GetDeployment is used to lookup a particular deployment.
+	getDeployment func(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error
 
 	// getJobVersions is used to lookup the versions of a job. This is used when
 	// rolling back to find the latest stable job
@@ -50,6 +55,14 @@ func (d *deploymentWatcherStateShim) List(args *structs.DeploymentListRequest, r
 	}
 
 	return d.list(args, reply)
+}
+
+func (d *deploymentWatcherStateShim) GetDeployment(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error {
+	if args.Region == "" {
+		args.Region = d.region
+	}
+
+	return d.getDeployment(args, reply)
 }
 
 func (d *deploymentWatcherStateShim) GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error {

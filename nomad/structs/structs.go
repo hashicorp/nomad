@@ -525,6 +525,8 @@ type DeploymentAllocHealthRequest struct {
 
 	// Any unhealthy allocations fail the deployment
 	UnhealthyAllocationIDs []string
+
+	WriteRequest
 }
 
 // ApplyDeploymentAllocHealthRequest is used to apply an alloc health request via Raft
@@ -552,6 +554,8 @@ type DeploymentPromoteRequest struct {
 
 	// Groups is used to set the promotion status per task group
 	Groups map[string]bool
+
+	WriteRequest
 }
 
 // ApplyDeploymentPromoteRequest is used to apply a promotion request via Raft
@@ -568,6 +572,8 @@ type DeploymentPauseRequest struct {
 
 	// Pause sets the pause status
 	Pause bool
+
+	WriteRequest
 }
 
 // DeploymentSpecificRequest is used to make a request specific to a particular
@@ -575,6 +581,18 @@ type DeploymentPauseRequest struct {
 type DeploymentSpecificRequest struct {
 	DeploymentID string
 	QueryOptions
+}
+
+// DeploymentFailRequest is used to fail a particular deployment
+type DeploymentFailRequest struct {
+	DeploymentID string
+	WriteRequest
+}
+
+// SingleDeploymentResponse is used to respond with a single deployment
+type SingleDeploymentResponse struct {
+	Deployment *Deployment
+	QueryMeta
 }
 
 // GenericResponse is used to respond to a request where no
@@ -828,6 +846,7 @@ type DeploymentUpdateResponse struct {
 	EvalID                string
 	EvalCreateIndex       uint64
 	DeploymentModifyIndex uint64
+	WriteMeta
 }
 
 const (
@@ -3938,7 +3957,7 @@ func (d *Deployment) Active() bool {
 }
 
 func (d *Deployment) GoString() string {
-	base := fmt.Sprintf("Deployment ID %q for job %q has status %q:", d.ID, d.JobID, d.Status)
+	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {
 		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
 	}
@@ -3969,15 +3988,11 @@ type DeploymentState struct {
 
 func (d *DeploymentState) GoString() string {
 	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
-	if d.DesiredCanaries > 0 {
-		base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
-		base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
-	}
-	if d.PlacedAllocs > 0 {
-		base := fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
-		base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
-		base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
-	}
+	base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
+	base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
+	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
+	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
+	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
 	return base
 }
 

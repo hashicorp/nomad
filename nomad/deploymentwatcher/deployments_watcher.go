@@ -46,6 +46,9 @@ type DeploymentStateWatchers interface {
 	// List is used to list all the deployments in the system
 	List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error
 
+	// GetDeployment is used to lookup a particular deployment.
+	GetDeployment(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error
+
 	// GetJobVersions is used to lookup the versions of a job. This is used when
 	// rolling back to find the latest stable job
 	GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error
@@ -62,6 +65,12 @@ const (
 	// EvalBatchDuration is the duration in which evaluations are batched before
 	// commiting to Raft.
 	EvalBatchDuration = 250 * time.Millisecond
+)
+
+var (
+	// notEnabled is the error returned when the deployment watcher is not
+	// enabled
+	notEnabled = fmt.Errorf("deployment watcher not enabled")
 )
 
 // Watcher is used to watch deployments and their allocations created
@@ -233,15 +242,25 @@ func (w *Watcher) getDeploys(index uint64) (*structs.DeploymentListResponse, err
 func (w *Watcher) add(d *structs.Deployment) error {
 	w.l.Lock()
 	defer w.l.Unlock()
+	_, err := w.addLocked(d)
+	return err
+}
 
+// addLocked adds a deployment to the watch list and should only be called when
+// locked.
+func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 	// Not enabled so no-op
 	if !w.enabled {
-		return nil
+		return nil, nil
+	}
+
+	if !d.Active() {
+		return nil, fmt.Errorf("deployment %q is terminal", d.ID)
 	}
 
 	// Already watched so no-op
 	if _, ok := w.watchers[d.ID]; ok {
-		return nil
+		return nil, nil
 	}
 
 	// Get the job the deployment is referencing
@@ -250,14 +269,15 @@ func (w *Watcher) add(d *structs.Deployment) error {
 	}
 	var resp structs.SingleJobResponse
 	if err := w.stateWatchers.GetJob(args, &resp); err != nil {
-		return err
+		return nil, err
 	}
 	if resp.Job == nil {
-		return fmt.Errorf("deployment %q references unknown job %q", d.ID, d.JobID)
+		return nil, fmt.Errorf("deployment %q references unknown job %q", d.ID, d.JobID)
 	}
 
-	w.watchers[d.ID] = newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.stateWatchers, d, resp.Job, w)
-	return nil
+	watcher := newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.stateWatchers, d, resp.Job, w)
+	w.watchers[d.ID] = watcher
+	return watcher, nil
 }
 
 // remove stops watching a deployment. This can be because the deployment is
@@ -277,21 +297,49 @@ func (w *Watcher) remove(d *structs.Deployment) {
 	}
 }
 
-// SetAllocHealth is used to set the health of allocations for a deployment. If
-// there are any unhealthy allocations, the deployment is updated to be failed.
-// Otherwise the allocations are updated and an evaluation is created.
-func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp *structs.DeploymentUpdateResponse) error {
+// forceAdd is used to force a lookup of the given deployment object and create
+// a watcher. If the deployment does not exist or is terminal an error is
+// returned.
+func (w *Watcher) forceAdd(dID string) (*deploymentWatcher, error) {
+	// Build the request
+	args := &structs.DeploymentSpecificRequest{DeploymentID: dID}
+	var resp structs.SingleDeploymentResponse
+	if err := w.stateWatchers.GetDeployment(args, &resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Deployment == nil {
+		return nil, fmt.Errorf("unknown deployment %q", dID)
+	}
+
+	return w.addLocked(resp.Deployment)
+}
+
+// getWatcher returns the deployment watcher for the given deployment ID.
+func (w *Watcher) getWatcher(dID string) (*deploymentWatcher, error) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	// Not enabled so no-op
 	if !w.enabled {
-		return nil
+		return nil, notEnabled
 	}
 
-	watcher, ok := w.watchers[req.DeploymentID]
-	if !ok {
-		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+	watcher, ok := w.watchers[dID]
+	if ok {
+		return watcher, nil
+	}
+
+	return w.forceAdd(dID)
+}
+
+// SetAllocHealth is used to set the health of allocations for a deployment. If
+// there are any unhealthy allocations, the deployment is updated to be failed.
+// Otherwise the allocations are updated and an evaluation is created.
+func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getWatcher(req.DeploymentID)
+	if err != nil {
+		return err
 	}
 
 	return watcher.SetAllocHealth(req, resp)
@@ -301,17 +349,9 @@ func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp
 // deployment is marked as failed. Otherwise the deployment is updated and an
 // evaluation is created.
 func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest, resp *structs.DeploymentUpdateResponse) error {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	// Not enabled so no-op
-	if !w.enabled {
-		return nil
-	}
-
-	watcher, ok := w.watchers[req.DeploymentID]
-	if !ok {
-		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+	watcher, err := w.getWatcher(req.DeploymentID)
+	if err != nil {
+		return err
 	}
 
 	return watcher.PromoteDeployment(req, resp)
@@ -320,35 +360,19 @@ func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest, resp 
 // PauseDeployment is used to toggle the pause state on a deployment. If the
 // deployment is being unpaused, an evaluation is created.
 func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *structs.DeploymentUpdateResponse) error {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	// Not enabled so no-op
-	if !w.enabled {
-		return nil
-	}
-
-	watcher, ok := w.watchers[req.DeploymentID]
-	if !ok {
-		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+	watcher, err := w.getWatcher(req.DeploymentID)
+	if err != nil {
+		return err
 	}
 
 	return watcher.PauseDeployment(req, resp)
 }
 
 // FailDeployment is used to fail the deployment.
-func (w *Watcher) FailDeployment(req *structs.DeploymentSpecificRequest, resp *structs.DeploymentUpdateResponse) error {
-	w.l.Lock()
-	defer w.l.Unlock()
-
-	// Not enabled so no-op
-	if !w.enabled {
-		return nil
-	}
-
-	watcher, ok := w.watchers[req.DeploymentID]
-	if !ok {
-		return fmt.Errorf("deployment %q not being watched for updates", req.DeploymentID)
+func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getWatcher(req.DeploymentID)
+	if err != nil {
+		return err
 	}
 
 	return watcher.FailDeployment(req, resp)
