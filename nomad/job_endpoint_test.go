@@ -834,7 +834,8 @@ func TestJobEndpoint_Revert(t *testing.T) {
 		t.Fatalf("bad job modify index: %d", resp.JobModifyIndex)
 	}
 
-	// Create revert request and don't enforce
+	// Create revert request and don't enforce. We are at version 2 but it is
+	// the same as version 0
 	revertReq = &structs.JobRevertRequest{
 		JobID:        job.ID,
 		JobVersion:   0,
@@ -869,8 +870,8 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	if out.Priority != job.Priority {
 		t.Fatalf("priority mis-match")
 	}
-	if out.Version != 3 {
-		t.Fatalf("got version %d; want %d", out.Version, 3)
+	if out.Version != 2 {
+		t.Fatalf("got version %d; want %d", out.Version, 2)
 	}
 
 	eout, err := state.EvalByID(ws, resp.EvalID)
@@ -888,8 +889,8 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(versions) != 4 {
-		t.Fatalf("got %d versions; want %d", len(versions), 4)
+	if len(versions) != 3 {
+		t.Fatalf("got %d versions; want %d", len(versions), 3)
 	}
 }
 

@@ -123,8 +123,11 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 		reply.Index = m.nextIndex()
 	})
 
-	// Request setting the health against an unknown deployment
+	// The expected error is that it should be an unknown deployment
 	dID := structs.GenerateUUID()
+	expected := fmt.Sprintf("unknown deployment %q", dID)
+
+	// Request setting the health against an unknown deployment
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         dID,
 		HealthyAllocationIDs: []string{structs.GenerateUUID()},
@@ -132,7 +135,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	var resp structs.DeploymentUpdateResponse
 	err := w.SetAllocHealth(req, &resp)
 	if assert.NotNil(err, "should have error for unknown deployment") {
-		assert.Contains(err.Error(), "not being watched")
+		assert.Contains(err.Error(), expected)
 	}
 
 	// Request promoting against an unknown deployment
@@ -142,7 +145,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	}
 	err = w.PromoteDeployment(req2, &resp)
 	if assert.NotNil(err, "should have error for unknown deployment") {
-		assert.Contains(err.Error(), "not being watched")
+		assert.Contains(err.Error(), expected)
 	}
 
 	// Request pausing against an unknown deployment
@@ -152,7 +155,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	}
 	err = w.PauseDeployment(req3, &resp)
 	if assert.NotNil(err, "should have error for unknown deployment") {
-		assert.Contains(err.Error(), "not being watched")
+		assert.Contains(err.Error(), expected)
 	}
 
 	// Request failing against an unknown deployment
@@ -161,7 +164,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	}
 	err = w.FailDeployment(req4, &resp)
 	if assert.NotNil(err, "should have error for unknown deployment") {
-		assert.Contains(err.Error(), "not being watched")
+		assert.Contains(err.Error(), expected)
 	}
 }
 
@@ -872,7 +875,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 // Test evaluations are batched between watchers
 func TestWatcher_BatchEvals(t *testing.T) {
 	assert := assert.New(t)
-	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
 
 	// Create a job, alloc, for two deployments
 	j1 := mock.Job()

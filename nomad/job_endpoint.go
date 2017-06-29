@@ -769,14 +769,16 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	var index uint64
 	var updatedIndex uint64
 
-	// We want to reused deployments where possible, so only insert the job if
-	// it has changed or the job didn't exist
-	if oldJob != nil && oldJob.SpecChanged(args.Job) {
+	if oldJob != nil {
 		index = oldJob.JobModifyIndex
-		updatedIndex = oldJob.JobModifyIndex + 1
 
-		// Insert the updated Job into the snapshot
-		snap.UpsertJob(updatedIndex, args.Job)
+		// We want to reuse deployments where possible, so only insert the job if
+		// it has changed or the job didn't exist
+		if oldJob.SpecChanged(args.Job) {
+			// Insert the updated Job into the snapshot
+			updatedIndex = oldJob.JobModifyIndex + 1
+			snap.UpsertJob(updatedIndex, args.Job)
+		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
 		snap.UpsertJob(100, args.Job)
