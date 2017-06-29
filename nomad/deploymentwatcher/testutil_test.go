@@ -313,6 +313,11 @@ func (m *mockBackend) listFromState(in mocker.Arguments) {
 	reply.Index, _ = m.state.Index("deployment")
 }
 
+func (m *mockBackend) GetDeployment(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error {
+	rargs := m.Called(args, reply)
+	return rargs.Error(0)
+}
+
 func (m *mockBackend) GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error {
 	rargs := m.Called(args, reply)
 	return rargs.Error(0)

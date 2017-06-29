@@ -2528,10 +2528,6 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// Do not modify in-place. Instead keep track of what must be done
 	placed := 0
-
-	// TODO test when I am sure of what this method will do
-	// XXX Unclear whether this will be helpful because a seperate code path is
-	// likely need for setting health
 	healthy := 0
 	unhealthy := 0
 

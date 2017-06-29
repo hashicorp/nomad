@@ -118,6 +118,10 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 		reply := args.Get(1).(*structs.DeploymentListResponse)
 		reply.Index = m.nextIndex()
 	})
+	m.On("GetDeployment", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
+		reply := args.Get(1).(*structs.SingleDeploymentResponse)
+		reply.Index = m.nextIndex()
+	})
 
 	// Request setting the health against an unknown deployment
 	dID := structs.GenerateUUID()
@@ -152,7 +156,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	}
 
 	// Request failing against an unknown deployment
-	req4 := &structs.DeploymentSpecificRequest{
+	req4 := &structs.DeploymentFailRequest{
 		DeploymentID: dID,
 	}
 	err = w.FailDeployment(req4, &resp)
@@ -428,7 +432,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	matcher := matchDeploymentPromoteRequest(matchConfig)
 	m.On("UpsertDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
 
-	// Call SetAllocHealth
+	// Call PromoteDeployment
 	req := &structs.DeploymentPromoteRequest{
 		DeploymentID: d.ID,
 		All:          true,
@@ -726,7 +730,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
-	req := &structs.DeploymentSpecificRequest{
+	req := &structs.DeploymentFailRequest{
 		DeploymentID: d.ID,
 	}
 	var resp structs.DeploymentUpdateResponse

@@ -690,6 +690,7 @@ func (s *Server) setupDeploymentWatcher() error {
 		evaluations:    s.endpoints.Job.Evaluations,
 		allocations:    s.endpoints.Deployment.Allocations,
 		list:           s.endpoints.Deployment.List,
+		getDeployment:  s.endpoints.Deployment.GetDeployment,
 		getJobVersions: s.endpoints.Job.GetJobVersions,
 		getJob:         s.endpoints.Job.GetJob,
 	}
