@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/kr/pretty"
 )
 
 type MockSink struct {
@@ -1864,7 +1865,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
-				Queued:   10,
+				Queued:   9,
 				Starting: 1,
 			},
 		},
@@ -1872,6 +1873,6 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		ModifyIndex: out2.ModifyIndex,
 	}
 	if !reflect.DeepEqual(&expected, out2) {
-		t.Fatalf("expected: %#v, actual: %#v", &expected, out2)
+		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
 	}
 }
