@@ -290,3 +290,22 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 		}}
 	return d.srv.blockingRPC(&opts)
 }
+
+// Reap is used to cleanup terminal deployments
+func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := d.srv.forward("Deployment.Reap", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "reap"}, time.Now())
+
+	// Update via Raft
+	_, index, err := d.srv.raftApply(structs.DeploymentDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}

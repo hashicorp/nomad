@@ -396,24 +396,31 @@ func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, jobID string) (*
 	return out, nil
 }
 
-// DeleteDeployment is used to delete a deployment by ID
-func (s *StateStore) DeleteDeployment(index uint64, deploymentID string) error {
+// DeleteDeployment is used to delete a set of deployments by ID
+func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Lookup the deployment
-	existing, err := txn.First("deployment", "id", deploymentID)
-	if err != nil {
-		return fmt.Errorf("deployment lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("deployment not found")
+	if len(deploymentIDs) == 0 {
+		return nil
 	}
 
-	// Delete the deployment
-	if err := txn.Delete("deployment", existing); err != nil {
-		return fmt.Errorf("deployment delete failed: %v", err)
+	for _, deploymentID := range deploymentIDs {
+		// Lookup the deployment
+		existing, err := txn.First("deployment", "id", deploymentID)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("deployment not found")
+		}
+
+		// Delete the deployment
+		if err := txn.Delete("deployment", existing); err != nil {
+			return fmt.Errorf("deployment delete failed: %v", err)
+		}
 	}
+
 	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}

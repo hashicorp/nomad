@@ -502,3 +502,30 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
 }
+
+func TestDeploymentEndpoint_Reap(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	d1 := mock.Deployment()
+	assert.Nil(s1.fsm.State().UpsertDeployment(1000, d1, false), "UpsertDeployment")
+
+	// Reap the eval
+	get := &structs.DeploymentDeleteRequest{
+		Deployments:  []string{d1.ID},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Reap", get, &resp), "RPC")
+	assert.NotZero(resp.Index, "bad response index")
+
+	// Ensure deleted
+	ws := memdb.NewWatchSet()
+	outD, err := s1.fsm.State().DeploymentByID(ws, d1.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.Nil(outD, "Deleted Deployment")
+}
