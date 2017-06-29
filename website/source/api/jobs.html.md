@@ -887,6 +887,8 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
+    --request POST \
+    --payload @payload.json \
     https://nomad.rocks/v1/job/my-job/summary
 ```
 
