@@ -5,6 +5,32 @@
     td, th {
       font-weight: $weight-bold;
       color: $text;
+
+      &.is-three-quarters {
+        width: 75%;
+      }
+
+      &.is-two-thirds {
+        width: 66.66%;
+      }
+
+      &.is-half {
+        width: 50%;
+      }
+
+      &.is-one-third {
+        width: 33.33%;
+      }
+
+      &.is-one-quarter {
+        width: 25%;
+      }
+
+      @for $i from 1 through 11 {
+        &.is-#{$i} {
+          width: 100% / 12 * $i;
+        }
+      }
     }
   }
 }

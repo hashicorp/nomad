@@ -38,9 +38,9 @@ test('each job row should contain information about the job', function(assert) {
     assert.equal(jobRow.find('td:eq(1)').text(), job.type, 'Type');
     assert.equal(jobRow.find('td:eq(2)').text(), job.priority, 'Priority');
     assert.equal(jobRow.find('td:eq(3)').text(), job.status, 'Status');
-    assert.equal(jobRow.find('td:eq(5)').text(), taskGroups.length, '# Groups');
+    assert.equal(jobRow.find('td:eq(4)').text(), taskGroups.length, '# Groups');
     assert.equal(
-      jobRow.find('td:eq(7)').text(),
+      jobRow.find('td:eq(6)').text(),
       Object.keys(summary.Summary).reduce(
         (count, groupKey) => summary.Summary[groupKey].Lost + count,
         0
