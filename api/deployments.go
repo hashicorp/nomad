@@ -106,6 +106,7 @@ func (d *Deployments) PromoteGroups(deploymentID string, groups []string, q *Wri
 	return &resp, wm, nil
 }
 
+// XXX
 // SetAllocHealth is used to set allocation health for allocs that are part of
 // the given deployment
 func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []string, q *WriteOptions) (*DeploymentUpdateResponse, *WriteMeta, error) {
