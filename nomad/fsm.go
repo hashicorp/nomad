@@ -163,6 +163,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeploymentPromotion(buf[1:], log.Index)
 	case structs.DeploymentAllocHealthRequestType:
 		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
+	case structs.DeploymentDeleteRequestType:
+		return n.applyDeploymentDelete(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -628,6 +630,22 @@ func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interfac
 
 	if req.Eval != nil && req.Eval.ShouldEnqueue() {
 		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentDelete is used to delete a set of deployments
+func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_delete"}, time.Now())
+	var req structs.DeploymentDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteDeployment(index, req.Deployments); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteDeployment failed: %v", err)
+		return err
 	}
 
 	return nil

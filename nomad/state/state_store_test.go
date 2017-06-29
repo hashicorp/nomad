@@ -422,20 +422,24 @@ func TestStateStore_UpsertDeployment_Cancel(t *testing.T) {
 
 func TestStateStore_DeleteDeployment(t *testing.T) {
 	state := testStateStore(t)
-	deployment := mock.Deployment()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
 
-	err := state.UpsertDeployment(1000, deployment, false)
+	err := state.UpsertDeployment(1000, d1, false)
 	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertDeployment(1001, d2, false); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.DeploymentByID(ws, deployment.ID); err != nil {
+	if _, err := state.DeploymentByID(ws, d1.ID); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.DeleteDeployment(1001, deployment.ID)
+	err = state.DeleteDeployment(1002, []string{d1.ID, d2.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -445,20 +449,20 @@ func TestStateStore_DeleteDeployment(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	out, err := state.DeploymentByID(ws, deployment.ID)
+	out, err := state.DeploymentByID(ws, d1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", deployment, out)
+		t.Fatalf("bad: %#v %#v", d1, out)
 	}
 
 	index, err := state.Index("deployment")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 1002 {
 		t.Fatalf("bad: %d", index)
 	}
 

@@ -1439,6 +1439,40 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	}
 }
 
+func TestFSM_DeleteDeployment(t *testing.T) {
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Upsert a deployments
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d, false); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	req := structs.DeploymentDeleteRequest{
+		Deployments: []string{d.ID},
+	}
+	buf, err := structs.Encode(structs.DeploymentDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	deployment, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if deployment != nil {
+		t.Fatalf("deployment found!")
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
