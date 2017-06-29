@@ -5170,9 +5170,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	req := &structs.ApplyDeploymentPromoteRequest{
 		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
 			DeploymentID: d.ID,
-			Groups: map[string]bool{
-				"web": true,
-			},
+			Groups:       []string{"web"},
 		},
 		Eval: e,
 	}

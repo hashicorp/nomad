@@ -549,7 +549,7 @@ type DeploymentPromoteRequest struct {
 	All bool
 
 	// Groups is used to set the promotion status per task group
-	Groups map[string]bool
+	Groups []string
 
 	WriteRequest
 }
