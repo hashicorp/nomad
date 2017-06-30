@@ -832,7 +832,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		// Default to using manually configured address
 		_, _, err = net.SplitHostPort(addr)
 		if err != nil {
-			if !isMissingPort(err) {
+			if !isMissingPort(err) && !isTooManyColons(err) {
 				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
 
@@ -877,6 +877,14 @@ func isMissingPort(err error) bool {
 	// matches error const in net/ipsock.go
 	const missingPort = "missing port in address"
 	return err != nil && strings.Contains(err.Error(), missingPort)
+}
+
+// isTooManyColons returns true if an error is a "too many colons" error from
+// net.SplitHostPort.
+func isTooManyColons(err error) bool {
+	// matches error const in net/ipsock.go
+	const tooManyColons = "too many colons in address"
+	return err != nil && strings.Contains(err.Error(), tooManyColons)
 }
 
 // Merge is used to merge two server configs together
