@@ -12,7 +12,7 @@ type JobRevertCommand struct {
 
 func (c *JobRevertCommand) Help() string {
 	helpText := `
-Usage: nomad job revert [options] <job>
+Usage: nomad job revert [options] <job> <version>
 
 Revert is used to revert a job to a prior version of the job. The available
 versions to revert to can be found using "nomad job history" command.
@@ -21,10 +21,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-History Options:
-
-  -job-version <job version>
-    Revert to the given job version.
+Revert Options:
 
   -detach
     Return immediately instead of entering monitor mode. After job dispatch,
@@ -43,11 +40,9 @@ func (c *JobRevertCommand) Synopsis() string {
 
 func (c *JobRevertCommand) Run(args []string) int {
 	var detach, verbose bool
-	var versionStr string
 
-	flags := c.Meta.FlagSet("job history", FlagSetClient)
+	flags := c.Meta.FlagSet("job revert", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&versionStr, "job-version", "", "")
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 
@@ -61,9 +56,9 @@ func (c *JobRevertCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got two args
 	args = flags.Args()
-	if l := len(args); l < 1 || l > 2 {
+	if l := len(args); l != 2 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
@@ -76,6 +71,15 @@ func (c *JobRevertCommand) Run(args []string) int {
 	}
 
 	jobID := args[0]
+	revertVersion, ok, err := parseVersion(args[1])
+	if !ok {
+		c.Ui.Error("The job version to revert to must be specified using the -job-version flag")
+		return 1
+	}
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to parse job-version flag: %v", err))
+		return 1
+	}
 
 	// Check if the job exists
 	jobs, _, err := client.Jobs().PrefixList(jobID)
@@ -90,16 +94,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
 		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
 		return 0
-	}
-
-	revertVersion, ok, err := parseVersion(versionStr)
-	if !ok {
-		c.Ui.Error("The job version to revert to must be specified using the -job-version flag")
-		return 1
-	}
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to parse job-version flag: %v", err))
-		return 1
 	}
 
 	// Prefix lookup matched a single job
