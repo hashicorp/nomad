@@ -1,19 +1,31 @@
 ---
 layout: "guides"
-page_title: "Apache Spark Integration Prerequisites"
+page_title: "Apache Spark Integration - Getting Started"
 sidebar_current: "guides-spark-pre"
 description: |-
-  Understand what the prerequisites and dependencies are for the Nomad/Spark 
-  integration.
+  Get started with the Nomad/Spark integration.
 ---
 
-# Prerequisites
+# Getting Started
 
-There are three basic prerequisites to using the Nomad/Spark integration: 
+To get started, you can use Nomad's Terraform configuration to automatically 
+provision an environment in AWS, or you can manually provision a cluster.
 
-- A Nomad cluster with sufficient [resources](/guides/spark/resource.html). See 
-the [Getting Started](/intro/getting-started/install.html) guide and the 
-[Terraform configuration](https://github.com/hashicorp/nomad/terraform).
+## Provision a Cluster in AWS
+
+Nomad's [Terraform configuration](https://github.com/hashicorp/nomad/terraform) 
+can be used to quickly provision a Spark-enabled Nomad environment in
+ AWS. The embedded [Spark example](https://github.com/hashicorp/nomad/terraform/examples/spark)
+ provides for a quickstart experience that can be used in conjunction with 
+ this guide. When you have a cluster up and running, you can proceed to 
+[Submitting applications](/guides/spark/submit.html).
+
+## Manually Provision a Cluster
+
+To manually configure provision a cluster, see the Nomad 
+[Getting Started](/intro/getting-started/install.html) guide. There are two 
+basic prerequisites to using the Spark integration once you have a cluster up 
+and running:
 
 - Access to a [Spark distribution](https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz) 
 built with Nomad support. This is required for the machine that will submit 
@@ -23,7 +35,7 @@ applications as well as the Nomad tasks that will run the Spark executors.
 
 The subsections below explain further.
 
-## Configure the Submitting Machine
+### Configure the Submitting Machine
 
 To run Spark applications on Nomad, the submitting machine must have access to 
 the cluster and have the Nomad-enabled Spark distribution installed. The code 
@@ -53,13 +65,7 @@ Export NOMAD_ADDR to point Spark to your Nomad cluster:
 $ export NOMAD_ADDR=http://NOMAD_SERVER_IP:4646
 ```
 
-Nomad's [Terraform configuration](https://github.com/hashicorp/nomad/terraform) 
-can also be used to automatically provision a Spark-enabled Nomad environment in
- AWS. The [Spark example](https://github.com/hashicorp/nomad/terraform/examples/spark)
- provides for a quickstart experience that can be used in conjunction with this 
-guide.
-
-## Executor Access to the Spark Distribution
+### Executor Access to the Spark Distribution
 
 When running on Nomad, Spark creates Nomad tasks to run executors for use by the 
 application's driver program. The executor tasks need access to a JRE, a Spark 

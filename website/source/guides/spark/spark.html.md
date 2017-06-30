@@ -21,4 +21,4 @@ optionally the application driver itself, run as Nomad tasks in a Nomad job.
 ## Next Steps
 
 The links in the sidebar contain detailed information about specific aspects of 
-the integration, starting with the [prerequisites](/guides/spark/pre.html).
+the integration, beginning with [Getting Started](/guides/spark/pre.html).

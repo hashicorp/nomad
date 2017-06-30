@@ -90,7 +90,7 @@ create a directory in HDFS to store events:
 
 ```shell
 $ hdfs dfs -mkdir /spark-events
-```shell
+```
 
 You can then deploy the history server with:
 
@@ -110,6 +110,7 @@ command above. You can access the history server at http://PUBLIC_IP:18080.
 Use the `spark.eventLog.enabled` and `spark.eventLog.dir` configuration 
 properties in `spark-submit` to log events for a given application:
 
+```shell
 $ spark-submit \
     --class org.apache.spark.examples.JavaSparkPi \
     --master nomad \
