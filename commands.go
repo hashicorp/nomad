@@ -59,8 +59,23 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"deployment fail": func() (cli.Command, error) {
+			return &command.DeploymentFailCommand{
+				Meta: meta,
+			}, nil
+		},
 		"deployment list": func() (cli.Command, error) {
 			return &command.DeploymentListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"deployment pause": func() (cli.Command, error) {
+			return &command.DeploymentPauseCommand{
+				Meta: meta,
+			}, nil
+		},
+		"deployment resume": func() (cli.Command, error) {
+			return &command.DeploymentResumeCommand{
 				Meta: meta,
 			}, nil
 		},

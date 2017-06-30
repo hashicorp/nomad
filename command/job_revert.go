@@ -24,7 +24,7 @@ General Options:
 Revert Options:
 
   -detach
-    Return immediately instead of entering monitor mode. After job dispatch,
+    Return immediately instead of entering monitor mode. After job revert,
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
