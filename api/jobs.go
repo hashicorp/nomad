@@ -247,7 +247,6 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 	return &resp, wm, nil
 }
 
-// XXX
 // Revert is used to revert the given job to the passed version. If
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
