@@ -366,7 +366,7 @@ func (w *deploymentWatcher) watch() {
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
 func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
-	args := &structs.JobSpecificRequest{JobID: w.d.JobID}
+	args := &structs.JobVersionsRequest{JobID: w.d.JobID}
 	var resp structs.JobVersionsResponse
 	if err := w.watchers.GetJobVersions(args, &resp); err != nil {
 		return nil, err

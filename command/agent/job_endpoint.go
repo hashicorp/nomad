@@ -394,8 +394,20 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	args := structs.JobSpecificRequest{
+
+	diffsStr := req.URL.Query().Get("diffs")
+	var diffsBool bool
+	if diffsStr != "" {
+		var err error
+		diffsBool, err = strconv.ParseBool(diffsStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "diffs", diffsStr, err)
+		}
+	}
+
+	args := structs.JobVersionsRequest{
 		JobID: jobName,
+		Diffs: diffsBool,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -411,7 +423,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job versions not found")
 	}
 
-	return out.Versions, nil
+	return out, nil
 }
 
 func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,

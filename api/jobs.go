@@ -107,15 +107,15 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// Versions is used to retrieve all versions of a particular
-// job given its unique ID.
-func (j *Jobs) Versions(jobID string, q *QueryOptions) ([]*Job, *QueryMeta, error) {
-	var resp []*Job
-	qm, err := j.client.query("/v1/job/"+jobID+"/versions", &resp, q)
+// Versions is used to retrieve all versions of a particular job given its
+// unique ID.
+func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	var resp JobVersionsResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", jobID, diffs), &resp, q)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return resp, qm, nil
+	return resp.Versions, resp.Diffs, qm, nil
 }
 
 // Allocations is used to return the allocs for a given job ID.
@@ -830,4 +830,11 @@ type JobDispatchResponse struct {
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
 	WriteMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
+	Diffs    []*JobDiff
+	QueryMeta
 }

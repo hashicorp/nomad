@@ -550,7 +550,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 }
 
 // GetJobVersions is used to retrieve all tracked versions of a job.
-func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
+func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	reply *structs.JobVersionsResponse) error {
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
@@ -572,6 +572,17 @@ func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
 			reply.Versions = out
 			if len(out) != 0 {
 				reply.Index = out[0].ModifyIndex
+
+				// Compute the diffs
+				for i := 0; i < len(out)-1; i++ {
+					old, new := out[i+1], out[i]
+					d, err := old.Diff(new, true)
+					if err != nil {
+						return fmt.Errorf("failed to create job diff: %v", err)
+					}
+					reply.Diffs = append(reply.Diffs, d)
+				}
+
 			} else {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("job_version")

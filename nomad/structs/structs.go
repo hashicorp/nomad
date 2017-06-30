@@ -730,9 +730,17 @@ type JobListResponse struct {
 	QueryMeta
 }
 
+// JobVersionsRequest is used to get a jobs versions
+type JobVersionsRequest struct {
+	JobID string
+	Diffs bool
+	QueryOptions
+}
+
 // JobVersionsResponse is used for a job get versions request
 type JobVersionsResponse struct {
 	Versions []*Job
+	Diffs    []*JobDiff
 	QueryMeta
 }
 
