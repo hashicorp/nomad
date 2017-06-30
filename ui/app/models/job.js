@@ -2,6 +2,7 @@ import Ember from 'ember';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import sumAggregation from '../utils/properties/sum-aggregation';
 
 const { computed } = Ember;
 
@@ -25,12 +26,12 @@ export default Model.extend({
   taskGroupSummaries: fragmentArray('task-group-summary'),
 
   // Aggregate allocation counts across all summaries
-  queuedAllocs: allocAggregation('taskGroupSummaries', 'queuedAllocs'),
-  startingAllocs: allocAggregation('taskGroupSummaries', 'startingAllocs'),
-  runningAllocs: allocAggregation('taskGroupSummaries', 'runningAllocs'),
-  completeAllocs: allocAggregation('taskGroupSummaries', 'completeAllocs'),
-  failedAllocs: allocAggregation('taskGroupSummaries', 'failedAllocs'),
-  lostAllocs: allocAggregation('taskGroupSummaries', 'lostAllocs'),
+  queuedAllocs: sumAggregation('taskGroupSummaries', 'queuedAllocs'),
+  startingAllocs: sumAggregation('taskGroupSummaries', 'startingAllocs'),
+  runningAllocs: sumAggregation('taskGroupSummaries', 'runningAllocs'),
+  completeAllocs: sumAggregation('taskGroupSummaries', 'completeAllocs'),
+  failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
+  lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
 
   allocsList: computed.collect(
     'queuedAllocs',
@@ -47,9 +48,3 @@ export default Model.extend({
   runningChildren: attr('number'),
   deadChildren: attr('number'),
 });
-
-function allocAggregation(summariesKey, allocsKey) {
-  return computed(`${summariesKey}.@each.${allocsKey}`, function() {
-    return this.get(summariesKey).mapBy(allocsKey).reduce((sum, count) => sum + count, 0);
-  });
-}

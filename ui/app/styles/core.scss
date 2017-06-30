@@ -17,6 +17,8 @@ $warning-invert: $white;
 $radius: 2px;
 
 $body-size: 14px;
+$size-5: 1.15rem;
+
 $family-sans-serif: -apple-system,
   BlinkMacSystemFont,
   "Segoe UI",
@@ -36,3 +38,4 @@ $text: $black;
 @import "./core/buttons";
 @import "./core/nav";
 @import "./core/table";
+@import "./core/message";

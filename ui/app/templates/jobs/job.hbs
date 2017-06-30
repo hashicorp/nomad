@@ -13,87 +13,29 @@
         <span>Priority: {{model.priority}}</span>
       </div>
     </div>
-    <div class="columns">
-      <div class="column">
-        <div class="message">
-          <div class="message-header has-text-centered">
-            <p>Allocations</p>
-          </div>
-          <div class="message-body">
-            Allocation info here
-          </div>
-        </div>
-      </div>
-      <div class="column">
-        <div class="message">
-          <div class="message-header has-text-centered">
-            <p>CPU</p>
-          </div>
-          <div class="message-body">
-            CPU info here
-          </div>
-        </div>
-      </div>
-      <div class="column">
-        <div class="message">
-          <div class="message-header has-text-centered">
-            <p>Memory</p>
-          </div>
-          <div class="message-body">
-            Memory info here
-          </div>
-        </div>
-      </div>
-      <div class="column">
-        <div class="message">
-          <div class="message-header has-text-centered">
-            Disk
-          </div>
-          <div class="message-body">
-            Disk info here
-          </div>
-        </div>
-      </div>
-    </div>
     <div class="message">
       <div class="message-header">
         Task Groups
       </div>
-      <table class="table is-striped">
-        <thead>
-          <tr>
-            <td>Name</td>
-            <td>Count</td>
-            <td class="is-3">Allocation Status</td>
-            <td>CPU</td>
-            <td>Memory</td>
-            <td>Disk</td>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each model.taskGroups as |group|}}
-            {{task-group-row taskGroup=group}}
-          {{/each}}
-        </tbody>
-      </table>
-    </div>
-    <div class="message">
-      <div class="message-header">
-        Evaluations
+      <div class="message-body is-full-bleed">
+        <table class="table is-striped">
+          <thead>
+            <tr>
+              <td>Name</td>
+              <td>Count</td>
+              <td class="is-3">Allocation Status</td>
+              <td>Reserved CPU</td>
+              <td>Reserved Memory</td>
+              <td>Reserved Disk</td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each model.taskGroups as |group|}}
+              {{task-group-row taskGroup=group}}
+            {{/each}}
+          </tbody>
+        </table>
       </div>
-      <div class="message-body">
-        Evaluation
-      </div>
-    </div>
-    <div class="message">
-      <div class="message-header">
-        Job Definition
-      </div>
-      <pre>
-Code {
-  goes: here
-}
-      </pre>
     </div>
   </section>
 </div>
