@@ -104,6 +104,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job revert": func() (cli.Command, error) {
+			return &command.JobRevertCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &command.LogsCommand{
 				Meta: meta,
