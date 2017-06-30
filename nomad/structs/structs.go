@@ -1411,6 +1411,10 @@ type Job struct {
 	// on each job register.
 	Version uint64
 
+	// SubmitTime is the time at which the job was submitted as a UnixNano in
+	// UTC
+	SubmitTime int64
+
 	// Raft Indexes
 	CreateIndex    uint64
 	ModifyIndex    uint64
@@ -1679,6 +1683,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 		JobModifyIndex:    j.JobModifyIndex,
+		SubmitTime:        j.SubmitTime,
 		JobSummary:        summary,
 	}
 }
@@ -1783,9 +1788,14 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.CreateIndex = j.CreateIndex
 	c.ModifyIndex = j.ModifyIndex
 	c.JobModifyIndex = j.JobModifyIndex
+	c.SubmitTime = j.SubmitTime
 
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
+}
+
+func (j *Job) SetSubmitTime() {
+	j.SubmitTime = time.Now().UTC().UnixNano()
 }
 
 // JobListStub is used to return a subset of job information
@@ -1805,6 +1815,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobSummary summarizes the state of the allocations of a job

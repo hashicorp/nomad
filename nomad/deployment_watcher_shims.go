@@ -98,6 +98,7 @@ func (d *deploymentWatcherRaftShim) UpsertEvals(evals []*structs.Evaluation) (ui
 }
 
 func (d *deploymentWatcherRaftShim) UpsertJob(job *structs.Job) (uint64, error) {
+	job.SetSubmitTime()
 	update := &structs.JobRegisterRequest{
 		Job: job,
 	}
