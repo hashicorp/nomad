@@ -3993,6 +3993,10 @@ func (d *Deployment) GoString() string {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
+	// AutoRevert marks whether the task group has indicated the job should be
+	// reverted on failure
+	AutoRevert bool
+
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
 
@@ -4020,6 +4024,7 @@ func (d *DeploymentState) GoString() string {
 	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
 	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
 	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
+	base += fmt.Sprintf("\nAutoRevert: %v", d.AutoRevert)
 	return base
 }
 

@@ -34,15 +34,11 @@ func (c *DeploymentListCommand) Synopsis() string {
 }
 
 func (c *DeploymentListCommand) Run(args []string) int {
-	var diff, full, verbose bool
-	var versionStr string
+	var verbose bool
 
-	flags := c.Meta.FlagSet("job history", FlagSetClient)
+	flags := c.Meta.FlagSet("deployment list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&diff, "p", false, "")
-	flags.BoolVar(&full, "full", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.StringVar(&versionStr, "job-version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

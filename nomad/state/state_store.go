@@ -331,7 +331,7 @@ func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*st
 func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, txn *memdb.Txn) (*structs.Deployment, error) {
 	watchCh, existing, err := txn.FirstWatch("deployment", "id", deploymentID)
 	if err != nil {
-		return nil, fmt.Errorf("node lookup failed: %v", err)
+		return nil, fmt.Errorf("deployment lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
