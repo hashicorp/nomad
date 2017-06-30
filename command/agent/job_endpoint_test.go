@@ -706,7 +706,7 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions", nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions?diffs=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -719,7 +719,8 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Check the response
-		versions := obj.([]*structs.Job)
+		vResp := obj.(structs.JobVersionsResponse)
+		versions := vResp.Versions
 		if len(versions) != 2 {
 			t.Fatalf("got %d versions; want 2", len(versions))
 		}
@@ -730,6 +731,10 @@ func TestHTTP_JobVersions(t *testing.T) {
 
 		if v := versions[1]; v.Version != 0 {
 			t.Fatalf("bad %v", v)
+		}
+
+		if len(vResp.Diffs) != 1 {
+			t.Fatalf("bad %v", vResp)
 		}
 
 		// Check for the index

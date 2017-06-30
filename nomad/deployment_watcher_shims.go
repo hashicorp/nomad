@@ -27,7 +27,7 @@ type deploymentWatcherStateShim struct {
 
 	// getJobVersions is used to lookup the versions of a job. This is used when
 	// rolling back to find the latest stable job
-	getJobVersions func(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error
+	getJobVersions func(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error
 
 	// getJob is used to lookup a particular job.
 	getJob func(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error
@@ -65,7 +65,7 @@ func (d *deploymentWatcherStateShim) GetDeployment(args *structs.DeploymentSpeci
 	return d.getDeployment(args, reply)
 }
 
-func (d *deploymentWatcherStateShim) GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error {
+func (d *deploymentWatcherStateShim) GetJobVersions(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error {
 	if args.Region == "" {
 		args.Region = d.region
 	}

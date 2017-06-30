@@ -67,7 +67,7 @@ type DeploymentStateWatchers interface {
 
 	// GetJobVersions is used to lookup the versions of a job. This is used when
 	// rolling back to find the latest stable job
-	GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error
+	GetJobVersions(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error
 
 	// GetJob is used to lookup a particular job.
 	GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error
