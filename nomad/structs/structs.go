@@ -3947,13 +3947,14 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:             GenerateUUID(),
-		JobID:          job.ID,
-		JobVersion:     job.Version,
-		JobModifyIndex: job.ModifyIndex,
-		JobCreateIndex: job.CreateIndex,
-		Status:         DeploymentStatusRunning,
-		TaskGroups:     make(map[string]*DeploymentState, len(job.TaskGroups)),
+		ID:                GenerateUUID(),
+		JobID:             job.ID,
+		JobVersion:        job.Version,
+		JobModifyIndex:    job.ModifyIndex,
+		JobCreateIndex:    job.CreateIndex,
+		Status:            DeploymentStatusRunning,
+		StatusDescription: DeploymentStatusDescriptionRunning,
+		TaskGroups:        make(map[string]*DeploymentState, len(job.TaskGroups)),
 	}
 }
 

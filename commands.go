@@ -54,6 +54,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"deployment": func() (cli.Command, error) {
+			return &command.DeploymentCommand{
+				Meta: meta,
+			}, nil
+		},
+		"deployment list": func() (cli.Command, error) {
+			return &command.DeploymentListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval-status": func() (cli.Command, error) {
 			return &command.EvalStatusCommand{
 				Meta: meta,
