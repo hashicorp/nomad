@@ -38,7 +38,8 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	for k, _ := range commands {
 		switch k {
 		case "check":
-		case "deployment list", "deployment status", "deployment pause", "deployment resume", "deployment fail":
+		case "deployment list", "deployment status", "deployment pause",
+			"deployment resume", "deployment fail", "deployment promote":
 		case "executor":
 		case "fs ls", "fs cat", "fs stat":
 		case "job dispatch", "job history", "job revert":
