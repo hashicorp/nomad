@@ -50,8 +50,20 @@ test('each job row should contain information about the job', function(assert) {
   });
 });
 
+test('each job row should link to the corresponding job', function(assert) {
+  server.create('job');
+  const job = server.db.jobs[0];
+
+  visit('/jobs');
+  click('.job-row:eq(0) td:eq(0) a');
+
+  andThen(() => {
+    assert.equal(currentURL(), `/jobs/${job.id}`);
+  });
+});
+
 test('the high-level metrics include counts based on job status', function(assert) {
-  server.createList('job', 15);
+  server.createList('job', 10);
   const jobs = server.db.jobs;
 
   visit('/jobs');

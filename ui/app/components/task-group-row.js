@@ -5,6 +5,8 @@ const { Component, computed } = Ember;
 export default Component.extend({
   tagName: 'tr',
 
+  classNames: ['task-group-row'],
+
   taskGroup: null,
 
   allocDistribution: computed(
