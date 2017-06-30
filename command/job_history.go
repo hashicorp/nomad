@@ -2,11 +2,16 @@ package command
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/dadgar/columnize"
+	"github.com/hashicorp/nomad/api"
 )
 
 type JobHistoryCommand struct {
 	Meta
+	formatter DataFormatter
 }
 
 func (c *JobHistoryCommand) Help() string {
@@ -30,7 +35,7 @@ History Options:
   -full
     Display the full job definition for each version.
 
-  -version <job version>
+  -job-version <job version>
     Display only the history for the given job version.
 `
 	return strings.TrimSpace(helpText)
@@ -42,13 +47,13 @@ func (c *JobHistoryCommand) Synopsis() string {
 
 func (c *JobHistoryCommand) Run(args []string) int {
 	var diff, full bool
-	var version uint64
+	var versionStr string
 
 	flags := c.Meta.FlagSet("job history", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
-	flags.Uint64Var(&version, "version", 0, "")
+	flags.StringVar(&versionStr, "job-version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -69,13 +74,146 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	}
 
 	jobID := args[0]
-	versions, _, err := client.Jobs().Versions(jobID, nil)
+
+	// Check if the job exists
+	jobs, _, err := client.Jobs().PrefixList(jobID)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error listing jobs: %s", err))
+		return 1
+	}
+	if len(jobs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+		return 1
+	}
+	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
+		out := make([]string, len(jobs)+1)
+		out[0] = "ID|Type|Priority|Status"
+		for i, job := range jobs {
+			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+				job.ID,
+				job.Type,
+				job.Priority,
+				job.Status)
+		}
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
+		return 0
+	}
+
+	// Prefix lookup matched a single job
+	versions, diffs, _, err := client.Jobs().Versions(jobs[0].ID, diff, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(jobID)
-	c.Ui.Output(fmt.Sprintf("%d", len(versions)))
+	f, err := DataFormat("json", "")
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+		return 1
+	}
+	c.formatter = f
+
+	if versionStr != "" {
+		version, _, err := parseVersion(versionStr)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing version value %q: %v", versionStr, err))
+			return 1
+		}
+
+		var job *api.Job
+		var diff *api.JobDiff
+		var nextVersion uint64
+		for i, v := range versions {
+			if *v.Version != version {
+				continue
+			}
+
+			job = v
+			if i+1 <= len(diffs) {
+				diff = diffs[i]
+				nextVersion = *versions[i+1].Version
+			}
+		}
+
+		if err := c.formatJobVersion(job, diff, nextVersion, full); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+	} else {
+		if err := c.formatJobVersions(versions, diffs, full); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+	}
+
 	return 0
+}
+
+// parseVersion parses the version flag and returns the index, whether it
+// was set and potentially an error during parsing.
+func parseVersion(input string) (uint64, bool, error) {
+	if input == "" {
+		return 0, false, nil
+	}
+
+	u, err := strconv.ParseUint(input, 10, 64)
+	return u, true, err
+}
+
+func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.JobDiff, full bool) error {
+	vLen := len(versions)
+	dLen := len(diffs)
+	if dLen != 0 && vLen != dLen+1 {
+		return fmt.Errorf("Number of job versions %d doesn't match number of diffs %d", vLen, dLen)
+	}
+
+	for i, version := range versions {
+		var diff *api.JobDiff
+		var nextVersion uint64
+		if i+1 <= dLen {
+			diff = diffs[i]
+			nextVersion = *versions[i+1].Version
+		}
+
+		if err := c.formatJobVersion(version, diff, nextVersion, full); err != nil {
+			return err
+		}
+
+		// Insert a blank
+		if i != vLen-1 {
+			c.Ui.Output("")
+		}
+	}
+
+	return nil
+}
+
+func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, nextVersion uint64, full bool) error {
+	basic := []string{
+		fmt.Sprintf("Version|%d", *job.Version),
+		fmt.Sprintf("Stable|%v", *job.Stable),
+	}
+
+	if diff != nil {
+		//diffStr := fmt.Sprintf("Difference between version %d and %d:", *job.Version, nextVersion)
+		basic = append(basic, fmt.Sprintf("Diff|\n%s", strings.TrimSpace(formatJobDiff(diff, false))))
+	}
+
+	if full {
+		out, err := c.formatter.TransformData(job)
+		if err != nil {
+			return fmt.Errorf("Error formatting the data: %s", err)
+		}
+
+		basic = append(basic, fmt.Sprintf("Full|JSON Job:\n%s", out))
+	}
+
+	columnConf := columnize.DefaultConfig()
+	columnConf.Glue = " = "
+	columnConf.NoTrim = true
+	output := columnize.Format(basic, columnConf)
+
+	c.Ui.Output(c.Colorize().Color(output))
+	return nil
 }
