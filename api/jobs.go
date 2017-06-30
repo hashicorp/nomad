@@ -458,6 +458,7 @@ type Job struct {
 	StatusDescription *string
 	Stable            *bool
 	Version           *uint64
+	SubmitTime        *int64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -512,6 +513,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Version == nil {
 		j.Version = helper.Uint64ToPtr(0)
+	}
+	if j.SubmitTime == nil {
+		j.SubmitTime = helper.Int64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)
@@ -588,6 +592,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobIDSort is used to sort jobs by their job ID's.

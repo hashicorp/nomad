@@ -46,6 +46,7 @@ type JobEvalDispatcher interface {
 // evaluation and the job to the raft log. It returns the eval.
 func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	// Commit this update via Raft
+	job.SetSubmitTime()
 	req := structs.JobRegisterRequest{Job: job}
 	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {

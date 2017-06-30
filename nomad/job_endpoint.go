@@ -137,6 +137,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Check if the job has changed at all
 	if currentJob == nil || currentJob.SpecChanged(args.Job) {
+		// Set the submit time
+		args.Job.SetSubmitTime()
+
 		// Commit this update via Raft
 		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err != nil {
@@ -1036,6 +1039,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
+	dispatchJob.SetSubmitTime()
 
 	// Merge in the meta data
 	for k, v := range args.Meta {

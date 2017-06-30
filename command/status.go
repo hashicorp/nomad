@@ -138,6 +138,7 @@ func (c *StatusCommand) Run(args []string) int {
 	basic := []string{
 		fmt.Sprintf("ID|%s", *job.ID),
 		fmt.Sprintf("Name|%s", *job.Name),
+		fmt.Sprintf("Submit Date|%s", formatTime(time.Unix(0, *job.SubmitTime))),
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
@@ -446,13 +447,14 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 // list general information about a list of jobs
 func createStatusListOutput(jobs []*api.JobListStub) string {
 	out := make([]string, len(jobs)+1)
-	out[0] = "ID|Type|Priority|Status"
+	out[0] = "ID|Type|Priority|Status|Submit Date"
 	for i, job := range jobs {
-		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%s|%s",
 			job.ID,
 			getTypeString(job),
 			job.Priority,
-			getStatusString(job.Status, job.Stop))
+			getStatusString(job.Status, job.Stop),
+			formatTime(time.Unix(0, job.SubmitTime)))
 	}
 	return formatList(out)
 }

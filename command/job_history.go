@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dadgar/columnize"
 	"github.com/hashicorp/nomad/api"
@@ -86,16 +87,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
 		return 0
 	}
 
@@ -193,6 +185,7 @@ func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, ne
 	basic := []string{
 		fmt.Sprintf("Version|%d", *job.Version),
 		fmt.Sprintf("Stable|%v", *job.Stable),
+		fmt.Sprintf("Submit Date|%v", formatTime(time.Unix(0, *job.SubmitTime))),
 	}
 
 	if diff != nil {
