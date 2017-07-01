@@ -7,7 +7,6 @@ import (
 
 type JobRevertCommand struct {
 	Meta
-	formatter DataFormatter
 }
 
 func (c *JobRevertCommand) Help() string {

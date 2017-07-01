@@ -7,7 +7,6 @@ import (
 
 type JobDeploymentsCommand struct {
 	Meta
-	formatter DataFormatter
 }
 
 func (c *JobDeploymentsCommand) Help() string {
@@ -21,6 +20,12 @@ General Options:
   ` + generalOptionsUsage() + `
 
 Deployments Options:
+
+  -json
+    Output the deployments in a JSON format.
+
+  -t
+    Format and display deployments using a Go template.
 
   -latest
     Display the latest deployment only.
@@ -36,12 +41,15 @@ func (c *JobDeploymentsCommand) Synopsis() string {
 }
 
 func (c *JobDeploymentsCommand) Run(args []string) int {
-	var latest, verbose bool
+	var json, latest, verbose bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet("job deployments", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&latest, "latest", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
