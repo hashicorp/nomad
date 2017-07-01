@@ -129,6 +129,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job deployments": func() (cli.Command, error) {
+			return &command.JobDeploymentsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job dispatch": func() (cli.Command, error) {
 			return &command.JobDispatchCommand{
 				Meta: meta,
