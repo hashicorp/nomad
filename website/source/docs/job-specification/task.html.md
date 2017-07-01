@@ -49,7 +49,7 @@ job "docs" {
 
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
   application to gracefully quit before force-killing. Nomad sends an `SIGINT`.
-  If the task does not exit before the configured timeout, `SIGKILL` is sent to
+  If the task does not exit before the configured timeout, `SIGTERM` is sent to
   the task. Note that the value set here is capped at the value set for
   [`max_kill_timeout`][max_kill] on the agent running the task, which has a
   default value of 30 seconds.
