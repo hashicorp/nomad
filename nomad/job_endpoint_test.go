@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -2060,6 +2061,155 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 	}
 	if len(resp.Evaluations) != 1 || resp.Evaluations[0].JobID != "job1" {
 		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+}
+
+func TestJobEndpoint_Deployments(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1001, d1, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2, false), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID:        j.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.DeploymentListResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
+	assert.EqualValues(1002, resp.Index, "response index")
+	assert.Len(resp.Deployments, 2, "deployments for job")
+}
+
+func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d2.JobID = j.ID
+	assert.Nil(state.UpsertJob(50, j), "UpsertJob")
+
+	// First upsert an unrelated eval
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.UpsertDeployment(100, d1, false), "UpsertDeployment")
+	})
+
+	// Upsert an eval for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		assert.Nil(state.UpsertDeployment(200, d2, false), "UpsertDeployment")
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: d2.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.DeploymentListResponse
+	start := time.Now()
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
+	assert.EqualValues(200, resp.Index, "response index")
+	assert.Len(resp.Deployments, 1, "deployments for job")
+	assert.Equal(d2.ID, resp.Deployments[0], "returned deployment")
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+}
+
+func TestJobEndpoint_LatestDeployment(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	d2.CreateIndex = d1.CreateIndex + 100
+	d2.ModifyIndex = d2.CreateIndex + 100
+	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1001, d1, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2, false), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID:        j.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.SingleDeploymentResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp), "RPC")
+	assert.EqualValues(1002, resp.Index, "response index")
+	assert.NotNil(resp.Deployment, "want a deployment")
+	assert.Equal(d2.ID, resp.Deployment.ID, "latest deployment for job")
+}
+
+func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d2.JobID = j.ID
+	assert.Nil(state.UpsertJob(50, j), "UpsertJob")
+
+	// First upsert an unrelated eval
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.UpsertDeployment(100, d1, false), "UpsertDeployment")
+	})
+
+	// Upsert an eval for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		assert.Nil(state.UpsertDeployment(200, d2, false), "UpsertDeployment")
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: d2.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.SingleDeploymentResponse
+	start := time.Now()
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp), "RPC")
+	assert.EqualValues(200, resp.Index, "response index")
+	assert.NotNil(resp.Deployment, "deployment for job")
+	assert.Equal(d2.ID, resp.Deployment.ID, "returned deployment")
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
 }
 
