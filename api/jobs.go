@@ -138,8 +138,31 @@ func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*Al
 	return resp, qm, nil
 }
 
-// Evaluations is used to query the evaluations associated with
+// Deployments is used to query the deployments associated with the given job
+// ID.
+func (j *Jobs) Deployments(jobID string, q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
+	var resp []*Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployments", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(DeploymentIndexSort(resp))
+	return resp, qm, nil
+}
+
+// LatestDeployment is used to query for the latest deployment associated with
 // the given job ID.
+func (j *Jobs) LatestDeployment(jobID string, q *QueryOptions) (*Deployment, *QueryMeta, error) {
+	var resp *Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployment", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Evaluations is used to query the evaluations associated with the given job
+// ID.
 func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	var resp []*Evaluation
 	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, q)
