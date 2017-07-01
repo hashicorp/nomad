@@ -28,10 +28,10 @@ Status Options:
     Display full information.
 
   -json
-    Output the allocation in its JSON format.
+    Output the deployment in its JSON format.
 
   -t
-    Format and display allocation using a Go template.
+    Format and display deployment using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -88,27 +88,13 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	var format string
-	if json && len(tmpl) > 0 {
-		c.Ui.Error("Both -json and -t are not allowed")
-		return 1
-	} else if json {
-		format = "json"
-	} else if len(tmpl) > 0 {
-		format = "template"
-	}
-	if len(format) > 0 {
-		f, err := DataFormat(format, tmpl)
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, deploy)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			c.Ui.Error(err.Error())
 			return 1
 		}
 
-		out, err := f.TransformData(deploy)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
-			return 1
-		}
 		c.Ui.Output(out)
 		return 0
 	}

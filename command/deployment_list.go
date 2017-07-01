@@ -23,6 +23,12 @@ General Options:
 
 List Options:
 
+  -json
+    Output the deployments in a JSON format.
+
+  -t
+    Format and display the deployments using a Go template.
+
   -verbose
     Display full information.
 `
@@ -34,11 +40,14 @@ func (c *DeploymentListCommand) Synopsis() string {
 }
 
 func (c *DeploymentListCommand) Run(args []string) int {
-	var verbose bool
+	var json, verbose bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet("deployment list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -68,6 +77,17 @@ func (c *DeploymentListCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 		return 1
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, deploys)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	c.Ui.Output(formatDeployments(deploys, length))

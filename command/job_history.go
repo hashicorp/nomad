@@ -38,6 +38,12 @@ History Options:
 
   -job-version <job version>
     Display only the history for the given job version.
+
+  -json
+    Output the job versions in a JSON format.
+
+  -t
+    Format and display the job versions using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -47,14 +53,16 @@ func (c *JobHistoryCommand) Synopsis() string {
 }
 
 func (c *JobHistoryCommand) Run(args []string) int {
-	var diff, full bool
-	var versionStr string
+	var json, diff, full bool
+	var tmpl, versionStr string
 
 	flags := c.Meta.FlagSet("job history", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
+	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&versionStr, "job-version", "", "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -64,6 +72,11 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
 		c.Ui.Error(c.Help())
+		return 1
+	}
+
+	if (json || len(tmpl) != 0) && (diff || full) {
+		c.Ui.Error("-json and -t are exclusive with -p and -full")
 		return 1
 	}
 
@@ -127,12 +140,34 @@ func (c *JobHistoryCommand) Run(args []string) int {
 			}
 		}
 
+		if json || len(tmpl) > 0 {
+			out, err := Format(json, tmpl, job)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			c.Ui.Output(out)
+			return 0
+		}
+
 		if err := c.formatJobVersion(job, diff, nextVersion, full); err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
 
 	} else {
+		if json || len(tmpl) > 0 {
+			out, err := Format(json, tmpl, versions)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			c.Ui.Output(out)
+			return 0
+		}
+
 		if err := c.formatJobVersions(versions, diffs, full); err != nil {
 			c.Ui.Error(err.Error())
 			return 1
