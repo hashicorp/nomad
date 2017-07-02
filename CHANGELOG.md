@@ -43,6 +43,7 @@ BUG FIXES:
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]
  * server/vault: Fix Vault Client panic when given nonexistant role [GH-2648]
+ * telemetry: Fix merging of use node name [GH-2762]
 
 ## 0.5.6 (March 31, 2017)
 
