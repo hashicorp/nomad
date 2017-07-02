@@ -1053,6 +1053,10 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.DisableHostname {
 		result.DisableHostname = true
 	}
+
+	if b.UseNodeName {
+		result.UseNodeName = true
+	}
 	if b.CollectionInterval != "" {
 		result.CollectionInterval = b.CollectionInterval
 	}
