@@ -27,7 +27,15 @@ cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-test: generate
+test:
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make test-nomad; \
+		fi
+	@if [ $(RUN_UI_TESTS) ]; then \
+		make test-ui; \
+		fi
+
+test-nomad: generate
 	@echo "--> Running go fmt" ;
 	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
 		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
@@ -35,6 +43,14 @@ test: generate
 		fi
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
+
+test-ui:
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm install phantomjs-prebuilt
+	@echo "--> Running ember tests"
+	@cd ui && phantomjs --version
+	@cd ui && npm test
 
 cover:
 	go list ./... | xargs -n1 go test --cover
@@ -81,13 +97,6 @@ static-assets:
 	@echo "--> Generating static assets"
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
-
-test-ember:
-	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install && bower install && yarn install phantomjs-prebuilt
-	@echo "--> Running ember tests"
-	@cd ui && node_modules/phantomjs-prebuilt/bin/phantomjs --version
-	@cd ui && npm test
 
 ember-dist:
 	@echo "--> Installing JavaScript assets"
