@@ -16,9 +16,7 @@ import (
 
 func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*Watcher, *mockBackend) {
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), qps, batchDur)
-	w.SetStateWatchers(m)
-	w.SetRaftEndpoints(m)
+	w := NewDeploymentsWatcher(testLogger(), m, m, qps, batchDur)
 	return w, m
 }
 

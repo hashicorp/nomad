@@ -224,28 +224,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		incomingTLS = itls
 	}
 
-	// Create the deployment watcher
-	watcher := deploymentwatcher.NewDeploymentsWatcher(logger,
-		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.EvalBatchDuration)
-
 	// Create the server
 	s := &Server{
-		config:            config,
-		consulCatalog:     consulCatalog,
-		connPool:          NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:            logger,
-		rpcServer:         rpc.NewServer(),
-		peers:             make(map[string][]*serverParts),
-		localPeers:        make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:       make(chan serf.Member, 32),
-		eventCh:           make(chan serf.Event, 256),
-		evalBroker:        evalBroker,
-		blockedEvals:      blockedEvals,
-		deploymentWatcher: watcher,
-		planQueue:         planQueue,
-		rpcTLS:            incomingTLS,
-		shutdownCh:        make(chan struct{}),
+		config:        config,
+		consulCatalog: consulCatalog,
+		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:        logger,
+		rpcServer:     rpc.NewServer(),
+		peers:         make(map[string][]*serverParts),
+		localPeers:    make(map[raft.ServerAddress]*serverParts),
+		reconcileCh:   make(chan serf.Member, 32),
+		eventCh:       make(chan serf.Event, 256),
+		evalBroker:    evalBroker,
+		blockedEvals:  blockedEvals,
+		planQueue:     planQueue,
+		rpcTLS:        incomingTLS,
+		shutdownCh:    make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -698,8 +692,12 @@ func (s *Server) setupDeploymentWatcher() error {
 		apply: s.raftApply,
 	}
 
-	s.deploymentWatcher.SetStateWatchers(stateShim)
-	s.deploymentWatcher.SetRaftEndpoints(raftShim)
+	// Create the deployment watcher
+	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
+		s.logger, stateShim, raftShim,
+		deploymentwatcher.LimitStateQueriesPerSecond,
+		deploymentwatcher.EvalBatchDuration)
+
 	return nil
 }
 
