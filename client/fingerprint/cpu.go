@@ -59,19 +59,20 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 		tt = cfg.CpuCompute
 	}
 
-	// Set the node compute resources if they are detected/configured
-	if tt > 0 {
-		node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
-
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
-		}
-
-		node.Resources.CPU = tt
-	} else {
-		f.logger.Printf("[INFO] fingerprint.cpu: cannot detect cpu total compute. "+
+	// Return an error if no cpu was detected or explicitly set as this
+	// node would be unable to receive any allocations.
+	if tt == 0 {
+		return false, fmt.Errorf("cannot detect cpu total compute. "+
 			"CPU compute must be set manually using the client config option %q",
 			"cpu_total_compute")
 	}
+
+	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
+
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
+
+	node.Resources.CPU = tt
 	return true, nil
 }
