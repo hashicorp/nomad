@@ -2517,7 +2517,8 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 }
 
 // updateDeploymentWithAlloc is used to update the deployment state associated
-// with the given allocation
+// with the given allocation. The passed alloc may be updated if the deployment
+// status has changed to capture the modify index at which it has changed.
 func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *structs.Allocation, txn *memdb.Txn) error {
 	// Nothing to do if the allocation is not associated with a deployment
 	if alloc.DeploymentID == "" {
@@ -2570,6 +2571,11 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// Nothing to do
 	if placed == 0 && healthy == 0 && unhealthy == 0 {
 		return nil
+	}
+
+	// Update the allocation's deployment status modify index
+	if alloc.DeploymentStatus != nil && healthy+unhealthy != 0 {
+		alloc.DeploymentStatus.ModifyIndex = index
 	}
 
 	// Create a copy of the deployment object
