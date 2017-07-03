@@ -731,10 +731,22 @@ func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
 // then saves state.
 func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
-	// Destroy each sub-task
 	runners := r.getTaskRunners()
+
+	// First destroy the leader
 	for _, tr := range runners {
-		tr.Destroy(destroyEvent)
+		if tr.task.Leader {
+			r.logger.Printf("[DEBUG] client: destroying leader task %q of task group %q first", tr.task.Name, tr.alloc.TaskGroup)
+			tr.Destroy(destroyEvent)
+			<-tr.WaitCh()
+		}
+	}
+
+	// Then destroy non-leader tasks concurrently
+	for _, tr := range runners {
+		if !tr.task.Leader {
+			tr.Destroy(destroyEvent)
+		}
 	}
 
 	// Wait for termination of the task runners
