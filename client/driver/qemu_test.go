@@ -84,21 +84,18 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 		t.Fatalf("Prestart faild: %v", err)
 	}
 
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
 
 	// Ensure that sending a Signal returns an error
-	if err := handle.Signal(syscall.SIGINT); err == nil {
+	if err := resp.Handle.Signal(syscall.SIGINT); err == nil {
 		t.Fatalf("Expect an error when signalling")
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, resp.Handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -107,7 +104,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	// Clean up
-	if err := handle.Kill(); err != nil {
+	if err := resp.Handle.Kill(); err != nil {
 		fmt.Printf("\nError killing Qemu test: %s", err)
 	}
 }
@@ -150,9 +147,9 @@ func TestQemuDriverUser(t *testing.T) {
 		t.Fatalf("Prestart faild: %v", err)
 	}
 
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "unknown user alice"

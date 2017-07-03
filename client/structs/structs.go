@@ -1,5 +1,11 @@
 package structs
 
+import (
+	"crypto/md5"
+	"io"
+	"strconv"
+)
+
 // MemoryStats holds memory usage related stats
 type MemoryStats struct {
 	RSS            uint64
@@ -123,4 +129,58 @@ func (f FSIsolation) String() string {
 	default:
 		return "INVALID"
 	}
+}
+
+// DriverNetwork is the network created by driver's (eg Docker's bridge
+// network) during Prestart.
+type DriverNetwork struct {
+	// PortMap can be set by drivers to replace ports in environment
+	// variables with driver-specific mappings.
+	PortMap map[string]int
+
+	// IP is the IP address for the task created by the driver.
+	IP string
+
+	// AutoAdvertise indicates whether the driver thinks services that
+	// choose to auto-advertise-addresses should use this IP instead of the
+	// host's. eg If a Docker network plugin is used
+	AutoAdvertise bool
+}
+
+// Advertise returns true if the driver suggests using the IP set. May be
+// called on a nil Network in which case it returns false.
+func (d *DriverNetwork) Advertise() bool {
+	return d != nil && d.AutoAdvertise
+}
+
+// Copy a DriverNetwork struct. If it is nil, nil is returned.
+func (d *DriverNetwork) Copy() *DriverNetwork {
+	if d == nil {
+		return nil
+	}
+	pm := make(map[string]int, len(d.PortMap))
+	for k, v := range d.PortMap {
+		pm[k] = v
+	}
+	return &DriverNetwork{
+		PortMap:       pm,
+		IP:            d.IP,
+		AutoAdvertise: d.AutoAdvertise,
+	}
+}
+
+// Hash the contents of a DriverNetwork struct to detect changes. If it is nil,
+// an empty slice is returned.
+func (d *DriverNetwork) Hash() []byte {
+	if d == nil {
+		return []byte{}
+	}
+	h := md5.New()
+	io.WriteString(h, d.IP)
+	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
+	for k, v := range d.PortMap {
+		io.WriteString(h, k)
+		io.WriteString(h, strconv.Itoa(v))
+	}
+	return h.Sum(nil)
 }

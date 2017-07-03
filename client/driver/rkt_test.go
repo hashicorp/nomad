@@ -103,23 +103,21 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Attempt to open
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, resp.Handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if handle2 == nil {
 		t.Fatalf("missing handle")
 	}
+	handle2.Kill()
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
@@ -154,28 +152,25 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err = resp.Handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Signal should be an error
-	if err = handle.Signal(syscall.SIGTERM); err == nil {
+	if err = resp.Handle.Signal(syscall.SIGTERM); err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -215,23 +210,20 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err = resp.Handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -286,17 +278,14 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -348,9 +337,9 @@ func TestRktDriverUser(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "unknown user alice"
@@ -389,9 +378,9 @@ func TestRktTrustPrefix(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "Error running rkt trust"
@@ -467,18 +456,15 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	failCh := make(chan error, 1)
 	go func() {
 		time.Sleep(1 * time.Second)
-		if err := handle.Kill(); err != nil {
+		if err := resp.Handle.Kill(); err != nil {
 			failCh <- err
 		}
 	}()
@@ -486,7 +472,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	select {
 	case err := <-failCh:
 		t.Fatalf("failed to kill handle: %v", err)
-	case <-handle.WaitCh():
+	case <-resp.Handle.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
 	}
@@ -523,19 +509,16 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	// Give the pod a second to start
 	time.Sleep(time.Second)
 
 	// Exec a command that should work
-	out, code, err := handle.Exec(context.TODO(), "/etcd", []string{"--version"})
+	out, code, err := resp.Handle.Exec(context.TODO(), "/etcd", []string{"--version"})
 	if err != nil {
 		t.Fatalf("error exec'ing etcd --version: %v", err)
 	}
@@ -547,7 +530,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	}
 
 	// Exec a command that should fail
-	out, code, err = handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
+	out, code, err = resp.Handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
 	if err != nil {
 		t.Fatalf("error exec'ing bad command: %v", err)
 	}
@@ -558,7 +541,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 		t.Fatalf("expected output to contain %q but found: %q", expected, out)
 	}
 
-	if err := handle.Kill(); err != nil {
+	if err := resp.Handle.Kill(); err != nil {
 		t.Fatalf("error killing handle: %v", err)
 	}
 }

@@ -58,9 +58,13 @@ type PrestartResponse struct {
 	// CreatedResources by the driver.
 	CreatedResources *CreatedResources
 
-	// PortMap can be set by drivers to replace ports in environment
-	// variables with driver-specific mappings.
-	PortMap map[string]int
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
+	//
+	// Since the network configuration may not be fully populated by
+	// Prestart, it will only be used for creating an environment for
+	// Start. It will be overridden by the DriverNetwork returned by Start.
+	Network *cstructs.DriverNetwork
 }
 
 // NewPrestartResponse creates a new PrestartResponse with CreatedResources
@@ -183,6 +187,20 @@ func (r *CreatedResources) Hash() []byte {
 	return h.Sum(nil)
 }
 
+// StartResponse is returned by Driver.Start.
+type StartResponse struct {
+	// Handle to the driver's task executor for controlling the lifecycle
+	// of the task.
+	Handle DriverHandle
+
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
+	//
+	// Network may be nil as not all drivers or configurations create
+	// networks.
+	Network *cstructs.DriverNetwork
+}
+
 // Driver is used for execution of tasks. This allows Nomad
 // to support many pluggable implementations of task drivers.
 // Examples could include LXC, Docker, Qemu, etc.
@@ -196,8 +214,11 @@ type Driver interface {
 	// CreatedResources may be non-nil even when an error occurs.
 	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
 
-	// Start is used to being task execution
-	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
+	// Start is used to begin task execution. If error is nil,
+	// StartResponse.Handle will be the handle to the task's executor.
+	// StartResponse.Network may be nil if the task doesn't configure a
+	// network.
+	Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error)
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
@@ -208,7 +229,7 @@ type Driver interface {
 	//
 	// If Cleanup returns a recoverable error it may be retried. On retry
 	// it will be passed the same CreatedResources, so all successfully
-	// cleaned up resources should be removed.
+	// cleaned up resources should be removed or handled idempotently.
 	Cleanup(*ExecContext, *CreatedResources) error
 
 	// Drivers must validate their configuration

@@ -41,18 +41,15 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	id := &execId{}
-	if err := json.Unmarshal([]byte(handle.ID()), id); err != nil {
-		t.Fatalf("Failed to parse handle '%s': %v", handle.ID(), err)
+	if err := json.Unmarshal([]byte(resp.Handle.ID()), id); err != nil {
+		t.Fatalf("Failed to parse handle '%s': %v", resp.Handle.ID(), err)
 	}
 	pluginPid := id.PluginConfig.Pid
 	proc, err := os.FindProcess(pluginPid)
@@ -64,7 +61,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, resp.Handle.ID())
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -129,17 +126,14 @@ done
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		err := handle.Signal(syscall.SIGUSR1)
+		err := resp.Handle.Signal(syscall.SIGUSR1)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -147,7 +141,7 @@ done
 
 	// Task should terminate quickly
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
 		}

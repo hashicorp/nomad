@@ -75,15 +75,12 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	sresp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
 
-	lxcHandle, _ := handle.(*lxcDriverHandle)
+	lxcHandle, _ := sresp.Handle.(*lxcDriverHandle)
 
 	// Destroy the container after the test
 	defer func() {
@@ -115,12 +112,12 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	}
 
 	// Desroy the container
-	if err := handle.Kill(); err != nil {
+	if err := sresp.Handle.Kill(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-sresp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -151,23 +148,19 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	sresp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
 
 	// Destroy the container after the test
-	if lh, ok := handle.(*lxcDriverHandle); ok {
-		defer func() {
-			lh.container.Stop()
-			lh.container.Destroy()
-		}()
-	}
+	lh := sresp.Handle.(*lxcDriverHandle)
+	defer func() {
+		lh.container.Stop()
+		lh.container.Destroy()
+	}()
 
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, lh.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

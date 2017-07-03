@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -164,7 +165,9 @@ func TestEnvironment_AsList(t *testing.T) {
 			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
 		},
 	}
-	env := NewBuilder(n, a, task, "global").SetPortMap(map[string]int{"https": 443})
+	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
+		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
+	)
 
 	act := env.Build().List()
 	exp := []string{
@@ -172,7 +175,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_ADDR_http=127.0.0.1:80",
 		"NOMAD_PORT_http=80",
 		"NOMAD_IP_http=127.0.0.1",
-		"NOMAD_ADDR_https=127.0.0.1:443",
+		"NOMAD_ADDR_https=127.0.0.1:8080",
 		"NOMAD_PORT_https=443",
 		"NOMAD_IP_https=127.0.0.1",
 		"NOMAD_HOST_PORT_http=80",
@@ -204,7 +207,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	sort.Strings(act)
 	sort.Strings(exp)
 	if len(act) != len(exp) {
-		t.Fatalf("expected %d vars != %d actual, actual: %s\n\nexpected: %s\n",
+		t.Fatalf("expected %d vars != %d actual, actual:\n%s\n\nexpected:\n%s\n",
 			len(act), len(exp), strings.Join(act, "\n"), strings.Join(exp, "\n"))
 	}
 	for i := range act {
@@ -249,7 +252,8 @@ func TestEnvironment_Envvars(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = envMap
-	act := NewBuilder(n, a, task, "global").SetPortMap(portMap).Build().All()
+	net := &cstructs.DriverNetwork{PortMap: portMap}
+	act := NewBuilder(n, a, task, "global").SetDriverNetwork(net).Build().All()
 	for k, v := range envMap {
 		actV, ok := act[k]
 		if !ok {

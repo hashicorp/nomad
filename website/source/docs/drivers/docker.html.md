@@ -355,7 +355,7 @@ container.
 
 These ports will be identified via environment variables. For example:
 
-```
+```hcl
 port "http" {}
 ```
 
@@ -400,6 +400,16 @@ container, so it will just work!
 Note that by default this only works with `bridged` networking mode. It may
 also work with custom networking plugins which implement the same API for
 expose and port forwarding.
+
+### Advertising Container IPs
+
+*New in Nomad 0.6.*
+
+When using network plugins like `weave` that assign containers a routable IP
+address, that address will automatically be used in any `service`
+advertisements for the task. You may override what address is advertised by
+using the `address_mode` parameter on a `service`. See
+[service](/docs/job-specification/service.html) for details.
 
 ### Networking Protocols
 

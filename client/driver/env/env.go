@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -58,16 +59,21 @@ const (
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
+	//
+	// The ip:port are always the host's.
 	AddrPrefix = "NOMAD_ADDR_"
 
-	// IpPrefix is the prefix for passing the IP of a port allocation to a task.
+	// IpPrefix is the prefix for passing the host IP of a port allocation
+	// to a task.
 	IpPrefix = "NOMAD_IP_"
 
 	// PortPrefix is the prefix for passing the port allocation to a task.
+	// It will be the task's port if a port map is specified. Task's should
+	// bind to this port.
 	PortPrefix = "NOMAD_PORT_"
 
-	// HostPortPrefix is the prefix for passing the host port when a portmap is
-	// specified.
+	// HostPortPrefix is the prefix for passing the host port when a port
+	// map is specified.
 	HostPortPrefix = "NOMAD_HOST_PORT_"
 
 	// MetaPrefix is the prefix for passing task meta data.
@@ -202,7 +208,6 @@ type Builder struct {
 	region           string
 	allocId          string
 	allocName        string
-	portMap          map[string]string
 	vaultToken       string
 	injectVaultToken bool
 	jobName          string
@@ -210,9 +215,13 @@ type Builder struct {
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
 
+	// driverNetwork is the network defined by the driver (or nil if none
+	// was defined).
+	driverNetwork *cstructs.DriverNetwork
+
 	// network resources from the task; must be lazily turned into env vars
-	// because portMaps can change after builder creation and affect
-	// network env vars.
+	// because portMaps and advertiseIP can change after builder creation
+	// and affect network env vars.
 	networks []*structs.NetworkResource
 
 	mu *sync.RWMutex
@@ -287,21 +296,8 @@ func (b *Builder) Build() *TaskEnv {
 		nodeAttrs[nodeRegionKey] = b.region
 	}
 
-	// Build the addrs for this task
-	for _, network := range b.networks {
-		for label, intVal := range network.MapLabelToValues(nil) {
-			value := strconv.Itoa(intVal)
-			envMap[fmt.Sprintf("%s%s", IpPrefix, label)] = network.IP
-			envMap[fmt.Sprintf("%s%s", HostPortPrefix, label)] = value
-			if forwardedPort, ok := b.portMap[label]; ok {
-				value = forwardedPort
-			}
-			envMap[fmt.Sprintf("%s%s", PortPrefix, label)] = value
-			ipPort := net.JoinHostPort(network.IP, value)
-			envMap[fmt.Sprintf("%s%s", AddrPrefix, label)] = ipPort
-
-		}
-	}
+	// Build the network related env vars
+	buildNetworkEnv(envMap, b.networks, b.driverNetwork)
 
 	// Build the addr of the other tasks
 	for k, v := range b.otherPorts {
@@ -455,15 +451,49 @@ func (b *Builder) SetSecretsDir(dir string) *Builder {
 	return b
 }
 
-func (b *Builder) SetPortMap(portMap map[string]int) *Builder {
-	newPortMap := make(map[string]string, len(portMap))
-	for k, v := range portMap {
-		newPortMap[k] = strconv.Itoa(v)
-	}
+// SetDriverNetwork defined by the driver.
+func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
+	ncopy := n.Copy()
 	b.mu.Lock()
-	b.portMap = newPortMap
+	b.driverNetwork = ncopy
 	b.mu.Unlock()
 	return b
+}
+
+// buildNetworkEnv env vars in the given map.
+//
+//	Auto:   NOMAD_PORT_<label>
+//	Host:   NOMAD_IP_<label>, NOMAD_ADDR_<label>, NOMAD_HOST_PORT_<label>
+//
+// Handled by setAlloc -> otherPorts:
+//
+//	Task:   NOMAD_TASK_{IP,PORT,ADDR}_<task>_<label> # Always host values
+//
+func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *cstructs.DriverNetwork) {
+	for _, n := range nets {
+		for _, p := range n.ReservedPorts {
+			buildPortEnv(envMap, p, n.IP, driverNet)
+		}
+		for _, p := range n.DynamicPorts {
+			buildPortEnv(envMap, p, n.IP, driverNet)
+		}
+	}
+}
+
+func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *cstructs.DriverNetwork) {
+	// Host IP, port, and address
+	portStr := strconv.Itoa(p.Value)
+	envMap[IpPrefix+p.Label] = ip
+	envMap[HostPortPrefix+p.Label] = portStr
+	envMap[AddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
+
+	// Set Port to task's value if there's a port map
+	if driverNet != nil && driverNet.PortMap[p.Label] != 0 {
+		envMap[PortPrefix+p.Label] = strconv.Itoa(driverNet.PortMap[p.Label])
+	} else {
+		// Default to host's
+		envMap[PortPrefix+p.Label] = portStr
+	}
 }
 
 // SetHostEnvvars adds the host environment variables to the tasks. The filter

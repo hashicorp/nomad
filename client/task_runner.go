@@ -88,6 +88,10 @@ type TaskRunner struct {
 	// envBuilder is used to build the task's environment
 	envBuilder *env.Builder
 
+	// driverNet is the network information returned by the driver
+	driverNet     *cstructs.DriverNetwork
+	driverNetLock sync.Mutex
+
 	// updateCh is used to receive updated versions of the allocation
 	updateCh chan *structs.Allocation
 
@@ -167,6 +171,7 @@ type taskRunnerState struct {
 	TaskDirBuilt       bool
 	PayloadRendered    bool
 	CreatedResources   *driver.CreatedResources
+	DriverNetwork      *cstructs.DriverNetwork
 }
 
 func (s *taskRunnerState) Hash() []byte {
@@ -178,6 +183,7 @@ func (s *taskRunnerState) Hash() []byte {
 	io.WriteString(h, fmt.Sprintf("%v", s.TaskDirBuilt))
 	io.WriteString(h, fmt.Sprintf("%v", s.PayloadRendered))
 	h.Write(s.CreatedResources.Hash())
+	h.Write(s.DriverNetwork.Hash())
 
 	return h.Sum(nil)
 }
@@ -312,6 +318,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 	r.taskDirBuilt = snap.TaskDirBuilt
 	r.payloadRendered = snap.PayloadRendered
 	r.setCreatedResources(snap.CreatedResources)
+	r.driverNet = snap.DriverNetwork
 
 	if r.task.Vault != nil {
 		// Read the token from the secret directory
@@ -337,6 +344,10 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			return "", err
 		}
 
+		// Add the restored network driver to the environment
+		r.envBuilder.SetDriverNetwork(r.driverNet)
+
+		// Open a connection to the driver handle
 		ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 		handle, err := d.Open(ctx, snap.HandleID)
 
@@ -351,7 +362,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			restartReason = pre06ScriptCheckReason
 		}
 
-		if err := r.registerServices(d, handle); err != nil {
+		if err := r.registerServices(d, handle, r.driverNet); err != nil {
 			// Don't hard fail here as there's a chance this task
 			// registered with Consul properly when it initial
 			// started.
@@ -420,6 +431,10 @@ func (r *TaskRunner) SaveState() error {
 		snap.HandleID = r.handle.ID()
 	}
 	r.handleLock.Unlock()
+
+	r.driverNetLock.Lock()
+	snap.DriverNetwork = r.driverNet.Copy()
+	r.driverNetLock.Unlock()
 
 	// If nothing has changed avoid the write
 	h := snap.Hash()
@@ -1303,18 +1318,16 @@ func (r *TaskRunner) startTask() error {
 
 	// Run prestart
 	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
-	resp, err := drv.Prestart(ctx, r.task)
+	presp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
-	if resp != nil {
+	if presp != nil {
 		r.createdResourcesLock.Lock()
-		r.createdResources.Merge(resp.CreatedResources)
+		r.createdResources.Merge(presp.CreatedResources)
 		r.createdResourcesLock.Unlock()
 
-		// Update environment with PortMap if it was returned
-		if len(resp.PortMap) > 0 {
-			r.envBuilder.SetPortMap(resp.PortMap)
-		}
+		// Set any network configuration returned by the driver
+		r.envBuilder.SetDriverNetwork(presp.Network)
 	}
 
 	if err != nil {
@@ -1328,7 +1341,7 @@ func (r *TaskRunner) startTask() error {
 	ctx = driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 
 	// Start the job
-	handle, err := drv.Start(ctx, r.task)
+	sresp, err := drv.Start(ctx, r.task)
 	if err != nil {
 		wrapped := fmt.Sprintf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
@@ -1337,13 +1350,16 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
-	if err := r.registerServices(drv, handle); err != nil {
+	// Update environment with the network defined by the driver's Start method.
+	r.envBuilder.SetDriverNetwork(sresp.Network)
+
+	if err := r.registerServices(drv, sresp.Handle, sresp.Network); err != nil {
 		// All IO is done asynchronously, so errors from registering
 		// services are hard failures.
 		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
 
 		// Kill the started task
-		if destroyed, err := r.handleDestroy(handle); !destroyed {
+		if destroyed, err := r.handleDestroy(sresp.Handle); !destroyed {
 			r.logger.Printf("[ERR] client: failed to kill task %q alloc %q. Resources may be leaked: %v",
 				r.task.Name, r.alloc.ID, err)
 		}
@@ -1351,21 +1367,26 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	r.handleLock.Lock()
-	r.handle = handle
+	r.handle = sresp.Handle
 	r.handleLock.Unlock()
+
+	// Need to persist the driver network between restarts
+	r.driverNetLock.Lock()
+	r.driverNet = sresp.Network
+	r.driverNetLock.Unlock()
 
 	return nil
 }
 
 // registerServices and checks with Consul.
-func (r *TaskRunner) registerServices(d driver.Driver, h driver.ScriptExecutor) error {
+func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n *cstructs.DriverNetwork) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
 	interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec)
+	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1503,7 +1524,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
-	// Update the task's environment
+	// Update the task's environment for interpolating in services/checks
 	r.envBuilder.UpdateTask(update, updatedTask)
 
 	var mErr multierror.Error
@@ -1547,7 +1568,10 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		exec = h
 	}
 	interpolateServices(r.envBuilder.Build(), new)
-	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
+	r.driverNetLock.Lock()
+	net := r.driverNet.Copy()
+	r.driverNetLock.Unlock()
+	return r.consul.UpdateTask(r.alloc.ID, old, new, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
