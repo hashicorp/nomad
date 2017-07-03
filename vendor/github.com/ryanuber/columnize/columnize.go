@@ -18,6 +18,8 @@ type Config struct {
 
 	// A replacement string to replace empty fields
 	Empty string
+
+	NoTrim bool
 }
 
 // Returns a Config with default values.
@@ -35,7 +37,10 @@ func getElementsFromLine(config *Config, line string) []interface{} {
 	seperated := strings.Split(line, config.Delim)
 	elements := make([]interface{}, len(seperated))
 	for i, field := range seperated {
-		value := strings.TrimSpace(field)
+		value := field
+		if !config.NoTrim {
+			value = strings.TrimSpace(field)
+		}
 		if value == "" && config.Empty != "" {
 			value = config.Empty
 		}
@@ -106,6 +111,9 @@ func MergeConfig(a, b *Config) *Config {
 	}
 	if b.Empty != "" {
 		result.Empty = b.Empty
+	}
+	if b.NoTrim {
+		result.NoTrim = true
 	}
 
 	return &result

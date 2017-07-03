@@ -107,15 +107,15 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// Versions is used to retrieve all versions of a particular
-// job given its unique ID.
-func (j *Jobs) Versions(jobID string, q *QueryOptions) ([]*Job, *QueryMeta, error) {
-	var resp []*Job
-	qm, err := j.client.query("/v1/job/"+jobID+"/versions", &resp, q)
+// Versions is used to retrieve all versions of a particular job given its
+// unique ID.
+func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	var resp JobVersionsResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", jobID, diffs), &resp, q)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return resp, qm, nil
+	return resp.Versions, resp.Diffs, qm, nil
 }
 
 // Allocations is used to return the allocs for a given job ID.
@@ -247,7 +247,6 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 	return &resp, wm, nil
 }
 
-// XXX
 // Revert is used to revert the given job to the passed version. If
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
@@ -458,6 +457,7 @@ type Job struct {
 	StatusDescription *string
 	Stable            *bool
 	Version           *uint64
+	SubmitTime        *int64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -512,6 +512,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Version == nil {
 		j.Version = helper.Uint64ToPtr(0)
+	}
+	if j.SubmitTime == nil {
+		j.SubmitTime = helper.Int64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)
@@ -588,6 +591,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobIDSort is used to sort jobs by their job ID's.
@@ -830,4 +834,11 @@ type JobDispatchResponse struct {
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
 	WriteMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
+	Diffs    []*JobDiff
+	QueryMeta
 }

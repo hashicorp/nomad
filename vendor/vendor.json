@@ -960,10 +960,10 @@
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
-			"checksumSHA1": "PfnjkP75J4WIemUueJcrH2VbRHY=",
+			"checksumSHA1": "bUuI7AVR3IZPLlBaEKmw/ke7wqA=",
 			"path": "github.com/mitchellh/cli",
-			"revision": "8d6d9ab3c912dcb005ece87c40a41b9e73e1999a",
-			"revisionTime": "2017-03-03T02:36:54Z"
+			"revision": "b481eac70eea3ad671b7c360a013f89bb759b252",
+			"revisionTime": "2017-05-23T17:27:49Z"
 		},
 		{
 			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",

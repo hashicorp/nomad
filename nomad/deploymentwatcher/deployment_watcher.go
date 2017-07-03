@@ -59,10 +59,6 @@ type deploymentWatcher struct {
 	// j is the job the deployment is for
 	j *structs.Job
 
-	// autorevert is used to lookup if an task group should autorevert on
-	// unhealthy allocations
-	autorevert map[string]bool
-
 	// outstandingBatch marks whether an outstanding function exists to create
 	// the evaluation. Access should be done through the lock
 	outstandingBatch bool
@@ -89,21 +85,11 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		queryLimiter:       queryLimiter,
 		d:                  d,
 		j:                  j,
-		autorevert:         make(map[string]bool, len(j.TaskGroups)),
 		watchers:           watchers,
 		deploymentTriggers: triggers,
 		logger:             logger,
 		ctx:                ctx,
 		exitFn:             exitFn,
-	}
-
-	// Determine what task groups will trigger an autorevert
-	for _, tg := range j.TaskGroups {
-		autorevert := false
-		if tg.Update != nil && tg.Update.AutoRevert {
-			autorevert = true
-		}
-		w.autorevert[tg.Name] = autorevert
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -145,7 +131,8 @@ func (w *deploymentWatcher) SetAllocHealth(
 			}
 
 			// Check if the group has autorevert set
-			if !w.autorevert[alloc.TaskGroup] {
+			group, ok := w.d.TaskGroups[alloc.TaskGroup]
+			if !ok || !group.AutoRevert {
 				continue
 			}
 
@@ -313,7 +300,8 @@ func (w *deploymentWatcher) watch() {
 
 			if alloc.DeploymentStatus.IsUnhealthy() {
 				// Check if the group has autorevert set
-				if w.autorevert[alloc.TaskGroup] {
+				group, ok := w.d.TaskGroups[alloc.TaskGroup]
+				if ok && group.AutoRevert {
 					rollback = true
 				}
 
@@ -366,7 +354,7 @@ func (w *deploymentWatcher) watch() {
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
 func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
-	args := &structs.JobSpecificRequest{JobID: w.d.JobID}
+	args := &structs.JobVersionsRequest{JobID: w.d.JobID}
 	var resp structs.JobVersionsResponse
 	if err := w.watchers.GetJobVersions(args, &resp); err != nil {
 		return nil, err

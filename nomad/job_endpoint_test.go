@@ -1503,7 +1503,7 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 	}
 
 	// Lookup the job
-	get := &structs.JobSpecificRequest{
+	get := &structs.JobVersionsRequest{
 		JobID:        job.ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -1541,6 +1541,95 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Priority = 88
+	reg := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 90
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 100
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the job
+	get := &structs.JobVersionsRequest{
+		JobID:        job.ID,
+		Diffs:        true,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var versionsResp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+
+	// Make sure there are two job versions
+	versions := versionsResp.Versions
+	if l := len(versions); l != 3 {
+		t.Fatalf("Got %d versions; want 3", l)
+	}
+
+	if v := versions[0]; v.Priority != 100 || v.ID != job.ID || v.Version != 2 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[1]; v.Priority != 90 || v.ID != job.ID || v.Version != 1 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[2]; v.Priority != 88 || v.ID != job.ID || v.Version != 0 {
+		t.Fatalf("bad: %+v", v)
+	}
+
+	// Ensure we got diffs
+	diffs := versionsResp.Diffs
+	if l := len(diffs); l != 2 {
+		t.Fatalf("Got %d diffs; want 2", l)
+	}
+	d1 := diffs[0]
+	if len(d1.Fields) != 1 {
+		t.Fatalf("Got too many diffs: %#v", d1)
+	}
+	if d1.Fields[0].Name != "Priority" {
+		t.Fatalf("Got wrong field: %#v", d1)
+	}
+	if d1.Fields[0].Old != "90" && d1.Fields[0].New != "100" {
+		t.Fatalf("Got wrong field values: %#v", d1)
+	}
+	d2 := diffs[1]
+	if len(d2.Fields) != 1 {
+		t.Fatalf("Got too many diffs: %#v", d2)
+	}
+	if d2.Fields[0].Name != "Priority" {
+		t.Fatalf("Got wrong field: %#v", d2)
+	}
+	if d2.Fields[0].Old != "88" && d1.Fields[0].New != "90" {
+		t.Fatalf("Got wrong field values: %#v", d2)
+	}
+}
+
 func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -1569,7 +1658,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 		}
 	})
 
-	req := &structs.JobSpecificRequest{
+	req := &structs.JobVersionsRequest{
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
@@ -1599,7 +1688,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 		}
 	})
 
-	req2 := &structs.JobSpecificRequest{
+	req2 := &structs.JobVersionsRequest{
 		JobID: job3.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",

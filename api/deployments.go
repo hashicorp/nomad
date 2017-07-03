@@ -106,7 +106,6 @@ func (d *Deployments) PromoteGroups(deploymentID string, groups []string, q *Wri
 	return &resp, wm, nil
 }
 
-// XXX
 // SetAllocHealth is used to set allocation health for allocs that are part of
 // the given deployment
 func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []string, q *WriteOptions) (*DeploymentUpdateResponse, *WriteMeta, error) {
@@ -139,6 +138,7 @@ type Deployment struct {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
+	AutoRevert      bool
 	Promoted        bool
 	DesiredCanaries int
 	DesiredTotal    int

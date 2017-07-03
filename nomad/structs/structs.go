@@ -730,9 +730,17 @@ type JobListResponse struct {
 	QueryMeta
 }
 
+// JobVersionsRequest is used to get a jobs versions
+type JobVersionsRequest struct {
+	JobID string
+	Diffs bool
+	QueryOptions
+}
+
 // JobVersionsResponse is used for a job get versions request
 type JobVersionsResponse struct {
 	Versions []*Job
+	Diffs    []*JobDiff
 	QueryMeta
 }
 
@@ -1379,6 +1387,10 @@ type Job struct {
 	// on each job register.
 	Version uint64
 
+	// SubmitTime is the time at which the job was submitted as a UnixNano in
+	// UTC
+	SubmitTime int64
+
 	// Raft Indexes
 	CreateIndex    uint64
 	ModifyIndex    uint64
@@ -1647,6 +1659,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		CreateIndex:       j.CreateIndex,
 		ModifyIndex:       j.ModifyIndex,
 		JobModifyIndex:    j.JobModifyIndex,
+		SubmitTime:        j.SubmitTime,
 		JobSummary:        summary,
 	}
 }
@@ -1751,9 +1764,14 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.CreateIndex = j.CreateIndex
 	c.ModifyIndex = j.ModifyIndex
 	c.JobModifyIndex = j.JobModifyIndex
+	c.SubmitTime = j.SubmitTime
 
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
+}
+
+func (j *Job) SetSubmitTime() {
+	j.SubmitTime = time.Now().UTC().UnixNano()
 }
 
 // JobListStub is used to return a subset of job information
@@ -1773,6 +1791,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobSummary summarizes the state of the allocations of a job
@@ -3877,13 +3896,14 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:             GenerateUUID(),
-		JobID:          job.ID,
-		JobVersion:     job.Version,
-		JobModifyIndex: job.ModifyIndex,
-		JobCreateIndex: job.CreateIndex,
-		Status:         DeploymentStatusRunning,
-		TaskGroups:     make(map[string]*DeploymentState, len(job.TaskGroups)),
+		ID:                GenerateUUID(),
+		JobID:             job.ID,
+		JobVersion:        job.Version,
+		JobModifyIndex:    job.ModifyIndex,
+		JobCreateIndex:    job.CreateIndex,
+		Status:            DeploymentStatusRunning,
+		StatusDescription: DeploymentStatusDescriptionRunning,
+		TaskGroups:        make(map[string]*DeploymentState, len(job.TaskGroups)),
 	}
 }
 
@@ -3922,6 +3942,10 @@ func (d *Deployment) GoString() string {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
+	// AutoRevert marks whether the task group has indicated the job should be
+	// reverted on failure
+	AutoRevert bool
+
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
 
@@ -3949,6 +3973,7 @@ func (d *DeploymentState) GoString() string {
 	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
 	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
 	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
+	base += fmt.Sprintf("\nAutoRevert: %v", d.AutoRevert)
 	return base
 }
 

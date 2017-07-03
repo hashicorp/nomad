@@ -94,16 +94,7 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		out := make([]string, len(jobs)+1)
-		out[0] = "ID|Type|Priority|Status"
-		for i, job := range jobs {
-			out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
-				job.ID,
-				job.Type,
-				job.Priority,
-				job.Status)
-		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", formatList(out)))
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
 		return 0
 	}
 	// Prefix lookup matched a single job

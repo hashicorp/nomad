@@ -234,7 +234,13 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
 	if !existingDeployment {
-		dstate = &structs.DeploymentState{}
+		autorevert := false
+		if tg.Update != nil && tg.Update.AutoRevert {
+			autorevert = true
+		}
+		dstate = &structs.DeploymentState{
+			AutoRevert: autorevert,
+		}
 	}
 
 	// Handle stopping unneeded canaries and tracking placed canaries

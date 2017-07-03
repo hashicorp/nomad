@@ -137,6 +137,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Check if the job has changed at all
 	if currentJob == nil || currentJob.SpecChanged(args.Job) {
+		// Set the submit time
+		args.Job.SetSubmitTime()
+
 		// Commit this update via Raft
 		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err != nil {
@@ -550,7 +553,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 }
 
 // GetJobVersions is used to retrieve all tracked versions of a job.
-func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
+func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	reply *structs.JobVersionsResponse) error {
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
@@ -572,6 +575,18 @@ func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
 			reply.Versions = out
 			if len(out) != 0 {
 				reply.Index = out[0].ModifyIndex
+
+				// Compute the diffs
+				if args.Diffs {
+					for i := 0; i < len(out)-1; i++ {
+						old, new := out[i+1], out[i]
+						d, err := old.Diff(new, true)
+						if err != nil {
+							return fmt.Errorf("failed to create job diff: %v", err)
+						}
+						reply.Diffs = append(reply.Diffs, d)
+					}
+				}
 			} else {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("job_version")
@@ -1024,6 +1039,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
+	dispatchJob.SetSubmitTime()
 
 	// Merge in the meta data
 	for k, v := range args.Meta {

@@ -49,6 +49,11 @@ func IntToPtr(i int) *int {
 	return &i
 }
 
+// Int64ToPtr returns the pointer to an int
+func Int64ToPtr(i int64) *int64 {
+	return &i
+}
+
 // UintToPtr returns the pointer to an uint
 func Uint64ToPtr(u uint64) *uint64 {
 	return &u
