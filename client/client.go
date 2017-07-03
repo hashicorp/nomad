@@ -299,7 +299,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
-		return nil, fmt.Errorf("failed to restore state: %v", err)
+		logger.Printf("[ERR] client: failed to restore state: %v", err)
+		logger.Printf("[ERR] client: Nomad is unable to start due to corrupt state. "+
+			"The safest way to proceed is to manually stop running task processes "+
+			"and remove Nomad's state dir (%q) before restarting. Lost allocations "+
+			"will be rescheduled.", c.config.StateDir)
+		logger.Printf("[ERR] client: Corrupt state is often caused by a bug. Please " +
+			"report as much information as possible to " +
+			"https://github.com/hashicorp/nomad/issues")
+		return nil, fmt.Errorf("failed to restore state")
 	}
 
 	// Register and then start heartbeating to the servers.
