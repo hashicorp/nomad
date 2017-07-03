@@ -88,6 +88,7 @@ OUTER:
 			case <-deadline.C:
 				// We have exceeded our deadline without being healthy.
 				setHealth(false)
+				// XXX Think about in-place
 				return
 			case <-healthyTimer.C:
 				r.logger.Printf("[TRACE] client.alloc_watcher: alloc %q is healthy", alloc.ID)
