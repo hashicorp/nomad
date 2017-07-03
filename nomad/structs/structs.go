@@ -4398,14 +4398,15 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister    = "job-register"
-	EvalTriggerJobDeregister  = "job-deregister"
-	EvalTriggerPeriodicJob    = "periodic-job"
-	EvalTriggerNodeUpdate     = "node-update"
-	EvalTriggerScheduled      = "scheduled"
-	EvalTriggerRollingUpdate  = "rolling-update"
-	EvalTriggerFailedFollowUp = "failed-follow-up"
-	EvalTriggerMaxPlans       = "max-plan-attempts"
+	EvalTriggerJobRegister       = "job-register"
+	EvalTriggerJobDeregister     = "job-deregister"
+	EvalTriggerPeriodicJob       = "periodic-job"
+	EvalTriggerNodeUpdate        = "node-update"
+	EvalTriggerScheduled         = "scheduled"
+	EvalTriggerRollingUpdate     = "rolling-update"
+	EvalTriggerDeploymentWatcher = "deployment-watcher"
+	EvalTriggerFailedFollowUp    = "failed-follow-up"
+	EvalTriggerMaxPlans          = "max-plan-attempts"
 )
 
 const (
