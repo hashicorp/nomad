@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	// evalBatchPeriod is the batching length before creating an evaluation to
+	// perJobEvalBatchPeriod is the batching length before creating an evaluation to
 	// trigger the scheduler when allocations are marked as healthy.
-	evalBatchPeriod = 1 * time.Second
+	perJobEvalBatchPeriod = 1 * time.Second
 )
 
 // deploymentTriggers are the set of functions required to trigger changes on
@@ -51,7 +51,7 @@ type deploymentWatcher struct {
 
 	// DeploymentStateWatchers holds the methods required to watch objects for
 	// changes on behalf of the deployment
-	DeploymentStateWatchers
+	watchers DeploymentStateWatchers
 
 	// d is the deployment being watched
 	d *structs.Deployment
@@ -86,15 +86,15 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 
 	ctx, exitFn := context.WithCancel(parent)
 	w := &deploymentWatcher{
-		queryLimiter:            queryLimiter,
-		d:                       d,
-		j:                       j,
-		autorevert:              make(map[string]bool, len(j.TaskGroups)),
-		DeploymentStateWatchers: watchers,
-		deploymentTriggers:      triggers,
-		logger:                  logger,
-		ctx:                     ctx,
-		exitFn:                  exitFn,
+		queryLimiter:       queryLimiter,
+		d:                  d,
+		j:                  j,
+		autorevert:         make(map[string]bool, len(j.TaskGroups)),
+		watchers:           watchers,
+		deploymentTriggers: triggers,
+		logger:             logger,
+		ctx:                ctx,
+		exitFn:             exitFn,
 	}
 
 	// Determine what task groups will trigger an autorevert
@@ -132,10 +132,11 @@ func (w *deploymentWatcher) SetAllocHealth(
 		// Get the allocations for the deployment
 		args := &structs.DeploymentSpecificRequest{DeploymentID: req.DeploymentID}
 		var resp structs.AllocListResponse
-		if err := w.Allocations(args, &resp); err != nil {
+		if err := w.watchers.Allocations(args, &resp); err != nil {
 			return err
 		}
 
+		// Determine if we should autorevert to an older job
 		desc := structs.DeploymentStatusDescriptionFailedAllocations
 		for _, alloc := range resp.Allocations {
 			// Check that the alloc has been marked unhealthy
@@ -246,7 +247,8 @@ func (w *deploymentWatcher) FailDeployment(
 	// Determine the status we should transistion to and if we need to create an
 	// evaluation
 	status, desc := structs.DeploymentStatusFailed, structs.DeploymentStatusDescriptionFailedByUser
-	update, eval := w.getDeploymentStatusUpdate(status, desc), w.getEval()
+	update := w.getDeploymentStatusUpdate(status, desc)
+	eval := w.getEval()
 
 	// Commit the change
 	i, err := w.upsertDeploymentStatusUpdate(update, eval, nil)
@@ -283,6 +285,7 @@ func (w *deploymentWatcher) watch() {
 			}
 
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.d.ID, err)
+			return
 		}
 		allocIndex = allocResp.Index
 
@@ -294,6 +297,7 @@ func (w *deploymentWatcher) watch() {
 			}
 
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to determine last evaluation index for job %q: %v", w.d.JobID, err)
+			return
 		}
 
 		// Create an evaluation trigger if there is any allocation whose
@@ -346,7 +350,8 @@ func (w *deploymentWatcher) watch() {
 
 			// Update the status of the deployment to failed and create an
 			// evaluation.
-			e, u := w.getEval(), w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
+			e := w.getEval()
+			u := w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
 			if index, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
 				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to update deployment %q status: %v", w.d.ID, err)
 			} else {
@@ -363,7 +368,7 @@ func (w *deploymentWatcher) watch() {
 func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 	args := &structs.JobSpecificRequest{JobID: w.d.JobID}
 	var resp structs.JobVersionsResponse
-	if err := w.GetJobVersions(args, &resp); err != nil {
+	if err := w.watchers.GetJobVersions(args, &resp); err != nil {
 		return nil, err
 	}
 
@@ -389,10 +394,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 
 	w.outstandingBatch = true
 
-	go func() {
-		// Sleep til the batching period is over
-		time.Sleep(evalBatchPeriod)
-
+	time.AfterFunc(perJobEvalBatchPeriod, func() {
 		// Create the eval
 		evalCreateIndex, err := w.createEvaluation(w.getEval())
 		if err != nil {
@@ -405,7 +407,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 		w.outstandingBatch = false
 		w.l.Unlock()
 
-	}()
+	})
 }
 
 // getEval returns an evaluation suitable for the deployment
@@ -414,7 +416,7 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 		ID:           structs.GenerateUUID(),
 		Priority:     w.j.Priority,
 		Type:         w.j.Type,
-		TriggeredBy:  structs.EvalTriggerRollingUpdate,
+		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
 		JobID:        w.j.ID,
 		DeploymentID: w.d.ID,
 		Status:       structs.EvalStatusPending,
@@ -447,7 +449,7 @@ func (w *deploymentWatcher) getAllocs(index uint64) (*structs.AllocListResponse,
 			return nil, err
 		}
 
-		if err := w.Allocations(args, &resp); err != nil {
+		if err := w.watchers.Allocations(args, &resp); err != nil {
 			return nil, err
 		}
 	}
@@ -467,7 +469,7 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 		JobID: w.d.JobID,
 	}
 	var resp structs.JobEvaluationsResponse
-	err := w.Evaluations(args, &resp)
+	err := w.watchers.Evaluations(args, &resp)
 	if err != nil {
 		return 0, err
 	}

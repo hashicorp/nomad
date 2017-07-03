@@ -92,8 +92,6 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	//s.logger.Printf("ALEX: INSERTING %# v", pretty.Formatter(results))
-
 	// Upsert the newly created deployment
 	if results.CreatedDeployment != nil {
 		if err := s.upsertDeploymentImpl(index, results.CreatedDeployment, true, txn); err != nil {
@@ -1865,7 +1863,7 @@ func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.Dep
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	if err := s.upsertDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
+	if err := s.updateDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
 		return err
 	}
 
@@ -1887,8 +1885,8 @@ func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.Dep
 	return nil
 }
 
-// upsertDeploymentStatusUpdateImpl is used to upsert deployment status updates
-func (s *StateStore) upsertDeploymentStatusUpdateImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
+// updateDeploymentStatusUpdateImpl is used to upsert deployment status updates
+func (s *StateStore) updateDeploymentStatusUpdateImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
 	// Retrieve deployment
 	ws := memdb.NewWatchSet()
 	deployment, err := s.deploymentByIDImpl(ws, u.DeploymentID, txn)
@@ -2090,7 +2088,7 @@ func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the deployment status as needed.
 	if req.DeploymentUpdate != nil {
-		if err := s.upsertDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
+		if err := s.updateDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
 			return err
 		}
 	}
