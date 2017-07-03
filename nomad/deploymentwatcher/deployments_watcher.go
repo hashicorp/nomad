@@ -110,39 +110,23 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(logger *log.Logger, stateQueriesPerSecond float64,
+func NewDeploymentsWatcher(logger *log.Logger, watchers DeploymentStateWatchers,
+	raft DeploymentRaftEndpoints, stateQueriesPerSecond float64,
 	evalBatchDuration time.Duration) *Watcher {
 
 	return &Watcher{
+		stateWatchers:     watchers,
+		raft:              raft,
 		queryLimiter:      rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
 		evalBatchDuration: evalBatchDuration,
 		logger:            logger,
 	}
 }
 
-// SetStateWatchers sets the interface for accessing state watchers
-func (w *Watcher) SetStateWatchers(watchers DeploymentStateWatchers) {
-	w.l.Lock()
-	defer w.l.Unlock()
-	w.stateWatchers = watchers
-}
-
-// SetRaftEndpoints sets the interface for writing to Raft
-func (w *Watcher) SetRaftEndpoints(raft DeploymentRaftEndpoints) {
-	w.l.Lock()
-	defer w.l.Unlock()
-	w.raft = raft
-}
-
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader.
 func (w *Watcher) SetEnabled(enabled bool) error {
 	w.l.Lock()
-	// Ensure our state is correct
-	if w.stateWatchers == nil || w.raft == nil {
-		return fmt.Errorf("State watchers and Raft endpoints must be set before starting")
-	}
-
 	wasEnabled := w.enabled
 	w.enabled = enabled
 	w.l.Unlock()
