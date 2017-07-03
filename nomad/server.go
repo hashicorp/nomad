@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -124,20 +125,24 @@ type Server struct {
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
 
-	// evalBroker is used to manage the in-progress evaluations
-	// that are waiting to be brokered to a sub-scheduler
-	evalBroker *EvalBroker
-
 	// BlockedEvals is used to manage evaluations that are blocked on node
 	// capacity changes.
 	blockedEvals *BlockedEvals
 
-	// planQueue is used to manage the submitted allocation
-	// plans that are waiting to be assessed by the leader
-	planQueue *PlanQueue
+	// deploymentWatcher is used to watch deployments and their allocations and
+	// make the required calls to continue to transistion the deployment.
+	deploymentWatcher *deploymentwatcher.Watcher
+
+	// evalBroker is used to manage the in-progress evaluations
+	// that are waiting to be brokered to a sub-scheduler
+	evalBroker *EvalBroker
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
 	periodicDispatcher *PeriodicDispatch
+
+	// planQueue is used to manage the submitted allocation
+	// plans that are waiting to be assessed by the leader
+	planQueue *PlanQueue
 
 	// heartbeatTimers track the expiration time of each heartbeat that has
 	// a TTL. On expiration, the node status is updated to be 'down'.
@@ -161,16 +166,17 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status   *Status
-	Node     *Node
-	Job      *Job
-	Eval     *Eval
-	Plan     *Plan
-	Alloc    *Alloc
-	Region   *Region
-	Periodic *Periodic
-	System   *System
-	Operator *Operator
+	Status     *Status
+	Node       *Node
+	Job        *Job
+	Eval       *Eval
+	Plan       *Plan
+	Alloc      *Alloc
+	Deployment *Deployment
+	Region     *Region
+	Periodic   *Periodic
+	System     *System
+	Operator   *Operator
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -278,6 +284,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Setup the Consul syncer
 	if err := s.setupConsulSyncer(); err != nil {
 		return nil, fmt.Errorf("failed to create server Consul syncer: %v", err)
+	}
+
+	// Setup the deployment watcher.
+	if err := s.setupDeploymentWatcher(); err != nil {
+		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
 
 	// Monitor leadership changes
@@ -662,6 +673,34 @@ func (s *Server) setupConsulSyncer() error {
 	return nil
 }
 
+// setupDeploymentWatcher creates a deployment watcher that consumes the RPC
+// endpoints for state information and makes transistions via Raft through a
+// shim that provides the appropriate methods.
+func (s *Server) setupDeploymentWatcher() error {
+
+	// Create the shims
+	stateShim := &deploymentWatcherStateShim{
+		region:         s.Region(),
+		evaluations:    s.endpoints.Job.Evaluations,
+		allocations:    s.endpoints.Deployment.Allocations,
+		list:           s.endpoints.Deployment.List,
+		getDeployment:  s.endpoints.Deployment.GetDeployment,
+		getJobVersions: s.endpoints.Job.GetJobVersions,
+		getJob:         s.endpoints.Job.GetJob,
+	}
+	raftShim := &deploymentWatcherRaftShim{
+		apply: s.raftApply,
+	}
+
+	// Create the deployment watcher
+	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
+		s.logger, stateShim, raftShim,
+		deploymentwatcher.LimitStateQueriesPerSecond,
+		deploymentwatcher.CrossDeploymentEvalBatchDuration)
+
+	return nil
+}
+
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
 	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
@@ -679,6 +718,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Job = &Job{s}
 	s.endpoints.Node = &Node{srv: s}
+	s.endpoints.Deployment = &Deployment{srv: s}
 	s.endpoints.Operator = &Operator{s}
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.Plan = &Plan{s}
@@ -691,6 +731,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Job)
 	s.rpcServer.Register(s.endpoints.Node)
+	s.rpcServer.Register(s.endpoints.Deployment)
 	s.rpcServer.Register(s.endpoints.Operator)
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.Plan)

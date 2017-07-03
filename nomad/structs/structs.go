@@ -54,6 +54,9 @@ const (
 	VaultAccessorRegisterRequestType
 	VaultAccessorDegisterRequestType
 	ApplyPlanResultsRequestType
+	DeploymentStatusUpdateRequestType
+	DeploymentPromoteRequestType
+	DeploymentAllocHealthRequestType
 )
 
 const (
@@ -485,6 +488,109 @@ type GenericRequest struct {
 	QueryOptions
 }
 
+// DeploymentListRequest is used to list the deployments
+type DeploymentListRequest struct {
+	QueryOptions
+}
+
+// DeploymentStatusUpdateRequest is used to update the status of a deployment as
+// well as optionally creating an evaluation atomically.
+type DeploymentStatusUpdateRequest struct {
+	// Eval, if set, is used to create an evaluation at the same time as
+	// updating the status of a deployment.
+	Eval *Evaluation
+
+	// DeploymentUpdate is a status update to apply to the given
+	// deployment.
+	DeploymentUpdate *DeploymentStatusUpdate
+
+	// Job is used to optionally upsert a job. This is used when setting the
+	// allocation health results in a deployment failure and the deployment
+	// auto-reverts to the latest stable job.
+	Job *Job
+}
+
+// DeploymentAllocHealthRequest is used to set the health of a set of
+// allocations as part of a deployment.
+type DeploymentAllocHealthRequest struct {
+	DeploymentID string
+
+	// Marks these allocations as healthy, allow further allocations
+	// to be rolled.
+	HealthyAllocationIDs []string
+
+	// Any unhealthy allocations fail the deployment
+	UnhealthyAllocationIDs []string
+
+	WriteRequest
+}
+
+// ApplyDeploymentAllocHealthRequest is used to apply an alloc health request via Raft
+type ApplyDeploymentAllocHealthRequest struct {
+	DeploymentAllocHealthRequest
+
+	// An optional field to update the status of a deployment
+	DeploymentUpdate *DeploymentStatusUpdate
+
+	// Job is used to optionally upsert a job. This is used when setting the
+	// allocation health results in a deployment failure and the deployment
+	// auto-reverts to the latest stable job.
+	Job *Job
+
+	// An optional evaluation to create after promoting the canaries
+	Eval *Evaluation
+}
+
+// DeploymentPromoteRequest is used to promote task groups in a deployment
+type DeploymentPromoteRequest struct {
+	DeploymentID string
+
+	// All is to promote all task groups
+	All bool
+
+	// Groups is used to set the promotion status per task group
+	Groups map[string]bool
+
+	WriteRequest
+}
+
+// ApplyDeploymentPromoteRequest is used to apply a promotion request via Raft
+type ApplyDeploymentPromoteRequest struct {
+	DeploymentPromoteRequest
+
+	// An optional evaluation to create after promoting the canaries
+	Eval *Evaluation
+}
+
+// DeploymentPauseRequest is used to pause a deployment
+type DeploymentPauseRequest struct {
+	DeploymentID string
+
+	// Pause sets the pause status
+	Pause bool
+
+	WriteRequest
+}
+
+// DeploymentSpecificRequest is used to make a request specific to a particular
+// deployment
+type DeploymentSpecificRequest struct {
+	DeploymentID string
+	QueryOptions
+}
+
+// DeploymentFailRequest is used to fail a particular deployment
+type DeploymentFailRequest struct {
+	DeploymentID string
+	WriteRequest
+}
+
+// SingleDeploymentResponse is used to respond with a single deployment
+type SingleDeploymentResponse struct {
+	Deployment *Deployment
+	QueryMeta
+}
+
 // GenericResponse is used to respond to a request where no
 // specific response information is needed.
 type GenericResponse struct {
@@ -704,6 +810,12 @@ type AllocListResponse struct {
 	QueryMeta
 }
 
+// DeploymentListResponse is used for a list request
+type DeploymentListResponse struct {
+	Deployments []*Deployment
+	QueryMeta
+}
+
 // EvalListResponse is used for a list request
 type EvalListResponse struct {
 	Evaluations []*Evaluation
@@ -720,6 +832,16 @@ type EvalAllocationsResponse struct {
 type PeriodicForceResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
+	WriteMeta
+}
+
+// DeploymentUpdateResponse is used to respond to a deployment change. The
+// response will include the modify index of the deployment as well as details
+// of any triggered evaluation.
+type DeploymentUpdateResponse struct {
+	EvalID                string
+	EvalCreateIndex       uint64
+	DeploymentModifyIndex uint64
 	WriteMeta
 }
 
@@ -3689,16 +3811,26 @@ func (v *Vault) Validate() error {
 const (
 	// DeploymentStatuses are the various states a deployment can be be in
 	DeploymentStatusRunning    = "running"
+	DeploymentStatusPaused     = "paused"
 	DeploymentStatusFailed     = "failed"
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
-	DeploymentStatusPaused     = "paused"
 
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
-	DeploymentStatusDescriptionStoppedJob = "Cancelled because job is stopped"
-	DeploymentStatusDescriptionNewerJob   = "Cancelled due to newer version of job"
+	DeploymentStatusDescriptionRunning           = "Deployment is running"
+	DeploymentStatusDescriptionPaused            = "Deployment is paused"
+	DeploymentStatusDescriptionStoppedJob        = "Cancelled because job is stopped"
+	DeploymentStatusDescriptionNewerJob          = "Cancelled due to newer version of job"
+	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionFailedByUser      = "Deployment marked as failed"
 )
+
+// DeploymentStatusDescriptionRollback is used to get the status description of
+// a deployment when rolling back to an older job.
+func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint64) string {
+	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
+}
 
 // Deployment is the object that represents a job deployment which is used to
 // transistion a job between versions.
@@ -3774,7 +3906,7 @@ func (d *Deployment) Active() bool {
 }
 
 func (d *Deployment) GoString() string {
-	base := fmt.Sprintf("Deployment ID %q for job %q has status %q:", d.ID, d.JobID, d.Status)
+	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {
 		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
 	}
@@ -3805,15 +3937,11 @@ type DeploymentState struct {
 
 func (d *DeploymentState) GoString() string {
 	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
-	if d.DesiredCanaries > 0 {
-		base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
-		base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
-	}
-	if d.PlacedAllocs > 0 {
-		base := fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
-		base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
-		base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
-	}
+	base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
+	base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
+	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
+	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
+	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
 	return base
 }
 
@@ -4070,6 +4198,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
 		TaskStates:         a.TaskStates,
+		DeploymentStatus:   a.DeploymentStatus,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
@@ -4089,6 +4218,7 @@ type AllocListStub struct {
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
+	DeploymentStatus   *AllocDeploymentStatus
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
@@ -4209,6 +4339,10 @@ type AllocDeploymentStatus struct {
 	// Promoted marks whether the allocation is promoted. This field is only
 	// used if the allocation is a canary.
 	Promoted bool
+
+	// ModifyIndex is the raft index in which the deployment status was last
+	// changed.
+	ModifyIndex uint64
 }
 
 // IsHealthy returns if the allocation is marked as healthy as part of a
@@ -4219,6 +4353,16 @@ func (a *AllocDeploymentStatus) IsHealthy() bool {
 	}
 
 	return a.Healthy != nil && *a.Healthy
+}
+
+// IsUnhealthy returns if the allocation is marked as unhealthy as part of a
+// deployment
+func (a *AllocDeploymentStatus) IsUnhealthy() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Healthy != nil && !*a.Healthy
 }
 
 // IsPromoted returns if the allocation is promoted as as part of a deployment
@@ -4254,14 +4398,15 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister    = "job-register"
-	EvalTriggerJobDeregister  = "job-deregister"
-	EvalTriggerPeriodicJob    = "periodic-job"
-	EvalTriggerNodeUpdate     = "node-update"
-	EvalTriggerScheduled      = "scheduled"
-	EvalTriggerRollingUpdate  = "rolling-update"
-	EvalTriggerFailedFollowUp = "failed-follow-up"
-	EvalTriggerMaxPlans       = "max-plan-attempts"
+	EvalTriggerJobRegister       = "job-register"
+	EvalTriggerJobDeregister     = "job-deregister"
+	EvalTriggerPeriodicJob       = "periodic-job"
+	EvalTriggerNodeUpdate        = "node-update"
+	EvalTriggerScheduled         = "scheduled"
+	EvalTriggerRollingUpdate     = "rolling-update"
+	EvalTriggerDeploymentWatcher = "deployment-watcher"
+	EvalTriggerFailedFollowUp    = "failed-follow-up"
+	EvalTriggerMaxPlans          = "max-plan-attempts"
 )
 
 const (
@@ -4322,6 +4467,9 @@ type Evaluation struct {
 	// NodeModifyIndex is the modify index of the node at the time
 	// the evaluation was created
 	NodeModifyIndex uint64
+
+	// DeploymentID is the ID of the deployment that triggered the evaluation.
+	DeploymentID string
 
 	// Status of the evaluation
 	Status string

@@ -321,7 +321,7 @@ func Deployment() *structs.Deployment {
 			},
 		},
 		Status:            structs.DeploymentStatusRunning,
-		StatusDescription: structs.DeploymentStatusRunning,
+		StatusDescription: structs.DeploymentStatusDescriptionRunning,
 		ModifyIndex:       23,
 		CreateIndex:       21,
 	}

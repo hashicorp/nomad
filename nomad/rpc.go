@@ -297,6 +297,9 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 	return future, nil
 }
 
+// raftApplyFn is the function signature for applying a msg to Raft
+type raftApplyFn func(t structs.MessageType, msg interface{}) (interface{}, uint64, error)
+
 // raftApply is used to encode a message, run it through raft, and return
 // the FSM response along with any errors
 func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, uint64, error) {

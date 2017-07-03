@@ -157,6 +157,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
 		return n.applyPlanResults(buf[1:], log.Index)
+	case structs.DeploymentStatusUpdateRequestType:
+		return n.applyDeploymentStatusUpdate(buf[1:], log.Index)
+	case structs.DeploymentPromoteRequestType:
+		return n.applyDeploymentPromotion(buf[1:], log.Index)
+	case structs.DeploymentAllocHealthRequestType:
+		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -560,6 +566,68 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 	if err := n.state.UpsertPlanResults(index, &req); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: ApplyPlan failed: %v", err)
 		return err
+	}
+
+	return nil
+}
+
+// applyDeploymentStatusUpdate is used to update the status of an existing
+// deployment
+func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_status_update"}, time.Now())
+	var req structs.DeploymentStatusUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentStatusUpdate failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentPromotion is used to promote canaries in a deployment
+func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
+	var req structs.ApplyDeploymentPromoteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentPromotion failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentAllocHealth is used to set the health of allocations as part
+// of a deployment
+func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_alloc_health"}, time.Now())
+	var req structs.ApplyDeploymentAllocHealthRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentAllocHealth failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
 	}
 
 	return nil
