@@ -37,8 +37,12 @@ type ExecDriver struct {
 }
 
 type ExecDriverConfig struct {
-	Command string   `mapstructure:"command"`
-	Args    []string `mapstructure:"args"`
+	Command         string   `mapstructure:"command"`
+	Args            []string `mapstructure:"args"`
+	PostCommand     string   `mapstructure:"post_command"`
+	PostArgs        []string `mapstructure:"post_args"`
+	PostKillCommand string   `mapstructure:"postkill_command"`
+	PostKillArgs    []string `mapstructure:"postkill_args"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -70,6 +74,9 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: true,
 			},
+			"post_command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"args": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
@@ -100,6 +107,10 @@ func (d *ExecDriver) Periodic() (bool, time.Duration) {
 
 func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
+}
+
+func (h *execHandle) Poststart(*structs.Task) error {
+	return nil
 }
 
 func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -291,6 +302,8 @@ func (h *execHandle) Kill() error {
 	}
 	return nil
 }
+
+func (h *execHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *execHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return h.executor.Stats()

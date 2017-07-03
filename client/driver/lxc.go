@@ -177,6 +177,10 @@ func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, er
 	return nil, nil
 }
 
+func (h *lxcDriverHandle) Poststart(*structs.Task) error {
+	return nil
+}
+
 // Start starts the LXC Driver
 func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig LxcDriverConfig
@@ -392,6 +396,8 @@ func (h *lxcDriverHandle) Kill() error {
 	close(h.doneCh)
 	return nil
 }
+
+func (h *lxcDriverHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *lxcDriverHandle) Signal(s os.Signal) error {
 	return fmt.Errorf("LXC does not support signals")

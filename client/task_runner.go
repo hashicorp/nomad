@@ -1337,6 +1337,10 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
+	if err := handle.Poststart(r.task); err != nil {
+		r.logger.Printf("[WARN] client: failed to run Poststart command with err: %v", err)
+	}
+
 	if err := r.registerServices(drv, handle); err != nil {
 		// All IO is done asynchronously, so errors from registering
 		// services are hard failures.
@@ -1569,6 +1573,10 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 			time.Sleep(time.Duration(backoff))
 		} else {
 			// Kill was successful
+			err = handle.Postkill(r.task)
+			if err != nil {
+				r.logger.Printf("[WARN] client: failed to run Postkill command with err: %v", err)
+			}
 			return true, nil
 		}
 	}

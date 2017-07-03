@@ -88,6 +88,10 @@ func (d *MockDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, e
 	return nil, nil
 }
 
+func (h *mockDriverHandle) Poststart(*structs.Task) error {
+	return nil
+}
+
 // Start starts the mock driver
 func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig MockDriverConfig
@@ -264,6 +268,8 @@ func (h *mockDriverHandle) Kill() error {
 	}
 	return nil
 }
+
+func (h *mockDriverHandle) Postkill(*structs.Task) error { return nil }
 
 // TODO Implement when we need it.
 func (h *mockDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {

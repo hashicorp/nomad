@@ -68,7 +68,19 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: true,
 			},
+			"post_command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"postkill_command": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
 			"args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"post_args": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"postkill_args": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 		},
@@ -174,6 +186,32 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 	}
 	go h.run()
 	return h, nil
+}
+
+func (h *rawExecHandle) Poststart(task *structs.Task) error {
+	var driverConfig ExecDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return err
+	}
+
+	// Get the postCommand to be ran
+	command := driverConfig.PostCommand
+	if err := validateCommand(command, "post_args"); err != nil {
+		return err
+	}
+
+	postArgs := driverConfig.PostArgs
+
+	output, exitCode, err := h.Exec(context.Background(), command, postArgs)
+
+	if err != nil {
+		return err
+	}
+
+	h.logger.Printf("[DEBUG] client: successfull porstart command %v with args %v. Output: %v, exitCode: %v",
+		command, postArgs, output, exitCode)
+
+	return nil
 }
 
 func (d *RawExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
@@ -283,6 +321,31 @@ func (h *rawExecHandle) Kill() error {
 
 		return nil
 	}
+}
+
+func (h *rawExecHandle) Postkill(task *structs.Task) error {
+	var driverConfig ExecDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+		return err
+	}
+
+	command := driverConfig.PostKillCommand
+	if err := validateCommand(command, "postkill_args"); err != nil {
+		return err
+	}
+
+	postKillArgs := driverConfig.PostKillArgs
+
+	output, exitCode, err := h.Exec(context.Background(), command, postKillArgs)
+
+	if err != nil {
+		return err
+	}
+
+	h.logger.Printf("[DEBUG] client: successfull postkill command %v with args %v. Output: %v, exitCode: %v",
+		command, postKillArgs, output, exitCode)
+
+	return nil
 }
 
 func (h *rawExecHandle) Stats() (*cstructs.TaskResourceUsage, error) {

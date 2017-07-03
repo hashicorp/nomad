@@ -179,6 +179,10 @@ func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, e
 	return nil, nil
 }
 
+func (h *javaHandle) Poststart(*structs.Task) error {
+	return nil
+}
+
 func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfig, error) {
 	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
@@ -423,6 +427,8 @@ func (h *javaHandle) Kill() error {
 	}
 	return nil
 }
+
+func (h *javaHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *javaHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return h.executor.Stats()

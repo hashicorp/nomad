@@ -493,6 +493,10 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 	return resp, nil
 }
 
+func (h *DockerHandle) Poststart(*structs.Task) error {
+	return nil
+}
+
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
@@ -1354,6 +1358,8 @@ func (h *DockerHandle) Kill() error {
 	h.logger.Printf("[INFO] driver.docker: stopped container %s", h.containerID)
 	return nil
 }
+
+func (h *DockerHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *DockerHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	h.resourceUsageLock.RLock()

@@ -235,6 +235,10 @@ func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartRes
 	return nil, nil
 }
 
+func (h *rktHandle) Poststart(task *structs.Task) error {
+	return nil
+}
+
 // Run an existing Rkt image.
 func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
 	var driverConfig RktDriverConfig
@@ -620,6 +624,8 @@ func (h *rktHandle) Kill() error {
 		return h.executor.Exit()
 	}
 }
+
+func (h *rktHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *rktHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return nil, DriverStatsNotImplemented

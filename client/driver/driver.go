@@ -282,8 +282,12 @@ type DriverHandle interface {
 	// configurations.
 	Update(task *structs.Task) error
 
+	Poststart(task *structs.Task) error
+
 	// Kill is used to stop the task
 	Kill() error
+
+	Postkill(task *structs.Task) error
 
 	// Stats returns aggregated stats of the driver
 	Stats() (*cstructs.TaskResourceUsage, error)

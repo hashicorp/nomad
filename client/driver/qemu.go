@@ -135,6 +135,10 @@ func (d *QemuDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, e
 	return nil, nil
 }
 
+func (h *qemuHandle) Poststart(*structs.Task) error {
+	return nil
+}
+
 // Run an existing Qemu image. Start() will pull down an existing, valid Qemu
 // image and save it to the Drivers Allocation Dir
 func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
@@ -387,6 +391,8 @@ func (h *qemuHandle) Kill() error {
 		return nil
 	}
 }
+
+func (h *qemuHandle) Postkill(*structs.Task) error { return nil }
 
 func (h *qemuHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return h.executor.Stats()
