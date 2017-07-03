@@ -57,6 +57,7 @@ const (
 	DeploymentStatusUpdateRequestType
 	DeploymentPromoteRequestType
 	DeploymentAllocHealthRequestType
+	DeploymentDeleteRequestType
 )
 
 const (
@@ -491,6 +492,12 @@ type GenericRequest struct {
 // DeploymentListRequest is used to list the deployments
 type DeploymentListRequest struct {
 	QueryOptions
+}
+
+// DeploymentDeleteRequest is used for deleting deployments.
+type DeploymentDeleteRequest struct {
+	Deployments []string
+	WriteRequest
 }
 
 // DeploymentStatusUpdateRequest is used to update the status of a deployment as
@@ -4426,6 +4433,11 @@ const (
 	// evaluations and allocations are terminal. If so, we delete these out of
 	// the system.
 	CoreJobJobGC = "job-gc"
+
+	// CoreJobDeploymentGC is used for the garbage collection of eligible
+	// deployments. We periodically scan garbage collectible deployments and
+	// check if they are terminal. If so, we delete these out of the system.
+	CoreJobDeploymentGC = "deployment-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
