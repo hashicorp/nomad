@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -10,15 +11,21 @@ import (
 // watchHealth is responsible for watching an allocation's task status and
 // potentially consul health check status to determine if the allocation is
 // healthy or unhealthy.
-func (r *AllocRunner) watchHealth() {
+func (r *AllocRunner) watchHealth(ctx context.Context) {
 	// Get our alloc and the task group
 	alloc := r.Alloc()
+
+	// See if we should watch the allocs health
+	if alloc.DeploymentID == "" {
+		r.logger.Printf("[TRACE] client.alloc_watcher: exiting because alloc isn't part of a deployment")
+		return
+	}
+
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		r.logger.Printf("[ERR] client.alloc_watcher: failed to lookup allocation's task group. Exiting watcher")
 		return
 	}
-
 	u := tg.Update
 
 	// Checks marks whether we should be watching for Consul health checks
@@ -72,7 +79,7 @@ OUTER:
 	for {
 		if !first {
 			select {
-			case <-r.destroyCh:
+			case <-ctx.Done():
 				return
 			case newAlloc, ok := <-l.Ch:
 				if !ok {
@@ -80,22 +87,15 @@ OUTER:
 				}
 
 				alloc = newAlloc
-				if alloc.DeploymentID == "" {
-					continue OUTER
-				}
-
 				r.logger.Printf("[TRACE] client.alloc_watcher: new alloc version for %q", alloc.ID)
 			case <-deadline.C:
 				// We have exceeded our deadline without being healthy.
 				setHealth(false)
-				// XXX Think about in-place
-				return
 			case <-healthyTimer.C:
 				r.logger.Printf("[TRACE] client.alloc_watcher: alloc %q is healthy", alloc.ID)
 				setHealth(true)
 			}
 		}
-
 		first = false
 
 		// If the alloc is being stopped by the server just exit

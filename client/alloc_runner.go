@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -75,10 +76,9 @@ type AllocRunner struct {
 
 	otherAllocDir *allocdir.AllocDir
 
-	destroy     bool
-	destroyCh   chan struct{}
-	destroyLock sync.Mutex
-	waitCh      chan struct{}
+	ctx    context.Context
+	exitFn context.CancelFunc
+	waitCh chan struct{}
 
 	// State related fields
 	// stateDB is used to store the alloc runners state
@@ -146,11 +146,13 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		taskStates:     copyTaskStates(alloc.TaskStates),
 		restored:       make(map[string]struct{}),
 		updateCh:       make(chan *structs.Allocation, 64),
-		destroyCh:      make(chan struct{}),
 		waitCh:         make(chan struct{}),
 		vaultClient:    vaultClient,
 		consulClient:   consulClient,
 	}
+
+	// TODO Should be passed a context
+	ar.ctx, ar.exitFn = context.WithCancel(context.TODO())
 	return ar
 }
 
@@ -503,7 +505,7 @@ func (r *AllocRunner) dirtySyncState() {
 		select {
 		case <-r.dirtyCh:
 			r.syncStatus()
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			return
 		}
 	}
@@ -632,7 +634,10 @@ func (r *AllocRunner) appendTaskEvent(state *structs.TaskState, event *structs.T
 func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
 	go r.dirtySyncState()
-	go r.watchHealth()
+
+	// Start the watcher
+	wCtx, watcherCancel := context.WithCancel(r.ctx)
+	go r.watchHealth(wCtx)
 
 	// Find the task group to run in the allocation
 	alloc := r.Alloc()
@@ -709,12 +714,18 @@ OUTER:
 			r.allocLock.Lock()
 			r.alloc = update
 			r.allocLock.Unlock()
+			r.logger.Printf("[ALEX---------------] client: alloc update")
 
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
 				taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 				break OUTER
 			}
+
+			// Create a new watcher
+			watcherCancel()
+			wCtx, watcherCancel = context.WithCancel(r.ctx)
+			go r.watchHealth(wCtx)
 
 			// Update the task groups
 			runners := r.getTaskRunners()
@@ -725,7 +736,7 @@ OUTER:
 			if err := r.syncStatus(); err != nil {
 				r.logger.Printf("[WARN] client: failed to sync status upon receiving alloc update: %v", err)
 			}
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 			break OUTER
 		}
@@ -769,7 +780,7 @@ func (r *AllocRunner) handleDestroy() {
 
 	for {
 		select {
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			if err := r.DestroyContext(); err != nil {
 				r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
 					r.alloc.ID, err)
@@ -876,14 +887,7 @@ func (r *AllocRunner) shouldUpdate(serverIndex uint64) bool {
 
 // Destroy is used to indicate that the allocation context should be destroyed
 func (r *AllocRunner) Destroy() {
-	r.destroyLock.Lock()
-	defer r.destroyLock.Unlock()
-
-	if r.destroy {
-		return
-	}
-	r.destroy = true
-	close(r.destroyCh)
+	r.exitFn()
 	r.allocBroadcast.Close()
 }
 
