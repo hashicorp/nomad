@@ -2130,14 +2130,8 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 			return structs.JobStatusDead, nil
 		}
 
-		if hasEval {
-			// At least one completed eval
-			return structs.JobStatusRunning, nil
-		}
-
 		// Pending until at least one eval has completed
-		return structs.JobStatusPending, nil
-
+		return structs.JobStatusRunning, nil
 	}
 
 	// The job is dead if all the allocations and evals are terminal or if there

@@ -1635,6 +1635,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		job := mock.SystemJob()
+		job.Status = structs.JobStatusRunning
 		sysJobs = append(sysJobs, job)
 
 		err := state.UpsertJob(2000+uint64(i), job)
