@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -51,6 +52,8 @@ type AllocRunner struct {
 	alloc                  *structs.Allocation
 	allocClientStatus      string // Explicit status of allocation. Set when there are failures
 	allocClientDescription string
+	allocHealth            *bool // Whether the allocation is healthy
+	allocBroadcast         *cstructs.AllocBroadcaster
 	allocLock              sync.Mutex
 
 	dirtyCh chan struct{}
@@ -132,20 +135,21 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 	consulClient ConsulServiceAPI) *AllocRunner {
 
 	ar := &AllocRunner{
-		config:       config,
-		stateDB:      stateDB,
-		updater:      updater,
-		logger:       logger,
-		alloc:        alloc,
-		dirtyCh:      make(chan struct{}, 1),
-		tasks:        make(map[string]*TaskRunner),
-		taskStates:   copyTaskStates(alloc.TaskStates),
-		restored:     make(map[string]struct{}),
-		updateCh:     make(chan *structs.Allocation, 64),
-		destroyCh:    make(chan struct{}),
-		waitCh:       make(chan struct{}),
-		vaultClient:  vaultClient,
-		consulClient: consulClient,
+		config:         config,
+		stateDB:        stateDB,
+		updater:        updater,
+		logger:         logger,
+		alloc:          alloc,
+		allocBroadcast: cstructs.NewAllocBroadcaster(0),
+		dirtyCh:        make(chan struct{}, 1),
+		tasks:          make(map[string]*TaskRunner),
+		taskStates:     copyTaskStates(alloc.TaskStates),
+		restored:       make(map[string]struct{}),
+		updateCh:       make(chan *structs.Allocation, 64),
+		destroyCh:      make(chan struct{}),
+		waitCh:         make(chan struct{}),
+		vaultClient:    vaultClient,
+		consulClient:   consulClient,
 	}
 	return ar
 }
@@ -441,6 +445,14 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		r.allocLock.Unlock()
 		return alloc
 	}
+
+	// The health has been set
+	if r.allocHealth != nil {
+		if alloc.DeploymentStatus == nil {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
+		}
+		alloc.DeploymentStatus.Healthy = helper.BoolToPtr(*r.allocHealth)
+	}
 	r.allocLock.Unlock()
 
 	// Scan the task states to determine the status of the alloc
@@ -502,6 +514,7 @@ func (r *AllocRunner) syncStatus() error {
 	// Get a copy of our alloc, update status server side and sync to disk
 	alloc := r.Alloc()
 	r.updater(alloc)
+	r.allocBroadcast.Send(alloc)
 	return r.saveAllocRunnerState()
 }
 
@@ -532,6 +545,9 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	if event != nil {
 		if event.FailsTask {
 			taskState.Failed = true
+		}
+		if event.Type == structs.TaskRestarting {
+			taskState.Restarts++
 		}
 		r.appendTaskEvent(taskState, event)
 	}
@@ -616,6 +632,7 @@ func (r *AllocRunner) appendTaskEvent(state *structs.TaskState, event *structs.T
 func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
 	go r.dirtySyncState()
+	go r.watchHealth()
 
 	// Find the task group to run in the allocation
 	alloc := r.Alloc()
@@ -867,6 +884,7 @@ func (r *AllocRunner) Destroy() {
 	}
 	r.destroy = true
 	close(r.destroyCh)
+	r.allocBroadcast.Close()
 }
 
 // WaitCh returns a channel to wait for termination

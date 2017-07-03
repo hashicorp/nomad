@@ -3226,6 +3226,9 @@ type TaskState struct {
 	// Failed marks a task as having failed
 	Failed bool
 
+	// Restarts is the number of times the task has restarted
+	Restarts uint64
+
 	// StartedAt is the time the task is started. It is updated each time the
 	// task starts
 	StartedAt time.Time
@@ -3243,10 +3246,7 @@ func (ts *TaskState) Copy() *TaskState {
 		return nil
 	}
 	copy := new(TaskState)
-	copy.State = ts.State
-	copy.Failed = ts.Failed
-	copy.StartedAt = ts.StartedAt
-	copy.FinishedAt = ts.FinishedAt
+	*copy = *ts
 
 	if ts.Events != nil {
 		copy.Events = make([]*TaskEvent, len(ts.Events))
