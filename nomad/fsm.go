@@ -580,7 +580,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertDeploymentStatusUpdate(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentStatusUpdate failed: %v", err)
 		return err
 	}
@@ -600,7 +600,7 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertDeploymentPromotion(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentPromotion failed: %v", err)
 		return err
 	}
@@ -621,7 +621,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interfac
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertDeploymentAllocHealth(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentAllocHealth failed: %v", err)
 		return err
 	}

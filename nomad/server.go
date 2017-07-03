@@ -696,7 +696,7 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger, stateShim, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.EvalBatchDuration)
+		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
 	return nil
 }

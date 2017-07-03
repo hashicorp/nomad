@@ -21,7 +21,7 @@ func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*
 }
 
 func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
-	return testDeploymentWatcher(t, LimitStateQueriesPerSecond, EvalBatchDuration)
+	return testDeploymentWatcher(t, LimitStateQueriesPerSecond, CrossDeploymentEvalBatchDuration)
 }
 
 // Tests that the watcher properly watches for deployments and reconciles them
@@ -795,7 +795,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -834,7 +834,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -935,7 +935,7 @@ func TestWatcher_BatchEvals(t *testing.T) {
 			HealthyAllocationIDs: []string{a1.ID},
 		},
 	}
-	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+	assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 
 	req2 := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -943,7 +943,7 @@ func TestWatcher_BatchEvals(t *testing.T) {
 			HealthyAllocationIDs: []string{a2.ID},
 		},
 	}
-	assert.Nil(m.state.UpsertDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval for each job
 	testutil.WaitForResult(func() (bool, error) {

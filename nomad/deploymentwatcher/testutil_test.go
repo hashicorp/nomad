@@ -83,10 +83,10 @@ func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 	return i, m.state.UpsertJob(i, job)
 }
 
-func (m *mockBackend) UpsertDeploymentStatusUpdate(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
+func (m *mockBackend) UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpsertDeploymentStatusUpdate(i, u)
+	return i, m.state.UpdateDeploymentStatus(i, u)
 }
 
 // matchDeploymentStatusUpdateConfig is used to configure the matching
@@ -140,10 +140,10 @@ func matchDeploymentStatusUpdateRequest(c *matchDeploymentStatusUpdateConfig) fu
 	}
 }
 
-func (m *mockBackend) UpsertDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
+func (m *mockBackend) UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpsertDeploymentPromotion(i, req)
+	return i, m.state.UpdateDeploymentPromotion(i, req)
 }
 
 // matchDeploymentPromoteRequestConfig is used to configure the matching
@@ -170,10 +170,10 @@ func matchDeploymentPromoteRequest(c *matchDeploymentPromoteRequestConfig) func(
 		return true
 	}
 }
-func (m *mockBackend) UpsertDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
+func (m *mockBackend) UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpsertDeploymentAllocHealth(i, req)
+	return i, m.state.UpdateDeploymentAllocHealth(i, req)
 }
 
 // matchDeploymentAllocHealthRequestConfig is used to configure the matching

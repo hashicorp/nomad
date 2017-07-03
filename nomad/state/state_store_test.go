@@ -4854,7 +4854,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonExistant(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpsertDeploymentStatusUpdate(2, req)
+	err := state.UpdateDeploymentStatus(2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error updating the status because the deployment doesn't exist")
 	}
@@ -4879,7 +4879,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpsertDeploymentStatusUpdate(2, req)
+	err := state.UpdateDeploymentStatus(2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal")
 	}
@@ -4911,7 +4911,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 		Job:  j,
 		Eval: e,
 	}
-	err := state.UpsertDeploymentStatusUpdate(2, req)
+	err := state.UpdateDeploymentStatus(2, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -4956,7 +4956,7 @@ func TestStateStore_UpsertDeploymentPromotion_NonExistant(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpsertDeploymentPromotion(2, req)
+	err := state.UpdateDeploymentPromotion(2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error promoting because the deployment doesn't exist")
 	}
@@ -4981,7 +4981,7 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpsertDeploymentPromotion(2, req)
+	err := state.UpdateDeploymentPromotion(2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal: %v", err)
 	}
@@ -5025,7 +5025,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpsertDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(4, req)
 	if err == nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -5100,7 +5100,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpsertDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(4, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -5214,7 +5214,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpsertDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(4, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -5274,7 +5274,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_NonExistant(t *testing.T) {
 			HealthyAllocationIDs: []string{structs.GenerateUUID()},
 		},
 	}
-	err := state.UpsertDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error because the deployment doesn't exist: %v", err)
 	}
@@ -5299,7 +5299,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 			HealthyAllocationIDs: []string{structs.GenerateUUID()},
 		},
 	}
-	err := state.UpsertDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error because the deployment is terminal: %v", err)
 	}
@@ -5322,7 +5322,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistant(t *testing.
 			HealthyAllocationIDs: []string{structs.GenerateUUID()},
 		},
 	}
-	err := state.UpsertDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(2, req)
 	if err == nil || !strings.Contains(err.Error(), "unknown alloc") {
 		t.Fatalf("expected error because the alloc doesn't exist: %v", err)
 	}
@@ -5357,7 +5357,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 			HealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	err := state.UpsertDeploymentAllocHealth(4, req)
+	err := state.UpdateDeploymentAllocHealth(4, req)
 	if err == nil || !strings.Contains(err.Error(), "not part of deployment") {
 		t.Fatalf("expected error because the alloc isn't part of the deployment: %v", err)
 	}
@@ -5407,7 +5407,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		Eval:             e,
 		DeploymentUpdate: u,
 	}
-	err := state.UpsertDeploymentAllocHealth(3, req)
+	err := state.UpdateDeploymentAllocHealth(3, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
