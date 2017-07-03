@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -715,6 +716,81 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 			return nil
 		}}
 
+	return j.srv.blockingRPC(&opts)
+}
+
+// Deployments is used to list the deployments for a job
+func (j *Job) Deployments(args *structs.JobSpecificRequest,
+	reply *structs.DeploymentListResponse) error {
+	if done, err := j.srv.forward("Job.Deployments", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "deployments"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Capture the deployments
+			deploys, err := state.DeploymentsByJobID(ws, args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Use the last index that affected the deployment table
+			index, err := state.Index("deployment")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			reply.Deployments = deploys
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
+	return j.srv.blockingRPC(&opts)
+}
+
+// LatestDeployment is used to retrieve the latest deployment for a job
+func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
+	reply *structs.SingleDeploymentResponse) error {
+	if done, err := j.srv.forward("Job.LatestDeployment", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "latest_deployment"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Capture the deployments
+			deploys, err := state.DeploymentsByJobID(ws, args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Use the last index that affected the deployment table
+			index, err := state.Index("deployment")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			if len(deploys) > 0 {
+				sort.Slice(deploys, func(i, j int) bool {
+					return deploys[i].CreateIndex > deploys[j].CreateIndex
+				})
+				reply.Deployment = deploys[0]
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
 	return j.srv.blockingRPC(&opts)
 }
 

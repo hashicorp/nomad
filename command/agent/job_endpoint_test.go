@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -597,6 +598,82 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
+	})
+}
+
+func TestHTTP_JobDeployments(t *testing.T) {
+	assert := assert.New(t)
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		j := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          j,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		assert.Nil(s.Agent.RPC("Job.Register", &args, &resp), "JobRegister")
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		d := mock.Deployment()
+		d.JobID = j.ID
+		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployments", nil)
+		assert.Nil(err, "HTTP")
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(err, "JobSpecificRequest")
+
+		// Check the response
+		deploys := obj.([]*structs.Deployment)
+		assert.Len(deploys, 1, "deployments")
+		assert.Equal(d.ID, deploys[0].ID, "deployment id")
+
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+	})
+}
+
+func TestHTTP_JobDeployment(t *testing.T) {
+	assert := assert.New(t)
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		j := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          j,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		assert.Nil(s.Agent.RPC("Job.Register", &args, &resp), "JobRegister")
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		d := mock.Deployment()
+		d.JobID = j.ID
+		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployment", nil)
+		assert.Nil(err, "HTTP")
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(err, "JobSpecificRequest")
+
+		// Check the response
+		out := obj.(*structs.Deployment)
+		assert.NotNil(out, "deployment")
+		assert.Equal(d.ID, out.ID, "deployment id")
+
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
 	})
 }
 

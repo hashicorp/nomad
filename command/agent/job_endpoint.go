@@ -70,6 +70,12 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/revert"):
 		jobName := strings.TrimSuffix(path, "/revert")
 		return s.jobRevert(resp, req, jobName)
+	case strings.HasSuffix(path, "/deployments"):
+		jobName := strings.TrimSuffix(path, "/deployments")
+		return s.jobDeployments(resp, req, jobName)
+	case strings.HasSuffix(path, "/deployment"):
+		jobName := strings.TrimSuffix(path, "/deployment")
+		return s.jobLatestDeployment(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -229,6 +235,51 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 		out.Evaluations = make([]*structs.Evaluation, 0)
 	}
 	return out.Evaluations, nil
+}
+
+func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.DeploymentListResponse
+	if err := s.agent.RPC("Job.Deployments", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Deployments == nil {
+		out.Deployments = make([]*structs.Deployment, 0)
+	}
+	return out.Deployments, nil
+}
+
+func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.SingleDeploymentResponse
+	if err := s.agent.RPC("Job.LatestDeployment", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Deployment, nil
 }
 
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,

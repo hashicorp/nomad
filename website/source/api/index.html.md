@@ -52,6 +52,7 @@ There are four primary nouns in Nomad:
 - jobs
 - nodes
 - allocations
+- deployments
 - evaluations
 
 [![Nomad Data Model](/assets/images/nomad-data-model.png)](/assets/images/nomad-data-model.png)
@@ -62,7 +63,8 @@ require resources. Nodes are the servers in the clusters that tasks can be
 scheduled on. The mapping of tasks in a job to nodes is done using allocations.
 An allocation is used to declare that a set of tasks in a job should be run on a
 particular node. Scheduling is the process of determining the appropriate
-allocations and is done as part of an evaluation.
+allocations and is done as part of an evaluation. Deployments are objects to
+track a rolling update of allocations between two versions of a job.
 
 The API is modeled closely on the underlying data model. Use the links to the
 left for documentation about specific endpoints. There are also "Agent" APIs

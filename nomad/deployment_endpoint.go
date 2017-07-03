@@ -15,7 +15,6 @@ type Deployment struct {
 	srv *Server
 }
 
-// TODO http endpoint and api
 // GetDeployment is used to request information about a specific deployment
 func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 	reply *structs.SingleDeploymentResponse) error {
@@ -60,7 +59,6 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 	return d.srv.blockingRPC(&opts)
 }
 
-// TODO HTTP
 // Fail is used to force fail a deployment
 func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.DeploymentUpdateResponse) error {
 	if done, err := d.srv.forward("Deployment.Fail", args, args, reply); done {
@@ -96,7 +94,6 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	return d.srv.deploymentWatcher.FailDeployment(args, reply)
 }
 
-// TODO HTTP
 // Pause is used to pause a deployment
 func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.DeploymentUpdateResponse) error {
 	if done, err := d.srv.forward("Deployment.Pause", args, args, reply); done {
@@ -132,7 +129,6 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	return d.srv.deploymentWatcher.PauseDeployment(args, reply)
 }
 
-// TODO HTTP
 // Promote is used to promote canaries in a deployment
 func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *structs.DeploymentUpdateResponse) error {
 	if done, err := d.srv.forward("Deployment.Promote", args, args, reply); done {
@@ -168,8 +164,8 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	return d.srv.deploymentWatcher.PromoteDeployment(args, reply)
 }
 
-// TODO HTTP
-// Promote is used to promote canaries in a deployment
+// SetAllocHealth is used to set the health of allocations that are part of the
+// deployment.
 func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, reply *structs.DeploymentUpdateResponse) error {
 	if done, err := d.srv.forward("Deployment.SetAllocHealth", args, args, reply); done {
 		return err
@@ -179,6 +175,10 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
+	}
+
+	if len(args.HealthyAllocationIDs)+len(args.UnhealthyAllocationIDs) == 0 {
+		return fmt.Errorf("must specify at least one healthy/unhealthy allocation ID")
 	}
 
 	// Lookup the deployment
@@ -204,7 +204,6 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	return d.srv.deploymentWatcher.SetAllocHealth(args, reply)
 }
 
-// TODO HTTP
 // List returns the list of deployments in the system
 func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error {
 	if done, err := d.srv.forward("Deployment.List", args, args, reply); done {
@@ -254,7 +253,6 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	return d.srv.blockingRPC(&opts)
 }
 
-// TODO HTTP
 // Allocations returns the list of allocations that are a part of the deployment
 func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply *structs.AllocListResponse) error {
 	if done, err := d.srv.forward("Deployment.Allocations", args, args, reply); done {
