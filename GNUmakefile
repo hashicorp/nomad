@@ -216,8 +216,17 @@ release: clean check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all relea
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test
-test: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-test: dev ## Run Nomad test suites
+test: ## Run the Nomad test suite and/or the Nomad UI test suite
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make test-nomad; \
+		fi
+	@if [ $(RUN_UI_TESTS) ]; then \
+		make test-ui; \
+		fi
+
+.PHONY: test-nomad
+test-nomad: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
 		go test \
@@ -265,12 +274,13 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
-.PHONY: test-ember
-test-ember: ## Run Noma UI test suite
+.PHONY: test-ui
+test-ui: ## Run Noma UI test suite
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install && bower install && yarn install phantomjs-prebuilt
+	@cd ui && yarn install
+	@cd ui && npm install phantomjs-prebuilt
 	@echo "--> Running ember tests"
-	@cd ui && node_modules/phantomjs-prebuilt/bin/phantomjs --version
+	@cd ui && phantomjs --version
 	@cd ui && npm test
 
 .PHONY: ember-dist
