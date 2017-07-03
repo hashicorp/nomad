@@ -31,39 +31,48 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	}
 
 	if err := stats.Init(); err != nil {
-		err := fmt.Errorf("Unable to obtain CPU information: %v", err)
-
-		if cfg.CpuCompute != 0 {
-			f.logger.Printf("[DEBUG] fingerprint.cpu: %v. Using specified cpu compute %d", err, cfg.CpuCompute)
-			setResources(cfg.CpuCompute)
-			return true, nil
-		}
-
-		f.logger.Printf("[ERR] fingerprint.cpu: %v", err)
-		f.logger.Printf("[INFO] fingerprint.cpu: cpu compute may be set manually"+
-			" using the client config option %q on machines where cpu information"+
-			" can not be automatically detected.", "cpu_total_compute")
-
-		return false, err
+		f.logger.Printf("[WARN] fingerprint.cpu: %v", err)
 	}
 
-	modelName := stats.CPUModelName()
-	if modelName != "" {
+	if cfg.CpuCompute != 0 {
+		setResources(cfg.CpuCompute)
+		return true, nil
+	}
+
+	if modelName := stats.CPUModelName(); modelName != "" {
 		node.Attributes["cpu.modelname"] = modelName
 	}
 
-	mhz := stats.CPUMHzPerCore()
-	node.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
-	f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
+	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
+		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
+		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
+	}
 
-	numCores := stats.CPUNumCores()
-	node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
-	f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
+	if numCores := stats.CPUNumCores(); numCores > 0 {
+		node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
+		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
+	}
 
-	tt := stats.TotalTicksAvailable()
+	tt := int(stats.TotalTicksAvailable())
+	if cfg.CpuCompute > 0 {
+		f.logger.Printf("[DEBUG] fingerprint.cpu: Using specified cpu compute %d", cfg.CpuCompute)
+		tt = cfg.CpuCompute
+	}
 
-	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%.0f", tt)
+	// Return an error if no cpu was detected or explicitly set as this
+	// node would be unable to receive any allocations.
+	if tt == 0 {
+		return false, fmt.Errorf("cannot detect cpu total compute. "+
+			"CPU compute must be set manually using the client config option %q",
+			"cpu_total_compute")
+	}
 
-	setResources(int(tt))
+	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
+
+	if node.Resources == nil {
+		node.Resources = &structs.Resources{}
+	}
+
+	node.Resources.CPU = tt
 	return true, nil
 }

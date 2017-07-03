@@ -5,6 +5,7 @@ import (
 	"math"
 	"sync"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/cpu"
 )
 
@@ -20,15 +21,15 @@ var (
 
 func Init() error {
 	onceLer.Do(func() {
-		if cpuNumCores, initErr = cpu.Counts(true); initErr != nil {
-			initErr = fmt.Errorf("Unable to determine the number of CPU cores available: %v", initErr)
-			return
+		var merrs *multierror.Error
+		var err error
+		if cpuNumCores, err = cpu.Counts(true); err != nil {
+			merrs = multierror.Append(merrs, fmt.Errorf("Unable to determine the number of CPU cores available: %v", err))
 		}
 
 		var cpuInfo []cpu.InfoStat
-		if cpuInfo, initErr = cpu.Info(); initErr != nil {
-			initErr = fmt.Errorf("Unable to obtain CPU information: %v", initErr)
-			return
+		if cpuInfo, err = cpu.Info(); err != nil {
+			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", initErr))
 		}
 
 		for _, cpu := range cpuInfo {
@@ -41,6 +42,9 @@ func Init() error {
 		// node to fall into a unique computed node class
 		cpuMhzPerCore = math.Floor(cpuMhzPerCore)
 		cpuTotalTicks = math.Floor(float64(cpuNumCores) * cpuMhzPerCore)
+
+		// Set any errors that occurred
+		initErr = merrs.ErrorOrNil()
 	})
 	return initErr
 }
@@ -60,8 +64,7 @@ func CPUModelName() string {
 	return cpuModelName
 }
 
-// TotalTicksAvailable calculates the total frequency available across all
-// cores
+// TotalTicksAvailable calculates the total Mhz available across all cores
 func TotalTicksAvailable() float64 {
 	return cpuTotalTicks
 }
