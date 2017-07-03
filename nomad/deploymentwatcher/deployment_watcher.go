@@ -271,11 +271,12 @@ func (w *deploymentWatcher) StopWatch() {
 
 // watch is the long running watcher that takes actions upon allocation changes
 func (w *deploymentWatcher) watch() {
+	allocIndex := uint64(0)
 	for {
 		// Block getting all allocations that are part of the deployment using
 		// the last evaluation index. This will have us block waiting for
 		// something to change past what the scheduler has evaluated.
-		allocResp, err := w.getAllocs(w.getLatestEval())
+		allocResp, err := w.getAllocs(allocIndex)
 		if err != nil {
 			if err == context.Canceled {
 				return
@@ -283,6 +284,7 @@ func (w *deploymentWatcher) watch() {
 
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.d.ID, err)
 		}
+		allocIndex = allocResp.Index
 
 		// Get the latest evaluation index
 		latestEval, err := w.latestEvalIndex()
