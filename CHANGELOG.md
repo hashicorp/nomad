@@ -46,6 +46,7 @@ BUG FIXES:
  * client/artifact: Honor netrc [GH-2524]
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
+ * client/config: Use `cpu_total_compute` whenever it is set [GH-2745]
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
  * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
