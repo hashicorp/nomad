@@ -12,6 +12,22 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// LimitStateQueriesPerSecond is the number of state queries allowed per
+	// second
+	LimitStateQueriesPerSecond = 100.0
+
+	// CrossDeploymentEvalBatchDuration is the duration in which evaluations are
+	// batched across all deployment watchers before commiting to Raft.
+	CrossDeploymentEvalBatchDuration = 250 * time.Millisecond
+)
+
+var (
+	// notEnabled is the error returned when the deployment watcher is not
+	// enabled
+	notEnabled = fmt.Errorf("deployment watcher not enabled")
+)
+
 // DeploymentRaftEndpoints exposes the deployment watcher to a set of functions
 // to apply data transforms via Raft.
 type DeploymentRaftEndpoints interface {
@@ -21,16 +37,16 @@ type DeploymentRaftEndpoints interface {
 	// UpsertJob is used to upsert a job
 	UpsertJob(job *structs.Job) (uint64, error)
 
-	// UpsertDeploymentStatusUpdate is used to upsert a deployment status update
+	// UpdateDeploymentStatus is used to make a deployment status update
 	// and potentially create an evaluation.
-	UpsertDeploymentStatusUpdate(u *structs.DeploymentStatusUpdateRequest) (uint64, error)
+	UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error)
 
-	// UpsertDeploymentPromotion is used to promote canaries in a deployment
-	UpsertDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error)
+	// UpdateDeploymentPromotion is used to promote canaries in a deployment
+	UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error)
 
-	// UpsertDeploymentAllocHealth is used to set the health of allocations in a
+	// UpdateDeploymentAllocHealth is used to set the health of allocations in a
 	// deployment
-	UpsertDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error)
+	UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error)
 }
 
 // DeploymentStateWatchers are the set of functions required to watch objects on
@@ -56,22 +72,6 @@ type DeploymentStateWatchers interface {
 	// GetJob is used to lookup a particular job.
 	GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error
 }
-
-const (
-	// LimitStateQueriesPerSecond is the number of state queries allowed per
-	// second
-	LimitStateQueriesPerSecond = 15.0
-
-	// EvalBatchDuration is the duration in which evaluations are batched before
-	// commiting to Raft.
-	EvalBatchDuration = 250 * time.Millisecond
-)
-
-var (
-	// notEnabled is the error returned when the deployment watcher is not
-	// enabled
-	notEnabled = fmt.Errorf("deployment watcher not enabled")
-)
 
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
@@ -132,7 +132,7 @@ func (w *Watcher) SetEnabled(enabled bool) error {
 	w.l.Unlock()
 
 	// Flush the state to create the necessary objects
-	w.Flush()
+	w.flush()
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
@@ -142,8 +142,8 @@ func (w *Watcher) SetEnabled(enabled bool) error {
 	return nil
 }
 
-// Flush is used to clear the state of the watcher
-func (w *Watcher) Flush() {
+// flush is used to clear the state of the watcher
+func (w *Watcher) flush() {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -299,8 +299,8 @@ func (w *Watcher) forceAdd(dID string) (*deploymentWatcher, error) {
 	return w.addLocked(resp.Deployment)
 }
 
-// getWatcher returns the deployment watcher for the given deployment ID.
-func (w *Watcher) getWatcher(dID string) (*deploymentWatcher, error) {
+// getOrCreateWatcher returns the deployment watcher for the given deployment ID.
+func (w *Watcher) getOrCreateWatcher(dID string) (*deploymentWatcher, error) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -321,7 +321,7 @@ func (w *Watcher) getWatcher(dID string) (*deploymentWatcher, error) {
 // there are any unhealthy allocations, the deployment is updated to be failed.
 // Otherwise the allocations are updated and an evaluation is created.
 func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp *structs.DeploymentUpdateResponse) error {
-	watcher, err := w.getWatcher(req.DeploymentID)
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
 	if err != nil {
 		return err
 	}
@@ -333,7 +333,7 @@ func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp
 // deployment is marked as failed. Otherwise the deployment is updated and an
 // evaluation is created.
 func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest, resp *structs.DeploymentUpdateResponse) error {
-	watcher, err := w.getWatcher(req.DeploymentID)
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
 	if err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (w *Watcher) PromoteDeployment(req *structs.DeploymentPromoteRequest, resp 
 // PauseDeployment is used to toggle the pause state on a deployment. If the
 // deployment is being unpaused, an evaluation is created.
 func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *structs.DeploymentUpdateResponse) error {
-	watcher, err := w.getWatcher(req.DeploymentID)
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (w *Watcher) PauseDeployment(req *structs.DeploymentPauseRequest, resp *str
 
 // FailDeployment is used to fail the deployment.
 func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *structs.DeploymentUpdateResponse) error {
-	watcher, err := w.getWatcher(req.DeploymentID)
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
 	if err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func (w *Watcher) upsertDeploymentStatusUpdate(
 	u *structs.DeploymentStatusUpdate,
 	e *structs.Evaluation,
 	j *structs.Job) (uint64, error) {
-	return w.raft.UpsertDeploymentStatusUpdate(&structs.DeploymentStatusUpdateRequest{
+	return w.raft.UpdateDeploymentStatus(&structs.DeploymentStatusUpdateRequest{
 		DeploymentUpdate: u,
 		Eval:             e,
 		Job:              j,
@@ -388,11 +388,11 @@ func (w *Watcher) upsertDeploymentStatusUpdate(
 
 // upsertDeploymentPromotion commits the given deployment promotion to Raft
 func (w *Watcher) upsertDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
-	return w.raft.UpsertDeploymentPromotion(req)
+	return w.raft.UpdateDeploymentPromotion(req)
 }
 
 // upsertDeploymentAllocHealth commits the given allocation health changes to
 // Raft
 func (w *Watcher) upsertDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
-	return w.raft.UpsertDeploymentAllocHealth(req)
+	return w.raft.UpdateDeploymentAllocHealth(req)
 }

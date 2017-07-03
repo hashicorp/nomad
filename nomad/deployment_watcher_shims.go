@@ -105,17 +105,17 @@ func (d *deploymentWatcherRaftShim) UpsertJob(job *structs.Job) (uint64, error) 
 	return index, err
 }
 
-func (d *deploymentWatcherRaftShim) UpsertDeploymentStatusUpdate(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
+func (d *deploymentWatcherRaftShim) UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
 	_, index, err := d.apply(structs.DeploymentStatusUpdateRequestType, u)
 	return index, err
 }
 
-func (d *deploymentWatcherRaftShim) UpsertDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
+func (d *deploymentWatcherRaftShim) UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
 	_, index, err := d.apply(structs.DeploymentPromoteRequestType, req)
 	return index, err
 }
 
-func (d *deploymentWatcherRaftShim) UpsertDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
+func (d *deploymentWatcherRaftShim) UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
 	_, index, err := d.apply(structs.DeploymentAllocHealthRequestType, req)
 	return index, err
 }

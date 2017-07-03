@@ -1857,13 +1857,13 @@ func (s *StateStore) VaultAccessorsByNode(ws memdb.WatchSet, nodeID string) ([]*
 	return out, nil
 }
 
-// UpsertDeploymentStatusUpdate is used to upsert deployment status updates and
+// UpdateDeploymentStatus is used to make deployment status updates and
 // potentially make a evaluation
-func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
+func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	if err := s.updateDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
+	if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
 		return err
 	}
 
@@ -1885,8 +1885,8 @@ func (s *StateStore) UpsertDeploymentStatusUpdate(index uint64, req *structs.Dep
 	return nil
 }
 
-// updateDeploymentStatusUpdateImpl is used to upsert deployment status updates
-func (s *StateStore) updateDeploymentStatusUpdateImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
+// updateDeploymentStatusImpl is used to make deployment status updates
+func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
 	// Retrieve deployment
 	ws := memdb.NewWatchSet()
 	deployment, err := s.deploymentByIDImpl(ws, u.DeploymentID, txn)
@@ -1917,9 +1917,9 @@ func (s *StateStore) updateDeploymentStatusUpdateImpl(index uint64, u *structs.D
 	return nil
 }
 
-// UpsertDeploymentPromotion is used to promote canaries in a deployment and
+// UpdateDeploymentPromotion is used to promote canaries in a deployment and
 // potentially make a evaluation
-func (s *StateStore) UpsertDeploymentPromotion(index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
+func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -2017,9 +2017,9 @@ func (s *StateStore) UpsertDeploymentPromotion(index uint64, req *structs.ApplyD
 	return nil
 }
 
-// UpsertDeploymentAllocHealth is used to update the health of allocations as
+// UpdateDeploymentAllocHealth is used to update the health of allocations as
 // part of the deployment and potentially make a evaluation
-func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
+func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -2088,7 +2088,7 @@ func (s *StateStore) UpsertDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the deployment status as needed.
 	if req.DeploymentUpdate != nil {
-		if err := s.updateDeploymentStatusUpdateImpl(index, req.DeploymentUpdate, txn); err != nil {
+		if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
 			return err
 		}
 	}
