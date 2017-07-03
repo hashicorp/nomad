@@ -78,7 +78,7 @@ func TestConfig_Parse(t *testing.T) {
 					GCDiskUsageThreshold:  82,
 					GCInodeUsageThreshold: 91,
 					GCMaxAllocs:           50,
-					NoHostUUID:            true,
+					NoHostUUID:            false,
 				},
 				Server: &ServerConfig{
 					Enabled:           true,

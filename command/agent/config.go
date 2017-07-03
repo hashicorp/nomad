@@ -543,6 +543,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
+			NoHostUUID:            true,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -1003,7 +1004,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.GCMaxAllocs != 0 {
 		result.GCMaxAllocs = b.GCMaxAllocs
 	}
-	if b.NoHostUUID {
+	// NoHostUUID defaults to true, merge if false
+	if !b.NoHostUUID {
 		result.NoHostUUID = b.NoHostUUID
 	}
 
