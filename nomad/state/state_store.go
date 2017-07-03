@@ -1434,9 +1434,15 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
+
+	// TODO TEST
+	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return fmt.Errorf("error updating deployment: %v", err)
+	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)

@@ -475,6 +475,7 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 type TaskState struct {
 	State      string
 	Failed     bool
+	Restarts   uint64
 	StartedAt  time.Time
 	FinishedAt time.Time
 	Events     []*TaskEvent

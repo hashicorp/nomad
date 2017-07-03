@@ -1295,6 +1295,7 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
+	stripped.DeploymentStatus = alloc.DeploymentStatus
 
 	select {
 	case c.allocUpdates <- stripped:
