@@ -62,7 +62,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
-		"ModifyIndex", "JobModifyIndex", "Update"}
+		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime"}
 
 	if j == nil && other == nil {
 		return diff, nil

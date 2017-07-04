@@ -396,12 +396,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Add the deployment changes to the plan
-	s.plan.CreatedDeployment = results.createDeployment
+	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
 
 	// Update the stored deployment
-	if results.createDeployment != nil {
-		s.deployment = results.createDeployment
+	if results.deployment != nil {
+		s.deployment = results.deployment
 	}
 
 	// Handle the stop

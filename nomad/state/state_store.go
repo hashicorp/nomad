@@ -92,9 +92,9 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Upsert the newly created deployment
-	if results.CreatedDeployment != nil {
-		if err := s.upsertDeploymentImpl(index, results.CreatedDeployment, true, txn); err != nil {
+	// Upsert the newly created or updated deployment
+	if results.Deployment != nil {
+		if err := s.upsertDeploymentImpl(index, results.Deployment, txn); err != nil {
 			return err
 		}
 	}
@@ -220,22 +220,17 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 
 // UpsertDeployment is used to insert a new deployment. If cancelPrior is set to
 // true, all prior deployments for the same job will be cancelled.
-func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment, cancelPrior bool) error {
+func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	if err := s.upsertDeploymentImpl(index, deployment, cancelPrior, txn); err != nil {
+	if err := s.upsertDeploymentImpl(index, deployment, txn); err != nil {
 		return err
 	}
 	txn.Commit()
 	return nil
 }
 
-func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, cancelPrior bool, txn *memdb.Txn) error {
-	// Go through and cancel any active deployment for the job.
-	if cancelPrior {
-		s.cancelPriorDeployments(index, deployment, txn)
-	}
-
+func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *memdb.Txn) error {
 	// Check if the deployment already exists
 	existing, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
@@ -261,39 +256,6 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return nil
-}
-
-// cancelPriorDeployments cancels any prior deployments for the job.
-func (s *StateStore) cancelPriorDeployments(index uint64, deployment *structs.Deployment, txn *memdb.Txn) error {
-	iter, err := txn.Get("deployment", "job", deployment.JobID)
-	if err != nil {
-		return fmt.Errorf("deployment lookup failed: %v", err)
-	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		// Ensure the deployment is active
-		d := raw.(*structs.Deployment)
-		if !d.Active() {
-			continue
-		}
-
-		// We need to cancel so make a copy and set its status
-		cancelled := d.Copy()
-		cancelled.ModifyIndex = index
-		cancelled.Status = structs.DeploymentStatusCancelled
-		cancelled.StatusDescription = fmt.Sprintf("Cancelled in favor of deployment %q", deployment.ID)
-
-		// Insert the cancelled deployment
-		if err := txn.Insert("deployment", cancelled); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -2597,8 +2559,8 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
 
-	// Upsert the new deployment
-	if err := s.upsertDeploymentImpl(index, deploymentCopy, false, txn); err != nil {
+	// Upsert the deployment
+	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
 		return err
 	}
 

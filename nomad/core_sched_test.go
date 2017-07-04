@@ -1329,8 +1329,8 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	state := s1.fsm.State()
 	d1, d2 := mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
-	assert.Nil(state.UpsertDeployment(1000, d1, false), "UpsertDeployment")
-	assert.Nil(state.UpsertDeployment(1001, d2, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -1368,8 +1368,8 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 	state := s1.fsm.State()
 	d1, d2 := mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
-	assert.Nil(state.UpsertDeployment(1000, d1, false), "UpsertDeployment")
-	assert.Nil(state.UpsertDeployment(1001, d2, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
 
 	// Create a core scheduler
 	snap, err := state.Snapshot()

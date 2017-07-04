@@ -1385,6 +1385,10 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 		}
 	}
 
+	// Clear the submit times
+	j.SubmitTime = 0
+	resp2.Job.SubmitTime = 0
+
 	if !reflect.DeepEqual(j, resp2.Job) {
 		t.Fatalf("bad: %#v %#v", job, resp2.Job)
 	}
@@ -2168,8 +2172,8 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1001, d1, false), "UpsertDeployment")
-	assert.Nil(state.UpsertDeployment(1002, d2, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -2199,12 +2203,12 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(100, d1, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
 	})
 
 	// Upsert an eval for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(200, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
 	})
 
 	// Lookup the jobs
@@ -2220,7 +2224,7 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
 	assert.EqualValues(200, resp.Index, "response index")
 	assert.Len(resp.Deployments, 1, "deployments for job")
-	assert.Equal(d2.ID, resp.Deployments[0], "returned deployment")
+	assert.Equal(d2.ID, resp.Deployments[0].ID, "returned deployment")
 	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
@@ -2243,8 +2247,8 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	d2.CreateIndex = d1.CreateIndex + 100
 	d2.ModifyIndex = d2.CreateIndex + 100
 	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1001, d1, false), "UpsertDeployment")
-	assert.Nil(state.UpsertDeployment(1002, d2, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -2275,12 +2279,12 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(100, d1, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
 	})
 
 	// Upsert an eval for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(200, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
 	})
 
 	// Lookup the jobs

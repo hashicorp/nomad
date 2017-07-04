@@ -61,9 +61,9 @@ type allocReconciler struct {
 // reconcileResults contains the results of the reconciliation and should be
 // applied by the scheduler.
 type reconcileResults struct {
-	// createDeployment is the deployment that should be created as a result of
-	// scheduling
-	createDeployment *structs.Deployment
+	// deployment is the deployment that should be created or updated as a
+	// result of scheduling
+	deployment *structs.Deployment
 
 	// deploymentUpdates contains a set of deployment updates that should be
 	// applied as a result of scheduling
@@ -393,7 +393,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// Create a new deployment if necessary
 	if a.deployment == nil && strategy != nil && dstate.DesiredTotal != 0 {
 		a.deployment = structs.NewDeployment(a.job)
-		a.result.createDeployment = a.deployment
+		a.result.deployment = a.deployment
 		a.deployment.TaskGroups[group] = dstate
 	}
 }
