@@ -318,7 +318,7 @@ func (m *mockBackend) GetDeployment(args *structs.DeploymentSpecificRequest, rep
 	return rargs.Error(0)
 }
 
-func (m *mockBackend) GetJobVersions(args *structs.JobSpecificRequest, reply *structs.JobVersionsResponse) error {
+func (m *mockBackend) GetJobVersions(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error {
 	rargs := m.Called(args, reply)
 	return rargs.Error(0)
 }
