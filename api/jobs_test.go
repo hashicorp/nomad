@@ -736,7 +736,7 @@ func TestJobs_Versions(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Trying to retrieve a job by ID before it exists returns an error
-	_, _, err := jobs.Versions("job1", nil)
+	_, _, _, err := jobs.Versions("job1", false, nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
@@ -750,7 +750,7 @@ func TestJobs_Versions(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
-	result, qm, err := jobs.Versions("job1", nil)
+	result, _, qm, err := jobs.Versions("job1", false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
