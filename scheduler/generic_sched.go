@@ -111,7 +111,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
-		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans:
+		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
+		structs.EvalTriggerDeploymentWatcher:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)

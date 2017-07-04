@@ -4,18 +4,23 @@ import (
 	"context"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// consulCheckLookupInterval is the  interval at which we check if the
+	// Consul checks are healthy or unhealthy.
+	consulCheckLookupInterval = 500 * time.Millisecond
 )
 
 // watchHealth is responsible for watching an allocation's task status and
 // potentially consul health check status to determine if the allocation is
 // healthy or unhealthy.
 func (r *AllocRunner) watchHealth(ctx context.Context) {
-	// Get our alloc and the task group
-	alloc := r.Alloc()
-
 	// See if we should watch the allocs health
+	alloc := r.Alloc()
 	if alloc.DeploymentID == "" {
 		r.logger.Printf("[TRACE] client.alloc_watcher: exiting because alloc isn't part of a deployment")
 		return
@@ -26,12 +31,13 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		r.logger.Printf("[ERR] client.alloc_watcher: failed to lookup allocation's task group. Exiting watcher")
 		return
 	}
-	u := tg.Update
 
 	// Checks marks whether we should be watching for Consul health checks
-	checks := false
-	r.logger.Printf("XXX %v", checks)
+	desiredChecks := 0
+	var checkTicker *time.Ticker
+	var checkCh <-chan time.Time
 
+	u := tg.Update
 	switch {
 	case u == nil:
 		r.logger.Printf("[TRACE] client.alloc_watcher: no update block for alloc %q. exiting", alloc.ID)
@@ -40,7 +46,14 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		r.logger.Printf("[TRACE] client.alloc_watcher: update block has manual checks for alloc %q. exiting", alloc.ID)
 		return
 	case u.HealthCheck == structs.UpdateStrategyHealthCheck_Checks:
-		checks = true
+		for _, task := range tg.Tasks {
+			for _, s := range task.Services {
+				desiredChecks += len(s.Checks)
+			}
+		}
+
+		checkTicker = time.NewTicker(consulCheckLookupInterval)
+		checkCh = checkTicker.C
 	}
 
 	// Get a listener so we know when an allocation is updated.
@@ -50,7 +63,8 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	deadline := time.NewTimer(u.HealthyDeadline)
 
 	// Create a healthy timer
-	latestHealthyTime := time.Unix(0, 0)
+	latestTaskHealthy := time.Unix(0, 0)
+	latestChecksHealthy := time.Unix(0, 0)
 	healthyTimer := time.NewTimer(0)
 	if !healthyTimer.Stop() {
 		<-healthyTimer.C
@@ -64,6 +78,9 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		if !healthyTimer.Stop() {
 			<-healthyTimer.C
 		}
+		if checkTicker != nil {
+			checkTicker.Stop()
+		}
 		l.Close()
 	}()
 
@@ -74,6 +91,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		r.syncStatus()
 	}
 
+	var checks []*api.AgentCheck
 	first := true
 OUTER:
 	for {
@@ -88,12 +106,22 @@ OUTER:
 
 				alloc = newAlloc
 				r.logger.Printf("[TRACE] client.alloc_watcher: new alloc version for %q", alloc.ID)
+			case <-checkCh:
+				newChecks, err := r.consulClient.Checks(alloc)
+				if err != nil {
+					r.logger.Printf("[TRACE] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
+				}
+
+				checks = newChecks
 			case <-deadline.C:
 				// We have exceeded our deadline without being healthy.
+				r.logger.Printf("[TRACE] client.alloc_watcher: alloc %q hit healthy deadline", alloc.ID)
 				setHealth(false)
+				return
 			case <-healthyTimer.C:
 				r.logger.Printf("[TRACE] client.alloc_watcher: alloc %q is healthy", alloc.ID)
 				setHealth(true)
+				return
 			}
 		}
 		first = false
@@ -105,6 +133,11 @@ OUTER:
 			return
 		}
 
+		if len(alloc.TaskStates) != len(tg.Tasks) {
+			r.logger.Printf("[TRACE] client.alloc_watcher: all task runners haven't started")
+			continue OUTER
+		}
+
 		// If the task is dead or has restarted, fail
 		for _, tstate := range alloc.TaskStates {
 			if tstate.Failed || !tstate.FinishedAt.IsZero() || tstate.Restarts != 0 {
@@ -114,6 +147,24 @@ OUTER:
 			}
 		}
 
+		// If we should have checks and they aren't all healthy continue
+		if len(checks) != desiredChecks {
+			r.logger.Printf("[TRACE] client.alloc_watcher: continuing since all checks (want %d; got %d) haven't been registered for alloc %q", desiredChecks, len(checks), alloc.ID)
+			continue OUTER
+		}
+
+		// Check if all the checks are passing
+		for _, check := range checks {
+			if check.Status != api.HealthPassing {
+				r.logger.Printf("[TRACE] client.alloc_watcher: continuing since check %q isn't passing for alloc %q", check.CheckID, alloc.ID)
+				latestChecksHealthy = time.Time{}
+				continue OUTER
+			}
+		}
+		if latestChecksHealthy.IsZero() {
+			latestChecksHealthy = time.Now()
+		}
+
 		// Determine if the allocation is healthy
 		for task, tstate := range alloc.TaskStates {
 			if tstate.State != structs.TaskStateRunning {
@@ -121,25 +172,31 @@ OUTER:
 				continue OUTER
 			}
 
-			if tstate.StartedAt.After(latestHealthyTime) {
-				latestHealthyTime = tstate.StartedAt
+			if tstate.StartedAt.After(latestTaskHealthy) {
+				latestTaskHealthy = tstate.StartedAt
 			}
 		}
 
-		// If we are already healthy we don't set the timer
-		healthyThreshold := latestHealthyTime.Add(u.MinHealthyTime)
-		if time.Now().After(healthyThreshold) {
+		// Don't need to set the timer if we are healthy and have marked
+		// ourselves healthy.
+		if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil && *alloc.DeploymentStatus.Healthy {
 			continue OUTER
 		}
 
-		// Start the time til we are healthy
+		// Determine when we can mark ourselves as healthy.
+		totalHealthy := latestTaskHealthy
+		if totalHealthy.Before(latestChecksHealthy) {
+			totalHealthy = latestChecksHealthy
+		}
+		d := time.Until(totalHealthy.Add(u.MinHealthyTime))
+
 		if !healthyTimer.Stop() {
 			select {
 			case <-healthyTimer.C:
 			default:
 			}
 		}
-		d := time.Until(healthyThreshold)
+
 		healthyTimer.Reset(d)
 		r.logger.Printf("[TRACE] client.alloc_watcher: setting healthy timer to %v for alloc %q", d, alloc.ID)
 	}

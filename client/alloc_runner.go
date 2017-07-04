@@ -746,20 +746,25 @@ OUTER:
 		case update := <-r.updateCh:
 			// Store the updated allocation.
 			r.allocLock.Lock()
+
+			// If the deployment ids have changed clear the health
+			if r.alloc.DeploymentID != update.DeploymentID {
+				r.allocHealth = nil
+			}
+
 			r.alloc = update
 			r.allocLock.Unlock()
-			r.logger.Printf("[ALEX---------------] client: alloc update")
+
+			// Create a new watcher
+			watcherCancel()
+			wCtx, watcherCancel = context.WithCancel(r.ctx)
+			go r.watchHealth(wCtx)
 
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
 				taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 				break OUTER
 			}
-
-			// Create a new watcher
-			watcherCancel()
-			wCtx, watcherCancel = context.WithCancel(r.ctx)
-			go r.watchHealth(wCtx)
 
 			// Update the task groups
 			runners := r.getTaskRunners()
