@@ -214,6 +214,16 @@ func TestConsul_Integration(t *testing.T) {
 		}
 	}
 
+	// Assert the service client returns all the checks for the allocation.
+	checksOut, err := serviceClient.Checks(alloc)
+	if err != nil {
+		t.Fatalf("unexpected error retrieving allocation checks: %v", err)
+	}
+
+	if l := len(checksOut); l != 2 {
+		t.Fatalf("got %d checks; want %d", l, 2)
+	}
+
 	logger.Printf("[TEST] consul.test: killing task")
 
 	// Kill the task

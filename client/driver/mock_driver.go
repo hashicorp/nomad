@@ -36,6 +36,9 @@ type MockDriverConfig struct {
 	// StartErrRecoverable marks the error returned is recoverable
 	StartErrRecoverable bool `mapstructure:"start_error_recoverable"`
 
+	// StartBlockFor specifies a duration in which to block before returning
+	StartBlockFor time.Duration `mapstructure:"start_block_for"`
+
 	// KillAfter is the duration after which the mock driver indicates the task
 	// has exited after getting the initial SIGINT signal
 	KillAfter time.Duration `mapstructure:"kill_after"`
@@ -101,6 +104,10 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 	}
 	if err := dec.Decode(task.Config); err != nil {
 		return nil, err
+	}
+
+	if driverConfig.StartBlockFor != 0 {
+		time.Sleep(driverConfig.StartBlockFor)
 	}
 
 	if driverConfig.StartErr != "" {

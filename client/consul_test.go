@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,7 +22,7 @@ type mockConsulOp struct {
 }
 
 func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptExecutor) mockConsulOp {
-	if op != "add" && op != "remove" && op != "update" {
+	if op != "add" && op != "remove" && op != "update" && op != "checks" {
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
 	return mockConsulOp{
@@ -39,6 +40,9 @@ type mockConsulServiceClient struct {
 	mu  sync.Mutex
 
 	logger *log.Logger
+
+	// checksFn allows injecting return values for the Checks function.
+	checksFn func(*structs.Allocation) ([]*api.AgentCheck, error)
 }
 
 func newMockConsulServiceClient() *mockConsulServiceClient {
@@ -73,4 +77,17 @@ func (m *mockConsulServiceClient) RemoveTask(allocID string, task *structs.Task)
 	defer m.mu.Unlock()
 	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", allocID, task.Name)
 	m.ops = append(m.ops, newMockConsulOp("remove", allocID, task, nil))
+}
+
+func (m *mockConsulServiceClient) Checks(alloc *structs.Allocation) ([]*api.AgentCheck, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logger.Printf("[TEST] mock_consul: Checks(%q)", alloc.ID)
+	m.ops = append(m.ops, newMockConsulOp("checks", alloc.ID, nil, nil))
+
+	if m.checksFn != nil {
+		return m.checksFn(alloc)
+	}
+
+	return nil, nil
 }
