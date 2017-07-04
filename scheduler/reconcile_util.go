@@ -162,23 +162,6 @@ func (a allocSet) filterByCanary() allocSet {
 	return canaries
 }
 
-// filterByPromoted filters the allocset by whether the canaries are promoted or
-// not
-func (a allocSet) filterByPromoted(p bool) allocSet {
-	promoted := make(map[string]*structs.Allocation)
-	for _, alloc := range a {
-		if !alloc.Canary {
-			continue
-		}
-		if p && alloc.DeploymentStatus.IsPromoted() {
-			promoted[alloc.ID] = alloc
-		} else if !p && !alloc.DeploymentStatus.IsPromoted() {
-			promoted[alloc.ID] = alloc
-		}
-	}
-	return promoted
-}
-
 // filterByDeployment filters allocations into two sets, those that match the
 // given deployment ID and those that don't
 func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {

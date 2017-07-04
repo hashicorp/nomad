@@ -4372,10 +4372,6 @@ type AllocDeploymentStatus struct {
 	// healthy or unhealthy.
 	Healthy *bool
 
-	// Promoted marks whether the allocation is promoted. This field is only
-	// used if the allocation is a canary.
-	Promoted bool
-
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
@@ -4399,15 +4395,6 @@ func (a *AllocDeploymentStatus) IsUnhealthy() bool {
 	}
 
 	return a.Healthy != nil && !*a.Healthy
-}
-
-// IsPromoted returns if the allocation is promoted as as part of a deployment
-func (a *AllocDeploymentStatus) IsPromoted() bool {
-	if a == nil {
-		return false
-	}
-
-	return a.Promoted
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {

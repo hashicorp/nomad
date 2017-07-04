@@ -1921,7 +1921,6 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 	}
 
 	var unhealthyErr multierror.Error
-	var canaries []*structs.Allocation
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -1944,23 +1943,9 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
-
-		canaries = append(canaries, alloc)
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
-		return err
-	}
-
-	// Mark canaries as promoted and upsert them
-	canariesCopy := make([]*structs.Allocation, 0, len(canaries))
-	for _, c := range canaries {
-		copy := c.Copy()
-		copy.DeploymentStatus.Promoted = true
-		copy.DeploymentStatus.ModifyIndex = index
-		canariesCopy = append(canariesCopy, copy)
-	}
-	if err := s.upsertAllocsImpl(index, canariesCopy, txn); err != nil {
 		return err
 	}
 

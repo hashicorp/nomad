@@ -2541,8 +2541,9 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		if i < 2 {
 			alloc.Canary = true
 			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy:  helper.BoolToPtr(true),
-				Promoted: true,
+				Healthy: helper.BoolToPtr(true),
+				// TODO
+				//Promoted: true,
 			}
 		}
 		allocs = append(allocs, alloc)

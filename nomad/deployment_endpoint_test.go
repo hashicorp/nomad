@@ -237,13 +237,6 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	assert.Len(dout.TaskGroups, 1, "should have one group")
 	assert.Contains(dout.TaskGroups, "web", "should have web group")
 	assert.True(dout.TaskGroups["web"].Promoted, "web group should be promoted")
-
-	// Lookup the allocation
-	aout, err := state.AllocByID(ws, a.ID)
-	assert.Nil(err, "AllocByID")
-	assert.NotNil(aout, "alloc")
-	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
-	assert.True(aout.DeploymentStatus.Promoted, "alloc deployment promoted")
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
