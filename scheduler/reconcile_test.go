@@ -249,16 +249,16 @@ type resultExpectation struct {
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 
-	if exp.createDeployment != nil && r.createDeployment == nil {
+	if exp.createDeployment != nil && r.deployment == nil {
 		t.Fatalf("Expect a created deployment got none")
-	} else if exp.createDeployment == nil && r.createDeployment != nil {
-		t.Fatalf("Expect no created deployment; got %#v", r.createDeployment)
-	} else if exp.createDeployment != nil && r.createDeployment != nil {
+	} else if exp.createDeployment == nil && r.deployment != nil {
+		t.Fatalf("Expect no created deployment; got %#v", r.deployment)
+	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
-		r.createDeployment.ID, exp.createDeployment.ID = "", ""
-		if !reflect.DeepEqual(r.createDeployment, exp.createDeployment) {
+		r.deployment.ID, exp.createDeployment.ID = "", ""
+		if !reflect.DeepEqual(r.deployment, exp.createDeployment) {
 			t.Fatalf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
-				r.createDeployment, exp.createDeployment, pretty.Diff(r.createDeployment, exp.createDeployment))
+				r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment))
 		}
 	}
 

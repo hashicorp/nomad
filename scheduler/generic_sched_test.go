@@ -1463,10 +1463,10 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
 	// Ensure a deployment was created
-	if plan.CreatedDeployment == nil {
+	if plan.Deployment == nil {
 		t.Fatalf("bad: %#v", plan)
 	}
-	state, ok := plan.CreatedDeployment.TaskGroups[job.TaskGroups[0].Name]
+	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
 	if !ok {
 		t.Fatalf("bad: %#v", plan)
 	}

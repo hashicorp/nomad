@@ -17,8 +17,8 @@ func TestHTTP_DeploymentList(t *testing.T) {
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
 		d2 := mock.Deployment()
-		assert.Nil(state.UpsertDeployment(999, d1, false), "UpsertDeployment")
-		assert.Nil(state.UpsertDeployment(1000, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, d1), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/deployments", nil)
@@ -49,8 +49,8 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 		d1.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
 		d2 := mock.Deployment()
 		d2.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
-		assert.Nil(state.UpsertDeployment(999, d1, false), "UpsertDeployment")
-		assert.Nil(state.UpsertDeployment(1000, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, d1), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/deployments?prefix=aaab", nil)
@@ -88,8 +88,8 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		a2.JobID = j.ID
 		a2.DeploymentID = d.ID
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d, false), "UpsertDeployment")
-		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a1, a2}), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
+		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/deployment/allocations/"+d.ID, nil)
@@ -117,7 +117,7 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d := mock.Deployment()
-		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/deployment/"+d.ID, nil)
@@ -148,7 +148,7 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Create the pause request
 		args := structs.DeploymentPauseRequest{
@@ -185,7 +185,7 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Create the pause request
 		args := structs.DeploymentPromoteRequest{
@@ -225,7 +225,7 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		a.JobID = j.ID
 		a.DeploymentID = d.ID
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}), "UpsertAllocs")
 
 		// Create the pause request
@@ -263,7 +263,7 @@ func TestHTTP_DeploymentFail(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/deployment/fail/"+d.ID, nil)

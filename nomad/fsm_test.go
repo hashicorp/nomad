@@ -1070,7 +1070,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 			Job:   job,
 			Alloc: []*structs.Allocation{alloc},
 		},
-		CreatedDeployment: d,
+		Deployment: d,
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
 	if err != nil {
@@ -1149,7 +1149,7 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 
 	// Upsert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1238,7 +1238,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d, false); err != nil {
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1340,7 +1340,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1445,7 +1445,7 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 
 	// Upsert a deployments
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1784,8 +1784,8 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	state := fsm.State()
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
-	state.UpsertDeployment(1000, d1, false)
-	state.UpsertDeployment(1001, d2, false)
+	state.UpsertDeployment(1000, d1)
+	state.UpsertDeployment(1001, d2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

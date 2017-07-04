@@ -372,10 +372,9 @@ type ApplyPlanResultsRequest struct {
 	// scheduler.
 	AllocUpdateRequest
 
-	// CreatedDeployment is the deployment created as a result of a scheduling
-	// event. Any existing deployment should be cancelled when the new
-	// deployment is created.
-	CreatedDeployment *Deployment
+	// Deployment is the deployment created or updated as a result of a
+	// scheduling event.
+	Deployment *Deployment
 
 	// DeploymentUpdates is a set of status updates to apply to the given
 	// deployments. This allows the scheduler to cancel any unneeded deployment
@@ -3949,6 +3948,9 @@ type DeploymentState struct {
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
 
+	// PlacedCanaries is the set of placed canary allocations
+	PlacedCanaries []string
+
 	// DesiredCanaries is the number of canaries that should be created.
 	DesiredCanaries int
 
@@ -3969,6 +3971,7 @@ type DeploymentState struct {
 func (d *DeploymentState) GoString() string {
 	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
 	base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
+	base += fmt.Sprintf("\nPlaced Canaries: %#v", d.PlacedCanaries)
 	base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
 	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
 	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
@@ -3980,6 +3983,7 @@ func (d *DeploymentState) GoString() string {
 func (d *DeploymentState) Copy() *DeploymentState {
 	c := &DeploymentState{}
 	*c = *d
+	c.PlacedCanaries = helper.CopySliceString(d.PlacedCanaries)
 	return c
 }
 
@@ -4746,11 +4750,9 @@ type Plan struct {
 	// to understand the decisions made by the scheduler.
 	Annotations *PlanAnnotations
 
-	// CreatedDeployment is the deployment created by the scheduler that should
-	// be applied by the planner. A created deployment will cancel all other
-	// deployments for a given job as there can only be a single running
-	// deployment.
-	CreatedDeployment *Deployment
+	// Deployment is the deployment created or updated by the scheduler that
+	// should be applied by the planner.
+	Deployment *Deployment
 
 	// DeploymentUpdates is a set of status updates to apply to the given
 	// deployments. This allows the scheduler to cancel any unneeded deployment
@@ -4811,7 +4813,7 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 func (p *Plan) IsNoOp() bool {
 	return len(p.NodeUpdate) == 0 &&
 		len(p.NodeAllocation) == 0 &&
-		p.CreatedDeployment == nil &&
+		p.Deployment == nil &&
 		len(p.DeploymentUpdates) == 0
 }
 

@@ -617,7 +617,7 @@ func TestHTTP_JobDeployments(t *testing.T) {
 		state := s.Agent.server.State()
 		d := mock.Deployment()
 		d.JobID = j.ID
-		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployments", nil)
@@ -655,7 +655,7 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		state := s.Agent.server.State()
 		d := mock.Deployment()
 		d.JobID = j.ID
-		assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployment", nil)

@@ -84,8 +84,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
-		Job:               alloc.Job,
-		CreatedDeployment: mock.Deployment(),
+		Job:        alloc.Job,
+		Deployment: mock.Deployment(),
 	}
 
 	// Apply the plan
@@ -100,7 +100,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		t.Fatalf("bad: %v %v", out, err)
 	}
 
-	if out, err := snap.DeploymentByID(ws, plan.CreatedDeployment.ID); err != nil || out == nil {
+	if out, err := snap.DeploymentByID(ws, plan.Deployment.ID); err != nil || out == nil {
 		t.Fatalf("bad: %v %v", out, err)
 	}
 
@@ -124,7 +124,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Lookup the deployment
-	dout, err := fsmState.DeploymentByID(ws, plan.CreatedDeployment.ID)
+	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
