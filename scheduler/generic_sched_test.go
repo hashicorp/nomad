@@ -2872,7 +2872,7 @@ func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
 	d.JobID = job.ID
 	d.JobCreateIndex = job.CreateIndex
 	d.JobModifyIndex = job.JobModifyIndex - 1
-	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d, false))
+	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -2937,7 +2937,7 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 	// Create a deployment for an old version of the job
 	d := mock.Deployment()
 	d.JobID = job.ID
-	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d, false))
+	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
 	// Upsert again to bump job version
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))

@@ -249,7 +249,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		if a.deployment != nil {
 			// Stop all non-promoted canaries from older deployments
 			current, older := canaries.filterByDeployment(a.deployment.ID)
-			nonPromotedOlder := older.filterByPromoted(false)
+			// TODO
+			//nonPromotedOlder := older.filterByPromoted(false)
+			nonPromotedOlder := older
 			a.markStop(nonPromotedOlder, "", allocNotNeeded)
 			desiredChanges.Stop += uint64(len(nonPromotedOlder))
 
@@ -264,7 +266,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 			all = all.difference(nonPromotedOlder, migrate, lost)
 		} else {
 			// Stop all non-promoted canaries
-			nonPromoted := canaries.filterByPromoted(false)
+			// TODO
+			//nonPromoted := canaries.filterByPromoted(false)
+			nonPromoted := canaries
 			a.markStop(nonPromoted, "", allocNotNeeded)
 			desiredChanges.Stop += uint64(len(nonPromoted))
 			all = all.difference(nonPromoted)

@@ -4965,25 +4965,6 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		}
 	}
 
-	// Check that the allocs were promoted
-	out1, err := state.AllocByID(ws, c1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	out2, err := state.AllocByID(ws, c2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	for _, alloc := range []*structs.Allocation{out1, out2} {
-		if alloc.DeploymentStatus == nil {
-			t.Fatalf("bad: alloc %q has nil deployment status", alloc.ID)
-		}
-		if !alloc.DeploymentStatus.Promoted {
-			t.Fatalf("bad: alloc %q not promoted", alloc.ID)
-		}
-	}
-
 	// Check that the evaluation was created
 	eout, _ := state.EvalByID(ws, e.ID)
 	if err != nil {
@@ -5077,23 +5058,6 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	}
 	if !stateout.Promoted {
 		t.Fatalf("bad: task group web not promoted: %#v", stateout)
-	}
-
-	// Check that the allocs were promoted
-	out1, err := state.AllocByID(ws, c1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	out2, err := state.AllocByID(ws, c2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !out1.DeploymentStatus.Promoted {
-		t.Fatalf("bad: alloc %q not promoted", out1.ID)
-	}
-	if out2.DeploymentStatus.Promoted {
-		t.Fatalf("bad: alloc %q promoted", out2.ID)
 	}
 
 	// Check that the evaluation was created
