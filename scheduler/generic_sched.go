@@ -410,7 +410,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Handle the in-place updates
+	deploymentID := ""
+	if s.plan.Deployment != nil {
+		deploymentID = s.plan.Deployment.ID
+	}
+
 	for _, update := range results.inplaceUpdate {
+		if update.DeploymentID != deploymentID {
+			update.DeploymentID = deploymentID
+			update.DeploymentStatus = nil
+		}
 		s.ctx.Plan().AppendAlloc(update)
 	}
 
@@ -485,7 +494,6 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 				Metrics:       s.ctx.Metrics(),
 				NodeID:        option.Node.ID,
 				DeploymentID:  deploymentID,
-				Canary:        missing.canary,
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
@@ -499,6 +507,15 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 			// set the record the older allocation id so that they are chained
 			if missing.previousAlloc != nil {
 				alloc.PreviousAllocation = missing.previousAlloc.ID
+			}
+
+			// TODO test
+			// If we are placing a canary and we found a match, add the canary
+			// to the deployment state object.
+			if missing.canary {
+				if state, ok := s.deployment.TaskGroups[missing.taskGroup.Name]; ok {
+					state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+				}
 			}
 
 			s.plan.AppendAlloc(alloc)
