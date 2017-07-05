@@ -13,6 +13,15 @@ branches:
   only:
     - master
 
+matrix:
+  include:
+    - env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
+    - env:
+
+cache:
+  directories:
+    - ui/node_modules
+
 before_install:
     - sudo apt-get update
     - sudo apt-get install -y liblxc1 lxc-dev lxc

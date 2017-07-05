@@ -12,8 +12,19 @@ if [[ $(uname) == "Linux" ]]; then
 	fi
 fi
 
+while [ "$1" != "" ]; do
+    case $1 in
+        -ui)
+            TAGS="$TAGS ui"
+            ;;
+        *)
+            ;;
+    esac
+    shift
+done
+
 echo "--> Installing with tags: $TAGS"
-go install -ldflags "-X $LDFLAG" -tags "${TAGS}"
+go install -ldflags "-X $LDFLAG" -tags "$TAGS"
 
 echo "--> Ensuring bin directory exists..."
 mkdir -p bin

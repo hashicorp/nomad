@@ -1,0 +1,41 @@
+// Start with Bulma variables as a foundation
+@import "bulma/sass/utilities/initial-variables";
+
+// Override variables where appropriate
+@import "./utils/product-colors";
+
+$orange: #FA8E23;
+$green: #2EB039;
+$blue: $vagrant-blue;
+$purple: $terraform-purple;
+$red: #C84034;
+
+$primary: $nomad-green;
+$warning: $orange;
+$warning-invert: $white;
+
+$radius: 2px;
+
+$body-size: 14px;
+$size-5: 1.15rem;
+
+$family-sans-serif: -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  Roboto,
+  Oxygen-Sans,
+  Ubuntu,
+  Cantarell,
+  "Helvetica Neue",
+  sans-serif;
+
+$text: $black;
+
+// Bring in the rest of Bulma
+@import "bulma/bulma";
+
+// Override Bulma details where appropriate
+@import "./core/buttons";
+@import "./core/nav";
+@import "./core/table";
+@import "./core/message";

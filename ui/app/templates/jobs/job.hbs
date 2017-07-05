@@ -1,0 +1,41 @@
+<nav class="nav is-secondary">
+  <div class="nav-left breadcrumbs">
+    <a href="{{href-to "jobs"}}" class="breadcrumb">Jobs</a>
+    <span class="breadcrumb">{{model.name}}</span>
+  </div>
+</nav>
+<div class="container">
+  <section class="section">
+    <div class="message job-stats">
+      <div class="message-body">
+        <span>{{model.type}} | </span>
+        <span>{{model.status}} | </span>
+        <span>Priority: {{model.priority}}</span>
+      </div>
+    </div>
+    <div class="message">
+      <div class="message-header">
+        Task Groups
+      </div>
+      <div class="message-body is-full-bleed">
+        <table class="table is-striped">
+          <thead>
+            <tr>
+              <td>Name</td>
+              <td>Count</td>
+              <td class="is-3">Allocation Status</td>
+              <td>Reserved CPU</td>
+              <td>Reserved Memory</td>
+              <td>Reserved Disk</td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each model.taskGroups as |group|}}
+              {{task-group-row taskGroup=group}}
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>

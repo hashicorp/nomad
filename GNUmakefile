@@ -5,7 +5,9 @@ EXTERNAL_TOOLS=\
 	       golang.org/x/tools/cmd/cover \
 	       github.com/axw/gocov/gocov \
 	       gopkg.in/matm/v1/gocov-html \
-	       github.com/ugorji/go/codec/codecgen
+	       github.com/ugorji/go/codec/codecgen \
+	       github.com/jteeuwen/go-bindata/... \
+	       github.com/elazarl/go-bindata-assetfs/...
 
 TEST_TOOLS=\
 	   github.com/hashicorp/vault
@@ -18,14 +20,22 @@ dev: format generate
 bin: generate
 	@sh -c "'$(PWD)/scripts/build.sh'"
 
-release: generate
+release: ui generate
 	@sh -c "TARGETS=release '$(PWD)/scripts/build.sh'"
 
 cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-test: generate
+test:
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make test-nomad; \
+		fi
+	@if [ $(RUN_UI_TESTS) ]; then \
+		make test-ui; \
+		fi
+
+test-nomad: generate
 	@echo "--> Running go fmt" ;
 	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
 		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
@@ -33,6 +43,14 @@ test: generate
 		fi
 	@sh -c "'$(PWD)/scripts/test.sh'"
 	@$(MAKE) vet
+
+test-ui:
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm install phantomjs-prebuilt
+	@echo "--> Running ember tests"
+	@cd ui && phantomjs --version
+	@cd ui && npm test
 
 cover:
 	go list ./... | xargs -n1 go test --cover
@@ -75,4 +93,21 @@ install: bin/nomad
 travis:
 	@sh -c "'$(PWD)/scripts/travis.sh'"
 
-.PHONY: all bin cov integ test vet test-nodep
+static-assets:
+	@echo "--> Generating static assets"
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
+	@mv bindata_assetfs.go command/agent
+
+ember-dist:
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm rebuild node-sass
+	@echo "--> Building Ember application"
+	@cd ui && npm run build
+
+ui: ember-dist static-assets
+
+dev-ui: ui format generate
+	@scripts/build-dev.sh -ui
+
+.PHONY: all bin cov integ test vet test-nodep static-assets ember-dist static-dist

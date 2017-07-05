@@ -16,6 +16,9 @@ GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_DIRTY="$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)"
 LDFLAG="main.GitCommit=${GIT_COMMIT}${GIT_DIRTY}"
 
+# Build the ui
+TAGS="ui"
+
 # Delete the old dir
 echo "==> Removing old directory..."
 rm -f bin/*
@@ -44,39 +47,39 @@ for target in $targets; do
     case $target in
         "linux_386")
             echo "==> Building linux 386..."
-            CGO_ENABLED=1 GOARCH="386"   GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_386/nomad"
+            CGO_ENABLED=1 GOARCH="386"   GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_386/nomad" -tags "$TAGS"
             ;;
         "linux_amd64")
             echo "==> Building linux amd64..."
-            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad"
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64/nomad" -tags "$TAGS"
             ;;
         "linux_amd64-lxc")
             echo "==> Building linux amd64 with lxc..."
-            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc"
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="linux" go build -ldflags "-X $LDFLAG" -o "pkg/linux_amd64-lxc/nomad" -tags "lxc $TAGS"
             ;;
         "linux_arm")
             echo "==> Building linux arm..."
-            CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc-5" GOOS=linux GOARCH="arm"  go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm/nomad"
+            CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc-5" GOOS=linux GOARCH="arm"  go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm/nomad" -tags "$TAGS"
             ;;
         "linux_arm64")
             echo "==> Building linux arm64..."
-            CGO_ENABLED=1 CC="aarch64-linux-gnu-gcc-5"  GOOS=linux GOARCH="arm64" go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm64/nomad"
+            CGO_ENABLED=1 CC="aarch64-linux-gnu-gcc-5"  GOOS=linux GOARCH="arm64" go build -ldflags "-X $LDFLAG" -o "pkg/linux_arm64/nomad" -tags "$TAGS"
             ;;
         "windows_386")
             echo "==> Building windows 386..."
-            CGO_ENABLED=0 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
+            CGO_ENABLED=0 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe" -tags "$TAGS"
             # Use the following if CGO is required
             #CGO_ENABLED=1 CXX=i686-w64-mingw32-g++ CC=i686-w64-mingw32-gcc GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
             ;;
         "windows_amd64")
             echo "==> Building windows amd64..."
-            CGO_ENABLED=0 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
+            CGO_ENABLED=0 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe" -tags "$TAGS"
             # Use the following if CGO is required
             #CGO_ENABLED=1 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
             ;;
         "darwin_amd64")
             echo "==> Building darwin amd64..."
-            CGO_ENABLED=1 GOARCH="amd64" GOOS="darwin"  go build -ldflags "-X $LDFLAG" -o "pkg/darwin_amd64/nomad"
+            CGO_ENABLED=1 GOARCH="amd64" GOOS="darwin"  go build -ldflags "-X $LDFLAG" -o "pkg/darwin_amd64/nomad" -tags "$TAGS"
             ;;
         *)
             echo "--> Invalid target: $target"

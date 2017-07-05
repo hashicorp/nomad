@@ -1,0 +1,17 @@
+<svg>
+  <g class="bars"></g>
+  <rect class="border" width="100%" height="100%" />
+</svg>
+<div class="tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+  <ol>
+    {{#each _data as |datum index|}}
+      <li class="{{if (eq datum activeDatum) "active"}}">
+        <span class="label">
+          <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+          {{datum.label}}
+        </span>
+        <span class="value">{{datum.value}}</span>
+      </li>
+    {{/each}}
+  </ol>
+</div>

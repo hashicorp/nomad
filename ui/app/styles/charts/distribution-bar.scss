@@ -1,0 +1,41 @@
+.chart.distribution-bar {
+  display: block;
+  height: 100%;
+
+  svg {
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+
+    .bars rect {
+      height: 100%;
+      transition: opacity 0.3s ease-in-out;
+      opacity: 1;
+
+      &.inactive {
+        opacity: 0.2;
+      }
+
+      $color-sequence: $orange,
+        $yellow,
+        $green,
+        $turquoise,
+        $blue,
+        $purple,
+        $red;
+      @for $i from 1 through length($color-sequence) {
+        &.slice-#{$i - 1} {
+          fill: nth($color-sequence, $i);
+        }
+      }
+    }
+
+    .border {
+      stroke: $grey-dark;
+      stroke-width: 2px;
+      stroke-opacity: 0.3;
+      fill: transparent;
+      pointer-events: none;
+    }
+  }
+}

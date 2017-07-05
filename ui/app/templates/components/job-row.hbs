@@ -1,0 +1,7 @@
+<td><a href="{{href-to "jobs.job" job.id}}">{{job.name}}</a></td>
+<td>{{job.type}}</td>
+<td>{{job.priority}}</td>
+<td>{{job.status}}</td>
+<td>{{job.taskGroups.length}}</td>
+<td><div class="inline-chart">{{distribution-bar data=allocDistribution}}</div></td>
+<td>{{job.lostAllocs}}</td>
