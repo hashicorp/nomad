@@ -3845,6 +3845,7 @@ const (
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning           = "Deployment is running"
 	DeploymentStatusDescriptionPaused            = "Deployment is paused"
+	DeploymentStatusDescriptionSuccessful        = "Deployment completed successfully"
 	DeploymentStatusDescriptionStoppedJob        = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob          = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
@@ -3907,6 +3908,10 @@ func NewDeployment(job *Job) *Deployment {
 }
 
 func (d *Deployment) Copy() *Deployment {
+	if d == nil {
+		return nil
+	}
+
 	c := &Deployment{}
 	*c = *d
 
@@ -3969,14 +3974,14 @@ type DeploymentState struct {
 }
 
 func (d *DeploymentState) GoString() string {
-	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
-	base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
-	base += fmt.Sprintf("\nPlaced Canaries: %#v", d.PlacedCanaries)
-	base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
-	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
-	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
-	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
-	base += fmt.Sprintf("\nAutoRevert: %v", d.AutoRevert)
+	base := fmt.Sprintf("\tDesired Total: %d", d.DesiredTotal)
+	base += fmt.Sprintf("\n\tDesired Canaries: %d", d.DesiredCanaries)
+	base += fmt.Sprintf("\n\tPlaced Canaries: %#v", d.PlacedCanaries)
+	base += fmt.Sprintf("\n\tPromoted: %v", d.Promoted)
+	base += fmt.Sprintf("\n\tPlaced: %d", d.PlacedAllocs)
+	base += fmt.Sprintf("\n\tHealthy: %d", d.HealthyAllocs)
+	base += fmt.Sprintf("\n\tUnhealthy: %d", d.UnhealthyAllocs)
+	base += fmt.Sprintf("\n\tAutoRevert: %v", d.AutoRevert)
 	return base
 }
 

@@ -409,6 +409,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.plan.AppendUpdate(stop.alloc, structs.AllocDesiredStatusStop, stop.statusDescription, stop.clientStatus)
 	}
 
+	// TODO test
 	// Handle the in-place updates
 	deploymentID := ""
 	if s.plan.Deployment != nil {

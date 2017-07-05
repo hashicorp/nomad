@@ -2636,7 +2636,6 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 
 			// Add the alloc to the canary list
 			if i < 2 {
-
 				state.PlacedCanaries = append(state.PlacedCanaries, new.ID)
 			}
 		}
@@ -2675,3 +2674,5 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
+
+// TODO Test that a failed deployment and updated job works
