@@ -1268,6 +1268,8 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 			delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
 			c.blockedAllocsLock.Unlock()
 
+			c.logger.Printf("[DEBUG] client: unblocking alloc %s because alloc %s terminated", blockedAlloc.ID, alloc.ID)
+
 			// Need to call addAlloc without holding the lock
 			if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
 				c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
@@ -1606,8 +1608,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			// Check if the alloc is already present in the blocked allocations
 			// map
 			if _, ok := c.blockedAllocations[add.PreviousAllocation]; !ok {
-				c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue for previous allocation %q", add.ID,
-					add.PreviousAllocation)
+				c.logger.Printf("[DEBUG] client: added alloc %s to blocked queue for previous allocation %s",
+					add.ID, add.PreviousAllocation)
 				c.blockedAllocations[add.PreviousAllocation] = add
 			}
 			c.blockedAllocsLock.Unlock()
@@ -1988,29 +1990,28 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 		c.allocLock.Unlock()
 		return nil
 	}
-	c.allocLock.Unlock()
-
-	// Make room for the allocation
-	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
-		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
-	}
-
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
 	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
 
+	// Store the alloc runner.
+	c.allocs[alloc.ID] = ar
+
 	if err := ar.SaveState(); err != nil {
 		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
 	}
 
-	go ar.Run()
+	// Must release allocLock as GC acquires it to count allocs
+	c.allocLock.Unlock()
 
-	// Store the alloc runner.
-	c.allocs[alloc.ID] = ar
+	// Make room for the allocation before running it
+	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
+		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
+	}
+
+	go ar.Run()
 	return nil
 }
 
