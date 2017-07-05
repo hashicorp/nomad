@@ -116,6 +116,19 @@ func (a allocSet) union(others ...allocSet) allocSet {
 	return union
 }
 
+// fromKeys returns an alloc set matching the passed keys
+func (a allocSet) fromKeys(keys ...[]string) allocSet {
+	from := make(map[string]*structs.Allocation)
+	for _, set := range keys {
+		for _, k := range set {
+			if alloc, ok := a[k]; ok {
+				from[k] = alloc
+			}
+		}
+	}
+	return from
+}
+
 // fitlerByTainted takes a set of tainted nodes and filters the allocation set
 // into three groups:
 // 1. Those that exist on untainted nodes

@@ -38,6 +38,9 @@ type allocReconciler struct {
 	// being stopped so we require this seperately.
 	jobID string
 
+	// oldDeployment is the last deployment for the job
+	oldDeployment *structs.Deployment
+
 	// deployment is the current deployment for the job
 	deployment *structs.Deployment
 
@@ -168,16 +171,31 @@ func (a *allocReconciler) cancelDeployments() {
 		return
 	}
 
-	// Check if the deployment is referencing an older job and cancel it
-	if d := a.deployment; d != nil {
-		if d.Active() && (d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex) {
-			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
-				DeploymentID:      a.deployment.ID,
-				Status:            structs.DeploymentStatusCancelled,
-				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
-			})
-			a.deployment = nil
-		}
+	d := a.deployment
+	if d == nil {
+		return
+	}
+
+	// Check if the deployment is active and referencing an older job and cancel it
+	if d.Active() && (d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex) {
+		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			DeploymentID:      a.deployment.ID,
+			Status:            structs.DeploymentStatusCancelled,
+			StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
+		})
+		a.oldDeployment = d
+		a.deployment = nil
+	}
+
+	// Clear it as the current deployment if it is terminal
+	//if !d.Active() {
+	//a.oldDeployment = d
+	//a.deployment = nil
+	//}
+	// Clear it as the current deployment if it is successful
+	if d.Status == structs.DeploymentStatusSuccessful {
+		a.oldDeployment = d
+		a.deployment = nil
 	}
 }
 
@@ -243,40 +261,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		}
 	}
 
-	// Handle stopping unneeded canaries and tracking placed canaries
-	canaries := all.filterByCanary()
-	if len(canaries) != 0 {
-		if a.deployment != nil {
-			// Stop all non-promoted canaries from older deployments
-			current, older := canaries.filterByDeployment(a.deployment.ID)
-			// TODO
-			//nonPromotedOlder := older.filterByPromoted(false)
-			nonPromotedOlder := older
-			a.markStop(nonPromotedOlder, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(nonPromotedOlder))
+	canaries, all := a.handleGroupCanaries(all, desiredChanges)
 
-			// Handle canaries on migrating/lost nodes here by just stopping
-			// them
-			untainted, migrate, lost := current.filterByTainted(a.taintedNodes)
-			a.markStop(migrate, "", allocMigrating)
-			a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-			canaries = untainted
-
-			// Update the all set
-			all = all.difference(nonPromotedOlder, migrate, lost)
-		} else {
-			// Stop all non-promoted canaries
-			// TODO
-			//nonPromoted := canaries.filterByPromoted(false)
-			nonPromoted := canaries
-			a.markStop(nonPromoted, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(nonPromoted))
-			all = all.difference(nonPromoted)
-			canaries = nil
-		}
-	}
-
-	// Determine what set of alloations are on tainted nodes
+	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Create a structure for choosing names. Seed with the taken names which is
@@ -304,6 +291,8 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
+		a.logger.Printf("inplace: %d", len(inplace))
+		a.logger.Printf("destructive: %d", len(destructive))
 		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
 
@@ -340,6 +329,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// * If there are any canaries that they have been promoted
 	place := a.computePlacements(tg, nameIndex, untainted, migrate)
 	if !existingDeployment {
+		a.logger.Printf("place: %d", len(place))
 		dstate.DesiredTotal += len(place)
 	}
 
@@ -400,6 +390,61 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		a.result.deployment = a.deployment
 		a.deployment.TaskGroups[group] = dstate
 	}
+}
+
+// handleGroupCanaries handles the canaries for the group by stopping the
+// unneeded ones and returning the current set of canaries and the updated total
+// set of allocs for the group
+func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *structs.DesiredUpdates) (canaries, newAll allocSet) {
+	// Stop any canary from an older deployment or from a failed one
+	var stop []string
+
+	// Cancel any non-promoted canaries from the older deployment
+	if a.oldDeployment != nil {
+		for _, s := range a.oldDeployment.TaskGroups {
+			if !s.Promoted {
+				stop = append(stop, s.PlacedCanaries...)
+			}
+		}
+	}
+
+	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusFailed {
+		for _, s := range a.deployment.TaskGroups {
+			if !s.Promoted {
+				stop = append(stop, s.PlacedCanaries...)
+			}
+		}
+	}
+
+	stopSet := all.fromKeys(stop)
+	a.markStop(stopSet, "", allocNotNeeded)
+	desiredChanges.Stop += uint64(len(stopSet))
+	a.logger.Printf("canaries stopping b/c old or failed: %#v", stopSet)
+	all = all.difference(stopSet)
+
+	// Capture our current set of canaries and handle any migrations that are
+	// needed by just stopping them.
+	if a.deployment != nil {
+		var canaryIDs []string
+		for _, s := range a.deployment.TaskGroups {
+			canaryIDs = append(canaryIDs, s.PlacedCanaries...)
+		}
+
+		canaries = all.fromKeys(canaryIDs)
+		untainted, migrate, lost := canaries.filterByTainted(a.taintedNodes)
+		a.logger.Printf("canaries: %#v", canaries)
+		a.logger.Printf("canaries migrating: %#v", migrate)
+		a.logger.Printf("canaries lost %#v", lost)
+
+		a.markStop(migrate, "", allocMigrating)
+		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+
+		canaries = untainted
+		all = all.difference(migrate, lost)
+		a.logger.Printf("canaries untainted: %#v", canaries)
+	}
+
+	return canaries, all
 }
 
 // computeLimit returns the placement limit for a particular group. The inputs
@@ -564,6 +609,8 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 		} else if destructiveChange {
 			destructive[alloc.ID] = alloc
 		} else {
+			// Attach the deployment ID and and clear the health if the
+			// deployment has changed
 			inplace[alloc.ID] = alloc
 			a.result.inplaceUpdate = append(a.result.inplaceUpdate, inplaceAlloc)
 		}
