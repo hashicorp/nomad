@@ -49,6 +49,7 @@ BUG FIXES:
  * client/config: Use `cpu_total_compute` whenever it is set [GH-2745]
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
  * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
+ * driver/rkt: Fix env var interpolation [GH-2777]
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]
