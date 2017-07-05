@@ -332,7 +332,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 	// Inject environment variables
 	for k, v := range ctx.TaskEnv.Map() {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%q", k, v))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%s=%s", k, v))
 	}
 
 	// Check if the user has overridden the exec command.
