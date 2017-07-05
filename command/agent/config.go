@@ -226,7 +226,7 @@ type ClientConfig struct {
 
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
-	NoHostUUID bool `mapstructure:"no_host_uuid"`
+	NoHostUUID *bool `mapstructure:"no_host_uuid"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -543,7 +543,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
-			NoHostUUID:            true,
+			NoHostUUID:            helper.BoolToPtr(true),
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -1005,7 +1005,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.GCMaxAllocs = b.GCMaxAllocs
 	}
 	// NoHostUUID defaults to true, merge if false
-	if !b.NoHostUUID {
+	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
 	}
 

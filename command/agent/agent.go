@@ -322,7 +322,12 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
 	conf.GCMaxAllocs = a.config.Client.GCMaxAllocs
-	conf.NoHostUUID = a.config.Client.NoHostUUID
+	if a.config.Client.NoHostUUID != nil {
+		conf.NoHostUUID = *a.config.Client.NoHostUUID
+	} else {
+		// Default no_host_uuid to true
+		conf.NoHostUUID = true
+	}
 
 	return conf, nil
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/kr/pretty"
 )
@@ -78,7 +79,7 @@ func TestConfig_Parse(t *testing.T) {
 					GCDiskUsageThreshold:  82,
 					GCInodeUsageThreshold: 91,
 					GCMaxAllocs:           50,
-					NoHostUUID:            false,
+					NoHostUUID:            helper.BoolToPtr(false),
 				},
 				Server: &ServerConfig{
 					Enabled:           true,
