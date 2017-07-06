@@ -157,10 +157,14 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		complete = complete && groupComplete
 	}
 
+	// TODO test
 	// Mark the deployment as complete if possible
 	if a.deployment != nil && complete {
-		a.deployment.Status = structs.DeploymentStatusSuccessful
-		a.deployment.StatusDescription = structs.DeploymentStatusDescriptionSuccessful
+		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			DeploymentID:      a.deployment.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		})
 	}
 
 	return a.result
@@ -257,7 +261,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Get the deployment state for the group
 	var dstate *structs.DeploymentState
-	var existingDeployment bool
+	existingDeployment := false
 	deploymentComplete := true
 	if a.deployment != nil {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
