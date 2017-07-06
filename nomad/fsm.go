@@ -165,6 +165,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
 	case structs.DeploymentDeleteRequestType:
 		return n.applyDeploymentDelete(buf[1:], log.Index)
+	case structs.JobStabilityRequestType:
+		return n.applyJobStability(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -645,6 +647,22 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteDeployment(index, req.Deployments); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteDeployment failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyJobStability is used to set the stability of a job
+func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_stability"}, time.Now())
+	var req structs.JobStabilityRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateJobStability(index, req.JobID, req.JobVersion, req.Stable); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateJobStability failed: %v", err)
 		return err
 	}
 

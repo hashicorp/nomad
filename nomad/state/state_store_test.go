@@ -4752,6 +4752,114 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 	}
 }
 
+// Test that when a deployment is updated to successful the job is updated to
+// stable
+func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a job
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Insert a deployment
+	d := structs.NewDeployment(job)
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Update the deployment
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+	err := state.UpdateDeploymentStatus(3, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != structs.DeploymentStatusSuccessful ||
+		dout.StatusDescription != structs.DeploymentStatusDescriptionSuccessful {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if !jout.Stable {
+		t.Fatalf("job not marked stable %#v", jout)
+	}
+	if jout.Version != d.JobVersion {
+		t.Fatalf("job version changed; got %d; want %d", jout.Version, d.JobVersion)
+	}
+}
+
+func TestStateStore_UpdateJobStability(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a job twice to get two versions
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if err := state.UpsertJob(2, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Update the stability to true
+	err := state.UpdateJobStability(3, job.ID, 0, true)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the job was updated properly
+	ws := memdb.NewWatchSet()
+	jout, _ := state.JobByIDAndVersion(ws, job.ID, 0)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if !jout.Stable {
+		t.Fatalf("job not marked stable %#v", jout)
+	}
+
+	// Update the stability to false
+	err = state.UpdateJobStability(3, job.ID, 0, false)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the job was updated properly
+	jout, _ = state.JobByIDAndVersion(ws, job.ID, 0)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if jout.Stable {
+		t.Fatalf("job marked stable %#v", jout)
+	}
+}
+
 // Test that non-existant deployment can't be promoted
 func TestStateStore_UpsertDeploymentPromotion_NonExistant(t *testing.T) {
 	state := testStateStore(t)

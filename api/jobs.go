@@ -266,6 +266,23 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 	return &resp, wm, nil
 }
 
+// Stable is used to mark a job version's stability.
+func (j *Jobs) Stable(jobID string, version uint64, stable bool,
+	q *WriteOptions) (*JobStabilityResponse, *WriteMeta, error) {
+
+	var resp JobStabilityResponse
+	req := &JobStabilityRequest{
+		JobID:      jobID,
+		JobVersion: version,
+		Stable:     stable,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/stable", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -841,4 +858,21 @@ type JobVersionsResponse struct {
 	Versions []*Job
 	Diffs    []*JobDiff
 	QueryMeta
+}
+
+// JobStabilityRequest is used to marked a job as stable.
+type JobStabilityRequest struct {
+	// Job to set the stability on
+	JobID      string
+	JobVersion uint64
+
+	// Set the stability
+	Stable bool
+	WriteRequest
+}
+
+// JobStabilityResponse is the response when marking a job as stable.
+type JobStabilityResponse struct {
+	JobModifyIndex uint64
+	WriteMeta
 }
