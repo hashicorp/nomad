@@ -99,7 +99,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc, alloc2},
 			Job:   job,
 		},
-		CreatedDeployment: d,
+		Deployment: d,
 	}
 
 	err := state.UpsertPlanResults(1000, &res)
@@ -139,98 +139,6 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	}
 }
 
-// This test checks that when a new deployment is made, the old ones are
-// cancelled.
-func TestStateStore_UpsertPlanResults_Deployment_CancelOld(t *testing.T) {
-	state := testStateStore(t)
-
-	// Create a job that applies to all
-	job := mock.Job()
-	if err := state.UpsertJob(998, job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create two deployments:
-	// One that is already terminal and assert its modify index isn't touched
-	// A second that is outstanding and assert it gets cancelled.
-	dterminal := mock.Deployment()
-	dterminal.Status = structs.DeploymentStatusFailed
-	dterminal.JobID = job.ID
-	doutstanding := mock.Deployment()
-	doutstanding.JobID = job.ID
-
-	if err := state.UpsertDeployment(999, dterminal, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := state.UpsertDeployment(1000, doutstanding, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	alloc := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc.Job = nil
-	alloc2.Job = nil
-
-	dnew := mock.Deployment()
-	dnew.JobID = job.ID
-	alloc.DeploymentID = dnew.ID
-	alloc2.DeploymentID = dnew.ID
-
-	// Create a plan result
-	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		CreatedDeployment: dnew,
-	}
-
-	err := state.UpsertPlanResults(1001, &res)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-
-	// Check the deployments are correctly updated.
-	dout, err := state.DeploymentByID(ws, dnew.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if dout == nil {
-		t.Fatalf("bad: nil deployment")
-	}
-
-	tg, ok := dout.TaskGroups[alloc.TaskGroup]
-	if !ok {
-		t.Fatalf("bad: nil deployment state")
-	}
-	if tg == nil || tg.PlacedAllocs != 2 {
-		t.Fatalf("bad: %v", dout)
-	}
-
-	dterminalout, err := state.DeploymentByID(ws, dterminal.ID)
-	if err != nil || dterminalout == nil {
-		t.Fatalf("bad: %v %v", err, dterminalout)
-	}
-	if !reflect.DeepEqual(dterminalout, dterminal) {
-		t.Fatalf("bad: %v %v", dterminal, dterminalout)
-	}
-
-	doutstandingout, err := state.DeploymentByID(ws, doutstanding.ID)
-	if err != nil || doutstandingout == nil {
-		t.Fatalf("bad: %v %v", err, doutstandingout)
-	}
-	if doutstandingout.Status != structs.DeploymentStatusCancelled || doutstandingout.ModifyIndex != 1001 {
-		t.Fatalf("bad: %v", doutstandingout)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
-}
-
 // This test checks that deployment updates are applied correctly
 func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	state := testStateStore(t)
@@ -245,7 +153,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	doutstanding := mock.Deployment()
 	doutstanding.JobID = job.ID
 
-	if err := state.UpsertDeployment(1000, doutstanding, false); err != nil {
+	if err := state.UpsertDeployment(1000, doutstanding); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -269,7 +177,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc},
 			Job:   job,
 		},
-		CreatedDeployment: dnew,
+		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 	}
 
@@ -322,7 +230,7 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.UpsertDeployment(1000, deployment, false)
+	err = state.UpsertDeployment(1000, deployment)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -353,83 +261,16 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpsertDeployment_Cancel(t *testing.T) {
-	state := testStateStore(t)
-	deployment := mock.Deployment()
-	deployment2 := mock.Deployment()
-	deployment2.JobID = deployment.JobID
-
-	// Create a deployment that shares the job id prefix
-	deployment3 := mock.Deployment()
-	deployment3.JobID = deployment.JobID + "foo"
-
-	if err := state.UpsertDeployment(1000, deployment, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := state.UpsertDeployment(1001, deployment2, true); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := state.UpsertDeployment(1002, deployment3, true); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	out, err := state.DeploymentByID(ws, deployment.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Check to see that the deployment was cancelled
-	if out.Status != structs.DeploymentStatusCancelled {
-		t.Fatalf("got status %v; want %v", out.Status, structs.DeploymentStatusCancelled)
-	} else if out.ModifyIndex != 1001 {
-		t.Fatalf("got modify index %v; want %v", out.ModifyIndex, 1001)
-	}
-
-	// Get the deployments by job
-	deployments, err := state.DeploymentsByJobID(ws, deployment.JobID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if l := len(deployments); l != 2 {
-		t.Fatalf("got %d deployments; want %v", l, 2)
-	}
-
-	latest, err := state.LatestDeploymentByJobID(ws, deployment.JobID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if latest == nil || latest.CreateIndex != 1001 {
-		t.Fatalf("bad: %+v", latest)
-	}
-
-	index, err := state.Index("deployment")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1002 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
-}
-
 func TestStateStore_DeleteDeployment(t *testing.T) {
 	state := testStateStore(t)
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
 
-	err := state.UpsertDeployment(1000, d1, false)
+	err := state.UpsertDeployment(1000, d1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertDeployment(1001, d2, false); err != nil {
+	if err := state.UpsertDeployment(1001, d2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -479,7 +320,7 @@ func TestStateStore_Deployments(t *testing.T) {
 		deployment := mock.Deployment()
 		deployments = append(deployments, deployment)
 
-		err := state.UpsertDeployment(1000+uint64(i), deployment, false)
+		err := state.UpsertDeployment(1000+uint64(i), deployment)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -520,7 +361,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	deploy := mock.Deployment()
 
 	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
-	err := state.UpsertDeployment(1000, deploy, false)
+	err := state.UpsertDeployment(1000, deploy)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -566,7 +407,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 
 	deploy = mock.Deployment()
 	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
-	err = state.UpsertDeployment(1001, deploy, false)
+	err = state.UpsertDeployment(1001, deploy)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3351,7 +3192,7 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	if err := state.UpsertJob(999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertDeployment(1000, deployment, false); err != nil {
+	if err := state.UpsertDeployment(1000, deployment); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -4834,7 +4675,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -4858,7 +4699,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -4936,7 +4777,7 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -4966,7 +4807,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	// Create a deployment
 	d := mock.Deployment()
 	d.JobID = j.ID
-	if err := state.UpsertDeployment(2, d, false); err != nil {
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -4974,11 +4815,11 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
-	c1.Canary = true
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
 	c2.DeploymentID = d.ID
-	c2.Canary = true
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 
 	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
 		t.Fatalf("err: %v", err)
@@ -5030,7 +4871,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d, false); err != nil {
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -5038,14 +4879,14 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
-	c1.Canary = true
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
 	c2.DeploymentID = d.ID
-	c2.Canary = true
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
@@ -5086,25 +4927,6 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		}
 	}
 
-	// Check that the allocs were promoted
-	out1, err := state.AllocByID(ws, c1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	out2, err := state.AllocByID(ws, c2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	for _, alloc := range []*structs.Allocation{out1, out2} {
-		if alloc.DeploymentStatus == nil {
-			t.Fatalf("bad: alloc %q has nil deployment status", alloc.ID)
-		}
-		if !alloc.DeploymentStatus.Promoted {
-			t.Fatalf("bad: alloc %q not promoted", alloc.ID)
-		}
-	}
-
 	// Check that the evaluation was created
 	eout, _ := state.EvalByID(ws, e.ID)
 	if err != nil {
@@ -5142,7 +4964,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d, false); err != nil {
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -5150,14 +4972,14 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
-	c1.Canary = true
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
 	c2.DeploymentID = d.ID
-	c2.Canary = true
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
@@ -5200,23 +5022,6 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		t.Fatalf("bad: task group web not promoted: %#v", stateout)
 	}
 
-	// Check that the allocs were promoted
-	out1, err := state.AllocByID(ws, c1.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	out2, err := state.AllocByID(ws, c2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !out1.DeploymentStatus.Promoted {
-		t.Fatalf("bad: alloc %q not promoted", out1.ID)
-	}
-	if out2.DeploymentStatus.Promoted {
-		t.Fatalf("bad: alloc %q promoted", out2.ID)
-	}
-
 	// Check that the evaluation was created
 	eout, _ := state.EvalByID(ws, e.ID)
 	if err != nil {
@@ -5252,7 +5057,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -5275,7 +5080,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistant(t *testing.
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -5300,10 +5105,10 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 	// Insert two  deployment
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
-	if err := state.UpsertDeployment(1, d1, false); err != nil {
+	if err := state.UpsertDeployment(1, d1); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
-	if err := state.UpsertDeployment(2, d2, false); err != nil {
+	if err := state.UpsertDeployment(2, d2); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -5333,7 +5138,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, d, false); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 

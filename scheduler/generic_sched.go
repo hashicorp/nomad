@@ -117,7 +117,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs)
+			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
+			s.deployment.GetID())
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -136,7 +137,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
 				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs); err != nil {
+				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -156,7 +157,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs)
+		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
+		s.deployment.GetID())
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -396,12 +398,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Add the deployment changes to the plan
-	s.plan.CreatedDeployment = results.createDeployment
+	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
 
 	// Update the stored deployment
-	if results.createDeployment != nil {
-		s.deployment = results.createDeployment
+	if results.deployment != nil {
+		s.deployment = results.deployment
 	}
 
 	// Handle the stop
@@ -411,6 +413,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
+		if update.DeploymentID != s.deployment.GetID() {
+			update.DeploymentID = s.deployment.GetID()
+			update.DeploymentStatus = nil
+		}
 		s.ctx.Plan().AppendAlloc(update)
 	}
 
@@ -485,7 +491,6 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 				Metrics:       s.ctx.Metrics(),
 				NodeID:        option.Node.ID,
 				DeploymentID:  deploymentID,
-				Canary:        missing.canary,
 				TaskResources: option.TaskResources,
 				DesiredStatus: structs.AllocDesiredStatusRun,
 				ClientStatus:  structs.AllocClientStatusPending,
@@ -499,6 +504,14 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 			// set the record the older allocation id so that they are chained
 			if missing.previousAlloc != nil {
 				alloc.PreviousAllocation = missing.previousAlloc.ID
+			}
+
+			// If we are placing a canary and we found a match, add the canary
+			// to the deployment state object.
+			if missing.canary {
+				if state, ok := s.deployment.TaskGroups[missing.taskGroup.Name]; ok {
+					state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+				}
 			}
 
 			s.plan.AppendAlloc(alloc)

@@ -372,10 +372,9 @@ type ApplyPlanResultsRequest struct {
 	// scheduler.
 	AllocUpdateRequest
 
-	// CreatedDeployment is the deployment created as a result of a scheduling
-	// event. Any existing deployment should be cancelled when the new
-	// deployment is created.
-	CreatedDeployment *Deployment
+	// Deployment is the deployment created or updated as a result of a
+	// scheduling event.
+	Deployment *Deployment
 
 	// DeploymentUpdates is a set of status updates to apply to the given
 	// deployments. This allows the scheduler to cancel any unneeded deployment
@@ -3846,6 +3845,7 @@ const (
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning           = "Deployment is running"
 	DeploymentStatusDescriptionPaused            = "Deployment is paused"
+	DeploymentStatusDescriptionSuccessful        = "Deployment completed successfully"
 	DeploymentStatusDescriptionStoppedJob        = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob          = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
@@ -3908,6 +3908,10 @@ func NewDeployment(job *Job) *Deployment {
 }
 
 func (d *Deployment) Copy() *Deployment {
+	if d == nil {
+		return nil
+	}
+
 	c := &Deployment{}
 	*c = *d
 
@@ -3932,6 +3936,27 @@ func (d *Deployment) Active() bool {
 	}
 }
 
+// GetID is a helper for getting the ID when the object may be nil
+func (d *Deployment) GetID() string {
+	if d == nil {
+		return ""
+	}
+	return d.ID
+}
+
+// HasPlacedCanaries returns whether the deployment has placed canaries
+func (d *Deployment) HasPlacedCanaries() bool {
+	if d == nil || len(d.TaskGroups) == 0 {
+		return false
+	}
+	for _, group := range d.TaskGroups {
+		if len(group.PlacedCanaries) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Deployment) GoString() string {
 	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {
@@ -3948,6 +3973,9 @@ type DeploymentState struct {
 
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
+
+	// PlacedCanaries is the set of placed canary allocations
+	PlacedCanaries []string
 
 	// DesiredCanaries is the number of canaries that should be created.
 	DesiredCanaries int
@@ -3967,19 +3995,21 @@ type DeploymentState struct {
 }
 
 func (d *DeploymentState) GoString() string {
-	base := fmt.Sprintf("Desired Total: %d", d.DesiredTotal)
-	base += fmt.Sprintf("\nDesired Canaries: %d", d.DesiredCanaries)
-	base += fmt.Sprintf("\nPromoted: %v", d.Promoted)
-	base += fmt.Sprintf("\nPlaced: %d", d.PlacedAllocs)
-	base += fmt.Sprintf("\nHealthy: %d", d.HealthyAllocs)
-	base += fmt.Sprintf("\nUnhealthy: %d", d.UnhealthyAllocs)
-	base += fmt.Sprintf("\nAutoRevert: %v", d.AutoRevert)
+	base := fmt.Sprintf("\tDesired Total: %d", d.DesiredTotal)
+	base += fmt.Sprintf("\n\tDesired Canaries: %d", d.DesiredCanaries)
+	base += fmt.Sprintf("\n\tPlaced Canaries: %#v", d.PlacedCanaries)
+	base += fmt.Sprintf("\n\tPromoted: %v", d.Promoted)
+	base += fmt.Sprintf("\n\tPlaced: %d", d.PlacedAllocs)
+	base += fmt.Sprintf("\n\tHealthy: %d", d.HealthyAllocs)
+	base += fmt.Sprintf("\n\tUnhealthy: %d", d.UnhealthyAllocs)
+	base += fmt.Sprintf("\n\tAutoRevert: %v", d.AutoRevert)
 	return base
 }
 
 func (d *DeploymentState) Copy() *DeploymentState {
 	c := &DeploymentState{}
 	*c = *d
+	c.PlacedCanaries = helper.CopySliceString(d.PlacedCanaries)
 	return c
 }
 
@@ -4072,9 +4102,6 @@ type Allocation struct {
 	// DeploymentStatus captures the status of the allocation as part of the
 	// given deployment
 	DeploymentStatus *AllocDeploymentStatus
-
-	// Canary marks this allocation as being a canary
-	Canary bool
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -4368,10 +4395,6 @@ type AllocDeploymentStatus struct {
 	// healthy or unhealthy.
 	Healthy *bool
 
-	// Promoted marks whether the allocation is promoted. This field is only
-	// used if the allocation is a canary.
-	Promoted bool
-
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
@@ -4395,15 +4418,6 @@ func (a *AllocDeploymentStatus) IsUnhealthy() bool {
 	}
 
 	return a.Healthy != nil && !*a.Healthy
-}
-
-// IsPromoted returns if the allocation is promoted as as part of a deployment
-func (a *AllocDeploymentStatus) IsPromoted() bool {
-	if a == nil {
-		return false
-	}
-
-	return a.Promoted
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
@@ -4746,11 +4760,9 @@ type Plan struct {
 	// to understand the decisions made by the scheduler.
 	Annotations *PlanAnnotations
 
-	// CreatedDeployment is the deployment created by the scheduler that should
-	// be applied by the planner. A created deployment will cancel all other
-	// deployments for a given job as there can only be a single running
-	// deployment.
-	CreatedDeployment *Deployment
+	// Deployment is the deployment created or updated by the scheduler that
+	// should be applied by the planner.
+	Deployment *Deployment
 
 	// DeploymentUpdates is a set of status updates to apply to the given
 	// deployments. This allows the scheduler to cancel any unneeded deployment
@@ -4811,7 +4823,7 @@ func (p *Plan) AppendAlloc(alloc *Allocation) {
 func (p *Plan) IsNoOp() bool {
 	return len(p.NodeUpdate) == 0 &&
 		len(p.NodeAllocation) == 0 &&
-		p.CreatedDeployment == nil &&
+		p.Deployment == nil &&
 		len(p.DeploymentUpdates) == 0
 }
 
@@ -4822,6 +4834,12 @@ type PlanResult struct {
 
 	// NodeAllocation contains all the allocations that were committed.
 	NodeAllocation map[string][]*Allocation
+
+	// Deployment is the deployment that was committed.
+	Deployment *Deployment
+
+	// DeploymentUpdates is the set of deployment updates that were commited.
+	DeploymentUpdates []*DeploymentStatusUpdate
 
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
@@ -4836,7 +4854,8 @@ type PlanResult struct {
 
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 &&
+		len(p.DeploymentUpdates) == 0 && p.Deployment == nil
 }
 
 // FullCommit is used to check if all the allocations in a plan

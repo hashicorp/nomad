@@ -324,7 +324,7 @@ func (m *mockBackend) GetJobVersions(args *structs.JobVersionsRequest, reply *st
 }
 
 func (m *mockBackend) getJobVersionsFromState(in mocker.Arguments) {
-	args, reply := in.Get(0).(*structs.JobSpecificRequest), in.Get(1).(*structs.JobVersionsResponse)
+	args, reply := in.Get(0).(*structs.JobVersionsRequest), in.Get(1).(*structs.JobVersionsResponse)
 	ws := memdb.NewWatchSet()
 	versions, _ := m.state.JobVersionsByID(ws, args.JobID)
 	reply.Versions = versions
@@ -356,6 +356,14 @@ func matchDeploymentSpecificRequest(dID string) func(args *structs.DeploymentSpe
 // request is for the passed job id
 func matchJobSpecificRequest(jID string) func(args *structs.JobSpecificRequest) bool {
 	return func(args *structs.JobSpecificRequest) bool {
+		return args.JobID == jID
+	}
+}
+
+// matchJobVersionsRequest is used to match that a job version
+// request is for the passed job id
+func matchJobVersionsRequest(jID string) func(args *structs.JobVersionsRequest) bool {
+	return func(args *structs.JobVersionsRequest) bool {
 		return args.JobID == jID
 	}
 }

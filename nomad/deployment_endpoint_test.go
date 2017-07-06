@@ -27,7 +27,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Lookup the deployments
 	get := &structs.DeploymentSpecificRequest{
@@ -61,12 +61,12 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 
 	// Upsert a deployment we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(100, d1, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
 	})
 
 	// Upsert another deployment later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(200, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
 	})
 
 	// Lookup the deployments
@@ -103,7 +103,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentFailRequest{
@@ -151,7 +151,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentPauseRequest{
@@ -194,7 +194,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
@@ -202,7 +202,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Promote the deployment
@@ -237,13 +237,6 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	assert.Len(dout.TaskGroups, 1, "should have one group")
 	assert.Contains(dout.TaskGroups, "web", "should have web group")
 	assert.True(dout.TaskGroups["web"].Promoted, "web group should be promoted")
-
-	// Lookup the allocation
-	aout, err := state.AllocByID(ws, a.ID)
-	assert.Nil(err, "AllocByID")
-	assert.NotNil(aout, "alloc")
-	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
-	assert.True(aout.DeploymentStatus.Promoted, "alloc deployment promoted")
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
@@ -267,7 +260,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Set the alloc as healthy
@@ -326,7 +319,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Lookup the deployments
 	get := &structs.DeploymentListRequest{
@@ -367,7 +360,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(3, d, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(3, d), "UpsertDeployment")
 	})
 
 	req := &structs.DeploymentListRequest{
@@ -390,7 +383,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	d2 := d.Copy()
 	d2.Status = structs.DeploymentStatusPaused
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(5, d2, false), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(5, d2), "UpsertDeployment")
 	})
 
 	req.MinQueryIndex = 3
@@ -423,7 +416,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 
 	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
-	assert.Nil(state.UpsertDeployment(1000, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Lookup the allocations
@@ -455,7 +448,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	summary := mock.JobSummary(a.JobID)
 
 	assert.Nil(state.UpsertJob(1, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(2, d, false), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(2, d), "UpsertDeployment")
 	assert.Nil(state.UpsertJobSummary(3, summary), "UpsertJobSummary")
 
 	// Upsert alloc triggers watches
@@ -512,7 +505,7 @@ func TestDeploymentEndpoint_Reap(t *testing.T) {
 
 	// Create the register request
 	d1 := mock.Deployment()
-	assert.Nil(s1.fsm.State().UpsertDeployment(1000, d1, false), "UpsertDeployment")
+	assert.Nil(s1.fsm.State().UpsertDeployment(1000, d1), "UpsertDeployment")
 
 	// Reap the eval
 	get := &structs.DeploymentDeleteRequest{

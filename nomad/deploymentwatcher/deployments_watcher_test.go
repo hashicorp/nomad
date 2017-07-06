@@ -176,7 +176,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -199,7 +199,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 		Eval:         true,
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
-	m.On("UpsertDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call SetAllocHealth
 	req := &structs.DeploymentAllocHealthRequest{
@@ -226,7 +226,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Assert the following methods will be called
@@ -249,7 +249,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 		Eval:         true,
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
-	m.On("UpsertDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call SetAllocHealth
 	req := &structs.DeploymentAllocHealthRequest{
@@ -260,7 +260,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	err := w.SetAllocHealth(req, &resp)
 	assert.Nil(err, "SetAllocHealth")
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentAllocHealth", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher))
 }
 
 // Test setting allocation unhealthy
@@ -275,7 +275,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Assert the following methods will be called
@@ -303,7 +303,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 		},
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
-	m.On("UpsertDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call SetAllocHealth
 	req := &structs.DeploymentAllocHealthRequest{
@@ -316,7 +316,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
 		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
-	m.AssertNumberOfCalls(t, "UpsertDeploymentAllocHealth", 1)
+	m.AssertNumberOfCalls(t, "UpdateDeploymentAllocHealth", 1)
 }
 
 // Test setting allocation unhealthy and that there should be a rollback
@@ -332,10 +332,11 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
+	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
@@ -351,7 +352,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
 	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
 
 	w.SetEnabled(true)
@@ -371,7 +372,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 		JobVersion: helper.Uint64ToPtr(0),
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
-	m.On("UpsertDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call SetAllocHealth
 	req := &structs.DeploymentAllocHealthRequest{
@@ -384,7 +385,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
 		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
-	m.AssertNumberOfCalls(t, "UpsertDeploymentAllocHealth", 1)
+	m.AssertNumberOfCalls(t, "UpdateDeploymentAllocHealth", 1)
 }
 
 // Test promoting a deployment
@@ -400,13 +401,13 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
 	}
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Assert the following methods will be called
@@ -431,7 +432,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 		Eval: true,
 	}
 	matcher := matchDeploymentPromoteRequest(matchConfig)
-	m.On("UpsertDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PromoteDeployment
 	req := &structs.DeploymentPromoteRequest{
@@ -442,7 +443,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	err := w.PromoteDeployment(req, &resp)
 	assert.Nil(err, "PromoteDeployment")
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentPromotion", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentPromotion", mocker.MatchedBy(matcher))
 }
 
 // Test promoting a deployment with unhealthy canaries
@@ -458,10 +459,10 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Assert the following methods will be called
@@ -486,7 +487,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 		Eval: true,
 	}
 	matcher := matchDeploymentPromoteRequest(matchConfig)
-	m.On("UpsertDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call SetAllocHealth
 	req := &structs.DeploymentPromoteRequest{
@@ -500,7 +501,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	}
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentPromotion", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentPromotion", mocker.MatchedBy(matcher))
 }
 
 // Test pausing a deployment that is running
@@ -513,7 +514,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -535,7 +536,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 		StatusDescription: structs.DeploymentStatusDescriptionPaused,
 	}
 	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
 	req := &structs.DeploymentPauseRequest{
@@ -547,7 +548,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	assert.Nil(err, "PauseDeployment")
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(matcher))
 }
 
 // Test pausing a deployment that is paused
@@ -561,7 +562,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	d.JobID = j.ID
 	d.Status = structs.DeploymentStatusPaused
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -583,7 +584,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 		StatusDescription: structs.DeploymentStatusDescriptionPaused,
 	}
 	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
 	req := &structs.DeploymentPauseRequest{
@@ -595,7 +596,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	assert.Nil(err, "PauseDeployment")
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(matcher))
 }
 
 // Test unpausing a deployment that is paused
@@ -609,7 +610,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	d.JobID = j.ID
 	d.Status = structs.DeploymentStatusPaused
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -632,7 +633,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 		Eval:              true,
 	}
 	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
 	req := &structs.DeploymentPauseRequest{
@@ -644,7 +645,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	assert.Nil(err, "PauseDeployment")
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(matcher))
 }
 
 // Test unpausing a deployment that is running
@@ -657,7 +658,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -680,7 +681,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 		Eval:              true,
 	}
 	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
 	req := &structs.DeploymentPauseRequest{
@@ -692,7 +693,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 	assert.Nil(err, "PauseDeployment")
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(matcher))
 }
 
 // Test failing a deployment that is running
@@ -705,7 +706,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// Assert the following methods will be called
 	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
@@ -728,7 +729,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 		Eval:              true,
 	}
 	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
 
 	// Call PauseDeployment
 	req := &structs.DeploymentFailRequest{
@@ -739,7 +740,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 	assert.Nil(err, "FailDeployment")
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(matcher))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(matcher))
 }
 
 // Tests that the watcher properly watches for allocation changes and takes the
@@ -756,10 +757,11 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
+	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
@@ -775,7 +777,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
 	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
 
 	w.SetEnabled(true)
@@ -824,7 +826,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 		Eval:              true,
 	}
 	m2 := matchDeploymentStatusUpdateRequest(c)
-	m.On("UpsertDeploymentStatusUpdate", mocker.MatchedBy(m2)).Return(nil)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(m2)).Return(nil)
 
 	// Update the allocs health to unhealthy which should create a job rollback,
 	// status update and eval
@@ -865,7 +867,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 		Eval:              true,
 	}
 	m3 := matchDeploymentStatusUpdateRequest(c2)
-	m.AssertCalled(t, "UpsertDeploymentStatusUpdate", mocker.MatchedBy(m3))
+	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(m3))
 	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
 		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
 }
@@ -890,8 +892,8 @@ func TestWatcher_BatchEvals(t *testing.T) {
 
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j1), "UpsertJob")
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d1, false), "UpsertDeployment")
-	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d2, false), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d1), "UpsertDeployment")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d2), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a1}), "UpsertAllocs")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
 
@@ -913,9 +915,9 @@ func TestWatcher_BatchEvals(t *testing.T) {
 	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobFromState)
 
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j1.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
+	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j2.ID)),
 		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
 
 	w.SetEnabled(true)

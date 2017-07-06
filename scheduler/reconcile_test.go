@@ -64,6 +64,9 @@ Deployment Tests:
 √  Limit calculation accounts for healthy allocs on migrating/lost nodes
 √  Failed deployment should not place anything
 √  Run after canaries have been promoted, new allocs have been rolled out and there is no deployment
+√  Failed deployment cancels non-promoted task groups
+√  Failed deployment and updated job works
+√  Finished deployment gets marked as complete
 */
 
 var (
@@ -168,9 +171,16 @@ func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
 	}
 }
 
-func assertNoCanariesStopped(t *testing.T, stop []allocStopResult) {
+func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocStopResult) {
+	canaryIndex := make(map[string]struct{})
+	for _, state := range d.TaskGroups {
+		for _, c := range state.PlacedCanaries {
+			canaryIndex[c] = struct{}{}
+		}
+	}
+
 	for _, s := range stop {
-		if s.alloc.Canary {
+		if _, ok := canaryIndex[s.alloc.ID]; ok {
 			t.Fatalf("Stopping canary alloc %q %q", s.alloc.ID, s.alloc.Name)
 		}
 	}
@@ -249,16 +259,16 @@ type resultExpectation struct {
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 
-	if exp.createDeployment != nil && r.createDeployment == nil {
+	if exp.createDeployment != nil && r.deployment == nil {
 		t.Fatalf("Expect a created deployment got none")
-	} else if exp.createDeployment == nil && r.createDeployment != nil {
-		t.Fatalf("Expect no created deployment; got %#v", r.createDeployment)
-	} else if exp.createDeployment != nil && r.createDeployment != nil {
+	} else if exp.createDeployment == nil && r.deployment != nil {
+		t.Fatalf("Expect no created deployment; got %#v", r.deployment)
+	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
-		r.createDeployment.ID, exp.createDeployment.ID = "", ""
-		if !reflect.DeepEqual(r.createDeployment, exp.createDeployment) {
+		r.deployment.ID, exp.createDeployment.ID = "", ""
+		if !reflect.DeepEqual(r.deployment, exp.createDeployment) {
 			t.Fatalf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
-				r.createDeployment, exp.createDeployment, pretty.Diff(r.createDeployment, exp.createDeployment))
+				r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment))
 		}
 	}
 
@@ -1403,20 +1413,23 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 	cases := []struct {
 		name             string
 		deploymentStatus string
+		stop             uint64
 	}{
 		{
 			name:             "paused deployment",
 			deploymentStatus: structs.DeploymentStatusPaused,
+			stop:             0,
 		},
 		{
 			name:             "failed deployment",
 			deploymentStatus: structs.DeploymentStatusFailed,
+			stop:             1,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// Create a deployment that is paused and has placed some canaries
+			// Create a deployment that is paused/failed and has placed some canaries
 			d := structs.NewDeployment(job)
 			d.Status = c.deploymentStatus
 			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
@@ -1445,9 +1458,9 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 			canary.NodeID = structs.GenerateUUID()
 			canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)
 			canary.TaskGroup = job.TaskGroups[0].Name
-			canary.Canary = true
 			canary.DeploymentID = d.ID
 			allocs = append(allocs, canary)
+			d.TaskGroups[canary.TaskGroup].PlacedCanaries = []string{canary.ID}
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{canary.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
 			reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
@@ -1459,10 +1472,11 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 				deploymentUpdates: nil,
 				place:             0,
 				inplace:           0,
-				stop:              0,
+				stop:              int(c.stop),
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					job.TaskGroups[0].Name: {
-						Ignore: 11,
+						Ignore: 11 - c.stop,
+						Stop:   c.stop,
 					},
 				},
 			})
@@ -1704,12 +1718,13 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Create a deployment that is paused and has placed some canaries
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
@@ -1733,8 +1748,8 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
 		canary.DeploymentID = d.ID
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		allocs = append(allocs, canary)
 		handled[canary.ID] = allocUpdateFnIgnore
 	}
@@ -1775,12 +1790,13 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 
 	// Create a deployment that is paused and has placed some canaries
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
@@ -1804,7 +1820,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		allocs = append(allocs, canary)
 		handled[canary.ID] = allocUpdateFnIgnore
@@ -1847,12 +1863,13 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 
 	// Create an old deployment that has placed some canaries
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Update the job
 	job.JobModifyIndex += 10
@@ -1878,7 +1895,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		allocs = append(allocs, canary)
 	}
@@ -2070,12 +2087,13 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 
 	// Create an existing deployment that has placed some canaries
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
 		DesiredCanaries: 4,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
@@ -2098,7 +2116,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		allocs = append(allocs, canary)
 	}
@@ -2132,12 +2150,13 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 	// Create an existing deployment that has placed some canaries and mark them
 	// promoted
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        true,
 		DesiredTotal:    10,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
@@ -2161,7 +2180,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		canary.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Healthy: helper.BoolToPtr(true),
@@ -2190,7 +2209,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		},
 	})
 
-	assertNoCanariesStopped(t, r.stop)
+	assertNoCanariesStopped(t, d, r.stop)
 	assertNamesHaveIndexes(t, intRange(2, 3), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
 }
@@ -2205,12 +2224,13 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 	// Create an existing deployment that has placed some canaries and mark them
 	// promoted
 	d := structs.NewDeployment(job)
-	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+	s := &structs.DeploymentState{
 		Promoted:        true,
 		DesiredTotal:    2,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
 	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Create 2 allocations from the old job
 	var allocs []*structs.Allocation
@@ -2234,7 +2254,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		canary.NodeID = structs.GenerateUUID()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
-		canary.Canary = true
+		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		canary.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Healthy: helper.BoolToPtr(true),
@@ -2247,10 +2267,18 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
 	r := reconciler.Compute()
 
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
-		deploymentUpdates: nil,
+		deploymentUpdates: updates,
 		place:             0,
 		inplace:           0,
 		stop:              2,
@@ -2262,7 +2290,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		},
 	})
 
-	assertNoCanariesStopped(t, r.stop)
+	assertNoCanariesStopped(t, d, r.stop)
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
@@ -2527,8 +2555,17 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusSuccessful
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:        true,
+		DesiredTotal:    10,
+		DesiredCanaries: 2,
+		PlacedAllocs:    10,
+		HealthyAllocs:   10,
+	}
+
 	// Create allocations from the old job
-	dID := structs.GenerateUUID()
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
 		alloc := mock.Alloc()
@@ -2537,24 +2574,240 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		alloc.NodeID = structs.GenerateUUID()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
-		alloc.DeploymentID = dID
-		if i < 2 {
-			alloc.Canary = true
-			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy:  helper.BoolToPtr(true),
-				Promoted: true,
-			}
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
 		}
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
 	r := reconciler.Compute()
 
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
+// Test that a failed deployment cancels non-promoted canaries
+func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
+	// Create a job with two task groups
+	job := mock.Job()
+	job.TaskGroups[0].Update = canaryUpdate
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[1].Name = "two"
+
+	// Create an existing failed deployment that has promoted one task group
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusFailed
+	s0 := &structs.DeploymentState{
+		Promoted:        true,
+		DesiredTotal:    10,
+		DesiredCanaries: 2,
+		PlacedAllocs:    4,
+	}
+	s1 := &structs.DeploymentState{
+		Promoted:        false,
+		DesiredTotal:    10,
+		DesiredCanaries: 2,
+		PlacedAllocs:    2,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s0
+	d.TaskGroups[job.TaskGroups[1].Name] = s1
+
+	// Create 6 allocations from the old job
+	var allocs []*structs.Allocation
+	handled := make(map[string]allocUpdateType)
+	for _, group := range []int{0, 1} {
+		replacements := 4
+		state := s0
+		if group == 1 {
+			replacements = 2
+			state = s1
+		}
+
+		// Create the healthy replacements
+		for i := 0; i < replacements; i++ {
+			new := mock.Alloc()
+			new.Job = job
+			new.JobID = job.ID
+			new.NodeID = structs.GenerateUUID()
+			new.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
+			new.TaskGroup = job.TaskGroups[group].Name
+			new.DeploymentID = d.ID
+			new.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Healthy: helper.BoolToPtr(true),
+			}
+			allocs = append(allocs, new)
+			handled[new.ID] = allocUpdateFnIgnore
+
+			// Add the alloc to the canary list
+			if i < 2 {
+				state.PlacedCanaries = append(state.PlacedCanaries, new.ID)
+			}
+		}
+		for i := replacements; i < 10; i++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = structs.GenerateUUID()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
+			alloc.TaskGroup = job.TaskGroups[group].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
+	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+			job.TaskGroups[1].Name: {
+				Stop:   2,
+				Ignore: 8,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
+}
+
+// Test that a failed deployment and updated job works
+func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create an existing failed deployment that has some placed allocs
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusFailed
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     true,
+		DesiredTotal: 10,
+		PlacedAllocs: 4,
+	}
+
+	// Create 6 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 4; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	// Create the healthy replacements
+	for i := 0; i < 4; i++ {
+		new := mock.Alloc()
+		new.Job = job
+		new.JobID = job.ID
+		new.NodeID = structs.GenerateUUID()
+		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = d.ID
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		allocs = append(allocs, new)
+	}
+
+	// Up the job version
+	jobNew := job.Copy()
+	jobNew.JobModifyIndex += 100
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil)
+	r := reconciler.Compute()
+
+	dnew := structs.NewDeployment(job)
+	dnew.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  dnew,
+		deploymentUpdates: nil,
+		place:             4,
+		inplace:           0,
+		stop:              4,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				DestructiveUpdate: 4,
+				Ignore:            6,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
+}
+
+// Tests the reconciler marks a deployment as complete
+func TestReconciler_MarkDeploymentComplete(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:      true,
+		DesiredTotal:  10,
+		PlacedAllocs:  10,
+		HealthyAllocs: 10,
+	}
+
+	// Create allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
 		place:             0,
 		inplace:           0,
 		stop:              0,

@@ -38,6 +38,9 @@ type allocReconciler struct {
 	// being stopped so we require this seperately.
 	jobID string
 
+	// oldDeployment is the last deployment for the job
+	oldDeployment *structs.Deployment
+
 	// deployment is the current deployment for the job
 	deployment *structs.Deployment
 
@@ -61,9 +64,9 @@ type allocReconciler struct {
 // reconcileResults contains the results of the reconciliation and should be
 // applied by the scheduler.
 type reconcileResults struct {
-	// createDeployment is the deployment that should be created as a result of
-	// scheduling
-	createDeployment *structs.Deployment
+	// deployment is the deployment that should be created or updated as a
+	// result of scheduling
+	deployment *structs.Deployment
 
 	// deploymentUpdates contains a set of deployment updates that should be
 	// applied as a result of scheduling
@@ -99,33 +102,30 @@ type allocStopResult struct {
 	statusDescription string
 }
 
+// Changes returns the number of total changes
+func (r *reconcileResults) Changes() int {
+	return len(r.place) + len(r.inplaceUpdate) + len(r.stop)
+}
+
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
 func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node) *allocReconciler {
 
-	a := &allocReconciler{
+	return &allocReconciler{
 		logger:         logger,
 		allocUpdateFn:  allocUpdateFn,
 		batch:          batch,
 		jobID:          jobID,
 		job:            job,
-		deployment:     deployment,
+		deployment:     deployment.Copy(),
 		existingAllocs: existingAllocs,
 		taintedNodes:   taintedNodes,
 		result: &reconcileResults{
 			desiredTGUpdates: make(map[string]*structs.DesiredUpdates),
 		},
 	}
-
-	// Detect if the deployment is paused
-	if deployment != nil {
-		a.deploymentPaused = deployment.Status == structs.DeploymentStatusPaused
-		a.deploymentFailed = deployment.Status == structs.DeploymentStatusFailed
-	}
-
-	return a
 }
 
 // Compute reconciles the existing cluster state and returns the set of changes
@@ -144,9 +144,26 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		return a.result
 	}
 
+	// Detect if the deployment is paused
+	if a.deployment != nil {
+		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
+		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
+	}
+
 	// Reconcile each group
+	complete := true
 	for group, as := range m {
-		a.computeGroup(group, as)
+		groupComplete := a.computeGroup(group, as)
+		complete = complete && groupComplete
+	}
+
+	// Mark the deployment as complete if possible
+	if a.deployment != nil && complete {
+		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			DeploymentID:      a.deployment.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		})
 	}
 
 	return a.result
@@ -168,16 +185,29 @@ func (a *allocReconciler) cancelDeployments() {
 		return
 	}
 
-	// Check if the deployment is referencing an older job and cancel it
-	if d := a.deployment; d != nil {
-		if d.Active() && (d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex) {
+	d := a.deployment
+	if d == nil {
+		return
+	}
+
+	// Check if the deployment is active and referencing an older job and cancel it
+	if d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex {
+		if d.Active() {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusCancelled,
 				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
 			})
-			a.deployment = nil
 		}
+
+		a.oldDeployment = d
+		a.deployment = nil
+	}
+
+	// Clear it as the current deployment if it is successful
+	if d.Status == structs.DeploymentStatusSuccessful {
+		a.oldDeployment = d
+		a.deployment = nil
 	}
 }
 
@@ -206,8 +236,9 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 	}
 }
 
-// computeGroup reconciles state for a particular task group.
-func (a *allocReconciler) computeGroup(group string, all allocSet) {
+// computeGroup reconciles state for a particular task group. It returns whether
+// the deployment it is for is complete with regards to the task group.
+func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
 	a.result.desiredTGUpdates[group] = desiredChanges
@@ -224,12 +255,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		a.markStop(migrate, "", allocNotNeeded)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 		desiredChanges.Stop = uint64(len(untainted) + len(migrate) + len(lost))
-		return
+		return true
 	}
 
 	// Get the deployment state for the group
 	var dstate *structs.DeploymentState
-	var existingDeployment bool
+	existingDeployment := false
 	if a.deployment != nil {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
@@ -243,36 +274,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 		}
 	}
 
-	// Handle stopping unneeded canaries and tracking placed canaries
-	canaries := all.filterByCanary()
-	if len(canaries) != 0 {
-		if a.deployment != nil {
-			// Stop all non-promoted canaries from older deployments
-			current, older := canaries.filterByDeployment(a.deployment.ID)
-			nonPromotedOlder := older.filterByPromoted(false)
-			a.markStop(nonPromotedOlder, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(nonPromotedOlder))
+	canaries, all := a.handleGroupCanaries(all, desiredChanges)
 
-			// Handle canaries on migrating/lost nodes here by just stopping
-			// them
-			untainted, migrate, lost := current.filterByTainted(a.taintedNodes)
-			a.markStop(migrate, "", allocMigrating)
-			a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-			canaries = untainted
-
-			// Update the all set
-			all = all.difference(nonPromotedOlder, migrate, lost)
-		} else {
-			// Stop all non-promoted canaries
-			nonPromoted := canaries.filterByPromoted(false)
-			a.markStop(nonPromoted, "", allocNotNeeded)
-			desiredChanges.Stop += uint64(len(nonPromoted))
-			all = all.difference(nonPromoted)
-			canaries = nil
-		}
-	}
-
-	// Determine what set of alloations are on tainted nodes
+	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Create a structure for choosing names. Seed with the taken names which is
@@ -393,9 +397,79 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) {
 	// Create a new deployment if necessary
 	if a.deployment == nil && strategy != nil && dstate.DesiredTotal != 0 {
 		a.deployment = structs.NewDeployment(a.job)
-		a.result.createDeployment = a.deployment
+		a.result.deployment = a.deployment
 		a.deployment.TaskGroups[group] = dstate
 	}
+
+	// deploymentComplete is whether the deployment is complete which largely
+	// means that no placements were made or desired to be made
+	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate) == 0 && !requireCanary
+
+	// Final check to see if the deployment is complete is to ensure everything
+	// is healthy
+	if deploymentComplete && a.deployment != nil {
+		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
+		for _, alloc := range partOf {
+			if !alloc.DeploymentStatus.IsHealthy() {
+				deploymentComplete = false
+				break
+			}
+		}
+	}
+
+	return deploymentComplete
+}
+
+// handleGroupCanaries handles the canaries for the group by stopping the
+// unneeded ones and returning the current set of canaries and the updated total
+// set of allocs for the group
+func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *structs.DesiredUpdates) (canaries, newAll allocSet) {
+	// Stop any canary from an older deployment or from a failed one
+	var stop []string
+
+	// Cancel any non-promoted canaries from the older deployment
+	if a.oldDeployment != nil {
+		for _, s := range a.oldDeployment.TaskGroups {
+			if !s.Promoted {
+				stop = append(stop, s.PlacedCanaries...)
+			}
+		}
+	}
+
+	// Cancel any non-promoted canaries from a failed deployment
+	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusFailed {
+		for _, s := range a.deployment.TaskGroups {
+			if !s.Promoted {
+				stop = append(stop, s.PlacedCanaries...)
+			}
+		}
+	}
+
+	// stopSet is the allocSet that contains the canaries we desire to stop from
+	// above.
+	stopSet := all.fromKeys(stop)
+	a.markStop(stopSet, "", allocNotNeeded)
+	desiredChanges.Stop += uint64(len(stopSet))
+	all = all.difference(stopSet)
+
+	// Capture our current set of canaries and handle any migrations that are
+	// needed by just stopping them.
+	if a.deployment != nil {
+		var canaryIDs []string
+		for _, s := range a.deployment.TaskGroups {
+			canaryIDs = append(canaryIDs, s.PlacedCanaries...)
+		}
+
+		canaries = all.fromKeys(canaryIDs)
+		untainted, migrate, lost := canaries.filterByTainted(a.taintedNodes)
+		a.markStop(migrate, "", allocMigrating)
+		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+
+		canaries = untainted
+		all = all.difference(migrate, lost)
+	}
+
+	return canaries, all
 }
 
 // computeLimit returns the placement limit for a particular group. The inputs
@@ -560,6 +634,8 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 		} else if destructiveChange {
 			destructive[alloc.ID] = alloc
 		} else {
+			// Attach the deployment ID and and clear the health if the
+			// deployment has changed
 			inplace[alloc.ID] = alloc
 			a.result.inplaceUpdate = append(a.result.inplaceUpdate, inplaceAlloc)
 		}

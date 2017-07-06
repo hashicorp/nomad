@@ -124,7 +124,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 			Job:   plan.Job,
 			Alloc: allocs,
 		},
-		CreatedDeployment: plan.CreatedDeployment,
+		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 	}
 

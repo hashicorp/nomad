@@ -116,6 +116,19 @@ func (a allocSet) union(others ...allocSet) allocSet {
 	return union
 }
 
+// fromKeys returns an alloc set matching the passed keys
+func (a allocSet) fromKeys(keys ...[]string) allocSet {
+	from := make(map[string]*structs.Allocation)
+	for _, set := range keys {
+		for _, k := range set {
+			if alloc, ok := a[k]; ok {
+				from[k] = alloc
+			}
+		}
+	}
+	return from
+}
+
 // fitlerByTainted takes a set of tainted nodes and filters the allocation set
 // into three groups:
 // 1. Those that exist on untainted nodes
@@ -149,34 +162,6 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 		}
 	}
 	return
-}
-
-// filterByCanary returns a new allocation set that contains only canaries
-func (a allocSet) filterByCanary() allocSet {
-	canaries := make(map[string]*structs.Allocation)
-	for _, alloc := range a {
-		if alloc.Canary {
-			canaries[alloc.ID] = alloc
-		}
-	}
-	return canaries
-}
-
-// filterByPromoted filters the allocset by whether the canaries are promoted or
-// not
-func (a allocSet) filterByPromoted(p bool) allocSet {
-	promoted := make(map[string]*structs.Allocation)
-	for _, alloc := range a {
-		if !alloc.Canary {
-			continue
-		}
-		if p && alloc.DeploymentStatus.IsPromoted() {
-			promoted[alloc.ID] = alloc
-		} else if !p && !alloc.DeploymentStatus.IsPromoted() {
-			promoted[alloc.ID] = alloc
-		}
-	}
-	return promoted
 }
 
 // filterByDeployment filters allocations into two sets, those that match the
