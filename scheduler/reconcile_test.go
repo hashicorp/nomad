@@ -2675,4 +2675,74 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
-// TODO Test that a failed deployment and updated job works
+// Test that a failed deployment and updated job works
+func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create an existing failed deployment that has some placed allocs
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusFailed
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     true,
+		DesiredTotal: 10,
+		PlacedAllocs: 4,
+	}
+
+	// Create 6 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 4; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	// Create the healthy replacements
+	for i := 0; i < 4; i++ {
+		new := mock.Alloc()
+		new.Job = job
+		new.JobID = job.ID
+		new.NodeID = structs.GenerateUUID()
+		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = d.ID
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		allocs = append(allocs, new)
+	}
+
+	// Up the job version
+	jobNew := job.Copy()
+	jobNew.JobModifyIndex += 100
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil)
+	r := reconciler.Compute()
+
+	dnew := structs.NewDeployment(job)
+	dnew.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  dnew,
+		deploymentUpdates: nil,
+		place:             4,
+		inplace:           0,
+		stop:              4,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				DestructiveUpdate: 4,
+				Ignore:            6,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
+}
