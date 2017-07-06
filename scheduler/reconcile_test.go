@@ -65,6 +65,8 @@ Deployment Tests:
 √  Failed deployment should not place anything
 √  Run after canaries have been promoted, new allocs have been rolled out and there is no deployment
 √  Failed deployment cancels non-promoted task groups
+√  Failed deployment and updated job works
+√  Finished deployment gets marked as complete
 */
 
 var (
@@ -2258,10 +2260,18 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
 	r := reconciler.Compute()
 
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
-		deploymentUpdates: nil,
+		deploymentUpdates: updates,
 		place:             0,
 		inplace:           0,
 		stop:              2,
@@ -2564,7 +2574,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2745,4 +2755,59 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
+}
+
+// Tests the reconciler marks a deployment as complete
+func TestReconciler_MarkDeploymentComplete(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:      true,
+		DesiredTotal:  10,
+		PlacedAllocs:  10,
+		HealthyAllocs: 10,
+	}
+
+	// Create allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
 }
