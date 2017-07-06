@@ -91,7 +91,12 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Deployment %q failed", deploy.ID))
+	if u.RevertedJobVersion == nil {
+		c.Ui.Output(fmt.Sprintf("Deployment %q failed", deploy.ID))
+	} else {
+		c.Ui.Output(fmt.Sprintf("Deployment %q failed. Auto-reverted to job version %d.", deploy.ID, *u.RevertedJobVersion))
+	}
+
 	evalCreated := u.EvalID != ""
 
 	// Nothing to do

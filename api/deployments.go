@@ -170,6 +170,7 @@ type DeploymentUpdateResponse struct {
 	EvalID                string
 	EvalCreateIndex       uint64
 	DeploymentModifyIndex uint64
+	RevertedJobVersion    *uint64
 	WriteMeta
 }
 

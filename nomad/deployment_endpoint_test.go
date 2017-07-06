@@ -135,6 +135,80 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
 }
 
+func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+	state := s1.fsm.State()
+
+	// Create the original job
+	j := mock.Job()
+	j.Stable = true
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+
+	// Create the second job, deployment and alloc
+	j2 := j.Copy()
+	j2.Stable = false
+
+	d := mock.Deployment()
+	d.TaskGroups["web"].AutoRevert = true
+	d.JobID = j2.ID
+	d.JobVersion = j2.Version
+
+	a := mock.Alloc()
+	a.JobID = j.ID
+	a.DeploymentID = d.ID
+
+	assert.Nil(state.UpsertJob(999, j2), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Mark the deployment as failed
+	req := &structs.DeploymentFailRequest{
+		DeploymentID: d.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.DeploymentUpdateResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp), "RPC")
+	assert.NotEqual(resp.Index, uint64(0), "bad response index")
+	assert.NotNil(resp.RevertedJobVersion, "bad revert version")
+	assert.EqualValues(0, *resp.RevertedJobVersion, "bad revert version")
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
+	assert.Nil(err, "EvalByID failed")
+	assert.NotNil(eval, "Expect eval")
+	assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+	assert.Equal(eval.JobID, d.JobID, "eval job id")
+	assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+	assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+	// Lookup the deployment
+	expectedDesc := structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedByUser, 0)
+	dout, err := state.DeploymentByID(ws, d.ID)
+	assert.Nil(err, "DeploymentByID failed")
+	assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+	assert.Equal(dout.StatusDescription, expectedDesc, "wrong status description")
+	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
+
+	// Lookup the job
+	jout, err := state.JobByID(ws, j.ID)
+	assert.Nil(err, "JobByID")
+	assert.NotNil(jout, "job")
+	assert.EqualValues(2, jout.Version, "reverted job version")
+}
+
 func TestDeploymentEndpoint_Pause(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -303,6 +377,92 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
 	assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
 	assert.True(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+}
+
+func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+	state := s1.fsm.State()
+
+	// Create the original job
+	j := mock.Job()
+	j.Stable = true
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+
+	// Create the second job, deployment and alloc
+	j2 := j.Copy()
+	j2.Stable = false
+
+	d := mock.Deployment()
+	d.TaskGroups["web"].AutoRevert = true
+	d.JobID = j2.ID
+	d.JobVersion = j2.Version
+
+	a := mock.Alloc()
+	a.JobID = j.ID
+	a.DeploymentID = d.ID
+
+	assert.Nil(state.UpsertJob(999, j2), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Set the alloc as unhealthy
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:           d.ID,
+		UnhealthyAllocationIDs: []string{a.ID},
+		WriteRequest:           structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.DeploymentUpdateResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
+	assert.NotZero(resp.Index, "bad response index")
+	assert.NotNil(resp.RevertedJobVersion, "bad revert version")
+	assert.EqualValues(0, *resp.RevertedJobVersion, "bad revert version")
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
+	assert.Nil(err, "EvalByID failed")
+	assert.NotNil(eval, "Expect eval")
+	assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+	assert.Equal(eval.JobID, d.JobID, "eval job id")
+	assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+	assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+	// Lookup the deployment
+	expectedDesc := structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedAllocations, 0)
+	dout, err := state.DeploymentByID(ws, d.ID)
+	assert.Nil(err, "DeploymentByID failed")
+	assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+	assert.Equal(dout.StatusDescription, expectedDesc, "wrong status description")
+	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
+	assert.Len(dout.TaskGroups, 1, "should have one group")
+	assert.Contains(dout.TaskGroups, "web", "should have web group")
+	assert.Equal(1, dout.TaskGroups["web"].UnhealthyAllocs, "should have one healthy")
+
+	// Lookup the allocation
+	aout, err := state.AllocByID(ws, a.ID)
+	assert.Nil(err, "AllocByID")
+	assert.NotNil(aout, "alloc")
+	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
+	assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+	assert.False(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+
+	// Lookup the job
+	jout, err := state.JobByID(ws, j.ID)
+	assert.Nil(err, "JobByID")
+	assert.NotNil(jout, "job")
+	assert.EqualValues(2, jout.Version, "reverted job version")
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
