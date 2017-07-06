@@ -76,6 +76,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/deployment"):
 		jobName := strings.TrimSuffix(path, "/deployment")
 		return s.jobLatestDeployment(resp, req, jobName)
+	case strings.HasSuffix(path, "/stable"):
+		jobName := strings.TrimSuffix(path, "/stable")
+		return s.jobStable(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -452,6 +455,35 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	return out, nil
+}
+
+func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var stableRequest structs.JobStabilityRequest
+	if err := decodeBody(req, &stableRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if stableRequest.JobID == "" {
+		return nil, CodedError(400, "JobID must be specified")
+	}
+	if stableRequest.JobID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+
+	s.parseRegion(req, &stableRequest.Region)
+
+	var out structs.JobStabilityResponse
+	if err := s.agent.RPC("Job.Stable", &stableRequest, &out); err != nil {
+		return nil, err
+	}
+
+	setIndex(resp, out.Index)
 	return out, nil
 }
 

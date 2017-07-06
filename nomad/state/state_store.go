@@ -238,7 +238,7 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 
 	// If the deployment is being marked as complete, set the job to stable.
 	if deployment.Status == structs.DeploymentStatusSuccessful {
-		if err := s.updateJobStability(index, deployment, txn); err != nil {
+		if err := s.updateJobStabilityImpl(index, deployment.JobID, deployment.JobVersion, true, txn); err != nil {
 			return fmt.Errorf("failed to update job stability: %v", err)
 		}
 	}
@@ -1891,7 +1891,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 
 	// If the deployment is being marked as complete, set the job to stable.
 	if copy.Status == structs.DeploymentStatusSuccessful {
-		if err := s.updateJobStability(index, copy, txn); err != nil {
+		if err := s.updateJobStabilityImpl(index, copy.JobID, copy.JobVersion, true, txn); err != nil {
 			return fmt.Errorf("failed to update job stability: %v", err)
 		}
 	}
@@ -1899,16 +1899,24 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	return nil
 }
 
-// updateJobStability updates the job version referenced by a successful
-// deployment to stable.
-func (s *StateStore) updateJobStability(index uint64, deployment *structs.Deployment, txn *memdb.Txn) error {
-	// Hot-path
-	if deployment.Status != structs.DeploymentStatusSuccessful {
-		return nil
+// UpdateJobStability updates the stability of the given job and version to the
+// desired status.
+func (s *StateStore) UpdateJobStability(index uint64, jobID string, jobVersion uint64, stable bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.updateJobStabilityImpl(index, jobID, jobVersion, stable, txn); err != nil {
+		return err
 	}
 
+	txn.Commit()
+	return nil
+}
+
+// updateJobStabilityImpl updates the stability of the given job and version
+func (s *StateStore) updateJobStabilityImpl(index uint64, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
 	// Get the job that is referenced
-	job, err := s.jobByIDAndVersionImpl(nil, deployment.JobID, deployment.JobVersion, txn)
+	job, err := s.jobByIDAndVersionImpl(nil, jobID, jobVersion, txn)
 	if err != nil {
 		return err
 	}
@@ -1918,13 +1926,13 @@ func (s *StateStore) updateJobStability(index uint64, deployment *structs.Deploy
 		return nil
 	}
 
-	// If the job is already stable, nothing to do
-	if job.Stable {
+	// If the job already has the desired stability, nothing to do
+	if job.Stable == stable {
 		return nil
 	}
 
 	copy := job.Copy()
-	copy.Stable = true
+	copy.Stable = stable
 	return s.upsertJobImpl(index, copy, true, txn)
 }
 

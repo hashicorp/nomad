@@ -58,6 +58,7 @@ const (
 	DeploymentPromoteRequestType
 	DeploymentAllocHealthRequestType
 	DeploymentDeleteRequestType
+	JobStabilityRequestType
 )
 
 const (
@@ -312,6 +313,23 @@ type JobRevertRequest struct {
 	EnforcePriorVersion *uint64
 
 	WriteRequest
+}
+
+// JobStabilityRequest is used to marked a job as stable.
+type JobStabilityRequest struct {
+	// Job to set the stability on
+	JobID      string
+	JobVersion uint64
+
+	// Set the stability
+	Stable bool
+	WriteRequest
+}
+
+// JobStabilityResponse is the response when marking a job as stable.
+type JobStabilityResponse struct {
+	JobModifyIndex uint64
+	WriteMeta
 }
 
 // NodeListRequest is used to parameterize a list request
