@@ -166,6 +166,7 @@ type DockerDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
+	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 }
 
@@ -204,6 +205,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
+	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
 
 	for _, m := range dconf.LabelsRaw {
@@ -365,6 +367,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"ipv6_address": &fields.FieldSchema{
+				Type: fields.TypeString,
+			},
+			"mac_address": &fields.FieldSchema{
 				Type: fields.TypeString,
 			},
 			"pid_mode": &fields.FieldSchema{
@@ -1031,6 +1036,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		}
 		d.logger.Printf("[DEBUG] driver.docker: using network_mode %q with ipv4: %q and ipv6: %q",
 			hostConfig.NetworkMode, driverConfig.IPv4Address, driverConfig.IPv6Address)
+	}
+
+	if driverConfig.MacAddress != "" {
+		config.MacAddress = driverConfig.MacAddress
+		d.logger.Printf("[DEBUG] driver.docker: using pinned mac address: %q", config.MacAddress)
 	}
 
 	return docker.CreateContainerOptions{

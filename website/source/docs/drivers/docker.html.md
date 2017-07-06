@@ -182,9 +182,16 @@ The `docker` driver supports the following configuration in the job spec.  Only
   nomad agent and docker daemon to be configured to allow privileged
   containers.
 
+* `mac_address` - (Optional) The mac address for the container to use
+  (e.g. "02:68:b3:29:da:98").
+
+* `dns_search_domains` - (Optional) A list of DNS search domains for the container
+  to use.
+
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
+
 
     ```hcl
     config {
