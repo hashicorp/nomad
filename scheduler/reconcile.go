@@ -113,7 +113,7 @@ func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node) *allocReconciler {
 
-	a := &allocReconciler{
+	return &allocReconciler{
 		logger:         logger,
 		allocUpdateFn:  allocUpdateFn,
 		batch:          batch,
@@ -126,14 +126,6 @@ func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch
 			desiredTGUpdates: make(map[string]*structs.DesiredUpdates),
 		},
 	}
-
-	// Detect if the deployment is paused
-	if deployment != nil {
-		a.deploymentPaused = deployment.Status == structs.DeploymentStatusPaused
-		a.deploymentFailed = deployment.Status == structs.DeploymentStatusFailed
-	}
-
-	return a
 }
 
 // Compute reconciles the existing cluster state and returns the set of changes
@@ -150,6 +142,12 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	if a.job.Stopped() {
 		a.handleStop(m)
 		return a.result
+	}
+
+	// Detect if the deployment is paused
+	if a.deployment != nil {
+		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
+		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 
 	// Reconcile each group
@@ -184,8 +182,6 @@ func (a *allocReconciler) cancelDeployments() {
 		return
 	}
 
-	// TODO it doesn't like operating on a failed deployment
-	// Write a test
 	d := a.deployment
 	if d == nil {
 		return
