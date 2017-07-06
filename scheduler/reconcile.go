@@ -261,7 +261,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Get the deployment state for the group
 	var dstate *structs.DeploymentState
 	existingDeployment := false
-	deploymentComplete := true
 	if a.deployment != nil {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
@@ -304,12 +303,8 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
-	changes := len(destructive) + len(inplace)
 	if !existingDeployment {
-		dstate.DesiredTotal += changes
-	}
-	if changes != 0 {
-		deploymentComplete = false
+		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
 
 	// The fact that we have destructive updates and have less canaries than is
@@ -333,11 +328,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 				taskGroup: tg,
 			})
 		}
-	}
-
-	// As long as we require canaries we aren't complete
-	if requireCanary {
-		deploymentComplete = false
 	}
 
 	// Determine how many we can place
@@ -380,21 +370,11 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
 
-	// As long as we require placements we aren't complete
-	if len(place) != 0 {
-		deploymentComplete = false
-	}
-
 	// TODO Migrations should be done using a stagger and max_parallel.
 	if !a.deploymentFailed {
 		desiredChanges.Migrate += uint64(len(migrate))
 	} else {
 		desiredChanges.Stop += uint64(len(migrate))
-	}
-
-	// As long as we require migrations we aren't complete
-	if len(migrate) != 0 {
-		deploymentComplete = false
 	}
 
 	for _, alloc := range migrate {
@@ -420,6 +400,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		a.result.deployment = a.deployment
 		a.deployment.TaskGroups[group] = dstate
 	}
+
+	// deploymentComplete is whether the deployment is complete which largely
+	// means that no placements were made or desired to be made
+	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate) == 0 && !requireCanary
 
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
@@ -452,6 +436,7 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 		}
 	}
 
+	// Cancel any non-promoted canaries from a failed deployment
 	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusFailed {
 		for _, s := range a.deployment.TaskGroups {
 			if !s.Promoted {
@@ -460,6 +445,8 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 		}
 	}
 
+	// stopSet is the allocSet that contains the canaries we desire to stop from
+	// above.
 	stopSet := all.fromKeys(stop)
 	a.markStop(stopSet, "", allocNotNeeded)
 	desiredChanges.Stop += uint64(len(stopSet))
