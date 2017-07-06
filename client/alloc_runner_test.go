@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -66,6 +67,260 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// Test that the watcher will mark the allocation as unhealthy.
+func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task fail
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["start_error"] = "test error"
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if *last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// Test that the watcher will mark the allocation as unhealthy if it hits its
+// deadline.
+func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task block
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["start_block_for"] = "2s"
+	task.Config["run_for"] = "10s"
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	ar.alloc.Job.TaskGroups[0].Update.HealthyDeadline = 100 * time.Millisecond
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if *last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// Test that the watcher will mark the allocation as healthy.
+func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task run healthy
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
+
+	// Create a task that takes longer to become healthy
+	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task.Copy())
+	task2 := ar.alloc.Job.TaskGroups[0].Tasks[1]
+	task2.Name = "task 2"
+	task2.Config["start_block_for"] = "500ms"
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	ar.alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+
+	start := time.Now()
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+	if d := time.Now().Sub(start); d < 500*time.Millisecond {
+		t.Fatalf("didn't wait for second task group. Only took %v", d)
+	}
+}
+
+// Test that the watcher will mark the allocation as healthy with checks
+func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task fail
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
+
+	// Create a task that has no checks
+	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task.Copy())
+	task2 := ar.alloc.Job.TaskGroups[0].Tasks[1]
+	task2.Name = "task 2"
+	task2.Services = nil
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	ar.alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+
+	checkHealthy := &api.AgentCheck{
+		CheckID: structs.GenerateUUID(),
+		Status:  api.HealthPassing,
+	}
+	checkUnhealthy := &api.AgentCheck{
+		CheckID: checkHealthy.CheckID,
+		Status:  api.HealthWarning,
+	}
+
+	// Only return the check as healthy after a duration
+	trigger := time.After(500 * time.Millisecond)
+	ar.consulClient.(*mockConsulServiceClient).checksFn = func(a *structs.Allocation) ([]*api.AgentCheck, error) {
+		select {
+		case <-trigger:
+			return []*api.AgentCheck{checkHealthy}, nil
+		default:
+			return []*api.AgentCheck{checkUnhealthy}, nil
+		}
+	}
+
+	start := time.Now()
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	if d := time.Now().Sub(start); d < 500*time.Millisecond {
+		t.Fatalf("didn't wait for second task group. Only took %v", d)
+	}
+}
+
+// Test that the watcher will mark the allocation as healthy.
+func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task run healthy
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "30s"
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	ar.alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count == 0 {
+			return false, fmt.Errorf("No updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Mimick an update to a new deployment id
+	oldCount := upd.Count
+	last := upd.Allocs[oldCount-1].Copy()
+	last.DeploymentStatus = nil
+	last.DeploymentID = structs.GenerateUUID()
+	ar.Update(last)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if upd.Count <= oldCount {
+			return false, fmt.Errorf("No new updates")
+		}
+		last := upd.Allocs[upd.Count-1]
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
 		}
 		return true, nil
 	}, func(err error) {
@@ -426,9 +681,6 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	// Ensure ar1 doesn't recreate the state file
 	ar.allocLock.Lock()
 	defer ar.allocLock.Unlock()
-
-	// Ensure both alloc runners don't destroy
-	ar.destroy = true
 
 	// Create a new alloc runner
 	ar2 := NewAllocRunner(ar.logger, ar.config, ar.stateDB, upd.Update,

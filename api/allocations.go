@@ -106,6 +106,7 @@ type Allocation struct {
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
+	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
 	PreviousAllocation string
 	CreateIndex        uint64

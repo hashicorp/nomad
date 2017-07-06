@@ -32,7 +32,7 @@ func testLogger() *log.Logger {
 
 func prefixedTestLogger(prefix string) *log.Logger {
 	if testing.Verbose() {
-		return log.New(os.Stderr, prefix, log.LstdFlags)
+		return log.New(os.Stderr, prefix, log.LstdFlags|log.Lmicroseconds)
 	}
 	return log.New(ioutil.Discard, "", 0)
 }
