@@ -42,6 +42,9 @@ sudo usermod -aG docker vagrant
 echo "Installing Consul..."
 cd /opt/nomad
 bash scripts/install_consul.sh
+sudo install -o root /opt/nomad/demo/vagrant/consul.service /etc/systemd/system/consul.service
+sudo systemctl enable consul.service
+sudo systemctl start consul
 
 SCRIPT
 
