@@ -64,6 +64,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
+* `auth_soft_fail` `(bool: false)` - Fallback to public images if auth fails.
+  Disabled by default to avoid accidently looking up private images in a public
+  repo, but provided as a convenience.
+
 * `command` - (Optional) The command to run when starting the container.
 
     ```hcl
