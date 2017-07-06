@@ -923,6 +923,57 @@ func TestHTTP_JobRevert(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobStable(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job and register it twice
+		job := mock.Job()
+		regReq := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var regResp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		args := structs.JobStabilityRequest{
+			JobID:        job.ID,
+			JobVersion:   0,
+			Stable:       true,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/stable", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		stableResp := obj.(structs.JobStabilityResponse)
+		if stableResp.JobModifyIndex == 0 {
+			t.Fatalf("bad: %v", stableResp)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+	})
+}
+
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),

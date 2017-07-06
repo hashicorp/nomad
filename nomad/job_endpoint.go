@@ -340,7 +340,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Validate the arguments
 	if args.JobID == "" {
-		return fmt.Errorf("missing job ID for evaluation")
+		return fmt.Errorf("missing job ID for revert")
 	}
 
 	// Lookup the job by version
@@ -387,6 +387,46 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Register the version.
 	return j.Register(reg, reply)
+}
+
+// Stable is used to mark the job version as stable
+func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabilityResponse) error {
+	if done, err := j.srv.forward("Job.Stable", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "stable"}, time.Now())
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for marking job as stable")
+	}
+
+	// Lookup the job by version
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	jobV, err := snap.JobByIDAndVersion(ws, args.JobID, args.JobVersion)
+	if err != nil {
+		return err
+	}
+	if jobV == nil {
+		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
+	}
+
+	// Commit this evaluation via Raft
+	_, modifyIndex, err := j.srv.raftApply(structs.JobStabilityRequestType, args)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.JobModifyIndex = modifyIndex
+	reply.Index = modifyIndex
+	return nil
 }
 
 // Evaluate is used to force a job for re-evaluation
@@ -460,7 +500,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Validate the arguments
 	if args.JobID == "" {
-		return fmt.Errorf("missing job ID for evaluation")
+		return fmt.Errorf("missing job ID for deregistering")
 	}
 
 	// Lookup the job
