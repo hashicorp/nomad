@@ -66,7 +66,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
-			s.queuedAllocs)
+			s.queuedAllocs, "")
 	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
@@ -74,14 +74,14 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs)
+				s.queuedAllocs, "")
 		}
 		return err
 	}
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
-		s.queuedAllocs)
+		s.queuedAllocs, "")
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no

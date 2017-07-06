@@ -117,7 +117,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs)
+			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
+			s.deployment.GetID())
 	}
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
@@ -136,7 +137,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
 				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs); err != nil {
+				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			return mErr.ErrorOrNil()
@@ -156,7 +157,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs)
+		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
+		s.deployment.GetID())
 }
 
 // createBlockedEval creates a blocked eval and submits it to the planner. If
@@ -411,14 +413,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// TODO test
 	// Handle the in-place updates
-	deploymentID := ""
-	if s.plan.Deployment != nil {
-		deploymentID = s.plan.Deployment.ID
-	}
-
 	for _, update := range results.inplaceUpdate {
-		if update.DeploymentID != deploymentID {
-			update.DeploymentID = deploymentID
+		if update.DeploymentID != s.deployment.GetID() {
+			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
 		}
 		s.ctx.Plan().AppendAlloc(update)

@@ -3987,6 +3987,14 @@ func (d *Deployment) Active() bool {
 	}
 }
 
+// GetID is a helper for getting the ID when the object may be nil
+func (d *Deployment) GetID() string {
+	if d == nil {
+		return ""
+	}
+	return d.ID
+}
+
 func (d *Deployment) GoString() string {
 	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {

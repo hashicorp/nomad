@@ -1462,6 +1462,11 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
+	// Check that the deployment id is attached to the eval
+	if h.Evals[0].DeploymentID == "" {
+		t.Fatalf("Eval not annotated with deployment id")
+	}
+
 	// Ensure a deployment was created
 	if plan.Deployment == nil {
 		t.Fatalf("bad: %#v", plan)
