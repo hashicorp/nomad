@@ -878,6 +878,11 @@ type DeploymentUpdateResponse struct {
 	EvalID                string
 	EvalCreateIndex       uint64
 	DeploymentModifyIndex uint64
+
+	// RevertedJobVersion is the version the job was reverted to. If unset, the
+	// job wasn't reverted
+	RevertedJobVersion *uint64
+
 	WriteMeta
 }
 
