@@ -2469,6 +2469,7 @@ func TestTaskDiff(t *testing.T) {
 						GetterOptions: map[string]string{
 							"bar": "baz",
 						},
+						GetterMode:   "dir",
 						RelativeDest: "bar",
 					},
 				},
@@ -2487,6 +2488,7 @@ func TestTaskDiff(t *testing.T) {
 						GetterOptions: map[string]string{
 							"bam": "baz",
 						},
+						GetterMode:   "file",
 						RelativeDest: "bam",
 					},
 				},
@@ -2498,6 +2500,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "Artifact",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "GetterMode",
+								Old:  "",
+								New:  "file",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "GetterOptions[bam]",
@@ -2522,6 +2530,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "Artifact",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "GetterMode",
+								Old:  "dir",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "GetterOptions[bar]",

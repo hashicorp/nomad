@@ -654,6 +654,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			structsTask.Artifacts[k] = &structs.TaskArtifact{
 				GetterSource:  *ta.GetterSource,
 				GetterOptions: ta.GetterOptions,
+				GetterMode:    *ta.GetterMode,
 				RelativeDest:  *ta.RelativeDest,
 			}
 		}

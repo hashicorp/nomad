@@ -689,16 +689,16 @@
 			"revisionTime": "2017-06-02T22:43:19Z"
 		},
 		{
-			"checksumSHA1": "hHoNT6CfqcDF1+yXRKnz/duuwIk=",
+			"checksumSHA1": "Sozy3aNAPBleUfiECj0jnaYjw2k=",
 			"path": "github.com/hashicorp/go-getter",
-			"revision": "e48f67b534e614bf7fbd978fd0020f61a17b7527",
-			"revisionTime": "2017-04-05T22:15:29Z"
+			"revision": "2814e6fb2ca5b3bd950c97eff22553ecb3c7f77b",
+			"revisionTime": "2017-07-06T02:51:20Z"
 		},
 		{
 			"checksumSHA1": "9J+kDr29yDrwsdu2ULzewmqGjpA=",
 			"path": "github.com/hashicorp/go-getter/helper/url",
-			"revision": "e48f67b534e614bf7fbd978fd0020f61a17b7527",
-			"revisionTime": "2017-04-05T22:15:29Z"
+			"revision": "2814e6fb2ca5b3bd950c97eff22553ecb3c7f77b",
+			"revisionTime": "2017-07-06T02:51:20Z"
 		},
 		{
 			"checksumSHA1": "zvmksNyW6g+Fd/bywd4vcn8rp+M=",
@@ -980,6 +980,12 @@
 			"path": "github.com/mitchellh/go-ps",
 			"revision": "4fdf99ab29366514c69ccccddab5dc58b8d84062",
 			"revisionTime": "2017-03-09T13:30:38Z"
+		},
+		{
+			"checksumSHA1": "j83WZHiKiPF86Hj5QMQdWboizls=",
+			"path": "github.com/mitchellh/go-testing-interface",
+			"revision": "477c2d05a845d8b55912a5a7993b9b24abcc5ef8",
+			"revisionTime": "2017-04-30T14:07:22Z"
 		},
 		{
 			"path": "github.com/mitchellh/hashstructure",

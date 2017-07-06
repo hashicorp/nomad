@@ -78,6 +78,10 @@ const (
 	ProtocolVersion = "protocol"
 	APIMajorVersion = "api.major"
 	APIMinorVersion = "api.minor"
+
+	GetterModeAny  = "any"
+	GetterModeFile = "file"
+	GetterModeDir  = "dir"
 )
 
 // RPCInfo is used to describe common information about query
@@ -3405,6 +3409,10 @@ type TaskArtifact struct {
 	// go-getter.
 	GetterOptions map[string]string
 
+	// GetterMode is the go-getter.ClientMode for fetching resources.
+	// Defaults to "any" but can be set to "file" or "dir".
+	GetterMode string
+
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
@@ -3451,6 +3459,17 @@ func (ta *TaskArtifact) Validate() error {
 	var mErr multierror.Error
 	if ta.GetterSource == "" {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
+	}
+
+	switch ta.GetterMode {
+	case "":
+		// Default to any
+		ta.GetterMode = GetterModeAny
+	case GetterModeAny, GetterModeFile, GetterModeDir:
+		// Ok
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid artifact mode %q; must be one of: %s, %s, %s",
+			ta.GetterMode, GetterModeAny, GetterModeFile, GetterModeDir))
 	}
 
 	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
