@@ -109,7 +109,7 @@ OUTER:
 			case <-checkCh:
 				newChecks, err := r.consulClient.Checks(alloc)
 				if err != nil {
-					r.logger.Printf("[TRACE] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
+					r.logger.Printf("[WARN] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
 				}
 
 				checks = newChecks
