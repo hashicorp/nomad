@@ -408,10 +408,10 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
 	}
 
-	// Commit this evaluation via Raft
+	// Commit this stability request via Raft
 	_, modifyIndex, err := j.srv.raftApply(structs.JobStabilityRequestType, args)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		j.srv.logger.Printf("[ERR] nomad.job: Job stability request failed: %v", err)
 		return err
 	}
 

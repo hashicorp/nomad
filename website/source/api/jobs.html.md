@@ -821,7 +821,7 @@ This endpoint returns a single job's most recent deployment.
 
 | Method | Path                          | Produces                   |
 | ------ | ----------------------------- | -------------------------- |
-| `GET`  | `/v1/job/:job_id/deployment` | `application/json`         |
+| `GET`  | `/v1/job/:job_id/deployment`  | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -1070,7 +1070,7 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
   in the job file during submission). This is specified as part of the path.
 
-- `JobVersion` `(integer: 0) - Specifies the job version to revert to.
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
 
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
@@ -1111,7 +1111,7 @@ This endpoint sets the job's stability.
 
 | Method  | Path                       | Produces                   |
 | ------- | -------------------------- | -------------------------- |
-| `POST`  | `/v1/job/:job_id/stable` | `application/json`         |
+| `POST`  | `/v1/job/:job_id/stable`   | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -1126,7 +1126,7 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
   in the job file during submission). This is specified as part of the path.
 
-- `JobVersion` `(integer: 0) - Specifies the job version to set the stability on.
+- `JobVersion` `(integer: 0)` - Specifies the job version to set the stability on.
 
 - `Stable` `(bool: false)` - Specifies whether the job should be marked as
   stable or not.
