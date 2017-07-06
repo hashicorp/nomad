@@ -297,6 +297,7 @@ $ curl \
   "EvalID": "0d834913-58a0-81ac-6e33-e452d83a0c66",
   "EvalCreateIndex": 20,
   "DeploymentModifyIndex": 20,
+  "RevertedJobVersion": 1,
   "Index": 20
 }
 ```
@@ -475,6 +476,7 @@ $ curl \
   "EvalID": "0d834913-58a0-81ac-6e33-e452d83a0c66",
   "EvalCreateIndex": 20,
   "DeploymentModifyIndex": 20,
+  "RevertedJobVersion": 1,
   "Index": 20
 }
 ```
