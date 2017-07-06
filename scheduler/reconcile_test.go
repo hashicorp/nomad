@@ -171,9 +171,16 @@ func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
 	}
 }
 
-func assertNoCanariesStopped(t *testing.T, stop []allocStopResult) {
+func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocStopResult) {
+	canaryIndex := make(map[string]struct{})
+	for _, state := range d.TaskGroups {
+		for _, c := range state.PlacedCanaries {
+			canaryIndex[c] = struct{}{}
+		}
+	}
+
 	for _, s := range stop {
-		if s.alloc.Canary {
+		if _, ok := canaryIndex[s.alloc.ID]; ok {
 			t.Fatalf("Stopping canary alloc %q %q", s.alloc.ID, s.alloc.Name)
 		}
 	}
@@ -2202,7 +2209,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		},
 	})
 
-	assertNoCanariesStopped(t, r.stop)
+	assertNoCanariesStopped(t, d, r.stop)
 	assertNamesHaveIndexes(t, intRange(2, 3), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
 }
@@ -2283,7 +2290,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		},
 	})
 
-	assertNoCanariesStopped(t, r.stop)
+	assertNoCanariesStopped(t, d, r.stop)
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 

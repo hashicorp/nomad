@@ -194,7 +194,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),

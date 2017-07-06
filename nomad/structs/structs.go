@@ -4154,9 +4154,6 @@ type Allocation struct {
 	// given deployment
 	DeploymentStatus *AllocDeploymentStatus
 
-	// Canary marks this allocation as being a canary
-	Canary bool
-
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64

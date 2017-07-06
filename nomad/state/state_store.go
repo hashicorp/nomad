@@ -1920,6 +1920,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		groupIndex[g] = struct{}{}
 	}
 
+	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
+	for _, state := range deployment.TaskGroups {
+		for _, c := range state.PlacedCanaries {
+			canaryIndex[c] = struct{}{}
+		}
+	}
+
 	var unhealthyErr multierror.Error
 	for {
 		raw := iter.Next()
@@ -1928,13 +1935,14 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		alloc := raw.(*structs.Allocation)
-		if !alloc.Canary {
+
+		// Check that the alloc is a canary
+		if _, ok := canaryIndex[alloc.ID]; !ok {
 			continue
 		}
 
 		// Check that the canary is part of a group being promoted
-		_, ok := groupIndex[alloc.TaskGroup]
-		if !req.All && !ok {
+		if _, ok := groupIndex[alloc.TaskGroup]; !req.All && !ok {
 			continue
 		}
 

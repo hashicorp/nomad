@@ -1006,7 +1006,14 @@ func TestProgressMade(t *testing.T) {
 	}
 	update := &structs.PlanResult{NodeUpdate: m}
 	alloc := &structs.PlanResult{NodeAllocation: m}
-	if !(progressMade(both) && progressMade(update) && progressMade(alloc)) {
+	deployment := &structs.PlanResult{Deployment: mock.Deployment()}
+	deploymentUpdates := &structs.PlanResult{
+		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
+			{DeploymentID: structs.GenerateUUID()},
+		},
+	}
+	if !(progressMade(both) && progressMade(update) && progressMade(alloc) &&
+		progressMade(deployment) && progressMade(deploymentUpdates)) {
 		t.Fatal("bad")
 	}
 }

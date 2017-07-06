@@ -155,7 +155,6 @@ type AllocationListStub struct {
 // heatlhy.
 type AllocDeploymentStatus struct {
 	Healthy     *bool
-	Promoted    bool
 	ModifyIndex uint64
 }
 
