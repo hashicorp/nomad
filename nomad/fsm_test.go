@@ -1210,6 +1210,43 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 	}
 }
 
+func TestFSM_JobStabilityUpdate(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	state := fsm.State()
+
+	// Upsert a deployment
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a request to update the job to stable
+	req := &structs.JobStabilityRequest{
+		JobID:      job.ID,
+		JobVersion: job.Version,
+		Stable:     true,
+	}
+	buf, err := structs.Encode(structs.JobStabilityRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Check that the stability was updated properly
+	ws := memdb.NewWatchSet()
+	jout, _ := state.JobByIDAndVersion(ws, job.ID, job.Version)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil || !jout.Stable {
+		t.Fatalf("bad: %#v", jout)
+	}
+}
+
 func TestFSM_DeploymentPromotion(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)

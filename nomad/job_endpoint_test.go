@@ -895,6 +895,65 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Stable(t *testing.T) {
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the initial register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create stablility request
+	stableReq := &structs.JobStabilityRequest{
+		JobID:        job.ID,
+		JobVersion:   0,
+		Stable:       true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var stableResp structs.JobStabilityResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &stableResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if stableResp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check that the job is marked stable
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if !out.Stable {
+		t.Fatalf("Job is not marked stable")
+	}
+	if out.JobModifyIndex != stableResp.JobModifyIndex {
+		t.Fatalf("got job modify index %d; want %d", out.JobModifyIndex, stableResp.JobModifyIndex)
+	}
+}
+
 func TestJobEndpoint_Evaluate(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

@@ -28,7 +28,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `prefix` `(string: "")`- Specifies a string to filter jobs on based on
+- `prefix` `(string: "")` - Specifies a string to filter jobs on based on
   an index prefix. This is specified as a querystring parameter.
 
 ### Sample Request
@@ -149,7 +149,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -363,7 +363,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -535,7 +535,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -687,7 +687,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -730,6 +730,151 @@ $ curl \
 ]
 ```
 
+## List Job Deployments
+
+This endpoint lists a single job's deployments
+
+| Method | Path                          | Produces                   |
+| ------ | ----------------------------- | -------------------------- |
+| `GET`  | `/v1/job/:job_id/deployments` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `YES`            | `none`       |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
+  the job file during submission). This is specified as part of the path.
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/job/my-job/deployments
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "ID": "85ee4a9a-339f-a921-a9ef-0550d20b2c61",
+    "JobID": "my-job",
+    "JobVersion": 1,
+    "JobModifyIndex": 19,
+    "JobCreateIndex": 7,
+    "TaskGroups": {
+      "cache": {
+        "AutoRevert": true,
+        "Promoted": false,
+        "PlacedCanaries": [
+          "d0ad0808-2765-abf6-1e15-79fb7fe5a416",
+          "38c70cd8-81f2-1489-a328-87bb29ec0e0f"
+        ],
+        "DesiredCanaries": 2,
+        "DesiredTotal": 3,
+        "PlacedAllocs": 2,
+        "HealthyAllocs": 2,
+        "UnhealthyAllocs": 0
+      }
+    },
+    "Status": "running",
+    "StatusDescription": "Deployment is running",
+    "CreateIndex": 21,
+    "ModifyIndex": 25
+  },
+  {
+    "ID": "fb6070fb-4a44-e255-4e6f-8213eba3871a",
+    "JobID": "my-job",
+    "JobVersion": 0,
+    "JobModifyIndex": 7,
+    "JobCreateIndex": 7,
+    "TaskGroups": {
+      "cache": {
+        "AutoRevert": true,
+        "Promoted": false,
+        "PlacedCanaries": null,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 3,
+        "PlacedAllocs": 3,
+        "HealthyAllocs": 3,
+        "UnhealthyAllocs": 0
+      }
+    },
+    "Status": "successful",
+    "StatusDescription": "Deployment completed successfully",
+    "CreateIndex": 9,
+    "ModifyIndex": 17
+  }
+]
+```
+
+
+## Read Job's Most Recent Deployment
+
+This endpoint returns a single job's most recent deployment.
+
+| Method | Path                          | Produces                   |
+| ------ | ----------------------------- | -------------------------- |
+| `GET`  | `/v1/job/:job_id/deployment`  | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `YES`            | `none`       |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
+  the job file during submission). This is specified as part of the path.
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/job/my-job/deployments
+```
+
+### Sample Response
+
+```json
+{
+  "ID": "85ee4a9a-339f-a921-a9ef-0550d20b2c61",
+  "JobID": "my-job",
+  "JobVersion": 1,
+  "JobModifyIndex": 19,
+  "JobCreateIndex": 7,
+  "TaskGroups": {
+    "cache": {
+      "AutoRevert": true,
+      "Promoted": false,
+      "PlacedCanaries": [
+        "d0ad0808-2765-abf6-1e15-79fb7fe5a416",
+        "38c70cd8-81f2-1489-a328-87bb29ec0e0f"
+      ],
+      "DesiredCanaries": 2,
+      "DesiredTotal": 3,
+      "PlacedAllocs": 2,
+      "HealthyAllocs": 2,
+      "UnhealthyAllocs": 0
+    }
+  },
+  "Status": "running",
+  "StatusDescription": "Deployment is running",
+  "CreateIndex": 21,
+  "ModifyIndex": 25
+}
+```
+
+
 ## Read Job Summary
 
 This endpoint reads summary information about a job.
@@ -748,7 +893,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -801,7 +946,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
@@ -863,8 +1008,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
+  in the job file during submission). This is specified as part of the path.
 
 - `Payload` `(string: "")` - Specifies a base64 encoded string containing the
   payload. This is limited to 15 KB.
@@ -889,7 +1034,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --payload @payload.json \
-    https://nomad.rocks/v1/job/my-job/summary
+    https://nomad.rocks/v1/job/my-job/dispatch
 ```
 
 ### Sample Response
@@ -901,6 +1046,115 @@ $ curl \
   "EvalCreateIndex": 13,
   "EvalID": "e5f55fac-bc69-119d-528a-1fc7ade5e02c",
   "DispatchedJobID": "example/dispatch-1485408778-81644024"
+}
+```
+
+## Revert to older Job Version
+
+This endpoint reverts the job to an older version.
+
+| Method  | Path                       | Produces                   |
+| ------- | -------------------------- | -------------------------- |
+| `POST`  | `/v1/job/:job_id/revert` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
+  in the job file during submission). This is specified as part of the path.
+
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
+
+- `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
+  job's version. This is checked and acts as a check-and-set value before
+  reverting to the specified job.
+
+### Sample Payload
+
+```json
+{
+  "JobID": "my-job",
+  "JobVersion": 2,
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    --request POST \
+    --payload @payload.json \
+    https://nomad.rocks/v1/job/my-job/revert
+```
+
+### Sample Response
+
+```json
+{
+  "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
+  "EvalCreateIndex": 35,
+  "JobModifyIndex": 34,
+}
+```
+
+
+## Set Job Stability
+
+This endpoint sets the job's stability.
+
+| Method  | Path                       | Produces                   |
+| ------- | -------------------------- | -------------------------- |
+| `POST`  | `/v1/job/:job_id/stable`   | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
+  in the job file during submission). This is specified as part of the path.
+
+- `JobVersion` `(integer: 0)` - Specifies the job version to set the stability on.
+
+- `Stable` `(bool: false)` - Specifies whether the job should be marked as
+  stable or not.
+
+### Sample Payload
+
+```json
+{
+  "JobID": "my-job",
+  "JobVersion": 2,
+  "Stable": true
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    --request POST \
+    --payload @payload.json \
+    https://nomad.rocks/v1/job/my-job/stable
+```
+
+### Sample Response
+
+```json
+{
+  "JobModifyIndex": 34,
 }
 ```
 
@@ -924,7 +1178,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -963,7 +1217,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
 - the job file during submission). This is specified as part of the path.
 
 - `Job` `(string: <required>)` - Specifies the JSON definition of the job.
@@ -1141,14 +1395,14 @@ $ curl \
   which in turn contain Task Diffs. Each of these objects then has Object and
   Field Diff structures embedded.
 
-- `NextPeriodicLaunch`- If the job being planned is periodic, this field will
+- `NextPeriodicLaunch` - If the job being planned is periodic, this field will
   include the next launch time for the job.
 
 - `CreatedEvals` - A set of evaluations that were created as a result of the
   dry-run. These evaluations can signify a follow-up rolling update evaluation
   or a blocked evaluation.
 
-- `JobModifyIndex`- The `JobModifyIndex` of the server side version of this job.
+- `JobModifyIndex` - The `JobModifyIndex` of the server side version of this job.
 
 - `FailedTGAllocs` - A set of metrics to understand any allocation failures that
   occurred for the Task Group.
@@ -1178,7 +1432,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request
@@ -1216,7 +1470,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)`- Specifies the ID of the job (as specified in
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
 ### Sample Request

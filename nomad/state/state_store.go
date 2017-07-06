@@ -138,30 +138,10 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 // upsertDeploymentUpdates updates the deployments given the passed status
 // updates.
 func (s *StateStore) upsertDeploymentUpdates(index uint64, updates []*structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
-	for _, d := range updates {
-		raw, err := txn.First("deployment", "id", d.DeploymentID)
-		if err != nil {
+	for _, u := range updates {
+		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
 		}
-		if raw == nil {
-			return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", d.DeploymentID)
-		}
-
-		copy := raw.(*structs.Deployment).Copy()
-
-		// Apply the new status
-		copy.Status = d.Status
-		copy.StatusDescription = d.StatusDescription
-		copy.ModifyIndex = index
-
-		// Insert the deployment
-		if err := txn.Insert("deployment", copy); err != nil {
-			return err
-		}
-	}
-
-	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -254,6 +234,13 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 	// Update the indexes table for deployment
 	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// If the deployment is being marked as complete, set the job to stable.
+	if deployment.Status == structs.DeploymentStatusSuccessful {
+		if err := s.updateJobStabilityImpl(index, deployment.JobID, deployment.JobVersion, true, txn); err != nil {
+			return fmt.Errorf("failed to update job stability: %v", err)
+		}
 	}
 
 	return nil
@@ -569,7 +556,7 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	if err := s.upsertJobImpl(index, job, txn); err != nil {
+	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
 		return err
 	}
 	txn.Commit()
@@ -577,7 +564,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 }
 
 // upsertJobImpl is the inplementation for registering a job or updating a job definition
-func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, txn *memdb.Txn) error {
+func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.ID)
 	if err != nil {
@@ -589,7 +576,13 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, txn *memdb.Tx
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
-		job.Version = existing.(*structs.Job).Version + 1
+
+		// Bump the version unless asked to keep it. This should only be done
+		// when changing an internal field such as Stable. A spec change should
+		// always come with a version bump
+		if !keepVersion {
+			job.Version = existing.(*structs.Job).Version + 1
+		}
 
 		// Compute the job status
 		var err error
@@ -880,15 +873,24 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 	return all, nil
 }
 
-// JobByIDAndVersion returns the job identified by its ID and Version
+// JobByIDAndVersion returns the job identified by its ID and Version. The
+// passed watchset may be nil.
 func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uint64) (*structs.Job, error) {
 	txn := s.db.Txn(false)
+	return s.jobByIDAndVersionImpl(ws, id, version, txn)
+}
+
+// jobByIDAndVersionImpl returns the job identified by its ID and Version. The
+// passed watchset may be nil.
+func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, id string, version uint64, txn *memdb.Txn) (*structs.Job, error) {
 	watchCh, existing, err := txn.FirstWatch("job_version", "id", id, version)
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(watchCh)
+	if ws != nil {
+		ws.Add(watchCh)
+	}
 
 	if existing != nil {
 		job := existing.(*structs.Job)
@@ -1844,7 +1846,7 @@ func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.Deploymen
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, req.Job, txn); err != nil {
+		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
@@ -1889,7 +1891,51 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// If the deployment is being marked as complete, set the job to stable.
+	if copy.Status == structs.DeploymentStatusSuccessful {
+		if err := s.updateJobStabilityImpl(index, copy.JobID, copy.JobVersion, true, txn); err != nil {
+			return fmt.Errorf("failed to update job stability: %v", err)
+		}
+	}
+
 	return nil
+}
+
+// UpdateJobStability updates the stability of the given job and version to the
+// desired status.
+func (s *StateStore) UpdateJobStability(index uint64, jobID string, jobVersion uint64, stable bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.updateJobStabilityImpl(index, jobID, jobVersion, stable, txn); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// updateJobStabilityImpl updates the stability of the given job and version
+func (s *StateStore) updateJobStabilityImpl(index uint64, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
+	// Get the job that is referenced
+	job, err := s.jobByIDAndVersionImpl(nil, jobID, jobVersion, txn)
+	if err != nil {
+		return err
+	}
+
+	// Has already been cleared, nothing to do
+	if job == nil {
+		return nil
+	}
+
+	// If the job already has the desired stability, nothing to do
+	if job.Stable == stable {
+		return nil
+	}
+
+	copy := job.Copy()
+	copy.Stable = stable
+	return s.upsertJobImpl(index, copy, true, txn)
 }
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and
@@ -1970,13 +2016,8 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 	}
 
 	// Insert the deployment
-	if err := txn.Insert("deployment", copy); err != nil {
+	if err := s.upsertDeploymentImpl(index, copy, txn); err != nil {
 		return err
-	}
-
-	// Update the index
-	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	// Upsert the optional eval
@@ -2068,7 +2109,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, req.Job, txn); err != nil {
+		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
