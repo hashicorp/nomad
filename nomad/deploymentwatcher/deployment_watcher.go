@@ -2,13 +2,13 @@ package deploymentwatcher
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -142,7 +142,9 @@ func (w *deploymentWatcher) SetAllocHealth(
 				return err
 			}
 
-			desc = fmt.Sprintf("%s - rolling back to job version %d", desc, j.Version)
+			if j != nil {
+				desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+			}
 			break
 		}
 
@@ -167,6 +169,9 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.EvalCreateIndex = index
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
+	if j != nil {
+		resp.RevertedJobVersion = helper.Uint64ToPtr(j.Version)
+	}
 	w.setLatestEval(index)
 	return nil
 }
@@ -231,14 +236,34 @@ func (w *deploymentWatcher) FailDeployment(
 	req *structs.DeploymentFailRequest,
 	resp *structs.DeploymentUpdateResponse) error {
 
-	// Determine the status we should transistion to and if we need to create an
-	// evaluation
 	status, desc := structs.DeploymentStatusFailed, structs.DeploymentStatusDescriptionFailedByUser
-	update := w.getDeploymentStatusUpdate(status, desc)
-	eval := w.getEval()
+
+	// Determine if we should rollback
+	rollback := false
+	for _, state := range w.d.TaskGroups {
+		if state.AutoRevert {
+			rollback = true
+			break
+		}
+	}
+
+	var rollbackJob *structs.Job
+	if rollback {
+		var err error
+		rollbackJob, err = w.latestStableJob()
+		if err != nil {
+			return err
+		}
+
+		if rollbackJob != nil {
+			desc = structs.DeploymentStatusDescriptionRollback(desc, rollbackJob.Version)
+		}
+	}
 
 	// Commit the change
-	i, err := w.upsertDeploymentStatusUpdate(update, eval, nil)
+	update := w.getDeploymentStatusUpdate(status, desc)
+	eval := w.getEval()
+	i, err := w.upsertDeploymentStatusUpdate(update, eval, rollbackJob)
 	if err != nil {
 		return err
 	}
@@ -248,6 +273,9 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.EvalCreateIndex = i
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
+	if rollbackJob != nil {
+		resp.RevertedJobVersion = helper.Uint64ToPtr(rollbackJob.Version)
+	}
 	w.setLatestEval(i)
 	return nil
 }
