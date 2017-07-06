@@ -2558,7 +2558,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// the placement
 	existingHealthSet := existing != nil && existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
 	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
-	if existing == nil {
+	if existing == nil || existing.DeploymentID != alloc.DeploymentID {
 		placed++
 	} else if !existingHealthSet && allocHealthSet {
 		if *alloc.DeploymentStatus.Healthy {

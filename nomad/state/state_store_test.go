@@ -137,6 +137,46 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	// Update the allocs to be part of a new deployment
+	d2 := d.Copy()
+	d2.ID = structs.GenerateUUID()
+
+	allocNew := alloc.Copy()
+	allocNew.DeploymentID = d2.ID
+	allocNew2 := alloc2.Copy()
+	allocNew2.DeploymentID = d2.ID
+
+	// Create another plan
+	res = structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{allocNew, allocNew2},
+			Job:   job,
+		},
+		Deployment: d2,
+	}
+
+	err = state.UpsertPlanResults(1001, &res)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	dout, err = state.DeploymentByID(ws, d2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if dout == nil {
+		t.Fatalf("bad: nil deployment")
+	}
+
+	tg, ok = dout.TaskGroups[alloc.TaskGroup]
+	if !ok {
+		t.Fatalf("bad: nil deployment state")
+	}
+	if tg == nil || tg.PlacedAllocs != 2 {
+		t.Fatalf("bad: %v", dout)
+	}
 }
 
 // This test checks that deployment updates are applied correctly
