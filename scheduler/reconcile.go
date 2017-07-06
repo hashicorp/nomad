@@ -157,7 +157,6 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		complete = complete && groupComplete
 	}
 
-	// TODO test
 	// Mark the deployment as complete if possible
 	if a.deployment != nil && complete {
 		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
