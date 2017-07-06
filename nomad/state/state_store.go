@@ -2124,6 +2124,16 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
+	// system jobs are running until explicitly stopped (which is handled elsewhere)
+	if job.Type == structs.JobTypeSystem {
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
+		// Pending until at least one eval has completed
+		return structs.JobStatusRunning, nil
+	}
+
 	// The job is dead if all the allocations and evals are terminal or if there
 	// are no evals because of garbage collection.
 	if evalDelete || hasEval || hasAlloc {

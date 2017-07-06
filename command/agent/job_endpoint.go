@@ -465,10 +465,13 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{
-			Stagger:     job.Update.Stagger,
-			MaxParallel: job.Update.MaxParallel,
+			Stagger: job.Update.Stagger,
+		}
+		if job.Update.MaxParallel != nil {
+			j.Update.MaxParallel = *job.Update.MaxParallel
 		}
 	}
 
@@ -532,6 +535,17 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
 	}
 
+	if taskGroup.Update != nil {
+		tg.Update = &structs.UpdateStrategy{
+			MaxParallel:     *taskGroup.Update.MaxParallel,
+			HealthCheck:     *taskGroup.Update.HealthCheck,
+			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
+			HealthyDeadline: *taskGroup.Update.HealthyDeadline,
+			AutoRevert:      *taskGroup.Update.AutoRevert,
+			Canary:          *taskGroup.Update.Canary,
+		}
+	}
+
 	if l := len(taskGroup.Tasks); l != 0 {
 		tg.Tasks = make([]*structs.Task, l)
 		for l, task := range taskGroup.Tasks {
@@ -565,9 +579,10 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.Services = make([]*structs.Service, l)
 		for i, service := range apiTask.Services {
 			structsTask.Services[i] = &structs.Service{
-				Name:      service.Name,
-				PortLabel: service.PortLabel,
-				Tags:      service.Tags,
+				Name:        service.Name,
+				PortLabel:   service.PortLabel,
+				Tags:        service.Tags,
+				AddressMode: service.AddressMode,
 			}
 
 			if l := len(service.Checks); l != 0 {
@@ -639,6 +654,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			structsTask.Artifacts[k] = &structs.TaskArtifact{
 				GetterSource:  *ta.GetterSource,
 				GetterOptions: ta.GetterOptions,
+				GetterMode:    *ta.GetterMode,
 				RelativeDest:  *ta.RelativeDest,
 			}
 		}
@@ -666,6 +682,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Perms:        *template.Perms,
 				LeftDelim:    *template.LeftDelim,
 				RightDelim:   *template.RightDelim,
+				Envvars:      *template.Envvars,
 			}
 		}
 	}

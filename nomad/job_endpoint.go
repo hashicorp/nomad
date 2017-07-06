@@ -61,32 +61,44 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
 
-	// Validate the job.
-	if err := validateJob(args.Job); err != nil {
+	// Validate the job and capture any warnings
+	err, warnings := validateJob(args.Job)
+	if err != nil {
+		return err
+	} else if warnings != nil {
+		reply.Warnings = warnings.Error()
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	existingJob, err := snap.JobByID(ws, args.Job.ID)
+	if err != nil {
 		return err
 	}
 
+	// If EnforceIndex set, check it before trying to apply
 	if args.EnforceIndex {
-		// Lookup the job
-		snap, err := j.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-		ws := memdb.NewWatchSet()
-		job, err := snap.JobByID(ws, args.Job.ID)
-		if err != nil {
-			return err
-		}
 		jmi := args.JobModifyIndex
-		if job != nil {
+		if existingJob != nil {
 			if jmi == 0 {
 				return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
-			} else if jmi != job.JobModifyIndex {
+			} else if jmi != existingJob.JobModifyIndex {
 				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					RegisterEnforceIndexErrPrefix, jmi, job.JobModifyIndex)
+					RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
 			}
 		} else if jmi != 0 {
 			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
+		}
+	}
+
+	// Validate job transitions if its an update
+	if existingJob != nil {
+		if err := validateJobUpdate(existingJob, args.Job); err != nil {
+			return err
 		}
 	}
 
@@ -289,7 +301,8 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
-	if err := validateJob(args.Job); err != nil {
+	err, warnings := validateJob(args.Job)
+	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, err := range merr.Errors {
 				reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
@@ -299,6 +312,10 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 			reply.ValidationErrors = append(reply.ValidationErrors, err.Error())
 			reply.Error = err.Error()
 		}
+	}
+
+	if warnings != nil {
+		reply.Warnings = warnings.Error()
 	}
 
 	reply.DriverConfigValidated = true
@@ -723,9 +740,12 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
 
-	// Validate the job.
-	if err := validateJob(args.Job); err != nil {
+	// Validate the job and capture any warnings
+	err, warnings := validateJob(args.Job)
+	if err != nil {
 		return err
+	} else if warnings != nil {
+		reply.Warnings = warnings.Error()
 	}
 
 	// Acquire a snapshot of the state
@@ -818,11 +838,14 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 // validateJob validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-func validateJob(job *structs.Job) error {
+func validateJob(job *structs.Job) (invalid, warnings error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
 	}
+
+	// Get any warnings
+	warnings = job.Warnings()
 
 	// Get the signals required
 	signals := job.RequiredSignals()
@@ -873,7 +896,33 @@ func validateJob(job *structs.Job) error {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
 	}
 
-	return validationErrors.ErrorOrNil()
+	return validationErrors.ErrorOrNil(), warnings
+}
+
+// validateJobUpdate ensures updates to a job are valid.
+func validateJobUpdate(old, new *structs.Job) error {
+	// Type transitions are disallowed
+	if old.Type != new.Type {
+		return fmt.Errorf("cannot update job from type %q to %q", old.Type, new.Type)
+	}
+
+	// Transitioning to/from periodic is disallowed
+	if old.IsPeriodic() && !new.IsPeriodic() {
+		return fmt.Errorf("cannot update non-periodic job to being periodic")
+	}
+	if new.IsPeriodic() && !old.IsPeriodic() {
+		return fmt.Errorf("cannot update periodic job to being non-periodic")
+	}
+
+	// Transitioning to/from parameterized is disallowed
+	if old.IsParameterized() && !new.IsParameterized() {
+		return fmt.Errorf("cannot update non-parameterized job to being parameterized")
+	}
+	if new.IsParameterized() && !old.IsParameterized() {
+		return fmt.Errorf("cannot update parameterized job to being non-parameterized")
+	}
+
+	return nil
 }
 
 // Dispatch a parameterized job.

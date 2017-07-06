@@ -137,7 +137,7 @@ type Client struct {
 
 	// migratingAllocs is the set of allocs whose data migration is in flight
 	migratingAllocs     map[string]*migrateAllocCtrl
-	migratingAllocsLock sync.Mutex
+	migratingAllocsLock sync.RWMutex
 
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
@@ -240,13 +240,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Add the garbage collector
 	gcConfig := &GCConfig{
+		MaxAllocs:           cfg.GCMaxAllocs,
 		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
 		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
 		Interval:            cfg.GCInterval,
 		ParallelDestroys:    cfg.GCParallelDestroys,
 		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
 	}
-	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, gcConfig)
+	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, c, gcConfig)
+	go c.garbageCollector.Run()
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {
@@ -297,7 +299,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
-		return nil, fmt.Errorf("failed to restore state: %v", err)
+		logger.Printf("[ERR] client: failed to restore state: %v", err)
+		logger.Printf("[ERR] client: Nomad is unable to start due to corrupt state. "+
+			"The safest way to proceed is to manually stop running task processes "+
+			"and remove Nomad's state (%q) and alloc (%q) directories before "+
+			"restarting. Lost allocations will be rescheduled.",
+			c.config.StateDir, c.config.AllocDir)
+		logger.Printf("[ERR] client: Corrupt state is often caused by a bug. Please " +
+			"report as much information as possible to " +
+			"https://github.com/hashicorp/nomad/issues")
+		return nil, fmt.Errorf("failed to restore state")
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -353,7 +364,7 @@ func (c *Client) init() error {
 
 	// Ensure the alloc dir exists if we have one
 	if c.config.AllocDir != "" {
-		if err := os.MkdirAll(c.config.AllocDir, 0755); err != nil {
+		if err := os.MkdirAll(c.config.AllocDir, 0711); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
@@ -369,7 +380,7 @@ func (c *Client) init() error {
 		}
 
 		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0755); err != nil {
+		if err := os.Chmod(p, 0711); err != nil {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
@@ -482,17 +493,13 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
-	c.allocLock.RLock()
-	numAllocs := len(c.allocs)
-	c.allocLock.RUnlock()
-
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
 	stats := map[string]map[string]string{
 		"client": map[string]string{
 			"node_id":         c.Node().ID,
 			"known_servers":   c.servers.all().String(),
-			"num_allocations": strconv.Itoa(numAllocs),
+			"num_allocations": strconv.Itoa(c.NumAllocs()),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
@@ -659,14 +666,14 @@ func (c *Client) restoreState() error {
 		c.allocLock.Unlock()
 
 		if err := ar.RestoreState(); err != nil {
-			c.logger.Printf("[ERR] client: failed to restore state for alloc %s: %v", id, err)
+			c.logger.Printf("[ERR] client: failed to restore state for alloc %q: %v", id, err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else {
 			go ar.Run()
 
 			if upgrading {
 				if err := ar.SaveState(); err != nil {
-					c.logger.Printf("[WARN] client: initial save state for alloc %s failed: %v", id, err)
+					c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", id, err)
 				}
 			}
 		}
@@ -698,7 +705,7 @@ func (c *Client) saveState() error {
 		go func(id string, ar *AllocRunner) {
 			err := ar.SaveState()
 			if err != nil {
-				c.logger.Printf("[ERR] client: failed to save state for alloc %s: %v", id, err)
+				c.logger.Printf("[ERR] client: failed to save state for alloc %q: %v", id, err)
 				l.Lock()
 				multierror.Append(&mErr, err)
 				l.Unlock()
@@ -720,6 +727,24 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 		runners[id] = ar
 	}
 	return runners
+}
+
+// NumAllocs returns the number of allocs this client has. Used to
+// fulfill the AllocCounter interface for the GC.
+func (c *Client) NumAllocs() int {
+	c.allocLock.RLock()
+	n := len(c.allocs)
+	c.allocLock.RUnlock()
+
+	c.blockedAllocsLock.RLock()
+	n += len(c.blockedAllocations)
+	c.blockedAllocsLock.RUnlock()
+
+	c.migratingAllocsLock.RLock()
+	n += len(c.migratingAllocs)
+	c.migratingAllocsLock.RUnlock()
+
+	return n
 }
 
 // nodeID restores, or generates if necessary, a unique node ID and SecretID.
@@ -949,7 +974,7 @@ func (c *Client) setupDrivers() error {
 
 	var avail []string
 	var skipped []string
-	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil, nil)
+	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil)
 	for name := range driver.BuiltinDrivers {
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.
@@ -1228,28 +1253,36 @@ func (c *Client) updateNodeStatus() error {
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	// If this alloc was blocking another alloc and transitioned to a
 	// terminal state then start the blocked allocation
-	c.blockedAllocsLock.Lock()
-	if blockedAlloc, ok := c.blockedAllocations[alloc.ID]; ok && alloc.Terminated() {
-		var prevAllocDir *allocdir.AllocDir
-		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-			tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-			if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
-				prevAllocDir = ar.GetAllocDir()
-			}
-		}
-		if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
-			c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
-				blockedAlloc.ID, err)
-		}
-		delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
-	}
-	c.blockedAllocsLock.Unlock()
-
-	// Mark the allocation for GC if it is in terminal state
 	if alloc.Terminated() {
+		c.blockedAllocsLock.Lock()
+		blockedAlloc, ok := c.blockedAllocations[alloc.ID]
+		if ok {
+			var prevAllocDir *allocdir.AllocDir
+			if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
+				tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+				if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
+					prevAllocDir = ar.GetAllocDir()
+				}
+			}
+
+			delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
+			c.blockedAllocsLock.Unlock()
+
+			c.logger.Printf("[DEBUG] client: unblocking alloc %q because alloc %q terminated", blockedAlloc.ID, alloc.ID)
+
+			// Need to call addAlloc without holding the lock
+			if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
+				c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
+					blockedAlloc.ID, err)
+			}
+		} else {
+			c.blockedAllocsLock.Unlock()
+		}
+
+		// Mark the allocation for GC if it is in terminal state
 		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
 			if err := c.garbageCollector.MarkForCollection(ar); err != nil {
-				c.logger.Printf("[DEBUG] client: couldn't add alloc %v for GC: %v", alloc.ID, err)
+				c.logger.Printf("[DEBUG] client: couldn't add alloc %q for GC: %v", alloc.ID, err)
 			}
 		}
 	}
@@ -1548,14 +1581,14 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Update the existing allocations
 	for _, update := range diff.updated {
 		if err := c.updateAlloc(update.exist, update.updated); err != nil {
-			c.logger.Printf("[ERR] client: failed to update alloc '%s': %v",
+			c.logger.Printf("[ERR] client: failed to update alloc %q: %v",
 				update.exist.ID, err)
 		}
 
 		// See if the updated alloc is getting migrated
-		c.migratingAllocsLock.Lock()
+		c.migratingAllocsLock.RLock()
 		ch, ok := c.migratingAllocs[update.updated.ID]
-		c.migratingAllocsLock.Unlock()
+		c.migratingAllocsLock.RUnlock()
 		if ok {
 			// Stopping the migration if the allocation doesn't need any
 			// migration
@@ -1575,8 +1608,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			// Check if the alloc is already present in the blocked allocations
 			// map
 			if _, ok := c.blockedAllocations[add.PreviousAllocation]; !ok {
-				c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue for previous allocation %q", add.ID,
-					add.PreviousAllocation)
+				c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue for previous alloc %q",
+					add.ID, add.PreviousAllocation)
 				c.blockedAllocations[add.PreviousAllocation] = add
 			}
 			c.blockedAllocsLock.Unlock()
@@ -1687,7 +1720,7 @@ func (c *Client) waitForAllocTerminal(allocID string, stopCh *migrateAllocCtrl) 
 			case <-time.After(retry):
 				continue
 			case <-stopCh.ch:
-				return nil, fmt.Errorf("giving up waiting on alloc %v since migration is not needed", allocID)
+				return nil, fmt.Errorf("giving up waiting on alloc %q since migration is not needed", allocID)
 			case <-c.shutdownCh:
 				return nil, fmt.Errorf("aborting because client is shutting down")
 			}
@@ -1771,8 +1804,8 @@ func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string
 	resp, err := apiClient.Raw().Response(url, nil)
 	if err != nil {
 		os.RemoveAll(pathToAllocDir)
-		c.logger.Printf("[ERR] client: error getting snapshot: %v", err)
-		return nil, fmt.Errorf("error getting snapshot for alloc %v: %v", alloc.ID, err)
+		c.logger.Printf("[ERR] client: error getting snapshot for alloc %q: %v", alloc.ID, err)
+		return nil, fmt.Errorf("error getting snapshot for alloc %q: %v", alloc.ID, err)
 	}
 
 	if err := c.unarchiveAllocDir(resp, allocID, pathToAllocDir); err != nil {
@@ -1827,6 +1860,13 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 		// If the header is for a directory we create the directory
 		if hdr.Typeflag == tar.TypeDir {
 			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), os.FileMode(hdr.Mode))
+			continue
+		}
+		// If the header is for a symlink we create the symlink
+		if hdr.Typeflag == tar.TypeSymlink {
+			if err = os.Symlink(hdr.Linkname, filepath.Join(pathToAllocDir, hdr.Name)); err != nil {
+				c.logger.Printf("[ERR] client: error creating symlink: %v", err)
+			}
 			continue
 		}
 		// If the header is a file, we write to a file
@@ -1950,29 +1990,28 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 		c.allocLock.Unlock()
 		return nil
 	}
-	c.allocLock.Unlock()
-
-	// Make room for the allocation
-	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
-		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
-	}
-
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
 
 	c.configLock.RLock()
 	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
 
+	// Store the alloc runner.
+	c.allocs[alloc.ID] = ar
+
 	if err := ar.SaveState(); err != nil {
 		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
 	}
 
-	go ar.Run()
+	// Must release allocLock as GC acquires it to count allocs
+	c.allocLock.Unlock()
 
-	// Store the alloc runner.
-	c.allocs[alloc.ID] = ar
+	// Make room for the allocation before running it
+	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
+		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
+	}
+
+	go ar.Run()
 	return nil
 }
 
@@ -2314,13 +2353,13 @@ func (c *Client) emitClientMetrics() {
 	nodeID := c.Node().ID
 
 	// Emit allocation metrics
-	c.migratingAllocsLock.Lock()
-	migrating := len(c.migratingAllocs)
-	c.migratingAllocsLock.Unlock()
-
-	c.blockedAllocsLock.Lock()
+	c.blockedAllocsLock.RLock()
 	blocked := len(c.blockedAllocations)
-	c.blockedAllocsLock.Unlock()
+	c.blockedAllocsLock.RUnlock()
+
+	c.migratingAllocsLock.RLock()
+	migrating := len(c.migratingAllocs)
+	c.migratingAllocsLock.RUnlock()
 
 	pending, running, terminal := 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
@@ -2392,17 +2431,17 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		a := ar.Alloc()
 		allocs[a.ID] = a
 	}
-	c.blockedAllocsLock.Lock()
+	c.blockedAllocsLock.RLock()
 	for _, alloc := range c.blockedAllocations {
 		allocs[alloc.ID] = alloc
 	}
-	c.blockedAllocsLock.Unlock()
+	c.blockedAllocsLock.RUnlock()
 
-	c.migratingAllocsLock.Lock()
+	c.migratingAllocsLock.RLock()
 	for _, ctrl := range c.migratingAllocs {
 		allocs[ctrl.alloc.ID] = ctrl.alloc
 	}
-	c.migratingAllocsLock.Unlock()
+	c.migratingAllocsLock.RUnlock()
 	return allocs
 }
 

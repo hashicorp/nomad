@@ -47,7 +47,7 @@ type HealthService struct {
 	ID                  string
 	Name                string
 	Tags                ServiceTags
-	Checks              []*api.HealthCheck
+	Checks              api.HealthChecks
 	Status              string
 	Port                int
 }

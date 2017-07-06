@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -104,6 +105,10 @@ const (
 
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
+
+	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
+	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
+	dockerAuthHelperPrefix = "docker-credential-"
 )
 
 type DockerDriver struct {
@@ -143,7 +148,7 @@ type DockerDriverConfig struct {
 	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
 	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
 	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
-	PortMapRaw       []map[string]int    `mapstructure:"port_map"`           //
+	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
@@ -162,6 +167,7 @@ type DockerDriverConfig struct {
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
+	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 }
 
 // Validate validates a docker driver config
@@ -169,18 +175,12 @@ func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
 	}
-
-	c.PortMap = mapMergeStrInt(c.PortMapRaw...)
-	c.Labels = mapMergeStrStr(c.LabelsRaw...)
-	if len(c.Logging) > 0 {
-		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
-	}
 	return nil
 }
 
 // NewDockerDriverConfig returns a docker driver config by parsing the HCL
 // config
-func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*DockerDriverConfig, error) {
+func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverConfig, error) {
 	var dconf DockerDriverConfig
 
 	if err := mapstructure.WeakDecode(task.Config, &dconf); err != nil {
@@ -206,6 +206,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
+	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -213,6 +214,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 		}
 	}
+	dconf.Labels = mapMergeStrStr(dconf.LabelsRaw...)
 
 	for i, a := range dconf.Auth {
 		dconf.Auth[i].Username = env.ReplaceEnv(a.Username)
@@ -231,12 +233,22 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*Docke
 		}
 	}
 
+	if len(dconf.Logging) > 0 {
+		dconf.Logging[0].Config = mapMergeStrStr(dconf.Logging[0].ConfigRaw...)
+	}
+
+	portMap := make(map[string]int)
 	for _, m := range dconf.PortMapRaw {
 		for k, v := range m {
-			delete(m, k)
-			m[env.ReplaceEnv(k)] = v
+			ki, vi := env.ReplaceEnv(k), env.ReplaceEnv(v)
+			p, err := strconv.Atoi(vi)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse port map value %v to %v: %v", ki, vi, err)
+			}
+			portMap[ki] = p
 		}
 	}
+	dconf.PortMap = portMap
 
 	// Remove any http
 	if strings.Contains(dconf.ImageName, "https://") {
@@ -421,6 +433,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"force_pull": &fields.FieldSchema{
 				Type: fields.TypeBool,
 			},
+			"security_opt": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
 		},
 	}
 
@@ -455,13 +470,13 @@ func (d *DockerDriver) getDockerCoordinator(client *docker.Client) (*dockerCoord
 	return GetDockerCoordinator(config), fmt.Sprintf("%s-%s", d.DriverContext.allocID, d.DriverContext.taskName)
 }
 
-func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
-	driverConfig, err := NewDockerDriverConfig(task, d.taskEnv)
+func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartResponse, error) {
+	driverConfig, err := NewDockerDriverConfig(task, ctx.TaskEnv)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set state needed by Start()
+	// Set state needed by Start
 	d.driverConfig = driverConfig
 
 	// Initialize docker API clients
@@ -475,14 +490,21 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedR
 	if err != nil {
 		return nil, err
 	}
-
-	res := NewCreatedResources()
-	res.Add(dockerImageResKey, id)
 	d.imageID = id
-	return res, nil
+
+	resp := NewPrestartResponse()
+	resp.CreatedResources.Add(dockerImageResKey, id)
+
+	// Return the PortMap if it's set
+	if len(driverConfig.PortMap) > 0 {
+		resp.Network = &cstructs.DriverNetwork{
+			PortMap: driverConfig.PortMap,
+		}
+	}
+	return resp, nil
 }
 
-func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
@@ -495,7 +517,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv:        d.taskEnv,
+		TaskEnv:        ctx.TaskEnv,
 		Task:           task,
 		Driver:         "docker",
 		AllocID:        d.DriverContext.allocID,
@@ -549,6 +571,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 			pluginClient.Kill()
 			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
 		}
+		// InspectContainer to get all of the container metadata as
+		// much of the metadata (eg networking) isn't populated until
+		// the container is started
+		if container, err = client.InspectContainer(container.ID); err != nil {
+			err = fmt.Errorf("failed to inspect started container %s: %s", container.ID, err)
+			d.logger.Printf("[ERR] driver.docker: %v", err)
+			pluginClient.Kill()
+			return nil, structs.NewRecoverableError(err, true)
+		}
 		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 	} else {
 		d.logger.Printf("[DEBUG] driver.docker: re-attaching to container %s with status %q",
@@ -574,7 +605,58 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle
 	}
 	go h.collectStats()
 	go h.run()
-	return h, nil
+
+	// Detect container address
+	ip, autoUse := d.detectIP(container)
+
+	// Create a response with the driver handle and container network metadata
+	resp := &StartResponse{
+		Handle: h,
+		Network: &cstructs.DriverNetwork{
+			PortMap:       d.driverConfig.PortMap,
+			IP:            ip,
+			AutoAdvertise: autoUse,
+		},
+	}
+	return resp, nil
+}
+
+// detectIP of Docker container. Returns the first IP found as well as true if
+// the IP should be advertised (bridge network IPs return false). Returns an
+// empty string and false if no IP could be found.
+func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
+	if c.NetworkSettings == nil {
+		// This should only happen if there's been a coding error (such
+		// as not calling InspetContainer after CreateContainer). Code
+		// defensively in case the Docker API changes subtly.
+		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
+		return "", false
+	}
+
+	ip, ipName := "", ""
+	auto := false
+	for name, net := range c.NetworkSettings.Networks {
+		if net.IPAddress == "" {
+			// Ignore networks without an IP address
+			continue
+		}
+
+		ip = net.IPAddress
+		ipName = name
+
+		// Don't auto-advertise bridge IPs
+		if name != "bridge" {
+			auto = true
+		}
+
+		break
+	}
+
+	if n := len(c.NetworkSettings.Networks); n > 1 {
+		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+	}
+
+	return ip, auto
 }
 
 func (d *DockerDriver) Cleanup(_ *ExecContext, res *CreatedResources) error {
@@ -836,6 +918,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.PidMode = driverConfig.PidMode
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
+	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
@@ -898,14 +981,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 			d.logger.Printf("[DEBUG] driver.docker: exposed port %s", containerPort)
 		}
 
-		d.taskEnv.SetPortMap(driverConfig.PortMap)
-
 		hostConfig.PortBindings = publishedPorts
 		config.ExposedPorts = exposedPorts
 	}
 
-	d.taskEnv.Build()
-	parsedArgs := d.taskEnv.ParseAndReplace(driverConfig.Args)
+	parsedArgs := ctx.TaskEnv.ParseAndReplace(driverConfig.Args)
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
@@ -929,7 +1009,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
-	config.Env = d.taskEnv.EnvList()
+	config.Env = ctx.TaskEnv.List()
 
 	containerName := fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
 	d.logger.Printf("[DEBUG] driver.docker: setting container name to: %s", containerName)
@@ -1010,31 +1090,31 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 
 // pullImage creates an image by pulling it from a docker registry
 func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo, tag string) (id string, err error) {
-	var authOptions *docker.AuthConfiguration
-	if len(driverConfig.Auth) != 0 {
-		authOptions = &docker.AuthConfiguration{
-			Username:      driverConfig.Auth[0].Username,
-			Password:      driverConfig.Auth[0].Password,
-			Email:         driverConfig.Auth[0].Email,
-			ServerAddress: driverConfig.Auth[0].ServerAddress,
-		}
-	} else if authConfigFile := d.config.Read("docker.auth.config"); authConfigFile != "" {
-		var err error
-		authOptions, err = authOptionFrom(authConfigFile, repo)
-		if err != nil {
-			d.logger.Printf("[INFO] driver.docker: failed to find docker auth for repo %q: %v", repo, err)
-			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
-		}
+	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
+	if err != nil {
+		d.logger.Printf("[WARN] Failed to find docker auth for repo %q: %v", repo, err)
+	}
 
-		if authOptions.Email == "" && authOptions.Password == "" &&
-			authOptions.ServerAddress == "" && authOptions.Username == "" {
-			d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
-		}
+	if authIsEmpty(authOptions) {
+		d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 	}
 
 	d.emitEvent("Downloading image %s:%s", repo, tag)
 	coordinator, callerID := d.getDockerCoordinator(client)
 	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
+}
+
+// authBackend encapsulates a function that resolves registry credentials.
+type authBackend func(string) (*docker.AuthConfiguration, error)
+
+// resolveRegistryAuthentication attempts to retrieve auth credentials for the
+// repo, trying all authentication-backends possible.
+func (d *DockerDriver) resolveRegistryAuthentication(driverConfig *DockerDriverConfig, repo string) (*docker.AuthConfiguration, error) {
+	return firstValidAuth(repo, []authBackend{
+		authFromTaskConfig(driverConfig),
+		authFromDockerConfig(d.config.Read("docker.auth.config")),
+		authFromHelper(d.config.Read("docker.auth.helper")),
+	})
 }
 
 // loadImage creates an image by loading it from the file system
@@ -1468,10 +1548,25 @@ func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int
 	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }
 
-// authOptionFrom takes the Docker auth config file and the repo being pulled
-// and returns an AuthConfiguration or an error if the file/repo could not be
-// parsed or looked up.
-func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
+// loadDockerConfig loads the docker config at the specified path, returning an
+// error if it couldn't be read.
+func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+	}
+	defer f.Close()
+
+	cfile := new(configfile.ConfigFile)
+	if err = cfile.LoadFromReader(f); err != nil {
+		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+	}
+	return cfile, nil
+}
+
+// parseRepositoryInfo takes a repo and returns the Docker RepositoryInfo. This
+// is useful for interacting with a Docker config object.
+func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
 	name, err := reference.ParseNamed(repo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
@@ -1482,26 +1577,120 @@ func authOptionFrom(file, repo string) (*docker.AuthConfiguration, error) {
 		return nil, fmt.Errorf("Failed to parse repository: %v", err)
 	}
 
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open auth config file: %v, error: %v", file, err)
+	return repoInfo, nil
+}
+
+// firstValidAuth tries a list of auth backends, returning first error or AuthConfiguration
+func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfiguration, error) {
+	for _, backend := range backends {
+		auth, err := backend(repo)
+		if auth != nil || err != nil {
+			return auth, err
+		}
 	}
-	defer f.Close()
+	return nil, nil
+}
 
-	cfile := new(configfile.ConfigFile)
-	if err := cfile.LoadFromReader(f); err != nil {
-		return nil, fmt.Errorf("Failed to parse auth config file: %v", err)
+// authFromTaskConfig generates an authBackend for any auth given in the task-configuration
+func authFromTaskConfig(driverConfig *DockerDriverConfig) authBackend {
+	return func(string) (*docker.AuthConfiguration, error) {
+		if len(driverConfig.Auth) == 0 {
+			return nil, nil
+		}
+		auth := driverConfig.Auth[0]
+		return &docker.AuthConfiguration{
+			Username:      auth.Username,
+			Password:      auth.Password,
+			Email:         auth.Email,
+			ServerAddress: auth.ServerAddress,
+		}, nil
 	}
+}
 
-	dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+// authFromDockerConfig generate an authBackend for a dockercfg-compatible file.
+// The authBacken can either be from explicit auth definitions or via credential
+// helpers
+func authFromDockerConfig(file string) authBackend {
+	return func(repo string) (*docker.AuthConfiguration, error) {
+		if file == "" {
+			return nil, nil
+		}
+		repoInfo, err := parseRepositoryInfo(repo)
+		if err != nil {
+			return nil, err
+		}
 
-	// Convert to Api version
-	apiAuthConfig := &docker.AuthConfiguration{
-		Username:      dockerAuthConfig.Username,
-		Password:      dockerAuthConfig.Password,
-		Email:         dockerAuthConfig.Email,
-		ServerAddress: dockerAuthConfig.ServerAddress,
+		cfile, err := loadDockerConfig(file)
+		if err != nil {
+			return nil, err
+		}
+
+		return firstValidAuth(repo, []authBackend{
+			func(string) (*docker.AuthConfiguration, error) {
+				dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+				auth := &docker.AuthConfiguration{
+					Username:      dockerAuthConfig.Username,
+					Password:      dockerAuthConfig.Password,
+					Email:         dockerAuthConfig.Email,
+					ServerAddress: dockerAuthConfig.ServerAddress,
+				}
+				if authIsEmpty(auth) {
+					return nil, nil
+				}
+				return auth, nil
+			},
+			authFromHelper(cfile.CredentialHelpers[registry.GetAuthConfigKey(repoInfo.Index)]),
+			authFromHelper(cfile.CredentialsStore),
+		})
 	}
+}
 
-	return apiAuthConfig, nil
+// authFromHelper generates an authBackend for a docker-credentials-helper;
+// A script taking the requested domain on input, outputting JSON with
+// "Username" and "Secret"
+func authFromHelper(helperName string) authBackend {
+	return func(repo string) (*docker.AuthConfiguration, error) {
+		if helperName == "" {
+			return nil, nil
+		}
+		helper := dockerAuthHelperPrefix + helperName
+		cmd := exec.Command(helper, "get")
+		cmd.Stdin = strings.NewReader(repo)
+
+		output, err := cmd.Output()
+		if err != nil {
+			switch e := err.(type) {
+			default:
+				return nil, err
+			case *exec.ExitError:
+				return nil, fmt.Errorf("%s failed with stderr: %s", helper, string(e.Stderr))
+			}
+		}
+
+		var response map[string]string
+		if err := json.Unmarshal(output, &response); err != nil {
+			return nil, err
+		}
+
+		auth := &docker.AuthConfiguration{
+			Username: response["Username"],
+			Password: response["Secret"],
+		}
+
+		if authIsEmpty(auth) {
+			return nil, nil
+		}
+		return auth, nil
+	}
+}
+
+// authIsEmpty returns if auth is nil or an empty structure
+func authIsEmpty(auth *docker.AuthConfiguration) bool {
+	if auth == nil {
+		return false
+	}
+	return auth.Username == "" &&
+		auth.Password == "" &&
+		auth.Email == "" &&
+		auth.ServerAddress == ""
 }

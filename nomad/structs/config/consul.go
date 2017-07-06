@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -144,6 +145,8 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 // ApiConfig returns a usable Consul config that can be passed directly to
 // hashicorp/consul/api.  NOTE: datacenter is not set
 func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
+	// Get the default config from consul to reuse things like the default
+	// http.Transport.
 	config := consul.DefaultConfig()
 	if c.Addr != "" {
 		config.Address = c.Addr
@@ -152,7 +155,12 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		config.Token = c.Token
 	}
 	if c.Timeout != 0 {
+		// Create a custom Client to set the timeout
+		if config.HttpClient == nil {
+			config.HttpClient = &http.Client{}
+		}
 		config.HttpClient.Timeout = c.Timeout
+		config.HttpClient.Transport = config.Transport
 	}
 	if c.Auth != "" {
 		var username, password string
@@ -180,6 +188,11 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		if c.VerifySSL != nil {
 			config.TLSConfig.InsecureSkipVerify = !*c.VerifySSL
 		}
+		tlsConfig, err := consul.SetupTLSConfig(&config.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+		config.Transport.TLSClientConfig = tlsConfig
 	}
 
 	return config, nil

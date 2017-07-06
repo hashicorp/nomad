@@ -18,6 +18,11 @@ job "binstore-storagelocker" {
   update {
     stagger      = "60s"
     max_parallel = 2
+    health_check = "manual"
+    min_healthy_time = "10s"
+    healthy_deadline = "10m"
+    auto_revert = true
+    canary = 1
   }
 
   task "outside" {
@@ -45,6 +50,15 @@ job "binstore-storagelocker" {
     ephemeral_disk {
         sticky = true
         size = 150
+    }
+
+    update {
+        max_parallel = 3
+        health_check = "checks"
+        min_healthy_time = "1s"
+        healthy_deadline = "1m"
+        auto_revert = false
+        canary = 2
     }
 
     task "binstore" {
@@ -126,6 +140,7 @@ job "binstore-storagelocker" {
       artifact {
         source = "http://bar.com/artifact"
         destination = "test/foo/"
+        mode = "file"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
@@ -142,6 +157,7 @@ job "binstore-storagelocker" {
         change_mode = "foo"
         change_signal = "foo"
         splay = "10s"
+        env = true
       }
 
       template {

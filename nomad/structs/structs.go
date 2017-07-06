@@ -78,6 +78,10 @@ const (
 	ProtocolVersion = "protocol"
 	APIMajorVersion = "api.major"
 	APIMinorVersion = "api.minor"
+
+	GetterModeAny  = "any"
+	GetterModeFile = "file"
+	GetterModeDir  = "dir"
 )
 
 // RPCInfo is used to describe common information about query
@@ -503,6 +507,11 @@ type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+
 	QueryMeta
 }
 
@@ -525,6 +534,10 @@ type JobValidateResponse struct {
 
 	// Error is a string version of any error that may have occured
 	Error string
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 // NodeUpdateResponse is used to respond to a node update
@@ -638,6 +651,10 @@ type JobPlanResponse struct {
 	// NextPeriodicLaunch is the time duration till the job would be launched if
 	// submitted.
 	NextPeriodicLaunch time.Time
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 
 	WriteMeta
 }
@@ -877,6 +894,26 @@ type NodeListStub struct {
 	ModifyIndex       uint64
 }
 
+// Networks defined for a task on the Resources struct.
+type Networks []*NetworkResource
+
+// Port assignment and IP for the given label or empty values.
+func (ns Networks) Port(label string) (string, int) {
+	for _, n := range ns {
+		for _, p := range n.ReservedPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+		for _, p := range n.DynamicPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+	}
+	return "", 0
+}
+
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
@@ -884,7 +921,7 @@ type Resources struct {
 	MemoryMB int
 	DiskMB   int
 	IOPS     int
-	Networks []*NetworkResource
+	Networks Networks
 }
 
 const (
@@ -1041,10 +1078,10 @@ type Port struct {
 type NetworkResource struct {
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
-	IP            string // IP address
+	IP            string // Host IP address
 	MBits         int    // Throughput
-	ReservedPorts []Port // Reserved ports
-	DynamicPorts  []Port // Dynamically assigned ports
+	ReservedPorts []Port // Host Reserved ports
+	DynamicPorts  []Port // Host Dynamically assigned ports
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -1100,15 +1137,15 @@ func (n *NetworkResource) GoString() string {
 	return fmt.Sprintf("*%#v", *n)
 }
 
-func (n *NetworkResource) MapLabelToValues(port_map map[string]int) map[string]int {
-	labelValues := make(map[string]int)
-	ports := append(n.ReservedPorts, n.DynamicPorts...)
-	for _, port := range ports {
-		if mapping, ok := port_map[port.Label]; ok {
-			labelValues[port.Label] = mapping
-		} else {
-			labelValues[port.Label] = port.Value
-		}
+// PortLabels returns a map of port labels to their assigned host ports.
+func (n *NetworkResource) PortLabels() map[string]int {
+	num := len(n.ReservedPorts) + len(n.DynamicPorts)
+	labelValues := make(map[string]int, num)
+	for _, port := range n.ReservedPorts {
+		labelValues[port.Label] = port.Value
+	}
+	for _, port := range n.DynamicPorts {
+		labelValues[port.Label] = port.Value
 	}
 	return labelValues
 }
@@ -1200,7 +1237,7 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
-	// Update is used to control the update strategy
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 	Update UpdateStrategy
 
 	// Periodic is used to define the interval the job is run at.
@@ -1262,6 +1299,45 @@ func (j *Job) Canonicalize() {
 
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
+	}
+
+	// COMPAT: Remove in 0.7.0
+	// Rewrite any job that has an update block with pre 0.6.0 syntax.
+	if j.Update.Stagger > 0 && j.Update.MaxParallel > 0 {
+		// Build an appropriate update block and copy it down to each task group
+		base := DefaultUpdateStrategy.Copy()
+		base.MaxParallel = j.Update.MaxParallel
+		base.MinHealthyTime = j.Update.Stagger
+
+		// Add to each task group, modifying as needed
+		l := len(j.TaskGroups)
+		for _, tg := range j.TaskGroups {
+			// The task group doesn't need upgrading if it has an update block with the new syntax
+			u := tg.Update
+			if u != nil && u.Stagger == 0 && u.MaxParallel > 0 &&
+				u.HealthCheck != "" && u.MinHealthyTime > 0 && u.HealthyDeadline > 0 {
+				continue
+			}
+
+			// The MaxParallel for the job should be 10% of the total count
+			// unless there is just one task group then we can infer the old
+			// max parallel should be the new
+			tgu := base.Copy()
+			if l != 1 {
+				// RoundTo 10%
+				var percent float64 = float64(tg.Count) * 0.1
+				tgu.MaxParallel = int(percent + 0.5)
+			}
+
+			// Safety guards
+			if tgu.MaxParallel == 0 {
+				tgu.MaxParallel = 1
+			} else if tgu.MaxParallel > tg.Count {
+				tgu.MaxParallel = tg.Count
+			}
+
+			tg.Update = tgu
+		}
 	}
 }
 
@@ -1371,6 +1447,18 @@ func (j *Job) Validate() error {
 		if err := j.ParameterizedJob.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (j *Job) Warnings() error {
+	var mErr multierror.Error
+
+	if j.Update.Stagger > 0 {
+		multierror.Append(&mErr, fmt.Errorf("Update stagger deprecated. A best effort conversion to new syntax will be applied. Please update upgrade stanza before v0.7.0"))
 	}
 
 	return mErr.ErrorOrNil()
@@ -1605,15 +1693,105 @@ type TaskGroupSummary struct {
 	Lost     int
 }
 
+const (
+	// Checks uses any registered health check state in combination with task
+	// states to determine if a allocation is healthy.
+	UpdateStrategyHealthCheck_Checks = "checks"
+
+	// TaskStates uses the task states of an allocation to determine if the
+	// allocation is healthy.
+	UpdateStrategyHealthCheck_TaskStates = "task_states"
+
+	// Manual allows the operator to manually signal to Nomad when an
+	// allocations is healthy. This allows more advanced health checking that is
+	// outside of the scope of Nomad.
+	UpdateStrategyHealthCheck_Manual = "manual"
+)
+
+var (
+	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
+	// jobs with the old policy or for populating field defaults.
+	DefaultUpdateStrategy = &UpdateStrategy{
+		MaxParallel:     0,
+		HealthCheck:     UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+		AutoRevert:      false,
+		Canary:          0,
+	}
+)
+
 // UpdateStrategy is used to modify how updates are done
 type UpdateStrategy struct {
-	// Stagger is the amount of time between the updates
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
 	MaxParallel int
+
+	// HealthCheck specifies the mechanism in which allocations are marked
+	// healthy or unhealthy as part of a deployment.
+	HealthCheck string
+
+	// MinHealthyTime is the minimum time an allocation must be in the healthy
+	// state before it is marked as healthy, unblocking more alllocations to be
+	// rolled.
+	MinHealthyTime time.Duration
+
+	// HealthyDeadline is the time in which an allocation must be marked as
+	// healthy before it is automatically transistioned to unhealthy. This time
+	// period doesn't count against the MinHealthyTime.
+	HealthyDeadline time.Duration
+
+	// AutoRevert declares that if a deployment fails because of unhealthy
+	// allocations, there should be an attempt to auto-revert the job to a
+	// stable version.
+	AutoRevert bool
+
+	// Canary is the number of canaries to deploy when a change to the task
+	// group is detected.
+	Canary int
 }
 
+func (u *UpdateStrategy) Copy() *UpdateStrategy {
+	if u == nil {
+		return nil
+	}
+
+	copy := new(UpdateStrategy)
+	*copy = *u
+	return copy
+}
+
+func (u *UpdateStrategy) Validate() error {
+	if u == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+	switch u.HealthCheck {
+	case UpdateStrategyHealthCheck_Checks, UpdateStrategyHealthCheck_TaskStates, UpdateStrategyHealthCheck_Manual:
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
+	}
+
+	if u.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+	}
+	if u.Canary < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
+	}
+	if u.MinHealthyTime < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
+	}
+	if u.HealthyDeadline <= 0 {
+		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// TODO(alexdadgar): Remove once no longer used by the scheduler.
 // Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
@@ -1961,6 +2139,9 @@ type TaskGroup struct {
 	// be scheduled.
 	Count int
 
+	// Update is used to control the update strategy for this task group
+	Update *UpdateStrategy
+
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
 	Constraints []*Constraint
@@ -1985,8 +2166,8 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 	ntg := new(TaskGroup)
 	*ntg = *tg
+	ntg.Update = ntg.Update.Copy()
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
-
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 
 	if tg.Tasks != nil {
@@ -2076,6 +2257,23 @@ func (tg *TaskGroup) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
 	}
 
+	// Validate the update strategy
+	if u := tg.Update; u != nil {
+		if err := u.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		// Validate the counts are appropriate
+		if u.MaxParallel > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update max parallel count is greater than task group count: %d > %d", u.MaxParallel, tg.Count))
+		}
+		if u.Canary > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update canary count is greater than task group count: %d > %d", u.Canary, tg.Count))
+		}
+	}
+
 	// Check for duplicate tasks and that there is only leader task if any
 	tasks := make(map[string]int)
 	leaderTasks := 0
@@ -2122,7 +2320,6 @@ func (tg *TaskGroup) GoString() string {
 }
 
 const (
-	// TODO add Consul TTL check
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
 	ServiceCheckScript = "script"
@@ -2257,6 +2454,12 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+const (
+	AddressModeAuto   = "auto"
+	AddressModeHost   = "host"
+	AddressModeDriver = "driver"
+)
+
 // Service represents a Consul service definition in Nomad
 type Service struct {
 	// Name of the service registered with Consul. Consul defaults the
@@ -2268,8 +2471,13 @@ type Service struct {
 	// To specify the port number using the host's Consul Advertise
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
 	PortLabel string
-	Tags      []string        // List of tags for the service
-	Checks    []*ServiceCheck // List of checks associated with the service
+
+	// AddressMode specifies whether or not to use the host ip:port for
+	// this service.
+	AddressMode string
+
+	Tags   []string        // List of tags for the service
+	Checks []*ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Copy() *Service {
@@ -2330,6 +2538,13 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
 	}
 
+	switch s.AddressMode {
+	case "", AddressModeAuto, AddressModeHost, AddressModeDriver:
+		// OK
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
+	}
+
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.RequiresPort() {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name, s.Name))
@@ -2364,6 +2579,7 @@ func (s *Service) Hash() string {
 	io.WriteString(h, s.Name)
 	io.WriteString(h, strings.Join(s.Tags, ""))
 	io.WriteString(h, s.PortLabel)
+	io.WriteString(h, s.AddressMode)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -2547,15 +2763,6 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
-func (t *Task) FindHostAndPortFor(portLabel string) (string, int) {
-	for _, network := range t.Resources.Networks {
-		if p, ok := network.MapLabelToValues(nil)[portLabel]; ok {
-			return network.IP, p
-		}
-	}
-	return "", 0
-}
-
 // Validate is used to sanity check a task
 func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	var mErr multierror.Error
@@ -2700,7 +2907,7 @@ func validateServices(t *Task) error {
 	portLabels := make(map[string]struct{})
 	if t.Resources != nil {
 		for _, network := range t.Resources.Networks {
-			ports := network.MapLabelToValues(nil)
+			ports := network.PortLabels()
 			for portLabel, _ := range ports {
 				portLabels[portLabel] = struct{}{}
 			}
@@ -2716,6 +2923,8 @@ func validateServices(t *Task) error {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
+
+	// Ensure address mode is valid
 	return mErr.ErrorOrNil()
 }
 
@@ -2770,6 +2979,18 @@ type Template struct {
 	// delimiter is utilized when parsing the template.
 	LeftDelim  string
 	RightDelim string
+
+	// Envvars enables exposing the template as environment variables
+	// instead of as a file. The template must be of the form:
+	//
+	//	VAR_NAME_1={{ key service/my-key }}
+	//	VAR_NAME_2=raw string and {{ env "attr.kernel.name" }}
+	//
+	// Lines will be split on the initial "=" with the first part being the
+	// key name and the second part the value.
+	// Empty lines and lines starting with # will be ignored, but to avoid
+	// escaping issues #s within lines will not be treated as comments.
+	Envvars bool
 }
 
 // DefaultTemplate returns a default template.
@@ -3188,6 +3409,10 @@ type TaskArtifact struct {
 	// go-getter.
 	GetterOptions map[string]string
 
+	// GetterMode is the go-getter.ClientMode for fetching resources.
+	// Defaults to "any" but can be set to "file" or "dir".
+	GetterMode string
+
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
@@ -3234,6 +3459,17 @@ func (ta *TaskArtifact) Validate() error {
 	var mErr multierror.Error
 	if ta.GetterSource == "" {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("source must be specified"))
+	}
+
+	switch ta.GetterMode {
+	case "":
+		// Default to any
+		ta.GetterMode = GetterModeAny
+	case GetterModeAny, GetterModeFile, GetterModeDir:
+		// Ok
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid artifact mode %q; must be one of: %s, %s, %s",
+			ta.GetterMode, GetterModeAny, GetterModeFile, GetterModeDir))
 	}
 
 	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
@@ -3680,13 +3916,25 @@ type Allocation struct {
 }
 
 func (a *Allocation) Copy() *Allocation {
+	return a.copyImpl(true)
+}
+
+// Copy provides a copy of the allocation but doesn't deep copy the job
+func (a *Allocation) CopySkipJob() *Allocation {
+	return a.copyImpl(false)
+}
+
+func (a *Allocation) copyImpl(job bool) *Allocation {
 	if a == nil {
 		return nil
 	}
 	na := new(Allocation)
 	*na = *a
 
-	na.Job = na.Job.Copy()
+	if job {
+		na.Job = na.Job.Copy()
+	}
+
 	na.Resources = na.Resources.Copy()
 	na.SharedResources = na.SharedResources.Copy()
 

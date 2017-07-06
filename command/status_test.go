@@ -37,20 +37,20 @@ func TestStatusCommand_Run(t *testing.T) {
 
 	// Register two jobs
 	job1 := testJob("job1_sfx")
-	evalId1, _, err := client.Jobs().Register(job1, nil)
+	resp, _, err := client.Jobs().Register(job1, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if code := waitForSuccess(ui, client, fullId, t, evalId1); code != 0 {
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
 
 	job2 := testJob("job2_sfx")
-	evalId2, _, err := client.Jobs().Register(job2, nil)
+	resp2, _, err := client.Jobs().Register(job2, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if code := waitForSuccess(ui, client, fullId, t, evalId2); code != 0 {
+	if code := waitForSuccess(ui, client, fullId, t, resp2.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
 
@@ -149,7 +149,7 @@ func TestStatusCommand_Run(t *testing.T) {
 	if strings.Contains(out, "Allocations") {
 		t.Fatalf("should not dump allocations")
 	}
-	if strings.Contains(out, evalId1) {
+	if strings.Contains(out, resp.EvalID) {
 		t.Fatalf("should not contain full identifiers, got %s", out)
 	}
 	ui.OutputWriter.Reset()
@@ -159,7 +159,7 @@ func TestStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, evalId1) {
+	if !strings.Contains(out, resp.EvalID) {
 		t.Fatalf("should contain full identifiers, got %s", out)
 	}
 }

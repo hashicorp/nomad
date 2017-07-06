@@ -171,6 +171,10 @@ type Config struct {
 	// beyond which the Nomad client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64
 
+	// GCMaxAllocs is the maximum number of allocations a node can have
+	// before garbage collection is triggered.
+	GCMaxAllocs int
+
 	// LogLevel is the level of the logs to putout
 	LogLevel string
 
@@ -205,6 +209,8 @@ func DefaultConfig() *Config {
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
 		GCInodeUsageThreshold:   70,
+		GCMaxAllocs:             50,
+		NoHostUUID:              true,
 	}
 }
 

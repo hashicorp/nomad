@@ -30,6 +30,7 @@ const (
 
 var (
 	// The following are the key paths written to the state database
+	allocRunnerStateAllocKey     = []byte("alloc")
 	allocRunnerStateImmutableKey = []byte("immutable")
 	allocRunnerStateMutableKey   = []byte("mutable")
 	allocRunnerStateAllocDirKey  = []byte("alloc-dir")
@@ -81,6 +82,12 @@ type AllocRunner struct {
 	// stateDB is used to store the alloc runners state
 	stateDB *bolt.DB
 
+	// persistedEval is the last persisted evaluation ID. Since evaluation
+	// IDs change on every allocation update we only need to persist the
+	// allocation when its eval ID != the last persisted eval ID.
+	persistedEvalLock sync.Mutex
+	persistedEval     string
+
 	// immutablePersisted and allocDirPersisted are used to track whether the
 	// immutable data and the alloc dir have been persisted. Once persisted we
 	// can lower write volume by not re-writing these values
@@ -111,11 +118,15 @@ type allocRunnerState struct {
 	} `json:"Context,omitempty"`
 }
 
-// allocRunnerImmutableState is state that only has to be written once as it
-// doesn't change over the life-cycle of the alloc_runner.
+// allocRunnerAllocState is state that only has to be written when the alloc
+// changes.
+type allocRunnerAllocState struct {
+	Alloc *structs.Allocation
+}
+
+// allocRunnerImmutableState is state that only has to be written once.
 type allocRunnerImmutableState struct {
 	Version string
-	Alloc   *structs.Allocation
 }
 
 // allocRunnerMutableState is state that has to be written on each save as it
@@ -208,8 +219,12 @@ func (r *AllocRunner) RestoreState() error {
 			// Get the state objects
 			var mutable allocRunnerMutableState
 			var immutable allocRunnerImmutableState
+			var allocState allocRunnerAllocState
 			var allocDir allocdir.AllocDir
 
+			if err := getObject(bkt, allocRunnerStateAllocKey, &allocState); err != nil {
+				return fmt.Errorf("failed to read alloc runner alloc state: %v", err)
+			}
 			if err := getObject(bkt, allocRunnerStateImmutableKey, &immutable); err != nil {
 				return fmt.Errorf("failed to read alloc runner immutable state: %v", err)
 			}
@@ -221,7 +236,7 @@ func (r *AllocRunner) RestoreState() error {
 			}
 
 			// Populate the fields
-			r.alloc = immutable.Alloc
+			r.alloc = allocState.Alloc
 			r.allocDir = &allocDir
 			r.allocClientStatus = mutable.AllocClientStatus
 			r.allocClientDescription = mutable.AllocClientDescription
@@ -342,10 +357,29 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		// Write the immutable data
+		// Write the allocation if the eval has changed
+		r.persistedEvalLock.Lock()
+		lastPersisted := r.persistedEval
+		r.persistedEvalLock.Unlock()
+		if alloc.EvalID != lastPersisted {
+			allocState := &allocRunnerAllocState{
+				Alloc: alloc,
+			}
+
+			if err := putObject(allocBkt, allocRunnerStateAllocKey, &allocState); err != nil {
+				return fmt.Errorf("failed to write alloc_runner alloc state: %v", err)
+			}
+
+			tx.OnCommit(func() {
+				r.persistedEvalLock.Lock()
+				r.persistedEval = alloc.EvalID
+				r.persistedEvalLock.Unlock()
+			})
+		}
+
+		// Write immutable data iff it hasn't been written yet
 		if !r.immutablePersisted {
 			immutable := &allocRunnerImmutableState{
-				Alloc:   alloc,
 				Version: r.config.Version,
 			}
 
@@ -425,18 +459,8 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 
-	// Clear the job before copying
-	job := r.alloc.Job
-
-	// Since we are clearing the job, anything that access the alloc.Job field
-	// must acquire the lock or access it via this method.
-	r.alloc.Job = nil
-
-	alloc := r.alloc.Copy()
-
-	// Restore
-	r.alloc.Job = job
-	alloc.Job = job
+	// Don't do a deep copy of the job
+	alloc := r.alloc.CopySkipJob()
 
 	// The status has explicitly been set.
 	if r.allocClientStatus != "" || r.allocClientDescription != "" {
@@ -741,10 +765,22 @@ func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
 // then saves state.
 func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
-	// Destroy each sub-task
 	runners := r.getTaskRunners()
+
+	// First destroy the leader
 	for _, tr := range runners {
-		tr.Destroy(destroyEvent)
+		if tr.task.Leader {
+			r.logger.Printf("[DEBUG] client: destroying leader task %q of task group %q first", tr.task.Name, tr.alloc.TaskGroup)
+			tr.Destroy(destroyEvent)
+			<-tr.WaitCh()
+		}
+	}
+
+	// Then destroy non-leader tasks concurrently
+	for _, tr := range runners {
+		if !tr.task.Leader {
+			tr.Destroy(destroyEvent)
+		}
 	}
 
 	// Wait for termination of the task runners
@@ -774,7 +810,7 @@ func (r *AllocRunner) handleDestroy() {
 
 			return
 		case <-r.updateCh:
-			r.logger.Printf("[ERR] client: dropping update to terminal alloc '%s'", r.alloc.ID)
+			r.logger.Printf("[DEBUG] client: dropping update to terminal alloc '%s'", r.alloc.ID)
 		}
 	}
 }

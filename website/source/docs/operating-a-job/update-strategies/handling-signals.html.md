@@ -19,8 +19,11 @@ force-killing it.
 
 Before Nomad terminates an application, it will send the `SIGINT` signal to the
 process. Processes running under Nomad should respond to this signal to
-gracefully drain connections. After a configurable timeout, the application wil
-be force-terminated.
+gracefully drain connections. After a configurable timeout, the application
+will be force-terminated.
+
+For more details on the `kill_timeout` option, please see the
+[job specification documentation](/docs/job-specification/task.html#kill_timeout).
 
 ```hcl
 job "docs" {
@@ -33,5 +36,9 @@ job "docs" {
 }
 ```
 
-For more detail on the `kill_timeout` option, please see the
-[job specification documentation](/docs/job-specification/task.html#kill_timeout).
+The behavior is slightly different for Docker-based tasks. Nomad will run the
+`docker stop` command with the specified `kill_timeout`. The signal that `docker
+stop` sends to your container entrypoint is configurable using the
+[`STOPSIGNAL` configuration directive]
+(https://docs.docker.com/engine/reference/builder/#stopsignal), however please
+note that the default is `SIGTERM`.

@@ -2,7 +2,7 @@
 
 set -e
 
-CONSUL_VERSION="0.7.3"
+CONSUL_VERSION="0.8.5"
 CURDIR=`pwd`
 
 if [[ $(which consul >/dev/null && consul version | head -n 1 | cut -d ' ' -f 2) == "v$CONSUL_VERSION" ]]; then

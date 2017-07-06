@@ -212,17 +212,21 @@ type ClientConfig struct {
 	// collector will allow.
 	GCParallelDestroys int `mapstructure:"gc_parallel_destroys"`
 
-	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
-	// client triggers GC of the terminal allocations
+	// GCDiskUsageThreshold is the disk usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of terminal allocations
 	GCDiskUsageThreshold float64 `mapstructure:"gc_disk_usage_threshold"`
 
 	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
 	// client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64 `mapstructure:"gc_inode_usage_threshold"`
 
+	// GCMaxAllocs is the maximum number of allocations a node can have
+	// before garbage collection is triggered.
+	GCMaxAllocs int `mapstructure:"gc_max_allocs"`
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
-	NoHostUUID bool `mapstructure:"no_host_uuid"`
+	NoHostUUID *bool `mapstructure:"no_host_uuid"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -506,6 +510,7 @@ func DevConfig() *Config {
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
+	conf.Client.GCMaxAllocs = 50
 
 	return conf
 }
@@ -535,8 +540,10 @@ func DefaultConfig() *Config {
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
-			GCInodeUsageThreshold: 70,
 			GCDiskUsageThreshold:  80,
+			GCInodeUsageThreshold: 70,
+			GCMaxAllocs:           50,
+			NoHostUUID:            helper.BoolToPtr(true),
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -800,9 +807,8 @@ func parseSingleIPTemplate(ipTmpl string) (string, error) {
 func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
-	} else {
-		return parseSingleIPTemplate(addr)
 	}
+	return parseSingleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -825,16 +831,17 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 
 	if addr != "" {
 		// Default to using manually configured address
-		host, port, err := net.SplitHostPort(addr)
+		_, _, err = net.SplitHostPort(addr)
 		if err != nil {
-			if !isMissingPort(err) {
+			if !isMissingPort(err) && !isTooManyColons(err) {
 				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
-			host = addr
-			port = strconv.Itoa(defport)
+
+			// missing port, append the default
+			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 		}
 
-		return net.JoinHostPort(host, port), nil
+		return addr, nil
 	}
 
 	// Fallback to bind address first, and then try resolving the local hostname
@@ -843,18 +850,21 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
 	}
 
-	// Return the first unicast address
+	// Return the first non-localhost unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
 			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
-		if !ip.IsLoopback() || (ip.IsLoopback() && dev) {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		if ip.IsLoopback() {
+			if dev {
+				// loopback is fine for dev mode
+				return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+			}
+			return "", fmt.Errorf("Defaulting advertise to localhost is unsafe, please set advertise manually")
 		}
 	}
 
-	// Otherwise, default to the private IP address
+	// Bind is not localhost but not a valid advertise IP, use first private IP
 	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
@@ -868,6 +878,14 @@ func isMissingPort(err error) bool {
 	// matches error const in net/ipsock.go
 	const missingPort = "missing port in address"
 	return err != nil && strings.Contains(err.Error(), missingPort)
+}
+
+// isTooManyColons returns true if an error is a "too many colons" error from
+// net.SplitHostPort.
+func isTooManyColons(err error) bool {
+	// matches error const in net/ipsock.go
+	const tooManyColons = "too many colons in address"
+	return err != nil && strings.Contains(err.Error(), tooManyColons)
 }
 
 // Merge is used to merge two server configs together
@@ -983,7 +1001,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.GCInodeUsageThreshold != 0 {
 		result.GCInodeUsageThreshold = b.GCInodeUsageThreshold
 	}
-	if b.NoHostUUID {
+	if b.GCMaxAllocs != 0 {
+		result.GCMaxAllocs = b.GCMaxAllocs
+	}
+	// NoHostUUID defaults to true, merge if false
+	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
 	}
 
@@ -1032,6 +1054,10 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true
+	}
+
+	if b.UseNodeName {
+		result.UseNodeName = true
 	}
 	if b.CollectionInterval != "" {
 		result.CollectionInterval = b.CollectionInterval

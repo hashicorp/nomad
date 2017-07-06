@@ -115,12 +115,18 @@ Below is a table documenting common node properties:
     <td>CPU architecture of the client (e.g. <tt>amd64</tt>, <tt>386</tt>)</td>
   </tr>
   <tr>
-    <td><tt>${attr.consul.datacenter}</tt></td>
-    <td>The Consul datacenter of the client (if Consul is found)</td>
-  </tr>
-  <tr>
     <td><tt>${attr.cpu.numcores}</tt></td>
     <td>Number of CPU cores on the client</td>
+  </tr>
+  <tr>
+    <td><tt>${attr.cpu.totalcompute}</tt></td>
+    <td>
+      <tt>cpu.frequency &times; cpu.numcores</tt> but may be overridden by <tt>client.cpu_total_compute</tt>
+    </td>
+  </tr>
+  <tr>
+    <td><tt>${attr.consul.datacenter}</tt></td>
+    <td>The Consul datacenter of the client (if Consul is found)</td>
   </tr>
   <tr>
     <td><tt>${attr.driver.&lt;property&gt;}</tt></td>
@@ -192,73 +198,7 @@ The following are runtime environment variables that describe the environment
 the task is running in. These are only defined once the task has been placed on
 a particular node and as such can not be used in constraints.
 
-<table class="table table-bordered table-striped">
-  <tr>
-    <th>Variable</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_ALLOC_DIR}</tt></td>
-    <td>The path to the shared <tt>alloc/</tt> directory. See [here](/docs/runtime/environment.html#task-directories) for more information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_TASK_DIR}</tt></td>
-    <td>The path to the task <tt>local/</tt> directory. See [here](/docs/runtime/environment.html#task-directories) for more information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_MEMORY_LIMIT}</tt></td>
-    <td>The memory limit in MBytes for the task</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_CPU_LIMIT}</tt></td>
-    <td>The CPU limit in MHz for the task</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_ALLOC_ID}</tt></td>
-    <td>The allocation ID of the task</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_ALLOC_NAME}</tt></td>
-    <td>The allocation name of the task</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_ALLOC_INDEX}</tt></td>
-    <td>The allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_TASK_NAME}</tt></td>
-    <td>The task's name</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_JOB_NAME}</tt></td>
-    <td>The job's name</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_IP_&lt;label&gt;}</tt></td>
-    <td>The IP for the given port <tt>label</tt>. See
-    [here](/docs/job-specification/network.html) for more information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_PORT_&lt;label&gt;}</tt></td>
-    <td>The port for the port <tt>label</tt>. See [here](/docs/job-specification/network.html) for more information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_ADDR_&lt;label&gt;}</tt></td>
-    <td>The <tt>ip:port</tt> pair for the given port <tt>label</tt>. See
-    [here](/docs/job-specification/network.html) for more information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_HOST_PORT_&lt;label&gt;}</tt></td>
-    <td>The port on the host if port forwarding is being used for the port
-    <tt>label</tt>. See [here](/docs/job-specification/network.html#mapped_ports) for more
-    information.</td>
-  </tr>
-  <tr>
-    <td><tt>${NOMAD_META_&lt;key&gt;}</tt></td>
-    <td>The metadata value given by <tt>key</tt> on the task's metadata</td>
-  </tr>
-  <tr>
-    <td><tt>${"env_key"}</tt></td>
-    <td>Interpret an environment variable with key <tt>env_key</tt> set on the task.</td>
-  </tr>
-</table>
+Environment variables should be enclosed in brackets `${...}` for
+interpolation.
+
+<%= partial "envvars.html.md" %>

@@ -173,12 +173,12 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	return true, nil
 }
 
-func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
 // Start starts the LXC Driver
-func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig LxcDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -269,7 +269,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		return nil, fmt.Errorf("unable to set cpu shares: %v", err)
 	}
 
-	handle := lxcDriverHandle{
+	h := lxcDriverHandle{
 		container:      c,
 		initPid:        c.InitPid(),
 		lxcPath:        lxcPath,
@@ -283,9 +283,9 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		doneCh:         make(chan bool, 1),
 	}
 
-	go handle.run()
+	go h.run()
 
-	return &handle, nil
+	return &StartResponse{Handle: &h}, nil
 }
 
 func (d *LxcDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

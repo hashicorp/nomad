@@ -135,13 +135,12 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 }
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -234,13 +233,12 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 	start := time.Now()
 
@@ -269,7 +267,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 			return nil
 		}); err != nil {
-			return false, fmt.Errorf("state not destroyed")
+			return false, fmt.Errorf("state not destroyed: %v", err)
 		}
 
 		// Check the alloc directory was cleaned
@@ -290,13 +288,12 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Update(t *testing.T) {
-	ctestutil.ExecCompatible(t)
 	_, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["command"] = "/bin/sleep"
-	task.Config["args"] = []string{"10"}
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -326,6 +323,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
+	defer ar.Destroy()
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
@@ -393,6 +391,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Config["run_for"] = "10s"
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -439,8 +438,9 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	ar2.logger.Println("[TESTING] running second alloc runner")
 	go ar2.Run()
-	ar2.logger.Println("[TESTING] starting second alloc runner")
+	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Check the state still exists
@@ -519,6 +519,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	origConfig := ar.config.Copy()
 	ar.config.Version = "0.5.6"
 	go ar.Run()
+	defer ar.Destroy()
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
@@ -547,6 +548,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	go ar2.Run()
+	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
 		if len(ar2.tasks) != 1 {
@@ -612,6 +614,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
 	tmp, err := ioutil.TempFile("", "state-db")
@@ -738,6 +741,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
 	ar.alloc.TaskResources[task2.Name] = task2.Resources
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -854,6 +858,64 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_TaskLeader_StopTG asserts that when stopping a task group
+// with a leader the leader is stopped before other tasks.
+func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
+	upd, ar := testAllocRunner(false)
+
+	// Create 3 tasks in the task group
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Name = "follower1"
+	task.Driver = "mock_driver"
+	task.KillTimeout = 10 * time.Millisecond
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task2 := ar.alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "leader"
+	task2.Driver = "mock_driver"
+	task2.Leader = true
+	task2.KillTimeout = 10 * time.Millisecond
+	task2.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task3 := ar.alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task3.Name = "follower2"
+	task3.Driver = "mock_driver"
+	task3.KillTimeout = 10 * time.Millisecond
+	task3.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2, task3)
+	ar.alloc.TaskResources[task2.Name] = task2.Resources
+
+	// Destroy before running so it shuts down the alloc runner right after
+	// starting all tasks
+	ar.Destroy()
+	go ar.Run()
+	select {
+	case <-ar.WaitCh():
+	case <-time.After(8 * time.Second):
+		t.Fatalf("timed out waiting for alloc runner to exit")
+	}
+
+	if len(upd.Allocs) != 1 {
+		t.Fatalf("expected 1 alloc update but found %d", len(upd.Allocs))
+	}
+
+	a := upd.Allocs[0]
+	if a.TaskStates["leader"].FinishedAt.UnixNano() >= a.TaskStates["follower1"].FinishedAt.UnixNano() {
+		t.Fatalf("expected leader to finish before follower1: %s >= %s",
+			a.TaskStates["leader"].FinishedAt, a.TaskStates["follower1"].FinishedAt)
+	}
+	if a.TaskStates["leader"].FinishedAt.UnixNano() >= a.TaskStates["follower2"].FinishedAt.UnixNano() {
+		t.Fatalf("expected leader to finish before follower2: %s >= %s",
+			a.TaskStates["leader"].FinishedAt, a.TaskStates["follower2"].FinishedAt)
+	}
+}
+
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	// Create an alloc runner
 	alloc := mock.Alloc()
@@ -864,6 +926,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	}
 	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd.Count == 0 {
@@ -895,6 +958,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
 	ar1.SetPreviousAllocDir(ar.allocDir)
 	go ar1.Run()
+	defer ar1.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
 		if upd1.Count == 0 {

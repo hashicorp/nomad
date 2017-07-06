@@ -1,0 +1,105 @@
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Variable</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ALLOC_DIR</tt></td>
+    <td>
+	    The path to the shared <tt>alloc/</tt> directory. See
+	    [here](/docs/runtime/environment.html#task-directories) for more
+	    information.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_TASK_DIR</tt></td>
+    <td>
+	    The path to the task <tt>local/</tt> directory. See
+	    [here](/docs/runtime/environment.html#task-directories) for more
+	    information.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_SECRETS_DIR</tt></td>
+    <td>
+	    Path to the task's secrets directory.  See
+	    [here](/docs/runtime/environment.html#task-directories) for more
+	    information.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_MEMORY_LIMIT</tt></td>
+    <td>Memory limit in MB for the task</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_CPU_LIMIT</tt></td>
+    <td>CPU limit in MHz for the task</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ALLOC_ID</tt></td>
+    <td>Allocation ID of the task</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ALLOC_NAME</tt></td>
+    <td>Allocation name of the task</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ALLOC_INDEX</tt></td>
+    <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_TASK_NAME</tt></td>
+    <td>Task's name</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_JOB_NAME</tt></td>
+    <td>Job's name</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_DC</tt></td>
+    <td>Datacenter in which the allocation is running</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_REGION</tt></td>
+    <td>Region in which the allocation is running</td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_META_&lt;key&gt;</tt></td>
+    <td>The metadata value given by <tt>key</tt> on the task's metadata</td>
+  </tr>
+  <tr>
+    <td><tt>VAULT_TOKEN</tt></td>
+    <td>The task's Vault token. See [Vault Integration](/docs/vault-integration/index.html) for more details</td>
+  </tr>
+  <tr><th colspan="2">Network-related Variables</th></tr>
+  <tr>
+    <td><tt>NOMAD_IP_&lt;label&gt;</tt></td>
+    <td>
+      Host IP for the given port <tt>label</tt>. See
+      [here](/docs/job-specification/network.html) for more information.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_PORT_&lt;label&gt;</tt></td>
+    <td>
+      Port for the given port <tt>label</tt>. Driver-specified port when a port
+      map is used, otherwise the host's static or dynamic port allocation.
+      Services should bind to this port. See
+      [here](/docs/job-specification/network.html) for more information.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ADDR_&lt;label&gt;</tt></td>
+    <td>
+      Host <tt>IP:Port</tt> pair for the given port <tt>label</tt>.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_HOST_PORT_&lt;label&gt;</tt></td>
+    <td>
+      Port on the host for the port <tt>label</tt>. See
+      [here](/docs/job-specification/network.html#mapped_ports) for more
+      information.
+    </td>
+  </tr>
+</table>

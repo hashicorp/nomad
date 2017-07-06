@@ -1635,6 +1635,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		job := mock.SystemJob()
+		job.Status = structs.JobStatusRunning
 		sysJobs = append(sysJobs, job)
 
 		err := state.UpsertJob(2000+uint64(i), job)
@@ -4461,6 +4462,43 @@ func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 
 	if status != structs.JobStatusPending {
 		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
+	}
+}
+
+// TestStateStore_SetJobStatus_SystemJob asserts that system jobs are still
+// considered running until explicitly stopped.
+func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.SystemJob()
+
+	// Create a mock eval that is pending.
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	eval.Type = job.Type
+	eval.Status = structs.EvalStatusComplete
+	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	txn := state.db.Txn(false)
+	status, err := state.getJobStatus(txn, job, true)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if expected := structs.JobStatusRunning; status != expected {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
+	}
+
+	// Stop the job
+	job.Stop = true
+	status, err = state.getJobStatus(txn, job, true)
+	if err != nil {
+		t.Fatalf("getJobStatus() failed: %v", err)
+	}
+
+	if expected := structs.JobStatusDead; status != expected {
+		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
 	}
 }
 

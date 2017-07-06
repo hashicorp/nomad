@@ -69,16 +69,13 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
 
 	// Attempt to open
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, resp.Handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -86,9 +83,10 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		t.Fatalf("missing handle")
 	}
 
-	handle.Kill()
+	resp.Handle.Kill()
 	handle2.Kill()
 }
+
 func TestExecDriver_Start_Wait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
@@ -112,23 +110,20 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err = resp.Handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Task should terminate quickly
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -166,17 +161,14 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	// Task should terminate quickly
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -220,17 +212,14 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		err := handle.Kill()
+		err := resp.Handle.Kill()
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -238,7 +227,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 
 	// Task should terminate quickly
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
 		}
@@ -272,9 +261,9 @@ func TestExecDriverUser(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "user alice"
@@ -308,13 +297,11 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
+	handle := resp.Handle
 
 	// Exec a command that should work and dump the environment
 	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep NOMAD"})

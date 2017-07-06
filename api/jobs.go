@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -50,20 +51,20 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // Register is used to register a new job. It returns the ID
 // of the evaluation, along with any errors encountered.
-func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) Register(job *Job, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{Job: job}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // EnforceRegister is used to register a job enforcing its job modify index.
-func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 
@@ -74,9 +75,9 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (s
 	}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // List is used to list all of the existing jobs.
@@ -247,10 +248,111 @@ type periodicForceResponse struct {
 	EvalID string
 }
 
-// UpdateStrategy is for serializing update strategy for a job.
+// UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger     time.Duration
-	MaxParallel int `mapstructure:"max_parallel"`
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	Stagger         time.Duration  `mapstructure:"stagger"`
+	MaxParallel     *int           `mapstructure:"max_parallel"`
+	HealthCheck     *string        `mapstructure:"health_check"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+	AutoRevert      *bool          `mapstructure:"auto_revert"`
+	Canary          *int           `mapstructure:"canary"`
+}
+
+func (u *UpdateStrategy) Copy() *UpdateStrategy {
+	if u == nil {
+		return nil
+	}
+
+	copy := new(UpdateStrategy)
+
+	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	copy.Stagger = u.Stagger
+
+	if u.MaxParallel != nil {
+		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
+	}
+
+	if u.HealthCheck != nil {
+		copy.HealthCheck = helper.StringToPtr(*u.HealthCheck)
+	}
+
+	if u.MinHealthyTime != nil {
+		copy.MinHealthyTime = helper.TimeToPtr(*u.MinHealthyTime)
+	}
+
+	if u.HealthyDeadline != nil {
+		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+	}
+
+	if u.AutoRevert != nil {
+		copy.AutoRevert = helper.BoolToPtr(*u.AutoRevert)
+	}
+
+	if u.Canary != nil {
+		copy.Canary = helper.IntToPtr(*u.Canary)
+	}
+
+	return copy
+}
+
+func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
+	if o == nil {
+		return
+	}
+
+	if o.MaxParallel != nil {
+		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
+	}
+
+	if o.HealthCheck != nil {
+		u.HealthCheck = helper.StringToPtr(*o.HealthCheck)
+	}
+
+	if o.MinHealthyTime != nil {
+		u.MinHealthyTime = helper.TimeToPtr(*o.MinHealthyTime)
+	}
+
+	if o.HealthyDeadline != nil {
+		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
+	}
+
+	if o.AutoRevert != nil {
+		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
+	}
+
+	if o.Canary != nil {
+		u.Canary = helper.IntToPtr(*o.Canary)
+	}
+}
+
+func (u *UpdateStrategy) Canonicalize() {
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(0)
+	}
+
+	d := structs.DefaultUpdateStrategy
+
+	if u.HealthCheck == nil {
+		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
+	}
+
+	if u.HealthyDeadline == nil {
+		u.HealthyDeadline = helper.TimeToPtr(d.HealthyDeadline)
+	}
+
+	if u.MinHealthyTime == nil {
+		u.MinHealthyTime = helper.TimeToPtr(d.MinHealthyTime)
+	}
+
+	if u.AutoRevert == nil {
+		u.AutoRevert = helper.BoolToPtr(d.AutoRevert)
+	}
+
+	if u.Canary == nil {
+		u.Canary = helper.IntToPtr(d.Canary)
+	}
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -398,6 +500,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
+	}
+	if j.Update != nil {
+		j.Update.Canonicalize()
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -556,6 +661,10 @@ type JobValidateResponse struct {
 
 	// Error is a string version of any error that may have occured
 	Error string
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 // JobRevertRequest is used to revert a job to a prior version.
@@ -597,6 +706,11 @@ type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+
 	QueryMeta
 }
 
@@ -621,6 +735,10 @@ type JobPlanResponse struct {
 	Annotations        *PlanAnnotations
 	FailedTGAllocs     map[string]*AllocationMetric
 	NextPeriodicLaunch time.Time
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 type JobDiff struct {

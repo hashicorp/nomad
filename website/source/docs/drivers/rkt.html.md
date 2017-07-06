@@ -62,7 +62,19 @@ The `rkt` driver supports the following configuration in the job spec:
 
 * `trust_prefix` - (Optional) The trust prefix to be passed to rkt. Must be
   reachable from the box running the nomad agent. If not specified, the image is
-  run without verifying the image signature.
+  run with `--insecure-options=all`.
+
+* `insecure_options` - (Optional) List of insecure options for rkt. Consult `rkt --help`
+  for list of supported values. This list overrides the `--insecure-options=all` default when
+  no ```trust_prefix``` is provided in the job config, which can be effectively used to enforce
+  secure runs, using ```insecure_options = ["none"]``` option.
+
+  ```hcl
+  config {
+      image = "example.com/image:1.0"
+      insecure_options = ["image", "tls", "ondisk"]
+  }
+  ```
 
 * `dns_servers` - (Optional) A list of DNS servers to be used in the container.
   Alternatively a list containing just `host` or `none`. `host` uses the host's
@@ -87,6 +99,9 @@ The `rkt` driver supports the following configuration in the job spec:
    
 
 * `debug` - (Optional) Enable rkt command debug option.
+
+* `no_overlay` - (Optional) When enabled, will use `--no-overlay=true` flag for 'rkt run'.
+  Useful when running jobs on older systems affected by https://github.com/rkt/rkt/issues/1922
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind
   host paths to container paths.

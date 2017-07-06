@@ -321,7 +321,13 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.GCParallelDestroys = a.config.Client.GCParallelDestroys
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
-	conf.NoHostUUID = a.config.Client.NoHostUUID
+	conf.GCMaxAllocs = a.config.Client.GCMaxAllocs
+	if a.config.Client.NoHostUUID != nil {
+		conf.NoHostUUID = *a.config.Client.NoHostUUID
+	} else {
+		// Default no_host_uuid to true
+		conf.NoHostUUID = true
+	}
 
 	return conf, nil
 }
@@ -365,7 +371,8 @@ func (a *Agent) setupServer() error {
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 		}
-		if check := a.agentHTTPCheck(); check != nil {
+		const isServer = true
+		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
@@ -468,7 +475,8 @@ func (a *Agent) setupClient() error {
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
 		}
-		if check := a.agentHTTPCheck(); check != nil {
+		const isServer = false
+		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
@@ -481,7 +489,7 @@ func (a *Agent) setupClient() error {
 
 // agentHTTPCheck returns a health check for the agent's HTTP API if possible.
 // If no HTTP health check can be supported nil is returned.
-func (a *Agent) agentHTTPCheck() *structs.ServiceCheck {
+func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP
 	if *a.config.Consul.ChecksUseAdvertise {
@@ -495,6 +503,11 @@ func (a *Agent) agentHTTPCheck() *structs.ServiceCheck {
 		Interval:  clientHttpCheckInterval,
 		Timeout:   clientHttpCheckTimeout,
 		PortLabel: httpCheckAddr,
+	}
+	// Switch to endpoint that doesn't require a leader for servers
+	if server {
+		check.Name = "Nomad Server HTTP Check"
+		check.Path = "/v1/status/peers"
 	}
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check

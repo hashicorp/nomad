@@ -85,9 +85,12 @@ type TaskRunner struct {
 	task    *structs.Task
 	taskDir *allocdir.TaskDir
 
-	// taskEnv is the environment variables of the task
-	taskEnv     *env.TaskEnvironment
-	taskEnvLock sync.Mutex
+	// envBuilder is used to build the task's environment
+	envBuilder *env.Builder
+
+	// driverNet is the network information returned by the driver
+	driverNet     *cstructs.DriverNetwork
+	driverNetLock sync.Mutex
 
 	// updateCh is used to receive updated versions of the allocation
 	updateCh chan *structs.Allocation
@@ -168,6 +171,7 @@ type taskRunnerState struct {
 	TaskDirBuilt       bool
 	PayloadRendered    bool
 	CreatedResources   *driver.CreatedResources
+	DriverNetwork      *cstructs.DriverNetwork
 }
 
 func (s *taskRunnerState) Hash() []byte {
@@ -179,6 +183,7 @@ func (s *taskRunnerState) Hash() []byte {
 	io.WriteString(h, fmt.Sprintf("%v", s.TaskDirBuilt))
 	io.WriteString(h, fmt.Sprintf("%v", s.PayloadRendered))
 	h.Write(s.CreatedResources.Hash())
+	h.Write(s.DriverNetwork.Hash())
 
 	return h.Sum(nil)
 }
@@ -215,6 +220,9 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
+	// Initialize the environment builder
+	envBuilder := env.NewBuilder(config.Node, alloc, task, config.Region)
+
 	tc := &TaskRunner{
 		config:           config,
 		stateDB:          stateDB,
@@ -224,6 +232,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		alloc:            alloc,
 		task:             task,
 		taskDir:          taskDir,
+		envBuilder:       envBuilder,
 		createdResources: driver.NewCreatedResources(),
 		consul:           consulClient,
 		vaultClient:      vaultClient,
@@ -309,11 +318,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 	r.taskDirBuilt = snap.TaskDirBuilt
 	r.payloadRendered = snap.PayloadRendered
 	r.setCreatedResources(snap.CreatedResources)
-
-	if err := r.setTaskEnv(); err != nil {
-		return "", fmt.Errorf("client: failed to create task environment for task %q in allocation %q: %v",
-			r.task.Name, r.alloc.ID, err)
-	}
+	r.driverNet = snap.DriverNetwork
 
 	if r.task.Vault != nil {
 		// Read the token from the secret directory
@@ -339,7 +344,11 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			return "", err
 		}
 
-		ctx := driver.NewExecContext(r.taskDir)
+		// Add the restored network driver to the environment
+		r.envBuilder.SetDriverNetwork(r.driverNet)
+
+		// Open a connection to the driver handle
+		ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 		handle, err := d.Open(ctx, snap.HandleID)
 
 		// In the case it fails, we relaunch the task in the Run() method.
@@ -353,7 +362,7 @@ func (r *TaskRunner) RestoreState() (string, error) {
 			restartReason = pre06ScriptCheckReason
 		}
 
-		if err := r.registerServices(d, handle); err != nil {
+		if err := r.registerServices(d, handle, r.driverNet); err != nil {
 			// Don't hard fail here as there's a chance this task
 			// registered with Consul properly when it initial
 			// started.
@@ -423,6 +432,10 @@ func (r *TaskRunner) SaveState() error {
 	}
 	r.handleLock.Unlock()
 
+	r.driverNetLock.Lock()
+	snap.DriverNetwork = r.driverNet.Copy()
+	r.driverNetLock.Unlock()
+
 	// If nothing has changed avoid the write
 	h := snap.Hash()
 	if bytes.Equal(h, r.persistedHash) {
@@ -480,35 +493,8 @@ func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
 	r.updater(r.task.Name, state, event)
 }
 
-// setTaskEnv sets the task environment. It returns an error if it could not be
-// created.
-func (r *TaskRunner) setTaskEnv() error {
-	r.taskEnvLock.Lock()
-	defer r.taskEnvLock.Unlock()
-
-	taskEnv, err := driver.GetTaskEnv(r.taskDir, r.config.Node,
-		r.task.Copy(), r.alloc, r.config, r.vaultFuture.Get())
-	if err != nil {
-		return err
-	}
-	r.taskEnv = taskEnv
-	return nil
-}
-
-// getTaskEnv returns the task environment
-func (r *TaskRunner) getTaskEnv() *env.TaskEnvironment {
-	r.taskEnvLock.Lock()
-	defer r.taskEnvLock.Unlock()
-	return r.taskEnv
-}
-
 // createDriver makes a driver for the task
 func (r *TaskRunner) createDriver() (driver.Driver, error) {
-	env := r.getTaskEnv()
-	if env == nil {
-		return nil, fmt.Errorf("task environment not made for task %q in allocation %q", r.task.Name, r.alloc.ID)
-	}
-
 	// Create a task-specific event emitter callback to expose minimal
 	// state to drivers
 	eventEmitter := func(m string, args ...interface{}) {
@@ -517,13 +503,14 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, env, eventEmitter)
-	driver, err := driver.NewDriver(r.task.Driver, driverCtx)
+	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, eventEmitter)
+	d, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
 			r.task.Driver, r.alloc.ID, err)
 	}
-	return driver, err
+
+	return d, err
 }
 
 // Run is a long running routine used to manage the task
@@ -532,15 +519,6 @@ func (r *TaskRunner) Run() {
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.alloc.ID)
 
-	// Create the initial environment, this will be recreated if a Vault token
-	// is needed
-	if err := r.setTaskEnv(); err != nil {
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err))
-		return
-	}
-
 	if err := r.validateTask(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
@@ -548,8 +526,10 @@ func (r *TaskRunner) Run() {
 		return
 	}
 
-	// Create a driver so that we can determine the FSIsolation required
-	drv, err := r.createDriver()
+	// Create a temporary driver so that we can determine the FSIsolation
+	// required. run->startTask will create a new driver after environment
+	// has been setup (env vars, templates, artifacts, secrets, etc).
+	tmpDrv, err := r.createDriver()
 	if err != nil {
 		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
 		r.setState(
@@ -561,7 +541,7 @@ func (r *TaskRunner) Run() {
 	// Build base task directory structure regardless of FS isolation abilities.
 	// This needs to happen before we start the Vault manager and call prestart
 	// as both those can write to the task directories
-	if err := r.buildTaskDir(drv.FSIsolation()); err != nil {
+	if err := r.buildTaskDir(tmpDrv.FSIsolation()); err != nil {
 		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
 		r.setState(
 			structs.TaskStateDead,
@@ -613,8 +593,9 @@ func (r *TaskRunner) validateTask() error {
 	}
 
 	// Validate the Service names
+	taskEnv := r.envBuilder.Build()
 	for i, service := range r.task.Services {
-		name := r.taskEnv.ReplaceEnv(service.Name)
+		name := taskEnv.ReplaceEnv(service.Name)
 		if err := service.ValidateName(name); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service (%d) failed validation: %v", i, err))
 		}
@@ -851,12 +832,7 @@ func (r *TaskRunner) writeToken(token string) error {
 func (r *TaskRunner) updatedTokenHandler() {
 
 	// Update the tasks environment
-	if err := r.setTaskEnv(); err != nil {
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
-		return
-	}
+	r.envBuilder.SetVaultToken(r.vaultFuture.Get(), r.task.Vault.Env)
 
 	if r.templateManager != nil {
 		r.templateManager.Stop()
@@ -864,7 +840,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 		// Create a new templateManager
 		var err error
 		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.getTaskEnv())
+			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
 			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
@@ -888,14 +864,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			return
 		}
 		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
-	}
-
-	if err := r.setTaskEnv(); err != nil {
-		r.setState(
-			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
-		resultCh <- false
-		return
+		r.envBuilder.SetVaultToken(r.vaultFuture.Get(), r.task.Vault.Env)
 	}
 
 	// If the job is a dispatch job and there is a payload write it to disk
@@ -939,8 +908,9 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// Download the task's artifacts
 		if !downloaded && len(r.task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+			taskEnv := r.envBuilder.Build()
 			for _, artifact := range r.task.Artifacts {
-				if err := getter.GetArtifact(r.getTaskEnv(), artifact, r.taskDir.Dir); err != nil {
+				if err := getter.GetArtifact(taskEnv, artifact, r.taskDir.Dir); err != nil {
 					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
@@ -971,7 +941,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if r.templateManager == nil {
 			var err error
 			r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.getTaskEnv())
+				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
 			if err != nil {
 				err := fmt.Errorf("failed to build task's template manager: %v", err)
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
@@ -1219,7 +1189,7 @@ func (r *TaskRunner) cleanup() {
 
 	res := r.getCreatedResources()
 
-	ctx := driver.NewExecContext(r.taskDir)
+	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
 	attempts := 1
 	var cleanupErr error
 	for retry := true; retry; attempts++ {
@@ -1347,13 +1317,18 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	// Run prestart
-	ctx := driver.NewExecContext(r.taskDir)
-	res, err := drv.Prestart(ctx, r.task)
+	ctx := driver.NewExecContext(r.taskDir, r.envBuilder.Build())
+	presp, err := drv.Prestart(ctx, r.task)
 
 	// Merge newly created resources into previously created resources
-	r.createdResourcesLock.Lock()
-	r.createdResources.Merge(res)
-	r.createdResourcesLock.Unlock()
+	if presp != nil {
+		r.createdResourcesLock.Lock()
+		r.createdResources.Merge(presp.CreatedResources)
+		r.createdResourcesLock.Unlock()
+
+		// Set any network configuration returned by the driver
+		r.envBuilder.SetDriverNetwork(presp.Network)
+	}
 
 	if err != nil {
 		wrapped := fmt.Sprintf("failed to initialize task %q for alloc %q: %v",
@@ -1362,8 +1337,11 @@ func (r *TaskRunner) startTask() error {
 		return structs.WrapRecoverable(wrapped, err)
 	}
 
+	// Create a new context for Start since the environment may have been updated.
+	ctx = driver.NewExecContext(r.taskDir, r.envBuilder.Build())
+
 	// Start the job
-	handle, err := drv.Start(ctx, r.task)
+	sresp, err := drv.Start(ctx, r.task)
 	if err != nil {
 		wrapped := fmt.Sprintf("failed to start task %q for alloc %q: %v",
 			r.task.Name, r.alloc.ID, err)
@@ -1372,13 +1350,16 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
-	if err := r.registerServices(drv, handle); err != nil {
+	// Update environment with the network defined by the driver's Start method.
+	r.envBuilder.SetDriverNetwork(sresp.Network)
+
+	if err := r.registerServices(drv, sresp.Handle, sresp.Network); err != nil {
 		// All IO is done asynchronously, so errors from registering
 		// services are hard failures.
 		r.logger.Printf("[ERR] client: failed to register services and checks for task %q alloc %q: %v", r.task.Name, r.alloc.ID, err)
 
 		// Kill the started task
-		if destroyed, err := r.handleDestroy(handle); !destroyed {
+		if destroyed, err := r.handleDestroy(sresp.Handle); !destroyed {
 			r.logger.Printf("[ERR] client: failed to kill task %q alloc %q. Resources may be leaked: %v",
 				r.task.Name, r.alloc.ID, err)
 		}
@@ -1386,26 +1367,31 @@ func (r *TaskRunner) startTask() error {
 	}
 
 	r.handleLock.Lock()
-	r.handle = handle
+	r.handle = sresp.Handle
 	r.handleLock.Unlock()
+
+	// Need to persist the driver network between restarts
+	r.driverNetLock.Lock()
+	r.driverNet = sresp.Network
+	r.driverNetLock.Unlock()
 
 	return nil
 }
 
 // registerServices and checks with Consul.
-func (r *TaskRunner) registerServices(d driver.Driver, h driver.ScriptExecutor) error {
+func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n *cstructs.DriverNetwork) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.getTaskEnv(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec)
+	interpolateServices(r.envBuilder.Build(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
 // task's environment.
-func interpolateServices(taskEnv *env.TaskEnvironment, task *structs.Task) {
+func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
 	for _, service := range task.Services {
 		for _, check := range service.Checks {
 			check.Name = taskEnv.ReplaceEnv(check.Name)
@@ -1450,6 +1436,9 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	r.persistLock.Lock()
 	r.taskDirBuilt = true
 	r.persistLock.Unlock()
+
+	// Set path and host related env vars
+	driver.SetEnvvars(r.envBuilder, fsi, r.taskDir, r.config)
 	return nil
 }
 
@@ -1535,6 +1524,9 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
+	// Update the task's environment for interpolating in services/checks
+	r.envBuilder.UpdateTask(update, updatedTask)
+
 	var mErr multierror.Error
 	r.handleLock.Lock()
 	if r.handle != nil {
@@ -1550,6 +1542,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("updating task resources failed: %v", err))
 		}
 
+		// Update services in Consul
 		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
@@ -1574,8 +1567,11 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.getTaskEnv(), r.task)
-	return r.consul.UpdateTask(r.alloc.ID, old, new, exec)
+	interpolateServices(r.envBuilder.Build(), new)
+	r.driverNetLock.Lock()
+	net := r.driverNet.Copy()
+	r.driverNetLock.Unlock()
+	return r.consul.UpdateTask(r.alloc.ID, old, new, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,

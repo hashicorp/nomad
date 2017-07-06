@@ -175,11 +175,11 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	return true, nil
 }
 
-func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
-func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDriverConfig, error) {
+func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnv) (*JavaDriverConfig, error) {
 	var driverConfig JavaDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -202,8 +202,8 @@ func NewJavaDriverConfig(task *structs.Task, env *env.TaskEnvironment) (*JavaDri
 	return &driverConfig, nil
 }
 
-func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
-	driverConfig, err := NewJavaDriverConfig(task, d.taskEnv)
+func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
+	driverConfig, err := NewJavaDriverConfig(task, ctx.TaskEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 
 	// Set the context
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "java",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -296,7 +296,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return h, nil
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

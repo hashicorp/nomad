@@ -98,11 +98,11 @@ func (d *ExecDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *ExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
-func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "exec",
 		AllocID: d.DriverContext.allocID,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -168,7 +168,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, 
 		taskDir:         ctx.TaskDir,
 	}
 	go h.run()
-	return h, nil
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *ExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

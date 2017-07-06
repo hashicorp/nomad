@@ -81,14 +81,16 @@ type RktDriverConfig struct {
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
-	Debug bool `mapstructure:"debug"` // Enable debug option for rkt command
+	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool `mapstructure:"debug"`      // Enable debug option for rkt command
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
 type rktHandle struct {
 	uuid           string
-	env            *env.TaskEnvironment
+	env            *env.TaskEnv
 	taskDir        *allocdir.TaskDir
 	pluginClient   *plugin.Client
 	executorPid    int
@@ -153,6 +155,12 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeBool,
 			},
 			"volumes": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
+			"no_overlay": &fields.FieldSchema{
+				Type: fields.TypeBool,
+			},
+			"insecure_options": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
 		},
@@ -223,12 +231,12 @@ func (d *RktDriver) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*CreatedResources, error) {
+func (d *RktDriver) Prestart(ctx *ExecContext, task *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
 // Run an existing Rkt image.
-func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig RktDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -240,7 +248,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	img := driverConfig.ImageName
 
 	// Build the command.
-	cmdArgs := make([]string, 0, 32)
+	cmdArgs := make([]string, 0, 50)
 
 	// Add debug option to rkt command.
 	debug := driverConfig.Debug
@@ -262,7 +270,24 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		// Disble signature verification if the trust command was not run.
 		insecure = true
 	}
+
+	// if we have a selective insecure_options, prefer them
+	// insecure options are rkt's global argument, so we do this before the actual "run"
+	if len(driverConfig.InsecureOptions) > 0 {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--insecure-options=%s", strings.Join(driverConfig.InsecureOptions, ",")))
+	} else if insecure {
+		cmdArgs = append(cmdArgs, "--insecure-options=all")
+	}
+
+	// debug is rkt's global argument, so add it before the actual "run"
+	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
+
 	cmdArgs = append(cmdArgs, "run")
+
+	// disable overlayfs
+	if driverConfig.NoOverlay {
+		cmdArgs = append(cmdArgs, "--no-overlay=true")
+	}
 
 	// Write the UUID out to a file in the state dir so we can read it back
 	// in and access the pod by UUID from other commands
@@ -304,14 +329,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	}
 
 	cmdArgs = append(cmdArgs, img)
-	if insecure {
-		cmdArgs = append(cmdArgs, "--insecure-options=all")
-	}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
 
 	// Inject environment variables
-	for k, v := range d.taskEnv.EnvMap() {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%v=%q", k, v))
+	for k, v := range ctx.TaskEnv.Map() {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%s=%s", k, v))
 	}
 
 	// Check if the user has overridden the exec command.
@@ -400,7 +421,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
-		parsed := d.taskEnv.ParseAndReplace(driverConfig.Args)
+		parsed := ctx.TaskEnv.ParseAndReplace(driverConfig.Args)
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {
@@ -412,10 +433,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		}
 	}
 
-	// Set the host environment variables.
-	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-	d.taskEnv.AppendHostEnvvars(filter)
-
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
@@ -426,8 +443,14 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	if err != nil {
 		return nil, err
 	}
+
+	// The task's environment is set via --set-env flags above, but the rkt
+	// command itself needs an evironment with PATH set to find iptables.
+	eb := env.NewEmptyBuilder()
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	rktEnv := eb.SetHostEnvvars(filter).Build()
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: rktEnv,
 		Driver:  "rkt",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -477,7 +500,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
-		env:            d.taskEnv,
+		env:            rktEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executor:       execIntf,
@@ -489,7 +512,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, e
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	return h, nil
+	//TODO Set Network
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
@@ -514,12 +538,18 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
 
+	// The task's environment is set via --set-env flags in Start, but the rkt
+	// command itself needs an evironment with PATH set to find iptables.
+	eb := env.NewEmptyBuilder()
+	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+	rktEnv := eb.SetHostEnvvars(filter).Build()
+
 	ver, _ := exec.Version()
 	d.logger.Printf("[DEBUG] driver.rkt: version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &rktHandle{
 		uuid:           id.UUID,
-		env:            d.taskEnv,
+		env:            rktEnv,
 		taskDir:        ctx.TaskDir,
 		pluginClient:   pluginClient,
 		executorPid:    id.ExecutorPid,

@@ -166,11 +166,23 @@ func TestAllocDir_Snapshot(t *testing.T) {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
+	// Write a symlink to the shared dir
+	link := "qux"
+	if err := os.Symlink("foo", filepath.Join(d.SharedDir, "data", link)); err != nil {
+		t.Fatalf("Couldn't write symlink to shared directory: %v", err)
+	}
+
 	// Write a file to the task local
 	exp = []byte{'b', 'a', 'r'}
 	file1 := "lol"
 	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file1), exp, 0666); err != nil {
-		t.Fatalf("couldn't write to task local directory: %v", err)
+		t.Fatalf("couldn't write file to task local directory: %v", err)
+	}
+
+	// Write a symlink to the task local
+	link1 := "baz"
+	if err := os.Symlink("bar", filepath.Join(td1.LocalDir, link1)); err != nil {
+		t.Fatalf("couldn't write symlink to task local dirctory :%v", err)
 	}
 
 	var b bytes.Buffer
@@ -180,6 +192,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	tr := tar.NewReader(&b)
 	var files []string
+	var links []string
 	for {
 		hdr, err := tr.Next()
 		if err != nil && err != io.EOF {
@@ -190,11 +203,16 @@ func TestAllocDir_Snapshot(t *testing.T) {
 		}
 		if hdr.Typeflag == tar.TypeReg {
 			files = append(files, hdr.FileInfo().Name())
+		} else if hdr.Typeflag == tar.TypeSymlink {
+			links = append(links, hdr.FileInfo().Name())
 		}
 	}
 
 	if len(files) != 2 {
 		t.Fatalf("bad files: %#v", files)
+	}
+	if len(links) != 2 {
+		t.Fatalf("bad links: %#v", links)
 	}
 }
 

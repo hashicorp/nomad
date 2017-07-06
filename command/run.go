@@ -165,19 +165,6 @@ func (c *RunCommand) Run(args []string) int {
 		job.VaultToken = helper.StringToPtr(vaultToken)
 	}
 
-	// COMPAT 0.4.1 -> 0.5 Remove in 0.6
-OUTSIDE:
-	for _, tg := range job.TaskGroups {
-		for _, task := range tg.Tasks {
-			if task.Resources != nil {
-				if task.Resources.DiskMB != nil {
-					c.Ui.Error("WARNING: disk attribute is deprecated in the resources block. See https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html")
-					break OUTSIDE
-				}
-			}
-		}
-	}
-
 	if output {
 		req := api.RegisterJobRequest{Job: job}
 		buf, err := json.MarshalIndent(req, "", "    ")
@@ -198,11 +185,11 @@ OUTSIDE:
 	}
 
 	// Submit the job
-	var evalID string
+	var resp *api.JobRegisterResponse
 	if enforce {
-		evalID, _, err = client.Jobs().EnforceRegister(job, checkIndex, nil)
+		resp, _, err = client.Jobs().EnforceRegister(job, checkIndex, nil)
 	} else {
-		evalID, _, err = client.Jobs().Register(job, nil)
+		resp, _, err = client.Jobs().Register(job, nil)
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
@@ -219,6 +206,14 @@ OUTSIDE:
 		c.Ui.Error(fmt.Sprintf("Error submitting job: %s", err))
 		return 1
 	}
+
+	// Print any warnings if there are any
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
+	}
+
+	evalID := resp.EvalID
 
 	// Check if we should enter monitor mode
 	if detach || periodic || paramjob {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -708,16 +710,16 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 func TestHTTP_JobPlan(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
-		job := mock.Job()
-		args := structs.JobPlanRequest{
+		job := api.MockJob()
+		args := api.JobPlanRequest{
 			Job:          job,
 			Diff:         true,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: api.WriteRequest{Region: "global"},
 		}
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/plan", buf)
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -858,8 +860,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:     1 * time.Second,
-			MaxParallel: 5,
+			Stagger:         1 * time.Second,
+			MaxParallel:     helper.IntToPtr(5),
+			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
+			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
+			HealthyDeadline: helper.TimeToPtr(3 * time.Minute),
+			AutoRevert:      helper.BoolToPtr(false),
+			Canary:          helper.IntToPtr(1),
 		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
@@ -899,6 +906,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Sticky:  helper.BoolToPtr(true),
 					Migrate: helper.BoolToPtr(true),
 				},
+				Update: &api.UpdateStrategy{
+					HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
+					MinHealthyTime:  helper.TimeToPtr(2 * time.Minute),
+					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+					AutoRevert:      helper.BoolToPtr(true),
+				},
+
 				Meta: map[string]string{
 					"key": "value",
 				},
@@ -981,6 +995,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								GetterOptions: map[string]string{
 									"a": "b",
 								},
+								GetterMode:   helper.StringToPtr("dir"),
 								RelativeDest: helper.StringToPtr("dest"),
 							},
 						},
@@ -1078,6 +1093,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Sticky:  true,
 					Migrate: true,
 				},
+				Update: &structs.UpdateStrategy{
+					MaxParallel:     5,
+					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:  2 * time.Minute,
+					HealthyDeadline: 5 * time.Minute,
+					AutoRevert:      true,
+					Canary:          1,
+				},
 				Meta: map[string]string{
 					"key": "value",
 				},
@@ -1102,9 +1125,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Services: []*structs.Service{
 							&structs.Service{
-								Name:      "serviceA",
-								Tags:      []string{"1", "2"},
-								PortLabel: "foo",
+								Name:        "serviceA",
+								Tags:        []string{"1", "2"},
+								PortLabel:   "foo",
+								AddressMode: "auto",
 								Checks: []*structs.ServiceCheck{
 									&structs.ServiceCheck{
 										Name:          "bar",
@@ -1157,6 +1181,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								GetterOptions: map[string]string{
 									"a": "b",
 								},
+								GetterMode:   "dir",
 								RelativeDest: "dest",
 							},
 						},
@@ -1192,7 +1217,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	structsJob := ApiJobToStructJob(apiJob)
 
-	if !reflect.DeepEqual(expected, structsJob) {
-		t.Fatalf("bad %#v", structsJob)
+	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
+		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
 }

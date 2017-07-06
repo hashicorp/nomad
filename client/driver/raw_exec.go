@@ -50,7 +50,7 @@ type rawExecHandle struct {
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
-	taskEnv        *env.TaskEnvironment
+	taskEnv        *env.TaskEnv
 	taskDir        *allocdir.TaskDir
 }
 
@@ -106,11 +106,11 @@ func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (boo
 	return false, nil
 }
 
-func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*CreatedResources, error) {
+func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
 }
 
-func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error) {
+func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
 	var driverConfig ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		return nil, err
 	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: d.taskEnv,
+		TaskEnv: ctx.TaskEnv,
 		Driver:  "raw_exec",
 		AllocID: d.DriverContext.allocID,
 		Task:    task,
@@ -169,11 +169,11 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (DriverHandl
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.taskEnv,
+		taskEnv:        ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
-	return h, nil
+	return &StartResponse{Handle: h}, nil
 }
 
 func (d *RawExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
@@ -218,7 +218,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
-		taskEnv:        d.taskEnv,
+		taskEnv:        ctx.TaskEnv,
 		taskDir:        ctx.TaskDir,
 	}
 	go h.run()

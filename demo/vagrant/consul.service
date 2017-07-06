@@ -1,0 +1,12 @@
+[Unit]
+Description=consul agent
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+ExecStart=/usr/bin/consul agent -dev
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target

@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -47,12 +46,34 @@ func NewDriver(name string, ctx *DriverContext) (Driver, error) {
 	}
 
 	// Instantiate the driver
-	f := factory(ctx)
-	return f, nil
+	d := factory(ctx)
+	return d, nil
 }
 
 // Factory is used to instantiate a new Driver
 type Factory func(*DriverContext) Driver
+
+// PrestartResponse is driver state returned by Driver.Prestart.
+type PrestartResponse struct {
+	// CreatedResources by the driver.
+	CreatedResources *CreatedResources
+
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
+	//
+	// Since the network configuration may not be fully populated by
+	// Prestart, it will only be used for creating an environment for
+	// Start. It will be overridden by the DriverNetwork returned by Start.
+	Network *cstructs.DriverNetwork
+}
+
+// NewPrestartResponse creates a new PrestartResponse with CreatedResources
+// initialized.
+func NewPrestartResponse() *PrestartResponse {
+	return &PrestartResponse{
+		CreatedResources: NewCreatedResources(),
+	}
+}
 
 // CreatedResources is a map of resources (eg downloaded images) created by a driver
 // that must be cleaned up.
@@ -166,6 +187,20 @@ func (r *CreatedResources) Hash() []byte {
 	return h.Sum(nil)
 }
 
+// StartResponse is returned by Driver.Start.
+type StartResponse struct {
+	// Handle to the driver's task executor for controlling the lifecycle
+	// of the task.
+	Handle DriverHandle
+
+	// Network contains driver-specific network parameters such as the port
+	// map between the host and a container.
+	//
+	// Network may be nil as not all drivers or configurations create
+	// networks.
+	Network *cstructs.DriverNetwork
+}
+
 // Driver is used for execution of tasks. This allows Nomad
 // to support many pluggable implementations of task drivers.
 // Examples could include LXC, Docker, Qemu, etc.
@@ -177,10 +212,13 @@ type Driver interface {
 	// intialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
-	Prestart(*ExecContext, *structs.Task) (*CreatedResources, error)
+	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
 
-	// Start is used to being task execution
-	Start(ctx *ExecContext, task *structs.Task) (DriverHandle, error)
+	// Start is used to begin task execution. If error is nil,
+	// StartResponse.Handle will be the handle to the task's executor.
+	// StartResponse.Network may be nil if the task doesn't configure a
+	// network.
+	Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error)
 
 	// Open is used to re-open a handle to a task
 	Open(ctx *ExecContext, handleID string) (DriverHandle, error)
@@ -191,7 +229,7 @@ type Driver interface {
 	//
 	// If Cleanup returns a recoverable error it may be retried. On retry
 	// it will be passed the same CreatedResources, so all successfully
-	// cleaned up resources should be removed.
+	// cleaned up resources should be removed or handled idempotently.
 	Cleanup(*ExecContext, *CreatedResources) error
 
 	// Drivers must validate their configuration
@@ -226,7 +264,6 @@ type DriverContext struct {
 	config   *config.Config
 	logger   *log.Logger
 	node     *structs.Node
-	taskEnv  *env.TaskEnvironment
 
 	emitEvent LogEventFn
 }
@@ -242,14 +279,13 @@ func NewEmptyDriverContext() *DriverContext {
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
 func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
-	logger *log.Logger, taskEnv *env.TaskEnvironment, eventEmitter LogEventFn) *DriverContext {
+	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
 		taskName:  taskName,
 		allocID:   allocID,
 		config:    config,
 		node:      node,
 		logger:    logger,
-		taskEnv:   taskEnv,
 		emitEvent: eventEmitter,
 	}
 }
@@ -291,68 +327,17 @@ type ScriptExecutor interface {
 type ExecContext struct {
 	// TaskDir contains information about the task directory structure.
 	TaskDir *allocdir.TaskDir
+
+	// TaskEnv contains the task's environment variables.
+	TaskEnv *env.TaskEnv
 }
 
 // NewExecContext is used to create a new execution context
-func NewExecContext(td *allocdir.TaskDir) *ExecContext {
+func NewExecContext(td *allocdir.TaskDir, te *env.TaskEnv) *ExecContext {
 	return &ExecContext{
 		TaskDir: td,
+		TaskEnv: te,
 	}
-}
-
-// GetTaskEnv converts the alloc dir, the node, task and alloc into a
-// TaskEnvironment.
-func GetTaskEnv(taskDir *allocdir.TaskDir, node *structs.Node,
-	task *structs.Task, alloc *structs.Allocation, conf *config.Config,
-	vaultToken string) (*env.TaskEnvironment, error) {
-
-	env := env.NewTaskEnvironment(node).
-		SetTaskMeta(alloc.Job.CombinedTaskMeta(alloc.TaskGroup, task.Name)).
-		SetJobName(alloc.Job.Name).
-		SetDatacenterName(node.Datacenter).
-		SetRegionName(conf.Region).
-		SetEnvvars(task.Env).
-		SetTaskName(task.Name)
-
-	// Vary paths by filesystem isolation used
-	drv, err := NewDriver(task.Driver, NewEmptyDriverContext())
-	if err != nil {
-		return nil, err
-	}
-	switch drv.FSIsolation() {
-	case cstructs.FSIsolationNone:
-		// Use host paths
-		env.SetAllocDir(taskDir.SharedAllocDir)
-		env.SetTaskLocalDir(taskDir.LocalDir)
-		env.SetSecretsDir(taskDir.SecretsDir)
-	default:
-		// filesystem isolation; use container paths
-		env.SetAllocDir(allocdir.SharedAllocContainerPath)
-		env.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-		env.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	}
-
-	if task.Resources != nil {
-		env.SetMemLimit(task.Resources.MemoryMB).
-			SetCpuLimit(task.Resources.CPU).
-			SetNetworks(task.Resources.Networks)
-	}
-
-	if alloc != nil {
-		env.SetAlloc(alloc)
-	}
-
-	if task.Vault != nil {
-		env.SetVaultToken(vaultToken, task.Vault.Env)
-	}
-
-	// Set the host environment variables for non-image based drivers
-	if drv.FSIsolation() != cstructs.FSIsolationImage {
-		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-		env.AppendHostEnvvars(filter)
-	}
-
-	return env.Build(), nil
 }
 
 func mapMergeStrInt(maps ...map[string]int) map[string]int {
