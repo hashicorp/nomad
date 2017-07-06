@@ -401,7 +401,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
 	}
@@ -459,7 +459,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
-	a.Canary = true
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")

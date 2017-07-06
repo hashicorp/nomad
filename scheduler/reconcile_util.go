@@ -164,17 +164,6 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 	return
 }
 
-// filterByCanary returns a new allocation set that contains only canaries
-func (a allocSet) filterByCanary() allocSet {
-	canaries := make(map[string]*structs.Allocation)
-	for _, alloc := range a {
-		if alloc.Canary {
-			canaries[alloc.ID] = alloc
-		}
-	}
-	return canaries
-}
-
 // filterByDeployment filters allocations into two sets, those that match the
 // given deployment ID and those that don't
 func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
