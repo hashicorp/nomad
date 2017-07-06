@@ -411,7 +411,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.plan.AppendUpdate(stop.alloc, structs.AllocDesiredStatusStop, stop.statusDescription, stop.clientStatus)
 	}
 
-	// TODO test
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
 		if update.DeploymentID != s.deployment.GetID() {
@@ -507,7 +506,6 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 				alloc.PreviousAllocation = missing.previousAlloc.ID
 			}
 
-			// TODO test
 			// If we are placing a canary and we found a match, add the canary
 			// to the deployment state object.
 			if missing.canary {
