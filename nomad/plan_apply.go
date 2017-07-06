@@ -328,7 +328,6 @@ OUTER:
 	return result, mErr.ErrorOrNil()
 }
 
-// TODO test
 // correctDeploymentCanaries ensures that the deployment object doesn't list any
 // canaries as placed if they didn't actually get placed. This could happen if
 // the plan had a partial commit.
