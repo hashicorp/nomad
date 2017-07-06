@@ -64,6 +64,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
+* `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
+  Attempt to continue without auth.
+
 * `command` - (Optional) The command to run when starting the container.
 
     ```hcl

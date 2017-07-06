@@ -158,6 +158,7 @@ type DockerDriverConfig struct {
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
 	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
 	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
+	AuthSoftFail     bool                `mapstructure:"auth_soft_fail"`     // Soft-fail if auth creds are provided but fail
 	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
 	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
 	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
@@ -404,6 +405,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"auth": &fields.FieldSchema{
 				Type: fields.TypeArray,
+			},
+			"auth_soft_fail": &fields.FieldSchema{
+				Type: fields.TypeBool,
 			},
 			// COMPAT: Remove in 0.6.0. SSL is no longer needed
 			"ssl": &fields.FieldSchema{
@@ -1092,7 +1096,11 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docker.Client, repo, tag string) (id string, err error) {
 	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
 	if err != nil {
-		d.logger.Printf("[WARN] Failed to find docker auth for repo %q: %v", repo, err)
+		if d.driverConfig.AuthSoftFail {
+			d.logger.Printf("[WARN] Failed to find docker auth for repo %q: %v", repo, err)
+		} else {
+			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+		}
 	}
 
 	if authIsEmpty(authOptions) {
