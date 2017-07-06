@@ -873,13 +873,15 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 	return all, nil
 }
 
-// JobByIDAndVersion returns the job identified by its ID and Version
+// JobByIDAndVersion returns the job identified by its ID and Version. The
+// passed watchset may be nil.
 func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uint64) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 	return s.jobByIDAndVersionImpl(ws, id, version, txn)
 }
 
-// jobByIDAndVersionImpl returns the job identified by its ID and Version
+// jobByIDAndVersionImpl returns the job identified by its ID and Version. The
+// passed watchset may be nil.
 func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, id string, version uint64, txn *memdb.Txn) (*structs.Job, error) {
 	watchCh, existing, err := txn.FirstWatch("job_version", "id", id, version)
 	if err != nil {
