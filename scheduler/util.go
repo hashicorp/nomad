@@ -430,12 +430,13 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 func setStatus(logger *log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric, status, desc string,
-	queuedAllocs map[string]int) error {
+	queuedAllocs map[string]int, deploymentID string) error {
 
 	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
 	newEval := eval.Copy()
 	newEval.Status = status
 	newEval.StatusDescription = desc
+	newEval.DeploymentID = deploymentID
 	newEval.FailedTGAllocs = tgMetrics
 	if nextEval != nil {
 		newEval.NextEval = nextEval.ID
