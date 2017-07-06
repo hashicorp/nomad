@@ -140,6 +140,7 @@ job "binstore-storagelocker" {
       artifact {
         source = "http://bar.com/artifact"
         destination = "test/foo/"
+        mode = "file"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"

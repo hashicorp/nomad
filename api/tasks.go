@@ -2,6 +2,9 @@ package api
 
 import (
 	"fmt"
+	"path"
+
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -323,12 +326,30 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 type TaskArtifact struct {
 	GetterSource  *string           `mapstructure:"source"`
 	GetterOptions map[string]string `mapstructure:"options"`
+	GetterMode    *string           `mapstructure:"mode"`
 	RelativeDest  *string           `mapstructure:"destination"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
+	if a.GetterMode == nil {
+		a.GetterMode = helper.StringToPtr("any")
+	}
+	if a.GetterSource == nil {
+		// Shouldn't be possible, but we don't want to panic
+		a.GetterSource = helper.StringToPtr("")
+	}
 	if a.RelativeDest == nil {
-		a.RelativeDest = helper.StringToPtr("local/")
+		switch *a.GetterMode {
+		case "file":
+			// File mode should default to local/filename
+			dest := *a.GetterSource
+			dest = path.Base(dest)
+			dest = filepath.Join("local", dest)
+			a.RelativeDest = &dest
+		default:
+			// Default to a directory
+			a.RelativeDest = helper.StringToPtr("local/")
+		}
 	}
 }
 

@@ -33,7 +33,7 @@ type EnvReplacer interface {
 }
 
 // getClient returns a client that is suitable for Nomad downloading artifacts.
-func getClient(src, dst string) *gg.Client {
+func getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -50,7 +50,7 @@ func getClient(src, dst string) *gg.Client {
 	return &gg.Client{
 		Src:     src,
 		Dst:     dst,
-		Mode:    gg.ClientModeAny,
+		Mode:    mode,
 		Getters: getters,
 	}
 }
@@ -97,7 +97,17 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 
 	// Download the artifact
 	dest := filepath.Join(taskDir, artifact.RelativeDest)
-	if err := getClient(url, dest).Get(); err != nil {
+
+	// Convert from string getter mode to go-getter const
+	mode := gg.ClientModeAny
+	switch artifact.GetterMode {
+	case structs.GetterModeFile:
+		mode = gg.ClientModeFile
+	case structs.GetterModeDir:
+		mode = gg.ClientModeDir
+	}
+
+	if err := getClient(url, mode, dest).Get(); err != nil {
 		return newGetError(url, err, true)
 	}
 

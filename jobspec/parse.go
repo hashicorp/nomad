@@ -788,6 +788,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 		valid := []string{
 			"source",
 			"options",
+			"mode",
 			"destination",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {

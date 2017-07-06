@@ -166,6 +166,7 @@ func TestParse(t *testing.T) {
 										GetterOptions: map[string]string{
 											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
+										GetterMode: helper.StringToPtr("file"),
 									},
 								},
 								Vault: &api.Vault{
