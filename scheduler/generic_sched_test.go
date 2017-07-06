@@ -8,6 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -1480,7 +1481,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 }
 
-func TestServiceSched_JobModify_InPlace(t *testing.T) {
+func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -1509,6 +1510,124 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Update the job
 	job2 := mock.Job()
 	job2.ID = job.ID
+	desiredUpdates := 2
+	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel:     desiredUpdates,
+		Canary:          desiredUpdates,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+	}
+
+	// Update the task, such that it cannot be done in-place
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted nothing
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	if len(update) != 0 {
+		t.Fatalf("bad: got %d; want %d: %#v", len(update), 0, plan)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != desiredUpdates {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Check that the deployment id is attached to the eval
+	if h.Evals[0].DeploymentID == "" {
+		t.Fatalf("Eval not annotated with deployment id")
+	}
+
+	// Ensure a deployment was created
+	if plan.Deployment == nil {
+		t.Fatalf("bad: %#v", plan)
+	}
+	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	if !ok {
+		t.Fatalf("bad: %#v", plan)
+	}
+	if state.DesiredTotal != 10 && state.DesiredCanaries != desiredUpdates {
+		t.Fatalf("bad: %#v", state)
+	}
+
+	// Assert the canaries were added to the placed list
+	if len(state.PlacedCanaries) != desiredUpdates {
+		t.Fatalf("bad: %#v", state)
+	}
+}
+
+func TestServiceSched_JobModify_InPlace(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and create an older deployment
+	job := mock.Job()
+	d := mock.Deployment()
+	d.JobID = job.ID
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
+
+	// Create allocs that are part of the old deployment
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+		allocs = append(allocs, alloc)
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Update the job
+	job2 := mock.Job()
+	job2.ID = job.ID
+	desiredUpdates := 4
+	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel:     desiredUpdates,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+	}
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
@@ -1561,9 +1680,6 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
-		for _, alloc := range out {
-			t.Logf("%#v", alloc)
-		}
 		t.Fatalf("bad: %#v", out)
 	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -1575,6 +1691,15 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 			if resources.Networks[0].ReservedPorts[0] != rp {
 				t.Fatalf("bad: %#v", alloc)
 			}
+		}
+	}
+
+	// Verify the deployment id was changed and health cleared
+	for _, alloc := range out {
+		if alloc.DeploymentID == d.ID {
+			t.Fatalf("bad: deployment id not cleared")
+		} else if alloc.DeploymentStatus != nil {
+			t.Fatalf("bad: deployment status not cleared")
 		}
 	}
 }
