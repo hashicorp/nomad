@@ -46,10 +46,15 @@ unarchived before the starting the task.
 
 ## `artifact` Parameters
 
-- `destination` `(string: "local/$1")` - Specifies the directory path to download the
-  artifact, relative to the root of the task's directory. If omitted, the
-  default value is to place the binary in `local/`. The destination is treated
-  as a directory and source files will be downloaded into that directory path.
+- `destination` `(string: "local/")` - Specifies the directory path to download
+  the artifact, relative to the root of the task's directory. If omitted, the
+  default value is to place the artifact in `local/`. The destination is treated
+  as a directory unless `mode` is set to `file`. Source files will be downloaded
+  into that directory path.
+
+- `mode` `(string: "any")` - One of `any`, `file`, or `dir`. If set to `file`
+  the `destination` must be a file, not a directory. By default the
+  `destination` will be `local/<filename>`.
 
 - `options` `(map<string|string>: nil)` - Specifies configuration parameters to
   fetch the artifact. The key-value pairs map directly to parameters appended to
@@ -150,11 +155,13 @@ artifact {
 }
 ```
 
-### Download from an S3 Bucket
+### Download from an S3-compatible Bucket
 
 These examples download artifacts from Amazon S3. There are several different
 types of [S3 bucket addressing][s3-bucket-addr] and [S3 region-specific
-endpoints][s3-region-endpoints].
+endpoints][s3-region-endpoints]. As of Nomad 0.6 non-Amazon S3-compatible
+endpoints like [Minio] are supported, but you must explicitly set the "s3::"
+prefix.
 
 This example uses path-based notation on a publicly-accessible bucket:
 
@@ -194,5 +201,6 @@ artifact {
 ```
 
 [go-getter]: https://github.com/hashicorp/go-getter "HashiCorp go-getter Library"
+[Minio]: https://www.minio.io/
 [s3-bucket-addr]: http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro "Amazon S3 Bucket Addressing"
 [s3-region-endpoints]: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region "Amazon S3 Region Endpoints"

@@ -44,6 +44,8 @@ BUG FIXES:
    allocation destroy fixing a corner case in which an allocation may be blocked
    till destroy [GH-2563]
  * client/artifact: Honor netrc [GH-2524]
+ * client/artifact: Allow specifying a go-gettter mode [GH-2781]
+ * client/artifact: Support non-Amazon S3-compatible sources [GH-2781]
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
  * client/config: Use `cpu_total_compute` whenever it is set [GH-2745]
