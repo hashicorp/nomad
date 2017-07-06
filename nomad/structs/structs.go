@@ -3944,6 +3944,19 @@ func (d *Deployment) GetID() string {
 	return d.ID
 }
 
+// HasPlacedCanaries returns whether the deployment has placed canaries
+func (d *Deployment) HasPlacedCanaries() bool {
+	if d == nil || len(d.TaskGroups) == 0 {
+		return false
+	}
+	for _, group := range d.TaskGroups {
+		if len(group.PlacedCanaries) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Deployment) GoString() string {
 	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {
@@ -4825,6 +4838,12 @@ type PlanResult struct {
 	// NodeAllocation contains all the allocations that were committed.
 	NodeAllocation map[string][]*Allocation
 
+	// Deployment is the deployment that was committed.
+	Deployment *Deployment
+
+	// DeploymentUpdates is the set of deployment updates that were commited.
+	DeploymentUpdates []*DeploymentStatusUpdate
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,
@@ -4838,7 +4857,8 @@ type PlanResult struct {
 
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0
+	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 &&
+		len(p.DeploymentUpdates) == 0 && p.Deployment == nil
 }
 
 // FullCommit is used to check if all the allocations in a plan
