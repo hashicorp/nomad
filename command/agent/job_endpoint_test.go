@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -993,6 +995,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								GetterOptions: map[string]string{
 									"a": "b",
 								},
+								GetterMode:   helper.StringToPtr("dir"),
 								RelativeDest: helper.StringToPtr("dest"),
 							},
 						},
@@ -1178,6 +1181,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								GetterOptions: map[string]string{
 									"a": "b",
 								},
+								GetterMode:   "dir",
 								RelativeDest: "dest",
 							},
 						},
@@ -1213,7 +1217,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	structsJob := ApiJobToStructJob(apiJob)
 
-	if !reflect.DeepEqual(expected, structsJob) {
-		t.Fatalf("bad %#v", structsJob)
+	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
+		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
 }
