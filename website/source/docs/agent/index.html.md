@@ -133,3 +133,10 @@ When a server _leaves_, it specifies its intent to do so, and the cluster marks 
 node as having _left_. If the server has _left_, replication to it will stop and it
 is removed from the consensus peer set. If the server has _failed_, replication
 will attempt to make progress to recover from a software or network failure.
+
+## Permissions
+
+Nomad servers should be run with the lowest possible permissions. Nomad clients
+must be run as root due to the OS isolation mechanisms that require root
+privileges. In all cases, it is recommended you create a `nomad` user with the
+minimal set of required privileges.
