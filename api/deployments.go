@@ -138,6 +138,7 @@ type Deployment struct {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
+	PlacedCanaries  []string
 	AutoRevert      bool
 	Promoted        bool
 	DesiredCanaries int
