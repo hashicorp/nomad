@@ -166,6 +166,13 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		})
 	}
 
+	// Set the description of a created deployment
+	if d := a.result.deployment; d != nil {
+		if d.RequiresPromotion() {
+			d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+		}
+	}
+
 	return a.result
 }
 
@@ -182,6 +189,8 @@ func (a *allocReconciler) cancelDeployments() {
 		}
 
 		// Nothing else to do
+		a.oldDeployment = a.deployment
+		a.deployment = nil
 		return
 	}
 

@@ -1904,6 +1904,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
 		DesiredTotal:    10,
@@ -1956,6 +1957,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
 		DesiredTotal:    10,
@@ -2002,6 +2004,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
 		DesiredTotal:    15,
@@ -2049,6 +2052,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
 		DesiredTotal:    5,

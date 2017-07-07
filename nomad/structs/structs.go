@@ -3971,13 +3971,14 @@ const (
 
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
-	DeploymentStatusDescriptionRunning           = "Deployment is running"
-	DeploymentStatusDescriptionPaused            = "Deployment is paused"
-	DeploymentStatusDescriptionSuccessful        = "Deployment completed successfully"
-	DeploymentStatusDescriptionStoppedJob        = "Cancelled because job is stopped"
-	DeploymentStatusDescriptionNewerJob          = "Cancelled due to newer version of job"
-	DeploymentStatusDescriptionFailedAllocations = "Failed due to unhealthy allocations"
-	DeploymentStatusDescriptionFailedByUser      = "Deployment marked as failed"
+	DeploymentStatusDescriptionRunning               = "Deployment is running"
+	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires promotion"
+	DeploymentStatusDescriptionPaused                = "Deployment is paused"
+	DeploymentStatusDescriptionSuccessful            = "Deployment completed successfully"
+	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
+	DeploymentStatusDescriptionNewerJob              = "Cancelled due to newer version of job"
+	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
 )
 
 // DeploymentStatusDescriptionRollback is used to get the status description of
@@ -4079,6 +4080,20 @@ func (d *Deployment) HasPlacedCanaries() bool {
 	}
 	for _, group := range d.TaskGroups {
 		if len(group.PlacedCanaries) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// RequiresPromotion returns whether the deployment requires promotion to
+// continue
+func (d *Deployment) RequiresPromotion() bool {
+	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
+		return false
+	}
+	for _, group := range d.TaskGroups {
+		if group.DesiredCanaries > 0 && !group.Promoted {
 			return true
 		}
 	}

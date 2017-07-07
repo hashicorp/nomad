@@ -5046,6 +5046,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 
 	// Create a deployment
 	d := mock.Deployment()
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	d.JobID = j.ID
 	d.TaskGroups = map[string]*structs.DeploymentState{
 		"web": &structs.DeploymentState{
@@ -5103,6 +5104,9 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	dout, err := state.DeploymentByID(ws, d.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
+	}
+	if dout.StatusDescription != structs.DeploymentStatusDescriptionRunning {
+		t.Fatalf("status description not updated: got %v; want %v", dout.StatusDescription, structs.DeploymentStatusDescriptionRunning)
 	}
 	if len(dout.TaskGroups) != 2 {
 		t.Fatalf("bad: %#v", dout.TaskGroups)
