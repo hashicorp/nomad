@@ -31,7 +31,7 @@ cause the driver process to continue to run. You can force termination
 It is possible to reconstruct the web UI of a completed application using 
 Spark’s [history server](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact). 
 The history server requires the event log to have been written to an accessible 
-location (e.g., [HDFS](/guides/spark/hdfs.html)).
+location like [HDFS](/guides/spark/hdfs.html) or Amazon S3.
 
 Sample history server job file:
 
@@ -62,8 +62,8 @@ job "spark-history-server" {
       }
 
       resources {
-        cpu    = 500
-        memory = 500
+        cpu    = 1000
+        memory = 1024
         network {
           mbits = 250
           port "ui" {

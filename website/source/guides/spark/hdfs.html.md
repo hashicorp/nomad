@@ -16,7 +16,7 @@ datasets. HDFS can be deployed as its own Nomad job.
 
 ## Running HDFS on Nomad
 
-A sample HDFS job file can be found [here](https://github.com/hashicorp/nomad/blob/f-terraform-config/terraform/examples/spark/spark-history-server-hdfs.nomad). 
+A sample HDFS job file can be found [here](https://github.com/hashicorp/nomad/terraform/examples/spark/spark-history-server-hdfs.nomad). 
 It has two task groups, one for the HDFS NameNode and one for the 
 DataNodes. Both task groups use a [Docker image](https://github.com/hashicorp/nomad/tree/f-terraform-config/terraform/examples/spark/docker/hdfs) that has Hadoop installed:
 
@@ -45,7 +45,8 @@ DataNodes. Both task groups use a [Docker image](https://github.com/hashicorp/no
       }
 
       resources {
-        memory = 500
+        cpu    = 1000
+        memory = 1024
         network {
           port "ipc" {
             static = "8020"
@@ -96,7 +97,8 @@ DataNodes to generically reference the NameNode:
       }
 
       resources {
-        memory = 500
+        cpu    = 1000
+        memory = 1024
         network {
           port "data" {
             static = "50010"
@@ -114,11 +116,22 @@ DataNodes to generically reference the NameNode:
   }
 ```
 
+Another viable option for DataNode task group is to use a dedicated 
+[system](https://www.nomadproject.io/docs/runtime/schedulers.html#system) job. 
+This will deploy a DataNode to every client node in the system, which may or may 
+not be desirable depending on your use case. 
+
 The HDFS job can be deployed using the `nomad run` command:
 
 ```shell
 $ nomad run hdfs.nomad
 ```
+
+## Production Deployment Considerations
+
+A production deployment will typically have redundant NameNodes in an 
+active/passive configuration (which requires ZooKeeper). See [HDFS High 
+Availability](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithNFS.html).
 
 ## Next Steps
 

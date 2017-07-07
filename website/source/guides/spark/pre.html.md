@@ -8,8 +8,9 @@ description: |-
 
 # Getting Started
 
-To get started, you can use Nomad's Terraform configuration to automatically 
-provision an environment in AWS, or you can manually provision a cluster.
+To get started, you can use Nomad's example Terraform configuration to 
+automatically provision an environment in AWS, or you can manually provision a 
+cluster.
 
 ## Provision a Cluster in AWS
 

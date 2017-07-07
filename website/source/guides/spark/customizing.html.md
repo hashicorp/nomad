@@ -9,12 +9,18 @@ description: |-
 
 # Customizing Applications
 
-By default, the Spark integration will start with a blank Nomad job and add
-configuration to it as necessary. In `cluster` mode, groups and tasks are added 
-for the driver and the executors (the driver task group is not relevant for 
-`client` mode) . A task will also be added for the 
-[shuffle service](/guides/spark/dynamic.html) if it has been enabled. All tasks 
-have the `spark.nomad.role` meta value defined. For example:
+There are two ways to customize the Nomad job that Spark creates to run an 
+application:
+
+ - Use the default job template and set configuration properties
+ - Use a custom job template
+
+## Using the Default Job Template
+
+The Spark integration will use a generic job template by default. The  
+template includes groups and tasks for the driver, executors and (optionally) 
+the [shuffle service](/guides/spark/dynamic.html). The job itself and the tasks
+that are created have the `spark.nomad.role` meta value defined accordingly:
 
 ```hcl
 job "structure" {
@@ -50,20 +56,14 @@ job "structure" {
 }
 ```
 
-You can customize the Nomad job that Spark creates by [setting configuration 
-properties](/guides/spark/configuration.html) or by using a job template. The 
-order of precedence for settings is as follows:
+The default template can be customized indirectly by explicitly [setting 
+configuration properties](/guides/spark/configuration.html).
 
-1. Explicitly set configuration properties.
-2. Settings in the job template if provided.
-3. Default values of the configuration properties.
+## Using a Custom Job Template
 
-## Customization Using a Nomad Job Template
-
-Rather than having Spark create a Nomad job from scratch to run your 
-application, you can set the `spark.nomad.job.template` configuration property 
-to the path of a file containing a template job specification. There are two 
-important considerations:
+An alternative to using the default template is to set the 
+`spark.nomad.job.template` configuration property to the path of a file 
+containing a custom job template. There are two important considerations:
 
   * The template must use the JSON format. You can convert an HCL jobspec to 
   JSON by running `nomad run -output <job.nomad>`.
@@ -73,12 +73,12 @@ important considerations:
   be accessible to the driver or executors.
 
 Using a job template you can override Spark’s default resource utilization, add 
-additional metadata or constraints, set environment variables or add sidecar 
-tasks. The template does not need to be a complete Nomad job specification, since 
-Spark will add everything necessary to run your the application. For example, 
-your template might set `job` metadata, but not contain any task groups, making 
-it an incomplete Nomad job specification but still a valid template to use with 
-Spark.
+additional metadata or constraints, set environment variables, add sidecar 
+tasks and utilize the Consul and Vault integration. The template does 
+not need to be a complete Nomad job specification, since Spark will add 
+everything necessary to run your the application. For example, your template 
+might set `job` metadata, but not contain any task groups, making it an 
+incomplete Nomad job specification but still a valid template to use with Spark.
 
 To customize the driver task group, include a task group in your template that 
 has a task that contains a `spark.nomad.role` meta value set to `driver`.
@@ -111,6 +111,14 @@ job "template" {
   }
 }
 ```
+
+## Order of Precendence
+
+The order of precedence for customized settings is as follows:
+
+1. Explicitly set configuration properties.
+2. Settings in the job template (if provided).
+3. Default values of the configuration properties.
 
 ## Next Steps
 
