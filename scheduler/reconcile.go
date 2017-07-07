@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -105,6 +106,26 @@ type allocStopResult struct {
 	alloc             *structs.Allocation
 	clientStatus      string
 	statusDescription string
+}
+
+func (r *reconcileResults) GoString() string {
+	base := fmt.Sprintf("Total changes: (place %d) (update %d) (stop %d)",
+		len(r.place), len(r.inplaceUpdate), len(r.stop))
+
+	if r.deployment != nil {
+		base += fmt.Sprintf("\nCreated Deployment: %q", r.deployment.ID)
+	}
+	for _, u := range r.deploymentUpdates {
+		base += fmt.Sprintf("\nDeployment Update for ID %q: Status %q; Description %q",
+			u.DeploymentID, u.Status, u.StatusDescription)
+	}
+	if r.followupEvalWait != 0 {
+		base += fmt.Sprintf("\nFollowup Eval in %v", r.followupEvalWait)
+	}
+	for tg, u := range r.desiredTGUpdates {
+		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
+	}
+	return base
 }
 
 // Changes returns the number of total changes

@@ -389,6 +389,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted)
 	results := reconciler.Compute()
+	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, results)
 
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = &structs.PlanAnnotations{
