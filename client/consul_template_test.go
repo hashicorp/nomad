@@ -13,6 +13,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -1031,5 +1032,24 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	}
 	if vars["SHARED"] != "yup" {
 		t.Errorf("expected FOO=bar but found %q", vars["yup"])
+	}
+}
+
+// TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
+// setting is propogated to consul-template's configuration. See #2776
+func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
+	c := config.DefaultConfig()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+	}
+	ctconf, err := runnerConfig(c, "token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
+		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
 	}
 }

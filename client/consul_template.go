@@ -485,21 +485,23 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled: &t,
-				Verify:  &verify,
-				Cert:    &config.VaultConfig.TLSCertFile,
-				Key:     &config.VaultConfig.TLSKeyFile,
-				CaCert:  &config.VaultConfig.TLSCaFile,
-				CaPath:  &config.VaultConfig.TLSCaPath,
+				Enabled:    &t,
+				Verify:     &verify,
+				Cert:       &config.VaultConfig.TLSCertFile,
+				Key:        &config.VaultConfig.TLSKeyFile,
+				CaCert:     &config.VaultConfig.TLSCaFile,
+				CaPath:     &config.VaultConfig.TLSCaPath,
+				ServerName: &config.VaultConfig.TLSServerName,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled: &f,
-				Verify:  &f,
-				Cert:    &emptyStr,
-				Key:     &emptyStr,
-				CaCert:  &emptyStr,
-				CaPath:  &emptyStr,
+				Enabled:    &f,
+				Verify:     &f,
+				Cert:       &emptyStr,
+				Key:        &emptyStr,
+				CaCert:     &emptyStr,
+				CaPath:     &emptyStr,
+				ServerName: &emptyStr,
 			}
 		}
 	}
