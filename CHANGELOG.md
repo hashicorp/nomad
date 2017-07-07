@@ -56,6 +56,7 @@ BUG FIXES:
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
  * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
  * driver/rkt: Fix env var interpolation [GH-2777]
+ * jobspec/validation: Prevent static port conflicts [GH-2807]
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]
