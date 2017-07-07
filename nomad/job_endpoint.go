@@ -430,7 +430,6 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	}
 
 	// Setup the reply
-	reply.JobModifyIndex = modifyIndex
 	reply.Index = modifyIndex
 	return nil
 }

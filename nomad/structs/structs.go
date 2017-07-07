@@ -332,7 +332,6 @@ type JobStabilityRequest struct {
 
 // JobStabilityResponse is the response when marking a job as stable.
 type JobStabilityResponse struct {
-	JobModifyIndex uint64
 	WriteMeta
 }
 

@@ -965,7 +965,7 @@ func TestHTTP_JobStable(t *testing.T) {
 
 		// Check the response
 		stableResp := obj.(structs.JobStabilityResponse)
-		if stableResp.JobModifyIndex == 0 {
+		if stableResp.Index == 0 {
 			t.Fatalf("bad: %v", stableResp)
 		}
 

@@ -206,6 +206,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"HELLO":                         "world",
 		"lorem":                         "ipsum",
 		"NOMAD_ALLOC_ID":                alloc.ID,
+		"NOMAD_ALLOC_INDEX":             "0",
 		"NOMAD_ALLOC_NAME":              alloc.Name,
 		"NOMAD_TASK_NAME":               task.Name,
 		"NOMAD_JOB_NAME":                alloc.Job.Name,

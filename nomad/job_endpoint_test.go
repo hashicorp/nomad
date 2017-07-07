@@ -919,9 +919,6 @@ func TestJobEndpoint_Stable(t *testing.T) {
 	if !out.Stable {
 		t.Fatalf("Job is not marked stable")
 	}
-	if out.JobModifyIndex != stableResp.JobModifyIndex {
-		t.Fatalf("got job modify index %d; want %d", out.JobModifyIndex, stableResp.JobModifyIndex)
-	}
 }
 
 func TestJobEndpoint_Evaluate(t *testing.T) {

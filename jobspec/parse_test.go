@@ -46,7 +46,7 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:         60 * time.Second,
+					Stagger:         helper.TimeToPtr(60 * time.Second),
 					MaxParallel:     helper.IntToPtr(2),
 					HealthCheck:     helper.StringToPtr("manual"),
 					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
