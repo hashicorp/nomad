@@ -446,12 +446,13 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 // TaskState tracks the current state of a task and events that caused state
 // transitions.
 type TaskState struct {
-	State      string
-	Failed     bool
-	Restarts   uint64
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Events     []*TaskEvent
+	State       string
+	Failed      bool
+	Restarts    uint64
+	LastRestart time.Time
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	Events      []*TaskEvent
 }
 
 const (

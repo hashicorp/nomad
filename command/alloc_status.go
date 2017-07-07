@@ -280,7 +280,8 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 	basic := []string{
 		fmt.Sprintf("Started At|%s", formatTaskTimes(state.StartedAt)),
 		fmt.Sprintf("Finished At|%s", formatTaskTimes(state.FinishedAt)),
-		fmt.Sprintf("Total Restarts|%d", state.Restarts)}
+		fmt.Sprintf("Total Restarts|%d", state.Restarts),
+		fmt.Sprintf("Last Restart|%s", formatTaskTimes(state.LastRestart))}
 
 	c.Ui.Output("Task Events:")
 	c.Ui.Output(formatKV(basic))

@@ -343,7 +343,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
-	if latestDeployment != nil && latestDeployment.Status != "successful" {
+	if latestDeployment != nil {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
 		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
 	}
