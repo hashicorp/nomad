@@ -499,7 +499,7 @@ $ curl \
 
         - `Killing` - The task has been sent the kill signal.
 
-        - `Killed` - The task was killed by an user.
+        - `Killed` - The task was killed by a user.
 
         - `Received` - The task has been pulled by the client at the given timestamp.
 
