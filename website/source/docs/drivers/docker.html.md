@@ -529,6 +529,8 @@ The `docker` driver will set the following client attributes:
 
 * `driver.docker` - This will be set to "1", indicating the driver is
   available.
+* `driver.docker.bridge_ip` - The IP of the Docker bridge network if one
+  exists.
 * `driver.docker.version` - This will be set to version of the docker server.
 
 Here is an example of using these properties in a job file:
