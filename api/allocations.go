@@ -138,6 +138,7 @@ type AllocationListStub struct {
 	Name               string
 	NodeID             string
 	JobID              string
+	JobVersion         uint64
 	TaskGroup          string
 	DesiredStatus      string
 	DesiredDescription string

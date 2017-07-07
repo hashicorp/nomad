@@ -4375,6 +4375,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		Name:               a.Name,
 		NodeID:             a.NodeID,
 		JobID:              a.JobID,
+		JobVersion:         a.Job.Version,
 		TaskGroup:          a.TaskGroup,
 		DesiredStatus:      a.DesiredStatus,
 		DesiredDescription: a.DesiredDescription,
@@ -4395,6 +4396,7 @@ type AllocListStub struct {
 	Name               string
 	NodeID             string
 	JobID              string
+	JobVersion         uint64
 	TaskGroup          string
 	DesiredStatus      string
 	DesiredDescription string

@@ -135,20 +135,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(allocs) > 1 {
-		// Format the allocs
-		out := make([]string, len(allocs)+1)
-		out[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
-		for i, alloc := range allocs {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-				limit(alloc.ID, length),
-				limit(alloc.EvalID, length),
-				alloc.JobID,
-				alloc.TaskGroup,
-				alloc.DesiredStatus,
-				alloc.ClientStatus,
-			)
-		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", formatList(out)))
+		out := formatAllocListStubs(allocs, verbose, length)
+		c.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
 		return 0
 	}
 	// Prefix lookup matched a single allocation
