@@ -584,6 +584,7 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 		}
 		if event.Type == structs.TaskRestarting {
 			taskState.Restarts++
+			taskState.LastRestart = time.Unix(0, event.Time)
 		}
 		r.appendTaskEvent(taskState, event)
 	}

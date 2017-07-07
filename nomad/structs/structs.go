@@ -3337,6 +3337,10 @@ type TaskState struct {
 	// Restarts is the number of times the task has restarted
 	Restarts uint64
 
+	// LastRestart is the time the task last restarted. It is updated each time the
+	// task restarts
+	LastRestart time.Time
+
 	// StartedAt is the time the task is started. It is updated each time the
 	// task starts
 	StartedAt time.Time
