@@ -65,7 +65,7 @@ corresponding public IP. You can access the history server at
 ## Sample Spark jobs
 
 The sample `spark-submit` commands listed below demonstrate several of the 
-official Spark examples. Features like `spark-sql`, `spark-shell` and pyspark 
+official Spark examples. Features like `spark-sql`, `spark-shell` and `pyspark` 
 are included. The commands can be executed from any client or server.
 
 You can monitor the status of a Spark job in a second terminal session with:
