@@ -1179,10 +1179,10 @@ CREATE:
 		// container names with a / pre-pended to the Nomad generated container names
 		containerName := "/" + config.Name
 		d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
-		for _, container := range containers {
+		for _, shimContainer := range containers {
 			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", container)
 			found := false
-			for _, name := range container.Names {
+			for _, name := range shimContainer.Names {
 				if name == containerName {
 					found = true
 					break
@@ -1195,9 +1195,15 @@ CREATE:
 
 			// Inspect the container and if the container isn't dead then return
 			// the container
-			container, err := client.InspectContainer(container.ID)
+			container, err := client.InspectContainer(shimContainer.ID)
 			if err != nil {
-				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to inspect container %s: %s", container.ID, err))
+				err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
+
+				// This error is always recoverable as it could
+				// be caused by races between listing
+				// containers and this container being removed.
+				// See #2802
+				return nil, structs.NewRecoverableError(err, true)
 			}
 			if container != nil && (container.State.Running || container.State.FinishedAt.IsZero()) {
 				return container, nil
