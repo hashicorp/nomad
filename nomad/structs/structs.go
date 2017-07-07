@@ -5039,6 +5039,11 @@ type DesiredUpdates struct {
 	Canary            uint64
 }
 
+func (d *DesiredUpdates) GoString() string {
+	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
+		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+}
+
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{RawToString: true}
