@@ -831,7 +831,30 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	expected := `Task "task-a" and "task-b" both reserve static port 123`
+	expected := `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			&Task{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							ReservedPorts: []Port{
+								{Label: "foo", Value: 123},
+								{Label: "bar", Value: 123},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Static port 123 already reserved by task-a:foo`
 	if !strings.Contains(err.Error(), expected) {
 		t.Errorf("expected %s but found: %v", expected, err)
 	}

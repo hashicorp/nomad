@@ -2552,11 +2552,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		for _, net := range task.Resources.Networks {
 			for _, port := range net.ReservedPorts {
 				if other, ok := staticPorts[port.Value]; ok {
-					err := fmt.Errorf("Task %q and %q both reserve static port %d",
-						other, task.Name, port.Value)
+					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
-					staticPorts[port.Value] = task.Name
+					staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
 				}
 			}
 		}
