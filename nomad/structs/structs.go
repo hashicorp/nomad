@@ -1420,8 +1420,10 @@ type Job struct {
 }
 
 // Canonicalize is used to canonicalize fields in the Job. This should be called
-// when registering a Job.
-func (j *Job) Canonicalize() {
+// when registering a Job. A set of warnings are returned if the job was changed
+// in anyway that the user should be made aware of.
+func (j *Job) Canonicalize() (warnings error) {
+	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
@@ -1442,21 +1444,25 @@ func (j *Job) Canonicalize() {
 
 	// COMPAT: Remove in 0.7.0
 	// Rewrite any job that has an update block with pre 0.6.0 syntax.
-	if j.Update.Stagger > 0 && j.Update.MaxParallel > 0 {
+	jobHasOldUpdate := j.Update.Stagger > 0 && j.Update.MaxParallel > 0
+	if jobHasOldUpdate && j.Type != JobTypeBatch {
 		// Build an appropriate update block and copy it down to each task group
 		base := DefaultUpdateStrategy.Copy()
 		base.MaxParallel = j.Update.MaxParallel
 		base.MinHealthyTime = j.Update.Stagger
 
 		// Add to each task group, modifying as needed
+		upgraded := false
 		l := len(j.TaskGroups)
 		for _, tg := range j.TaskGroups {
 			// The task group doesn't need upgrading if it has an update block with the new syntax
 			u := tg.Update
-			if u != nil && u.Stagger == 0 && u.MaxParallel > 0 &&
+			if u != nil && u.Stagger > 0 && u.MaxParallel > 0 &&
 				u.HealthCheck != "" && u.MinHealthyTime > 0 && u.HealthyDeadline > 0 {
 				continue
 			}
+
+			upgraded = true
 
 			// The MaxParallel for the job should be 10% of the total count
 			// unless there is just one task group then we can infer the old
@@ -1477,7 +1483,45 @@ func (j *Job) Canonicalize() {
 
 			tg.Update = tgu
 		}
+
+		if upgraded {
+			w := "A best effort conversion to new update stanza introduced in v0.6.0 applied. " +
+				"Please update upgrade stanza before v0.7.0."
+			multierror.Append(&mErr, fmt.Errorf(w))
+		}
 	}
+
+	// Ensure that the batch job doesn't have new style or old style update
+	// stanza. Unfortunately are scanning here because we have to deprecate over
+	// a release so we can't check in the task group since that may be new style
+	// but wouldn't capture the old style and we don't want to have duplicate
+	// warnings.
+	if j.Type == JobTypeBatch {
+		displayWarning := jobHasOldUpdate
+		j.Update.Stagger = 0
+		j.Update.MaxParallel = 0
+		j.Update.HealthCheck = ""
+		j.Update.MinHealthyTime = 0
+		j.Update.HealthyDeadline = 0
+		j.Update.AutoRevert = false
+		j.Update.Canary = 0
+
+		// Remove any update spec from the task groups
+		for _, tg := range j.TaskGroups {
+			if tg.Update != nil {
+				displayWarning = true
+				tg.Update = nil
+			}
+		}
+
+		if displayWarning {
+			w := "Update stanza is disallowed for batch jobs since v0.6.0. " +
+				"The update block has automatically been removed"
+			multierror.Append(&mErr, fmt.Errorf(w))
+		}
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -1559,7 +1603,7 @@ func (j *Job) Validate() error {
 
 	// Validate the task group
 	for _, tg := range j.TaskGroups {
-		if err := tg.Validate(); err != nil {
+		if err := tg.Validate(j); err != nil {
 			outer := fmt.Errorf("Task group %s validation failed: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -1595,11 +1639,6 @@ func (j *Job) Validate() error {
 // deprecation warnings.
 func (j *Job) Warnings() error {
 	var mErr multierror.Error
-
-	if j.Update.Stagger > 0 {
-		multierror.Append(&mErr, fmt.Errorf("Update stagger deprecated. A best effort conversion to new syntax will be applied. Please update upgrade stanza before v0.7.0"))
-	}
-
 	return mErr.ErrorOrNil()
 }
 
@@ -1892,6 +1931,7 @@ var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
+		Stagger:         30 * time.Second,
 		MaxParallel:     0,
 		HealthCheck:     UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
@@ -1903,7 +1943,8 @@ var (
 
 // UpdateStrategy is used to modify how updates are done
 type UpdateStrategy struct {
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	// Stagger is used to determine the rate at which allocations are migrated
+	// due to down or draining nodes.
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
@@ -1966,6 +2007,9 @@ func (u *UpdateStrategy) Validate() error {
 	}
 	if u.HealthyDeadline <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
+	}
+	if u.Stagger <= 0 {
+		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
 	}
 
 	return mErr.ErrorOrNil()
@@ -2403,7 +2447,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 }
 
 // Validate is used to sanity check a task group
-func (tg *TaskGroup) Validate() error {
+func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
@@ -2439,6 +2483,12 @@ func (tg *TaskGroup) Validate() error {
 
 	// Validate the update strategy
 	if u := tg.Update; u != nil {
+		switch j.Type {
+		case JobTypeService, JobTypeSystem:
+		default:
+			// COMPAT: Enable in 0.7.0
+			//mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
+		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}

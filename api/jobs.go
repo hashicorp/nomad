@@ -290,8 +290,7 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
-	Stagger         time.Duration  `mapstructure:"stagger"`
+	Stagger         *time.Duration `mapstructure:"stagger"`
 	MaxParallel     *int           `mapstructure:"max_parallel"`
 	HealthCheck     *string        `mapstructure:"health_check"`
 	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
@@ -307,8 +306,9 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 
 	copy := new(UpdateStrategy)
 
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
-	copy.Stagger = u.Stagger
+	if u.Stagger != nil {
+		copy.Stagger = helper.TimeToPtr(*u.Stagger)
+	}
 
 	if u.MaxParallel != nil {
 		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
@@ -342,6 +342,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 		return
 	}
 
+	if o.Stagger != nil {
+		u.Stagger = helper.TimeToPtr(*o.Stagger)
+	}
+
 	if o.MaxParallel != nil {
 		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
 	}
@@ -373,6 +377,10 @@ func (u *UpdateStrategy) Canonicalize() {
 	}
 
 	d := structs.DefaultUpdateStrategy
+
+	if u.Stagger == nil {
+		u.Stagger = helper.TimeToPtr(d.Stagger)
+	}
 
 	if u.HealthCheck == nil {
 		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
@@ -529,9 +537,6 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Version == nil {
 		j.Version = helper.Uint64ToPtr(0)
-	}
-	if j.SubmitTime == nil {
-		j.SubmitTime = helper.Int64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)

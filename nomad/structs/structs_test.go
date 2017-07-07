@@ -101,18 +101,7 @@ func TestJob_Warnings(t *testing.T) {
 		Name     string
 		Job      *Job
 		Expected []string
-	}{
-		{
-			Name: "Old Update spec",
-			Job: &Job{
-				Update: UpdateStrategy{
-					MaxParallel: 2,
-					Stagger:     10 * time.Second,
-				},
-			},
-			Expected: []string{"Update stagger deprecated"},
-		},
-	}
+	}{}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -140,10 +129,13 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 		Name     string
 		Job      *Job
 		Expected *Job
+		Warnings []string
 	}{
 		{
-			Name: "One task group",
+			Name:     "One task group",
+			Warnings: []string{"conversion to new update stanza"},
 			Job: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -156,6 +148,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -164,8 +157,10 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 					{
 						Name:          "foo",
 						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
 						EphemeralDisk: DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
 							MaxParallel:     2,
 							HealthCheck:     UpdateStrategyHealthCheck_Checks,
 							MinHealthyTime:  10 * time.Second,
@@ -178,8 +173,135 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			},
 		},
 		{
-			Name: "One task group; too high of parallelism",
+			Name:     "One task group batch",
+			Warnings: []string{"Update stanza is disallowed for batch jobs"},
 			Job: &Job{
+				Type: JobTypeBatch,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Type:   JobTypeBatch,
+				Update: UpdateStrategy{},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeBatch),
+						EphemeralDisk: DefaultEphemeralDisk(),
+					},
+				},
+			},
+		},
+		{
+			Name:     "One task group batch - new spec",
+			Warnings: []string{"Update stanza is disallowed for batch jobs"},
+			Job: &Job{
+				Type: JobTypeBatch,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+			Expected: &Job{
+				Type:   JobTypeBatch,
+				Update: UpdateStrategy{},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeBatch),
+						EphemeralDisk: DefaultEphemeralDisk(),
+					},
+				},
+			},
+		},
+		{
+			Name: "One task group service - new spec",
+			Job: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+			Expected: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "One task group; too high of parallelism",
+			Warnings: []string{"conversion to new update stanza"},
+			Job: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 200,
 					Stagger:     10 * time.Second,
@@ -192,6 +314,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 200,
 					Stagger:     10 * time.Second,
@@ -200,8 +323,10 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 					{
 						Name:          "foo",
 						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
 						EphemeralDisk: DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
 							MaxParallel:     2,
 							HealthCheck:     UpdateStrategyHealthCheck_Checks,
 							MinHealthyTime:  10 * time.Second,
@@ -214,8 +339,10 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			},
 		},
 		{
-			Name: "Multiple task group; rounding",
+			Name:     "Multiple task group; rounding",
+			Warnings: []string{"conversion to new update stanza"},
 			Job: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -236,6 +363,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
+				Type: JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -244,8 +372,10 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 					{
 						Name:          "foo",
 						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
 						EphemeralDisk: DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
 							MaxParallel:     1,
 							HealthCheck:     UpdateStrategyHealthCheck_Checks,
 							MinHealthyTime:  10 * time.Second,
@@ -257,8 +387,10 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 					{
 						Name:          "bar",
 						Count:         14,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
 						EphemeralDisk: DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
 							MaxParallel:     1,
 							HealthCheck:     UpdateStrategyHealthCheck_Checks,
 							MinHealthyTime:  10 * time.Second,
@@ -271,7 +403,9 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:          "foo",
 						Count:         26,
 						EphemeralDisk: DefaultEphemeralDisk(),
+						RestartPolicy: NewRestartPolicy(JobTypeService),
 						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
 							MaxParallel:     3,
 							HealthCheck:     UpdateStrategyHealthCheck_Checks,
 							MinHealthyTime:  10 * time.Second,
@@ -287,9 +421,23 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			c.Job.Canonicalize()
+			warnings := c.Job.Canonicalize()
 			if !reflect.DeepEqual(c.Job, c.Expected) {
-				t.Fatalf("Got %# v; want %# v", pretty.Formatter(c.Job), pretty.Formatter(c.Expected))
+				t.Fatalf("Diff %#v", pretty.Diff(c.Job, c.Expected))
+			}
+
+			wErr := ""
+			if warnings != nil {
+				wErr = warnings.Error()
+			}
+			for _, w := range c.Warnings {
+				if !strings.Contains(wErr, w) {
+					t.Fatalf("Wanted warning %q: got %q", w, wErr)
+				}
+			}
+
+			if len(c.Warnings) == 0 && warnings != nil {
+				t.Fatalf("Wanted no warnings: got %q", wErr)
 			}
 		})
 	}
@@ -636,6 +784,7 @@ func TestJob_RequiredSignals(t *testing.T) {
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
+	j := testJob()
 	tg := &TaskGroup{
 		Count: -1,
 		RestartPolicy: &RestartPolicy{
@@ -645,7 +794,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 	}
-	err := tg.Validate()
+	err := tg.Validate(j)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
 		t.Fatalf("err: %s", err)
@@ -672,6 +821,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 		Update: &UpdateStrategy{
+			Stagger:         10 * time.Second,
 			MaxParallel:     3,
 			HealthCheck:     UpdateStrategyHealthCheck_Manual,
 			MinHealthyTime:  1 * time.Second,
@@ -681,7 +831,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 
-	err = tg.Validate()
+	err = tg.Validate(j)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
@@ -704,6 +854,13 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[6].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// COMPAT: Enable in 0.7.0
+	//j.Type = JobTypeBatch
+	//err = tg.Validate(j)
+	//if !strings.Contains(err.Error(), "does not allow update block") {
+	//t.Fatalf("err: %s", err)
+	//}
 }
 
 func TestTask_Validate(t *testing.T) {

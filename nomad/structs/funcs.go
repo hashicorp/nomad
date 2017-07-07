@@ -4,7 +4,43 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"math"
+	"strings"
+
+	multierror "github.com/hashicorp/go-multierror"
 )
+
+// MergeMultierrorWarnings takes job warnings and canonicalize warnings and
+// merges them into a returnable string. Both the errors may be nil.
+func MergeMultierrorWarnings(warnings, canonicalizeWarnings error) string {
+	if warnings == nil && canonicalizeWarnings == nil {
+		return ""
+	}
+
+	var warningMsg multierror.Error
+	if canonicalizeWarnings != nil {
+		multierror.Append(&warningMsg, canonicalizeWarnings)
+	}
+
+	if warnings != nil {
+		multierror.Append(&warningMsg, warnings)
+	}
+
+	// Set the formatter
+	warningMsg.ErrorFormat = warningsFormatter
+	return warningMsg.Error()
+}
+
+// warningsFormatter is used to format job warnings
+func warningsFormatter(es []error) string {
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d warning(s):\n\n%s",
+		len(es), strings.Join(points, "\n"))
+}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
