@@ -16,7 +16,7 @@ const (
 
 	// allocNodeTainted is the status used when stopping an alloc because it's
 	// node is tainted.
-	allocNodeTainted = "system alloc not needed as node is tainted"
+	allocNodeTainted = "alloc not needed as node is tainted"
 )
 
 // SystemScheduler is used for 'system' jobs. This scheduler is
