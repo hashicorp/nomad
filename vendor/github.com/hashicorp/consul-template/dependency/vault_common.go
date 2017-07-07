@@ -26,3 +26,14 @@ func leaseDurationOrDefault(d int) int {
 	}
 	return d
 }
+
+// vaultRenewDuration accepts a given renew duration (lease duration) and
+// returns the cooresponding time.Duration. If the duration is 0 (not provided),
+// this falls back to the VaultDefaultLeaseDuration.
+func vaultRenewDuration(d int) time.Duration {
+	dur := time.Duration(d/2.0) * time.Second
+	if dur == 0 {
+		dur = VaultDefaultLeaseDuration
+	}
+	return dur
+}

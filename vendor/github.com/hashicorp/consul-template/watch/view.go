@@ -44,6 +44,11 @@ type View struct {
 
 	// stopCh is used to stop polling on this View
 	stopCh chan struct{}
+
+	// vaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	vaultGrace time.Duration
 }
 
 // NewViewInput is used as input to the NewView function.
@@ -65,6 +70,11 @@ type NewViewInput struct {
 	// RetryFunc is a function which dictates how this view should retry on
 	// upstream errors.
 	RetryFunc RetryFunc
+
+	// VaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	VaultGrace time.Duration
 }
 
 // NewView constructs a new view with the given inputs.
@@ -76,6 +86,7 @@ func NewView(i *NewViewInput) (*View, error) {
 		once:       i.Once,
 		retryFunc:  i.RetryFunc,
 		stopCh:     make(chan struct{}, 1),
+		vaultGrace: i.VaultGrace,
 	}, nil
 }
 
@@ -200,6 +211,7 @@ func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 			AllowStale: allowStale,
 			WaitTime:   defaultWaitTime,
 			WaitIndex:  v.lastIndex,
+			VaultGrace: v.vaultGrace,
 		})
 		if err != nil {
 			if err == dep.ErrStopped {

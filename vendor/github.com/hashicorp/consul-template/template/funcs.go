@@ -26,11 +26,22 @@ import (
 var now = func() time.Time { return time.Now().UTC() }
 
 // datacentersFunc returns or accumulates datacenter dependencies.
-func datacentersFunc(b *Brain, used, missing *dep.Set) func() ([]string, error) {
-	return func() ([]string, error) {
+func datacentersFunc(b *Brain, used, missing *dep.Set) func(ignore ...bool) ([]string, error) {
+	return func(i ...bool) ([]string, error) {
 		result := []string{}
 
-		d, err := dep.NewCatalogDatacentersQuery()
+		var ignore bool
+		switch len(i) {
+		case 0:
+			ignore = false
+		case 1:
+			ignore = i[0]
+		default:
+			return result, fmt.Errorf("datacenters: wrong number of arguments, expected 0 or 1"+
+				", but got %d", len(i))
+		}
+
+		d, err := dep.NewCatalogDatacentersQuery(ignore)
 		if err != nil {
 			return result, err
 		}
