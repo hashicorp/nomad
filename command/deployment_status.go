@@ -156,7 +156,11 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
+	base += formatDeploymentGroups(d, uuidLength)
+	return base
+}
 
+func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	// Detect if we need to add these columns
 	canaries, autorevert := false, false
 	for _, state := range d.TaskGroups {
@@ -197,6 +201,5 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 		i++
 	}
 
-	base += formatList(rows)
-	return base
+	return formatList(rows)
 }
