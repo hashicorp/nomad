@@ -497,6 +497,17 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	alloc.ClientStatus = getClientStatus(r.taskStates)
 	r.taskStatusLock.RUnlock()
 
+	// If the client status is failed and we are part of a deployment, mark the
+	// alloc as unhealthy. This guards against the watcher not be started.
+	r.allocLock.Lock()
+	if alloc.ClientStatus == structs.AllocClientStatusFailed &&
+		alloc.DeploymentID != "" && !alloc.DeploymentStatus.IsUnhealthy() {
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(false),
+		}
+	}
+	r.allocLock.Unlock()
+
 	return alloc
 }
 
@@ -670,10 +681,6 @@ func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
 	go r.dirtySyncState()
 
-	// Start the watcher
-	wCtx, watcherCancel := context.WithCancel(r.ctx)
-	go r.watchHealth(wCtx)
-
 	// Find the task group to run in the allocation
 	alloc := r.Alloc()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
@@ -715,6 +722,10 @@ func (r *AllocRunner) Run() {
 		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 		return
 	}
+
+	// Start the watcher
+	wCtx, watcherCancel := context.WithCancel(r.ctx)
+	go r.watchHealth(wCtx)
 
 	// Start the task runners
 	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
@@ -787,6 +798,10 @@ OUTER:
 
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()
+
+	// Free up the context. It has likely exited already
+	watcherCancel()
+
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
 

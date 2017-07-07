@@ -133,6 +133,14 @@ OUTER:
 			return
 		}
 
+		// If the alloc is marked as failed by the client set the status to
+		// unhealthy
+		if alloc.ClientStatus == structs.AllocClientStatusFailed {
+			r.logger.Printf("[TRACE] client.alloc_watcher: client status failed for alloc %q", alloc.ID)
+			setHealth(false)
+			return
+		}
+
 		if len(alloc.TaskStates) != len(tg.Tasks) {
 			r.logger.Printf("[TRACE] client.alloc_watcher: all task runners haven't started")
 			continue OUTER
