@@ -24,7 +24,7 @@ func TestJobRevertCommand_Fails(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
+	if code := cmd.Run([]string{"-address=nope", "foo", "1"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error listing jobs") {

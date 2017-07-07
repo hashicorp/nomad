@@ -298,6 +298,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Datacenters:       []string{"dc1"},
 				Update: &UpdateStrategy{
+					Stagger:         helper.TimeToPtr(30 * time.Second),
 					MaxParallel:     helper.IntToPtr(1),
 					HealthCheck:     helper.StringToPtr("checks"),
 					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
@@ -322,6 +323,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 
 						Update: &UpdateStrategy{
+							Stagger:         helper.TimeToPtr(30 * time.Second),
 							MaxParallel:     helper.IntToPtr(1),
 							HealthCheck:     helper.StringToPtr("checks"),
 							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
@@ -444,6 +446,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:       helper.StringToPtr("bar"),
 				ParentID: helper.StringToPtr("lol"),
 				Update: &UpdateStrategy{
+					Stagger:         helper.TimeToPtr(1 * time.Second),
 					MaxParallel:     helper.IntToPtr(1),
 					HealthCheck:     helper.StringToPtr("checks"),
 					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
@@ -455,6 +458,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					{
 						Name: helper.StringToPtr("bar"),
 						Update: &UpdateStrategy{
+							Stagger:        helper.TimeToPtr(2 * time.Second),
 							MaxParallel:    helper.IntToPtr(2),
 							HealthCheck:    helper.StringToPtr("manual"),
 							MinHealthyTime: helper.TimeToPtr(1 * time.Second),
@@ -495,6 +499,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ModifyIndex:       helper.Uint64ToPtr(0),
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Update: &UpdateStrategy{
+					Stagger:         helper.TimeToPtr(1 * time.Second),
 					MaxParallel:     helper.IntToPtr(1),
 					HealthCheck:     helper.StringToPtr("checks"),
 					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
@@ -518,6 +523,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("delay"),
 						},
 						Update: &UpdateStrategy{
+							Stagger:         helper.TimeToPtr(2 * time.Second),
 							MaxParallel:     helper.IntToPtr(2),
 							HealthCheck:     helper.StringToPtr("manual"),
 							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
@@ -549,6 +555,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("delay"),
 						},
 						Update: &UpdateStrategy{
+							Stagger:         helper.TimeToPtr(1 * time.Second),
 							MaxParallel:     helper.IntToPtr(1),
 							HealthCheck:     helper.StringToPtr("checks"),
 							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
@@ -574,8 +581,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
 			if !reflect.DeepEqual(tc.input, tc.expected) {
-				t.Logf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
-				t.Fatalf("Name: %v, expected:\n%#v\nactual:\n%#v", tc.name, tc.expected, tc.input)
+				t.Fatalf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
 			}
 		})
 	}
@@ -665,6 +671,7 @@ func TestJobs_Revert(t *testing.T) {
 	}
 	assertWriteMeta(t, wm)
 
+	job.Meta = map[string]string{"foo": "new"}
 	resp, wm, err = jobs.Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)

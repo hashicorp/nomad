@@ -562,8 +562,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 
 	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
 	if job.Update != nil {
-		j.Update = structs.UpdateStrategy{
-			Stagger: job.Update.Stagger,
+		j.Update = structs.UpdateStrategy{}
+
+		if job.Update.Stagger != nil {
+			j.Update.Stagger = *job.Update.Stagger
 		}
 		if job.Update.MaxParallel != nil {
 			j.Update.MaxParallel = *job.Update.MaxParallel
@@ -632,6 +634,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
+			Stagger:         *taskGroup.Update.Stagger,
 			MaxParallel:     *taskGroup.Update.MaxParallel,
 			HealthCheck:     *taskGroup.Update.HealthCheck,
 			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
