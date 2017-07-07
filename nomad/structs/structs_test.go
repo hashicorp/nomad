@@ -39,6 +39,14 @@ func TestJob_Validate(t *testing.T) {
 	}
 
 	j = &Job{
+		Type: "invalid-job-type",
+	}
+	err = j.Validate()
+	if expected := `Invalid job type: "invalid-job-type"`; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	j = &Job{
 		Type: JobTypeService,
 		Periodic: &PeriodicConfig{
 			Enabled: true,

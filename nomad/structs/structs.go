@@ -1587,8 +1587,12 @@ func (j *Job) Validate() error {
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
 	}
-	if j.Type == "" {
+	switch j.Type {
+	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem:
+	case "":
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Invalid job type: %q", j.Type))
 	}
 	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
