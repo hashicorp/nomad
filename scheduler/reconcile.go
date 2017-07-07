@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"log"
+	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -84,6 +85,10 @@ type reconcileResults struct {
 	// desiredTGUpdates captures the desired set of changes to make for each
 	// task group.
 	desiredTGUpdates map[string]*structs.DesiredUpdates
+
+	// followupEvalWait is set if there should be a followup eval run after the
+	// given duration
+	followupEvalWait time.Duration
 }
 
 // allocPlaceResult contains the information required to place a single
@@ -341,7 +346,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Determine how many we can place
 	canaryState = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	limit := a.computeLimit(tg, untainted, destructive, canaryState)
+	limit := a.computeLimit(tg, untainted, destructive, migrate, canaryState)
 
 	// Place if:
 	// * The deployment is not paused or failed
@@ -379,28 +384,49 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
 
-	// TODO Migrations should be done using a stagger and max_parallel.
-	if !a.deploymentFailed {
-		desiredChanges.Migrate += uint64(len(migrate))
+	// Calculate the allowed number of changes and set the desired changes
+	// accordingly.
+	min := helper.IntMin(len(migrate), limit)
+	if !a.deploymentFailed && !a.deploymentPaused {
+		desiredChanges.Migrate += uint64(min)
+		desiredChanges.Ignore += uint64(len(migrate) - min)
 	} else {
 		desiredChanges.Stop += uint64(len(migrate))
 	}
 
-	for _, alloc := range migrate {
+	followup := false
+	migrated := 0
+	for _, alloc := range migrate.nameOrder() {
+		// If the deployment is failed or paused, don't replace it, just mark as stop.
+		if a.deploymentFailed || a.deploymentPaused {
+			a.result.stop = append(a.result.stop, allocStopResult{
+				alloc:             alloc,
+				statusDescription: allocNodeTainted,
+			})
+			continue
+		}
+
+		if migrated >= limit {
+			followup = true
+			break
+		}
+
+		migrated++
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			statusDescription: allocMigrating,
 		})
+		a.result.place = append(a.result.place, allocPlaceResult{
+			name:          alloc.Name,
+			canary:        false,
+			taskGroup:     tg,
+			previousAlloc: alloc,
+		})
+	}
 
-		// If the deployment is failed, just stop the allocation
-		if !a.deploymentFailed {
-			a.result.place = append(a.result.place, allocPlaceResult{
-				name:          alloc.Name,
-				canary:        false,
-				taskGroup:     tg,
-				previousAlloc: alloc,
-			})
-		}
+	// We need to create a followup evaluation.
+	if followup && strategy != nil && a.result.followupEvalWait < strategy.Stagger {
+		a.result.followupEvalWait = strategy.Stagger
 	}
 
 	// Create a new deployment if necessary
@@ -482,12 +508,12 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 }
 
 // computeLimit returns the placement limit for a particular group. The inputs
-// are the group definition, the untainted and destructive allocation set and
-// whether we are in a canary state.
-func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive allocSet, canaryState bool) int {
+// are the group definition, the untainted, destructive, and migrate allocation
+// set and whether we are in a canary state.
+func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
 	// If there is no update stategy or deployment for the group we can deploy
 	// as many as the group has
-	if group.Update == nil || len(destructive) == 0 {
+	if group.Update == nil || len(destructive)+len(migrate) == 0 {
 		return group.Count
 	} else if a.deploymentPaused || a.deploymentFailed {
 		// If the deployment is paused or failed, do not create anything else

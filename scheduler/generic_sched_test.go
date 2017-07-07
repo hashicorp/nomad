@@ -2308,10 +2308,11 @@ func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
 	// Generate a fake job with allocations and an update policy.
 	job := mock.Job()
 	mp := 5
-	job.Update = structs.UpdateStrategy{
-		Stagger:     time.Second,
-		MaxParallel: mp,
-	}
+	u := structs.DefaultUpdateStrategy.Copy()
+	u.MaxParallel = mp
+	u.Stagger = time.Second
+	job.TaskGroups[0].Update = u
+
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation

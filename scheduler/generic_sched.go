@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"log"
+	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -70,8 +71,8 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
-	limitReached bool
-	nextEval     *structs.Evaluation
+	followupEvalWait time.Duration
+	nextEval         *structs.Evaluation
 
 	deployment *structs.Deployment
 
@@ -248,16 +249,14 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// XXX Don't need a next rolling update eval
-	// If the limit of placements was reached we need to create an evaluation
-	// to pickup from here after the stagger period.
-	if s.limitReached && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.job.Update.Stagger)
+	// If we need a followup eval and we haven't created one, do so.
+	if s.followupEvalWait != 0 && s.nextEval == nil {
+		s.nextEval = s.eval.NextRollingEval(s.followupEvalWait)
 		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling update: %v", s.eval, err)
+			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling migration: %v", s.eval, err)
 			return false, err
 		}
-		s.logger.Printf("[DEBUG] sched: %#v: rolling update limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
+		s.logger.Printf("[DEBUG] sched: %#v: rolling migration limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
 	}
 
 	// Submit the plan and store the results.
@@ -400,6 +399,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Add the deployment changes to the plan
 	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
+
+	// Store the the follow up eval wait duration. If set this will trigger a
+	// follow up eval to handle node draining.
+	s.followupEvalWait = results.followupEvalWait
 
 	// Update the stored deployment
 	if results.deployment != nil {

@@ -38,7 +38,7 @@ Basic Tests:
 √  Handle job being stopped both as .Stopped and nil
 √  Place more that one group
 
-Deployment Tests:
+Update stanza Tests:
 √  Stopped job cancels any active deployment
 √  Stopped job doesn't cancel terminal deployment
 √  JobIndex change cancels any active deployment
@@ -67,6 +67,7 @@ Deployment Tests:
 √  Failed deployment cancels non-promoted task groups
 √  Failed deployment and updated job works
 √  Finished deployment gets marked as complete
+√  The stagger is correctly calculated when it is applied across multiple task groups.
 */
 
 var (
@@ -76,6 +77,7 @@ var (
 		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
+		Stagger:         31 * time.Second,
 	}
 
 	noCanaryUpdate = &structs.UpdateStrategy{
@@ -83,6 +85,7 @@ var (
 		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
+		Stagger:         31 * time.Second,
 	}
 )
 
@@ -255,6 +258,7 @@ type resultExpectation struct {
 	inplace           int
 	stop              int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
+	followupEvalWait  time.Duration
 }
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
@@ -286,6 +290,9 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	}
 	if l := len(r.desiredTGUpdates); l != len(exp.desiredTGUpdates) {
 		t.Fatalf("Expected %d task group desired tg updates annotations; got %d", len(exp.desiredTGUpdates), l)
+	}
+	if r.followupEvalWait != exp.followupEvalWait {
+		t.Fatalf("Unexpected followup eval wait time. Got %v; want %v", r.followupEvalWait, exp.followupEvalWait)
 	}
 
 	// Check the desired updates happened
@@ -1638,12 +1645,12 @@ func TestReconciler_PausedOrFailedDeployment_Migrations(t *testing.T) {
 		stopAnnotation    uint64
 	}{
 		{
-			name:              "paused deployment",
-			deploymentStatus:  structs.DeploymentStatusPaused,
-			place:             3,
-			stop:              3,
-			ignoreAnnotation:  5,
-			migrateAnnotation: 3,
+			name:             "paused deployment",
+			deploymentStatus: structs.DeploymentStatusPaused,
+			place:            0,
+			stop:             3,
+			ignoreAnnotation: 5,
+			stopAnnotation:   3,
 		},
 		{
 			name:              "failed deployment",
@@ -2407,9 +2414,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		PlacedAllocs: 4,
 	}
 
-	// Create 6 allocations from the old job
+	// Create 3 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 4; i < 10; i++ {
+	for i := 7; i < 10; i++ {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2421,7 +2428,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 	// Create the healthy replacements
 	handled := make(map[string]allocUpdateType)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 7; i++ {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
@@ -2437,10 +2444,10 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	}
 
 	// Build a map of tainted nodes
-	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	tainted := make(map[string]*structs.Node, 3)
+	for i := 0; i < 3; i++ {
 		n := mock.Node()
-		n.ID = allocs[6+i].NodeID
+		n.ID = allocs[3+i].NodeID
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
@@ -2457,22 +2464,23 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             6,
+		place:             5,
 		inplace:           0,
-		stop:              6,
+		stop:              5,
+		followupEvalWait:  31 * time.Second,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:             1, // Place the lost
 				Stop:              1, // Stop the lost
 				Migrate:           1, // Migrate the tainted
-				DestructiveUpdate: 4,
-				Ignore:            4,
+				DestructiveUpdate: 3,
+				Ignore:            5,
 			},
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 1, 4, 7), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 1, 4, 7), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 1, 7, 9), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 1, 7, 9), stopResultsToNames(r.stop))
 }
 
 // Tests the reconciler handles a failed deployment and does no placements
@@ -2542,6 +2550,7 @@ func TestReconciler_FailedDeployment_NoPlacements(t *testing.T) {
 		place:             0,
 		inplace:           0,
 		stop:              2,
+		followupEvalWait:  0, // Since the deployment is failed, there should be no followup
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Stop:   2,
@@ -2821,4 +2830,70 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 			},
 		},
 	})
+}
+
+// Tests the reconciler picks the maximum of the staggers when multiple task
+// groups are under going node drains.
+func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
+	// Create a job with two task groups
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[1].Name = "two"
+	job.TaskGroups[1].Update.Stagger = 100 * time.Second
+
+	// Create the allocations
+	var allocs []*structs.Allocation
+	for j := 0; j < 2; j++ {
+		for i := 0; i < 10; i++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = structs.GenerateUUID()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
+			alloc.TaskGroup = job.TaskGroups[j].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	// Build a map of tainted nodes
+	tainted := make(map[string]*structs.Node, 15)
+	for i := 0; i < 15; i++ {
+		n := mock.Node()
+		n.ID = allocs[i].NodeID
+		n.Drain = true
+		tainted[n.ID] = n
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             8,
+		inplace:           0,
+		stop:              8,
+		followupEvalWait:  100 * time.Second,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:             0,
+				Stop:              0,
+				Migrate:           4,
+				DestructiveUpdate: 0,
+				Ignore:            6,
+			},
+			job.TaskGroups[1].Name: {
+				Place:             0,
+				Stop:              0,
+				Migrate:           4,
+				DestructiveUpdate: 0,
+				Ignore:            6,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), stopResultsToNames(r.stop))
 }
