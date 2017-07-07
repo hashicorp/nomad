@@ -256,12 +256,6 @@
 			"revisionTime": "2016-11-21T13:51:53Z"
 		},
 		{
-			"checksumSHA1": "5qEuqnavYqfukAMm7WimC/cX0HE=",
-			"path": "github.com/dadgar/columnize",
-			"revision": "36facc107c7b0258ea8d6e96a45a46087b6d7ef9",
-			"revisionTime": "2017-06-30T01:36:23Z"
-		},
-		{
 			"checksumSHA1": "/5cvgU+J4l7EhMXTK76KaCAfOuU=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
@@ -1077,11 +1071,11 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
-			"checksumSHA1": "1SC2ACq72a+yfN6CYp5s5woKsR4=",
+			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",
 			"comment": "v2.0.1-8-g983d3a5",
 			"path": "github.com/ryanuber/columnize",
-			"revision": "50b9b539927dfe231b8be1caf81b2c81d5940276",
-			"revisionTime": "2016-06-28T05:25:20Z"
+			"revision": "abc90934186a77966e2beeac62ed966aac0561d5",
+			"revisionTime": "2017-07-03T20:58:27Z"
 		},
 		{
 			"checksumSHA1": "tnMZLo/kR9Kqx6GtmWwowtTLlA8=",
