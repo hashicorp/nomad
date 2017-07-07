@@ -79,7 +79,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
   to use.
 
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
-  (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
+  (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
@@ -103,10 +103,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
   Nomad agent to be configured to allow privileged containers.
 
 * `ipv4_address` - (Optional) The IPv4 address to be used for the container when
-  using user defined networks. Requires docker 1.13.0 or greater.
+  using user defined networks. Requires Docker 1.13 or greater.
 
 * `ipv6_address` - (Optional) The IPv6 address to be used for the container when
-  using user defined networks. Requires docker 1.13.0 or greater.
+  using user defined networks. Requires Docker 1.13 or greater.
 
 * `labels` - (Optional) A key-value map of labels to set to the containers on
   start.
@@ -151,6 +151,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
+* `mac_address` - (Optional) The MAC address for the container to use (e.g.
+  "02:68:b3:29:da:98").
+
 * `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
   container to be discovered by an alternate name by any other container within
   the scope of a particular network. Network-scoped alias is supported only for
@@ -184,12 +187,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
   the container access to devices on the host. Note that this also requires the
   nomad agent and docker daemon to be configured to allow privileged
   containers.
-
-* `mac_address` - (Optional) The mac address for the container to use
-  (e.g. "02:68:b3:29:da:98").
-
-* `dns_search_domains` - (Optional) A list of DNS search domains for the container
-  to use.
 
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).

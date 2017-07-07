@@ -830,6 +830,25 @@ func TestDockerDriver_DNS(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_MACAddress(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["mac_address"] = "00:16:3e:00:00:00"
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if container.NetworkSettings.MacAddress != task.Config["mac_address"] {
+		t.Errorf("expected mac_address=%q but found %q", task.Config["mac_address"], container.NetworkSettings.MacAddress)
+	}
+}
+
 func TestDockerWorkDir(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["work_dir"] = "/some/path"
