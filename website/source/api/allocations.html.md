@@ -460,65 +460,74 @@ $ curl \
 #### Field Reference
 
 - `TaskStates` - A map of tasks to their current state and the latest events
-  that have effected the state.
+  that have effected the state. `TaskState` objects contain the following
+  fields:
 
-    A task can be in the following states:
+    - `State`: The task's current state. It can have one of the following
+      values:
 
-    - `TaskStatePending` - The task is waiting to be run, either for the first
-      time or due to a restart.
+        - `TaskStatePending` - The task is waiting to be run, either for the first
+          time or due to a restart.
 
-    - `TaskStateRunning` - The task is currently running.
+        - `TaskStateRunning` - The task is currently running.
 
-    - `TaskStateDead` - The task is dead and will not run again.
+        - `TaskStateDead` - The task is dead and will not run again.
 
-    Further the state contains the `StartedAt` and `FinishedAt` times of the
-    task. `StartedAt` can be updated multiple times if the task restarts but
-    `FinishedAt` is set only when the task transitions to `TaskStateDead`
+    - `StartedAt`: The time the task was last started at. Can be updated through
+      restarts.
 
-- `Events` - An event contains metadata about the event. The latest 10 events
-  are stored per task. Each event is timestamped (unix nano-seconds) and has one
-  of the following types:
+    - `FinishedAt`: The time the task was finished at.
 
-  - `Setup Failure` - The task could not be started because there was a
-    failure setting up the task prior to it running.
+    - `LastRestart`: The last time the task was restarted.
 
-  - `Driver Failure` - The task could not be started due to a failure in the
-    driver.
+    - `Restarts`: The number of times the task has restarted.
 
-  - `Started` - The task was started; either for the first time or due to a
-    restart.
+    - `Events` - An event contains metadata about the event. The latest 10 events
+      are stored per task. Each event is timestamped (unix nano-seconds) and has one
+      of the following types:
 
-  - `Terminated` - The task was started and exited.
+        - `Setup Failure` - The task could not be started because there was a
+        failure setting up the task prior to it running.
 
-  - `Killing` - The task has been sent the kill signal.
+        - `Driver Failure` - The task could not be started due to a failure in the
+        driver.
 
-  - `Killed` - The task was killed by an user.
+        - `Started` - The task was started; either for the first time or due to a
+        restart.
 
-  - `Received` - The task has been pulled by the client at the given timestamp.
+        - `Terminated` - The task was started and exited.
 
-  - `Failed Validation` - The task was invalid and as such it didn't run.
+        - `Killing` - The task has been sent the kill signal.
 
-  - `Restarting` - The task terminated and is being restarted.
+        - `Killed` - The task was killed by an user.
 
-  - `Not Restarting` - the task has failed and is not being restarted because
-    it has exceeded its restart policy.
+        - `Received` - The task has been pulled by the client at the given timestamp.
 
-  - `Downloading Artifacts` - The task is downloading the artifact(s)
-   - specified in the task.
+        - `Failed Validation` - The task was invalid and as such it didn't run.
 
-  - `Failed Artifact Download` - Artifact(s) specified in the task failed to
-    download.
+        - `Restarting` - The task terminated and is being restarted.
 
-  - `Restart Signaled` - The task was singled to be restarted.
+        - `Not Restarting` - the task has failed and is not being restarted because
+        it has exceeded its restart policy.
 
-  - `Signaling` - The task was is being sent a signal.
+        - `Downloading Artifacts` - The task is downloading the artifact(s)
+        - specified in the task.
 
-  - `Sibling Task Failed` - A task in the same task group failed.
+        - `Failed Artifact Download` - Artifact(s) specified in the task failed to
+        download.
 
-  - `Leader Task Dead` - The group's leader task is dead.
+        - `Restart Signaled` - The task was singled to be restarted.
 
-  - `Driver` - A message from the driver.
+        - `Signaling` - The task was is being sent a signal.
 
-  - `Task Setup` - Task setup messages.
+        - `Sibling Task Failed` - A task in the same task group failed.
 
-  Depending on the type the event will have applicable annotations.
+        - `Leader Task Dead` - The group's leader task is dead.
+
+        - `Driver` - A message from the driver.
+
+        - `Task Setup` - Task setup messages.
+
+        - `Building Task Directory` - Task is building its file system.
+
+        Depending on the type the event will have applicable annotations.
