@@ -620,7 +620,7 @@ func (c *ServiceClient) Checks(a *structs.Allocation) ([]*api.AgentCheck, error)
 		for _, service := range task.Services {
 			id := makeTaskServiceID(a.ID, task.Name, service)
 			for _, check := range service.Checks {
-				relevant[createCheckID(id, check)] = struct{}{}
+				relevant[makeCheckID(id, check)] = struct{}{}
 			}
 		}
 	}
