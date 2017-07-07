@@ -242,58 +242,6 @@ func Parse(s string) (*Config, error) {
 		}
 	}
 
-	// TODO: Deprecations
-	if vault, ok := parsed["vault"].(map[string]interface{}); ok {
-		if val, ok := vault["renew"]; ok {
-			log.Println(`[WARN] vault.renew has been renamed to vault.renew_token. ` +
-				`Update your configuration files and change "renew" to "renew_token".`)
-			vault["renew_token"] = val
-			delete(vault, "renew")
-		}
-	}
-
-	if auth, ok := parsed["auth"].(map[string]interface{}); ok {
-		log.Println("[WARN] auth has been moved under the consul stanza. " +
-			"Update your configuration files and place auth inside consul { }.")
-		if _, ok := parsed["consul"]; !ok {
-			parsed["consul"] = make(map[string]interface{})
-		}
-		parsed["consul"].(map[string]interface{})["auth"] = auth
-		delete(parsed, "auth")
-	}
-
-	if retry, ok := parsed["retry"].(string); ok {
-		log.Println("[WARN] retry has been moved under the consul stanza. " +
-			"Update your configuration files and place retry inside consul { }.")
-		if _, ok := parsed["consul"]; !ok {
-			parsed["consul"] = make(map[string]interface{})
-		}
-		parsed["consul"].(map[string]interface{})["retry"] = map[string]interface{}{
-			"backoff": retry,
-		}
-		delete(parsed, "retry")
-	}
-
-	if ssl, ok := parsed["ssl"].(map[string]interface{}); ok {
-		log.Println("[WARN] ssl has been moved under the consul stanza. " +
-			"Update your configuration files and place ssl inside consul { }.")
-		if _, ok := parsed["consul"]; !ok {
-			parsed["consul"] = make(map[string]interface{})
-		}
-		parsed["consul"].(map[string]interface{})["ssl"] = ssl
-		delete(parsed, "ssl")
-	}
-
-	if token, ok := parsed["token"].(string); ok {
-		log.Println("[WARN] token has been moved under the consul stanza. " +
-			"Update your configuration files and place token inside consul { }.")
-		if _, ok := parsed["consul"]; !ok {
-			parsed["consul"] = make(map[string]interface{})
-		}
-		parsed["consul"].(map[string]interface{})["token"] = token
-		delete(parsed, "token")
-	}
-
 	// Create a new, empty config
 	var c Config
 

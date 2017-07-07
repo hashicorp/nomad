@@ -56,6 +56,10 @@ type TemplateConfig struct {
 	// This is required unless running in debug/dry mode.
 	Destination *string `mapstructure:"destination"`
 
+	// ErrMissingKey is used to control how the template behaves when attempting
+	// to index a struct or map key that does not exist.
+	ErrMissingKey *bool `mapstructure:"error_on_missing_key"`
+
 	// Exec is the configuration for the command to run when the template renders
 	// successfully.
 	Exec *ExecConfig `mapstructure:"exec"`
@@ -104,6 +108,8 @@ func (c *TemplateConfig) Copy() *TemplateConfig {
 	o.Contents = c.Contents
 
 	o.Destination = c.Destination
+
+	o.ErrMissingKey = c.ErrMissingKey
 
 	if c.Exec != nil {
 		o.Exec = c.Exec.Copy()
@@ -161,6 +167,10 @@ func (c *TemplateConfig) Merge(o *TemplateConfig) *TemplateConfig {
 		r.Destination = o.Destination
 	}
 
+	if o.ErrMissingKey != nil {
+		r.ErrMissingKey = o.ErrMissingKey
+	}
+
 	if o.Exec != nil {
 		r.Exec = r.Exec.Merge(o.Exec)
 	}
@@ -211,6 +221,10 @@ func (c *TemplateConfig) Finalize() {
 		c.Destination = String("")
 	}
 
+	if c.ErrMissingKey == nil {
+		c.ErrMissingKey = Bool(false)
+	}
+
 	if c.Exec == nil {
 		c.Exec = DefaultExecConfig()
 	}
@@ -258,6 +272,7 @@ func (c *TemplateConfig) GoString() string {
 		"CommandTimeout:%s, "+
 		"Contents:%s, "+
 		"Destination:%s, "+
+		"ErrMissingKey:%s, "+
 		"Exec:%#v, "+
 		"Perms:%s, "+
 		"Source:%s, "+
@@ -270,6 +285,7 @@ func (c *TemplateConfig) GoString() string {
 		TimeDurationGoString(c.CommandTimeout),
 		StringGoString(c.Contents),
 		StringGoString(c.Destination),
+		BoolGoString(c.ErrMissingKey),
 		c.Exec,
 		FileModeGoString(c.Perms),
 		StringGoString(c.Source),

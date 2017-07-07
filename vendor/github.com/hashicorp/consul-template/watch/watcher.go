@@ -42,6 +42,11 @@ type Watcher struct {
 	retryFuncConsul  RetryFunc
 	retryFuncDefault RetryFunc
 	retryFuncVault   RetryFunc
+
+	// vaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	vaultGrace time.Duration
 }
 
 type NewWatcherInput struct {
@@ -61,6 +66,11 @@ type NewWatcherInput struct {
 	RetryFuncConsul  RetryFunc
 	RetryFuncDefault RetryFunc
 	RetryFuncVault   RetryFunc
+
+	// VaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	VaultGrace time.Duration
 }
 
 // NewWatcher creates a new watcher using the given API client.
@@ -75,6 +85,7 @@ func NewWatcher(i *NewWatcherInput) (*Watcher, error) {
 		retryFuncConsul:  i.RetryFuncConsul,
 		retryFuncDefault: i.RetryFuncDefault,
 		retryFuncVault:   i.RetryFuncVault,
+		vaultGrace:       i.VaultGrace,
 	}
 
 	// Start a watcher for the Vault renew if that config was specified
@@ -138,6 +149,7 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 		MaxStale:   w.maxStale,
 		Once:       w.once,
 		RetryFunc:  retryFunc,
+		VaultGrace: w.vaultGrace,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "watcher")

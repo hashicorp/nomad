@@ -57,10 +57,7 @@ func (d *VaultWriteQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfa
 	// If this is not the first query and we have a lease duration, sleep until we
 	// try to renew.
 	if opts.WaitIndex != 0 && d.secret != nil && d.secret.LeaseDuration != 0 {
-		dur := time.Duration(d.secret.LeaseDuration/2.0) * time.Second
-		if dur == 0 {
-			dur = VaultDefaultLeaseDuration
-		}
+		dur := vaultRenewDuration(d.secret.LeaseDuration)
 
 		log.Printf("[TRACE] %s: long polling for %s", d, dur)
 
@@ -83,14 +80,33 @@ func (d *VaultWriteQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfa
 		if err == nil {
 			log.Printf("[TRACE] %s: successfully renewed %s", d, d.secret.LeaseID)
 
+			// Print any warnings
+			d.printWarnings(renewal.Warnings)
+
 			secret := &Secret{
-				RequestID:     renewal.RequestID,
-				LeaseID:       renewal.LeaseID,
-				LeaseDuration: d.secret.LeaseDuration,
-				Renewable:     renewal.Renewable,
-				Data:          d.secret.Data,
+				RequestID: renewal.RequestID,
+				LeaseID:   renewal.LeaseID,
+				Renewable: renewal.Renewable,
+				Data:      d.secret.Data,
+			}
+			// For some older versions of Vault, the renewal did not include the
+			// remaining lease duration, so just use the original lease duration,
+			// because it's the best we can do.
+			if renewal.LeaseDuration != 0 {
+				secret.LeaseDuration = renewal.LeaseDuration
 			}
 			d.secret = secret
+
+			// If the remaining time on the lease is less than or equal to our
+			// configured grace period, generate a new credential now. This will help
+			// minimize downtime, since Vault will revoke credentials immediately
+			// when their maximum TTL expires.
+			remaining := time.Duration(d.secret.LeaseDuration) * time.Second
+			if remaining <= opts.VaultGrace {
+				log.Printf("[DEBUG] %s: remaining lease (%s) < grace (%s), acquiring new",
+					d, remaining, opts.VaultGrace)
+				return d.writeSecret(clients, opts)
+			}
 
 			return respWithMetadata(secret)
 		}
@@ -101,36 +117,7 @@ func (d *VaultWriteQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfa
 
 	// If we got this far, we either didn't have a secret to renew, the secret was
 	// not renewable, or the renewal failed, so attempt a fresh write.
-	log.Printf("[TRACE] %s: PUT %s", d, &url.URL{
-		Path:     "/v1/" + d.path,
-		RawQuery: opts.String(),
-	})
-
-	vaultSecret, err := clients.Vault().Logical().Write(d.path, d.data)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, d.String())
-	}
-
-	// The secret could be nil if it does not exist.
-	if vaultSecret == nil {
-		return nil, nil, fmt.Errorf("%s: no secret exists at %s", d, d.path)
-	}
-
-	// Print any warnings.
-	for _, w := range vaultSecret.Warnings {
-		log.Printf("[WARN] %s: %s", d, w)
-	}
-
-	// Create our cloned secret.
-	secret := &Secret{
-		LeaseID:       vaultSecret.LeaseID,
-		LeaseDuration: leaseDurationOrDefault(vaultSecret.LeaseDuration),
-		Renewable:     vaultSecret.Renewable,
-		Data:          vaultSecret.Data,
-	}
-	d.secret = secret
-
-	return respWithMetadata(secret)
+	return d.writeSecret(clients, opts)
 }
 
 // CanShare returns if this dependency is shareable.
@@ -169,4 +156,43 @@ func sha1Map(m map[string]interface{}) string {
 	}
 
 	return fmt.Sprintf("%.4x", h.Sum(nil))
+}
+
+func (d *VaultWriteQuery) printWarnings(warnings []string) {
+	for _, w := range warnings {
+		log.Printf("[WARN] %s: %s", d, w)
+	}
+}
+
+func (d *VaultWriteQuery) writeSecret(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+	log.Printf("[TRACE] %s: PUT %s", d, &url.URL{
+		Path:     "/v1/" + d.path,
+		RawQuery: opts.String(),
+	})
+
+	vaultSecret, err := clients.Vault().Logical().Write(d.path, d.data)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, d.String())
+	}
+
+	// The secret could be nil if it does not exist.
+	if vaultSecret == nil {
+		return nil, nil, fmt.Errorf("%s: no secret exists at %s", d, d.path)
+	}
+
+	// Print any warnings.
+	for _, w := range vaultSecret.Warnings {
+		log.Printf("[WARN] %s: %s", d, w)
+	}
+
+	// Create our cloned secret.
+	secret := &Secret{
+		LeaseID:       vaultSecret.LeaseID,
+		LeaseDuration: leaseDurationOrDefault(vaultSecret.LeaseDuration),
+		Renewable:     vaultSecret.Renewable,
+		Data:          vaultSecret.Data,
+	}
+	d.secret = secret
+
+	return respWithMetadata(secret)
 }

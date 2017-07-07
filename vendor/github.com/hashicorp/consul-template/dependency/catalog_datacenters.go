@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 )
 
@@ -20,13 +21,16 @@ var (
 
 // CatalogDatacentersQuery is the dependency to query all datacenters
 type CatalogDatacentersQuery struct {
+	ignoreFailing bool
+
 	stopCh chan struct{}
 }
 
 // NewCatalogDatacentersQuery creates a new datacenter dependency.
-func NewCatalogDatacentersQuery() (*CatalogDatacentersQuery, error) {
+func NewCatalogDatacentersQuery(ignoreFailing bool) (*CatalogDatacentersQuery, error) {
 	return &CatalogDatacentersQuery{
-		stopCh: make(chan struct{}, 1),
+		ignoreFailing: ignoreFailing,
+		stopCh:        make(chan struct{}, 1),
 	}, nil
 }
 
@@ -62,6 +66,22 @@ func (d *CatalogDatacentersQuery) Fetch(clients *ClientSet, opts *QueryOptions) 
 	result, err := clients.Consul().Catalog().Datacenters()
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, d.String())
+	}
+
+	// If the user opted in for skipping "down" datacenters, figure out which
+	// datacenters are down.
+	if d.ignoreFailing {
+		dcs := make([]string, 0, len(result))
+		for _, dc := range result {
+			if _, _, err := clients.Consul().Catalog().Services(&api.QueryOptions{
+				Datacenter:        dc,
+				AllowStale:        false,
+				RequireConsistent: true,
+			}); err == nil {
+				dcs = append(dcs, dc)
+			}
+		}
+		result = dcs
 	}
 
 	log.Printf("[TRACE] %s: returned %d results", d, len(result))
