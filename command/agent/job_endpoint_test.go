@@ -886,6 +886,8 @@ func TestHTTP_JobRevert(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
+		// Change the job to get a new version
+		job.Datacenters = append(job.Datacenters, "foo")
 		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -993,7 +995,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:         1 * time.Second,
+			Stagger:         helper.TimeToPtr(1 * time.Second),
 			MaxParallel:     helper.IntToPtr(5),
 			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
 			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
@@ -1227,6 +1229,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Migrate: true,
 				},
 				Update: &structs.UpdateStrategy{
+					Stagger:         1 * time.Second,
 					MaxParallel:     5,
 					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 					MinHealthyTime:  2 * time.Minute,

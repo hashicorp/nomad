@@ -57,7 +57,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.Canonicalize()
+	canonicalizeWarnings := args.Job.Canonicalize()
 
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
@@ -66,9 +66,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		return err
-	} else if warnings != nil {
-		reply.Warnings = warnings.Error()
 	}
+
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Lookup the job
 	snap, err := j.srv.fsm.State().Snapshot()
@@ -310,6 +311,13 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
+	// Initialize the job fields (sets defaults and any necessary init work).
+	canonicalizeWarnings := args.Job.Canonicalize()
+
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
+
+	// Validate the job and capture any warnings
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
@@ -323,10 +331,8 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		}
 	}
 
-	if warnings != nil {
-		reply.Warnings = warnings.Error()
-	}
-
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 	reply.DriverConfigValidated = true
 	return nil
 }
@@ -871,7 +877,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.Canonicalize()
+	canonicalizeWarnings := args.Job.Canonicalize()
 
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
@@ -880,9 +886,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		return err
-	} else if warnings != nil {
-		reply.Warnings = warnings.Error()
 	}
+
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Acquire a snapshot of the state
 	snap, err := j.srv.fsm.State().Snapshot()
