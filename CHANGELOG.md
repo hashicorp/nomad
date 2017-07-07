@@ -62,6 +62,8 @@ BUG FIXES:
  * server: Reject non-TLS clients when TLS enabled [GH-2525]
  * server: Fix a panic in plan evaluation with partial failures and all_at_once
    set [GH-2544]
+ * server/periodic: Restoring periodic jobs takes launch time zone into
+   consideration [GH-2808]
  * server/vault: Fix Vault Client panic when given nonexistant role [GH-2648]
  * telemetry: Fix merging of use node name [GH-2762]
 
