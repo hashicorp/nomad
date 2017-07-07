@@ -340,16 +340,14 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 	}
 
-	allocs, err := getAllocs(client, node, c.length)
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 		return 1
 	}
 
-	if len(allocs) > 1 {
-		c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-		c.Ui.Output(formatList(allocs))
-	}
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
 
 	if c.verbose {
 		c.formatAttributes(node)
@@ -449,26 +447,6 @@ func getRunningAllocs(client *api.Client, nodeID string) ([]*api.Allocation, err
 		if alloc.ClientStatus == "running" {
 			allocs = append(allocs, alloc)
 		}
-	}
-	return allocs, err
-}
-
-// getAllocs returns information about every running allocation on the node
-func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error) {
-	var allocs []string
-	// Query the node allocations
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-	// Format the allocations
-	allocs = make([]string, len(nodeAllocs)+1)
-	allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
-	for i, alloc := range nodeAllocs {
-		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-			limit(alloc.ID, length),
-			limit(alloc.EvalID, length),
-			alloc.JobID,
-			alloc.TaskGroup,
-			alloc.DesiredStatus,
-			alloc.ClientStatus)
 	}
 	return allocs, err
 }
