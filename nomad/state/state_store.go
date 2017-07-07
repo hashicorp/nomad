@@ -2015,6 +2015,11 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		status.Promoted = true
 	}
 
+	// If the deployment no longer needs promotion, update its status
+	if !copy.RequiresPromotion() && copy.Status == structs.DeploymentStatusRunning {
+		copy.StatusDescription = structs.DeploymentStatusDescriptionRunning
+	}
+
 	// Insert the deployment
 	if err := s.upsertDeploymentImpl(index, copy, txn); err != nil {
 		return err
