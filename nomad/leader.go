@@ -299,7 +299,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		// nextLaunch is the next launch that should occur.
-		nextLaunch := job.Periodic.Next(launch.Launch)
+		nextLaunch := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
 
 		// We skip force launching the job if  there should be no next launch
 		// (the zero case) or if the next launch time is in the future. If it is
