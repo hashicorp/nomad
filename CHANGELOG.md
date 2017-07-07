@@ -49,6 +49,8 @@ BUG FIXES:
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]
  * client/config: Use `cpu_total_compute` whenever it is set [GH-2745]
+ * client/config: Respect `vault.tls_server_name` setting in consul-template
+   [GH-2793]
  * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
  * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
  * driver/rkt: Fix env var interpolation [GH-2777]
