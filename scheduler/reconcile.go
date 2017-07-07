@@ -191,7 +191,7 @@ func (a *allocReconciler) cancelDeployments() {
 	}
 
 	// Check if the deployment is active and referencing an older job and cancel it
-	if d.JobCreateIndex != a.job.CreateIndex || d.JobModifyIndex != a.job.JobModifyIndex {
+	if d.JobCreateIndex != a.job.CreateIndex || d.JobVersion != a.job.Version {
 		if d.Active() {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
