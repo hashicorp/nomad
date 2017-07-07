@@ -319,9 +319,6 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
-	for i, v := range *env {
-		d.logger.Printf("[DEBUG] driver.docker: %d %s", i, v)
-	}
 
 	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
