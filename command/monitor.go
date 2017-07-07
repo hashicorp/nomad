@@ -21,13 +21,14 @@ const (
 // evalState is used to store the current "state of the world"
 // in the context of monitoring an evaluation.
 type evalState struct {
-	status string
-	desc   string
-	node   string
-	job    string
-	allocs map[string]*allocState
-	wait   time.Duration
-	index  uint64
+	status     string
+	desc       string
+	node       string
+	deployment string
+	job        string
+	allocs     map[string]*allocState
+	wait       time.Duration
+	index      uint64
 }
 
 // newEvalState creates and initializes a new monitorState
@@ -109,6 +110,11 @@ func (m *monitor) update(update *evalState) {
 	// Check if the evaluation was triggered by a job
 	if existing.job == "" && update.job != "" {
 		m.ui.Output(fmt.Sprintf("Evaluation triggered by job %q", update.job))
+	}
+
+	// Check if the evaluation was triggered by a deployment
+	if existing.deployment == "" && update.deployment != "" {
+		m.ui.Output(fmt.Sprintf("Evaluation within deployment: %q", limit(update.deployment, m.length)))
 	}
 
 	// Check the allocations
@@ -236,6 +242,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		state.desc = eval.StatusDescription
 		state.node = eval.NodeID
 		state.job = eval.JobID
+		state.deployment = eval.DeploymentID
 		state.wait = eval.Wait
 		state.index = eval.CreateIndex
 

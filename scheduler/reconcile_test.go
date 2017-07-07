@@ -1219,7 +1219,7 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 	failed.Status = structs.DeploymentStatusFailed
 
 	// Make the job newer than the deployment
-	job.JobModifyIndex += 10
+	job.Version += 10
 
 	cases := []struct {
 		name       string
@@ -1872,7 +1872,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 	d.TaskGroups[job.TaskGroups[0].Name] = s
 
 	// Update the job
-	job.JobModifyIndex += 10
+	job.Version += 10
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
@@ -2735,12 +2735,12 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 
 	// Up the job version
 	jobNew := job.Copy()
-	jobNew.JobModifyIndex += 100
+	jobNew.Version += 100
 
 	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil)
 	r := reconciler.Compute()
 
-	dnew := structs.NewDeployment(job)
+	dnew := structs.NewDeployment(jobNew)
 	dnew.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
