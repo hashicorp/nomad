@@ -501,6 +501,7 @@ const (
 	TaskSignaling              = "Signaling"
 	TaskRestartSignal          = "Restart Signaled"
 	TaskLeaderDead             = "Leader Task Dead"
+	TaskBuildingTaskDir        = "Building Task Directory"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
