@@ -319,6 +319,9 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return false, nil
 	}
+	for i, v := range *env {
+		d.logger.Printf("[DEBUG] driver.docker: %d %s", i, v)
+	}
 
 	node.Attributes[dockerDriverAttr] = "1"
 	node.Attributes["driver.docker.version"] = env.Get("Version")
@@ -331,6 +334,24 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	// Advertise if this node supports Docker volumes
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
 		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
+	}
+
+	// Detect bridge IP address - #2785
+	if nets, err := client.ListNetworks(); err != nil {
+		d.logger.Printf("[WARN] driver.docker: error discovering bridge IP: %v", err)
+	} else {
+		for _, n := range nets {
+			if n.Name != "bridge" {
+				continue
+			}
+
+			if len(n.IPAM.Config) == 0 {
+				d.logger.Printf("[WARN] driver.docker: no IPAM config for bridge network")
+				break
+			}
+
+			node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+		}
 	}
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)

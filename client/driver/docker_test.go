@@ -15,6 +15,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -175,6 +176,40 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
 	}
 	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
+}
+
+// TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
+// the bridge network's IP as a node attribute. See #2785
+func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("requires Docker")
+	}
+
+	// This seems fragile, so we might need to reconsider this test if it
+	// proves flaky
+	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
+	if err != nil {
+		t.Fatalf("unable to get ip for docker0: %v", err)
+	}
+	if expectedAddr == "" {
+		t.Fatalf("unable to get ip for docker bridge")
+	}
+
+	conf := testConfig()
+	conf.Node = mock.Node()
+	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
+	ok, err := dd.Fingerprint(conf, conf.Node)
+	if err != nil {
+		t.Fatalf("error fingerprinting docker: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected Docker to be enabled but false was returned")
+	}
+
+	if found := conf.Node.Attributes["driver.docker.bridge_ip"]; found != expectedAddr {
+		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
+	}
+	t.Logf("docker bridge ip: %q", conf.Node.Attributes["driver.docker.bridge_ip"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
