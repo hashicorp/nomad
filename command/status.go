@@ -292,6 +292,11 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
+	latestDeployment, _, err := client.Jobs().LatestDeployment(*job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying latest job deployment: %s", err)
+	}
+
 	// Output the summary
 	if err := c.outputJobSummary(client, job); err != nil {
 		return err
@@ -338,10 +343,32 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
+	if latestDeployment != nil && latestDeployment.Status != "successful" {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
+		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
+	}
+
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
 	return nil
+}
+
+func (c *StatusCommand) formatDeployment(d *api.Deployment) string {
+	// Format the high-level elements
+	high := []string{
+		fmt.Sprintf("ID|%s", limit(d.ID, c.length)),
+		fmt.Sprintf("Status|%s", d.Status),
+		fmt.Sprintf("Description|%s", d.StatusDescription),
+	}
+
+	base := formatKV(high)
+	if len(d.TaskGroups) == 0 {
+		return base
+	}
+	base += "\n\n[bold]Deployed[reset]\n"
+	base += formatDeploymentGroups(d, c.length)
+	return base
 }
 
 func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {
