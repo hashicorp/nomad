@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -56,7 +57,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.Canonicalize()
+	canonicalizeWarnings := args.Job.Canonicalize()
 
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
@@ -65,9 +66,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		return err
-	} else if warnings != nil {
-		reply.Warnings = warnings.Error()
 	}
+
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Lookup the job
 	snap, err := j.srv.fsm.State().Snapshot()
@@ -142,15 +144,23 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
-	// Commit this update via Raft
-	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
-		return err
-	}
+	// Check if the job has changed at all
+	if existingJob == nil || existingJob.SpecChanged(args.Job) {
+		// Set the submit time
+		args.Job.SetSubmitTime()
 
-	// Populate the reply with job information
-	reply.JobModifyIndex = index
+		// Commit this update via Raft
+		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		if err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			return err
+		}
+
+		// Populate the reply with job information
+		reply.JobModifyIndex = index
+	} else {
+		reply.JobModifyIndex = existingJob.JobModifyIndex
+	}
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
@@ -164,7 +174,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
 		JobID:          args.Job.ID,
-		JobModifyIndex: index,
+		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
 	}
 	update := &structs.EvalUpdateRequest{
@@ -301,6 +311,13 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
+	// Initialize the job fields (sets defaults and any necessary init work).
+	canonicalizeWarnings := args.Job.Canonicalize()
+
+	// Add implicit constraints
+	setImplicitConstraints(args.Job)
+
+	// Validate the job and capture any warnings
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
@@ -314,10 +331,8 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		}
 	}
 
-	if warnings != nil {
-		reply.Warnings = warnings.Error()
-	}
-
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 	reply.DriverConfigValidated = true
 	return nil
 }
@@ -331,7 +346,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Validate the arguments
 	if args.JobID == "" {
-		return fmt.Errorf("missing job ID for evaluation")
+		return fmt.Errorf("missing job ID for revert")
 	}
 
 	// Lookup the job by version
@@ -378,6 +393,45 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Register the version.
 	return j.Register(reg, reply)
+}
+
+// Stable is used to mark the job version as stable
+func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabilityResponse) error {
+	if done, err := j.srv.forward("Job.Stable", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "stable"}, time.Now())
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for marking job as stable")
+	}
+
+	// Lookup the job by version
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	jobV, err := snap.JobByIDAndVersion(ws, args.JobID, args.JobVersion)
+	if err != nil {
+		return err
+	}
+	if jobV == nil {
+		return fmt.Errorf("job %q at version %d not found", args.JobID, args.JobVersion)
+	}
+
+	// Commit this stability request via Raft
+	_, modifyIndex, err := j.srv.raftApply(structs.JobStabilityRequestType, args)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Job stability request failed: %v", err)
+		return err
+	}
+
+	// Setup the reply
+	reply.Index = modifyIndex
+	return nil
 }
 
 // Evaluate is used to force a job for re-evaluation
@@ -451,7 +505,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Validate the arguments
 	if args.JobID == "" {
-		return fmt.Errorf("missing job ID for evaluation")
+		return fmt.Errorf("missing job ID for deregistering")
 	}
 
 	// Lookup the job
@@ -552,7 +606,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 }
 
 // GetJobVersions is used to retrieve all tracked versions of a job.
-func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
+func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	reply *structs.JobVersionsResponse) error {
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
@@ -574,6 +628,18 @@ func (j *Job) GetJobVersions(args *structs.JobSpecificRequest,
 			reply.Versions = out
 			if len(out) != 0 {
 				reply.Index = out[0].ModifyIndex
+
+				// Compute the diffs
+				if args.Diffs {
+					for i := 0; i < len(out)-1; i++ {
+						old, new := out[i+1], out[i]
+						d, err := old.Diff(new, true)
+						if err != nil {
+							return fmt.Errorf("failed to create job diff: %v", err)
+						}
+						reply.Diffs = append(reply.Diffs, d)
+					}
+				}
 			} else {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("job_version")
@@ -721,6 +787,81 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// Deployments is used to list the deployments for a job
+func (j *Job) Deployments(args *structs.JobSpecificRequest,
+	reply *structs.DeploymentListResponse) error {
+	if done, err := j.srv.forward("Job.Deployments", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "deployments"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Capture the deployments
+			deploys, err := state.DeploymentsByJobID(ws, args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Use the last index that affected the deployment table
+			index, err := state.Index("deployment")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			reply.Deployments = deploys
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
+	return j.srv.blockingRPC(&opts)
+}
+
+// LatestDeployment is used to retrieve the latest deployment for a job
+func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
+	reply *structs.SingleDeploymentResponse) error {
+	if done, err := j.srv.forward("Job.LatestDeployment", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "latest_deployment"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Capture the deployments
+			deploys, err := state.DeploymentsByJobID(ws, args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Use the last index that affected the deployment table
+			index, err := state.Index("deployment")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			if len(deploys) > 0 {
+				sort.Slice(deploys, func(i, j int) bool {
+					return deploys[i].CreateIndex > deploys[j].CreateIndex
+				})
+				reply.Deployment = deploys[0]
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+
+		}}
+	return j.srv.blockingRPC(&opts)
+}
+
 // Plan is used to cause a dry-run evaluation of the Job and return the results
 // with a potential diff containing annotations.
 func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse) error {
@@ -735,7 +876,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Initialize the job fields (sets defaults and any necessary init work).
-	args.Job.Canonicalize()
+	canonicalizeWarnings := args.Job.Canonicalize()
 
 	// Add implicit constraints
 	setImplicitConstraints(args.Job)
@@ -744,9 +885,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	err, warnings := validateJob(args.Job)
 	if err != nil {
 		return err
-	} else if warnings != nil {
-		reply.Warnings = warnings.Error()
 	}
+
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Acquire a snapshot of the state
 	snap, err := j.srv.fsm.State().Snapshot()
@@ -763,13 +905,21 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	var index uint64
 	var updatedIndex uint64
+
 	if oldJob != nil {
 		index = oldJob.JobModifyIndex
-		updatedIndex = oldJob.JobModifyIndex + 1
-	}
 
-	// Insert the updated Job into the snapshot
-	snap.UpsertJob(updatedIndex, args.Job)
+		// We want to reuse deployments where possible, so only insert the job if
+		// it has changed or the job didn't exist
+		if oldJob.SpecChanged(args.Job) {
+			// Insert the updated Job into the snapshot
+			updatedIndex = oldJob.JobModifyIndex + 1
+			snap.UpsertJob(updatedIndex, args.Job)
+		}
+	} else if oldJob == nil {
+		// Insert the updated Job into the snapshot
+		snap.UpsertJob(100, args.Job)
+	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
@@ -969,6 +1119,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
+	dispatchJob.SetSubmitTime()
 
 	// Merge in the meta data
 	for k, v := range args.Meta {

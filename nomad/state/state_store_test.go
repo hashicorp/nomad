@@ -10,6 +10,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -98,7 +99,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc, alloc2},
 			Job:   job,
 		},
-		CreatedDeployment: d,
+		Deployment: d,
 	}
 
 	err := state.UpsertPlanResults(1000, &res)
@@ -136,63 +137,31 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
-}
 
-// This test checks that when a new deployment is made, the old ones are
-// cancelled.
-func TestStateStore_UpsertPlanResults_Deployment_CancelOld(t *testing.T) {
-	state := testStateStore(t)
+	// Update the allocs to be part of a new deployment
+	d2 := d.Copy()
+	d2.ID = structs.GenerateUUID()
 
-	// Create a job that applies to all
-	job := mock.Job()
-	if err := state.UpsertJob(998, job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	allocNew := alloc.Copy()
+	allocNew.DeploymentID = d2.ID
+	allocNew2 := alloc2.Copy()
+	allocNew2.DeploymentID = d2.ID
 
-	// Create two deployments:
-	// One that is already terminal and assert its modify index isn't touched
-	// A second that is outstanding and assert it gets cancelled.
-	dterminal := mock.Deployment()
-	dterminal.Status = structs.DeploymentStatusFailed
-	dterminal.JobID = job.ID
-	doutstanding := mock.Deployment()
-	doutstanding.JobID = job.ID
-
-	if err := state.UpsertDeployment(999, dterminal, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := state.UpsertDeployment(1000, doutstanding, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	alloc := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc.Job = nil
-	alloc2.Job = nil
-
-	dnew := mock.Deployment()
-	dnew.JobID = job.ID
-	alloc.DeploymentID = dnew.ID
-	alloc2.DeploymentID = dnew.ID
-
-	// Create a plan result
-	res := structs.ApplyPlanResultsRequest{
+	// Create another plan
+	res = structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
+			Alloc: []*structs.Allocation{allocNew, allocNew2},
 			Job:   job,
 		},
-		CreatedDeployment: dnew,
+		Deployment: d2,
 	}
 
-	err := state.UpsertPlanResults(1001, &res)
+	err = state.UpsertPlanResults(1001, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	ws := memdb.NewWatchSet()
-
-	// Check the deployments are correctly updated.
-	dout, err := state.DeploymentByID(ws, dnew.ID)
+	dout, err = state.DeploymentByID(ws, d2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -201,32 +170,12 @@ func TestStateStore_UpsertPlanResults_Deployment_CancelOld(t *testing.T) {
 		t.Fatalf("bad: nil deployment")
 	}
 
-	tg, ok := dout.TaskGroups[alloc.TaskGroup]
+	tg, ok = dout.TaskGroups[alloc.TaskGroup]
 	if !ok {
 		t.Fatalf("bad: nil deployment state")
 	}
 	if tg == nil || tg.PlacedAllocs != 2 {
 		t.Fatalf("bad: %v", dout)
-	}
-
-	dterminalout, err := state.DeploymentByID(ws, dterminal.ID)
-	if err != nil || dterminalout == nil {
-		t.Fatalf("bad: %v %v", err, dterminalout)
-	}
-	if !reflect.DeepEqual(dterminalout, dterminal) {
-		t.Fatalf("bad: %v %v", dterminal, dterminalout)
-	}
-
-	doutstandingout, err := state.DeploymentByID(ws, doutstanding.ID)
-	if err != nil || doutstandingout == nil {
-		t.Fatalf("bad: %v %v", err, doutstandingout)
-	}
-	if doutstandingout.Status != structs.DeploymentStatusCancelled || doutstandingout.ModifyIndex != 1001 {
-		t.Fatalf("bad: %v", doutstandingout)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
 	}
 }
 
@@ -244,7 +193,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	doutstanding := mock.Deployment()
 	doutstanding.JobID = job.ID
 
-	if err := state.UpsertDeployment(1000, doutstanding, false); err != nil {
+	if err := state.UpsertDeployment(1000, doutstanding); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -268,7 +217,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc},
 			Job:   job,
 		},
-		CreatedDeployment: dnew,
+		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 	}
 
@@ -321,7 +270,7 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.UpsertDeployment(1000, deployment, false)
+	err = state.UpsertDeployment(1000, deployment)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -352,89 +301,26 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpsertDeployment_Cancel(t *testing.T) {
-	state := testStateStore(t)
-	deployment := mock.Deployment()
-	deployment2 := mock.Deployment()
-	deployment2.JobID = deployment.JobID
-
-	// Create a deployment that shares the job id prefix
-	deployment3 := mock.Deployment()
-	deployment3.JobID = deployment.JobID + "foo"
-
-	if err := state.UpsertDeployment(1000, deployment, false); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := state.UpsertDeployment(1001, deployment2, true); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := state.UpsertDeployment(1002, deployment3, true); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	out, err := state.DeploymentByID(ws, deployment.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Check to see that the deployment was cancelled
-	if out.Status != structs.DeploymentStatusCancelled {
-		t.Fatalf("got status %v; want %v", out.Status, structs.DeploymentStatusCancelled)
-	} else if out.ModifyIndex != 1001 {
-		t.Fatalf("got modify index %v; want %v", out.ModifyIndex, 1001)
-	}
-
-	// Get the deployments by job
-	deployments, err := state.DeploymentsByJobID(ws, deployment.JobID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if l := len(deployments); l != 2 {
-		t.Fatalf("got %d deployments; want %v", l, 2)
-	}
-
-	latest, err := state.LatestDeploymentByJobID(ws, deployment.JobID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if latest == nil || latest.CreateIndex != 1001 {
-		t.Fatalf("bad: %+v", latest)
-	}
-
-	index, err := state.Index("deployment")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1002 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
-}
-
 func TestStateStore_DeleteDeployment(t *testing.T) {
 	state := testStateStore(t)
-	deployment := mock.Deployment()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
 
-	err := state.UpsertDeployment(1000, deployment, false)
+	err := state.UpsertDeployment(1000, d1)
 	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertDeployment(1001, d2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.DeploymentByID(ws, deployment.ID); err != nil {
+	if _, err := state.DeploymentByID(ws, d1.ID); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.DeleteDeployment(1001, deployment.ID)
+	err = state.DeleteDeployment(1002, []string{d1.ID, d2.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -444,20 +330,20 @@ func TestStateStore_DeleteDeployment(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	out, err := state.DeploymentByID(ws, deployment.ID)
+	out, err := state.DeploymentByID(ws, d1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	if out != nil {
-		t.Fatalf("bad: %#v %#v", deployment, out)
+		t.Fatalf("bad: %#v %#v", d1, out)
 	}
 
 	index, err := state.Index("deployment")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 1002 {
 		t.Fatalf("bad: %d", index)
 	}
 
@@ -474,7 +360,7 @@ func TestStateStore_Deployments(t *testing.T) {
 		deployment := mock.Deployment()
 		deployments = append(deployments, deployment)
 
-		err := state.UpsertDeployment(1000+uint64(i), deployment, false)
+		err := state.UpsertDeployment(1000+uint64(i), deployment)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -503,6 +389,92 @@ func TestStateStore_Deployments(t *testing.T) {
 
 	if !reflect.DeepEqual(deployments, out) {
 		t.Fatalf("bad: %#v %#v", deployments, out)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	deploy := mock.Deployment()
+
+	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
+	err := state.UpsertDeployment(1000, deploy)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.DeploymentsByIDPrefix(ws, deploy.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
+		var deploys []*structs.Deployment
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			deploy := raw.(*structs.Deployment)
+			deploys = append(deploys, deploy)
+		}
+		return deploys
+	}
+
+	deploys := gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploy = mock.Deployment()
+	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
+	err = state.UpsertDeployment(1001, deploy)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 2 {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err = state.DeploymentsByIDPrefix(ws, "1111")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	deploys = gatherDeploys(iter)
+	if len(deploys) != 1 {
+		t.Fatalf("err: %v", err)
 	}
 
 	if watchFired(ws) {
@@ -3252,6 +3224,61 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
+	state := testStateStore(t)
+	deployment := mock.Deployment()
+	alloc := mock.Alloc()
+	alloc.DeploymentID = deployment.ID
+
+	if err := state.UpsertJob(999, alloc.Job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertDeployment(1000, deployment); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watch set so we can test that update fires the watch
+	ws := memdb.NewWatchSet()
+	if _, err := state.AllocsByDeployment(ws, alloc.DeploymentID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	err := state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !watchFired(ws) {
+		t.Fatalf("watch not fired")
+	}
+
+	ws = memdb.NewWatchSet()
+	allocs, err := state.AllocsByDeployment(ws, alloc.DeploymentID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(allocs) != 1 {
+		t.Fatalf("bad: %#v", allocs)
+	}
+
+	if !reflect.DeepEqual(alloc, allocs[0]) {
+		t.Fatalf("bad: %#v %#v", alloc, allocs[0])
+	}
+
+	index, err := state.Index("allocs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
 // Testing to ensure we keep issue
 // https://github.com/hashicorp/nomad/issues/2583 fixed
 func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
@@ -4698,6 +4725,695 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	summary, _ = state.JobSummaryByID(ws, job.ID)
 	if summary.Summary["web"].Starting != 1 || summary.Summary["web"].Running != 1 || summary.Summary["web"].Failed != 1 || summary.Summary["web"].Complete != 1 {
 		t.Fatalf("bad job summary: %v", summary)
+	}
+}
+
+// Test that non-existant deployment can't be updated
+func TestStateStore_UpsertDeploymentStatusUpdate_NonExistant(t *testing.T) {
+	state := testStateStore(t)
+
+	// Update the non-existant deployment
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID: structs.GenerateUUID(),
+			Status:       structs.DeploymentStatusRunning,
+		},
+	}
+	err := state.UpdateDeploymentStatus(2, req)
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("expected error updating the status because the deployment doesn't exist")
+	}
+}
+
+// Test that terminal deployment can't be updated
+func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a terminal deployment
+	d := mock.Deployment()
+	d.Status = structs.DeploymentStatusFailed
+
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Update the deployment
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID: d.ID,
+			Status:       structs.DeploymentStatusRunning,
+		},
+	}
+	err := state.UpdateDeploymentStatus(2, req)
+	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
+		t.Fatalf("expected error updating the status because the deployment is terminal")
+	}
+}
+
+// Test that a non terminal deployment is updated and that a job and eval are
+// created.
+func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a deployment
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create an eval and a job
+	e := mock.Eval()
+	j := mock.Job()
+
+	// Update the deployment
+	status, desc := structs.DeploymentStatusFailed, "foo"
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            status,
+			StatusDescription: desc,
+		},
+		Job:  j,
+		Eval: e,
+	}
+	err := state.UpdateDeploymentStatus(2, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != status || dout.StatusDescription != desc {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, j.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+}
+
+// Test that when a deployment is updated to successful the job is updated to
+// stable
+func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a job
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Insert a deployment
+	d := structs.NewDeployment(job)
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Update the deployment
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+	err := state.UpdateDeploymentStatus(3, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != structs.DeploymentStatusSuccessful ||
+		dout.StatusDescription != structs.DeploymentStatusDescriptionSuccessful {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if !jout.Stable {
+		t.Fatalf("job not marked stable %#v", jout)
+	}
+	if jout.Version != d.JobVersion {
+		t.Fatalf("job version changed; got %d; want %d", jout.Version, d.JobVersion)
+	}
+}
+
+func TestStateStore_UpdateJobStability(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a job twice to get two versions
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if err := state.UpsertJob(2, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Update the stability to true
+	err := state.UpdateJobStability(3, job.ID, 0, true)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the job was updated properly
+	ws := memdb.NewWatchSet()
+	jout, _ := state.JobByIDAndVersion(ws, job.ID, 0)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if !jout.Stable {
+		t.Fatalf("job not marked stable %#v", jout)
+	}
+
+	// Update the stability to false
+	err = state.UpdateJobStability(3, job.ID, 0, false)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the job was updated properly
+	jout, _ = state.JobByIDAndVersion(ws, job.ID, 0)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+	if jout.Stable {
+		t.Fatalf("job marked stable %#v", jout)
+	}
+}
+
+// Test that non-existant deployment can't be promoted
+func TestStateStore_UpsertDeploymentPromotion_NonExistant(t *testing.T) {
+	state := testStateStore(t)
+
+	// Promote the non-existant deployment
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: structs.GenerateUUID(),
+			All:          true,
+		},
+	}
+	err := state.UpdateDeploymentPromotion(2, req)
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("expected error promoting because the deployment doesn't exist")
+	}
+}
+
+// Test that terminal deployment can't be updated
+func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a terminal deployment
+	d := mock.Deployment()
+	d.Status = structs.DeploymentStatusFailed
+
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Promote the deployment
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+	}
+	err := state.UpdateDeploymentPromotion(2, req)
+	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
+		t.Fatalf("expected error updating the status because the deployment is terminal: %v", err)
+	}
+}
+
+// Test promoting unhealthy canaries in a deployment.
+func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job
+	j := mock.Job()
+	if err := state.UpsertJob(1, j); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.JobID = j.ID
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a set of allocations
+	c1 := mock.Alloc()
+	c1.JobID = j.ID
+	c1.DeploymentID = d.ID
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
+	c2 := mock.Alloc()
+	c2.JobID = j.ID
+	c2.DeploymentID = d.ID
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
+
+	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Promote the canaries
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+	}
+	err := state.UpdateDeploymentPromotion(4, req)
+	if err == nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !strings.Contains(err.Error(), c1.ID) {
+		t.Fatalf("expect canary %q to be listed as unhealth: %v", c1.ID, err)
+	}
+	if !strings.Contains(err.Error(), c2.ID) {
+		t.Fatalf("expect canary %q to be listed as unhealth: %v", c2.ID, err)
+	}
+}
+
+// Test promoting all canaries in a deployment.
+func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job with two task groups
+	j := mock.Job()
+	tg1 := j.TaskGroups[0]
+	tg2 := tg1.Copy()
+	tg2.Name = "foo"
+	j.TaskGroups = append(j.TaskGroups, tg2)
+	if err := state.UpsertJob(1, j); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	d.JobID = j.ID
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"web": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+		"foo": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+	}
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a set of allocations
+	c1 := mock.Alloc()
+	c1.JobID = j.ID
+	c1.DeploymentID = d.ID
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
+	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+	c2 := mock.Alloc()
+	c2.JobID = j.ID
+	c2.DeploymentID = d.ID
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
+	c2.TaskGroup = tg2.Name
+	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+
+	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create an eval
+	e := mock.Eval()
+
+	// Promote the canaries
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+		Eval: e,
+	}
+	err := state.UpdateDeploymentPromotion(4, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status per task group was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.StatusDescription != structs.DeploymentStatusDescriptionRunning {
+		t.Fatalf("status description not updated: got %v; want %v", dout.StatusDescription, structs.DeploymentStatusDescriptionRunning)
+	}
+	if len(dout.TaskGroups) != 2 {
+		t.Fatalf("bad: %#v", dout.TaskGroups)
+	}
+	for tg, state := range dout.TaskGroups {
+		if !state.Promoted {
+			t.Fatalf("bad: group %q not promoted %#v", tg, state)
+		}
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+}
+
+// Test promoting a subset of canaries in a deployment.
+func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job with two task groups
+	j := mock.Job()
+	tg1 := j.TaskGroups[0]
+	tg2 := tg1.Copy()
+	tg2.Name = "foo"
+	j.TaskGroups = append(j.TaskGroups, tg2)
+	if err := state.UpsertJob(1, j); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"web": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+		"foo": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+	}
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a set of allocations
+	c1 := mock.Alloc()
+	c1.JobID = j.ID
+	c1.DeploymentID = d.ID
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
+	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+	c2 := mock.Alloc()
+	c2.JobID = j.ID
+	c2.DeploymentID = d.ID
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
+	c2.TaskGroup = tg2.Name
+	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+
+	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create an eval
+	e := mock.Eval()
+
+	// Promote the canaries
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			Groups:       []string{"web"},
+		},
+		Eval: e,
+	}
+	err := state.UpdateDeploymentPromotion(4, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status per task group was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if len(dout.TaskGroups) != 2 {
+		t.Fatalf("bad: %#v", dout.TaskGroups)
+	}
+	stateout, ok := dout.TaskGroups["web"]
+	if !ok {
+		t.Fatalf("bad: no state for task group web")
+	}
+	if !stateout.Promoted {
+		t.Fatalf("bad: task group web not promoted: %#v", stateout)
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+}
+
+// Test that allocation health can't be set against a non-existant deployment
+func TestStateStore_UpsertDeploymentAllocHealth_NonExistant(t *testing.T) {
+	state := testStateStore(t)
+
+	// Set health against the non-existant deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         structs.GenerateUUID(),
+			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+		},
+	}
+	err := state.UpdateDeploymentAllocHealth(2, req)
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("expected error because the deployment doesn't exist: %v", err)
+	}
+}
+
+// Test that allocation health can't be set against a terminal deployment
+func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a terminal deployment
+	d := mock.Deployment()
+	d.Status = structs.DeploymentStatusFailed
+
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Set health against the terminal deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         d.ID,
+			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+		},
+	}
+	err := state.UpdateDeploymentAllocHealth(2, req)
+	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
+		t.Fatalf("expected error because the deployment is terminal: %v", err)
+	}
+}
+
+// Test that allocation health can't be set against a non-existant alloc
+func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistant(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a deployment
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Set health against the terminal deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         d.ID,
+			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+		},
+	}
+	err := state.UpdateDeploymentAllocHealth(2, req)
+	if err == nil || !strings.Contains(err.Error(), "unknown alloc") {
+		t.Fatalf("expected error because the alloc doesn't exist: %v", err)
+	}
+}
+
+// Test that allocation health can't be set for an alloc with mismatched
+// deployment ids
+func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert two  deployment
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	if err := state.UpsertDeployment(1, d1); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if err := state.UpsertDeployment(2, d2); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Insert an alloc for a random deployment
+	a := mock.Alloc()
+	a.DeploymentID = d1.ID
+	if err := state.UpsertAllocs(3, []*structs.Allocation{a}); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Set health against the terminal deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:         d2.ID,
+			HealthyAllocationIDs: []string{a.ID},
+		},
+	}
+	err := state.UpdateDeploymentAllocHealth(4, req)
+	if err == nil || !strings.Contains(err.Error(), "not part of deployment") {
+		t.Fatalf("expected error because the alloc isn't part of the deployment: %v", err)
+	}
+}
+
+// Test that allocation health is properly set
+func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
+	state := testStateStore(t)
+
+	// Insert a deployment
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Insert two allocations
+	a1 := mock.Alloc()
+	a1.DeploymentID = d.ID
+	a2 := mock.Alloc()
+	a2.DeploymentID = d.ID
+	if err := state.UpsertAllocs(2, []*structs.Allocation{a1, a2}); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a job to roll back to
+	j := mock.Job()
+
+	// Create an eval that should be upserted
+	e := mock.Eval()
+
+	// Create a status update for the deployment
+	status, desc := structs.DeploymentStatusFailed, "foo"
+	u := &structs.DeploymentStatusUpdate{
+		DeploymentID:      d.ID,
+		Status:            status,
+		StatusDescription: desc,
+	}
+
+	// Set health against the deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:           d.ID,
+			HealthyAllocationIDs:   []string{a1.ID},
+			UnhealthyAllocationIDs: []string{a2.ID},
+		},
+		Job:              j,
+		Eval:             e,
+		DeploymentUpdate: u,
+	}
+	err := state.UpdateDeploymentAllocHealth(3, req)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != status || dout.StatusDescription != desc {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, j.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+
+	// Check the status of the allocs
+	out1, err := state.AllocByID(ws, a1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	out2, err := state.AllocByID(ws, a2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !out1.DeploymentStatus.IsHealthy() {
+		t.Fatalf("bad: alloc %q not healthy", out1.ID)
+	}
+	if !out2.DeploymentStatus.IsUnhealthy() {
+		t.Fatalf("bad: alloc %q not unhealthy", out2.ID)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -108,19 +109,27 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		allocs = append(allocs, allocList...)
 	}
 
-	// Attach the plan to all the allocations. It is pulled out in the
-	// payload to avoid the redundancy of encoding, but should be denormalized
-	// prior to being inserted into MemDB.
-	if j := plan.Job; j != nil {
-		for _, alloc := range allocs {
-			if alloc.Job == nil {
-				alloc.Job = j
-			}
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	now := time.Now().UTC().UnixNano()
+	for _, alloc := range allocs {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
 		}
 	}
 
+	// Setup the update request
+	req := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job:   plan.Job,
+			Alloc: allocs,
+		},
+		Deployment:        plan.Deployment,
+		DeploymentUpdates: plan.DeploymentUpdates,
+	}
+
 	// Apply the full plan
-	err := h.State.UpsertAllocs(index, allocs)
+	err := h.State.UpsertPlanResults(index, &req)
 	return result, nil, err
 }
 

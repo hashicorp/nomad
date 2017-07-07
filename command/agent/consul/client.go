@@ -606,6 +606,41 @@ func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 	c.commit(&ops)
 }
 
+// Checks returns the checks registered against the agent for the given
+// allocation.
+func (c *ServiceClient) Checks(a *structs.Allocation) ([]*api.AgentCheck, error) {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil, fmt.Errorf("failed to find task group in alloc")
+	}
+
+	// Determine the checks that are relevant
+	relevant := make(map[string]struct{}, 4)
+	for _, task := range tg.Tasks {
+		for _, service := range task.Services {
+			id := makeTaskServiceID(a.ID, task.Name, service)
+			for _, check := range service.Checks {
+				relevant[makeCheckID(id, check)] = struct{}{}
+			}
+		}
+	}
+
+	// Query all the checks
+	checks, err := c.client.Checks()
+	if err != nil {
+		return nil, err
+	}
+
+	allocChecks := make([]*api.AgentCheck, 0, len(relevant))
+	for checkID := range relevant {
+		if check, ok := checks[checkID]; ok {
+			allocChecks = append(allocChecks, check)
+		}
+	}
+
+	return allocChecks, nil
+}
+
 // Shutdown the Consul client. Update running task registations and deregister
 // agent from Consul. On first call blocks up to shutdownWait before giving up
 // on syncing operations.

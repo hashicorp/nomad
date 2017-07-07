@@ -184,6 +184,13 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 		}
 		conf.EvalGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.DeploymentGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.DeploymentGCThreshold = dur
+	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != "" {
 		dur, err := time.ParseDuration(heartbeatGrace)

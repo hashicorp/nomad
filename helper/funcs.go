@@ -49,6 +49,11 @@ func IntToPtr(i int) *int {
 	return &i
 }
 
+// Int64ToPtr returns the pointer to an int
+func Int64ToPtr(i int64) *int64 {
+	return &i
+}
+
 // UintToPtr returns the pointer to an uint
 func Uint64ToPtr(u uint64) *uint64 {
 	return &u
@@ -62,6 +67,13 @@ func StringToPtr(str string) *string {
 // TimeToPtr returns the pointer to a time stamp
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+func IntMin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // MapStringStringSliceValueSet returns the set of values in a map[string][]string

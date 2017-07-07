@@ -379,6 +379,16 @@ func allocTableSchema() *memdb.TableSchema {
 					Field: "EvalID",
 				},
 			},
+
+			// Deployment index is used to lookup allocations by deployment
+			"deployment": &memdb.IndexSchema{
+				Name:         "deployment",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "DeploymentID",
+				},
+			},
 		},
 	}
 }

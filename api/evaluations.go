@@ -62,6 +62,7 @@ type Evaluation struct {
 	JobModifyIndex       uint64
 	NodeID               string
 	NodeModifyIndex      uint64
+	DeploymentID         string
 	Status               string
 	StatusDescription    string
 	Wait                 time.Duration

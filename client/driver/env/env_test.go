@@ -203,6 +203,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_META_owner=armon",
 		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
+		"NOMAD_ALLOC_INDEX=0",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)

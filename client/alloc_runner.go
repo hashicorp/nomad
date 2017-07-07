@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -52,6 +54,8 @@ type AllocRunner struct {
 	alloc                  *structs.Allocation
 	allocClientStatus      string // Explicit status of allocation. Set when there are failures
 	allocClientDescription string
+	allocHealth            *bool // Whether the allocation is healthy
+	allocBroadcast         *cstructs.AllocBroadcaster
 	allocLock              sync.Mutex
 
 	dirtyCh chan struct{}
@@ -73,10 +77,9 @@ type AllocRunner struct {
 
 	otherAllocDir *allocdir.AllocDir
 
-	destroy     bool
-	destroyCh   chan struct{}
-	destroyLock sync.Mutex
-	waitCh      chan struct{}
+	ctx    context.Context
+	exitFn context.CancelFunc
+	waitCh chan struct{}
 
 	// State related fields
 	// stateDB is used to store the alloc runners state
@@ -143,21 +146,24 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 	consulClient ConsulServiceAPI) *AllocRunner {
 
 	ar := &AllocRunner{
-		config:       config,
-		stateDB:      stateDB,
-		updater:      updater,
-		logger:       logger,
-		alloc:        alloc,
-		dirtyCh:      make(chan struct{}, 1),
-		tasks:        make(map[string]*TaskRunner),
-		taskStates:   copyTaskStates(alloc.TaskStates),
-		restored:     make(map[string]struct{}),
-		updateCh:     make(chan *structs.Allocation, 64),
-		destroyCh:    make(chan struct{}),
-		waitCh:       make(chan struct{}),
-		vaultClient:  vaultClient,
-		consulClient: consulClient,
+		config:         config,
+		stateDB:        stateDB,
+		updater:        updater,
+		logger:         logger,
+		alloc:          alloc,
+		allocBroadcast: cstructs.NewAllocBroadcaster(0),
+		dirtyCh:        make(chan struct{}, 1),
+		tasks:          make(map[string]*TaskRunner),
+		taskStates:     copyTaskStates(alloc.TaskStates),
+		restored:       make(map[string]struct{}),
+		updateCh:       make(chan *structs.Allocation, 64),
+		waitCh:         make(chan struct{}),
+		vaultClient:    vaultClient,
+		consulClient:   consulClient,
 	}
+
+	// TODO Should be passed a context
+	ar.ctx, ar.exitFn = context.WithCancel(context.TODO())
 	return ar
 }
 
@@ -475,6 +481,14 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		r.allocLock.Unlock()
 		return alloc
 	}
+
+	// The health has been set
+	if r.allocHealth != nil {
+		if alloc.DeploymentStatus == nil {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
+		}
+		alloc.DeploymentStatus.Healthy = helper.BoolToPtr(*r.allocHealth)
+	}
 	r.allocLock.Unlock()
 
 	// Scan the task states to determine the status of the alloc
@@ -482,6 +496,17 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	alloc.TaskStates = copyTaskStates(r.taskStates)
 	alloc.ClientStatus = getClientStatus(r.taskStates)
 	r.taskStatusLock.RUnlock()
+
+	// If the client status is failed and we are part of a deployment, mark the
+	// alloc as unhealthy. This guards against the watcher not be started.
+	r.allocLock.Lock()
+	if alloc.ClientStatus == structs.AllocClientStatusFailed &&
+		alloc.DeploymentID != "" && !alloc.DeploymentStatus.IsUnhealthy() {
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(false),
+		}
+	}
+	r.allocLock.Unlock()
 
 	return alloc
 }
@@ -525,7 +550,7 @@ func (r *AllocRunner) dirtySyncState() {
 		select {
 		case <-r.dirtyCh:
 			r.syncStatus()
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			return
 		}
 	}
@@ -536,6 +561,7 @@ func (r *AllocRunner) syncStatus() error {
 	// Get a copy of our alloc, update status server side and sync to disk
 	alloc := r.Alloc()
 	r.updater(alloc)
+	r.allocBroadcast.Send(alloc)
 	return r.saveAllocRunnerState()
 }
 
@@ -566,6 +592,10 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	if event != nil {
 		if event.FailsTask {
 			taskState.Failed = true
+		}
+		if event.Type == structs.TaskRestarting {
+			taskState.Restarts++
+			taskState.LastRestart = time.Unix(0, event.Time)
 		}
 		r.appendTaskEvent(taskState, event)
 	}
@@ -693,6 +723,10 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
+	// Start the watcher
+	wCtx, watcherCancel := context.WithCancel(r.ctx)
+	go r.watchHealth(wCtx)
+
 	// Start the task runners
 	r.logger.Printf("[DEBUG] client: starting task runners for alloc '%s'", r.alloc.ID)
 	r.taskLock.Lock()
@@ -724,8 +758,19 @@ OUTER:
 		case update := <-r.updateCh:
 			// Store the updated allocation.
 			r.allocLock.Lock()
+
+			// If the deployment ids have changed clear the health
+			if r.alloc.DeploymentID != update.DeploymentID {
+				r.allocHealth = nil
+			}
+
 			r.alloc = update
 			r.allocLock.Unlock()
+
+			// Create a new watcher
+			watcherCancel()
+			wCtx, watcherCancel = context.WithCancel(r.ctx)
+			go r.watchHealth(wCtx)
 
 			// Check if we're in a terminal status
 			if update.TerminalStatus() {
@@ -742,7 +787,7 @@ OUTER:
 			if err := r.syncStatus(); err != nil {
 				r.logger.Printf("[WARN] client: failed to sync status upon receiving alloc update: %v", err)
 			}
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 			break OUTER
 		}
@@ -753,6 +798,10 @@ OUTER:
 
 	// Block until we should destroy the state of the alloc
 	r.handleDestroy()
+
+	// Free up the context. It has likely exited already
+	watcherCancel()
+
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.alloc.ID)
 }
 
@@ -798,7 +847,7 @@ func (r *AllocRunner) handleDestroy() {
 
 	for {
 		select {
-		case <-r.destroyCh:
+		case <-r.ctx.Done():
 			if err := r.DestroyContext(); err != nil {
 				r.logger.Printf("[ERR] client: failed to destroy context for alloc '%s': %v",
 					r.alloc.ID, err)
@@ -905,14 +954,8 @@ func (r *AllocRunner) shouldUpdate(serverIndex uint64) bool {
 
 // Destroy is used to indicate that the allocation context should be destroyed
 func (r *AllocRunner) Destroy() {
-	r.destroyLock.Lock()
-	defer r.destroyLock.Unlock()
-
-	if r.destroy {
-		return
-	}
-	r.destroy = true
-	close(r.destroyCh)
+	r.exitFn()
+	r.allocBroadcast.Close()
 }
 
 // WaitCh returns a channel to wait for termination

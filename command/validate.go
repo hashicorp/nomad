@@ -7,6 +7,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type ValidateCommand struct {
@@ -104,7 +105,7 @@ func (c *ValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, 
 	var out api.JobValidateResponse
 
 	job := agent.ApiJobToStructJob(aj)
-	job.Canonicalize()
+	canonicalizeWarnings := job.Canonicalize()
 
 	if vErr := job.Validate(); vErr != nil {
 		if merr, ok := vErr.(*multierror.Error); ok {
@@ -118,9 +119,7 @@ func (c *ValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, 
 		}
 	}
 
-	if warnings := job.Warnings(); warnings != nil {
-		out.Warnings = warnings.Error()
-	}
-
+	warnings := job.Warnings()
+	out.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 	return &out, nil
 }

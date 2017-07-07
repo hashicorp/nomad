@@ -48,7 +48,7 @@ func TestNodeStatusCommand_Self(t *testing.T) {
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
 	}
-	if strings.Contains(out, "Allocations") {
+	if !strings.Contains(out, "No allocations placed") {
 		t.Fatalf("should not dump allocations")
 	}
 	ui.OutputWriter.Reset()
@@ -119,7 +119,7 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
 	}
-	if strings.Contains(out, "Allocations") {
+	if !strings.Contains(out, "No allocations placed") {
 		t.Fatalf("should not dump allocations")
 	}
 
@@ -206,7 +206,7 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both -json and -t are not allowed") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
 }

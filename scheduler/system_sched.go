@@ -16,7 +16,7 @@ const (
 
 	// allocNodeTainted is the status used when stopping an alloc because it's
 	// node is tainted.
-	allocNodeTainted = "system alloc not needed as node is tainted"
+	allocNodeTainted = "alloc not needed as node is tainted"
 )
 
 // SystemScheduler is used for 'system' jobs. This scheduler is
@@ -60,12 +60,13 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate:
+		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+		structs.EvalTriggerDeploymentWatcher:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
-			s.queuedAllocs)
+			s.queuedAllocs, "")
 	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
@@ -73,14 +74,14 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs)
+				s.queuedAllocs, "")
 		}
 		return err
 	}
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
-		s.queuedAllocs)
+		s.queuedAllocs, "")
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no

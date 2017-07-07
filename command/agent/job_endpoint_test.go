@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -602,6 +603,82 @@ func TestHTTP_JobAllocations(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobDeployments(t *testing.T) {
+	assert := assert.New(t)
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		j := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          j,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		assert.Nil(s.Agent.RPC("Job.Register", &args, &resp), "JobRegister")
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		d := mock.Deployment()
+		d.JobID = j.ID
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployments", nil)
+		assert.Nil(err, "HTTP")
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(err, "JobSpecificRequest")
+
+		// Check the response
+		deploys := obj.([]*structs.Deployment)
+		assert.Len(deploys, 1, "deployments")
+		assert.Equal(d.ID, deploys[0].ID, "deployment id")
+
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+	})
+}
+
+func TestHTTP_JobDeployment(t *testing.T) {
+	assert := assert.New(t)
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		j := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job:          j,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		assert.Nil(s.Agent.RPC("Job.Register", &args, &resp), "JobRegister")
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		d := mock.Deployment()
+		d.JobID = j.ID
+		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployment", nil)
+		assert.Nil(err, "HTTP")
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(err, "JobSpecificRequest")
+
+		// Check the response
+		out := obj.(*structs.Deployment)
+		assert.NotNil(out, "deployment")
+		assert.Equal(d.ID, out.ID, "deployment id")
+
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+	})
+}
+
 func TestHTTP_JobVersions(t *testing.T) {
 	httpTest(t, nil, func(s *TestServer) {
 		// Create the job
@@ -629,7 +706,7 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions", nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions?diffs=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -642,7 +719,8 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Check the response
-		versions := obj.([]*structs.Job)
+		vResp := obj.(structs.JobVersionsResponse)
+		versions := vResp.Versions
 		if len(versions) != 2 {
 			t.Fatalf("got %d versions; want 2", len(versions))
 		}
@@ -653,6 +731,10 @@ func TestHTTP_JobVersions(t *testing.T) {
 
 		if v := versions[1]; v.Version != 0 {
 			t.Fatalf("bad %v", v)
+		}
+
+		if len(vResp.Diffs) != 1 {
+			t.Fatalf("bad %v", vResp)
 		}
 
 		// Check for the index
@@ -804,6 +886,8 @@ func TestHTTP_JobRevert(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
+		// Change the job to get a new version
+		job.Datacenters = append(job.Datacenters, "foo")
 		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -841,6 +925,57 @@ func TestHTTP_JobRevert(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobStable(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job and register it twice
+		job := mock.Job()
+		regReq := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var regResp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		args := structs.JobStabilityRequest{
+			JobID:        job.ID,
+			JobVersion:   0,
+			Stable:       true,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/stable", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		stableResp := obj.(structs.JobStabilityResponse)
+		if stableResp.Index == 0 {
+			t.Fatalf("bad: %v", stableResp)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+	})
+}
+
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
@@ -860,7 +995,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:         1 * time.Second,
+			Stagger:         helper.TimeToPtr(1 * time.Second),
 			MaxParallel:     helper.IntToPtr(5),
 			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
 			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
@@ -1094,6 +1229,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Migrate: true,
 				},
 				Update: &structs.UpdateStrategy{
+					Stagger:         1 * time.Second,
 					MaxParallel:     5,
 					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 					MinHealthyTime:  2 * time.Minute,

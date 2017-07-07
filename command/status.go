@@ -138,6 +138,7 @@ func (c *StatusCommand) Run(args []string) int {
 	basic := []string{
 		fmt.Sprintf("ID|%s", *job.ID),
 		fmt.Sprintf("Name|%s", *job.Name),
+		fmt.Sprintf("Submit Date|%s", formatTime(time.Unix(0, *job.SubmitTime))),
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
@@ -278,7 +279,6 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 // outputJobInfo prints information about the passed non-periodic job. If a
 // request fails, an error is returned.
 func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
-	var evals, allocs []string
 
 	// Query the allocations
 	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, nil)
@@ -292,6 +292,11 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
+	latestDeployment, _, err := client.Jobs().LatestDeployment(*job.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying latest job deployment: %s", err)
+	}
+
 	// Output the summary
 	if err := c.outputJobSummary(client, job); err != nil {
 		return err
@@ -303,7 +308,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	blockedEval := false
 
 	// Format the evals
-	evals = make([]string, len(jobEvals)+1)
+	evals := make([]string, len(jobEvals)+1)
 	evals[0] = "ID|Priority|Triggered By|Status|Placement Failures"
 	for i, eval := range jobEvals {
 		failures, _ := evalFailureStatus(eval)
@@ -338,27 +343,104 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
+	if latestDeployment != nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
+		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
+	}
+
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	if len(jobAllocs) > 0 {
-		allocs = make([]string, len(jobAllocs)+1)
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Desired|Status|Created At"
-		for i, alloc := range jobAllocs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
-				limit(alloc.ID, c.length),
-				limit(alloc.EvalID, c.length),
-				limit(alloc.NodeID, c.length),
+	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
+	return nil
+}
+
+func (c *StatusCommand) formatDeployment(d *api.Deployment) string {
+	// Format the high-level elements
+	high := []string{
+		fmt.Sprintf("ID|%s", limit(d.ID, c.length)),
+		fmt.Sprintf("Status|%s", d.Status),
+		fmt.Sprintf("Description|%s", d.StatusDescription),
+	}
+
+	base := formatKV(high)
+	if len(d.TaskGroups) == 0 {
+		return base
+	}
+	base += "\n\n[bold]Deployed[reset]\n"
+	base += formatDeploymentGroups(d, c.length)
+	return base
+}
+
+func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {
+	if len(stubs) == 0 {
+		return "No allocations placed"
+	}
+
+	allocs := make([]string, len(stubs)+1)
+	if verbose {
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		for i, alloc := range stubs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.EvalID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
+				alloc.JobVersion,
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
 				formatUnixNanoTime(alloc.CreateTime))
 		}
-
-		c.Ui.Output(formatList(allocs))
 	} else {
-		c.Ui.Output("No allocations placed")
+		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		for i, alloc := range stubs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
+				alloc.TaskGroup,
+				alloc.JobVersion,
+				alloc.DesiredStatus,
+				alloc.ClientStatus,
+				formatUnixNanoTime(alloc.CreateTime))
+		}
 	}
-	return nil
+
+	return formatList(allocs)
+}
+
+func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int) string {
+	if len(allocations) == 0 {
+		return "No allocations placed"
+	}
+
+	allocs := make([]string, len(allocations)+1)
+	if verbose {
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		for i, alloc := range allocations {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.EvalID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
+				alloc.TaskGroup,
+				*alloc.Job.Version,
+				alloc.DesiredStatus,
+				alloc.ClientStatus,
+				formatUnixNanoTime(alloc.CreateTime))
+		}
+	} else {
+		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		for i, alloc := range allocations {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
+				alloc.TaskGroup,
+				*alloc.Job.Version,
+				alloc.DesiredStatus,
+				alloc.ClientStatus,
+				formatUnixNanoTime(alloc.CreateTime))
+		}
+	}
+
+	return formatList(allocs)
 }
 
 // outputJobSummary displays the given jobs summary and children job summary
@@ -446,13 +528,14 @@ func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 // list general information about a list of jobs
 func createStatusListOutput(jobs []*api.JobListStub) string {
 	out := make([]string, len(jobs)+1)
-	out[0] = "ID|Type|Priority|Status"
+	out[0] = "ID|Type|Priority|Status|Submit Date"
 	for i, job := range jobs {
-		out[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%s|%s",
 			job.ID,
 			getTypeString(job),
 			job.Priority,
-			getStatusString(job.Status, job.Stop))
+			getStatusString(job.Status, job.Stop),
+			formatTime(time.Unix(0, job.SubmitTime)))
 	}
 	return formatList(out)
 }

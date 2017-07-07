@@ -70,6 +70,15 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/revert"):
 		jobName := strings.TrimSuffix(path, "/revert")
 		return s.jobRevert(resp, req, jobName)
+	case strings.HasSuffix(path, "/deployments"):
+		jobName := strings.TrimSuffix(path, "/deployments")
+		return s.jobDeployments(resp, req, jobName)
+	case strings.HasSuffix(path, "/deployment"):
+		jobName := strings.TrimSuffix(path, "/deployment")
+		return s.jobLatestDeployment(resp, req, jobName)
+	case strings.HasSuffix(path, "/stable"):
+		jobName := strings.TrimSuffix(path, "/stable")
+		return s.jobStable(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -231,6 +240,51 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	return out.Evaluations, nil
 }
 
+func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.DeploymentListResponse
+	if err := s.agent.RPC("Job.Deployments", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Deployments == nil {
+		out.Deployments = make([]*structs.Deployment, 0)
+	}
+	return out.Deployments, nil
+}
+
+func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.SingleDeploymentResponse
+	if err := s.agent.RPC("Job.LatestDeployment", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Deployment, nil
+}
+
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	switch req.Method {
@@ -343,8 +397,20 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	args := structs.JobSpecificRequest{
+
+	diffsStr := req.URL.Query().Get("diffs")
+	var diffsBool bool
+	if diffsStr != "" {
+		var err error
+		diffsBool, err = strconv.ParseBool(diffsStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "diffs", diffsStr, err)
+		}
+	}
+
+	args := structs.JobVersionsRequest{
 		JobID: jobName,
+		Diffs: diffsBool,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -360,7 +426,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job versions not found")
 	}
 
-	return out.Versions, nil
+	return out, nil
 }
 
 func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
@@ -389,6 +455,35 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	return out, nil
+}
+
+func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var stableRequest structs.JobStabilityRequest
+	if err := decodeBody(req, &stableRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if stableRequest.JobID == "" {
+		return nil, CodedError(400, "JobID must be specified")
+	}
+	if stableRequest.JobID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+
+	s.parseRegion(req, &stableRequest.Region)
+
+	var out structs.JobStabilityResponse
+	if err := s.agent.RPC("Job.Stable", &stableRequest, &out); err != nil {
+		return nil, err
+	}
+
+	setIndex(resp, out.Index)
 	return out, nil
 }
 
@@ -467,8 +562,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 
 	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
 	if job.Update != nil {
-		j.Update = structs.UpdateStrategy{
-			Stagger: job.Update.Stagger,
+		j.Update = structs.UpdateStrategy{}
+
+		if job.Update.Stagger != nil {
+			j.Update.Stagger = *job.Update.Stagger
 		}
 		if job.Update.MaxParallel != nil {
 			j.Update.MaxParallel = *job.Update.MaxParallel
@@ -537,6 +634,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
+			Stagger:         *taskGroup.Update.Stagger,
 			MaxParallel:     *taskGroup.Update.MaxParallel,
 			HealthCheck:     *taskGroup.Update.HealthCheck,
 			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,

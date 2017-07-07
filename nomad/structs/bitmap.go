@@ -40,6 +40,15 @@ func (b Bitmap) Set(idx uint) {
 	b[bucket] |= mask
 }
 
+// Unset is used to unset the given index of the bitmap
+func (b Bitmap) Unset(idx uint) {
+	bucket := idx >> 3
+	// Mask should be all ones minus the idx position
+	offset := 1 << (idx & 7)
+	mask := byte(offset ^ 0xff)
+	b[bucket] &= mask
+}
+
 // Check is used to check the given index of the bitmap
 func (b Bitmap) Check(idx uint) bool {
 	bucket := idx >> 3

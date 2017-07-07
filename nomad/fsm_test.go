@@ -9,11 +9,13 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/kr/pretty"
 )
 
 type MockSink struct {
@@ -1047,6 +1049,448 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	}
 }
 
+func TestFSM_ApplyPlanResults(t *testing.T) {
+	fsm := testFSM(t)
+
+	// Create the request and create a deployment
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+
+	d := mock.Deployment()
+	d.JobID = job.ID
+	d.JobModifyIndex = job.ModifyIndex
+	d.JobVersion = job.Version
+
+	alloc.DeploymentID = d.ID
+
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	req := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job:   job,
+			Alloc: []*structs.Allocation{alloc},
+		},
+		Deployment: d,
+	}
+	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify the allocation is registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	alloc.CreateIndex = out.CreateIndex
+	alloc.ModifyIndex = out.ModifyIndex
+	alloc.AllocModifyIndex = out.AllocModifyIndex
+
+	// Job should be re-attached
+	alloc.Job = job
+	if !reflect.DeepEqual(alloc, out) {
+		t.Fatalf("bad: %#v %#v", alloc, out)
+	}
+
+	dout, err := fsm.State().DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if tg, ok := dout.TaskGroups[alloc.TaskGroup]; !ok || tg.PlacedAllocs != 1 {
+		t.Fatalf("err: %v %v", tg, err)
+	}
+
+	// Ensure that the original job is used
+	evictAlloc := alloc.Copy()
+	job = mock.Job()
+	job.Priority = 123
+
+	evictAlloc.Job = nil
+	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
+	req2 := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job:   job,
+			Alloc: []*structs.Allocation{evictAlloc},
+		},
+	}
+	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are evicted
+	out, err = fsm.State().AllocByID(ws, alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
+		t.Fatalf("alloc found!")
+	}
+	if out.Job == nil || out.Job.Priority == 123 {
+		t.Fatalf("bad job")
+	}
+}
+
+func TestFSM_DeploymentStatusUpdate(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	state := fsm.State()
+
+	// Upsert a deployment
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a request to update the deployment, create an eval and job
+	e := mock.Eval()
+	j := mock.Job()
+	status, desc := structs.DeploymentStatusFailed, "foo"
+	req := &structs.DeploymentStatusUpdateRequest{
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            status,
+			StatusDescription: desc,
+		},
+		Job:  j,
+		Eval: e,
+	}
+	buf, err := structs.Encode(structs.DeploymentStatusUpdateRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != status || dout.StatusDescription != desc {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, j.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+
+	// Assert the eval was enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v %#v", stats, e)
+	}
+}
+
+func TestFSM_JobStabilityUpdate(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	state := fsm.State()
+
+	// Upsert a deployment
+	job := mock.Job()
+	if err := state.UpsertJob(1, job); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a request to update the job to stable
+	req := &structs.JobStabilityRequest{
+		JobID:      job.ID,
+		JobVersion: job.Version,
+		Stable:     true,
+	}
+	buf, err := structs.Encode(structs.JobStabilityRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Check that the stability was updated properly
+	ws := memdb.NewWatchSet()
+	jout, _ := state.JobByIDAndVersion(ws, job.ID, job.Version)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil || !jout.Stable {
+		t.Fatalf("bad: %#v", jout)
+	}
+}
+
+func TestFSM_DeploymentPromotion(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	state := fsm.State()
+
+	// Create a job with two task groups
+	j := mock.Job()
+	tg1 := j.TaskGroups[0]
+	tg2 := tg1.Copy()
+	tg2.Name = "foo"
+	j.TaskGroups = append(j.TaskGroups, tg2)
+	if err := state.UpsertJob(1, j); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"web": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+		"foo": &structs.DeploymentState{
+			DesiredTotal:    10,
+			DesiredCanaries: 1,
+		},
+	}
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a set of allocations
+	c1 := mock.Alloc()
+	c1.JobID = j.ID
+	c1.DeploymentID = d.ID
+	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
+	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+	c2 := mock.Alloc()
+	c2.JobID = j.ID
+	c2.DeploymentID = d.ID
+	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
+	c2.TaskGroup = tg2.Name
+	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+
+	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create an eval
+	e := mock.Eval()
+
+	// Promote the canaries
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+		Eval: e,
+	}
+	buf, err := structs.Encode(structs.DeploymentPromoteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Check that the status per task group was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if len(dout.TaskGroups) != 2 {
+		t.Fatalf("bad: %#v", dout.TaskGroups)
+	}
+	for tg, state := range dout.TaskGroups {
+		if !state.Promoted {
+			t.Fatalf("bad: group %q not promoted %#v", tg, state)
+		}
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+
+	// Assert the eval was enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v %#v", stats, e)
+	}
+}
+
+func TestFSM_DeploymentAllocHealth(t *testing.T) {
+	fsm := testFSM(t)
+	fsm.evalBroker.SetEnabled(true)
+	state := fsm.State()
+
+	// Insert a deployment
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Insert two allocations
+	a1 := mock.Alloc()
+	a1.DeploymentID = d.ID
+	a2 := mock.Alloc()
+	a2.DeploymentID = d.ID
+	if err := state.UpsertAllocs(2, []*structs.Allocation{a1, a2}); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a job to roll back to
+	j := mock.Job()
+
+	// Create an eval that should be upserted
+	e := mock.Eval()
+
+	// Create a status update for the deployment
+	status, desc := structs.DeploymentStatusFailed, "foo"
+	u := &structs.DeploymentStatusUpdate{
+		DeploymentID:      d.ID,
+		Status:            status,
+		StatusDescription: desc,
+	}
+
+	// Set health against the deployment
+	req := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:           d.ID,
+			HealthyAllocationIDs:   []string{a1.ID},
+			UnhealthyAllocationIDs: []string{a2.ID},
+		},
+		Job:              j,
+		Eval:             e,
+		DeploymentUpdate: u,
+	}
+	buf, err := structs.Encode(structs.DeploymentAllocHealthRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Check that the status was updated properly
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if dout.Status != status || dout.StatusDescription != desc {
+		t.Fatalf("bad: %#v", dout)
+	}
+
+	// Check that the evaluation was created
+	eout, _ := state.EvalByID(ws, e.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("bad: %#v", eout)
+	}
+
+	// Check that the job was created
+	jout, _ := state.JobByID(ws, j.ID)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if jout == nil {
+		t.Fatalf("bad: %#v", jout)
+	}
+
+	// Check the status of the allocs
+	out1, err := state.AllocByID(ws, a1.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	out2, err := state.AllocByID(ws, a2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !out1.DeploymentStatus.IsHealthy() {
+		t.Fatalf("bad: alloc %q not healthy", out1.ID)
+	}
+	if !out2.DeploymentStatus.IsUnhealthy() {
+		t.Fatalf("bad: alloc %q not unhealthy", out2.ID)
+	}
+
+	// Assert the eval was enqueued
+	stats := fsm.evalBroker.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v %#v", stats, e)
+	}
+}
+
+func TestFSM_DeleteDeployment(t *testing.T) {
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Upsert a deployments
+	d := mock.Deployment()
+	if err := state.UpsertDeployment(1, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	req := structs.DeploymentDeleteRequest{
+		Deployments: []string{d.ID},
+	}
+	buf, err := structs.Encode(structs.DeploymentDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	deployment, err := state.DeploymentByID(ws, d.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if deployment != nil {
+		t.Fatalf("deployment found!")
+	}
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -1358,8 +1802,8 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	state := fsm.State()
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
-	state.UpsertDeployment(1000, d1, false)
-	state.UpsertDeployment(1001, d2, false)
+	state.UpsertDeployment(1000, d1)
+	state.UpsertDeployment(1001, d2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -1473,7 +1917,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		JobID: alloc.Job.ID,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
-				Queued:   10,
+				Queued:   9,
 				Starting: 1,
 			},
 		},
@@ -1481,99 +1925,6 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		ModifyIndex: out2.ModifyIndex,
 	}
 	if !reflect.DeepEqual(&expected, out2) {
-		t.Fatalf("expected: %#v, actual: %#v", &expected, out2)
-	}
-}
-
-func TestFSM_ApplyPlanResults(t *testing.T) {
-	fsm := testFSM(t)
-
-	// Create the request and create a deployment
-	alloc := mock.Alloc()
-	job := alloc.Job
-	alloc.Job = nil
-
-	d := mock.Deployment()
-	d.JobID = job.ID
-	d.JobModifyIndex = job.ModifyIndex
-	d.JobVersion = job.Version
-
-	alloc.DeploymentID = d.ID
-
-	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	req := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{alloc},
-		},
-		CreatedDeployment: d,
-	}
-	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify the allocation is registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	alloc.CreateIndex = out.CreateIndex
-	alloc.ModifyIndex = out.ModifyIndex
-	alloc.AllocModifyIndex = out.AllocModifyIndex
-
-	// Job should be re-attached
-	alloc.Job = job
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
-
-	dout, err := fsm.State().DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tg, ok := dout.TaskGroups[alloc.TaskGroup]; !ok || tg.PlacedAllocs != 1 {
-		t.Fatalf("err: %v %v", tg, err)
-	}
-
-	// Ensure that the original job is used
-	evictAlloc := alloc.Copy()
-	job = mock.Job()
-	job.Priority = 123
-
-	evictAlloc.Job = nil
-	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
-	req2 := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{evictAlloc},
-		},
-	}
-	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are evicted
-	out, err = fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("alloc found!")
-	}
-	if out.Job == nil || out.Job.Priority == 123 {
-		t.Fatalf("bad job")
+		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
 	}
 }

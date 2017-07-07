@@ -107,15 +107,15 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// Versions is used to retrieve all versions of a particular
-// job given its unique ID.
-func (j *Jobs) Versions(jobID string, q *QueryOptions) ([]*Job, *QueryMeta, error) {
-	var resp []*Job
-	qm, err := j.client.query("/v1/job/"+jobID+"/versions", &resp, q)
+// Versions is used to retrieve all versions of a particular job given its
+// unique ID.
+func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	var resp JobVersionsResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", jobID, diffs), &resp, q)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return resp, qm, nil
+	return resp.Versions, resp.Diffs, qm, nil
 }
 
 // Allocations is used to return the allocs for a given job ID.
@@ -138,8 +138,31 @@ func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*Al
 	return resp, qm, nil
 }
 
-// Evaluations is used to query the evaluations associated with
+// Deployments is used to query the deployments associated with the given job
+// ID.
+func (j *Jobs) Deployments(jobID string, q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
+	var resp []*Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployments", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(DeploymentIndexSort(resp))
+	return resp, qm, nil
+}
+
+// LatestDeployment is used to query for the latest deployment associated with
 // the given job ID.
+func (j *Jobs) LatestDeployment(jobID string, q *QueryOptions) (*Deployment, *QueryMeta, error) {
+	var resp *Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployment", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Evaluations is used to query the evaluations associated with the given job
+// ID.
 func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	var resp []*Evaluation
 	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, q)
@@ -243,6 +266,23 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 	return &resp, wm, nil
 }
 
+// Stable is used to mark a job version's stability.
+func (j *Jobs) Stable(jobID string, version uint64, stable bool,
+	q *WriteOptions) (*JobStabilityResponse, *WriteMeta, error) {
+
+	var resp JobStabilityResponse
+	req := &JobStabilityRequest{
+		JobID:      jobID,
+		JobVersion: version,
+		Stable:     stable,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/stable", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -250,8 +290,7 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
-	Stagger         time.Duration  `mapstructure:"stagger"`
+	Stagger         *time.Duration `mapstructure:"stagger"`
 	MaxParallel     *int           `mapstructure:"max_parallel"`
 	HealthCheck     *string        `mapstructure:"health_check"`
 	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
@@ -267,8 +306,9 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 
 	copy := new(UpdateStrategy)
 
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
-	copy.Stagger = u.Stagger
+	if u.Stagger != nil {
+		copy.Stagger = helper.TimeToPtr(*u.Stagger)
+	}
 
 	if u.MaxParallel != nil {
 		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
@@ -302,6 +342,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 		return
 	}
 
+	if o.Stagger != nil {
+		u.Stagger = helper.TimeToPtr(*o.Stagger)
+	}
+
 	if o.MaxParallel != nil {
 		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
 	}
@@ -333,6 +377,10 @@ func (u *UpdateStrategy) Canonicalize() {
 	}
 
 	d := structs.DefaultUpdateStrategy
+
+	if u.Stagger == nil {
+		u.Stagger = helper.TimeToPtr(d.Stagger)
+	}
 
 	if u.HealthCheck == nil {
 		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
@@ -434,6 +482,7 @@ type Job struct {
 	StatusDescription *string
 	Stable            *bool
 	Version           *uint64
+	SubmitTime        *int64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -564,6 +613,7 @@ type JobListStub struct {
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobIDSort is used to sort jobs by their job ID's.
@@ -791,6 +841,7 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+	Canary            uint64
 }
 
 type JobDispatchRequest struct {
@@ -804,5 +855,29 @@ type JobDispatchResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
+	WriteMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
+	Diffs    []*JobDiff
+	QueryMeta
+}
+
+// JobStabilityRequest is used to marked a job as stable.
+type JobStabilityRequest struct {
+	// Job to set the stability on
+	JobID      string
+	JobVersion uint64
+
+	// Set the stability
+	Stable bool
+	WriteRequest
+}
+
+// JobStabilityResponse is the response when marking a job as stable.
+type JobStabilityResponse struct {
+	JobModifyIndex uint64
 	WriteMeta
 }

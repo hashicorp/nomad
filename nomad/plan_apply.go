@@ -126,17 +126,14 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
 
-	// Grab the job
-	job := plan.Job
-
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
+			Job:   plan.Job,
 			Alloc: make([]*structs.Allocation, 0, minUpdates),
 		},
-		CreatedDeployment: plan.CreatedDeployment,
-		DeploymentUpdates: plan.DeploymentUpdates,
+		Deployment:        result.Deployment,
+		DeploymentUpdates: result.DeploymentUpdates,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -204,8 +201,10 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
-		NodeUpdate:     make(map[string][]*structs.Allocation),
-		NodeAllocation: make(map[string][]*structs.Allocation),
+		NodeUpdate:        make(map[string][]*structs.Allocation),
+		NodeAllocation:    make(map[string][]*structs.Allocation),
+		Deployment:        plan.Deployment.Copy(),
+		DeploymentUpdates: plan.DeploymentUpdates,
 	}
 
 	// Collect all the nodeIDs
@@ -245,6 +244,8 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			if plan.AllAtOnce {
 				result.NodeUpdate = nil
 				result.NodeAllocation = nil
+				result.DeploymentUpdates = nil
+				result.Deployment = nil
 				return true
 			}
 
@@ -318,8 +319,51 @@ OUTER:
 			err := fmt.Errorf("partialCommit with RefreshIndex of 0 (%d node, %d alloc)", nodeIndex, allocIndex)
 			mErr.Errors = append(mErr.Errors, err)
 		}
+
+		// If there was a partial commit and we are operating within a
+		// deployment correct for any canary that may have been desired to be
+		// placed but wasn't actually placed
+		correctDeploymentCanaries(result)
 	}
 	return result, mErr.ErrorOrNil()
+}
+
+// correctDeploymentCanaries ensures that the deployment object doesn't list any
+// canaries as placed if they didn't actually get placed. This could happen if
+// the plan had a partial commit.
+func correctDeploymentCanaries(result *structs.PlanResult) {
+	// Hot path
+	if result.Deployment == nil || !result.Deployment.HasPlacedCanaries() {
+		return
+	}
+
+	// Build a set of all the allocations IDs that were placed
+	placedAllocs := make(map[string]struct{}, len(result.NodeAllocation))
+	for _, placed := range result.NodeAllocation {
+		for _, alloc := range placed {
+			placedAllocs[alloc.ID] = struct{}{}
+		}
+	}
+
+	// Go through all the canaries and ensure that the result list only contains
+	// those that have been placed
+	for _, group := range result.Deployment.TaskGroups {
+		canaries := group.PlacedCanaries
+		if len(canaries) == 0 {
+			continue
+		}
+
+		// Prune the canaries in place to avoid allocating an extra slice
+		i := 0
+		for _, canaryID := range canaries {
+			if _, ok := placedAllocs[canaryID]; ok {
+				canaries[i] = canaryID
+				i++
+			}
+		}
+
+		group.PlacedCanaries = canaries[:i]
+	}
 }
 
 // evaluateNodePlan is used to evalute the plan for a single node,

@@ -473,11 +473,13 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 // TaskState tracks the current state of a task and events that caused state
 // transitions.
 type TaskState struct {
-	State      string
-	Failed     bool
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Events     []*TaskEvent
+	State       string
+	Failed      bool
+	Restarts    uint64
+	LastRestart time.Time
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	Events      []*TaskEvent
 }
 
 const (
@@ -499,6 +501,7 @@ const (
 	TaskSignaling              = "Signaling"
 	TaskRestartSignal          = "Restart Signaled"
 	TaskLeaderDead             = "Leader Task Dead"
+	TaskBuildingTaskDir        = "Building Task Directory"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

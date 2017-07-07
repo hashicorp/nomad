@@ -6,6 +6,8 @@ import (
 	"log"
 
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -90,9 +92,9 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Upsert the newly created deployment
-	if results.CreatedDeployment != nil {
-		if err := s.upsertDeploymentImpl(index, results.CreatedDeployment, true, txn); err != nil {
+	// Upsert the newly created or updated deployment
+	if results.Deployment != nil {
+		if err := s.upsertDeploymentImpl(index, results.Deployment, txn); err != nil {
 			return err
 		}
 	}
@@ -136,30 +138,10 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 // upsertDeploymentUpdates updates the deployments given the passed status
 // updates.
 func (s *StateStore) upsertDeploymentUpdates(index uint64, updates []*structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
-	for _, d := range updates {
-		raw, err := txn.First("deployment", "id", d.DeploymentID)
-		if err != nil {
+	for _, u := range updates {
+		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
 		}
-		if raw == nil {
-			return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", d.DeploymentID)
-		}
-
-		copy := raw.(*structs.Deployment).Copy()
-
-		// Apply the new status
-		copy.Status = d.Status
-		copy.StatusDescription = d.StatusDescription
-		copy.ModifyIndex = index
-
-		// Insert the deployment
-		if err := txn.Insert("deployment", copy); err != nil {
-			return err
-		}
-	}
-
-	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -218,22 +200,17 @@ func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
 
 // UpsertDeployment is used to insert a new deployment. If cancelPrior is set to
 // true, all prior deployments for the same job will be cancelled.
-func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment, cancelPrior bool) error {
+func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	if err := s.upsertDeploymentImpl(index, deployment, cancelPrior, txn); err != nil {
+	if err := s.upsertDeploymentImpl(index, deployment, txn); err != nil {
 		return err
 	}
 	txn.Commit()
 	return nil
 }
 
-func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, cancelPrior bool, txn *memdb.Txn) error {
-	// Go through and cancel any active deployment for the job.
-	if cancelPrior {
-		s.cancelPriorDeployments(index, deployment, txn)
-	}
-
+func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *memdb.Txn) error {
 	// Check if the deployment already exists
 	existing, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
@@ -259,39 +236,13 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return nil
-}
-
-// cancelPriorDeployments cancels any prior deployments for the job.
-func (s *StateStore) cancelPriorDeployments(index uint64, deployment *structs.Deployment, txn *memdb.Txn) error {
-	iter, err := txn.Get("deployment", "job", deployment.JobID)
-	if err != nil {
-		return fmt.Errorf("deployment lookup failed: %v", err)
-	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		// Ensure the deployment is active
-		d := raw.(*structs.Deployment)
-		if !d.Active() {
-			continue
-		}
-
-		// We need to cancel so make a copy and set its status
-		cancelled := d.Copy()
-		cancelled.ModifyIndex = index
-		cancelled.Status = structs.DeploymentStatusCancelled
-		cancelled.StatusDescription = fmt.Sprintf("Cancelled in favor of deployment %q", deployment.ID)
-
-		// Insert the cancelled deployment
-		if err := txn.Insert("deployment", cancelled); err != nil {
-			return err
+	// If the deployment is being marked as complete, set the job to stable.
+	if deployment.Status == structs.DeploymentStatusSuccessful {
+		if err := s.updateJobStabilityImpl(index, deployment.JobID, deployment.JobVersion, true, txn); err != nil {
+			return fmt.Errorf("failed to update job stability: %v", err)
 		}
 	}
+
 	return nil
 }
 
@@ -308,6 +259,19 @@ func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error
 	return iter, nil
 }
 
+func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("deployment", "id_prefix", deploymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 	return s.deploymentByIDImpl(ws, deploymentID, txn)
@@ -316,7 +280,7 @@ func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*st
 func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, txn *memdb.Txn) (*structs.Deployment, error) {
 	watchCh, existing, err := txn.FirstWatch("deployment", "id", deploymentID)
 	if err != nil {
-		return nil, fmt.Errorf("node lookup failed: %v", err)
+		return nil, fmt.Errorf("deployment lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
@@ -381,24 +345,31 @@ func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, jobID string) (*
 	return out, nil
 }
 
-// DeleteDeployment is used to delete a deployment by ID
-func (s *StateStore) DeleteDeployment(index uint64, deploymentID string) error {
+// DeleteDeployment is used to delete a set of deployments by ID
+func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Lookup the deployment
-	existing, err := txn.First("deployment", "id", deploymentID)
-	if err != nil {
-		return fmt.Errorf("deployment lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("deployment not found")
+	if len(deploymentIDs) == 0 {
+		return nil
 	}
 
-	// Delete the deployment
-	if err := txn.Delete("deployment", existing); err != nil {
-		return fmt.Errorf("deployment delete failed: %v", err)
+	for _, deploymentID := range deploymentIDs {
+		// Lookup the deployment
+		existing, err := txn.First("deployment", "id", deploymentID)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("deployment not found")
+		}
+
+		// Delete the deployment
+		if err := txn.Delete("deployment", existing); err != nil {
+			return fmt.Errorf("deployment delete failed: %v", err)
+		}
 	}
+
 	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
@@ -585,7 +556,15 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
 
+// upsertJobImpl is the inplementation for registering a job or updating a job definition
+func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.ID)
 	if err != nil {
@@ -596,8 +575,14 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	if existing != nil {
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
-		job.JobModifyIndex = index
-		job.Version = existing.(*structs.Job).Version + 1
+
+		// Bump the version unless asked to keep it. This should only be done
+		// when changing an internal field such as Stable. A spec change should
+		// always come with a version bump
+		if !keepVersion {
+			job.JobModifyIndex = index
+			job.Version = existing.(*structs.Job).Version + 1
+		}
 
 		// Compute the job status
 		var err error
@@ -645,7 +630,6 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -889,15 +873,24 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 	return all, nil
 }
 
-// JobByIDAndVersion returns the job identified by its ID and Version
+// JobByIDAndVersion returns the job identified by its ID and Version. The
+// passed watchset may be nil.
 func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uint64) (*structs.Job, error) {
 	txn := s.db.Txn(false)
+	return s.jobByIDAndVersionImpl(ws, id, version, txn)
+}
+
+// jobByIDAndVersionImpl returns the job identified by its ID and Version. The
+// passed watchset may be nil.
+func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, id string, version uint64, txn *memdb.Txn) (*structs.Job, error) {
 	watchCh, existing, err := txn.FirstWatch("job_version", "id", id, version)
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(watchCh)
+	if ws != nil {
+		ws.Add(watchCh)
+	}
 
 	if existing != nil {
 		job := existing.(*structs.Job)
@@ -1405,9 +1398,15 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
+
+	// TODO TEST
+	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return fmt.Errorf("error updating deployment: %v", err)
+	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)
@@ -1675,6 +1674,29 @@ func (s *StateStore) AllocsByEval(ws memdb.WatchSet, evalID string) ([]*structs.
 	return out, nil
 }
 
+// AllocsByDeployment returns all the allocations by deployment id
+func (s *StateStore) AllocsByDeployment(ws memdb.WatchSet, deploymentID string) ([]*structs.Allocation, error) {
+	txn := s.db.Txn(false)
+
+	// Get an iterator over the deployments allocations
+	iter, err := txn.Get("allocs", "deployment", deploymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+	return out, nil
+}
+
 // Allocs returns an iterator over all the evaluations
 func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1810,6 +1832,302 @@ func (s *StateStore) VaultAccessorsByNode(ws memdb.WatchSet, nodeID string) ([]*
 		out = append(out, raw.(*structs.VaultAccessor))
 	}
 	return out, nil
+}
+
+// UpdateDeploymentStatus is used to make deployment status updates and
+// potentially make a evaluation
+func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
+		return err
+	}
+
+	// Upsert the job if necessary
+	if req.Job != nil {
+		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
+			return err
+		}
+	}
+
+	// Upsert the optional eval
+	if req.Eval != nil {
+		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// updateDeploymentStatusImpl is used to make deployment status updates
+func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *memdb.Txn) error {
+	// Retrieve deployment
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, u.DeploymentID, txn)
+	if err != nil {
+		return err
+	} else if deployment == nil {
+		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", u.DeploymentID)
+	} else if !deployment.Active() {
+		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
+	}
+
+	// Apply the new status
+	copy := deployment.Copy()
+	copy.Status = u.Status
+	copy.StatusDescription = u.StatusDescription
+	copy.ModifyIndex = index
+
+	// Insert the deployment
+	if err := txn.Insert("deployment", copy); err != nil {
+		return err
+	}
+
+	// Update the index
+	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// If the deployment is being marked as complete, set the job to stable.
+	if copy.Status == structs.DeploymentStatusSuccessful {
+		if err := s.updateJobStabilityImpl(index, copy.JobID, copy.JobVersion, true, txn); err != nil {
+			return fmt.Errorf("failed to update job stability: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// UpdateJobStability updates the stability of the given job and version to the
+// desired status.
+func (s *StateStore) UpdateJobStability(index uint64, jobID string, jobVersion uint64, stable bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.updateJobStabilityImpl(index, jobID, jobVersion, stable, txn); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// updateJobStabilityImpl updates the stability of the given job and version
+func (s *StateStore) updateJobStabilityImpl(index uint64, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
+	// Get the job that is referenced
+	job, err := s.jobByIDAndVersionImpl(nil, jobID, jobVersion, txn)
+	if err != nil {
+		return err
+	}
+
+	// Has already been cleared, nothing to do
+	if job == nil {
+		return nil
+	}
+
+	// If the job already has the desired stability, nothing to do
+	if job.Stable == stable {
+		return nil
+	}
+
+	copy := job.Copy()
+	copy.Stable = stable
+	return s.upsertJobImpl(index, copy, true, txn)
+}
+
+// UpdateDeploymentPromotion is used to promote canaries in a deployment and
+// potentially make a evaluation
+func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Retrieve deployment and ensure it is not terminal and is active
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, req.DeploymentID, txn)
+	if err != nil {
+		return err
+	} else if deployment == nil {
+		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", req.DeploymentID)
+	} else if !deployment.Active() {
+		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
+	}
+
+	// Retrieve effected allocations
+	iter, err := txn.Get("allocs", "deployment", req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	groupIndex := make(map[string]struct{}, len(req.Groups))
+	for _, g := range req.Groups {
+		groupIndex[g] = struct{}{}
+	}
+
+	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
+	for _, state := range deployment.TaskGroups {
+		for _, c := range state.PlacedCanaries {
+			canaryIndex[c] = struct{}{}
+		}
+	}
+
+	var unhealthyErr multierror.Error
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		alloc := raw.(*structs.Allocation)
+
+		// Check that the alloc is a canary
+		if _, ok := canaryIndex[alloc.ID]; !ok {
+			continue
+		}
+
+		// Check that the canary is part of a group being promoted
+		if _, ok := groupIndex[alloc.TaskGroup]; !req.All && !ok {
+			continue
+		}
+
+		// Ensure the canaries are healthy
+		if !alloc.DeploymentStatus.IsHealthy() {
+			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
+			continue
+		}
+	}
+
+	if err := unhealthyErr.ErrorOrNil(); err != nil {
+		return err
+	}
+
+	// Update deployment
+	copy := deployment.Copy()
+	copy.ModifyIndex = index
+	for tg, status := range copy.TaskGroups {
+		_, ok := groupIndex[tg]
+		if !req.All && !ok {
+			continue
+		}
+
+		status.Promoted = true
+	}
+
+	// If the deployment no longer needs promotion, update its status
+	if !copy.RequiresPromotion() && copy.Status == structs.DeploymentStatusRunning {
+		copy.StatusDescription = structs.DeploymentStatusDescriptionRunning
+	}
+
+	// Insert the deployment
+	if err := s.upsertDeploymentImpl(index, copy, txn); err != nil {
+		return err
+	}
+
+	// Upsert the optional eval
+	if req.Eval != nil {
+		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// UpdateDeploymentAllocHealth is used to update the health of allocations as
+// part of the deployment and potentially make a evaluation
+func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Retrieve deployment and ensure it is not terminal and is active
+	ws := memdb.NewWatchSet()
+	deployment, err := s.deploymentByIDImpl(ws, req.DeploymentID, txn)
+	if err != nil {
+		return err
+	} else if deployment == nil {
+		return fmt.Errorf("Deployment ID %q couldn't be updated as it does not exist", req.DeploymentID)
+	} else if !deployment.Active() {
+		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
+	}
+
+	// Update the health status of each allocation
+	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
+		setAllocHealth := func(id string, healthy bool) error {
+			existing, err := txn.First("allocs", "id", id)
+			if err != nil {
+				return fmt.Errorf("alloc %q lookup failed: %v", id, err)
+			}
+			if existing == nil {
+				return fmt.Errorf("unknown alloc %q", id)
+			}
+
+			old := existing.(*structs.Allocation)
+			if old.DeploymentID != req.DeploymentID {
+				return fmt.Errorf("alloc %q is not part of deployment %q", id, req.DeploymentID)
+			}
+
+			// Set the health
+			copy := old.Copy()
+			if copy.DeploymentStatus == nil {
+				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
+			}
+			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.ModifyIndex = index
+
+			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
+				return fmt.Errorf("error updating deployment: %v", err)
+			}
+
+			if err := txn.Insert("allocs", copy); err != nil {
+				return fmt.Errorf("alloc insert failed: %v", err)
+			}
+
+			return nil
+		}
+
+		for _, id := range req.HealthyAllocationIDs {
+			if err := setAllocHealth(id, true); err != nil {
+				return err
+			}
+		}
+		for _, id := range req.UnhealthyAllocationIDs {
+			if err := setAllocHealth(id, false); err != nil {
+				return err
+			}
+		}
+
+		// Update the indexes
+		if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	// Update the deployment status as needed.
+	if req.DeploymentUpdate != nil {
+		if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
+			return err
+		}
+	}
+
+	// Upsert the job if necessary
+	if req.Job != nil {
+		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
+			return err
+		}
+	}
+
+	// Upsert the optional eval
+	if req.Eval != nil {
+		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
 }
 
 // LastIndex returns the greatest index value for all indexes
@@ -2210,7 +2528,8 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 }
 
 // updateDeploymentWithAlloc is used to update the deployment state associated
-// with the given allocation
+// with the given allocation. The passed alloc may be updated if the deployment
+// status has changed to capture the modify index at which it has changed.
 func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *structs.Allocation, txn *memdb.Txn) error {
 	// Nothing to do if the allocation is not associated with a deployment
 	if alloc.DeploymentID == "" {
@@ -2237,10 +2556,6 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// Do not modify in-place. Instead keep track of what must be done
 	placed := 0
-
-	// TODO test when I am sure of what this method will do
-	// XXX Unclear whether this will be helpful because a seperate code path is
-	// likely need for setting health
 	healthy := 0
 	unhealthy := 0
 
@@ -2248,7 +2563,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// the placement
 	existingHealthSet := existing != nil && existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
 	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
-	if existing == nil {
+	if existing == nil || existing.DeploymentID != alloc.DeploymentID {
 		placed++
 	} else if !existingHealthSet && allocHealthSet {
 		if *alloc.DeploymentStatus.Healthy {
@@ -2269,22 +2584,22 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 		return nil
 	}
 
+	// Update the allocation's deployment status modify index
+	if alloc.DeploymentStatus != nil && healthy+unhealthy != 0 {
+		alloc.DeploymentStatus.ModifyIndex = index
+	}
+
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
-
-	if unhealthy != 0 {
-		deploymentCopy.Status = structs.DeploymentStatusFailed
-		deploymentCopy.StatusDescription = "Allocation(s) marked as unhealthy"
-	}
 
 	state := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	state.PlacedAllocs += placed
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
 
-	// Upsert the new deployment
-	if err := s.upsertDeploymentImpl(index, deploymentCopy, false, txn); err != nil {
+	// Upsert the deployment
+	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
 		return err
 	}
 
