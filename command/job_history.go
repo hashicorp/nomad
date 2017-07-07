@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dadgar/columnize"
 	"github.com/hashicorp/nomad/api"
+	"github.com/ryanuber/columnize"
 )
 
 type JobHistoryCommand struct {
