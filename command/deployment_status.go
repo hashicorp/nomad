@@ -175,7 +175,7 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 	}
 	rowString += "Desired|"
 	if canaries {
-		rowString += "Canaries|"
+		rowString += "Canaries|Promoted|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
 
@@ -190,6 +190,7 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 		row += fmt.Sprintf("%d|", state.DesiredTotal)
 		if canaries {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
+			row += fmt.Sprintf("%v|", state.Promoted)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
 		rows[i] = row
