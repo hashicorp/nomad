@@ -58,7 +58,7 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet("deployment resume", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&detach, "all", false, "")
+	flags.BoolVar(&all, "all", false, "")
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.Var((*flaghelper.StringFlag)(&groups), "group", "")
@@ -73,7 +73,10 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-
+	if !all && len(groups) == 0 {
+		c.Ui.Error("Either -all or one or more -group flags must be specified.")
+		return 1
+	}
 	dID := args[0]
 
 	// Truncate the id unless full length is requested
@@ -119,7 +122,6 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		return 0
 	}
 
-	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(u.EvalID, false)
 }
