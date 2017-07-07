@@ -2527,8 +2527,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	// Check for duplicate tasks and that there is only leader task if any
+	// Check for duplicate tasks, that there is only leader task if any,
+	// and no duplicated static ports
 	tasks := make(map[string]int)
+	staticPorts := make(map[int]string)
 	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
@@ -2541,6 +2543,22 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 		if task.Leader {
 			leaderTasks++
+		}
+
+		if task.Resources == nil {
+			continue
+		}
+
+		for _, net := range task.Resources.Networks {
+			for _, port := range net.ReservedPorts {
+				if other, ok := staticPorts[port.Value]; ok {
+					err := fmt.Errorf("Task %q and %q both reserve static port %d",
+						other, task.Name, port.Value)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					staticPorts[port.Value] = task.Name
+				}
+			}
 		}
 	}
 
