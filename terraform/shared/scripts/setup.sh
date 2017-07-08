@@ -97,9 +97,9 @@ sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 # Spark
-sudo wget -P /ops/examples/spark https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz
-sudo tar -xvf /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad-preview-6 /usr/local/bin/spark
+sudo wget -P /ops/examples/spark https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz
+sudo tar -xvf /ops/examples/spark/spark-2.1.0-bin-nomad.tgz --directory /ops/examples/spark
+sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad /usr/local/bin/spark
 sudo chown -R root:root /usr/local/bin/spark
 
 # Hadoop (to enable the HDFS CLI)
