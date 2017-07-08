@@ -17,10 +17,10 @@ application:
 
 ## Using the Default Job Template
 
-The Spark integration will use a generic job template by default. The  
-template includes groups and tasks for the driver, executors and (optionally) 
-the [shuffle service](/guides/spark/dynamic.html). The job itself and the tasks
-that are created have the `spark.nomad.role` meta value defined accordingly:
+The Spark integration will use a generic job template by default. The template 
+includes groups and tasks for the driver, executors and (optionally) the 
+[shuffle service](/guides/spark/dynamic.html). The job itself and the tasks that
+ are created have the `spark.nomad.role` meta value defined accordingly:
 
 ```hcl
 job "structure" {
