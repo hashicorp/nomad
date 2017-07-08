@@ -83,8 +83,8 @@ $ spark-submit \
     --master nomad \
     --deploy-mode cluster \
     --conf spark.executor.instances=4 \
-    --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz \
-    https://s3.amazonaws.com/rcgenova-nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
+    --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
+    https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
 ```
 
 ### Using a Docker Image
@@ -113,7 +113,7 @@ $ spark-submit \
     --deploy-mode cluster \
     --conf spark.nomad.dockerImage=rcgenova/spark \
     --conf spark.executor.instances=4 \
-    --conf spark.nomad.sparkDistribution=/spark-2.1.0-bin-nomad-preview-6.tgz \
+    --conf spark.nomad.sparkDistribution=/spark-2.1.0-bin-nomad.tgz \
     /spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
 ```
 

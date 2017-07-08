@@ -41,7 +41,7 @@ application:
 ```shell
 $ spark-submit --class org.apache.spark.examples.SparkPi \
     --master nomad \
-    --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz \
+    --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
     lib/spark-examples*.jar \
     10
 ```
