@@ -60,6 +60,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	l := r.allocBroadcast.Listen()
 
 	// Create a deadline timer for the health
+	r.logger.Printf("[DEBUG] client.alloc_watcher: deadline (%v) for alloc %q is at %v", u.HealthyDeadline, alloc.ID, time.Now().Add(u.HealthyDeadline))
 	deadline := time.NewTimer(u.HealthyDeadline)
 
 	// Create a healthy timer
@@ -91,6 +92,9 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		r.syncStatus()
 	}
 
+	// Store whether the last consul checks call was successful or not
+	consulChecksErr := false
+
 	var checks []*api.AgentCheck
 	first := true
 OUTER:
@@ -109,10 +113,14 @@ OUTER:
 			case <-checkCh:
 				newChecks, err := r.consulClient.Checks(alloc)
 				if err != nil {
-					r.logger.Printf("[WARN] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
+					if !consulChecksErr {
+						consulChecksErr = true
+						r.logger.Printf("[WARN] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
+					}
+				} else {
+					consulChecksErr = false
+					checks = newChecks
 				}
-
-				checks = newChecks
 			case <-deadline.C:
 				// We have exceeded our deadline without being healthy.
 				r.logger.Printf("[TRACE] client.alloc_watcher: alloc %q hit healthy deadline", alloc.ID)

@@ -145,7 +145,7 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 	// Format the high-level elements
 	high := []string{
 		fmt.Sprintf("ID|%s", limit(d.ID, uuidLength)),
-		fmt.Sprintf("Job ID|%s", limit(d.JobID, uuidLength)),
+		fmt.Sprintf("Job ID|%s", d.JobID),
 		fmt.Sprintf("Job Version|%d", d.JobVersion),
 		fmt.Sprintf("Status|%s", d.Status),
 		fmt.Sprintf("Description|%s", d.StatusDescription),
