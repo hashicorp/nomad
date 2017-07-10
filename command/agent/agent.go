@@ -8,17 +8,19 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/api"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -30,6 +32,10 @@ const (
 	serverRpcCheckTimeout   = 3 * time.Second
 	serverSerfCheckInterval = 10 * time.Second
 	serverSerfCheckTimeout  = 3 * time.Second
+
+	// roles used in identifying Consul entries for Nomad agents
+	consulRoleServer = "server"
+	consulRoleClient = "client"
 )
 
 // Agent is a long running daemon that is used to run both
@@ -42,8 +48,16 @@ type Agent struct {
 	logger    *log.Logger
 	logOutput io.Writer
 
-	// consulSyncer registers the Nomad agent with the Consul Agent
-	consulSyncer *consul.Syncer
+	// consulService is Nomad's custom Consul client for managing services
+	// and checks.
+	consulService *consul.ServiceClient
+
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	consulCatalog consul.CatalogAPI
+
+	// consulSupportsTLSSkipVerify flags whether or not Nomad can register
+	// checks with TLSSkipVerify
+	consulSupportsTLSSkipVerify bool
 
 	client *client.Client
 
@@ -63,8 +77,8 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 		shutdownCh: make(chan struct{}),
 	}
 
-	if err := a.setupConsulSyncer(); err != nil {
-		return nil, fmt.Errorf("Failed to initialize Consul syncer task: %v", err)
+	if err := a.setupConsul(config.Consul); err != nil {
+		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
 	if err := a.setupServer(); err != nil {
 		return nil, err
@@ -75,15 +89,6 @@ func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
-
-	// The Nomad Agent runs the consul.Syncer regardless of whether or not the
-	// Agent is running in Client or Server mode (or both), and regardless of
-	// the consul.auto_advertise parameter. The Client and Server both reuse the
-	// same consul.Syncer instance. This Syncer task periodically executes
-	// callbacks that update Consul. The reason the Syncer is always running is
-	// because one of the callbacks is attempts to self-bootstrap Nomad using
-	// information found in Consul.
-	go a.consulSyncer.Run()
 
 	return a, nil
 }
@@ -178,6 +183,13 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 			return nil, err
 		}
 		conf.EvalGCThreshold = dur
+	}
+	if gcThreshold := agentConfig.Server.DeploymentGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.DeploymentGCThreshold = dur
 	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != "" {
@@ -316,7 +328,13 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.GCParallelDestroys = a.config.Client.GCParallelDestroys
 	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
-	conf.NoHostUUID = a.config.Client.NoHostUUID
+	conf.GCMaxAllocs = a.config.Client.GCMaxAllocs
+	if a.config.Client.NoHostUUID != nil {
+		conf.NoHostUUID = *a.config.Client.NoHostUUID
+	} else {
+		// Default no_host_uuid to true
+		conf.NoHostUUID = true
+	}
 
 	return conf, nil
 }
@@ -339,40 +357,30 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulSyncer, a.logger)
+	server, err := nomad.NewServer(conf, a.consulCatalog, a.logger)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
 	a.server = server
 
 	// Consul check addresses default to bind but can be toggled to use advertise
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
 	if *a.config.Consul.ChecksUseAdvertise {
-		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
-	// TODO re-introduce HTTP/S checks when Consul 0.7.1 comes out
 	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
-			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
-					Name:      "Nomad Server HTTP Check",
-					Type:      "http",
-					Path:      "/v1/status/peers",
-					Protocol:  "http",
-					Interval:  serverHttpCheckInterval,
-					Timeout:   serverHttpCheckTimeout,
-					PortLabel: httpCheckAddr,
-				},
-			},
+		}
+		const isServer = true
+		if check := a.agentHTTPCheck(isServer); check != nil {
+			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
@@ -404,15 +412,14 @@ func (a *Agent) setupServer() error {
 		}
 
 		// Add the http port check if TLS isn't enabled
-		// TODO Add TLS check when Consul 0.7.1 comes out.
-		consulServices := map[consul.ServiceKey]*structs.Service{
-			consul.GenerateServiceKey(rpcServ):  rpcServ,
-			consul.GenerateServiceKey(serfServ): serfServ,
+		consulServices := []*structs.Service{
+			rpcServ,
+			serfServ,
+			httpServ,
 		}
-		if !conf.TLSConfig.EnableHTTP {
-			consulServices[consul.GenerateServiceKey(httpServ)] = httpServ
+		if err := a.consulService.RegisterAgent(consulRoleServer, consulServices); err != nil {
+			return err
 		}
-		a.consulSyncer.SetServices(consul.ServerDomain, consulServices)
 	}
 
 	return nil
@@ -462,46 +469,70 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf, a.consulSyncer, a.logger)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
 	a.client = client
 
-	// Resolve the http check address
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
-	if *a.config.Consul.ChecksUseAdvertise {
-		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
-	}
-
 	// Create the Nomad Client  services for Consul
-	// TODO think how we can re-introduce HTTP/S checks when Consul 0.7.1 comes
-	// out
 	if *a.config.Consul.AutoAdvertise {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
 			Tags:      []string{consul.ServiceTagHTTP},
-			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
-					Name:      "Nomad Client HTTP Check",
-					Type:      "http",
-					Path:      "/v1/agent/servers",
-					Protocol:  "http",
-					Interval:  clientHttpCheckInterval,
-					Timeout:   clientHttpCheckTimeout,
-					PortLabel: httpCheckAddr,
-				},
-			},
 		}
-		if !conf.TLSConfig.EnableHTTP {
-			a.consulSyncer.SetServices(consul.ClientDomain, map[consul.ServiceKey]*structs.Service{
-				consul.GenerateServiceKey(httpServ): httpServ,
-			})
+		const isServer = false
+		if check := a.agentHTTPCheck(isServer); check != nil {
+			httpServ.Checks = []*structs.ServiceCheck{check}
+		}
+		if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// agentHTTPCheck returns a health check for the agent's HTTP API if possible.
+// If no HTTP health check can be supported nil is returned.
+func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
+	// Resolve the http check address
+	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	if *a.config.Consul.ChecksUseAdvertise {
+		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
+	}
+	check := structs.ServiceCheck{
+		Name:      "Nomad Client HTTP Check",
+		Type:      "http",
+		Path:      "/v1/agent/servers",
+		Protocol:  "http",
+		Interval:  clientHttpCheckInterval,
+		Timeout:   clientHttpCheckTimeout,
+		PortLabel: httpCheckAddr,
+	}
+	// Switch to endpoint that doesn't require a leader for servers
+	if server {
+		check.Name = "Nomad Server HTTP Check"
+		check.Path = "/v1/status/peers"
+	}
+	if !a.config.TLSConfig.EnableHTTP {
+		// No HTTPS, return a plain http check
+		return &check
+	}
+	if !a.consulSupportsTLSSkipVerify {
+		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
+		return nil
+	}
+	if a.config.TLSConfig.VerifyHTTPSClient {
+		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
+		return nil
+	}
+
+	// HTTPS enabled; skip verification
+	check.Protocol = "https"
+	check.TLSSkipVerify = true
+	return &check
 }
 
 // reservePortsForClient reserves a range of ports for the client to use when
@@ -612,8 +643,8 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
-	if err := a.consulSyncer.Shutdown(); err != nil {
-		a.logger.Printf("[ERR] agent: shutting down consul service failed: %v", err)
+	if err := a.consulService.Shutdown(); err != nil {
+		a.logger.Printf("[ERR] agent: shutting down Consul client failed: %v", err)
 	}
 
 	a.logger.Println("[INFO] agent: shutdown complete")
@@ -659,46 +690,65 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-// setupConsulSyncer creates the Consul tasks used by this Nomad Agent
-// (either Client or Server mode).
-func (a *Agent) setupConsulSyncer() error {
-	var err error
-	a.consulSyncer, err = consul.NewSyncer(a.config.Consul, a.shutdownCh, a.logger)
+// setupConsul creates the Consul client and starts its main Run loop.
+func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
+	apiConf, err := consulConfig.ApiConfig()
+	if err != nil {
+		return err
+	}
+	client, err := api.NewClient(apiConf)
 	if err != nil {
 		return err
 	}
 
-	a.consulSyncer.SetAddrFinder(func(portLabel string) (string, int) {
-		host, port, err := net.SplitHostPort(portLabel)
-		if err != nil {
-			p, err := strconv.Atoi(port)
-			if err != nil {
-				return "", 0
-			}
-			return "", p
-		}
+	// Determine version for TLSSkipVerify
+	if self, err := client.Agent().Self(); err == nil {
+		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
+	}
 
-		// If the addr for the service is ":port", then we fall back
-		// to Nomad's default address resolution protocol.
-		//
-		// TODO(sean@): This should poll Consul to figure out what
-		// its advertise address is and use that in order to handle
-		// the case where there is something funky like NAT on this
-		// host.  For now we just use the BindAddr if set, otherwise
-		// we fall back to a loopback addr.
-		if host == "" {
-			if a.config.BindAddr != "" {
-				host = a.config.BindAddr
-			} else {
-				host = "127.0.0.1"
-			}
-		}
-		p, err := strconv.Atoi(port)
-		if err != nil {
-			return host, 0
-		}
-		return host, p
-	})
+	// Create Consul Catalog client for service discovery.
+	a.consulCatalog = client.Catalog()
 
+	// Create Consul Service client for service advertisement and checks.
+	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
+	go a.consulService.Run()
 	return nil
+}
+
+var consulTLSSkipVerifyMinVersion = version.Must(version.NewVersion("0.7.2"))
+
+// consulSupportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
+func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
+	member, ok := self["Member"]
+	if !ok {
+		return false
+	}
+	tagsI, ok := member["Tags"]
+	if !ok {
+		return false
+	}
+	tags, ok := tagsI.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	buildI, ok := tags["build"]
+	if !ok {
+		return false
+	}
+	build, ok := buildI.(string)
+	if !ok {
+		return false
+	}
+	parts := strings.SplitN(build, ":", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	v, err := version.NewVersion(parts[0])
+	if err != nil {
+		return false
+	}
+	if v.LessThan(consulTLSSkipVerifyMinVersion) {
+		return false
+	}
+	return true
 }

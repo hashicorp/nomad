@@ -4,7 +4,43 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"math"
+	"strings"
+
+	multierror "github.com/hashicorp/go-multierror"
 )
+
+// MergeMultierrorWarnings takes job warnings and canonicalize warnings and
+// merges them into a returnable string. Both the errors may be nil.
+func MergeMultierrorWarnings(warnings, canonicalizeWarnings error) string {
+	if warnings == nil && canonicalizeWarnings == nil {
+		return ""
+	}
+
+	var warningMsg multierror.Error
+	if canonicalizeWarnings != nil {
+		multierror.Append(&warningMsg, canonicalizeWarnings)
+	}
+
+	if warnings != nil {
+		multierror.Append(&warningMsg, warnings)
+	}
+
+	// Set the formatter
+	warningMsg.ErrorFormat = warningsFormatter
+	return warningMsg.Error()
+}
+
+// warningsFormatter is used to format job warnings
+func warningsFormatter(es []error) string {
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d warning(s):\n\n%s",
+		len(es), strings.Join(points, "\n"))
+}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
@@ -200,4 +236,22 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 		flattened = append(flattened, p)
 	}
 	return flattened
+}
+
+// DenormalizeAllocationJobs is used to attach a job to all allocations that are
+// non-terminal and do not have a job already. This is useful in cases where the
+// job is normalized.
+func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
+	if job != nil {
+		for _, alloc := range allocs {
+			if alloc.Job == nil && !alloc.TerminalStatus() {
+				alloc.Job = job
+			}
+		}
+	}
+}
+
+// AllocName returns the name of the allocation given the input.
+func AllocName(job, group string, idx uint) string {
+	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
 }

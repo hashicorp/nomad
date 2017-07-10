@@ -1,0 +1,69 @@
+<% wrap_layout :inner do %>
+  <% content_for :sidebar do %>
+    <ul class="nav docs-sidenav">
+      <li<%= sidebar_current("api-overview") %>>
+        <a href="/api/index.html">Overview</a>
+      </li>
+
+      <li<%= sidebar_current("api-libraries-and-sdks") %>>
+        <a href="/api/libraries-and-sdks.html">Libraries &amp; SDKs</a>
+      </li>
+
+      <li<%= sidebar_current("api-json-jobs") %>>
+        <a href="/api/json-jobs.html">JSON Jobs</a>
+      </li>
+
+      <hr>
+
+      <li<%= sidebar_current("api-agent") %>>
+        <a href="/api/agent.html">Agent</a>
+      </li>
+
+      <li<%= sidebar_current("api-allocations") %>>
+        <a href="/api/allocations.html">Allocations</a>
+      </li>
+
+      <li<%= sidebar_current("api-client") %>>
+        <a href="/api/client.html">Client</a>
+      </li>
+
+      <li<%= sidebar_current("api-deployments") %>>
+        <a href="/api/deployments.html">Deployments</a>
+      </li>
+
+      <li<%= sidebar_current("api-evaluations") %>>
+        <a href="/api/evaluations.html">Evaluations</a>
+      </li>
+
+      <li<%= sidebar_current("api-jobs") %>>
+        <a href="/api/jobs.html">Jobs</a>
+      </li>
+
+      <li<%= sidebar_current("api-nodes") %>>
+        <a href="/api/nodes.html">Nodes</a>
+      </li>
+
+      <li<%= sidebar_current("api-operator") %>>
+        <a href="/api/operator.html">Operator</a>
+      </li>
+
+      <li<%= sidebar_current("api-regions") %>>
+        <a href="/api/regions.html">Regions</a>
+      </li>
+
+      <li<%= sidebar_current("api-status") %>>
+        <a href="/api/status.html">Status</a>
+      </li>
+
+      <li<%= sidebar_current("api-system") %>>
+        <a href="/api/system.html">System</a>
+      </li>
+
+      <li<%= sidebar_current("api-validate") %>>
+        <a href="/api/validate.html">Validate</a>
+      </li>
+    </ul>
+  <% end %>
+
+  <%= yield %>
+<% end %>

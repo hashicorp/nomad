@@ -350,7 +350,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	}
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config, logOutput)
+	http, err := NewHTTPServer(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))

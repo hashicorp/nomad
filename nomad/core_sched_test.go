@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
@@ -1006,6 +1007,103 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	}
 }
 
+// This test ensures that stopped jobs are GCd
+func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert job.
+	state := s1.fsm.State()
+	job := mock.Job()
+	//job.Status = structs.JobStatusDead
+	job.Stop = true
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert two complete evals
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	eval.Status = structs.EvalStatusComplete
+
+	eval2 := mock.Eval()
+	eval2.JobID = job.ID
+	eval2.Status = structs.EvalStatusComplete
+
+	err = state.UpsertEvals(1001, []*structs.Evaluation{eval, eval2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert one complete alloc
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.EvalID = eval.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+
+	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Shouldn't still exist
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %v", out)
+	}
+
+	outE, err := state.EvalByID(ws, eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outE != nil {
+		t.Fatalf("bad: %v", outE)
+	}
+
+	outE2, err := state.EvalByID(ws, eval2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outE2 != nil {
+		t.Fatalf("bad: %v", outE2)
+	}
+
+	outA, err := state.AllocByID(ws, alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA != nil {
+		t.Fatalf("bad: %v", outA)
+	}
+}
+
 func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -1066,8 +1164,8 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	}
 }
 
-// This test ensures parameterized and periodic jobs don't get GCd
-func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
+// This test ensures parameterized jobs only get gc'd when stopped
+func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1085,12 +1183,6 @@ func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
 	}
 	err := state.UpsertJob(1000, job)
 	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert a periodic job.
-	job2 := mock.PeriodicJob()
-	if err := state.UpsertJob(1001, job2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1118,16 +1210,187 @@ func TestCoreScheduler_JobGC_NonGCable(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	outE, err := state.JobByID(ws, job2.ID)
+	// Mark the job as stopped and try again
+	job2 := job.Copy()
+	job2.Stop = true
+	err = state.UpsertJob(2000, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if outE == nil {
-		t.Fatalf("bad: %v", outE)
+
+	// Create a core scheduler
+	snap, err = state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core = NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc = s1.coreJobEval(structs.CoreJobForceGC, 2002)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should not exist
+	out, err = state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %+v", out)
 	}
 }
 
-func TestCoreScheduler_PartitionReap(t *testing.T) {
+// This test ensures periodic jobs don't get GCd til they are stopped
+func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
+
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert a parameterized job.
+	state := s1.fsm.State()
+	job := mock.PeriodicJob()
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobForceGC, 1002)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should still exist
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("bad: %v", out)
+	}
+
+	// Mark the job as stopped and try again
+	job2 := job.Copy()
+	job2.Stop = true
+	err = state.UpsertJob(2000, job2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a core scheduler
+	snap, err = state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core = NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc = s1.coreJobEval(structs.CoreJobForceGC, 2002)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Should not exist
+	out, err = state.JobByID(ws, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("bad: %+v", out)
+	}
+}
+
+func TestCoreScheduler_DeploymentGC(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert terminal and active deployment
+	state := s1.fsm.State()
+	d1, d2 := mock.Deployment(), mock.Deployment()
+	d1.Status = structs.DeploymentStatusFailed
+	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.DeploymentGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	assert.Nil(err, "Snapshot")
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobDeploymentGC, 2000)
+	assert.Nil(core.Process(gc), "Process GC")
+
+	// Should be gone
+	ws := memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, d1.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.Nil(out, "Terminal Deployment")
+	out2, err := state.DeploymentByID(ws, d2.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.NotNil(out2, "Active Deployment")
+}
+
+func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert terminal and active deployment
+	state := s1.fsm.State()
+	d1, d2 := mock.Deployment(), mock.Deployment()
+	d1.Status = structs.DeploymentStatusFailed
+	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	assert.Nil(err, "Snapshot")
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobForceGC, 1000)
+	assert.Nil(core.Process(gc), "Process Force GC")
+
+	// Should be gone
+	ws := memdb.NewWatchSet()
+	out, err := state.DeploymentByID(ws, d1.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.Nil(out, "Terminal Deployment")
+	out2, err := state.DeploymentByID(ws, d2.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.NotNil(out2, "Active Deployment")
+}
+
+func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1147,7 +1410,7 @@ func TestCoreScheduler_PartitionReap(t *testing.T) {
 
 	evals := []string{"a", "b", "c"}
 	allocs := []string{"1", "2", "3"}
-	requests := core.(*CoreScheduler).partitionReap(evals, allocs)
+	requests := core.(*CoreScheduler).partitionEvalReap(evals, allocs)
 	if len(requests) != 3 {
 		t.Fatalf("Expected 3 requests got: %v", requests)
 	}
@@ -1165,5 +1428,40 @@ func TestCoreScheduler_PartitionReap(t *testing.T) {
 	third := requests[2]
 	if len(third.Allocs) != 0 && len(third.Evals) != 2 {
 		t.Fatalf("Unexpected third request: %v", third)
+	}
+}
+
+func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Create a core scheduler
+	snap, err := s1.fsm.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Set the max ids per reap to something lower.
+	maxIdsPerReap = 2
+
+	deployments := []string{"a", "b", "c"}
+	requests := core.(*CoreScheduler).partitionDeploymentReap(deployments)
+	if len(requests) != 2 {
+		t.Fatalf("Expected 2 requests got: %v", requests)
+	}
+
+	first := requests[0]
+	if len(first.Deployments) != 2 {
+		t.Fatalf("Unexpected first request: %v", first)
+	}
+
+	second := requests[1]
+	if len(second.Deployments) != 1 {
+		t.Fatalf("Unexpected second request: %v", second)
 	}
 }

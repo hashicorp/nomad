@@ -1,3 +1,73 @@
+## 0.6.0 (Unreleased)
+
+IMPROVEMENTS:
+ * core: Rolling updates based on allocation health [GH-2621, GH-2634, GH-2799]
+ * core: New deployment object to track job updates [GH-2621, GH-2634, GH-2799]
+ * core: Default advertise to private IP address if bind is 0.0.0.0 [GH-2399]
+ * core: Track multiple job versions and add a stopped state for jobs [GH-2566]
+ * core: Job updates can create canaries before beginning rolling update
+   [GH-2621, GH-2634, GH-2799]
+ * core: Back-pressure when evaluations are nacked and ensure scheduling
+   progress on evaluation failures [GH-2555]
+ * agent/config: Late binding to IP addresses using go-sockaddr/template syntax
+   [GH-2399]
+ * api: Add `verify_https_client` to require certificates from HTTP clients
+   [GH-2587]
+ * api/job: Ability to revert job to older versions [GH-2575]
+ * client: Use a random host UUID by default [GH-2735]
+ * client: Environment variables for client DC and Region [GH-2507]
+ * client: Hash host ID so its stable and well distributed [GH-2541]
+ * client: GC dead allocs if total allocs > `gc_max_allocs` tunable [GH-2636]
+ * client: Persist state using bolt-db and more efficient write patterns
+   [GH-2610]
+ * client: Fingerprint all routable addresses on an interface including IPv6
+   addresses [GH-2536]
+ * client/artifact: Allow specifying a go-getter mode [GH-2781]
+ * client/artifact: Support non-Amazon S3-compatible sources [GH-2781]
+ * client/template: Support reading env vars from templates [GH-2654]
+ * config: Support Unix socket addresses for Consul [GH-2622]
+ * discovery: Advertise driver-specified IP address and port [GH-2709]
+ * driver/docker: Allow specifying extra hosts [GH-2547]
+ * driver/docker: Allow setting seccomp profiles [GH-2658]
+ * driver/docker: Support Docker credential helpers [GH-2651]
+ * driver/docker: Auth failures can optionally be ignored [GH-2786]
+ * driver/docker: Add `driver.docker.bridge_ip` node attribute [GH-2797]
+ * driver/docker: Allow setting container IP with user defined networks
+   [GH-2535]
+ * driver/rkt: Support `no_overlay` [GH-2702]
+ * driver/rkt: Support `insecure_options` list [GH-2695]
+
+BUG FIXES:
+ * core: Protect against nil job in new allocation, avoiding panic [GH-2592]
+ * core: System jobs should be running until explicitly stopped [GH-2750]
+ * core: Prevent invalid job updates (eg service -> batch) [GH-2746]
+ * client: Lookup `ip` utility on `$PATH` [GH-2729]
+ * client: Add sticky bit to temp directory [GH-2519]
+ * client: Shutdown task group leader before other tasks [GH-2753]
+ * client: Include symlinks in snapshots when migrating disks [GH-2687]
+ * client: Regression for allocation directory unix perms introduced in v0.5.6
+   fixed [GH-2675]
+ * client: Client syncs allocation state with server before waiting for
+   allocation destroy fixing a corner case in which an allocation may be blocked
+   till destroy [GH-2563]
+ * client/artifact: Honor netrc [GH-2524]
+ * client/artifact: Handle tars where file in directory is listed before
+   directory [GH-2524]
+ * client/config: Use `cpu_total_compute` whenever it is set [GH-2745]
+ * client/config: Respect `vault.tls_server_name` setting in consul-template
+   [GH-2793]
+ * driver/exec: Properly set file/dir ownership in chroots [GH-2552]
+ * driver/docker: Fix panic in Docker driver on Windows [GH-2614]
+ * driver/rkt: Fix env var interpolation [GH-2777]
+ * jobspec/validation: Prevent static port conflicts [GH-2807]
+ * server: Reject non-TLS clients when TLS enabled [GH-2525]
+ * server: Fix a panic in plan evaluation with partial failures and all_at_once
+   set [GH-2544]
+ * server/periodic: Restoring periodic jobs takes launch time zone into
+   consideration [GH-2808]
+ * server/vault: Fix Vault Client panic when given nonexistant role [GH-2648]
+ * telemetry: Fix merging of use node name [GH-2762]
+
 ## 0.5.6 (March 31, 2017)
 
 IMPROVEMENTS:

@@ -38,12 +38,14 @@ job "docs" {
 
 ## `ephemeral_disk` Parameters
 
-- `migrate` `(bool: false)` - Specifies that the Nomad client should make a
-  best-effort attempt to migrate the data from a remote machine if placement
-  cannot be made on the original node. During data migration, the task will
-  block starting until the data migration has completed.
+- `migrate` `(bool: false)` - When `sticky` is true, this specifies that the
+  Nomad client should make a best-effort attempt to migrate the data from a
+  remote machine if placement cannot be made on the original node. During data
+  migration, the task will block starting until the data migration has completed.
 
-- `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB.
+- `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB.  The
+  current Nomad ephemeral storage implementation does not enforce this limit;
+  however, it is used during job placement.
 
 - `sticky` `(bool: false)` - Specifies that Nomad should make a best-effort
   attempt to place the updated allocation on the same machine. This will move

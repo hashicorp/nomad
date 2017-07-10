@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -50,22 +51,22 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // Register is used to register a new job. It returns the ID
 // of the evaluation, along with any errors encountered.
-func (j *Jobs) Register(job *Job, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) Register(job *Job, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{Job: job}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // EnforceRegister is used to register a job enforcing its job modify index.
-func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 
 	req := &RegisterJobRequest{
 		Job:            job,
@@ -74,9 +75,9 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (s
 	}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	return resp.EvalID, wm, nil
+	return &resp, wm, nil
 }
 
 // List is used to list all of the existing jobs.
@@ -106,6 +107,17 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Versions is used to retrieve all versions of a particular job given its
+// unique ID.
+func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	var resp JobVersionsResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", jobID, diffs), &resp, q)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return resp.Versions, resp.Diffs, qm, nil
+}
+
 // Allocations is used to return the allocs for a given job ID.
 func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
@@ -126,8 +138,31 @@ func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*Al
 	return resp, qm, nil
 }
 
-// Evaluations is used to query the evaluations associated with
+// Deployments is used to query the deployments associated with the given job
+// ID.
+func (j *Jobs) Deployments(jobID string, q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
+	var resp []*Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployments", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(DeploymentIndexSort(resp))
+	return resp, qm, nil
+}
+
+// LatestDeployment is used to query for the latest deployment associated with
 // the given job ID.
+func (j *Jobs) LatestDeployment(jobID string, q *QueryOptions) (*Deployment, *QueryMeta, error) {
+	var resp *Deployment
+	qm, err := j.client.query("/v1/job/"+jobID+"/deployment", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Evaluations is used to query the evaluations associated with the given job
+// ID.
 func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {
 	var resp []*Evaluation
 	qm, err := j.client.query("/v1/job/"+jobID+"/evaluations", &resp, q)
@@ -138,10 +173,12 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 	return resp, qm, nil
 }
 
-// Deregister is used to remove an existing job.
-func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
-	var resp deregisterJobResponse
-	wm, err := j.client.delete("/v1/job/"+jobID, &resp, q)
+// Deregister is used to remove an existing job. If purge is set to true, the job
+// is deregistered and purged from the system versus still being queryable and
+// eventually GC'ed from the system. Most callers should not specify purge.
+func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp JobDeregisterResponse
+	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", jobID, purge), &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -150,7 +187,7 @@ func (j *Jobs) Deregister(jobID string, q *WriteOptions) (string, *WriteMeta, er
 
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
-	var resp registerJobResponse
+	var resp JobRegisterResponse
 	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
@@ -210,15 +247,160 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 	return &resp, wm, nil
 }
 
+// Revert is used to revert the given job to the passed version. If
+// enforceVersion is set, the job is only reverted if the current version is at
+// the passed version.
+func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
+	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+
+	var resp JobRegisterResponse
+	req := &JobRevertRequest{
+		JobID:               jobID,
+		JobVersion:          version,
+		EnforcePriorVersion: enforcePriorVersion,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/revert", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Stable is used to mark a job version's stability.
+func (j *Jobs) Stable(jobID string, version uint64, stable bool,
+	q *WriteOptions) (*JobStabilityResponse, *WriteMeta, error) {
+
+	var resp JobStabilityResponse
+	req := &JobStabilityRequest{
+		JobID:      jobID,
+		JobVersion: version,
+		Stable:     stable,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/stable", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
 }
 
-// UpdateStrategy is for serializing update strategy for a job.
+// UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger     time.Duration
-	MaxParallel int `mapstructure:"max_parallel"`
+	Stagger         *time.Duration `mapstructure:"stagger"`
+	MaxParallel     *int           `mapstructure:"max_parallel"`
+	HealthCheck     *string        `mapstructure:"health_check"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+	AutoRevert      *bool          `mapstructure:"auto_revert"`
+	Canary          *int           `mapstructure:"canary"`
+}
+
+func (u *UpdateStrategy) Copy() *UpdateStrategy {
+	if u == nil {
+		return nil
+	}
+
+	copy := new(UpdateStrategy)
+
+	if u.Stagger != nil {
+		copy.Stagger = helper.TimeToPtr(*u.Stagger)
+	}
+
+	if u.MaxParallel != nil {
+		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
+	}
+
+	if u.HealthCheck != nil {
+		copy.HealthCheck = helper.StringToPtr(*u.HealthCheck)
+	}
+
+	if u.MinHealthyTime != nil {
+		copy.MinHealthyTime = helper.TimeToPtr(*u.MinHealthyTime)
+	}
+
+	if u.HealthyDeadline != nil {
+		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+	}
+
+	if u.AutoRevert != nil {
+		copy.AutoRevert = helper.BoolToPtr(*u.AutoRevert)
+	}
+
+	if u.Canary != nil {
+		copy.Canary = helper.IntToPtr(*u.Canary)
+	}
+
+	return copy
+}
+
+func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
+	if o == nil {
+		return
+	}
+
+	if o.Stagger != nil {
+		u.Stagger = helper.TimeToPtr(*o.Stagger)
+	}
+
+	if o.MaxParallel != nil {
+		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
+	}
+
+	if o.HealthCheck != nil {
+		u.HealthCheck = helper.StringToPtr(*o.HealthCheck)
+	}
+
+	if o.MinHealthyTime != nil {
+		u.MinHealthyTime = helper.TimeToPtr(*o.MinHealthyTime)
+	}
+
+	if o.HealthyDeadline != nil {
+		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
+	}
+
+	if o.AutoRevert != nil {
+		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
+	}
+
+	if o.Canary != nil {
+		u.Canary = helper.IntToPtr(*o.Canary)
+	}
+}
+
+func (u *UpdateStrategy) Canonicalize() {
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(0)
+	}
+
+	d := structs.DefaultUpdateStrategy
+
+	if u.Stagger == nil {
+		u.Stagger = helper.TimeToPtr(d.Stagger)
+	}
+
+	if u.HealthCheck == nil {
+		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
+	}
+
+	if u.HealthyDeadline == nil {
+		u.HealthyDeadline = helper.TimeToPtr(d.HealthyDeadline)
+	}
+
+	if u.MinHealthyTime == nil {
+		u.MinHealthyTime = helper.TimeToPtr(d.MinHealthyTime)
+	}
+
+	if u.AutoRevert == nil {
+		u.AutoRevert = helper.BoolToPtr(d.AutoRevert)
+	}
+
+	if u.Canary == nil {
+		u.Canary = helper.IntToPtr(d.Canary)
+	}
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -279,6 +461,7 @@ type ParameterizedJobConfig struct {
 
 // Job is used to serialize a job.
 type Job struct {
+	Stop              *bool
 	Region            *string
 	ID                *string
 	ParentID          *string
@@ -297,6 +480,9 @@ type Job struct {
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
 	StatusDescription *string
+	Stable            *bool
+	Version           *uint64
+	SubmitTime        *int64
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
@@ -325,6 +511,9 @@ func (j *Job) Canonicalize() {
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
 	}
+	if j.Stop == nil {
+		j.Stop = helper.BoolToPtr(false)
+	}
 	if j.Region == nil {
 		j.Region = helper.StringToPtr("global")
 	}
@@ -343,6 +532,12 @@ func (j *Job) Canonicalize() {
 	if j.StatusDescription == nil {
 		j.StatusDescription = helper.StringToPtr("")
 	}
+	if j.Stable == nil {
+		j.Stable = helper.BoolToPtr(false)
+	}
+	if j.Version == nil {
+		j.Version = helper.Uint64ToPtr(0)
+	}
 	if j.CreateIndex == nil {
 		j.CreateIndex = helper.Uint64ToPtr(0)
 	}
@@ -354,6 +549,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
+	}
+	if j.Update != nil {
+		j.Update.Canonicalize()
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -406,12 +604,16 @@ type JobListStub struct {
 	Name              string
 	Type              string
 	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
+	Stop              bool
 	Status            string
 	StatusDescription string
 	JobSummary        *JobSummary
 	CreateIndex       uint64
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobIDSort is used to sort jobs by their job ID's.
@@ -509,6 +711,25 @@ type JobValidateResponse struct {
 
 	// Error is a string version of any error that may have occured
 	Error string
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+}
+
+// JobRevertRequest is used to revert a job to a prior version.
+type JobRevertRequest struct {
+	// JobID is the ID of the job  being reverted
+	JobID string
+
+	// JobVersion the version to revert to.
+	JobVersion uint64
+
+	// EnforcePriorVersion if set will enforce that the job is at the given
+	// version before reverting.
+	EnforcePriorVersion *uint64
+
+	WriteRequest
 }
 
 // JobUpdateRequest is used to update a job
@@ -530,14 +751,25 @@ type RegisterJobRequest struct {
 	JobModifyIndex uint64 `json:",omitempty"`
 }
 
-// registerJobResponse is used to deserialize a job response
-type registerJobResponse struct {
-	EvalID string
+// JobRegisterResponse is used to respond to a job registration
+type JobRegisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
+
+	QueryMeta
 }
 
-// deregisterJobResponse is used to decode a deregister response
-type deregisterJobResponse struct {
-	EvalID string
+// JobDeregisterResponse is used to respond to a job deregistration
+type JobDeregisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
 }
 
 type JobPlanRequest struct {
@@ -553,6 +785,10 @@ type JobPlanResponse struct {
 	Annotations        *PlanAnnotations
 	FailedTGAllocs     map[string]*AllocationMetric
 	NextPeriodicLaunch time.Time
+
+	// Warnings contains any warnings about the given job. These may include
+	// deprecation warnings.
+	Warnings string
 }
 
 type JobDiff struct {
@@ -605,6 +841,7 @@ type DesiredUpdates struct {
 	Stop              uint64
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
+	Canary            uint64
 }
 
 type JobDispatchRequest struct {
@@ -618,5 +855,29 @@ type JobDispatchResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobCreateIndex  uint64
+	WriteMeta
+}
+
+// JobVersionsResponse is used for a job get versions request
+type JobVersionsResponse struct {
+	Versions []*Job
+	Diffs    []*JobDiff
+	QueryMeta
+}
+
+// JobStabilityRequest is used to marked a job as stable.
+type JobStabilityRequest struct {
+	// Job to set the stability on
+	JobID      string
+	JobVersion uint64
+
+	// Set the stability
+	Stable bool
+	WriteRequest
+}
+
+// JobStabilityResponse is the response when marking a job as stable.
+type JobStabilityResponse struct {
+	JobModifyIndex uint64
 	WriteMeta
 }

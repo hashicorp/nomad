@@ -44,6 +44,11 @@ type View struct {
 
 	// stopCh is used to stop polling on this View
 	stopCh chan struct{}
+
+	// vaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	vaultGrace time.Duration
 }
 
 // NewViewInput is used as input to the NewView function.
@@ -65,6 +70,11 @@ type NewViewInput struct {
 	// RetryFunc is a function which dictates how this view should retry on
 	// upstream errors.
 	RetryFunc RetryFunc
+
+	// VaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	VaultGrace time.Duration
 }
 
 // NewView constructs a new view with the given inputs.
@@ -76,6 +86,7 @@ func NewView(i *NewViewInput) (*View, error) {
 		once:       i.Once,
 		retryFunc:  i.RetryFunc,
 		stopCh:     make(chan struct{}, 1),
+		vaultGrace: i.VaultGrace,
 	}, nil
 }
 
@@ -108,9 +119,12 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 	var retries int
 
 	for {
-		doneCh, fetchErrCh := make(chan struct{}, 1), make(chan error, 1)
-		go v.fetch(doneCh, fetchErrCh)
+		doneCh := make(chan struct{}, 1)
+		successCh := make(chan struct{}, 1)
+		fetchErrCh := make(chan error, 1)
+		go v.fetch(doneCh, successCh, fetchErrCh)
 
+	WAIT:
 		select {
 		case <-doneCh:
 			// Reset the retry to avoid exponentially incrementing retries when we
@@ -129,6 +143,16 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 			if v.once {
 				return
 			}
+		case <-successCh:
+			// We successfully received a non-error response from the server. This
+			// does not mean we have data (that's dataCh's job), but rather this
+			// just resets the counter indicating we communciated successfully. For
+			// example, Consul make have an outage, but when it returns, the view
+			// is unchanged. We have to reset the counter retries, but not update the
+			// actual template.
+			log.Printf("[TRACE] view %s successful contact, resetting retries", v.dependency)
+			retries = 0
+			goto WAIT
 		case err := <-fetchErrCh:
 			if v.retryFunc != nil {
 				retry, sleep := v.retryFunc(retries)
@@ -166,7 +190,7 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 // written to errCh. It is designed to be run in a goroutine that selects the
 // result of doneCh and errCh. It is assumed that only one instance of fetch
 // is running per View and therefore no locking or mutexes are used.
-func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
+func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 	log.Printf("[TRACE] (view) %s starting fetch", v.dependency)
 
 	var allowStale bool
@@ -187,6 +211,7 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 			AllowStale: allowStale,
 			WaitTime:   defaultWaitTime,
 			WaitIndex:  v.lastIndex,
+			VaultGrace: v.vaultGrace,
 		})
 		if err != nil {
 			if err == dep.ErrStopped {
@@ -201,6 +226,15 @@ func (v *View) fetch(doneCh chan<- struct{}, errCh chan<- error) {
 			errCh <- fmt.Errorf("received nil response metadata - this is a bug " +
 				"and should be reported")
 			return
+		}
+
+		// If we got this far, we received data successfully. That data might not
+		// trigger a data update (because we could continue below), but we need to
+		// inform the poller to reset the retry count.
+		log.Printf("[TRACE] (view) %s marking successful data response", v.dependency)
+		select {
+		case successCh <- struct{}{}:
+		default:
 		}
 
 		if allowStale && rm.LastContact > v.maxStale {

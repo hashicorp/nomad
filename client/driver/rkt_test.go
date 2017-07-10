@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -20,7 +22,7 @@ import (
 
 func TestRktVersionRegex(t *testing.T) {
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
+		t.Skip("NOMAD_TEST_RKT unset, skipping")
 	}
 
 	input_rkt := "rkt version 0.8.1"
@@ -101,23 +103,21 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Attempt to open
-	handle2, err := d.Open(ctx.ExecCtx, handle.ID())
+	handle2, err := d.Open(ctx.ExecCtx, resp.Handle.ID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if handle2 == nil {
 		t.Fatalf("missing handle")
 	}
+	handle2.Kill()
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
@@ -152,28 +152,25 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err = resp.Handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Signal should be an error
-	if err = handle.Signal(syscall.SIGTERM); err == nil {
+	if err = resp.Handle.Signal(syscall.SIGTERM); err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -213,23 +210,20 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	// Update should be a no-op
-	err = handle.Update(task)
+	err = resp.Handle.Update(task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -284,17 +278,14 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if handle == nil {
-		t.Fatalf("missing handle")
-	}
-	defer handle.Kill()
+	defer resp.Handle.Kill()
 
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
@@ -346,9 +337,9 @@ func TestRktDriverUser(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "unknown user alice"
@@ -387,9 +378,9 @@ func TestRktTrustPrefix(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
-		handle.Kill()
+		resp.Handle.Kill()
 		t.Fatalf("Should've failed")
 	}
 	msg := "Error running rkt trust"
@@ -465,18 +456,15 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("error in prestart: %v", err)
 	}
-	handle, err := d.Start(ctx.ExecCtx, task)
+	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
-	}
-	if handle == nil {
-		t.Fatalf("missing handle")
 	}
 
 	failCh := make(chan error, 1)
 	go func() {
 		time.Sleep(1 * time.Second)
-		if err := handle.Kill(); err != nil {
+		if err := resp.Handle.Kill(); err != nil {
 			failCh <- err
 		}
 	}()
@@ -484,8 +472,76 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	select {
 	case err := <-failCh:
 		t.Fatalf("failed to kill handle: %v", err)
-	case <-handle.WaitCh():
+	case <-resp.Handle.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
+	}
+}
+
+func TestRktDriver_HandlerExec(t *testing.T) {
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name:   "etcd",
+		Driver: "rkt",
+		Config: map[string]interface{}{
+			"trust_prefix": "coreos.com/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRktDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Give the pod a second to start
+	time.Sleep(time.Second)
+
+	// Exec a command that should work
+	out, code, err := resp.Handle.Exec(context.TODO(), "/etcd", []string{"--version"})
+	if err != nil {
+		t.Fatalf("error exec'ing etcd --version: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected `etcd --version` to succeed but exit code was: %d\n%s", code, string(out))
+	}
+	if expected := []byte("etcd version "); !bytes.HasPrefix(out, expected) {
+		t.Fatalf("expected output to start with %q but found:\n%q", expected, out)
+	}
+
+	// Exec a command that should fail
+	out, code, err = resp.Handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
+	if err != nil {
+		t.Fatalf("error exec'ing bad command: %v", err)
+	}
+	if code == 0 {
+		t.Fatalf("expected `stat` to fail but exit code was: %d", code)
+	}
+	if expected := "flag provided but not defined"; !bytes.Contains(out, []byte(expected)) {
+		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	if err := resp.Handle.Kill(); err != nil {
+		t.Fatalf("error killing handle: %v", err)
 	}
 }

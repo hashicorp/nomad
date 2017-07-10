@@ -46,8 +46,13 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:     60 * time.Second,
-					MaxParallel: 2,
+					Stagger:         helper.TimeToPtr(60 * time.Second),
+					MaxParallel:     helper.IntToPtr(2),
+					HealthCheck:     helper.StringToPtr("manual"),
+					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:      helper.BoolToPtr(true),
+					Canary:          helper.IntToPtr(1),
 				},
 
 				TaskGroups: []*api.TaskGroup{
@@ -91,6 +96,14 @@ func TestParse(t *testing.T) {
 						EphemeralDisk: &api.EphemeralDisk{
 							Sticky: helper.BoolToPtr(true),
 							SizeMB: helper.IntToPtr(150),
+						},
+						Update: &api.UpdateStrategy{
+							MaxParallel:     helper.IntToPtr(3),
+							HealthCheck:     helper.StringToPtr("checks"),
+							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
+							AutoRevert:      helper.BoolToPtr(false),
+							Canary:          helper.IntToPtr(2),
 						},
 						Tasks: []*api.Task{
 							&api.Task{
@@ -153,6 +166,7 @@ func TestParse(t *testing.T) {
 										GetterOptions: map[string]string{
 											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
+										GetterMode: helper.StringToPtr("file"),
 									},
 								},
 								Vault: &api.Vault{
@@ -168,6 +182,7 @@ func TestParse(t *testing.T) {
 										ChangeSignal: helper.StringToPtr("foo"),
 										Splay:        helper.TimeToPtr(10 * time.Second),
 										Perms:        helper.StringToPtr("0644"),
+										Envvars:      helper.BoolToPtr(true),
 									},
 									{
 										SourcePath: helper.StringToPtr("bar"),

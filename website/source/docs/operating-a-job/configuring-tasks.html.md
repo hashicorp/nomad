@@ -70,7 +70,7 @@ Nomad has many [drivers](/docs/drivers/index.html), and most support passing
 arguments to their tasks via the `args` parameter. This option also optionally
 accepts [Nomad interpolation](/docs/runtime/interpolation.html). For example, if
 you wanted Nomad to dynamically allocate a high port to bind the service on
-intead of relying on a static port for the previous job:
+instead of relying on a static port for the previous job:
 
 ```hcl
 job "docs" {

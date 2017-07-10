@@ -272,6 +272,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"meta",
 			"task",
 			"ephemeral_disk",
+			"update",
 			"vault",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
@@ -287,6 +288,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "task")
 		delete(m, "restart")
 		delete(m, "ephemeral_disk")
+		delete(m, "update")
 		delete(m, "vault")
 
 		// Build the group with the basic decode
@@ -315,6 +317,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			g.EphemeralDisk = &api.EphemeralDisk{}
 			if err := parseEphemeralDisk(&g.EphemeralDisk, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', ephemeral_disk ->", n))
+			}
+		}
+
+		// If we have an update strategy, then parse that
+		if o := listVal.Filter("update"); len(o.Items) > 0 {
+			if err := parseUpdate(&g.Update, o); err != nil {
+				return multierror.Prefix(err, "update ->")
 			}
 		}
 
@@ -779,6 +788,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 		valid := []string{
 			"source",
 			"options",
+			"mode",
 			"destination",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -852,6 +862,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"right_delimiter",
 			"source",
 			"splay",
+			"env",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -895,6 +906,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"tags",
 			"port",
 			"check",
+			"address_mode",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -947,6 +959,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"command",
 			"args",
 			"initial_status",
+			"tls_skip_verify",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -1103,7 +1116,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'update' block allowed per job")
+		return fmt.Errorf("only one 'update' block allowed")
 	}
 
 	// Get our resource object
@@ -1116,8 +1129,14 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
+		// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 		"stagger",
 		"max_parallel",
+		"health_check",
+		"min_healthy_time",
+		"healthy_deadline",
+		"auto_revert",
+		"canary",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err

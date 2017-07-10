@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// Config can be used to tune certain parameters which affect the way
+// in which Columnize will format output text.
 type Config struct {
 	// The string by which the lines of input will be split.
 	Delim string
@@ -16,57 +18,60 @@ type Config struct {
 	// The string by which columns of output will be prefixed.
 	Prefix string
 
-	// A replacement string to replace empty fields
+	// A replacement string to replace empty fields.
 	Empty string
+
+	// NoTrim disables automatic trimming of inputs.
+	NoTrim bool
 }
 
-// Returns a Config with default values.
+// DefaultConfig returns a *Config with default values.
 func DefaultConfig() *Config {
 	return &Config{
 		Delim:  "|",
 		Glue:   "  ",
 		Prefix: "",
+		Empty:  "",
+		NoTrim: false,
 	}
 }
 
-// Returns a list of elements, each representing a single item which will
-// belong to a column of output.
-func getElementsFromLine(config *Config, line string) []interface{} {
-	seperated := strings.Split(line, config.Delim)
-	elements := make([]interface{}, len(seperated))
-	for i, field := range seperated {
-		value := strings.TrimSpace(field)
-		if value == "" && config.Empty != "" {
-			value = config.Empty
-		}
-		elements[i] = value
+// MergeConfig merges two config objects together and returns the resulting
+// configuration. Values from the right take precedence over the left side.
+func MergeConfig(a, b *Config) *Config {
+	// Return quickly if either side was nil
+	if a == nil {
+		return b
 	}
-	return elements
+	if b == nil {
+		return a
+	}
+
+	var result Config = *a
+
+	if b.Delim != "" {
+		result.Delim = b.Delim
+	}
+	if b.Glue != "" {
+		result.Glue = b.Glue
+	}
+	if b.Prefix != "" {
+		result.Prefix = b.Prefix
+	}
+	if b.Empty != "" {
+		result.Empty = b.Empty
+	}
+	if b.NoTrim {
+		result.NoTrim = true
+	}
+
+	return &result
 }
 
-// Examines a list of strings and determines how wide each column should be
-// considering all of the elements that need to be printed within it.
-func getWidthsFromLines(config *Config, lines []string) []int {
-	widths := make([]int, 0, 8)
-
-	for _, line := range lines {
-		elems := getElementsFromLine(config, line)
-		for i := 0; i < len(elems); i++ {
-			l := len(elems[i].(string))
-			if len(widths) <= i {
-				widths = append(widths, l)
-			} else if widths[i] < l {
-				widths[i] = l
-			}
-		}
-	}
-	return widths
-}
-
-// Given a set of column widths and the number of columns in the current line,
-// returns a sprintf-style format string which can be used to print output
-// aligned properly with other lines using the same widths set.
-func (c *Config) getStringFormat(widths []int, columns int) string {
+// stringFormat, given a set of column widths and the number of columns in
+// the current line, returns a sprintf-style format string which can be used
+// to print output aligned properly with other lines using the same widths set.
+func stringFormat(c *Config, widths []int, columns int) string {
 	// Create the buffer with an estimate of the length
 	buf := bytes.NewBuffer(make([]byte, 0, (6+len(c.Glue))*columns))
 
@@ -85,37 +90,60 @@ func (c *Config) getStringFormat(widths []int, columns int) string {
 	return buf.String()
 }
 
-// MergeConfig merges two config objects together and returns the resulting
-// configuration. Values from the right take precedence over the left side.
-func MergeConfig(a, b *Config) *Config {
-	var result Config = *a
+// elementsFromLine returns a list of elements, each representing a single
+// item which will belong to a column of output.
+func elementsFromLine(config *Config, line string) []interface{} {
+	separated := strings.Split(line, config.Delim)
+	elements := make([]interface{}, len(separated))
+	for i, field := range separated {
+		value := field
+		if !config.NoTrim {
+			value = strings.TrimSpace(field)
+		}
 
-	// Return quickly if either side was nil
-	if a == nil || b == nil {
-		return &result
+		// Apply the empty value, if configured.
+		if value == "" && config.Empty != "" {
+			value = config.Empty
+		}
+		elements[i] = value
 	}
-
-	if b.Delim != "" {
-		result.Delim = b.Delim
-	}
-	if b.Glue != "" {
-		result.Glue = b.Glue
-	}
-	if b.Prefix != "" {
-		result.Prefix = b.Prefix
-	}
-	if b.Empty != "" {
-		result.Empty = b.Empty
-	}
-
-	return &result
+	return elements
 }
 
-// Format is the public-facing interface that takes either a plain string
-// or a list of strings and returns nicely aligned output.
+// runeLen calculates the number of visible "characters" in a string
+func runeLen(s string) int {
+	l := 0
+	for _ = range s {
+		l++
+	}
+	return l
+}
+
+// widthsFromLines examines a list of strings and determines how wide each
+// column should be considering all of the elements that need to be printed
+// within it.
+func widthsFromLines(config *Config, lines []string) []int {
+	widths := make([]int, 0, 8)
+
+	for _, line := range lines {
+		elems := elementsFromLine(config, line)
+		for i := 0; i < len(elems); i++ {
+			l := runeLen(elems[i].(string))
+			if len(widths) <= i {
+				widths = append(widths, l)
+			} else if widths[i] < l {
+				widths[i] = l
+			}
+		}
+	}
+	return widths
+}
+
+// Format is the public-facing interface that takes a list of strings and
+// returns nicely aligned column-formatted text.
 func Format(lines []string, config *Config) string {
 	conf := MergeConfig(DefaultConfig(), config)
-	widths := getWidthsFromLines(conf, lines)
+	widths := widthsFromLines(conf, lines)
 
 	// Estimate the buffer size
 	glueSize := len(conf.Glue)
@@ -133,13 +161,13 @@ func Format(lines []string, config *Config) string {
 
 	// Create the formatted output using the format string
 	for _, line := range lines {
-		elems := getElementsFromLine(conf, line)
+		elems := elementsFromLine(conf, line)
 
 		// Get the string format using cache
 		numElems := len(elems)
 		stringfmt, ok := fmtCache[numElems]
 		if !ok {
-			stringfmt = conf.getStringFormat(widths, numElems)
+			stringfmt = stringFormat(conf, widths, numElems)
 			fmtCache[numElems] = stringfmt
 		}
 
@@ -157,7 +185,7 @@ func Format(lines []string, config *Config) string {
 	return result
 }
 
-// Convenience function for using Columnize as easy as possible.
+// SimpleFormat is a convenience function to format text with the defaults.
 func SimpleFormat(lines []string) string {
 	return Format(lines, nil)
 }

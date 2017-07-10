@@ -58,7 +58,8 @@ client {
     gc_parallel_destroys = 6
     gc_disk_usage_threshold = 82
     gc_inode_usage_threshold = 91
-    no_host_uuid = true
+    gc_max_allocs = 50
+    no_host_uuid = false
 }
 server {
 	enabled = true
@@ -70,6 +71,7 @@ server {
 	node_gc_threshold = "12h"
 	job_gc_threshold = "12h"
 	eval_gc_threshold = "12h"
+	deployment_gc_threshold = "12h"
 	heartbeat_grace   = "30s"
 	retry_join = [ "1.1.1.1", "2.2.2.2" ]
 	start_join = [ "1.1.1.1", "2.2.2.2" ]
@@ -138,4 +140,5 @@ tls {
     ca_file = "foo"
     cert_file = "bar"
     key_file = "pipe"
+    verify_https_client = true
 }

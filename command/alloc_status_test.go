@@ -70,7 +70,7 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both -json and -t are not allowed") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
 }
@@ -102,11 +102,11 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
-	evalId1, _, err := client.Jobs().Register(job1, nil)
+	resp, _, err := client.Jobs().Register(job1, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if code := waitForSuccess(ui, client, fullId, t, evalId1); code != 0 {
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
 	// get an alloc id

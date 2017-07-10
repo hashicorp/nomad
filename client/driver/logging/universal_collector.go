@@ -81,7 +81,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Printf("[DEBUG] sylog-server: launching syslog server on addr: %v", l.Addr().String())
+	s.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
 	s.ctx = ctx
 	// configuring the task dir
 	if err := s.configureTaskDir(); err != nil {

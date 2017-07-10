@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -33,9 +34,15 @@ type LaunchCmdArgs struct {
 	Cmd *executor.ExecCommand
 }
 
-// SyncServicesArgs wraps the consul context for the purposes of RPC
-type SyncServicesArgs struct {
-	Ctx *executor.ConsulContext
+type ExecCmdArgs struct {
+	Deadline time.Time
+	Name     string
+	Args     []string
+}
+
+type ExecCmdReturn struct {
+	Output []byte
+	Code   int
 }
 
 func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
@@ -76,10 +83,6 @@ func (e *ExecutorRPC) UpdateTask(task *structs.Task) error {
 	return e.client.Call("Plugin.UpdateTask", task, new(interface{}))
 }
 
-func (e *ExecutorRPC) SyncServices(ctx *executor.ConsulContext) error {
-	return e.client.Call("Plugin.SyncServices", SyncServicesArgs{Ctx: ctx}, new(interface{}))
-}
-
 func (e *ExecutorRPC) DeregisterServices() error {
 	return e.client.Call("Plugin.DeregisterServices", new(interface{}), new(interface{}))
 }
@@ -98,6 +101,20 @@ func (e *ExecutorRPC) Stats() (*cstructs.TaskResourceUsage, error) {
 
 func (e *ExecutorRPC) Signal(s os.Signal) error {
 	return e.client.Call("Plugin.Signal", &s, new(interface{}))
+}
+
+func (e *ExecutorRPC) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
+	req := ExecCmdArgs{
+		Deadline: deadline,
+		Name:     name,
+		Args:     args,
+	}
+	var resp *ExecCmdReturn
+	err := e.client.Call("Plugin.Exec", req, &resp)
+	if resp == nil {
+		return nil, 0, err
+	}
+	return resp.Output, resp.Code, err
 }
 
 type ExecutorRPCServer struct {
@@ -149,12 +166,9 @@ func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) er
 	return e.Impl.UpdateTask(args)
 }
 
-func (e *ExecutorRPCServer) SyncServices(args SyncServicesArgs, resp *interface{}) error {
-	return e.Impl.SyncServices(args.Ctx)
-}
-
 func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {
-	return e.Impl.DeregisterServices()
+	// In 0.6 this is a noop. Goes away in 0.7.
+	return nil
 }
 
 func (e *ExecutorRPCServer) Version(args interface{}, version *executor.ExecutorVersion) error {
@@ -175,6 +189,16 @@ func (e *ExecutorRPCServer) Stats(args interface{}, resourceUsage *cstructs.Task
 
 func (e *ExecutorRPCServer) Signal(args os.Signal, resp *interface{}) error {
 	return e.Impl.Signal(args)
+}
+
+func (e *ExecutorRPCServer) Exec(args ExecCmdArgs, result *ExecCmdReturn) error {
+	out, code, err := e.Impl.Exec(args.Deadline, args.Name, args.Args)
+	ret := &ExecCmdReturn{
+		Output: out,
+		Code:   code,
+	}
+	*result = *ret
+	return err
 }
 
 type ExecutorPlugin struct {

@@ -66,10 +66,6 @@ consul {
   address = "1.2.3.4:8500"
 }
 
-atlas {
-  infrastructure = "hashicorp/mars"
-  token          = "atlas.v1.AFE84330943"
-}
 ```
 
 ~> Note that it is strongly recommended **not** to operate a node as both
@@ -81,6 +77,7 @@ testing.
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
   precedence over the default [bind_addr](#bind_addr).
+  The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address the HTTP server is bound to. This is the most common
     bind address to change.
@@ -98,8 +95,9 @@ testing.
   configurations such as NAT. This configuration is optional, and defaults to
   the bind address of the specific network service if it is not provided. Any
   values configured in this stanza take precedence over the default
-  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the hostname
-  is advertised. You may advertise an alternate port as well.
+  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the first
+  private IP found is advertised. You may advertise an alternate port as well.
+  The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address to advertise for the HTTP interface. This should be
     reachable by all the nodes from which end users are going to use the Nomad
@@ -112,9 +110,6 @@ testing.
     reachable from all server nodes. It is not required that clients can reach
     this address.
 
-- `atlas` <code>([Atlas][atlas]: nil)</code> - Specifies if Nomad should connect
-  to Nomad Enterprise and Atlas.
-
 - `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad
   agent should bind to for network services, including the HTTP interface as
   well as the internal gossip protocol and RPC mechanism. This should be
@@ -122,6 +117,7 @@ testing.
   the same address. It is also possible to bind the individual services to
   different addresses using the [addresses](#addresses) configuration option.
   Dev mode (`-dev`) defaults to localhost.
+  The value supports [go-sockaddr/template format][go-sockaddr/template].
 
 - `client` <code>([Client][client]: nil)</code> - Specifies configuration which is specific to the Nomad client.
 
@@ -228,8 +224,8 @@ http_api_response_headers {
 ```
 
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
+[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
 [consul]: /docs/agent/configuration/consul.html "Nomad Agent consul Configuration"
-[atlas]: /docs/agent/configuration/atlas.html "Nomad Agent atlas Configuration"
 [vault]: /docs/agent/configuration/vault.html "Nomad Agent vault Configuration"
 [tls]: /docs/agent/configuration/tls.html "Nomad Agent tls Configuration"
 [client]: /docs/agent/configuration/client.html "Nomad Agent client Configuration"

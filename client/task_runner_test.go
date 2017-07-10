@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -30,7 +31,10 @@ func testLogger() *log.Logger {
 }
 
 func prefixedTestLogger(prefix string) *log.Logger {
-	return log.New(os.Stderr, prefix, log.LstdFlags)
+	if testing.Verbose() {
+		return log.New(os.Stderr, prefix, log.LstdFlags|log.Lmicroseconds)
+	}
+	return log.New(ioutil.Discard, "", 0)
 }
 
 type MockTaskStateUpdater struct {
@@ -74,8 +78,19 @@ func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
 func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) *taskRunnerTestCtx {
 	logger := testLogger()
 	conf := config.DefaultConfig()
+	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
 	conf.AllocDir = os.TempDir()
+
+	tmp, err := ioutil.TempFile("", "state-db")
+	if err != nil {
+		t.Fatalf("error creating state db file: %v", err)
+	}
+	db, err := bolt.Open(tmp.Name(), 0600, nil)
+	if err != nil {
+		t.Fatalf("error creating state db: %v", err)
+	}
+
 	upd := &MockTaskStateUpdater{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	// Initialize the port listing. This should be done by the offer process but
@@ -104,7 +119,8 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	}
 
 	vclient := vaultclient.NewMockVaultClient()
-	tr := NewTaskRunner(logger, conf, upd.Update, taskDir, alloc, task, vclient)
+	cclient := newMockConsulServiceClient()
+	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, cclient)
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
@@ -278,6 +294,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	// Change command to ensure we run for a bit
 	ctx.tr.task.Config["command"] = "/bin/sleep"
 	ctx.tr.task.Config["args"] = []string{"100"}
+	ctx.tr.task.Services[0].Checks[0].Args[0] = "${NOMAD_META_foo}"
 	go ctx.tr.Run()
 	defer ctx.Cleanup()
 
@@ -289,8 +306,12 @@ func TestTaskRunner_Update(t *testing.T) {
 	newMode := "foo"
 	newTG.RestartPolicy.Mode = newMode
 
-	newTask := updateAlloc.Job.TaskGroups[0].Tasks[0]
-	newTask.Driver = "foobar"
+	newTask := newTG.Tasks[0]
+	newTask.Driver = "mock_driver"
+
+	// Update meta to make sure service checks are interpolated correctly
+	// #2180
+	newTask.Meta["foo"] = "UPDATE"
 
 	// Update the kill timeout
 	testutil.WaitForResult(func() (bool, error) {
@@ -320,6 +341,21 @@ func TestTaskRunner_Update(t *testing.T) {
 		}
 		if ctx.tr.handle.ID() == oldHandle {
 			return false, fmt.Errorf("handle not ctx.updated")
+		}
+		// Make sure Consul services were interpolated correctly during
+		// the update #2180
+		consul := ctx.tr.consul.(*mockConsulServiceClient)
+		consul.mu.Lock()
+		defer consul.mu.Unlock()
+		if len(consul.ops) < 2 {
+			return false, fmt.Errorf("expected at least 2 consul ops found: %d", len(consul.ops))
+		}
+		lastOp := consul.ops[len(consul.ops)-1]
+		if lastOp.op != "update" {
+			return false, fmt.Errorf("expected last consul op to be update not %q", lastOp.op)
+		}
+		if found := lastOp.task.Services[0].Checks[0].Args[0]; found != "UPDATE" {
+			return false, fmt.Errorf("expected consul check to be UPDATE but found: %q", found)
 		}
 		return true, nil
 	}, func(err error) {
@@ -364,11 +400,11 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new task runner
-	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver}
-	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.upd.Update,
-		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient)
+	task2 := &structs.Task{Name: ctx.tr.task.Name, Driver: ctx.tr.task.Driver, Vault: ctx.tr.task.Vault}
+	tr2 := NewTaskRunner(ctx.tr.logger, ctx.tr.config, ctx.tr.stateDB, ctx.upd.Update,
+		ctx.tr.taskDir, ctx.tr.alloc, task2, ctx.tr.vaultClient, ctx.tr.consul)
 	tr2.restartTracker = noRestartsTracker()
-	if err := tr2.RestoreState(); err != nil {
+	if _, err := tr2.RestoreState(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	go tr2.Run()
@@ -465,7 +501,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
-	// Make the restart policy try one ctx.upd.te
+	// Make the restart policy try one ctx.update
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
@@ -525,14 +561,57 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	}
 }
 
+// TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
+// Consul when waiting to be retried.
+func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+
+	// Create an allocation that has a task with bad artifacts.
+	alloc := mock.Alloc()
+
+	// Make the restart policy try one ctx.update
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    time.Nanosecond,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "1",
+		"run_for":   "1ns",
+	}
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	// Assert it is properly registered and unregistered
+	consul := ctx.tr.consul.(*mockConsulServiceClient)
+	if expected := 4; len(consul.ops) != expected {
+		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
+	}
+	if consul.ops[0].op != "add" {
+		t.Errorf("expected first op to be add but found: %q", consul.ops[0].op)
+	}
+	if consul.ops[1].op != "remove" {
+		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
+	}
+	if consul.ops[2].op != "add" {
+		t.Errorf("expected third op to be add but found: %q", consul.ops[2].op)
+	}
+	if consul.ops[3].op != "remove" {
+		t.Errorf("expected fourth/final op to be remove but found: %q", consul.ops[3].op)
+	}
+}
+
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	ctx := testTaskRunner(t, false)
 	defer ctx.Cleanup()
-
-	if err := ctx.tr.setTaskEnv(); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
 
 	// Try to run as root with exec.
 	ctx.tr.task.Driver = "exec"
@@ -642,66 +721,6 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 
 	if ctx.upd.events[9].Type != structs.TaskKilled {
 		t.Fatalf("Tenth Event was %v; want %v", ctx.upd.events[9].Type, structs.TaskKilled)
-	}
-}
-
-// This test is just to make sure we are resilient to failures when a restart or
-// signal is triggered and the task is not running.
-func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
-	alloc := mock.Alloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
-		"exit_code": "0",
-		"run_for":   "100s",
-	}
-
-	// Use vault to block the start
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
-
-	ctx := testTaskRunnerFromAlloc(t, true, alloc)
-	ctx.tr.MarkReceived()
-	defer ctx.Cleanup()
-
-	// Control when we get a Vault token
-	token := "1234"
-	waitCh := make(chan struct{})
-	defer close(waitCh)
-	handler := func(*structs.Allocation, []string) (map[string]string, error) {
-		<-waitCh
-		return map[string]string{task.Name: token}, nil
-	}
-	ctx.tr.vaultClient.(*vaultclient.MockVaultClient).DeriveTokenFn = handler
-	go ctx.tr.Run()
-
-	select {
-	case <-ctx.tr.WaitCh():
-		t.Fatalf("premature exit")
-	case <-time.After(1 * time.Second):
-	}
-
-	// Send a signal and restart
-	if err := ctx.tr.Signal("test", "don't panic", syscall.SIGCHLD); err != nil {
-		t.Fatalf("Signalling errored: %v", err)
-	}
-
-	// Send a restart
-	ctx.tr.Restart("test", "don't panic")
-
-	if len(ctx.upd.events) != 2 {
-		t.Fatalf("should have 2 ctx.updates: %#v", ctx.upd.events)
-	}
-
-	if ctx.upd.state != structs.TaskStatePending {
-		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStatePending)
-	}
-
-	if ctx.upd.events[0].Type != structs.TaskReceived {
-		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
-	}
-
-	if ctx.upd.events[1].Type != structs.TaskSetup {
-		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
 }
 
@@ -1531,4 +1550,50 @@ func TestTaskRunner_CleanupFail(t *testing.T) {
 	if !reflect.DeepEqual(expected, ctx.tr.createdResources.Resources) {
 		t.Fatalf("expected %#v but found: %#v", expected, ctx.tr.createdResources.Resources)
 	}
+}
+
+func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
+	run := func(ver, driver, checkType string, exp bool) (string, func(t *testing.T)) {
+		name := fmt.Sprintf("%s %s %s returns %t", ver, driver, checkType, exp)
+		return name, func(t *testing.T) {
+			services := []*structs.Service{
+				{
+					Checks: []*structs.ServiceCheck{
+						{
+							Type: checkType,
+						},
+					},
+				},
+			}
+			if act := pre06ScriptCheck(ver, driver, services); act != exp {
+				t.Errorf("expected %t received %t", exp, act)
+			}
+		}
+	}
+	t.Run(run("0.5.6", "exec", "script", true))
+	t.Run(run("0.5.6", "java", "script", true))
+	t.Run(run("0.5.6", "mock_driver", "script", true))
+	t.Run(run("0.5.9", "exec", "script", true))
+	t.Run(run("0.5.9", "java", "script", true))
+	t.Run(run("0.5.9", "mock_driver", "script", true))
+
+	t.Run(run("0.6.0dev", "exec", "script", false))
+	t.Run(run("0.6.0dev", "java", "script", false))
+	t.Run(run("0.6.0dev", "mock_driver", "script", false))
+	t.Run(run("0.6.0", "exec", "script", false))
+	t.Run(run("0.6.0", "java", "script", false))
+	t.Run(run("0.6.0", "mock_driver", "script", false))
+	t.Run(run("1.0.0", "exec", "script", false))
+	t.Run(run("1.0.0", "java", "script", false))
+	t.Run(run("1.0.0", "mock_driver", "script", false))
+
+	t.Run(run("0.5.6", "rkt", "script", false))
+	t.Run(run("0.5.6", "docker", "script", false))
+	t.Run(run("0.5.6", "qemu", "script", false))
+	t.Run(run("0.5.6", "raw_exec", "script", false))
+	t.Run(run("0.5.6", "invalid", "script", false))
+
+	t.Run(run("0.5.6", "exec", "tcp", false))
+	t.Run(run("0.5.6", "java", "tcp", false))
+	t.Run(run("0.5.6", "mock_driver", "tcp", false))
 }

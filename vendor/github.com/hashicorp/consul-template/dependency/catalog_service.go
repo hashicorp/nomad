@@ -27,6 +27,7 @@ type CatalogService struct {
 	ID              string
 	Node            string
 	Address         string
+	Datacenter      string
 	TaggedAddresses map[string]string
 	NodeMeta        map[string]string
 	ServiceID       string
@@ -101,6 +102,7 @@ func (d *CatalogServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (int
 			ID:              s.ID,
 			Node:            s.Node,
 			Address:         s.Address,
+			Datacenter:      s.Datacenter,
 			TaggedAddresses: s.TaggedAddresses,
 			NodeMeta:        s.NodeMeta,
 			ServiceID:       s.ServiceID,

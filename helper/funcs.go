@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"crypto/sha512"
+	"fmt"
 	"regexp"
 	"time"
 )
@@ -18,6 +20,25 @@ func IsUUID(str string) bool {
 	return validUUID.MatchString(str)
 }
 
+// HashUUID takes an input UUID and returns a hashed version of the UUID to
+// ensure it is well distributed.
+func HashUUID(input string) (output string, hashed bool) {
+	if !IsUUID(input) {
+		return "", false
+	}
+
+	// Hash the input
+	buf := sha512.Sum512([]byte(input))
+	output = fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
+		buf[0:4],
+		buf[4:6],
+		buf[6:8],
+		buf[8:10],
+		buf[10:16])
+
+	return output, true
+}
+
 // boolToPtr returns the pointer to a boolean
 func BoolToPtr(b bool) *bool {
 	return &b
@@ -25,6 +46,11 @@ func BoolToPtr(b bool) *bool {
 
 // IntToPtr returns the pointer to an int
 func IntToPtr(i int) *int {
+	return &i
+}
+
+// Int64ToPtr returns the pointer to an int
+func Int64ToPtr(i int64) *int64 {
 	return &i
 }
 
@@ -41,6 +67,13 @@ func StringToPtr(str string) *string {
 // TimeToPtr returns the pointer to a time stamp
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+func IntMin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // MapStringStringSliceValueSet returns the set of values in a map[string][]string

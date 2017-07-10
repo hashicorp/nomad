@@ -81,7 +81,7 @@ will restrict the tasks to 64-bit operating systems.
 ```hcl
 group "example" {
   constraint {
-    attribute = "${attr.arch}"
+    attribute = "${attr.cpu.arch}"
     value     = "amd64"
   }
 
@@ -113,3 +113,4 @@ group "example" {
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"

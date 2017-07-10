@@ -13,6 +13,7 @@ import (
 	ctconf "github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
+	envparse "github.com/hashicorp/go-envparse"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -76,7 +77,7 @@ type TaskTemplateManager struct {
 
 func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	config *config.Config, vaultToken, taskDir string,
-	taskEnv *env.TaskEnvironment) (*TaskTemplateManager, error) {
+	envBuilder *env.Builder) (*TaskTemplateManager, error) {
 
 	// Check pre-conditions
 	if hook == nil {
@@ -85,7 +86,7 @@ func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 		return nil, fmt.Errorf("Invalid config given")
 	} else if taskDir == "" {
 		return nil, fmt.Errorf("Invalid task directory given")
-	} else if taskEnv == nil {
+	} else if envBuilder == nil {
 		return nil, fmt.Errorf("Invalid task environment given")
 	}
 
@@ -114,14 +115,14 @@ func NewTaskTemplateManager(hook TaskHooks, tmpls []*structs.Template,
 	}
 
 	// Build the consul-template runner
-	runner, lookup, err := templateRunner(tmpls, config, vaultToken, taskDir, taskEnv)
+	runner, lookup, err := templateRunner(tmpls, config, vaultToken, taskDir, envBuilder.Build())
 	if err != nil {
 		return nil, err
 	}
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
+	go tm.run(envBuilder, taskDir)
 	return tm, nil
 }
 
@@ -144,7 +145,7 @@ func (tm *TaskTemplateManager) Stop() {
 }
 
 // run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+func (tm *TaskTemplateManager) run(envBuilder *env.Builder, taskDir string) {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -191,6 +192,14 @@ WAIT:
 			break WAIT
 		}
 	}
+
+	// Read environment variables from env templates
+	envMap, err := loadTemplateEnv(tm.templates, taskDir)
+	if err != nil {
+		tm.hook.Kill("consul-template", err.Error(), true)
+		return
+	}
+	envBuilder.SetTemplateEnv(envMap)
 
 	allRenderedTime = time.Now()
 	tm.hook.UnblockStart("consul-template")
@@ -241,6 +250,14 @@ WAIT:
 					tm.hook.Kill("consul-template", fmt.Sprintf("consul-template runner returned unknown template id %q", id), true)
 					return
 				}
+
+				// Read environment variables from templates
+				envMap, err := loadTemplateEnv(tmpls, taskDir)
+				if err != nil {
+					tm.hook.Kill("consul-template", err.Error(), true)
+					return
+				}
+				envBuilder.SetTemplateEnv(envMap)
 
 				for _, tmpl := range tmpls {
 					switch tmpl.ChangeMode {
@@ -317,7 +334,7 @@ func (tm *TaskTemplateManager) allTemplatesNoop() bool {
 // lookup by destination to the template. If no templates are given, a nil
 // template runner and lookup is returned.
 func templateRunner(tmpls []*structs.Template, config *config.Config,
-	vaultToken, taskDir string, taskEnv *env.TaskEnvironment) (
+	vaultToken, taskDir string, taskEnv *env.TaskEnv) (
 	*manager.Runner, map[string][]*structs.Template, error) {
 
 	if len(tmpls) == 0 {
@@ -350,7 +367,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 	}
 
 	// Set Nomad's environment variables
-	runner.Env = taskEnv.Build().EnvMapAll()
+	runner.Env = taskEnv.All()
 
 	// Build the lookup
 	idMap := runner.TemplateConfigMapping()
@@ -368,9 +385,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 
 // parseTemplateConfigs converts the tasks templates into consul-templates
 func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
-	taskEnv *env.TaskEnvironment, allowAbs bool) (map[ctconf.TemplateConfig]*structs.Template, error) {
-	// Build the task environment
-	taskEnv.Build()
+	taskEnv *env.TaskEnv, allowAbs bool) (map[ctconf.TemplateConfig]*structs.Template, error) {
 
 	ctmpls := make(map[ctconf.TemplateConfig]*structs.Template, len(tmpls))
 	for _, tmpl := range tmpls {
@@ -470,25 +485,52 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled: &t,
-				Verify:  &verify,
-				Cert:    &config.VaultConfig.TLSCertFile,
-				Key:     &config.VaultConfig.TLSKeyFile,
-				CaCert:  &config.VaultConfig.TLSCaFile,
-				CaPath:  &config.VaultConfig.TLSCaPath,
+				Enabled:    &t,
+				Verify:     &verify,
+				Cert:       &config.VaultConfig.TLSCertFile,
+				Key:        &config.VaultConfig.TLSKeyFile,
+				CaCert:     &config.VaultConfig.TLSCaFile,
+				CaPath:     &config.VaultConfig.TLSCaPath,
+				ServerName: &config.VaultConfig.TLSServerName,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled: &f,
-				Verify:  &f,
-				Cert:    &emptyStr,
-				Key:     &emptyStr,
-				CaCert:  &emptyStr,
-				CaPath:  &emptyStr,
+				Enabled:    &f,
+				Verify:     &f,
+				Cert:       &emptyStr,
+				Key:        &emptyStr,
+				CaCert:     &emptyStr,
+				CaPath:     &emptyStr,
+				ServerName: &emptyStr,
 			}
 		}
 	}
 
 	conf.Finalize()
 	return conf, nil
+}
+
+// loadTemplateEnv loads task environment variables from all templates.
+func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]string, error) {
+	all := make(map[string]string, 50)
+	for _, t := range tmpls {
+		if !t.Envvars {
+			continue
+		}
+		f, err := os.Open(filepath.Join(taskDir, t.DestPath))
+		if err != nil {
+			return nil, fmt.Errorf("error opening env template: %v", err)
+		}
+		defer f.Close()
+
+		// Parse environment fil
+		vars, err := envparse.Parse(f)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
+		}
+		for k, v := range vars {
+			all[k] = v
+		}
+	}
+	return all, nil
 }

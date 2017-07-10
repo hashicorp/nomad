@@ -106,7 +106,7 @@ func (s *Server) planApply() {
 		}
 
 		// Dispatch the Raft transaction for the plan
-		future, err := s.applyPlan(pending.plan.Job, result, snap)
+		future, err := s.applyPlan(pending.plan, result, snap)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
 			pending.respond(nil, err)
@@ -120,16 +120,20 @@ func (s *Server) planApply() {
 }
 
 // applyPlan is used to apply the plan result and to return the alloc index
-func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
 	// Determine the miniumum number of updates, could be more if there
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
 
 	// Setup the update request
-	req := structs.AllocUpdateRequest{
-		Job:   job,
-		Alloc: make([]*structs.Allocation, 0, minUpdates),
+	req := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job:   plan.Job,
+			Alloc: make([]*structs.Allocation, 0, minUpdates),
+		},
+		Deployment:        result.Deployment,
+		DeploymentUpdates: result.DeploymentUpdates,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -148,7 +152,7 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 	}
 
 	// Dispatch the Raft transaction
-	future, err := s.raftApplyFuture(structs.AllocUpdateRequestType, &req)
+	future, err := s.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +160,7 @@ func (s *Server) applyPlan(job *structs.Job, result *structs.PlanResult, snap *s
 	// Optimistically apply to our state view
 	if snap != nil {
 		nextIdx := s.raft.AppliedIndex() + 1
-		if err := snap.UpsertAllocs(nextIdx, req.Alloc); err != nil {
+		if err := snap.UpsertPlanResults(nextIdx, &req); err != nil {
 			return future, err
 		}
 	}
@@ -197,8 +201,10 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
-		NodeUpdate:     make(map[string][]*structs.Allocation),
-		NodeAllocation: make(map[string][]*structs.Allocation),
+		NodeUpdate:        make(map[string][]*structs.Allocation),
+		NodeAllocation:    make(map[string][]*structs.Allocation),
+		Deployment:        plan.Deployment.Copy(),
+		DeploymentUpdates: plan.DeploymentUpdates,
 	}
 
 	// Collect all the nodeIDs
@@ -238,6 +244,8 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			if plan.AllAtOnce {
 				result.NodeUpdate = nil
 				result.NodeAllocation = nil
+				result.DeploymentUpdates = nil
+				result.Deployment = nil
 				return true
 			}
 
@@ -263,6 +271,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 
 	// Evalute each node in the plan, handling results as they are ready to
 	// avoid blocking.
+OUTER:
 	for len(nodeIDList) > 0 {
 		nodeID := nodeIDList[0]
 		select {
@@ -276,7 +285,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			// which may save time processing additional entries.
 			if cancel := handleResult(r.nodeID, r.fit, r.err); cancel {
 				didCancel = true
-				break
+				break OUTER
 			}
 		}
 	}
@@ -310,8 +319,51 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			err := fmt.Errorf("partialCommit with RefreshIndex of 0 (%d node, %d alloc)", nodeIndex, allocIndex)
 			mErr.Errors = append(mErr.Errors, err)
 		}
+
+		// If there was a partial commit and we are operating within a
+		// deployment correct for any canary that may have been desired to be
+		// placed but wasn't actually placed
+		correctDeploymentCanaries(result)
 	}
 	return result, mErr.ErrorOrNil()
+}
+
+// correctDeploymentCanaries ensures that the deployment object doesn't list any
+// canaries as placed if they didn't actually get placed. This could happen if
+// the plan had a partial commit.
+func correctDeploymentCanaries(result *structs.PlanResult) {
+	// Hot path
+	if result.Deployment == nil || !result.Deployment.HasPlacedCanaries() {
+		return
+	}
+
+	// Build a set of all the allocations IDs that were placed
+	placedAllocs := make(map[string]struct{}, len(result.NodeAllocation))
+	for _, placed := range result.NodeAllocation {
+		for _, alloc := range placed {
+			placedAllocs[alloc.ID] = struct{}{}
+		}
+	}
+
+	// Go through all the canaries and ensure that the result list only contains
+	// those that have been placed
+	for _, group := range result.Deployment.TaskGroups {
+		canaries := group.PlacedCanaries
+		if len(canaries) == 0 {
+			continue
+		}
+
+		// Prune the canaries in place to avoid allocating an extra slice
+		i := 0
+		for _, canaryID := range canaries {
+			if _, ok := placedAllocs[canaryID]; ok {
+				canaries[i] = canaryID
+				i++
+			}
+		}
+
+		group.PlacedCanaries = canaries[:i]
+	}
 }
 
 // evaluateNodePlan is used to evalute the plan for a single node,

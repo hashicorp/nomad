@@ -782,6 +782,9 @@ func (v *vaultClient) validateRole(role string) error {
 	if err != nil {
 		return fmt.Errorf("failed to lookup role %q: %v", role, err)
 	}
+	if rsecret == nil {
+		return fmt.Errorf("Role %q does not exist", role)
+	}
 
 	// Read and parse the fields
 	var data struct {

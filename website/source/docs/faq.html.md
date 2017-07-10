@@ -19,15 +19,6 @@ This anonymous ID can can be disabled. Using the Checkpoint service is optional 
 See [`disable_anonymous_signature`](/docs/agent/configuration/index.html#disable_anonymous_signature)
 and [`disable_update_check`](/docs/agent/configuration/index.html#disable_update_check).
 
-## Q: How does Atlas integration work?
-
-Nomad makes use of a HashiCorp service called [SCADA](http://scada.hashicorp.com)
-(Supervisory Control And Data Acquisition). The SCADA system allows clients to maintain
-long-running connections to Atlas. Atlas can in turn provide auto-join facilities for
-Nomad agents (supervisory control) and a dashboard showing the state of the system (data acquisition).
-
-Using the SCADA service is optional. SCADA is only enabled by opt-in.
-
 ## Q: Is Nomad eventually or strongly consistent?
 
 Nomad makes use of both a [consensus protocol](/docs/internals/consensus.html) and

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,8 +24,11 @@ const (
 	vaultStartPort uint64 = 40000
 )
 
-// vaultPortOffset is used to atomically increment the port numbers.
-var vaultPortOffset uint64
+var (
+	// vaultPortOffset is used to atomically increment the port numbers.
+	vaultPortOffset uint64
+	vaultPortLock   sync.Mutex
+)
 
 // TestVault wraps a test Vault server launched in dev mode, suitable for
 // testing.
@@ -46,7 +51,11 @@ func NewTestVault(t *testing.T) *TestVault {
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
 
-	cmd := exec.Command("vault", "server", "-dev", bind, root)
+	bin := "vault"
+	if runtime.GOOS == "windows" {
+		bin = "vault.exe"
+	}
+	cmd := exec.Command(bin, "server", "-dev", bind, root)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -119,6 +128,8 @@ func (tv *TestVault) waitForAPI() {
 
 // getPort returns the next available port to bind Vault against
 func getPort() uint64 {
+	vaultPortLock.Lock()
+	defer vaultPortLock.Unlock()
 	p := vaultStartPort + vaultPortOffset
 	vaultPortOffset += 1
 	return p

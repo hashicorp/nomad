@@ -8,11 +8,14 @@ import (
 
 const (
 	// DefaultRetryAttempts is the default number of maximum retry attempts.
-	DefaultRetryAttempts = 5
+	DefaultRetryAttempts = 12
 
 	// DefaultRetryBackoff is the default base for the exponential backoff
 	// algorithm.
 	DefaultRetryBackoff = 250 * time.Millisecond
+
+	// DefaultRetryMaxBackoff is the default maximum of backoff time
+	DefaultRetryMaxBackoff = 1 * time.Minute
 )
 
 // RetryFunc is the signature of a function that supports retries.
@@ -23,11 +26,16 @@ type RetryFunc func(int) (bool, time.Duration)
 type RetryConfig struct {
 	// Attempts is the total number of maximum attempts to retry before letting
 	// the error fall through.
+	// 0 means unlimited.
 	Attempts *int
 
 	// Backoff is the base of the exponentialbackoff. This number will be
 	// multipled by the next power of 2 on each iteration.
 	Backoff *time.Duration
+
+	// MaxBackoff is an upper limit to the sleep time between retries
+	// A MaxBackoff of zero means there is no limit to the exponential growth of the backoff.
+	MaxBackoff *time.Duration `mapstructure:"max_backoff"`
 
 	// Enabled signals if this retry is enabled.
 	Enabled *bool
@@ -50,6 +58,8 @@ func (c *RetryConfig) Copy() *RetryConfig {
 	o.Attempts = c.Attempts
 
 	o.Backoff = c.Backoff
+
+	o.MaxBackoff = c.MaxBackoff
 
 	o.Enabled = c.Enabled
 
@@ -82,6 +92,10 @@ func (c *RetryConfig) Merge(o *RetryConfig) *RetryConfig {
 		r.Backoff = o.Backoff
 	}
 
+	if o.MaxBackoff != nil {
+		r.MaxBackoff = o.MaxBackoff
+	}
+
 	if o.Enabled != nil {
 		r.Enabled = o.Enabled
 	}
@@ -103,6 +117,11 @@ func (c *RetryConfig) RetryFunc() RetryFunc {
 		base := math.Pow(2, float64(retry))
 		sleep := time.Duration(base) * TimeDurationVal(c.Backoff)
 
+		maxSleep := TimeDurationVal(c.MaxBackoff)
+		if maxSleep > 0 && maxSleep < sleep {
+			return true, maxSleep
+		}
+
 		return true, sleep
 	}
 }
@@ -115,6 +134,10 @@ func (c *RetryConfig) Finalize() {
 
 	if c.Backoff == nil {
 		c.Backoff = TimeDuration(DefaultRetryBackoff)
+	}
+
+	if c.MaxBackoff == nil {
+		c.MaxBackoff = TimeDuration(DefaultRetryMaxBackoff)
 	}
 
 	if c.Enabled == nil {
@@ -131,10 +154,12 @@ func (c *RetryConfig) GoString() string {
 	return fmt.Sprintf("&RetryConfig{"+
 		"Attempts:%s, "+
 		"Backoff:%s, "+
+		"MaxBackoff:%s, "+
 		"Enabled:%s"+
 		"}",
 		IntGoString(c.Attempts),
 		TimeDurationGoString(c.Backoff),
+		TimeDurationGoString(c.MaxBackoff),
 		BoolGoString(c.Enabled),
 	)
 }

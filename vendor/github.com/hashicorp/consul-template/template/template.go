@@ -41,6 +41,10 @@ type Template struct {
 
 	// hexMD5 stores the hex version of the MD5
 	hexMD5 string
+
+	// errMissingKey causes the template processing to exit immediately if a map
+	// is indexed with a key that does not exist.
+	errMissingKey bool
 }
 
 // NewTemplateInput is used as input when creating the template.
@@ -50,6 +54,10 @@ type NewTemplateInput struct {
 
 	// Contents are the raw template contents.
 	Contents string
+
+	// ErrMissingKey causes the template parser to exit immediately with an error
+	// when a map is indexed with a key that does not exist.
+	ErrMissingKey bool
 
 	// LeftDelim and RightDelim are the template delimiters.
 	LeftDelim  string
@@ -77,6 +85,7 @@ func NewTemplate(i *NewTemplateInput) (*Template, error) {
 	t.contents = i.Contents
 	t.leftDelim = i.LeftDelim
 	t.rightDelim = i.RightDelim
+	t.errMissingKey = i.ErrMissingKey
 
 	if i.Source != "" {
 		contents, err := ioutil.ReadFile(i.Source)
@@ -151,6 +160,12 @@ func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
 		used:    &used,
 		missing: &missing,
 	}))
+
+	if t.errMissingKey {
+		tmpl.Option("missingkey=error")
+	} else {
+		tmpl.Option("missingkey=zero")
+	}
 
 	tmpl, err := tmpl.Parse(t.contents)
 	if err != nil {
@@ -246,8 +261,5 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"multiply": multiply,
 		"divide":   divide,
 		"modulo":   modulo,
-
-		// Deprecated functions
-		"key_or_default": keyWithDefaultFunc(i.brain, i.used, i.missing),
 	}
 }

@@ -627,7 +627,7 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -643,7 +643,7 @@ func TestSetStatus(t *testing.T) {
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil); err != nil {
+	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -659,7 +659,7 @@ func TestSetStatus(t *testing.T) {
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil); err != nil {
+	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -675,7 +675,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -692,7 +692,7 @@ func TestSetStatus(t *testing.T) {
 	h = NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs); err != nil {
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
 
@@ -703,6 +703,21 @@ func TestSetStatus(t *testing.T) {
 	newEval = h.Evals[0]
 	if !reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs) {
 		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	}
+
+	h = NewHarness(t)
+	dID := structs.GenerateUUID()
+	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID); err != nil {
+		t.Fatalf("setStatus() failed: %v", err)
+	}
+
+	if len(h.Evals) != 1 {
+		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
+	}
+
+	newEval = h.Evals[0]
+	if newEval.DeploymentID != dID {
+		t.Fatalf("setStatus() didn't set deployment id correctly: %v", newEval)
 	}
 }
 
@@ -991,7 +1006,14 @@ func TestProgressMade(t *testing.T) {
 	}
 	update := &structs.PlanResult{NodeUpdate: m}
 	alloc := &structs.PlanResult{NodeAllocation: m}
-	if !(progressMade(both) && progressMade(update) && progressMade(alloc)) {
+	deployment := &structs.PlanResult{Deployment: mock.Deployment()}
+	deploymentUpdates := &structs.PlanResult{
+		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
+			{DeploymentID: structs.GenerateUUID()},
+		},
+	}
+	if !(progressMade(both) && progressMade(update) && progressMade(alloc) &&
+		progressMade(deployment) && progressMade(deploymentUpdates)) {
 		t.Fatal("bad")
 	}
 }

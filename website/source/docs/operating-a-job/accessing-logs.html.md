@@ -16,7 +16,7 @@ as simple as possible, Nomad provides:
 
 - Job specification for [log rotation](/docs/job-specification/logs.html)
 - CLI command for [log viewing](/docs/commands/logs.html)
-- API for programatic [log access](/docs/http/client-fs.html#logs)
+- API for programatic [log access](/api/client.html#stream-logs)
 
 This section will utilize the job named "docs" from the [previous
 sections](/docs/operating-a-job/submitting-jobs.html), but these operations
@@ -60,13 +60,21 @@ $ nomad logs 04d9627d server
 
 The logs command supports both displaying the logs as well as following logs,
 blocking for more output, similar to `tail -f`. To follow the logs, use the
-`-tail` flag:
+appropriately named `-f` flag:
 
 ```shell
-$ nomad logs -tail 04d9627d
+$ nomad logs -f 04d9627d
 ```
 
 This will stream logs to our console.
+
+If you wish to see only the tail of a log, use the `-tail` and `-n` flags:
+
+```shell
+$ nomad logs -tail -n 25 04d9627d
+```
+This will show the last 25 lines. If you omit the `-n` flag, `-tail` will
+default to 10 lines.
 
 By default, only the logs on stdout are displayed. To show the log output from
 stderr, use the `-stderr` flag:

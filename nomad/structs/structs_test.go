@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/kr/pretty"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -35,6 +36,14 @@ func TestJob_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[6].Error(), "task groups") {
 		t.Fatalf("err: %s", err)
+	}
+
+	j = &Job{
+		Type: "invalid-job-type",
+	}
+	err = j.Validate()
+	if expected := `Invalid job type: "invalid-job-type"`; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
 	}
 
 	j = &Job{
@@ -92,6 +101,395 @@ func TestJob_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestJob_Warnings(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Job      *Job
+		Expected []string
+	}{}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			warnings := c.Job.Warnings()
+			if warnings == nil {
+				if len(c.Expected) == 0 {
+					return
+				} else {
+					t.Fatal("Got no warnings when they were expected")
+				}
+			}
+
+			a := warnings.Error()
+			for _, e := range c.Expected {
+				if !strings.Contains(a, e) {
+					t.Fatalf("Got warnings %q; didn't contain %q", a, e)
+				}
+			}
+		})
+	}
+}
+
+func TestJob_Canonicalize_Update(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Job      *Job
+		Expected *Job
+		Warnings []string
+	}{
+		{
+			Name:     "One task group",
+			Warnings: []string{"conversion to new update stanza"},
+			Job: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
+							MaxParallel:     2,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "One task group batch",
+			Warnings: []string{"Update stanza is disallowed for batch jobs"},
+			Job: &Job{
+				Type: JobTypeBatch,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Type:   JobTypeBatch,
+				Update: UpdateStrategy{},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeBatch),
+						EphemeralDisk: DefaultEphemeralDisk(),
+					},
+				},
+			},
+		},
+		{
+			Name:     "One task group batch - new spec",
+			Warnings: []string{"Update stanza is disallowed for batch jobs"},
+			Job: &Job{
+				Type: JobTypeBatch,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+			Expected: &Job{
+				Type:   JobTypeBatch,
+				Update: UpdateStrategy{},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeBatch),
+						EphemeralDisk: DefaultEphemeralDisk(),
+					},
+				},
+			},
+		},
+		{
+			Name: "One task group service - new spec",
+			Job: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+			Expected: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					Stagger:         2 * time.Second,
+					MaxParallel:     2,
+					Canary:          2,
+					MinHealthyTime:  2 * time.Second,
+					HealthyDeadline: 10 * time.Second,
+					HealthCheck:     UpdateStrategyHealthCheck_Checks,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         2 * time.Second,
+							MaxParallel:     2,
+							Canary:          2,
+							MinHealthyTime:  2 * time.Second,
+							HealthyDeadline: 10 * time.Second,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "One task group; too high of parallelism",
+			Warnings: []string{"conversion to new update stanza"},
+			Job: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 200,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+				},
+			},
+			Expected: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 200,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
+							MaxParallel:     2,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Multiple task group; rounding",
+			Warnings: []string{"conversion to new update stanza"},
+			Job: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+					},
+					{
+						Name:  "bar",
+						Count: 14,
+					},
+					{
+						Name:  "foo",
+						Count: 26,
+					},
+				},
+			},
+			Expected: &Job{
+				Type: JobTypeService,
+				Update: UpdateStrategy{
+					MaxParallel: 2,
+					Stagger:     10 * time.Second,
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "foo",
+						Count:         2,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
+							MaxParallel:     1,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+					{
+						Name:          "bar",
+						Count:         14,
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						EphemeralDisk: DefaultEphemeralDisk(),
+						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
+							MaxParallel:     1,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+					{
+						Name:          "foo",
+						Count:         26,
+						EphemeralDisk: DefaultEphemeralDisk(),
+						RestartPolicy: NewRestartPolicy(JobTypeService),
+						Update: &UpdateStrategy{
+							Stagger:         30 * time.Second,
+							MaxParallel:     3,
+							HealthCheck:     UpdateStrategyHealthCheck_Checks,
+							MinHealthyTime:  10 * time.Second,
+							HealthyDeadline: 5 * time.Minute,
+							AutoRevert:      false,
+							Canary:          0,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			warnings := c.Job.Canonicalize()
+			if !reflect.DeepEqual(c.Job, c.Expected) {
+				t.Fatalf("Diff %#v", pretty.Diff(c.Job, c.Expected))
+			}
+
+			wErr := ""
+			if warnings != nil {
+				wErr = warnings.Error()
+			}
+			for _, w := range c.Warnings {
+				if !strings.Contains(wErr, w) {
+					t.Fatalf("Wanted warning %q: got %q", w, wErr)
+				}
+			}
+
+			if len(c.Warnings) == 0 && warnings != nil {
+				t.Fatalf("Wanted no warnings: got %q", wErr)
+			}
+		})
+	}
+}
+
+func TestJob_SpecChanged(t *testing.T) {
+	// Get a base test job
+	base := testJob()
+
+	// Only modify the indexes/mutable state of the job
+	mutatedBase := base.Copy()
+	mutatedBase.Status = "foo"
+	mutatedBase.ModifyIndex = base.ModifyIndex + 100
+
+	// changed contains a spec change that should be detected
+	change := base.Copy()
+	change.Priority = 99
+
+	cases := []struct {
+		Name     string
+		Original *Job
+		New      *Job
+		Changed  bool
+	}{
+		{
+			Name:     "Same job except mutable indexes",
+			Changed:  false,
+			Original: base,
+			New:      mutatedBase,
+		},
+		{
+			Name:     "Different",
+			Changed:  true,
+			Original: base,
+			New:      change,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if actual := c.Original.SpecChanged(c.New); actual != c.Changed {
+				t.Fatalf("SpecChanged() returned %v; want %v", actual, c.Changed)
+			}
+		})
 	}
 }
 
@@ -394,6 +792,7 @@ func TestJob_RequiredSignals(t *testing.T) {
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
+	j := testJob()
 	tg := &TaskGroup{
 		Count: -1,
 		RestartPolicy: &RestartPolicy{
@@ -403,7 +802,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 	}
-	err := tg.Validate()
+	err := tg.Validate(j)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
 		t.Fatalf("err: %s", err)
@@ -413,6 +812,59 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Missing tasks") {
 		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			&Task{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
+						},
+					},
+				},
+			},
+			&Task{
+				Name: "task-b",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected := `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			&Task{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						&NetworkResource{
+							ReservedPorts: []Port{
+								{Label: "foo", Value: 123},
+								{Label: "bar", Value: 123},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
 	}
 
 	tg = &TaskGroup{
@@ -429,25 +881,47 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
+		Update: &UpdateStrategy{
+			Stagger:         10 * time.Second,
+			MaxParallel:     3,
+			HealthCheck:     UpdateStrategyHealthCheck_Manual,
+			MinHealthyTime:  1 * time.Second,
+			HealthyDeadline: 1 * time.Second,
+			AutoRevert:      false,
+			Canary:          3,
+		},
 	}
 
-	err = tg.Validate()
+	err = tg.Validate(j)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[1].Error(), "max parallel count is greater") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
+	if !strings.Contains(mErr.Errors[2].Error(), "canary count is greater") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
+	if !strings.Contains(mErr.Errors[3].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[4].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
+	if !strings.Contains(mErr.Errors[5].Error(), "Only one task may be marked as leader") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "Task web validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// COMPAT: Enable in 0.7.0
+	//j.Type = JobTypeBatch
+	//err = tg.Validate(j)
+	//if !strings.Contains(err.Error(), "does not allow update block") {
+	//t.Fatalf("err: %s", err)
+	//}
 }
 
 func TestTask_Validate(t *testing.T) {
@@ -829,6 +1303,35 @@ func TestConstraint_Validate(t *testing.T) {
 	err = c.Validate()
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestUpdateStrategy_Validate(t *testing.T) {
+	u := &UpdateStrategy{
+		MaxParallel:     -1,
+		HealthCheck:     "foo",
+		MinHealthyTime:  -10,
+		HealthyDeadline: -10,
+		AutoRevert:      false,
+		Canary:          -1,
+	}
+
+	err := u.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Minimum healthy time may not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -1373,13 +1876,21 @@ func TestRestartPolicy_Validate(t *testing.T) {
 }
 
 func TestAllocation_Index(t *testing.T) {
-	a1 := Allocation{Name: "example.cache[0]"}
-	e1 := 0
-	a2 := Allocation{Name: "ex[123]am123ple.c311ac[123]he12[1][77]"}
-	e2 := 77
+	a1 := Allocation{
+		Name:      "example.cache[1]",
+		TaskGroup: "cache",
+		JobID:     "example",
+		Job: &Job{
+			ID:         "example",
+			TaskGroups: []*TaskGroup{{Name: "cache"}}},
+	}
+	e1 := uint(1)
+	a2 := a1.Copy()
+	a2.Name = "example.cache[713127]"
+	e2 := uint(713127)
 
 	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatal()
+		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
 	}
 }
 

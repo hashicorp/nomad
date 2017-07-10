@@ -66,7 +66,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 	}
 
 	// Make the task directory have non-root permissions.
-	if err := dropDirPermissions(t.Dir); err != nil {
+	if err := dropDirPermissions(t.Dir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -75,18 +75,18 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 		return err
 	}
 
-	if err := dropDirPermissions(t.LocalDir); err != nil {
+	if err := dropDirPermissions(t.LocalDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	// Create the directories that should be in every task.
-	for _, dir := range TaskDirs {
+	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
-		if err := os.MkdirAll(absdir, 0777); err != nil {
+		if err := os.MkdirAll(absdir, perms); err != nil {
 			return err
 		}
 
-		if err := dropDirPermissions(absdir); err != nil {
+		if err := dropDirPermissions(absdir, perms); err != nil {
 			return err
 		}
 	}
@@ -110,7 +110,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 		return err
 	}
 
-	if err := dropDirPermissions(t.SecretsDir); err != nil {
+	if err := dropDirPermissions(t.SecretsDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -163,7 +163,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 
 			// Copy the file.
 			taskEntry := filepath.Join(t.Dir, dest)
-			if err := linkOrCopy(source, taskEntry, s.Mode().Perm()); err != nil {
+			uid, gid := getOwner(s)
+			if err := linkOrCopy(source, taskEntry, uid, gid, s.Mode().Perm()); err != nil {
 				return err
 			}
 
@@ -217,7 +218,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 				continue
 			}
 
-			if err := linkOrCopy(hostEntry, taskEntry, entry.Mode().Perm()); err != nil {
+			uid, gid := getOwner(entry)
+			if err := linkOrCopy(hostEntry, taskEntry, uid, gid, entry.Mode().Perm()); err != nil {
 				return err
 			}
 		}

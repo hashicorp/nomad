@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -30,18 +29,6 @@ const (
 	scadaHTTPAddr = "SCADA"
 )
 
-var (
-	// jsonHandle and jsonHandlePretty are the codec handles to JSON encode
-	// structs. The pretty handle will add indents for easier human consumption.
-	jsonHandle = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-	}
-	jsonHandlePretty = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-		Indent:        4,
-	}
-)
-
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
 	agent    *Agent
@@ -52,7 +39,7 @@ type HTTPServer struct {
 }
 
 // NewHTTPServer starts new HTTP server over the agent
-func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServer, error) {
+func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Start the listener
 	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
 	if err != nil {
@@ -66,7 +53,7 @@ func NewHTTPServer(agent *Agent, config *Config, logOutput io.Writer) (*HTTPServ
 	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
 		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       false,
+			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
 			VerifyOutgoing:       true,
 			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
 			CAFile:               config.TLSConfig.CAFile,
@@ -158,6 +145,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
 
+	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
+	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
+
 	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
 	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
 	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))
@@ -187,6 +177,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }
 
@@ -249,13 +240,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if obj != nil {
 			var buf bytes.Buffer
 			if prettyPrint {
-				enc := codec.NewEncoder(&buf, jsonHandlePretty)
+				enc := codec.NewEncoder(&buf, structs.JsonHandlePretty)
 				err = enc.Encode(obj)
 				if err == nil {
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, jsonHandle)
+				enc := codec.NewEncoder(&buf, structs.JsonHandle)
 				err = enc.Encode(obj)
 			}
 			if err != nil {

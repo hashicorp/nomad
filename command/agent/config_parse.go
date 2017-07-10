@@ -346,6 +346,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_disk_usage_threshold",
 		"gc_inode_usage_threshold",
 		"gc_parallel_destroys",
+		"gc_max_allocs",
 		"no_host_uuid",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
@@ -503,6 +504,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"node_gc_threshold",
 		"eval_gc_threshold",
 		"job_gc_threshold",
+		"deployment_gc_threshold",
 		"heartbeat_grace",
 		"start_join",
 		"retry_join",
@@ -689,6 +691,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"ca_file",
 		"cert_file",
 		"key_file",
+		"verify_https_client",
 	}
 
 	if err := checkHCLKeys(listVal, valid); err != nil {

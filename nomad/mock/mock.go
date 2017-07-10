@@ -146,6 +146,7 @@ func Job() *structs.Job {
 			"owner": "armon",
 		},
 		Status:         structs.JobStatusPending,
+		Version:        0,
 		CreateIndex:    42,
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
@@ -304,6 +305,25 @@ func VaultAccessor() *structs.VaultAccessor {
 		AllocID:     structs.GenerateUUID(),
 		CreationTTL: 86400,
 		Task:        "foo",
+	}
+}
+
+func Deployment() *structs.Deployment {
+	return &structs.Deployment{
+		ID:             structs.GenerateUUID(),
+		JobID:          structs.GenerateUUID(),
+		JobVersion:     2,
+		JobModifyIndex: 20,
+		JobCreateIndex: 18,
+		TaskGroups: map[string]*structs.DeploymentState{
+			"web": &structs.DeploymentState{
+				DesiredTotal: 10,
+			},
+		},
+		Status:            structs.DeploymentStatusRunning,
+		StatusDescription: structs.DeploymentStatusDescriptionRunning,
+		ModifyIndex:       23,
+		CreateIndex:       21,
 	}
 }
 

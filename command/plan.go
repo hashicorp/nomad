@@ -134,6 +134,12 @@ func (c *PlanCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
 	c.Ui.Output("")
 
+	// Print any warnings if there are any
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
+	}
+
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)
@@ -145,7 +151,7 @@ func (c *PlanCommand) Run(args []string) int {
 func getExitCode(resp *api.JobPlanResponse) int {
 	// Check for changes
 	for _, d := range resp.Annotations.DesiredTGUpdates {
-		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate > 0 {
+		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate+d.Canary > 0 {
 			return 1
 		}
 	}
@@ -282,6 +288,8 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 				color = "[cyan]"
 			case scheduler.UpdateTypeDestructiveUpdate:
 				color = "[yellow]"
+			case scheduler.UpdateTypeCanary:
+				color = "[light_yellow]"
 			}
 			updates = append(updates, fmt.Sprintf("[reset]%s%d %s", color, count, updateType))
 		}

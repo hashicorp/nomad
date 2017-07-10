@@ -1,14 +1,17 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -356,5 +359,237 @@ func TestAgent_ClientConfig(t *testing.T) {
 	expectedHttpAddr = "169.254.0.1:4646"
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
+	}
+}
+
+// TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
+// API health check depending on configuration.
+func TestAgent_HTTPCheck(t *testing.T) {
+	logger := log.New(ioutil.Discard, "", 0)
+	if testing.Verbose() {
+		logger = log.New(os.Stdout, "[TestAgent_HTTPCheck] ", log.Lshortfile)
+	}
+	agent := func() *Agent {
+		return &Agent{
+			logger: logger,
+			config: &Config{
+				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
+				normalizedAddrs: &Addresses{HTTP: "normalized:4646"},
+				Consul: &sconfig.ConsulConfig{
+					ChecksUseAdvertise: helper.BoolToPtr(false),
+				},
+				TLSConfig: &sconfig.TLSConfig{EnableHTTP: false},
+			},
+		}
+	}
+
+	t.Run("Plain HTTP Check", func(t *testing.T) {
+		a := agent()
+		check := a.agentHTTPCheck(false)
+		if check == nil {
+			t.Fatalf("expected non-nil check")
+		}
+		if check.Type != "http" {
+			t.Errorf("expected http check not: %q", check.Type)
+		}
+		if expected := "/v1/agent/servers"; check.Path != expected {
+			t.Errorf("expected %q path not: %q", expected, check.Path)
+		}
+		if check.Protocol != "http" {
+			t.Errorf("expected http proto not: %q", check.Protocol)
+		}
+		if expected := a.config.normalizedAddrs.HTTP; check.PortLabel != expected {
+			t.Errorf("expected normalized addr not %q", check.PortLabel)
+		}
+	})
+
+	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
+		a := agent()
+		a.config.Consul.ChecksUseAdvertise = helper.BoolToPtr(true)
+		check := a.agentHTTPCheck(false)
+		if check == nil {
+			t.Fatalf("expected non-nil check")
+		}
+		if expected := a.config.AdvertiseAddrs.HTTP; check.PortLabel != expected {
+			t.Errorf("expected advertise addr not %q", check.PortLabel)
+		}
+	})
+
+	t.Run("HTTPS + consulSupportsTLSSkipVerify", func(t *testing.T) {
+		a := agent()
+		a.consulSupportsTLSSkipVerify = true
+		a.config.TLSConfig.EnableHTTP = true
+
+		check := a.agentHTTPCheck(false)
+		if check == nil {
+			t.Fatalf("expected non-nil check")
+		}
+		if !check.TLSSkipVerify {
+			t.Errorf("expected tls skip verify")
+		}
+		if check.Protocol != "https" {
+			t.Errorf("expected https not: %q", check.Protocol)
+		}
+	})
+
+	t.Run("HTTPS w/o TLSSkipVerify", func(t *testing.T) {
+		a := agent()
+		a.consulSupportsTLSSkipVerify = false
+		a.config.TLSConfig.EnableHTTP = true
+
+		if check := a.agentHTTPCheck(false); check != nil {
+			t.Fatalf("expected nil check not: %#v", check)
+		}
+	})
+
+	t.Run("HTTPS + VerifyHTTPSClient", func(t *testing.T) {
+		a := agent()
+		a.consulSupportsTLSSkipVerify = true
+		a.config.TLSConfig.EnableHTTP = true
+		a.config.TLSConfig.VerifyHTTPSClient = true
+
+		if check := a.agentHTTPCheck(false); check != nil {
+			t.Fatalf("expected nil check not: %#v", check)
+		}
+	})
+}
+
+func TestAgent_ConsulSupportsTLSSkipVerify(t *testing.T) {
+	assertSupport := func(expected bool, blob string) {
+		self := map[string]map[string]interface{}{}
+		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {
+			t.Fatalf("invalid json: %v", err)
+		}
+		actual := consulSupportsTLSSkipVerify(self)
+		if actual != expected {
+			t.Errorf("expected %t but got %t for:\n%s\n", expected, actual, blob)
+		}
+	}
+
+	// 0.6.4
+	assertSupport(false, `"Member": {
+        "Addr": "127.0.0.1",
+        "DelegateCur": 4,
+        "DelegateMax": 4,
+        "DelegateMin": 2,
+        "Name": "rusty",
+        "Port": 8301,
+        "ProtocolCur": 2,
+        "ProtocolMax": 3,
+        "ProtocolMin": 1,
+        "Status": 1,
+        "Tags": {
+            "build": "0.6.4:26a0ef8c",
+            "dc": "dc1",
+            "port": "8300",
+            "role": "consul",
+            "vsn": "2",
+            "vsn_max": "3",
+            "vsn_min": "1"
+        }}`)
+
+	// 0.7.0
+	assertSupport(false, `"Member": {
+        "Addr": "127.0.0.1",
+        "DelegateCur": 4,
+        "DelegateMax": 4,
+        "DelegateMin": 2,
+        "Name": "rusty",
+        "Port": 8301,
+        "ProtocolCur": 2,
+        "ProtocolMax": 4,
+        "ProtocolMin": 1,
+        "Status": 1,
+        "Tags": {
+            "build": "0.7.0:'a189091",
+            "dc": "dc1",
+            "port": "8300",
+            "role": "consul",
+            "vsn": "2",
+            "vsn_max": "3",
+            "vsn_min": "2"
+        }}`)
+
+	// 0.7.2
+	assertSupport(true, `"Member": {
+        "Addr": "127.0.0.1",
+        "DelegateCur": 4,
+        "DelegateMax": 4,
+        "DelegateMin": 2,
+        "Name": "rusty",
+        "Port": 8301,
+        "ProtocolCur": 2,
+        "ProtocolMax": 5,
+        "ProtocolMin": 1,
+        "Status": 1,
+        "Tags": {
+            "build": "0.7.2:'a9afa0c",
+            "dc": "dc1",
+            "port": "8300",
+            "role": "consul",
+            "vsn": "2",
+            "vsn_max": "3",
+            "vsn_min": "2"
+        }}`)
+
+	// 0.8.1
+	assertSupport(true, `"Member": {
+        "Addr": "127.0.0.1",
+        "DelegateCur": 4,
+        "DelegateMax": 5,
+        "DelegateMin": 2,
+        "Name": "rusty",
+        "Port": 8301,
+        "ProtocolCur": 2,
+        "ProtocolMax": 5,
+        "ProtocolMin": 1,
+        "Status": 1,
+        "Tags": {
+            "build": "0.8.1:'e9ca44d",
+            "dc": "dc1",
+            "id": "3ddc1b59-460e-a100-1d5c-ce3972122664",
+            "port": "8300",
+            "raft_vsn": "2",
+            "role": "consul",
+            "vsn": "2",
+            "vsn_max": "3",
+            "vsn_min": "2",
+            "wan_join_port": "8302"
+        }}`)
+}
+
+// TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
+// for healthchecks.
+func TestAgent_HTTPCheckPath(t *testing.T) {
+	// Agent.agentHTTPCheck only needs a config and logger
+	a := &Agent{
+		config: DevConfig(),
+		logger: log.New(ioutil.Discard, "", 0),
+	}
+	if err := a.config.normalizeAddrs(); err != nil {
+		t.Fatalf("error normalizing config: %v", err)
+	}
+	if testing.Verbose() {
+		a.logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+
+	// Assert server check uses /v1/status/peers
+	isServer := true
+	check := a.agentHTTPCheck(isServer)
+	if expected := "Nomad Server HTTP Check"; check.Name != expected {
+		t.Errorf("expected server check name to be %q but found %q", expected, check.Name)
+	}
+	if expected := "/v1/status/peers"; check.Path != expected {
+		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
+	}
+
+	// Assert client check uses /v1/agent/servers
+	isServer = false
+	check = a.agentHTTPCheck(isServer)
+	if expected := "Nomad Client HTTP Check"; check.Name != expected {
+		t.Errorf("expected client check name to be %q but found %q", expected, check.Name)
+	}
+	if expected := "/v1/agent/servers"; check.Path != expected {
+		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 
@@ -74,15 +75,11 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 		cb(config)
 	}
 
-	shutdownCh := make(chan struct{})
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
-	consulSyncer, err := consul.NewSyncer(config.ConsulConfig, shutdownCh, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	catalog := consul.NewMockCatalog(logger)
 
 	// Create server
-	server, err := nomad.NewServer(config, consulSyncer, logger)
+	server, err := nomad.NewServer(config, catalog, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -104,14 +101,11 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 		cb(conf)
 	}
 
-	shutdownCh := make(chan struct{})
-	consulSyncer, err := consul.NewSyncer(conf.ConsulConfig, shutdownCh, log.New(os.Stderr, "", log.LstdFlags))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	logger := log.New(conf.LogOutput, "", log.LstdFlags)
-	client, err := NewClient(conf, consulSyncer, logger)
+	catalog := consul.NewMockCatalog(logger)
+	mockService := newMockConsulServiceClient()
+	mockService.logger = logger
+	client, err := NewClient(conf, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -380,6 +374,108 @@ func TestClient_Drivers_WhitelistBlacklistCombination(t *testing.T) {
 	if node.Attributes["driver.exec"] != "" {
 		t.Fatalf("exec driver loaded despite blacklist")
 	}
+}
+
+// TestClient_MixedTLS asserts that when a server is running with TLS enabled
+// it will reject any RPC connections from clients that lack TLS. See #2525
+func TestClient_MixedTLS(t *testing.T) {
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+	testutil.AssertUntil(100*time.Millisecond,
+		func() (bool, error) {
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf(err.Error())
+		},
+	)
+}
+
+// TestClient_BadTLS asserts that when a client and server are running with TLS
+// enabled -- but their certificates are signed by different CAs -- they're
+// unable to communicate.
+func TestClient_BadTLS(t *testing.T) {
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		badca   = "../helper/tlsutil/testdata/ca-bad.pem"
+		badcert = "../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey  = "../helper/tlsutil/testdata/nomad-bad-key.pem"
+	)
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               badca,
+			CertFile:             badcert,
+			KeyFile:              badkey,
+		}
+	})
+	defer c1.Shutdown()
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+	testutil.AssertUntil(100*time.Millisecond,
+		func() (bool, error) {
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf(err.Error())
+		},
+	)
 }
 
 func TestClient_Register(t *testing.T) {
@@ -651,14 +747,11 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	shutdownCh := make(chan struct{})
 	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
-	consulSyncer, err := consul.NewSyncer(c1.config.ConsulConfig, shutdownCh, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	c2, err := NewClient(c1.config, consulSyncer, logger)
+	catalog := consul.NewMockCatalog(logger)
+	mockService := newMockConsulServiceClient()
+	mockService.logger = logger
+	c2, err := NewClient(c1.config, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -846,27 +939,37 @@ func TestClient_UnarchiveAllocDir(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	f.Close()
+	if err := os.Symlink("bar", filepath.Join(dir, "foo", "baz")); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	linkInfo, err := os.Lstat(filepath.Join(dir, "foo", "baz"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
-		// Ignore if the file is a symlink
-		if fileInfo.Mode() == os.ModeSymlink {
-			return nil
-		}
-
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
-		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		link := ""
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("error reading symlink: %v", err)
+			}
+			link = target
+		}
+		hdr, err := tar.FileInfoHeader(fileInfo, link)
 		if err != nil {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = fileInfo.Name()
 		tw.WriteHeader(hdr)
 
-		// If it's a directory we just write the header into the tar
-		if fileInfo.IsDir() {
+		// If it's a directory or symlink we just write the header into the tar
+		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
 			return nil
 		}
 
@@ -922,5 +1025,13 @@ func TestClient_UnarchiveAllocDir(t *testing.T) {
 	}
 	if fi1.Mode() != fInfo.Mode() {
 		t.Fatalf("mode: %v", fi1.Mode())
+	}
+
+	fi2, err := os.Lstat(filepath.Join(dir1, "baz"))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if fi2.Mode() != linkInfo.Mode() {
+		t.Fatalf("mode: %v", fi2.Mode())
 	}
 }

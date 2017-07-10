@@ -17,6 +17,7 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 				Stop:              4,
 				InPlaceUpdate:     5,
 				DestructiveUpdate: 6,
+				Canary:            7,
 			},
 		},
 	}
@@ -35,6 +36,7 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 			UpdateTypeDestroy:           4,
 			UpdateTypeInplaceUpdate:     5,
 			UpdateTypeDestructiveUpdate: 6,
+			UpdateTypeCanary:            7,
 		},
 	}
 

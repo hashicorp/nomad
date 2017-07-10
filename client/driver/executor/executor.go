@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/armon/circbuf"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
 	"github.com/shirou/gopsutil/process"
@@ -23,10 +25,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/stats"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -56,43 +56,17 @@ type Executor interface {
 	Exit() error
 	UpdateLogConfig(logConfig *structs.LogConfig) error
 	UpdateTask(task *structs.Task) error
-	SyncServices(ctx *ConsulContext) error
-	DeregisterServices() error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
 	Signal(s os.Signal) error
-}
-
-// ConsulContext holds context to configure the Consul client and run checks
-type ConsulContext struct {
-	// ConsulConfig contains the configuration information for talking
-	// with this Nomad Agent's Consul Agent.
-	ConsulConfig *config.ConsulConfig
-
-	// ContainerID is the ID of the container
-	ContainerID string
-
-	// TLSCert is the cert which docker client uses while interactng with the docker
-	// daemon over TLS
-	TLSCert string
-
-	// TLSCa is the CA which the docker client uses while interacting with the docker
-	// daeemon over TLS
-	TLSCa string
-
-	// TLSKey is the TLS key which the docker client uses while interacting with
-	// the docker daemon
-	TLSKey string
-
-	// DockerEndpoint is the endpoint of the docker daemon
-	DockerEndpoint string
+	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
 // ExecutorContext holds context to configure the command user
 // wants to run and isolate it
 type ExecutorContext struct {
 	// TaskEnv holds information about the environment of a Task
-	TaskEnv *env.TaskEnvironment
+	TaskEnv *env.TaskEnv
 
 	// Task is the task whose executor is being launched
 	Task *structs.Task
@@ -196,8 +170,6 @@ type UniversalExecutor struct {
 
 	resConCtx resourceContainerContext
 
-	consulSyncer   *consul.Syncer
-	consulCtx      *ConsulContext
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
@@ -224,7 +196,7 @@ func NewExecutor(logger *log.Logger) Executor {
 
 // Version returns the api version of the executor
 func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: "1.0.0"}, nil
+	return &ExecutorVersion{Version: "1.1.0"}, nil
 }
 
 // SetContext is used to set the executors context and should be the first call
@@ -234,8 +206,8 @@ func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
 	return nil
 }
 
-// LaunchCmd launches a process and returns it's state. It also configures an
-// applies isolation on certain platforms.
+// LaunchCmd launches the main process and returns its state. It also
+// configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
@@ -257,7 +229,6 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
 
-	e.ctx.TaskEnv.Build()
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
@@ -302,7 +273,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// Set the commands arguments
 	e.cmd.Path = path
 	e.cmd.Args = append([]string{e.cmd.Path}, e.ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	e.cmd.Env = e.ctx.TaskEnv.EnvList()
+	e.cmd.Env = e.ctx.TaskEnv.List()
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
@@ -312,6 +283,51 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
+}
+
+// Exec a command inside a container for exec and java drivers.
+func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	return ExecScript(ctx, e.cmd.Dir, e.ctx.TaskEnv, e.cmd.SysProcAttr, name, args)
+}
+
+// ExecScript executes cmd with args and returns the output, exit code, and
+// error. Output is truncated to client/driver/structs.CheckBufSize
+func ExecScript(ctx context.Context, dir string, env *env.TaskEnv, attrs *syscall.SysProcAttr,
+	name string, args []string) ([]byte, int, error) {
+	name = env.ReplaceEnv(name)
+	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
+
+	// Copy runtime environment from the main command
+	cmd.SysProcAttr = attrs
+	cmd.Dir = dir
+	cmd.Env = env.List()
+
+	// Capture output
+	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+
+	if err := cmd.Run(); err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if !ok {
+			// Non-exit error, return it and let the caller treat
+			// it as a critical failure
+			return nil, 0, err
+		}
+
+		// Some kind of error happened; default to critical
+		exitCode := 2
+		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+			exitCode = status.ExitStatus()
+		}
+
+		// Don't return the exitError as the caller only needs the
+		// output and code.
+		return buf.Bytes(), exitCode, nil
+	}
+	return buf.Bytes(), 0, nil
 }
 
 // configureLoggers sets up the standard out/error file rotators
@@ -377,26 +393,7 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 		e.lre.FileSize = fileSize
 	}
 	e.rotatorLock.Unlock()
-
-	// Re-syncing task with Consul agent
-	if e.consulSyncer != nil {
-		e.interpolateServices(e.ctx.Task)
-		domain := consul.NewExecutorDomain(e.ctx.AllocID, task.Name)
-		serviceMap := generateServiceKeys(e.ctx.AllocID, task.Services)
-		e.consulSyncer.SetServices(domain, serviceMap)
-	}
 	return nil
-}
-
-// generateServiceKeys takes a list of interpolated Nomad Services and returns a map
-// of ServiceKeys to Nomad Services.
-func generateServiceKeys(allocID string, services []*structs.Service) map[consul.ServiceKey]*structs.Service {
-	keys := make(map[consul.ServiceKey]*structs.Service, len(services))
-	for _, service := range services {
-		key := consul.GenerateServiceKey(service)
-		keys[key] = service
-	}
-	return keys
 }
 
 func (e *UniversalExecutor) wait() {
@@ -464,10 +461,6 @@ func (e *UniversalExecutor) Exit() error {
 		e.lro.Close()
 	}
 
-	if e.consulSyncer != nil {
-		e.consulSyncer.Shutdown()
-	}
-
 	// If the executor did not launch a process, return.
 	if e.command == nil {
 		return nil
@@ -510,38 +503,6 @@ func (e *UniversalExecutor) ShutDown() error {
 	}
 	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-	return nil
-}
-
-// SyncServices syncs the services of the task that the executor is running with
-// Consul
-func (e *UniversalExecutor) SyncServices(ctx *ConsulContext) error {
-	e.logger.Printf("[INFO] executor: registering services")
-	e.consulCtx = ctx
-	if e.consulSyncer == nil {
-		cs, err := consul.NewSyncer(ctx.ConsulConfig, e.shutdownCh, e.logger)
-		if err != nil {
-			return err
-		}
-		e.consulSyncer = cs
-		go e.consulSyncer.Run()
-	}
-	e.interpolateServices(e.ctx.Task)
-	e.consulSyncer.SetDelegatedChecks(e.createCheckMap(), e.createCheck)
-	e.consulSyncer.SetAddrFinder(e.ctx.Task.FindHostAndPortFor)
-	domain := consul.NewExecutorDomain(e.ctx.AllocID, e.ctx.Task.Name)
-	serviceMap := generateServiceKeys(e.ctx.AllocID, e.ctx.Task.Services)
-	e.consulSyncer.SetServices(domain, serviceMap)
-	return nil
-}
-
-// DeregisterServices removes the services of the task that the executor is
-// running from Consul
-func (e *UniversalExecutor) DeregisterServices() error {
-	e.logger.Printf("[INFO] executor: de-registering services and shutting down consul service")
-	if e.consulSyncer != nil {
-		return e.consulSyncer.Shutdown()
 	}
 	return nil
 }
@@ -677,66 +638,6 @@ func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
 	return net.Listen("unix", path)
 }
 
-// createCheckMap creates a map of checks that the executor will handle on it's
-// own
-func (e *UniversalExecutor) createCheckMap() map[string]struct{} {
-	checks := map[string]struct{}{
-		"script": struct{}{},
-	}
-	return checks
-}
-
-// createCheck creates NomadCheck from a ServiceCheck
-func (e *UniversalExecutor) createCheck(check *structs.ServiceCheck, checkID string) (consul.Check, error) {
-	if check.Type == structs.ServiceCheckScript && e.ctx.Driver == "docker" {
-		return &DockerScriptCheck{
-			id:          checkID,
-			interval:    check.Interval,
-			timeout:     check.Timeout,
-			containerID: e.consulCtx.ContainerID,
-			logger:      e.logger,
-			cmd:         check.Command,
-			args:        check.Args,
-		}, nil
-	}
-
-	if check.Type == structs.ServiceCheckScript && (e.ctx.Driver == "exec" ||
-		e.ctx.Driver == "raw_exec" || e.ctx.Driver == "java") {
-		return &ExecScriptCheck{
-			id:          checkID,
-			interval:    check.Interval,
-			timeout:     check.Timeout,
-			cmd:         check.Command,
-			args:        check.Args,
-			taskDir:     e.ctx.TaskDir,
-			FSIsolation: e.command.FSIsolation,
-		}, nil
-
-	}
-	return nil, fmt.Errorf("couldn't create check for %v", check.Name)
-}
-
-// interpolateServices interpolates tags in a service and checks with values from the
-// task's environment.
-func (e *UniversalExecutor) interpolateServices(task *structs.Task) {
-	e.ctx.TaskEnv.Build()
-	for _, service := range task.Services {
-		for _, check := range service.Checks {
-			check.Name = e.ctx.TaskEnv.ReplaceEnv(check.Name)
-			check.Type = e.ctx.TaskEnv.ReplaceEnv(check.Type)
-			check.Command = e.ctx.TaskEnv.ReplaceEnv(check.Command)
-			check.Args = e.ctx.TaskEnv.ParseAndReplace(check.Args)
-			check.Path = e.ctx.TaskEnv.ReplaceEnv(check.Path)
-			check.Protocol = e.ctx.TaskEnv.ReplaceEnv(check.Protocol)
-			check.PortLabel = e.ctx.TaskEnv.ReplaceEnv(check.PortLabel)
-			check.InitialStatus = e.ctx.TaskEnv.ReplaceEnv(check.InitialStatus)
-		}
-		service.Name = e.ctx.TaskEnv.ReplaceEnv(service.Name)
-		service.PortLabel = e.ctx.TaskEnv.ReplaceEnv(service.PortLabel)
-		service.Tags = e.ctx.TaskEnv.ParseAndReplace(service.Tags)
-	}
-}
-
 // collectPids collects the pids of the child processes that the executor is
 // running every 5 seconds
 func (e *UniversalExecutor) collectPids() {
@@ -869,7 +770,7 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 		return fmt.Errorf("Task not yet run")
 	}
 
-	e.logger.Printf("[DEBUG] executor: sending signal %s", s)
+	e.logger.Printf("[DEBUG] executor: sending signal %s to PID %d", s, e.cmd.Process.Pid)
 	err := e.cmd.Process.Signal(s)
 	if err != nil {
 		e.logger.Printf("[ERR] executor: sending signal %v failed: %v", s, err)

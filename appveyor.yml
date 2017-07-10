@@ -1,0 +1,19 @@
+version: "build-{branch}-{build}"
+image: Visual Studio 2017
+clone_folder: c:\gopath\src\github.com\hashicorp\nomad
+environment:
+  GOPATH: c:\gopath
+  GOBIN: c:\gopath\bin
+install:
+- cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
+- cmd: echo %Path%
+- cmd: go version
+- cmd: go env
+- ps: mkdir C:\gopath\bin
+- ps: appveyor DownloadFile "https://releases.hashicorp.com/vault/0.7.0/vault_0.7.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\vault.zip"
+- ps: Expand-Archive C:\gopath\bin\vault.zip -DestinationPath C:\gopath\bin
+- ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
+- ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
+- cmd: go install -tags nomad_test
+build_script:
+- cmd: go test -tags nomad_test ./...

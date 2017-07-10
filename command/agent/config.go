@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-sockaddr/template"
 
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
@@ -209,17 +212,21 @@ type ClientConfig struct {
 	// collector will allow.
 	GCParallelDestroys int `mapstructure:"gc_parallel_destroys"`
 
-	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
-	// client triggers GC of the terminal allocations
+	// GCDiskUsageThreshold is the disk usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of terminal allocations
 	GCDiskUsageThreshold float64 `mapstructure:"gc_disk_usage_threshold"`
 
 	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
 	// client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64 `mapstructure:"gc_inode_usage_threshold"`
 
+	// GCMaxAllocs is the maximum number of allocations a node can have
+	// before garbage collection is triggered.
+	GCMaxAllocs int `mapstructure:"gc_max_allocs"`
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
-	NoHostUUID bool `mapstructure:"no_host_uuid"`
+	NoHostUUID *bool `mapstructure:"no_host_uuid"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -262,6 +269,11 @@ type ServerConfig struct {
 	// Age is not the only requirement for a eval to be GCed but the threshold
 	// can be used to filter by age.
 	EvalGCThreshold string `mapstructure:"eval_gc_threshold"`
+
+	// DeploymentGCThreshold controls how "old" a deployment must be to be
+	// collected by GC.  Age is not the only requirement for a deployment to be
+	// GCed but the threshold can be used to filter by age.
+	DeploymentGCThreshold string `mapstructure:"deployment_gc_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
@@ -503,6 +515,7 @@ func DevConfig() *Config {
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
+	conf.Client.GCMaxAllocs = 50
 
 	return conf
 }
@@ -532,8 +545,10 @@ func DefaultConfig() *Config {
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
-			GCInodeUsageThreshold: 70,
 			GCDiskUsageThreshold:  80,
+			GCInodeUsageThreshold: 70,
+			GCMaxAllocs:           50,
+			NoHostUUID:            helper.BoolToPtr(true),
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -716,16 +731,39 @@ func (c *Config) Merge(b *Config) *Config {
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
 // initialized and have sane defaults.
 func (c *Config) normalizeAddrs() error {
-	c.Addresses.HTTP = normalizeBind(c.Addresses.HTTP, c.BindAddr)
-	c.Addresses.RPC = normalizeBind(c.Addresses.RPC, c.BindAddr)
-	c.Addresses.Serf = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	if c.BindAddr != "" {
+		ipStr, err := parseSingleIPTemplate(c.BindAddr)
+		if err != nil {
+			return fmt.Errorf("Bind address resolution failed: %v", err)
+		}
+		c.BindAddr = ipStr
+	}
+
+	addr, err := normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse HTTP address: %v", err)
+	}
+	c.Addresses.HTTP = addr
+
+	addr, err = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse RPC address: %v", err)
+	}
+	c.Addresses.RPC = addr
+
+	addr, err = normalizeBind(c.Addresses.Serf, c.BindAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to parse Serf address: %v", err)
+	}
+	c.Addresses.Serf = addr
+
 	c.normalizedAddrs = &Addresses{
 		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
 		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err := normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
 	}
@@ -749,14 +787,33 @@ func (c *Config) normalizeAddrs() error {
 	return nil
 }
 
+// parseSingleIPTemplate is used as a helper function to parse out a single IP
+// address from a config parameter.
+func parseSingleIPTemplate(ipTmpl string) (string, error) {
+	out, err := template.Parse(ipTmpl)
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+	}
+
+	ips := strings.Split(out, " ")
+	switch len(ips) {
+	case 0:
+		return "", errors.New("No addresses found, please configure one.")
+	case 1:
+		return ips[0], nil
+	default:
+		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
+	}
+}
+
 // normalizeBind returns a normalized bind address.
 //
 // If addr is set it is used, if not the default bind address is used.
-func normalizeBind(addr, bind string) string {
+func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
-		return bind
+		return bind, nil
 	}
-	return addr
+	return parseSingleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -772,17 +829,23 @@ func normalizeBind(addr, bind string) string {
 //
 // Loopback is only considered a valid advertise address in dev mode.
 func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
+	addr, err := parseSingleIPTemplate(addr)
+	if err != nil {
+		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
+	}
+
 	if addr != "" {
 		// Default to using manually configured address
-		_, _, err := net.SplitHostPort(addr)
+		_, _, err = net.SplitHostPort(addr)
 		if err != nil {
-			if !isMissingPort(err) {
+			if !isMissingPort(err) && !isTooManyColons(err) {
 				return "", fmt.Errorf("Error parsing advertise address %q: %v", addr, err)
 			}
 
 			// missing port, append the default
 			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 		}
+
 		return addr, nil
 	}
 
@@ -792,40 +855,26 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		return "", fmt.Errorf("Error resolving bind address %q: %v", bind, err)
 	}
 
-	// Return the first unicast address
+	// Return the first non-localhost unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
 			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
 		}
-		if ip.IsLoopback() && dev {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+		if ip.IsLoopback() {
+			if dev {
+				// loopback is fine for dev mode
+				return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+			}
+			return "", fmt.Errorf("Defaulting advertise to localhost is unsafe, please set advertise manually")
 		}
 	}
 
-	// As a last resort resolve the hostname and use it if it's not
-	// localhost (as localhost is never a sensible default)
-	host, err := os.Hostname()
+	// Bind is not localhost but not a valid advertise IP, use first private IP
+	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
-		return "", fmt.Errorf("Unable to get hostname to set advertise address: %v", err)
+		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
 	}
-
-	ips, err = net.LookupIP(host)
-	if err != nil {
-		return "", fmt.Errorf("Error resolving hostname %q for advertise address: %v", host, err)
-	}
-
-	// Return the first unicast address
-	for _, ip := range ips {
-		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
-		}
-		if ip.IsLoopback() && dev {
-			// loopback is fine for dev mode
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
-		}
-	}
-	return "", fmt.Errorf("No valid advertise addresses, please set `advertise` manually")
+	return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
 }
 
 // isMissingPort returns true if an error is a "missing port" error from
@@ -834,6 +883,14 @@ func isMissingPort(err error) bool {
 	// matches error const in net/ipsock.go
 	const missingPort = "missing port in address"
 	return err != nil && strings.Contains(err.Error(), missingPort)
+}
+
+// isTooManyColons returns true if an error is a "too many colons" error from
+// net.SplitHostPort.
+func isTooManyColons(err error) bool {
+	// matches error const in net/ipsock.go
+	const tooManyColons = "too many colons in address"
+	return err != nil && strings.Contains(err.Error(), tooManyColons)
 }
 
 // Merge is used to merge two server configs together
@@ -863,6 +920,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
+	}
+	if b.DeploymentGCThreshold != "" {
+		result.DeploymentGCThreshold = b.DeploymentGCThreshold
 	}
 	if b.HeartbeatGrace != "" {
 		result.HeartbeatGrace = b.HeartbeatGrace
@@ -949,7 +1009,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.GCInodeUsageThreshold != 0 {
 		result.GCInodeUsageThreshold = b.GCInodeUsageThreshold
 	}
-	if b.NoHostUUID {
+	if b.GCMaxAllocs != 0 {
+		result.GCMaxAllocs = b.GCMaxAllocs
+	}
+	// NoHostUUID defaults to true, merge if false
+	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
 	}
 
@@ -998,6 +1062,10 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableHostname {
 		result.DisableHostname = true
+	}
+
+	if b.UseNodeName {
+		result.UseNodeName = true
 	}
 	if b.CollectionInterval != "" {
 		result.CollectionInterval = b.CollectionInterval

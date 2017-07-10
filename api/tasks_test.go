@@ -219,3 +219,17 @@ func TestTask_Constrain(t *testing.T) {
 		t.Fatalf("expect: %#v, got: %#v", expect, task.Constraints)
 	}
 }
+
+func TestTask_Artifact(t *testing.T) {
+	a := TaskArtifact{
+		GetterSource: helper.StringToPtr("http://localhost/foo.txt"),
+		GetterMode:   helper.StringToPtr("file"),
+	}
+	a.Canonicalize()
+	if *a.GetterMode != "file" {
+		t.Errorf("expected file but found %q", *a.GetterMode)
+	}
+	if *a.RelativeDest != "local/foo.txt" {
+		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
+	}
+}

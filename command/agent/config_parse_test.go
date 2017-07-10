@@ -3,10 +3,13 @@ package agent
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/kr/pretty"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -75,25 +78,27 @@ func TestConfig_Parse(t *testing.T) {
 					GCParallelDestroys:    6,
 					GCDiskUsageThreshold:  82,
 					GCInodeUsageThreshold: 91,
-					NoHostUUID:            true,
+					GCMaxAllocs:           50,
+					NoHostUUID:            helper.BoolToPtr(false),
 				},
 				Server: &ServerConfig{
-					Enabled:           true,
-					BootstrapExpect:   5,
-					DataDir:           "/tmp/data",
-					ProtocolVersion:   3,
-					NumSchedulers:     2,
-					EnabledSchedulers: []string{"test"},
-					NodeGCThreshold:   "12h",
-					EvalGCThreshold:   "12h",
-					JobGCThreshold:    "12h",
-					HeartbeatGrace:    "30s",
-					RetryJoin:         []string{"1.1.1.1", "2.2.2.2"},
-					StartJoin:         []string{"1.1.1.1", "2.2.2.2"},
-					RetryInterval:     "15s",
-					RejoinAfterLeave:  true,
-					RetryMaxAttempts:  3,
-					EncryptKey:        "abc",
+					Enabled:               true,
+					BootstrapExpect:       5,
+					DataDir:               "/tmp/data",
+					ProtocolVersion:       3,
+					NumSchedulers:         2,
+					EnabledSchedulers:     []string{"test"},
+					NodeGCThreshold:       "12h",
+					EvalGCThreshold:       "12h",
+					JobGCThreshold:        "12h",
+					DeploymentGCThreshold: "12h",
+					HeartbeatGrace:        "30s",
+					RetryJoin:             []string{"1.1.1.1", "2.2.2.2"},
+					StartJoin:             []string{"1.1.1.1", "2.2.2.2"},
+					RetryInterval:         "15s",
+					RejoinAfterLeave:      true,
+					RetryMaxAttempts:      3,
+					EncryptKey:            "abc",
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",
@@ -154,6 +159,7 @@ func TestConfig_Parse(t *testing.T) {
 					CAFile:               "foo",
 					CertFile:             "bar",
 					KeyFile:              "pipe",
+					VerifyHTTPSClient:    true,
 				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",
@@ -164,22 +170,20 @@ func TestConfig_Parse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Logf("Testing parse: %s", tc.File)
+		t.Run(tc.File, func(t *testing.T) {
+			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
+			if err != nil {
+				t.Fatalf("file: %s\n\n%s", tc.File, err)
+			}
 
-		path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
-		if err != nil {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
+			actual, err := ParseConfigFile(path)
+			if (err != nil) != tc.Err {
+				t.Fatalf("file: %s\n\n%s", tc.File, err)
+			}
 
-		actual, err := ParseConfigFile(path)
-		if (err != nil) != tc.Err {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(actual, tc.Result) {
-			t.Fatalf("file: %s\n\n%#v\n\n%#v", tc.File, actual, tc.Result)
-		}
+			if !reflect.DeepEqual(actual, tc.Result) {
+				t.Errorf("file: %s  diff: (actual vs expected)\n\n%s", tc.File, strings.Join(pretty.Diff(actual, tc.Result), "\n"))
+			}
+		})
 	}
 }

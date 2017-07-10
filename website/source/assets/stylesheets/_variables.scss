@@ -4,20 +4,25 @@ $black: #000000;
 $gray: #555555;
 $gray-light: #CCCCCC;
 
+$consul-pink: #D62783;
+$consul-pink-dark: #961D59;
 $nomad-green: #2DAA86;
 $nomad-green-dark:#0E7A65;
 $nomad-green-light: #27C48D;
 $packer-blue: #1DAEFF;
 $packer-blue-dark: #1D94DD;
+$terraform-purple: #5C4EE5;
+$terraform-purple-dark: #4040B2;
 $vagrant-blue: #1563FF;
 $vagrant-blue-dark: #104EB2;
 $vault-black: #000000;
 $vault-blue: #00ABE0;
+$vault-gray: #919FA8;
 
 // Typography
-$font-family-klavika:   'klavika-web', 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
-$font-family-open-sans: 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
-$font-family-monospace: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace;
+$font-family-klavika:   'klavika-web', Helvetica, sans-serif;
+$font-family-open-sans: 'Open Sans', sans-serif;
+$font-family-monospace: 'Fira Mono', monospace;
 $font-size:             15px;
 $font-weight-reg:       400;
 $font-weight-bold:      600;

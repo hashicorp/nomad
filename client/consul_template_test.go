@@ -13,6 +13,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -91,7 +92,7 @@ type testHarness struct {
 	manager    *TaskTemplateManager
 	mockHooks  *MockTaskHooks
 	templates  []*structs.Template
-	taskEnv    *env.TaskEnvironment
+	envBuilder *env.Builder
 	node       *structs.Node
 	config     *config.Config
 	vaultToken string
@@ -103,25 +104,32 @@ type testHarness struct {
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
+	region := "global"
 	harness := &testHarness{
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
 		node:      mock.Node(),
-		config:    &config.Config{},
+		config:    &config.Config{Region: region},
 	}
 
 	// Build the task environment
-	harness.taskEnv = env.NewTaskEnvironment(harness.node).SetTaskName(TestTaskName)
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+	harness.envBuilder = env.NewBuilder(harness.node, a, task, region)
 
 	// Make a tempdir
-	d, err := ioutil.TempDir("", "")
+	d, err := ioutil.TempDir("", "ct_test")
 	if err != nil {
 		t.Fatalf("Failed to make tmpdir: %v", err)
 	}
 	harness.taskDir = d
 
 	if consul {
-		harness.consul = ctestutil.NewTestServer(t)
+		harness.consul, err = ctestutil.NewTestServer()
+		if err != nil {
+			t.Fatalf("error starting test Consul server: %v", err)
+		}
 		harness.config.ConsulConfig = &sconfig.ConsulConfig{
 			Addr: harness.consul.HTTPAddr,
 		}
@@ -138,7 +146,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 
 func (h *testHarness) start(t *testing.T) {
 	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.taskEnv)
+		h.config, h.vaultToken, h.taskDir, h.envBuilder)
 	if err != nil {
 		t.Fatalf("failed to build task template manager: %v", err)
 	}
@@ -148,7 +156,7 @@ func (h *testHarness) start(t *testing.T) {
 
 func (h *testHarness) startWithErr() error {
 	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.taskEnv)
+		h.config, h.vaultToken, h.taskDir, h.envBuilder)
 	h.manager = manager
 	return err
 }
@@ -172,27 +180,29 @@ func (h *testHarness) stop() {
 func TestTaskTemplateManager_Invalid(t *testing.T) {
 	hooks := NewMockTaskHooks()
 	var tmpls []*structs.Template
-	config := &config.Config{}
+	region := "global"
+	config := &config.Config{Region: region}
 	taskDir := "foo"
 	vaultToken := ""
-	taskEnv := env.NewTaskEnvironment(mock.Node())
+	a := mock.Alloc()
+	envBuilder := env.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], config.Region)
 
 	_, err := NewTaskTemplateManager(nil, nil, nil, "", "", nil)
 	if err == nil {
 		t.Fatalf("Expected error")
 	}
 
-	_, err = NewTaskTemplateManager(nil, tmpls, config, vaultToken, taskDir, taskEnv)
+	_, err = NewTaskTemplateManager(nil, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "task hook") {
 		t.Fatalf("Expected invalid task hook error: %v", err)
 	}
 
-	_, err = NewTaskTemplateManager(hooks, tmpls, nil, vaultToken, taskDir, taskEnv)
+	_, err = NewTaskTemplateManager(hooks, tmpls, nil, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "config") {
 		t.Fatalf("Expected invalid config error: %v", err)
 	}
 
-	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, "", taskEnv)
+	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, "", envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "task directory") {
 		t.Fatalf("Expected invalid task dir error: %v", err)
 	}
@@ -202,7 +212,7 @@ func TestTaskTemplateManager_Invalid(t *testing.T) {
 		t.Fatalf("Expected invalid task environment error: %v", err)
 	}
 
-	tm, err := NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, taskEnv)
+	tm, err := NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	} else if tm == nil {
@@ -218,7 +228,7 @@ func TestTaskTemplateManager_Invalid(t *testing.T) {
 	}
 
 	tmpls = append(tmpls, tmpl)
-	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, taskEnv)
+	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
 	if err == nil || !strings.Contains(err.Error(), "Failed to parse signal") {
 		t.Fatalf("Expected signal parsing error: %v", err)
 	}
@@ -445,7 +455,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key, []byte(content))
+	harness.consul.SetKV(t, key, []byte(content))
 
 	// Wait for the unblock
 	select {
@@ -563,7 +573,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(consulKey, []byte(consulContent))
+	harness.consul.SetKV(t, consulKey, []byte(consulContent))
 
 	// Wait for the unblock
 	select {
@@ -612,7 +622,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key, []byte(content1))
+	harness.consul.SetKV(t, key, []byte(content1))
 
 	// Wait for the unblock
 	select {
@@ -633,7 +643,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Update the key in Consul
-	harness.consul.SetKV(key, []byte(content2))
+	harness.consul.SetKV(t, key, []byte(content2))
 
 	select {
 	case <-harness.mockHooks.RestartCh:
@@ -697,8 +707,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1_1))
-	harness.consul.SetKV(key2, []byte(content2_1))
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content2_1))
 
 	// Wait for the unblock
 	select {
@@ -712,8 +722,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(key1, []byte(content1_2))
-	harness.consul.SetKV(key2, []byte(content2_2))
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+	harness.consul.SetKV(t, key2, []byte(content2_2))
 
 	// Wait for signals
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -782,7 +792,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1_1))
+	harness.consul.SetKV(t, key1, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
@@ -792,7 +802,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(key1, []byte(content1_2))
+	harness.consul.SetKV(t, key1, []byte(content1_2))
 
 	// Wait for restart
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -878,7 +888,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	harness.mockHooks.SignalError = fmt.Errorf("test error")
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content1))
+	harness.consul.SetKV(t, key1, []byte(content1))
 
 	// Wait a little
 	select {
@@ -888,7 +898,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(key1, []byte(content2))
+	harness.consul.SetKV(t, key1, []byte(content2))
 
 	// Wait for kill channel
 	select {
@@ -900,5 +910,146 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 
 	if !strings.Contains(harness.mockHooks.KillReason, "Sending signals") {
 		t.Fatalf("Unexpected error: %v", harness.mockHooks.KillReason)
+	}
+}
+
+// TestTaskTemplateManager_Env asserts templates with the env flag set are read
+// into the task's environment.
+func TestTaskTemplateManager_Env(t *testing.T) {
+	template := &structs.Template{
+		EmbeddedTmpl: `
+# Comment lines are ok
+
+FOO=bar
+foo=123
+ANYTHING_goes=Spaces are=ok!
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeNoop,
+		Envvars:    true,
+	}
+	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait a little
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(2*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
+	}
+
+	// Validate environment
+	env := harness.envBuilder.Build().Map()
+	if len(env) < 3 {
+		t.Fatalf("expected at least 3 env vars but found %d:\n%#v\n", len(env), env)
+	}
+	if env["FOO"] != "bar" {
+		t.Errorf("expected FOO=bar but found %q", env["FOO"])
+	}
+	if env["foo"] != "123" {
+		t.Errorf("expected foo=123 but found %q", env["foo"])
+	}
+	if env["ANYTHING_goes"] != "Spaces are=ok!" {
+		t.Errorf("expected ANYTHING_GOES='Spaces are ok!' but found %q", env["ANYTHING_goes"])
+	}
+}
+
+// TestTaskTemplateManager_Env_Missing asserts the core env
+// template processing function returns errors when files don't exist
+func TestTaskTemplateManager_Env_Missing(t *testing.T) {
+	d, err := ioutil.TempDir("", "ct_env_missing")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	// Fake writing the file so we don't have to run the whole template manager
+	err = ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file: %v", err)
+	}
+
+	templates := []*structs.Template{
+		{
+			EmbeddedTmpl: "FOO=bar\n",
+			DestPath:     "exists.env",
+			Envvars:      true,
+		},
+		{
+			EmbeddedTmpl: "WHAT=ever\n",
+			DestPath:     "missing.env",
+			Envvars:      true,
+		},
+	}
+
+	if vars, err := loadTemplateEnv(templates, d); err == nil {
+		t.Fatalf("expected an error but instead got env vars: %#v", vars)
+	}
+}
+
+// TestTaskTemplateManager_Env_Multi asserts the core env
+// template processing function returns combined env vars from multiple
+// templates correctly.
+func TestTaskTemplateManager_Env_Multi(t *testing.T) {
+	d, err := ioutil.TempDir("", "ct_env_missing")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	// Fake writing the files so we don't have to run the whole template manager
+	err = ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file 1: %v", err)
+	}
+	err = ioutil.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file 2: %v", err)
+	}
+
+	// Templates will get loaded in order (not alpha sorted)
+	templates := []*structs.Template{
+		{
+			DestPath: "zzz.env",
+			Envvars:  true,
+		},
+		{
+			DestPath: "aaa.env",
+			Envvars:  true,
+		},
+	}
+
+	vars, err := loadTemplateEnv(templates, d)
+	if err != nil {
+		t.Fatalf("expected an error but instead got env vars: %#v", vars)
+	}
+	if vars["FOO"] != "bar" {
+		t.Errorf("expected FOO=bar but found %q", vars["FOO"])
+	}
+	if vars["BAR"] != "foo" {
+		t.Errorf("expected BAR=foo but found %q", vars["BAR"])
+	}
+	if vars["SHARED"] != "yup" {
+		t.Errorf("expected FOO=bar but found %q", vars["yup"])
+	}
+}
+
+// TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
+// setting is propogated to consul-template's configuration. See #2776
+func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
+	c := config.DefaultConfig()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+	}
+	ctconf, err := runnerConfig(c, "token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
+		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
 	}
 }

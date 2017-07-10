@@ -76,6 +76,15 @@ type EvalBroker struct {
 	// timeWait has evaluations that are waiting for time to elapse
 	timeWait map[string]*time.Timer
 
+	// initialNackDelay is the delay applied before reenqueuing a
+	// Nacked evaluation for the first time.
+	initialNackDelay time.Duration
+
+	// subsequentNackDelay is the delay applied before reenqueuing
+	// an evaluation that has been Nacked more than once. This delay is
+	// compounding after the first Nack.
+	subsequentNackDelay time.Duration
+
 	l sync.RWMutex
 }
 
@@ -94,24 +103,29 @@ type PendingEvaluations []*structs.Evaluation
 // NewEvalBroker creates a new evaluation broker. This is parameterized
 // with the timeout used for messages that are not acknowledged before we
 // assume a Nack and attempt to redeliver as well as the deliveryLimit
-// which prevents a failing eval from being endlessly delivered.
-func NewEvalBroker(timeout time.Duration, deliveryLimit int) (*EvalBroker, error) {
+// which prevents a failing eval from being endlessly delivered. The
+// initialNackDelay is the delay before making a Nacked evalution available
+// again for the first Nack and subsequentNackDelay is the compounding delay
+// after the first Nack.
+func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
 	if timeout < 0 {
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	b := &EvalBroker{
-		nackTimeout:   timeout,
-		deliveryLimit: deliveryLimit,
-		enabled:       false,
-		stats:         new(BrokerStats),
-		evals:         make(map[string]int),
-		jobEvals:      make(map[string]string),
-		blocked:       make(map[string]PendingEvaluations),
-		ready:         make(map[string]PendingEvaluations),
-		unack:         make(map[string]*unackEval),
-		waiting:       make(map[string]chan struct{}),
-		requeue:       make(map[string]*structs.Evaluation),
-		timeWait:      make(map[string]*time.Timer),
+		nackTimeout:         timeout,
+		deliveryLimit:       deliveryLimit,
+		enabled:             false,
+		stats:               new(BrokerStats),
+		evals:               make(map[string]int),
+		jobEvals:            make(map[string]string),
+		blocked:             make(map[string]PendingEvaluations),
+		ready:               make(map[string]PendingEvaluations),
+		unack:               make(map[string]*unackEval),
+		waiting:             make(map[string]chan struct{}),
+		requeue:             make(map[string]*structs.Evaluation),
+		timeWait:            make(map[string]*time.Timer),
+		initialNackDelay:    initialNackDelay,
+		subsequentNackDelay: subsequentNackDelay,
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	return b, nil
@@ -187,15 +201,21 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 
 	// Check if we need to enforce a wait
 	if eval.Wait > 0 {
-		timer := time.AfterFunc(eval.Wait, func() {
-			b.enqueueWaiting(eval)
-		})
-		b.timeWait[eval.ID] = timer
-		b.stats.TotalWaiting += 1
+		b.processWaitingEnqueue(eval)
 		return
 	}
 
 	b.enqueueLocked(eval, eval.Type)
+}
+
+// processWaitingEnqueue waits the given duration on the evaluation before
+// enqueueing.
+func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
+	timer := time.AfterFunc(eval.Wait, func() {
+		b.enqueueWaiting(eval)
+	})
+	b.timeWait[eval.ID] = timer
+	b.stats.TotalWaiting += 1
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation
@@ -547,12 +567,35 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 
 	// Check if we've hit the delivery limit, and re-enqueue
 	// in the failedQueue
-	if b.evals[evalID] >= b.deliveryLimit {
+	if dequeues := b.evals[evalID]; dequeues >= b.deliveryLimit {
 		b.enqueueLocked(unack.Eval, failedQueue)
 	} else {
-		b.enqueueLocked(unack.Eval, unack.Eval.Type)
+		e := unack.Eval
+		e.Wait = b.nackReenqueueDelay(e, dequeues)
+
+		// See if there should be a delay before re-enqueuing
+		if e.Wait > 0 {
+			b.processWaitingEnqueue(e)
+		} else {
+			b.enqueueLocked(e, e.Type)
+		}
 	}
+
 	return nil
+}
+
+// nackReenqueueDelay is used to determine the delay that should be applied on
+// the evaluation given the number of previous attempts
+func (b *EvalBroker) nackReenqueueDelay(eval *structs.Evaluation, prevDequeues int) time.Duration {
+	switch {
+	case prevDequeues <= 0:
+		return 0
+	case prevDequeues == 1:
+		return b.initialNackDelay
+	default:
+		// For each subsequent nack compound a delay
+		return time.Duration(prevDequeues-1) * b.subsequentNackDelay
+	}
 }
 
 // PauseNackTimeout is used to pause the Nack timeout for an eval that is making

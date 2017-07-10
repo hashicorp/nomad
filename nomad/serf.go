@@ -175,7 +175,7 @@ func (s *Server) maybeBootstrap() {
 		// for this server, but it makes things much more stable.
 		if len(peers) > 0 {
 			s.logger.Printf("[INFO] nomad: Existing Raft peers reported by %s (%v), disabling bootstrap mode", server.Name, server.Addr)
-			s.config.BootstrapExpect = 0
+			atomic.StoreInt32(&s.config.BootstrapExpect, 0)
 			return
 		}
 	}

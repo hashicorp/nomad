@@ -39,6 +39,8 @@ const (
 	PeriodicLaunchSnapshot
 	JobSummarySnapshot
 	VaultAccessorSnapshot
+	JobVersionSnapshot
+	DeploymentSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -153,6 +155,18 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
 	case structs.VaultAccessorDegisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
+	case structs.ApplyPlanResultsRequestType:
+		return n.applyPlanResults(buf[1:], log.Index)
+	case structs.DeploymentStatusUpdateRequestType:
+		return n.applyDeploymentStatusUpdate(buf[1:], log.Index)
+	case structs.DeploymentPromoteRequestType:
+		return n.applyDeploymentPromotion(buf[1:], log.Index)
+	case structs.DeploymentAllocHealthRequestType:
+		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
+	case structs.DeploymentDeleteRequestType:
+		return n.applyDeploymentDelete(buf[1:], log.Index)
+	case structs.JobStabilityRequestType:
+		return n.applyJobStability(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -247,11 +261,13 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT: Remove in 0.6
-	// Empty maps and slices should be treated as nil to avoid
-	// un-intended destructive updates in scheduler since we use
-	// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
-	// the incoming job.
+	/* Handle upgrade paths:
+	 * - Empty maps and slices should be treated as nil to avoid
+	 *   un-intended destructive updates in scheduler since we use
+	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	 *   the incoming job.
+	 * - Migrate from old style upgrade stanza that used only a stagger.
+	 */
 	req.Job.Canonicalize()
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
@@ -330,20 +346,43 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteJob(index, req.JobID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
-		return err
-	}
-
+	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 		return err
 	}
 
-	// We always delete from the periodic launch table because it is possible that
-	// the job was updated to be non-perioidic, thus checking if it is periodic
-	// doesn't ensure we clean it up properly.
-	n.state.DeletePeriodicLaunch(index, req.JobID)
+	if req.Purge {
+		if err := n.state.DeleteJob(index, req.JobID); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
+			return err
+		}
+
+		// We always delete from the periodic launch table because it is possible that
+		// the job was updated to be non-perioidic, thus checking if it is periodic
+		// doesn't ensure we clean it up properly.
+		n.state.DeletePeriodicLaunch(index, req.JobID)
+	} else {
+		// Get the current job and mark it as stopped and re-insert it.
+		ws := memdb.NewWatchSet()
+		current, err := n.state.JobByID(ws, req.JobID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
+			return err
+		}
+
+		if current == nil {
+			return fmt.Errorf("job %q doesn't exist to be deregistered", req.JobID)
+		}
+
+		stopped := current.Copy()
+		stopped.Stop = true
+
+		if err := n.state.UpsertJob(index, stopped); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
+			return err
+		}
+	}
 
 	return nil
 }
@@ -399,13 +438,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// Attach the job to all the allocations. It is pulled out in the
 	// payload to avoid the redundancy of encoding, but should be denormalized
 	// prior to being inserted into MemDB.
-	if j := req.Job; j != nil {
-		for _, alloc := range req.Alloc {
-			if alloc.Job == nil && !alloc.TerminalStatus() {
-				alloc.Job = j
-			}
-		}
-	}
+	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
@@ -526,6 +559,116 @@ func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interf
 	return nil
 }
 
+// applyPlanApply applies the results of a plan application
+func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
+	var req structs.ApplyPlanResultsRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertPlanResults(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: ApplyPlan failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyDeploymentStatusUpdate is used to update the status of an existing
+// deployment
+func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_status_update"}, time.Now())
+	var req structs.DeploymentStatusUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentStatusUpdate failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentPromotion is used to promote canaries in a deployment
+func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
+	var req structs.ApplyDeploymentPromoteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentPromotion failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentAllocHealth is used to set the health of allocations as part
+// of a deployment
+func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_alloc_health"}, time.Now())
+	var req structs.ApplyDeploymentAllocHealthRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentAllocHealth failed: %v", err)
+		return err
+	}
+
+	if req.Eval != nil && req.Eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(req.Eval)
+	}
+
+	return nil
+}
+
+// applyDeploymentDelete is used to delete a set of deployments
+func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_delete"}, time.Now())
+	var req structs.DeploymentDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteDeployment(index, req.Deployments); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteDeployment failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyJobStability is used to set the stability of a job
+func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_stability"}, time.Now())
+	var req structs.JobStabilityRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateJobStability(index, req.JobID, req.JobVersion, req.Stable); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateJobStability failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -598,11 +741,13 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
-			// COMPAT: Remove in 0.5
-			// Empty maps and slices should be treated as nil to avoid
-			// un-intended destructive updates in scheduler since we use
-			// reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
-			// the incoming job.
+			/* Handle upgrade paths:
+			 * - Empty maps and slices should be treated as nil to avoid
+			 *   un-intended destructive updates in scheduler since we use
+			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			 *   the incoming job.
+			 * - Migrate from old style upgrade stanza that used only a stagger.
+			 */
 			job.Canonicalize()
 
 			if err := restore.JobRestore(job); err != nil {
@@ -660,6 +805,24 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.VaultAccessorRestore(accessor); err != nil {
+				return err
+			}
+
+		case JobVersionSnapshot:
+			version := new(structs.Job)
+			if err := dec.Decode(version); err != nil {
+				return err
+			}
+			if err := restore.JobVersionRestore(version); err != nil {
+				return err
+			}
+
+		case DeploymentSnapshot:
+			deployment := new(structs.Deployment)
+			if err := dec.Decode(deployment); err != nil {
+				return err
+			}
+			if err := restore.DeploymentRestore(deployment); err != nil {
 				return err
 			}
 
@@ -858,6 +1021,14 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistVaultAccessors(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobVersions(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistDeployments(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1075,6 +1246,62 @@ func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
 
 		sink.Write([]byte{byte(VaultAccessorSnapshot)})
 		if err := encoder.Encode(accessor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistJobVersions(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the jobs
+	ws := memdb.NewWatchSet()
+	versions, err := s.snap.JobVersions(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := versions.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		job := raw.(*structs.Job)
+
+		// Write out a job registration
+		sink.Write([]byte{byte(JobVersionSnapshot)})
+		if err := encoder.Encode(job); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the jobs
+	ws := memdb.NewWatchSet()
+	deployments, err := s.snap.Deployments(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := deployments.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		deployment := raw.(*structs.Deployment)
+
+		// Write out a job registration
+		sink.Write([]byte{byte(DeploymentSnapshot)})
+		if err := encoder.Encode(deployment); err != nil {
 			return err
 		}
 	}

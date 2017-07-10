@@ -64,11 +64,15 @@ for target in $targets; do
             ;;
         "windows_386")
             echo "==> Building windows 386..."
-            CGO_ENABLED=1 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
+            CGO_ENABLED=0 GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
+            # Use the following if CGO is required
+            #CGO_ENABLED=1 CXX=i686-w64-mingw32-g++ CC=i686-w64-mingw32-gcc GOARCH="386"   GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_386/nomad.exe"
             ;;
         "windows_amd64")
             echo "==> Building windows amd64..."
-            CGO_ENABLED=1 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
+            CGO_ENABLED=0 GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
+            # Use the following if CGO is required
+            #CGO_ENABLED=1 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc GOARCH="amd64" GOOS="windows" go build -ldflags "-X $LDFLAG" -o "pkg/windows_amd64/nomad.exe"
             ;;
         "darwin_amd64")
             echo "==> Building darwin amd64..."

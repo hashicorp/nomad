@@ -17,6 +17,12 @@ import (
 	"github.com/hpcloud/tail/watch"
 )
 
+const (
+	// idUnsupported is what the uid/gid will be set to on platforms (eg
+	// Windows) that don't support integer ownership identifiers.
+	idUnsupported = -1
+)
+
 var (
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
@@ -28,8 +34,12 @@ var (
 	// included in snapshots.
 	SharedDataDir = "data"
 
+	// TmpDirName is the name of the temporary directory in each alloc and
+	// task.
+	TmpDirName = "tmp"
+
 	// The set of directories that exist inside eache shared alloc directory.
-	SharedAllocDirs = []string{LogDirName, "tmp", SharedDataDir}
+	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
 	// regardless of driver.
@@ -40,7 +50,7 @@ var (
 	TaskSecrets = "secrets"
 
 	// TaskDirs is the set of directories created in each tasks directory.
-	TaskDirs = []string{"tmp"}
+	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
 )
 
 type AllocDir struct {
@@ -108,26 +118,29 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	defer tw.Close()
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
-		// Ignore if the file is a symlink
-		if fileInfo.Mode() == os.ModeSymlink {
-			return nil
-		}
-
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		relPath, err := filepath.Rel(d.AllocDir, path)
 		if err != nil {
 			return err
 		}
-		hdr, err := tar.FileInfoHeader(fileInfo, "")
+		link := ""
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("error reading symlink: %v", err)
+			}
+			link = target
+		}
+		hdr, err := tar.FileInfoHeader(fileInfo, link)
 		if err != nil {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = relPath
 		tw.WriteHeader(hdr)
 
-		// If it's a directory we just write the header into the tar
-		if fileInfo.IsDir() {
+		// If it's a directory or symlink we just write the header into the tar
+		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
 			return nil
 		}
 
@@ -250,7 +263,7 @@ func (d *AllocDir) Build() error {
 	}
 
 	// Make the shared directory have non-root permissions.
-	if err := dropDirPermissions(d.SharedDir); err != nil {
+	if err := dropDirPermissions(d.SharedDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -260,7 +273,7 @@ func (d *AllocDir) Build() error {
 		if err := os.MkdirAll(p, 0777); err != nil {
 			return err
 		}
-		if err := dropDirPermissions(p); err != nil {
+		if err := dropDirPermissions(p, os.ModePerm); err != nil {
 			return err
 		}
 	}
@@ -385,7 +398,9 @@ func getFileWatcher(path string) watch.FileWatcher {
 	return watch.NewPollingFileWatcher(path)
 }
 
-func fileCopy(src, dst string, perm os.FileMode) error {
+// fileCopy from src to dst setting the permissions and owner (if uid & gid are
+// both greater than 0)
+func fileCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	// Do a simple copy.
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -400,7 +415,13 @@ func fileCopy(src, dst string, perm os.FileMode) error {
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("Couldn't copy %v to %v: %v", src, dst, err)
+		return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+	}
+
+	if uid != idUnsupported && gid != idUnsupported {
+		if err := dstFile.Chown(uid, gid); err != nil {
+			return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+		}
 	}
 
 	return nil
@@ -448,6 +469,12 @@ func createDir(basePath, relPath string) error {
 		if err := os.MkdirAll(destDir, fi.Perm); err != nil {
 			return err
 		}
+
+		if fi.Uid != idUnsupported && fi.Gid != idUnsupported {
+			if err := os.Chown(destDir, fi.Uid, fi.Gid); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -456,6 +483,10 @@ func createDir(basePath, relPath string) error {
 type fileInfo struct {
 	Name string
 	Perm os.FileMode
+
+	// Uid and Gid are unsupported on Windows
+	Uid int
+	Gid int
 }
 
 // splitPath stats each subdirectory of a path. The first element of the array
@@ -463,17 +494,19 @@ type fileInfo struct {
 // path.
 func splitPath(path string) ([]fileInfo, error) {
 	var mode os.FileMode
-	i, err := os.Stat(path)
+	fi, err := os.Stat(path)
 
 	// If the path is not present in the host then we respond with the most
 	// flexible permission.
+	uid, gid := idUnsupported, idUnsupported
 	if err != nil {
 		mode = os.ModePerm
 	} else {
-		mode = i.Mode()
+		uid, gid = getOwner(fi)
+		mode = fi.Mode()
 	}
 	var dirs []fileInfo
-	dirs = append(dirs, fileInfo{Name: path, Perm: mode})
+	dirs = append(dirs, fileInfo{Name: path, Perm: mode, Uid: uid, Gid: gid})
 	currentDir := path
 	for {
 		dir := filepath.Dir(filepath.Clean(currentDir))
@@ -483,13 +516,15 @@ func splitPath(path string) ([]fileInfo, error) {
 
 		// We try to find the permission of the file in the host. If the path is not
 		// present in the host then we respond with the most flexible permission.
-		i, err = os.Stat(dir)
+		uid, gid := idUnsupported, idUnsupported
+		fi, err := os.Stat(dir)
 		if err != nil {
 			mode = os.ModePerm
 		} else {
-			mode = i.Mode()
+			uid, gid = getOwner(fi)
+			mode = fi.Mode()
 		}
-		dirs = append(dirs, fileInfo{Name: dir, Perm: mode})
+		dirs = append(dirs, fileInfo{Name: dir, Perm: mode, Uid: uid, Gid: gid})
 		currentDir = dir
 	}
 	return dirs, nil
