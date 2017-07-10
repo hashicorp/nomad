@@ -28,7 +28,7 @@ To manually configure provision a cluster, see the Nomad
 basic prerequisites to using the Spark integration once you have a cluster up 
 and running:
 
-- Access to a [Spark distribution](https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz) 
+- Access to a [Spark distribution](https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz) 
 built with Nomad support. This is required for the machine that will submit 
 applications as well as the Nomad tasks that will run the Spark executors.
 
@@ -55,9 +55,9 @@ Install Spark:
 
 
 ```shell
-$ wget -O - https://s3.amazonaws.com/rcgenova-nomad-spark/spark-2.1.0-bin-nomad-preview-6.tgz \
+$ wget -O - https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
   | sudo tar xz -C /usr/local
-$ export PATH=$PATH:/usr/local/spark-2.1.0-bin-nomad-preview-6/bin
+$ export PATH=$PATH:/usr/local/spark-2.1.0-bin-nomad/bin
 ```
 
 Export NOMAD_ADDR to point Spark to your Nomad cluster:
