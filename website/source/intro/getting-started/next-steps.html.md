@@ -24,6 +24,6 @@ We recommend exploring the following resources as next steps.
   * [Operating a Job](/docs/operating-a-job/index.html) - Additional details on how to
     run a job in production.
 
-  * [Example Terraform configuration](https://github.com/hashicorp/nomad/terraform) - 
+  * [Example Terraform configuration](https://github.com/hashicorp/nomad/tree/master/terraform) - 
     Use Terraform to automatically provision a cluster in AWS.
 
