@@ -4,18 +4,24 @@
 $script = <<SCRIPT
 # Update apt and get dependencies
 sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl wget vim
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl vim \
+    apt-transport-https \
+    ca-certificates \
+    software-properties-common
 
 # Download Nomad
 NOMAD_VERSION=0.5.6
-echo Fetching Nomad...
+
+echo "Fetching Nomad..."
 cd /tmp/
 curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
 
+echo "Fetching Consul..."
+curl -sSL https://releases.hashicorp.com/consul/0.8.5/consul_0.8.5_linux_amd64.zip > consul.zip
+
 echo "Installing Nomad..."
 unzip nomad.zip
-sudo chmod +x nomad
-sudo mv nomad /usr/bin/nomad
+sudo install nomad /usr/bin/nomad
 
 sudo mkdir -p /etc/nomad.d
 sudo chmod a+w /etc/nomad.d
@@ -23,15 +29,15 @@ sudo chmod a+w /etc/nomad.d
 # Set hostname's IP to made advertisement Just Work
 #sudo sed -i -e "s/.*nomad.*/$(ip route get 1 | awk '{print $NF;exit}') nomad/" /etc/hosts
 
-echo "Install Docker..."
+echo "Installing Docker..."
 if [[ -f /etc/apt/sources.list.d/docker.list ]]; then
     echo "Docker repository already installed; Skipping"
 else
-    echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
-    sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
     sudo apt-get update
 fi
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-engine
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce
 
 # Restart docker to make sure we get the latest version of the daemon if there is an upgrade
 sudo service docker restart
@@ -40,9 +46,24 @@ sudo service docker restart
 sudo usermod -aG docker vagrant
 
 echo "Installing Consul..."
-cd /opt/nomad
-bash scripts/install_consul.sh
-sudo install -o root /opt/nomad/demo/vagrant/consul.service /etc/systemd/system/consul.service
+unzip /tmp/consul.zip
+sudo install consul /usr/bin/consul
+(
+cat <<-EOF
+	[Unit]
+	Description=consul agent
+	Requires=network-online.target
+	After=network-online.target
+	
+	[Service]
+	Restart=on-failure
+	ExecStart=/usr/bin/consul agent -dev
+	ExecReload=/bin/kill -HUP $MAINPID
+	
+	[Install]
+	WantedBy=multi-user.target
+EOF
+) | sudo tee /etc/systemd/system/consul.service
 sudo systemctl enable consul.service
 sudo systemctl start consul
 
