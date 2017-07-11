@@ -14,9 +14,9 @@ cluster.
 
 ## Provision a Cluster in AWS
 
-Nomad's [Terraform configuration](https://github.com/hashicorp/nomad/terraform) 
+Nomad's [Terraform configuration](https://github.com/hashicorp/nomad/tree/master/terraform) 
 can be used to quickly provision a Spark-enabled Nomad environment in
- AWS. The embedded [Spark example](https://github.com/hashicorp/nomad/terraform/examples/spark)
+ AWS. The embedded [Spark example](https://github.com/hashicorp/nomad/tree/master/terraform/examples/spark)
  provides for a quickstart experience that can be used in conjunction with 
  this guide. When you have a cluster up and running, you can proceed to 
 [Submitting applications](/guides/spark/submit.html).
