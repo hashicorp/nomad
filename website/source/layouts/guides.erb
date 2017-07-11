@@ -1,6 +1,37 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
     <ul class="nav docs-sidenav">
+
+      <li<%= sidebar_current("guides-spark") %>>
+        <a href="/guides/spark/spark.html">Apache Spark Integration</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-spark-pre") %>>
+            <a href="/guides/spark/pre.html">Getting Started</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-submit") %>>
+            <a href="/guides/spark/submit.html">Submitting Applications</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-customizing") %>>
+            <a href="/guides/spark/customizing.html">Customizing Applications</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-resource") %>>
+            <a href="/guides/spark/resource.html">Resource Allocation</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-dynamic") %>>
+            <a href="/guides/spark/dynamic.html">Dynamic Executors</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-hdfs") %>>
+            <a href="/guides/spark/hdfs.html">Using HDFS</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-monitoring") %>>
+            <a href="/guides/spark/monitoring.html">Monitoring Output</a>
+          </li>
+          <li<%= sidebar_current("guides-spark-configuration") %>>
+            <a href="/guides/spark/configuration.html">Configuration Properties</a>
+          </li>
+        </ul>
+      </li>
+
       <li<%= sidebar_current("guides-cluster") %>>
         <a href="/guides/cluster/bootstrapping.html">Bootstrapping Clusters</a>
         <ul class="nav">
@@ -22,6 +53,7 @@
       <li<%= sidebar_current("guides-outage-recovery") %>>
         <a href="/guides/outage.html">Outage Recovery</a>
       </li>
+
     </ul>
   <% end %>
 
