@@ -15,8 +15,9 @@ Router.map(function() {
     this.route('node', { path: '/:node_id' });
   });
 
-  // DEV BUILDS ONLY: Styleguide
-  this.route('freestyle');
+  if (config.environment === 'development') {
+    this.route('freestyle');
+  }
 });
 
 export default Router;

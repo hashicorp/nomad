@@ -7,9 +7,9 @@
     {{#link-to "nodes" class="nav-item"}}Nodes{{/link-to}}
   </div>
   <div class="nav-right">
-    {{#unless (eq config.environment "production")}}
+    {{#if (eq config.environment "development")}}
       {{#link-to "freestyle" class="nav-item"}}Styleguide{{/link-to}}
-    {{/unless}}
+    {{/if}}
     <a href="https://nomadproject.io/docs" class="nav-item">Documentation</a>
   </div>
 </nav>
