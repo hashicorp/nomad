@@ -61,7 +61,7 @@ machine (version 1.8+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
-created virtual machine is based off of Ubuntu 14, and installs several of the
+created virtual machine is based off of Ubuntu 16, and installs several of the
 base libraries that can be used by Nomad.
 
 To use this virtual machine, checkout Nomad and run `vagrant up` from the root
