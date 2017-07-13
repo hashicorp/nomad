@@ -226,7 +226,7 @@ After the token role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
 
 ```
-$ vault token-create -policy nomad-server -period 72h
+$ vault token-create -policy nomad-server -period 72h -orphan
 Key             Value
 ---             -----
 token           f02f01c2-c0d1-7cb7-6b88-8a14fada58c0
@@ -235,6 +235,10 @@ token_duration  259200s
 token_renewable true
 token_policies  [default nomad-server]
 ```
+
+`-orphan` is included above to prevent revocation of the token when its parent expires. 
+See the [Vault token hierarchy](https://www.vaultproject.io/docs/concepts/tokens.html#token-hierarchies-and-orphan-tokens) 
+documentation for more information.
 
 The token can then be set in the server configuration's [vault block][config],
 as a command-line flag, or via an environment variable.
