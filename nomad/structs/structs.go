@@ -1666,6 +1666,15 @@ func (j *Job) Validate() error {
 // deprecation warnings.
 func (j *Job) Warnings() error {
 	var mErr multierror.Error
+
+	// Check the groups
+	for _, tg := range j.TaskGroups {
+		if err := tg.Warnings(j); err != nil {
+			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2519,16 +2528,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-
-		// Validate the counts are appropriate
-		if u.MaxParallel > tg.Count {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Update max parallel count is greater than task group count: %d > %d", u.MaxParallel, tg.Count))
-		}
-		if u.Canary > tg.Count {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Update canary count is greater than task group count: %d > %d", u.Canary, tg.Count))
-		}
 	}
 
 	// Check for duplicate tasks, that there is only leader task if any,
@@ -2576,6 +2575,24 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
+	return mErr.ErrorOrNil()
+}
+
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (tg *TaskGroup) Warnings(j *Job) error {
+	var mErr multierror.Error
+
+	// Validate the update strategy
+	if u := tg.Update; u != nil {
+		// Check the counts are appropriate
+		if u.MaxParallel > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
+					"A destructive change would result in the replacement of all allocations.", u.MaxParallel, tg.Count))
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
