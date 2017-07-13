@@ -75,8 +75,6 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", inline: $script, privileged: false
   config.vm.provision "docker" # Just install it
 
-  config.vm.synced_folder '../..', '/opt/nomad'
-
   # Increase memory for Parallels Desktop
   config.vm.provider "parallels" do |p, o|
     p.memory = "1024"
