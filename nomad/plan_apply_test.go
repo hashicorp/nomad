@@ -261,7 +261,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan)
+	result, err := evaluatePlan(pool, snap, plan, testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan)
+	result, err := evaluatePlan(pool, snap, plan, testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan)
+	result, err := evaluatePlan(pool, snap, plan, testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -397,11 +397,14 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
 		t.Fatalf("bad")
 	}
 }
@@ -420,11 +423,14 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fit {
+		t.Fatalf("bad")
+	}
+	if reason == "" {
 		t.Fatalf("bad")
 	}
 }
@@ -443,11 +449,14 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fit {
+		t.Fatalf("bad")
+	}
+	if reason == "" {
 		t.Fatalf("bad")
 	}
 }
@@ -464,11 +473,14 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, nodeID)
+	fit, reason, err := evaluateNodePlan(snap, plan, nodeID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fit {
+		t.Fatalf("bad")
+	}
+	if reason == "" {
 		t.Fatalf("bad")
 	}
 }
@@ -495,11 +507,14 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fit {
+		t.Fatalf("bad")
+	}
+	if reason == "" {
 		t.Fatalf("bad")
 	}
 }
@@ -521,11 +536,14 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
 		t.Fatalf("bad")
 	}
 }
@@ -554,11 +572,14 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
 		t.Fatalf("bad")
 	}
 }
@@ -582,11 +603,14 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
 		t.Fatalf("bad")
 	}
 }
@@ -612,11 +636,14 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 		},
 	}
 
-	fit, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
 		t.Fatalf("bad")
 	}
 }

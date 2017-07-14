@@ -26,6 +26,10 @@ func getPort() int {
 	return int(atomic.AddUint32(&nextPort, 1))
 }
 
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
+}
+
 func tmpDir(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
