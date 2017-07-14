@@ -2543,7 +2543,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 		return err
 	}
 	if deployment == nil {
-		return fmt.Errorf("allocation %q references unknown deployment %q", alloc.ID, alloc.DeploymentID)
+		return nil
 	}
 
 	// Retrieve the deployment state object
