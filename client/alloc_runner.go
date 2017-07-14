@@ -284,10 +284,11 @@ func (r *AllocRunner) RestoreState() error {
 
 		td, ok := r.allocDir.TaskDirs[name]
 		if !ok {
-			err := fmt.Errorf("failed to find task dir metadata for alloc %q task %q",
-				r.alloc.ID, name)
-			r.logger.Printf("[ERR] client: %v", err)
-			return err
+			// Create the task dir metadata if it doesn't exist.
+			// Since task dirs are created during r.Run() the
+			// client may save state and exit before all task dirs
+			// are created
+			td = r.allocDir.NewTaskDir(name)
 		}
 
 		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
