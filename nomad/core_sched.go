@@ -471,6 +471,8 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 
 	// Collect the deployments to GC
 	var gcDeployment []string
+
+OUTER:
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -481,6 +483,21 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		// Ignore non-terminal and new deployments
 		if deploy.Active() || deploy.ModifyIndex > oldThreshold {
 			continue
+		}
+
+		// Ensure there are no allocs referencing this deployment.
+		allocs, err := c.snap.AllocsByDeployment(ws, deploy.ID)
+		if err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for deployment %s: %v",
+				deploy.ID, err)
+			continue
+		}
+
+		// Ensure there is no allocation referencing the deployment.
+		for _, alloc := range allocs {
+			if !alloc.TerminalStatus() {
+				continue OUTER
+			}
 		}
 
 		// Deployment is eligible for garbage collection
