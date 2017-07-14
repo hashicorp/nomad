@@ -22,6 +22,7 @@ IMPROVEMENTS:
    [GH-2610]
  * client: Fingerprint all routable addresses on an interface including IPv6
    addresses [GH-2536]
+ * client/artifact: Support .xz archives [GH-2836]
  * client/artifact: Allow specifying a go-getter mode [GH-2781]
  * client/artifact: Support non-Amazon S3-compatible sources [GH-2781]
  * client/template: Support reading env vars from templates [GH-2654]
