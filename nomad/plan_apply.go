@@ -239,7 +239,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 		if !fit {
 			// Log the reason why the node's allocations could not be made
 			if reason != "" {
-				logger.Printf("[DEBUG] nomad: plan for node %q rejected becasue: %v", nodeID, reason)
+				logger.Printf("[DEBUG] nomad: plan for node %q rejected because: %v", nodeID, reason)
 			}
 			// Set that this is a partial commit
 			partialCommit = true
