@@ -695,10 +695,10 @@
 			"revisionTime": "2017-06-02T22:43:19Z"
 		},
 		{
-			"checksumSHA1": "Sozy3aNAPBleUfiECj0jnaYjw2k=",
+			"checksumSHA1": "Glhu9BTy826XCLfMw7rexQ5mKeY=",
 			"path": "github.com/hashicorp/go-getter",
-			"revision": "2814e6fb2ca5b3bd950c97eff22553ecb3c7f77b",
-			"revisionTime": "2017-07-06T02:51:20Z"
+			"revision": "6aae8e4e2dee8131187c6a54b52664796e5a02b0",
+			"revisionTime": "2017-07-13T01:23:01Z"
 		},
 		{
 			"checksumSHA1": "9J+kDr29yDrwsdu2ULzewmqGjpA=",
@@ -1166,6 +1166,30 @@
 			"path": "github.com/ugorji/go/codec/codecgen",
 			"revision": "c88ee250d0221a57af388746f5cf03768c21d6e2",
 			"revisionTime": "2017-02-15T20:11:44Z"
+		},
+		{
+			"checksumSHA1": "z2kAtVle4NFV2OExI85fZoTcsI4=",
+			"path": "github.com/ulikunitz/xz",
+			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
+			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "vjnTkzNrMs5Xj6so/fq0mQ6dT1c=",
+			"path": "github.com/ulikunitz/xz/internal/hash",
+			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
+			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "m0pm57ASBK/CTdmC0ppRHO17mBs=",
+			"path": "github.com/ulikunitz/xz/internal/xlog",
+			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
+			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "2vZw6zc8xuNlyVz2QKvdlNSZQ1U=",
+			"path": "github.com/ulikunitz/xz/lzma",
+			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
+			"revisionTime": "2017-06-05T21:53:11Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
