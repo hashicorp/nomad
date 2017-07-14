@@ -153,6 +153,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		alloc:          alloc,
 		allocBroadcast: cstructs.NewAllocBroadcaster(0),
 		dirtyCh:        make(chan struct{}, 1),
+		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
 		tasks:          make(map[string]*TaskRunner),
 		taskStates:     copyTaskStates(alloc.TaskStates),
 		restored:       make(map[string]struct{}),
@@ -351,7 +352,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 	r.allocLock.Unlock()
 
 	r.allocDirLock.Lock()
-	allocDir := r.allocDir
+	allocDir := r.allocDir.Copy()
 	r.allocDirLock.Unlock()
 
 	// Start the transaction.
@@ -399,7 +400,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		}
 
 		// Write the alloc dir data if it hasn't been written before and it exists.
-		if !r.allocDirPersisted && r.allocDir != nil {
+		if !r.allocDirPersisted && allocDir != nil {
 			if err := putObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
 				return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
 			}
@@ -692,23 +693,20 @@ func (r *AllocRunner) Run() {
 
 	// Create the execution context
 	r.allocDirLock.Lock()
-	if r.allocDir == nil {
-		// Build allocation directory
-		r.allocDir = allocdir.NewAllocDir(r.logger, filepath.Join(r.config.AllocDir, r.alloc.ID))
-		if err := r.allocDir.Build(); err != nil {
-			r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
-			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
-			r.allocDirLock.Unlock()
-			return
-		}
+	// Build allocation directory (idempotent)
+	if err := r.allocDir.Build(); err != nil {
+		r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
+		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
+		r.allocDirLock.Unlock()
+		return
+	}
 
-		if r.otherAllocDir != nil {
-			if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
-				r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
-			}
-			if err := r.otherAllocDir.Destroy(); err != nil {
-				r.logger.Printf("[ERROR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
-			}
+	if r.otherAllocDir != nil {
+		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
+			r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
+		}
+		if err := r.otherAllocDir.Destroy(); err != nil {
+			r.logger.Printf("[ERROR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
 		}
 	}
 	r.allocDirLock.Unlock()
