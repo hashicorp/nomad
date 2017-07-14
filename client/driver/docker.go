@@ -593,15 +593,18 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 			pluginClient.Kill()
 			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
 		}
+
 		// InspectContainer to get all of the container metadata as
 		// much of the metadata (eg networking) isn't populated until
 		// the container is started
-		if container, err = client.InspectContainer(container.ID); err != nil {
+		runningContainer, err := client.InspectContainer(container.ID)
+		if err != nil {
 			err = fmt.Errorf("failed to inspect started container %s: %s", container.ID, err)
 			d.logger.Printf("[ERR] driver.docker: %v", err)
 			pluginClient.Kill()
 			return nil, structs.NewRecoverableError(err, true)
 		}
+		container = runningContainer
 		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 	} else {
 		d.logger.Printf("[DEBUG] driver.docker: re-attaching to container %s with status %q",
