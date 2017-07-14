@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 // allocUpdateType takes an existing allocation and a new job definition and
@@ -365,9 +366,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 	}
 
+	// XXX Figure out if untainted can contain more allocs than are desired
+	// status running
 	// Determine how many we can place
 	canaryState = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	limit := a.computeLimit(tg, untainted, destructive, migrate, canaryState)
+	a.logger.Printf("[DEBUG] nomad.reconciler: computed limit for group %q in job %q is %d", group, a.jobID, limit)
 
 	// Place if:
 	// * The deployment is not paused or failed
@@ -387,6 +391,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 		// Do all destructive updates
 		min := helper.IntMin(len(destructive), limit)
+		a.logger.Printf("[DEBUG] nomad.reconciler: total destructive changes for group %q in job %q is %d", group, a.jobID, len(destructive))
 		limit -= min
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
@@ -550,7 +555,9 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 	// configured MaxParallel minus any outstanding non-healthy alloc for the
 	// deployment
 	limit := group.Update.MaxParallel
+	dID := ""
 	if a.deployment != nil {
+		dID = a.deployment.ID
 		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
 		for _, alloc := range partOf {
 			// An unhealthy allocation means nothing else should be happen.
@@ -562,6 +569,10 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 				limit--
 			}
 		}
+	}
+
+	if limit < 0 {
+		panic(fmt.Sprintf("limit %d; deployment ID %q; untainted set: % #v", limit, dID, pretty.Formatter(untainted)))
 	}
 
 	return limit
