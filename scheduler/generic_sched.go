@@ -425,7 +425,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Nothing remaining to do if placement is not required
-	if len(results.place) == 0 {
+	if len(results.place)+len(results.destructiveUpdate) == 0 {
 		if !s.job.Stopped() {
 			for _, tg := range s.job.TaskGroups {
 				s.queuedAllocs[tg.Name] = 0
@@ -440,11 +440,18 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	return s.computePlacements(results.place)
+	place := make([]placementResult, 0, len(results.place)+len(results.destructiveUpdate))
+	for _, p := range results.place {
+		place = append(place, p)
+	}
+	for _, p := range results.destructiveUpdate {
+		place = append(place, p)
+	}
+	return s.computePlacements(place)
 }
 
 // computePlacements computes placements for allocations
-func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
+func (s *GenericScheduler) computePlacements(place []placementResult) error {
 	// Get the base nodes
 	nodes, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
@@ -460,14 +467,17 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 	s.stack.SetNodes(nodes)
 
 	for _, missing := range place {
+		// Get the task group
+		tg := missing.TaskGroup()
+
 		// Check if this task group has already failed
-		if metric, ok := s.failedTGAllocs[missing.taskGroup.Name]; ok {
+		if metric, ok := s.failedTGAllocs[tg.Name]; ok {
 			metric.CoalescedFailures += 1
 			continue
 		}
 
 		// Find the preferred node
-		preferredNode, err := s.findPreferredNode(&missing)
+		preferredNode, err := s.findPreferredNode(missing)
 		if err != nil {
 			return err
 		}
@@ -475,9 +485,9 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 		// Attempt to match the task group
 		var option *RankedNode
 		if preferredNode != nil {
-			option, _ = s.stack.SelectPreferringNodes(missing.taskGroup, []*structs.Node{preferredNode})
+			option, _ = s.stack.SelectPreferringNodes(tg, []*structs.Node{preferredNode})
 		} else {
-			option, _ = s.stack.Select(missing.taskGroup)
+			option, _ = s.stack.Select(tg)
 		}
 
 		// Store the available nodes by datacenter
@@ -489,9 +499,9 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 			alloc := &structs.Allocation{
 				ID:            structs.GenerateUUID(),
 				EvalID:        s.eval.ID,
-				Name:          missing.name,
+				Name:          missing.Name(),
 				JobID:         s.job.ID,
-				TaskGroup:     missing.taskGroup.Name,
+				TaskGroup:     tg.Name,
 				Metrics:       s.ctx.Metrics(),
 				NodeID:        option.Node.ID,
 				DeploymentID:  deploymentID,
@@ -500,32 +510,40 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 				ClientStatus:  structs.AllocClientStatusPending,
 
 				SharedResources: &structs.Resources{
-					DiskMB: missing.taskGroup.EphemeralDisk.SizeMB,
+					DiskMB: tg.EphemeralDisk.SizeMB,
 				},
 			}
 
 			// If the new allocation is replacing an older allocation then we
 			// set the record the older allocation id so that they are chained
-			if missing.previousAlloc != nil {
-				alloc.PreviousAllocation = missing.previousAlloc.ID
+			if prev := missing.PreviousAllocation(); prev != nil {
+				alloc.PreviousAllocation = prev.ID
 			}
 
 			// If we are placing a canary and we found a match, add the canary
 			// to the deployment state object.
-			if missing.canary {
-				if state, ok := s.deployment.TaskGroups[missing.taskGroup.Name]; ok {
+			if missing.Canary() {
+				if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
 					state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
 				}
 			}
 
+			// Track the placement
 			s.plan.AppendAlloc(alloc)
+
+			// Since we have placed check to see if we should stop any previous
+			// allocation
+			if stop, desc := missing.StopPreviousAlloc(); stop {
+				s.plan.AppendUpdate(missing.PreviousAllocation(), structs.AllocDesiredStatusStop, desc, "")
+			}
+
 		} else {
 			// Lazy initialize the failed map
 			if s.failedTGAllocs == nil {
 				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
 
-			s.failedTGAllocs[missing.taskGroup.Name] = s.ctx.Metrics()
+			s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
 		}
 	}
 
@@ -533,11 +551,11 @@ func (s *GenericScheduler) computePlacements(place []allocPlaceResult) error {
 }
 
 // findPreferredNode finds the preferred node for an allocation
-func (s *GenericScheduler) findPreferredNode(place *allocPlaceResult) (node *structs.Node, err error) {
-	if place.previousAlloc != nil && place.taskGroup.EphemeralDisk.Sticky == true {
+func (s *GenericScheduler) findPreferredNode(place placementResult) (node *structs.Node, err error) {
+	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky == true {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
-		preferredNode, err = s.state.NodeByID(ws, place.previousAlloc.NodeID)
+		preferredNode, err = s.state.NodeByID(ws, prev.NodeID)
 		if preferredNode.Ready() {
 			node = preferredNode
 		}

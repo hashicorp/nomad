@@ -77,6 +77,9 @@ type reconcileResults struct {
 	// place is the set of allocations to place by the scheduler
 	place []allocPlaceResult
 
+	// destructiveUpdate is the set of allocations to apply a destructive update to
+	destructiveUpdate []allocDestructiveResult
+
 	// inplaceUpdate is the set of allocations to apply an inplace update to
 	inplaceUpdate []*structs.Allocation
 
@@ -92,25 +95,9 @@ type reconcileResults struct {
 	followupEvalWait time.Duration
 }
 
-// allocPlaceResult contains the information required to place a single
-// allocation
-type allocPlaceResult struct {
-	name          string
-	canary        bool
-	taskGroup     *structs.TaskGroup
-	previousAlloc *structs.Allocation
-}
-
-// allocStopResult contains the information required to stop a single allocation
-type allocStopResult struct {
-	alloc             *structs.Allocation
-	clientStatus      string
-	statusDescription string
-}
-
 func (r *reconcileResults) GoString() string {
-	base := fmt.Sprintf("Total changes: (place %d) (update %d) (stop %d)",
-		len(r.place), len(r.inplaceUpdate), len(r.stop))
+	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d)",
+		len(r.place), len(r.destructiveUpdate), len(r.inplaceUpdate), len(r.stop))
 
 	if r.deployment != nil {
 		base += fmt.Sprintf("\nCreated Deployment: %q", r.deployment.ID)
@@ -391,14 +378,11 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
 		for _, alloc := range destructive.nameOrder()[:min] {
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             alloc,
-				statusDescription: allocUpdating,
-			})
-			a.result.place = append(a.result.place, allocPlaceResult{
-				name:          alloc.Name,
-				taskGroup:     tg,
-				previousAlloc: alloc,
+			a.result.destructiveUpdate = append(a.result.destructiveUpdate, allocDestructiveResult{
+				placeName:             alloc.Name,
+				placeTaskGroup:        tg,
+				stopAlloc:             alloc,
+				stopStatusDescription: allocUpdating,
 			})
 		}
 	} else {

@@ -8,6 +8,69 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// placementResult is an allocation that must be placed. It potentionally has a
+// previous allocation attached to it that should be stopped only if the
+// paired placement is complete. This gives an atomic place/stop behavior to
+// prevent an impossible resource ask as part of a rolling update to wipe the
+// job out.
+type placementResult interface {
+	// TaskGroup returns the task group the placement is for
+	TaskGroup() *structs.TaskGroup
+
+	// Name returns the name of the desired allocation
+	Name() string
+
+	// Canary returns whether the placement should be a canary
+	Canary() bool
+
+	// PreviousAllocation returns the previous allocation
+	PreviousAllocation() *structs.Allocation
+
+	// StopPreviousAlloc returns whether the previous allocation should be
+	// stopped and if so the status description.
+	StopPreviousAlloc() (bool, string)
+}
+
+// allocStopResult contains the information required to stop a single allocation
+type allocStopResult struct {
+	alloc             *structs.Allocation
+	clientStatus      string
+	statusDescription string
+}
+
+// allocPlaceResult contains the information required to place a single
+// allocation
+type allocPlaceResult struct {
+	name          string
+	canary        bool
+	taskGroup     *structs.TaskGroup
+	previousAlloc *structs.Allocation
+}
+
+func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
+func (a allocPlaceResult) Name() string                            { return a.name }
+func (a allocPlaceResult) Canary() bool                            { return a.canary }
+func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
+func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
+
+// allocDestructiveResult contains the information required to do a destructive
+// update. Destructive changes should be applied atomically, as in the old alloc
+// is only stopped if the new one can be placed.
+type allocDestructiveResult struct {
+	placeName             string
+	placeTaskGroup        *structs.TaskGroup
+	stopAlloc             *structs.Allocation
+	stopStatusDescription string
+}
+
+func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { return a.placeTaskGroup }
+func (a allocDestructiveResult) Name() string                            { return a.placeName }
+func (a allocDestructiveResult) Canary() bool                            { return false }
+func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
+func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
+	return true, a.stopStatusDescription
+}
+
 // allocMatrix is a mapping of task groups to their allocation set.
 type allocMatrix map[string]allocSet
 
