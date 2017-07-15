@@ -13,6 +13,9 @@ Router.map(function() {
 
   this.route('nodes', function() {
     this.route('node', { path: '/:node_id' });
+    this.route('servers', function() {
+      this.route('server', { path: '/:agent_id' });
+    });
   });
 
   if (config.environment === 'development') {

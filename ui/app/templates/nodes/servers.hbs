@@ -4,19 +4,22 @@
     <table class="table">
       <thead>
         <tr>
-          <td>ID</td>
           <td>Name</td>
           <td>Status</td>
+          <td>Leader</td>
           <td>Address</td>
           <td>Port</td>
           <td>Datacenter</td>
         </tr>
       </thead>
       <tbody>
-        {{#each nodes as |node|}}
-          {{client-node-row node=node}}
+        {{#each agents as |agent|}}
+          {{server-agent-row agent=agent}}
         {{/each}}
       </tbody>
     </table>
+  </section>
+  <section class="section">
+    {{outlet}}
   </section>
 </div>
