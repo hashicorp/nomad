@@ -3,8 +3,10 @@ import RESTAdapter from 'ember-data/adapters/rest';
 
 const { get } = Ember;
 
+export const namespace = 'v1';
+
 export default RESTAdapter.extend({
-  namespace: 'v1',
+  namespace,
 
   // Single record requests deviate from REST practice by using
   // the singular form of the resource name.
