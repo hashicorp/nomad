@@ -1,8 +1,8 @@
 $queued: $grey-lighter;
-$starting: desaturate(lighten($warning, 25%), 50%);
-$running: desaturate(lighten($warning, 10%), 10%);
-$complete: $primary;
-$failed: desaturate(lighten($danger, 10%), 10%);
+$starting: desaturate(lighten($primary, 25%), 20%);
+$running: $primary;
+$complete: saturate(lighten($packer-blue, 10%), 10%);
+$failed: desaturate(lighten($danger, 15%), 10%);
 
 .chart {
   .queued {
