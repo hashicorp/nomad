@@ -109,7 +109,24 @@ func TestJob_Warnings(t *testing.T) {
 		Name     string
 		Job      *Job
 		Expected []string
-	}{}
+	}{
+		{
+			Name:     "Higher counts for update stanza",
+			Expected: []string{"max parallel count is greater"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							MaxParallel: 10,
+						},
+					},
+				},
+			},
+		},
+	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -881,15 +898,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
-		Update: &UpdateStrategy{
-			Stagger:         10 * time.Second,
-			MaxParallel:     3,
-			HealthCheck:     UpdateStrategyHealthCheck_Manual,
-			MinHealthyTime:  1 * time.Second,
-			HealthyDeadline: 1 * time.Second,
-			AutoRevert:      false,
-			Canary:          3,
-		},
 	}
 
 	err = tg.Validate(j)
@@ -897,22 +905,16 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "max parallel count is greater") {
+	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "canary count is greater") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Only one task may be marked as leader") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 
