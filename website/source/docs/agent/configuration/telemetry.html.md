@@ -160,5 +160,5 @@ These `telemetry` parameters apply to
 - `circonus_broker_select_tag` `(string: "")` - Specifies a special tag which
   will be used to select a Circonus Broker when a Broker ID is not provided. The
   best use of this is to as a hint for which broker should be used based on
-  *where* this particular instance is running (e.g. a specific geo location or
+  *where* this particular instance is running (e.g. a specific geographic location or
   datacenter, dc:sfo).

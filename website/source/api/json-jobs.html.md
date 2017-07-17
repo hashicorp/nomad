@@ -211,7 +211,7 @@ The `Job` object supports the following keys:
 
 - `Meta` - Annotates the job with opaque metadata.
 
-- `ParameterizedJob` - Specifies the job as a paramterized job such that it can
+- `ParameterizedJob` - Specifies the job as a parameterized job such that it can
   be dispatched against. The `ParamaterizedJob` object supports the following
   attributes:
 
@@ -428,12 +428,12 @@ The `Task` object supports the following keys:
          - `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
 
-         - `Path`: The path of the http endpoint which Consul will query to query
+         - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
            to add the relative URL of the health check endpoint.
 
-         - `Protocol`: This indicates the protocol for the http checks. Valid
+         - `Protocol`: This indicates the protocol for the HTTP checks. Valid
            options are `http` and `https`. We default it to `http`.
 
          - `Command`: This is the command that the Nomad client runs for doing
@@ -590,8 +590,8 @@ a validation error when a job is submitted.
 ```
 
 In the above example we have asked Nomad to retain 3 rotated files for both
-`stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
-would be required for the task would be 60MB.
+`stderr` and `stdout` and size of each file is 10 MB. The minimum disk space that
+would be required for the task would be 60 MB.
 
 ### Artifact
 
@@ -729,7 +729,7 @@ README][ct].
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
-  given as octal of the unix file permissions rwxrwxrwx.
+  given as octal of the Unix file permissions rwxrwxrwx.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
@@ -741,7 +741,7 @@ README][ct].
   machine prior to starting the task; it is not possible to reference a template
   inside of a Docker container, for example.
 
-- `Splay` - Specifies a random amount of time to wait between 0ms and the given
+- `Splay` - Specifies a random amount of time to wait between 0 ms and the given
   splay value before invoking the change mode. Should be specified in
   nanoseconds.
 

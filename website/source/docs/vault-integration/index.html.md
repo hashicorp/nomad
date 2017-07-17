@@ -126,7 +126,7 @@ role definition or as a blacklist by using `disallowed_policies`.
 
 If using `allowed_policies`, tasks may only request Vault policies that are in
 the list. If `disallowed_policies` is used, task may request any policy that is
-not in the `disallowed_policies` list. There are tradeoffs to both approaches
+not in the `disallowed_policies` list. There are trade-offs to both approaches
 but generally it is easier to use the blacklist approach and add policies that
 you would not like tasks to have access to into the `disallowed_policies` list.
 
@@ -155,14 +155,14 @@ documentation for all possible fields and more complete documentation.
   under Nomad should have access to.
 
 *    `disallowed_policies` - Specifies the list of disallowed policies as a
-     comma-seperated string. This list should contain all policies that jobs running
+     comma-separated string. This list should contain all policies that jobs running
      under Nomad should **not** have access to. The policy created above that
      grants Nomad the ability to generate tokens from the token role should be
      included in list of disallowed policies. This prevents tokens created by
      Nomad from generating new tokens with different policies than those granted
      by Nomad.
 
-     A regression occured in Vault 0.6.4 when validating token creation using a
+     A regression occurred in Vault 0.6.4 when validating token creation using a
      token role with `disallowed_policies` such that it is not usable with
      Nomad. This will be remedied in 0.6.5 and does not effect earlier versions
      of Vault.

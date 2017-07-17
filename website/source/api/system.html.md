@@ -13,7 +13,7 @@ necessary for most users.
 
 ## Force GC
 
-This endpoint initializes a garbage collection of jobs, evals, allocations, and
+This endpoint initializes a garbage collection of jobs, evaluations, allocations, and
 nodes. This is an asynchronous operation.
 
 | Method | Path                       | Produces                   |

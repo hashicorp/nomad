@@ -216,7 +216,7 @@ when retrieving metrics using the above described signals.
 # Client Metrics
 
 The Nomad client emits metrics related to the resource usage of the allocations
-and tasks running on it and the node itself.  Operators have to explicity turn
+and tasks running on it and the node itself.  Operators have to explicitly turn
 on publishing host and allocation metrics. Publishing allocation and host
 metrics can be turned on by setting the value of `publish_allocation_metrics`
 `publish_node_metrics` to `true`.

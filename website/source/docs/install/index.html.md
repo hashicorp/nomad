@@ -14,7 +14,7 @@ Installing Nomad is simple. There are two approaches to installing Nomad:
 1. Installing <a href="#from-source">from source</a>
 
 Downloading a precompiled binary is easiest, and we provide downloads over
-TLS along with SHA256 sums to verify the binary.
+TLS along with SHA-256 sums to verify the binary.
 
 <a name="precompiled-binaries"></a>
 ## Precompiled Binaries

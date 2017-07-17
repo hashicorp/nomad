@@ -94,7 +94,7 @@ artifact {
 
 ### Download using git
 
-This example downloads the artifact from the provided github url and places it at
+This example downloads the artifact from the provided GitHub URL and places it at
 `local/repo`, as specified by the optional `destination` parameter.
 
 ```hcl

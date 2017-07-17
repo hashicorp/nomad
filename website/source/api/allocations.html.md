@@ -483,7 +483,7 @@ $ curl \
     - `Restarts`: The number of times the task has restarted.
 
     - `Events` - An event contains metadata about the event. The latest 10 events
-      are stored per task. Each event is timestamped (unix nano-seconds) and has one
+      are stored per task. Each event is timestamped (Unix nanoseconds) and has one
       of the following types:
 
         - `Setup Failure` - The task could not be started because there was a
