@@ -2589,7 +2589,7 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		if u.MaxParallel > tg.Count {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
-					"A destructive change would result in the replacement of all allocations.", u.MaxParallel, tg.Count))
+					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
 		}
 	}
 
