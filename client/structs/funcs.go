@@ -49,6 +49,10 @@ func (b *AllocBroadcaster) Send(v *structs.Allocation) {
 func (b *AllocBroadcaster) Close() {
 	b.m.Lock()
 	defer b.m.Unlock()
+	if b.closed {
+		return
+	}
+
 	b.closed = true
 	for _, l := range b.listeners {
 		close(l)
