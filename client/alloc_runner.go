@@ -696,7 +696,7 @@ func (r *AllocRunner) Run() {
 	r.allocDirLock.Lock()
 	// Build allocation directory (idempotent)
 	if err := r.allocDir.Build(); err != nil {
-		r.logger.Printf("[WARN] client: failed to build task directories: %v", err)
+		r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
 		r.allocDirLock.Unlock()
 		return
@@ -704,10 +704,10 @@ func (r *AllocRunner) Run() {
 
 	if r.otherAllocDir != nil {
 		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
-			r.logger.Printf("[ERROR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
+			r.logger.Printf("[ERR] client: failed to move alloc dir into alloc %q: %v", r.alloc.ID, err)
 		}
 		if err := r.otherAllocDir.Destroy(); err != nil {
-			r.logger.Printf("[ERROR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
+			r.logger.Printf("[ERR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
 		}
 	}
 	r.allocDirLock.Unlock()
