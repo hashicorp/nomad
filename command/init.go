@@ -135,8 +135,8 @@ job "example" {
     min_healthy_time = "10s"
     
     # The "healthy_deadline" parameter specifies the deadline in which the
-    # allocation must be marked as heatlhy after which the allocation is
-    # automatically transistioned to unhealthy. Transistioning to unhealthy will
+    # allocation must be marked as healthy after which the allocation is
+    # automatically transitioned to unhealthy. Transitioning to unhealthy will
     # fail the deployment and potentially roll back the job if "auto_revert" is
     # set to true.
     healthy_deadline = "3m"
