@@ -33,4 +33,17 @@
       }
     }
   }
+
+  tbody {
+    tr {
+      &.is-active {
+        background: rgba($primary, 0.1);
+        border-left: 2px solid $primary;
+      }
+
+      &.is-interactive {
+        cursor: pointer;
+      }
+    }
+  }
 }
