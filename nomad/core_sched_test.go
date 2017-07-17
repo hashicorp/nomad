@@ -1325,12 +1325,19 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
-	// Insert terminal and active deployment
+	// Insert an active, terminal, and terminal with allocations edeployment
 	state := s1.fsm.State()
-	d1, d2 := mock.Deployment(), mock.Deployment()
+	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
+	d3.Status = structs.DeploymentStatusSuccessful
 	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
 	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d3), "UpsertDeployment")
+
+	a := mock.Alloc()
+	a.JobID = d3.JobID
+	a.DeploymentID = d3.ID
+	assert.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -1353,6 +1360,9 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	out2, err := state.DeploymentByID(ws, d2.ID)
 	assert.Nil(err, "DeploymentByID")
 	assert.NotNil(out2, "Active Deployment")
+	out3, err := state.DeploymentByID(ws, d3.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.NotNil(out3, "Terminal Deployment With Allocs")
 }
 
 func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
