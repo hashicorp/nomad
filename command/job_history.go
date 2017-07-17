@@ -36,7 +36,7 @@ History Options:
   -full
     Display the full job definition for each version.
 
-  -job-version <job version>
+  -version <job version>
     Display only the history for the given job version.
 
   -json
@@ -61,7 +61,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	flags.BoolVar(&diff, "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
 	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&versionStr, "job-version", "", "")
+	flags.StringVar(&versionStr, "version", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {

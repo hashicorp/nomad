@@ -231,24 +231,9 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"version": func() (cli.Command, error) {
-			ver := Version
-			rel := VersionPrerelease
-			if GitDescribe != "" {
-				ver = GitDescribe
-				// Trim off a leading 'v', we append it anyways.
-				if ver[0] == 'v' {
-					ver = ver[1:]
-				}
-			}
-			if GitDescribe == "" && rel == "" && VersionPrerelease != "" {
-				rel = "dev"
-			}
-
 			return &command.VersionCommand{
-				Revision:          GitCommit,
-				Version:           ver,
-				VersionPrerelease: rel,
-				Ui:                meta.Ui,
+				Version: PrettyVersion(GetVersionParts()),
+				Ui:      meta.Ui,
 			}, nil
 		},
 	}
