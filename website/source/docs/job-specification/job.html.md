@@ -86,7 +86,7 @@ job "docs" {
   with user-defined metadata.
 
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
-  the job as a paramterized job such that it can be dispatched against.
+  the job as a parameterized job such that it can be dispatched against.
 
 - `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
   at fixed times, dates or intervals.

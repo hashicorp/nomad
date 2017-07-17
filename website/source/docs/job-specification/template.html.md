@@ -76,7 +76,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   different delimiter that does not conflict with the output file itself.
 
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
-  File permissions are given as octal of the unix file permissions rwxrwxrwx.
+  File permissions are given as octal of the Unix file permissions rwxrwxrwx.
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
@@ -89,7 +89,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   reference a template inside of a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
-  0ms and the given splay value before invoking the change mode. This is
+  0 ms and the given splay value before invoking the change mode. This is
   specified using a label suffix like "30s" or "1h", and is often used to
   prevent a thundering herd problem where all task instances restart at the same
   time.

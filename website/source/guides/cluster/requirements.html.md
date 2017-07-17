@@ -67,7 +67,7 @@ port.
 * HTTP API (Default 4646). This is used by clients and servers to serve the HTTP
   API. TCP only.
 
-* RPC (Default 4647). This is used by servers and clients to communicate amongst
+* RPC (Default 4647). This is used by servers and clients to communicate among
   each other. TCP only.
 
 * Serf WAN (Default 4648). This is used by servers to gossip over the WAN to

@@ -112,7 +112,7 @@ job "template" {
 }
 ```
 
-## Order of Precendence
+## Order of Precedence
 
 The order of precedence for customized settings is as follows:
 

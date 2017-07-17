@@ -178,9 +178,9 @@ The `rkt` driver will set the following client attributes:
 
 * `driver.rkt` - Set to `1` if rkt is found on the host node. Nomad determines
   this by executing `rkt version` on the host and parsing the output
-* `driver.rkt.version` - Version of `rkt` eg: `1.1.0`. Note that the minimum required
+* `driver.rkt.version` - Version of `rkt` e.g.: `1.1.0`. Note that the minimum required
   version is `1.0.0`
-* `driver.rkt.appc.version` - Version of `appc` that `rkt` is using eg: `1.1.0`
+* `driver.rkt.appc.version` - Version of `appc` that `rkt` is using e.g.: `1.1.0`
 
 Here is an example of using these properties in a job file:
 

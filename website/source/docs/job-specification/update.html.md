@@ -70,8 +70,8 @@ job "docs" {
   label suffix like "30s" or "15m".
 
 - `healthy_deadline` `(string: "5m")` - Specifies the deadline in which the
-  allocation must be marked as heatlhy after which the allocation is
-  automatically transistioned to unhealthy. This is specified using a label
+  allocation must be marked as healthy after which the allocation is
+  automatically transitioned to unhealthy. This is specified using a label
   suffix like "2m" or "1h".
 
 - `auto_revert` `(bool: false)` - Specifies if the job should auto-revert to the

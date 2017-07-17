@@ -54,7 +54,7 @@ server {
   worker threads will dequeue for processing.
 
 - `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
-  Nomad server's gossip network traffic. This key must be 16-bytes that are
+  Nomad server's gossip network traffic. This key must be 16 bytes that are
   base64-encoded. The provided key is automatically persisted to the data
   directory and loaded automatically whenever the agent is restarted. This means
   that to encrypt Nomad server's gossip protocol, this option only needs to be

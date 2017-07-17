@@ -95,11 +95,11 @@ does not automatically enable service discovery.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
   driver-specific) this service should advertise. `host` indicates the host IP
-  and port. `driver` advertises the IP used in the driver (eg Docker's internal
-  IP) and uses the ports specifid in the port map. The default is `auto` which
+  and port. `driver` advertises the IP used in the driver (e.g. Docker's internal
+  IP) and uses the ports specified in the port map. The default is `auto` which
   behaves the same as `host` unless the driver determines its IP should be used.
   This setting was added in Nomad 0.6 and only supported by the Docker driver.
-  It will advertise the container IP if a network plugin is used (eg weave).
+  It will advertise the container IP if a network plugin is used (e.g. weave).
 
 ### `check` Parameters
 
