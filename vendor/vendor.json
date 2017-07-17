@@ -378,14 +378,14 @@
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
 			"path": "github.com/docker/docker/pkg/ioutils",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
+			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
 			"path": "github.com/docker/docker/pkg/ioutils",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "BlFSSK7zUjPzPuxkLmM/0wpvku8=",
@@ -960,10 +960,10 @@
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
-			"checksumSHA1": "bUuI7AVR3IZPLlBaEKmw/ke7wqA=",
+			"checksumSHA1": "F9rKfF4/KI5jhVBBIMuf6eDnTN0=",
 			"path": "github.com/mitchellh/cli",
-			"revision": "b481eac70eea3ad671b7c360a013f89bb759b252",
-			"revisionTime": "2017-05-23T17:27:49Z"
+			"revision": "4796e5fef694378c14b647f7221591afa58e38cd",
+			"revisionTime": "2017-07-17T21:49:25Z"
 		},
 		{
 			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",
@@ -1069,6 +1069,30 @@
 			"path": "github.com/pmezard/go-difflib/difflib",
 			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
 			"revisionTime": "2016-01-10T10:55:54Z"
+		},
+		{
+			"checksumSHA1": "6OEUkwOM0qgI6YxR+BDEn6YMvpU=",
+			"path": "github.com/posener/complete",
+			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
+			"revisionTime": "2017-05-27T17:24:47Z"
+		},
+		{
+			"checksumSHA1": "NB7uVS0/BJDmNu68vPAlbrq4TME=",
+			"path": "github.com/posener/complete/cmd",
+			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
+			"revisionTime": "2017-05-27T17:24:47Z"
+		},
+		{
+			"checksumSHA1": "kuS9vs+TMQzTGzXteL6EZ5HuKrU=",
+			"path": "github.com/posener/complete/cmd/install",
+			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
+			"revisionTime": "2017-05-27T17:24:47Z"
+		},
+		{
+			"checksumSHA1": "DMo94FwJAm9ZCYCiYdJU2+bh4no=",
+			"path": "github.com/posener/complete/match",
+			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
+			"revisionTime": "2017-05-27T17:24:47Z"
 		},
 		{
 			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",

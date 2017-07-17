@@ -39,10 +39,12 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	}
 
 	cli := &cli.CLI{
-		Version:  PrettyVersion(GetVersionParts()),
-		Args:     args,
-		Commands: commands,
-		HelpFunc: cli.FilteredHelpFunc(commandsInclude, cli.BasicHelpFunc("nomad")),
+		Name:         "nomad",
+		Version:      PrettyVersion(GetVersionParts()),
+		Args:         args,
+		Commands:     commands,
+		Autocomplete: true,
+		HelpFunc:     cli.FilteredHelpFunc(commandsInclude, cli.BasicHelpFunc("nomad")),
 	}
 
 	exitCode, err := cli.Run()
