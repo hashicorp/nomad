@@ -38,6 +38,24 @@ export default function() {
   this.get('/job/:id/summary', function({ jobSummaries }, { params }) {
     return this.serialize(jobSummaries.findBy({ jobId: params.id }));
   });
+
+  this.get('/nodes', function({ nodes }) {
+    const json = this.serialize(nodes.all());
+    return json;
+  });
+
+  this.get('/node/:id');
+
+  this.get('/agent/members', function({ agents }) {
+    return {
+      Members: this.serialize(agents.all()),
+    };
+  });
+
+  this.get('/status/leader', function({ agents }) {
+    const agent = agents.first();
+    return JSON.stringify(`${agent.address}:${agent.tags.port}`);
+  });
 }
 
 function filterKeys(object, ...keys) {

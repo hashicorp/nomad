@@ -1,10 +1,10 @@
 import { Factory, faker } from 'ember-cli-mirage';
 import { provide, provider } from '../utils';
+import { DATACENTERS } from '../common';
 
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
 const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
-const DATACENTERS = provide(15, (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`);
 
 export default Factory.extend({
   id: i => `job-${i}`,
