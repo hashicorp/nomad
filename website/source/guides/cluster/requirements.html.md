@@ -72,3 +72,17 @@ port.
 
 * Serf WAN (Default 4648). This is used by servers to gossip over the WAN to
   other servers. TCP and UDP.
+
+When tasks ask for dynamic ports, they are allocated out of the port range
+between 20,000 and 32,000. This is well under the ephemeral port range suggested
+by the [IANA](https://en.wikipedia.org/wiki/Ephemeral_port). If your operating
+system's default ephemeral port range overlaps with Nomad's dynamic port range,
+you should tune the OS to avoid this overlap.
+
+On Linux this can be checked and set as follows:
+
+```
+$ cat /proc/sys/net/ipv4/ip_local_port_range 
+32768   60999
+$ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range 
+```
