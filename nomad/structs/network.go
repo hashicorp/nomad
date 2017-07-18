@@ -12,7 +12,7 @@ const (
 	MinDynamicPort = 20000
 
 	// MaxDynamicPort is the largest dynamic port generated
-	MaxDynamicPort = 60000
+	MaxDynamicPort = 32000
 
 	// maxRandPortAttempts is the maximum number of attempt
 	// to assign a random port
