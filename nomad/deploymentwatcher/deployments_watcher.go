@@ -165,7 +165,7 @@ func (w *Watcher) flush() {
 // watchDeployments is the long lived go-routine that watches for deployments to
 // add and remove watchers on.
 func (w *Watcher) watchDeployments() {
-	dindex := uint64(0)
+	dindex := uint64(1)
 	for {
 		// Block getting all deployments using the last deployment index.
 		resp, err := w.getDeploys(dindex)

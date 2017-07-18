@@ -288,7 +288,7 @@ func (w *deploymentWatcher) StopWatch() {
 
 // watch is the long running watcher that takes actions upon allocation changes
 func (w *deploymentWatcher) watch() {
-	allocIndex := uint64(0)
+	allocIndex := uint64(1)
 	for {
 		// Block getting all allocations that are part of the deployment using
 		// the last evaluation index. This will have us block waiting for
