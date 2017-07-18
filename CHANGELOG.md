@@ -14,6 +14,7 @@ IMPROVEMENTS:
  * api: Add `verify_https_client` to require certificates from HTTP clients
    [GH-2587]
  * api/job: Ability to revert job to older versions [GH-2575]
+ * cli: Autocomplete for CLI commands [GH-2848]
  * client: Use a random host UUID by default [GH-2735]
  * client: Environment variables for client DC and Region [GH-2507]
  * client: Hash host ID so its stable and well distributed [GH-2541]
