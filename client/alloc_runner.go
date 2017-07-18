@@ -143,6 +143,7 @@ type allocRunnerMutableState struct {
 	AllocClientStatus      string
 	AllocClientDescription string
 	TaskStates             map[string]*structs.TaskState
+	DeploymentStatus       *structs.AllocDeploymentStatus
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -157,7 +158,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		logger:         logger,
 		alloc:          alloc,
 		allocID:        alloc.ID,
-		allocBroadcast: cstructs.NewAllocBroadcaster(0),
+		allocBroadcast: cstructs.NewAllocBroadcaster(8),
 		dirtyCh:        make(chan struct{}, 1),
 		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
 		tasks:          make(map[string]*TaskRunner),
@@ -255,6 +256,7 @@ func (r *AllocRunner) RestoreState() error {
 			r.allocClientDescription = mutable.AllocClientDescription
 			r.taskStates = mutable.TaskStates
 			r.alloc.ClientStatus = getClientStatus(r.taskStates)
+			r.alloc.DeploymentStatus = mutable.DeploymentStatus
 			return nil
 		})
 
@@ -422,6 +424,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 			AllocClientStatus:      allocClientStatus,
 			AllocClientDescription: allocClientDescription,
 			TaskStates:             alloc.TaskStates,
+			DeploymentStatus:       alloc.DeploymentStatus,
 		}
 
 		if err := putObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
@@ -573,7 +576,19 @@ func (r *AllocRunner) syncStatus() error {
 	// Get a copy of our alloc, update status server side and sync to disk
 	alloc := r.Alloc()
 	r.updater(alloc)
-	r.allocBroadcast.Send(alloc)
+
+	// Try to send the alloc up to three times with a delay to allow recovery.
+	sent := false
+	for i := 0; i < 3; i++ {
+		if sent = r.allocBroadcast.Send(alloc); sent {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !sent {
+		r.logger.Printf("[WARN] client: failed to broadcast update to allocation %q", r.allocID)
+	}
+
 	return r.saveAllocRunnerState()
 }
 

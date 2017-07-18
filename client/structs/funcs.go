@@ -29,20 +29,24 @@ type AllocListener struct {
 	id int
 }
 
-// Send broadcasts a message to the channel.
-// Sending on a closed channel causes a runtime panic.
-func (b *AllocBroadcaster) Send(v *structs.Allocation) {
+// Send broadcasts a message to the channel. Send returns whether the message
+// was sent to all channels.
+func (b *AllocBroadcaster) Send(v *structs.Allocation) bool {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if b.closed {
-		return
+		return false
 	}
+	sent := true
 	for _, l := range b.listeners {
 		select {
 		case l <- v:
 		default:
+			sent = false
 		}
 	}
+
+	return sent
 }
 
 // Close closes the channel, disabling the sending of further messages.
