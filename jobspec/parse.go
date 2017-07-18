@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -325,6 +326,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			if err := parseUpdate(&g.Update, o); err != nil {
 				return multierror.Prefix(err, "update ->")
 			}
+			if g.Update.MaxParallelPercent != nil && g.Count != nil {
+				maxPar, err := parseMaxParallelPercent(*g.Update.MaxParallelPercent, *g.Count)
+				if err != nil {
+					return err
+				}
+				g.Update.MaxParallel = helper.IntToPtr(maxPar)
+			}
 		}
 
 		// Parse out meta fields. These are in HCL as a list so we need
@@ -545,6 +553,26 @@ func parseBool(value interface{}) (bool, error) {
 	}
 
 	return enabled, err
+}
+
+func parseMaxParallelPercent(maxParallelPercent string, count int) (int, error) {
+	jobVal := maxParallelPercent
+	maxParallelPercent = strings.Replace(maxParallelPercent, "%", "", -1)
+	maxPar, err := strconv.ParseFloat(maxParallelPercent, 64)
+	if err != nil {
+		return 0, err
+	}
+	countf := float64(count)
+	maxParVal := math.Ceil((maxPar * countf) / 100.0)
+	maxParallel := int(maxParVal)
+	if maxPar > 100.0 {
+		err := fmt.Errorf("Percent may not be greater than 100, current value \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return 0, err
+	} else if maxPar <= 0.0 {
+		err := fmt.Errorf("Malformatted value (or 0) \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return 0, err
+	}
+	return maxParallel, nil
 }
 
 func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list *ast.ObjectList) error {
@@ -1132,6 +1160,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 		"stagger",
 		"max_parallel",
+		"max_parallel_percent",
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",

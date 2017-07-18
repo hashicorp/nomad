@@ -290,13 +290,14 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger         *time.Duration `mapstructure:"stagger"`
-	MaxParallel     *int           `mapstructure:"max_parallel"`
-	HealthCheck     *string        `mapstructure:"health_check"`
-	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
-	AutoRevert      *bool          `mapstructure:"auto_revert"`
-	Canary          *int           `mapstructure:"canary"`
+	Stagger            *time.Duration `mapstructure:"stagger"`
+	MaxParallel        *int           `mapstructure:"max_parallel"`
+	MaxParallelPercent *string        `mapstructure:"max_parallel_percent"`
+	HealthCheck        *string        `mapstructure:"health_check"`
+	MinHealthyTime     *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline    *time.Duration `mapstructure:"healthy_deadline"`
+	AutoRevert         *bool          `mapstructure:"auto_revert"`
+	Canary             *int           `mapstructure:"canary"`
 }
 
 func (u *UpdateStrategy) Copy() *UpdateStrategy {
@@ -312,6 +313,10 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 
 	if u.MaxParallel != nil {
 		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
+	}
+
+	if u.MaxParallelPercent != nil {
+		copy.MaxParallelPercent = helper.StringToPtr(*u.MaxParallelPercent)
 	}
 
 	if u.HealthCheck != nil {
@@ -350,6 +355,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
 	}
 
+	if u.MaxParallelPercent != nil {
+		u.MaxParallelPercent = helper.StringToPtr(*o.MaxParallelPercent)
+	}
+
 	if o.HealthCheck != nil {
 		u.HealthCheck = helper.StringToPtr(*o.HealthCheck)
 	}
@@ -374,6 +383,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 func (u *UpdateStrategy) Canonicalize() {
 	if u.MaxParallel == nil {
 		u.MaxParallel = helper.IntToPtr(0)
+	}
+
+	if u.MaxParallelPercent == nil {
+		u.MaxParallelPercent = helper.StringToPtr("0%")
 	}
 
 	d := structs.DefaultUpdateStrategy
