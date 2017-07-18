@@ -576,7 +576,12 @@ func (r *AllocRunner) syncStatus() error {
 	// Get a copy of our alloc, update status server side and sync to disk
 	alloc := r.Alloc()
 	r.updater(alloc)
+	r.sendBroadcast(alloc)
+	return r.saveAllocRunnerState()
+}
 
+// sendBroadcast broadcasts an alloc update.
+func (r *AllocRunner) sendBroadcast(alloc *structs.Allocation) {
 	// Try to send the alloc up to three times with a delay to allow recovery.
 	sent := false
 	for i := 0; i < 3; i++ {
@@ -588,8 +593,6 @@ func (r *AllocRunner) syncStatus() error {
 	if !sent {
 		r.logger.Printf("[WARN] client: failed to broadcast update to allocation %q", r.allocID)
 	}
-
-	return r.saveAllocRunnerState()
 }
 
 // setStatus is used to update the allocation status
@@ -876,7 +879,7 @@ func (r *AllocRunner) handleDestroy() {
 	go r.updater(alloc)
 
 	// Broadcast and persist state synchronously
-	r.allocBroadcast.Send(alloc)
+	r.sendBroadcast(alloc)
 	if err := r.saveAllocRunnerState(); err != nil {
 		r.logger.Printf("[WARN] client: alloc %q unable to persist state but should be GC'd soon anyway:%v",
 			r.allocID, err)
