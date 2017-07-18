@@ -15,6 +15,6 @@ export default Factory.extend({
   tls_enabled: faker.random.boolean,
 
   http_addr() {
-    return this.name.split('@')[1];
+    return `${this.name.split('@')[1]}:${faker.random.number({ min: 4000, max: 4999 })}`;
   },
 });

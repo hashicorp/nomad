@@ -9,7 +9,6 @@ export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: () => `nomad@${faker.internet.ip()}`,
 
-  datacenter: faker.list.random(...DATACENTERS),
   status: faker.list.random(...AGENT_STATUSES),
   serf_port: faker.random.number({ min: 4000, max: 4999 }),
 
@@ -21,6 +20,7 @@ export default Factory.extend({
     const rpcPortCandidate = faker.random.number({ min: 4000, max: 4999 });
     return {
       port: rpcPortCandidate === this.serf_port ? rpcPortCandidate + 1 : rpcPortCandidate,
+      dc: faker.list.random(...DATACENTERS)(),
     };
   },
 });
