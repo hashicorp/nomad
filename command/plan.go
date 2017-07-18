@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/mitchellh/colorstring"
+	"github.com/posener/complete"
 )
 
 const (
@@ -75,6 +76,14 @@ Plan Options:
 
 func (c *PlanCommand) Synopsis() string {
 	return "Dry-run a job update to determine its effects"
+}
+
+func (c *PlanCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *PlanCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
 func (c *PlanCommand) Run(args []string) int {
