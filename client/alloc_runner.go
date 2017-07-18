@@ -853,7 +853,19 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 func (r *AllocRunner) handleDestroy() {
 	// Final state sync. We do this to ensure that the server has the correct
 	// state as we wait for a destroy.
-	r.syncStatus()
+	alloc := r.Alloc()
+
+	//TODO(schmichael) updater can cause a GC which can block on this alloc
+	// runner shutting down. Since handleDestroy can be called by Run() we
+	// can't block shutdown here as it would cause a deadlock.
+	go r.updater(alloc)
+
+	// Broadcast and persist state synchronously
+	r.allocBroadcast.Send(alloc)
+	if err := r.saveAllocRunnerState(); err != nil {
+		r.logger.Printf("[WARN] client: alloc %q unable to persist state but should be GC'd soon anyway:%v",
+			r.allocID, err)
+	}
 
 	for {
 		select {
