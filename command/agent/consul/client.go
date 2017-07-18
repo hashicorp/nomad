@@ -779,7 +779,9 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 }
 
 // isNomadService returns true if the ID matches the pattern of a Nomad managed
-// service.
+// service. Agent services return false as independent client and server agents
+// may be running on the same machine. #2827
 func isNomadService(id string) bool {
-	return strings.HasPrefix(id, nomadServicePrefix)
+	const prefix = nomadServicePrefix + "-executor"
+	return strings.HasPrefix(id, prefix)
 }

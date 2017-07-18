@@ -1231,3 +1231,27 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 
 	syncAndAssertPort(net.PortMap["x"])
 }
+
+// TestIsNomadService asserts the isNomadService helper returns true for Nomad
+// task IDs and false for unknown IDs and Nomad agent IDs (see #2827).
+func TestIsNomadService(t *testing.T) {
+	tests := []struct {
+		id     string
+		result bool
+	}{
+		{"_nomad-client-nomad-client-http", false},
+		{"_nomad-server-nomad-serf", false},
+		{"_nomad-executor-abc", true},
+		{"_nomad-executor", true},
+		{"not-nomad", false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.id, func(t *testing.T) {
+			actual := isNomadService(test.id)
+			if actual != test.result {
+				t.Error("%q should be %t but found %t", test.id, test.result, actual)
+			}
+		})
+	}
+}
