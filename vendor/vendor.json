@@ -972,8 +972,10 @@
 			"revisionTime": "2015-09-17T21:48:07Z"
 		},
 		{
+			"checksumSHA1": "+p4JY4wmFQAppCdlrJ8Kxybmht8=",
 			"path": "github.com/mitchellh/copystructure",
-			"revision": "80adcec1955ee4e97af357c30dee61aadcc02c10"
+			"revision": "d23ffcb85de31694d6ccaa23ccb4a03e55c1303f",
+			"revisionTime": "2017-05-25T01:39:02Z"
 		},
 		{
 			"checksumSHA1": "AXacfEchaUqT5RGmPmMXsOWRhv8=",
@@ -1002,8 +1004,10 @@
 			"revision": "281073eb9eb092240d33ef253c404f1cca550309"
 		},
 		{
+			"checksumSHA1": "KqsMqI+Y+3EFYPhyzafpIneaVCM=",
 			"path": "github.com/mitchellh/reflectwalk",
-			"revision": "eecf4c70c626c7cfbb95c90195bc34d386c74ac6"
+			"revision": "8d802ff4ae93611b807597f639c19f76074df5c6",
+			"revisionTime": "2017-05-08T17:38:06Z"
 		},
 		{
 			"checksumSHA1": "NTperEHVh1uBqfTy9+oKceN4tKI=",

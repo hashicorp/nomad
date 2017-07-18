@@ -1481,11 +1481,6 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 }
 
-func TestJob_CanCopy(t *testing.T) {
-	job := mock.Job()
-	job.Copy()
-}
-
 // This tests that the old allocation is stopped before placing.
 func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	h := NewHarness(t)
