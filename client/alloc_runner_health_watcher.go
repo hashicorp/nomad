@@ -26,6 +26,12 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 		return
 	}
 
+	// TODO Add to persisted state
+	if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
+		r.logger.Printf("[TRACE] client.alloc_watcher: exiting because alloc deployment health already determined")
+		return
+	}
+
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		r.logger.Printf("[ERR] client.alloc_watcher: failed to lookup allocation's task group. Exiting watcher")
@@ -67,9 +73,16 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	latestTaskHealthy := time.Unix(0, 0)
 	latestChecksHealthy := time.Unix(0, 0)
 	healthyTimer := time.NewTimer(0)
-	if !healthyTimer.Stop() {
-		<-healthyTimer.C
+	healthyTime := time.Time{}
+	cancelHealthyTimer := func() {
+		if !healthyTimer.Stop() {
+			select {
+			case <-healthyTimer.C:
+			default:
+			}
+		}
 	}
+	cancelHealthyTimer()
 
 	// Cleanup function
 	defer func() {
@@ -166,6 +179,7 @@ OUTER:
 		// If we should have checks and they aren't all healthy continue
 		if len(checks) != desiredChecks {
 			r.logger.Printf("[TRACE] client.alloc_watcher: continuing since all checks (want %d; got %d) haven't been registered for alloc %q", desiredChecks, len(checks), alloc.ID)
+			cancelHealthyTimer()
 			continue OUTER
 		}
 
@@ -174,6 +188,7 @@ OUTER:
 			if check.Status != api.HealthPassing {
 				r.logger.Printf("[TRACE] client.alloc_watcher: continuing since check %q isn't passing for alloc %q", check.CheckID, alloc.ID)
 				latestChecksHealthy = time.Time{}
+				cancelHealthyTimer()
 				continue OUTER
 			}
 		}
@@ -193,26 +208,21 @@ OUTER:
 			}
 		}
 
-		// Don't need to set the timer if we are healthy and have marked
-		// ourselves healthy.
-		if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil && *alloc.DeploymentStatus.Healthy {
-			continue OUTER
-		}
-
 		// Determine when we can mark ourselves as healthy.
 		totalHealthy := latestTaskHealthy
 		if totalHealthy.Before(latestChecksHealthy) {
 			totalHealthy = latestChecksHealthy
 		}
-		d := time.Until(totalHealthy.Add(u.MinHealthyTime))
 
-		if !healthyTimer.Stop() {
-			select {
-			case <-healthyTimer.C:
-			default:
-			}
+		// Nothing to do since we are already waiting for the healthy timer to
+		// fire at the same time.
+		if totalHealthy.Equal(healthyTime) {
+			continue OUTER
 		}
 
+		healthyTime = totalHealthy
+		cancelHealthyTimer()
+		d := time.Until(totalHealthy.Add(u.MinHealthyTime))
 		healthyTimer.Reset(d)
 		r.logger.Printf("[TRACE] client.alloc_watcher: setting healthy timer to %v for alloc %q", d, alloc.ID)
 	}
