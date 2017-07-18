@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/posener/complete"
 )
 
 type ValidateCommand struct {
@@ -31,6 +32,14 @@ Usage: nomad validate [options] <path>
 
 func (c *ValidateCommand) Synopsis() string {
 	return "Checks if a given job specification is valid"
+}
+
+func (c *ValidateCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *ValidateCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
 func (c *ValidateCommand) Run(args []string) int {
