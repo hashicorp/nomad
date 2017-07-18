@@ -24,10 +24,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	if alloc.DeploymentID == "" {
 		r.logger.Printf("[TRACE] client.alloc_watcher: exiting because alloc isn't part of a deployment")
 		return
-	}
-
-	// TODO Add to persisted state
-	if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
+	} else if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
 		r.logger.Printf("[TRACE] client.alloc_watcher: exiting because alloc deployment health already determined")
 		return
 	}

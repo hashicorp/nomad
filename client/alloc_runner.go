@@ -143,6 +143,7 @@ type allocRunnerMutableState struct {
 	AllocClientStatus      string
 	AllocClientDescription string
 	TaskStates             map[string]*structs.TaskState
+	DeploymentStatus       *structs.AllocDeploymentStatus
 }
 
 // NewAllocRunner is used to create a new allocation context
@@ -255,6 +256,7 @@ func (r *AllocRunner) RestoreState() error {
 			r.allocClientDescription = mutable.AllocClientDescription
 			r.taskStates = mutable.TaskStates
 			r.alloc.ClientStatus = getClientStatus(r.taskStates)
+			r.alloc.DeploymentStatus = mutable.DeploymentStatus
 			return nil
 		})
 
@@ -422,6 +424,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 			AllocClientStatus:      allocClientStatus,
 			AllocClientDescription: allocClientDescription,
 			TaskStates:             alloc.TaskStates,
+			DeploymentStatus:       alloc.DeploymentStatus,
 		}
 
 		if err := putObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
@@ -583,7 +586,7 @@ func (r *AllocRunner) syncStatus() error {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if !sent {
-		r.logger.Printf("[WARN] client: failed to broadcase update to allocation %q", r.allocID)
+		r.logger.Printf("[WARN] client: failed to broadcast update to allocation %q", r.allocID)
 	}
 
 	return r.saveAllocRunnerState()
