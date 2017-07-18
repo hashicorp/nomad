@@ -154,9 +154,11 @@ The following archive formats are supported:
 
   * `tar.gz` and `tgz`
   * `tar.bz2` and `tbz2`
+  * `tar.xz` and `txz`
   * `zip`
   * `gz`
   * `bz2`
+  * `xz`
 
 For example, an example URL is shown below:
 
