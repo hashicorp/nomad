@@ -1481,6 +1481,110 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	}
 }
 
+func TestJob_CanCopy(t *testing.T) {
+	job := mock.Job()
+	job.Copy()
+}
+
+// This tests that the old allocation is stopped before placing.
+func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	resourceAsk := node.Resources.Copy()
+	resourceAsk.CPU -= node.Reserved.CPU
+	resourceAsk.MemoryMB -= node.Reserved.MemoryMB
+	resourceAsk.DiskMB -= node.Reserved.DiskMB
+	resourceAsk.Networks = nil
+
+	// Generate a fake job with one alloc that consumes the whole node
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Resources = resourceAsk
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	alloc := mock.Alloc()
+	alloc.Resources = resourceAsk
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Update the job
+	job2 := job.Copy()
+	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel:     1,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+	}
+
+	// Update the task, such that it cannot be done in-place
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted only MaxParallel
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	if len(update) != 1 {
+		t.Fatalf("bad: got %d; want %d: %#v", len(update), 1, plan)
+	}
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	if len(planned) != 1 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Check that the deployment id is attached to the eval
+	if h.Evals[0].DeploymentID == "" {
+		t.Fatalf("Eval not annotated with deployment id")
+	}
+
+	// Ensure a deployment was created
+	if plan.Deployment == nil {
+		t.Fatalf("bad: %#v", plan)
+	}
+	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	if !ok {
+		t.Fatalf("bad: %#v", plan)
+	}
+	if state.DesiredTotal != 1 && state.DesiredCanaries != 0 {
+		t.Fatalf("bad: %#v", state)
+	}
+}
+
 func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	h := NewHarness(t)
 

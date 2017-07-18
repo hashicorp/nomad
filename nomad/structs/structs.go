@@ -2981,6 +2981,8 @@ func (t *Task) Copy() *Task {
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		nt.Config = i.(map[string]interface{})
+	} else {
+		panic(err.Error())
 	}
 
 	if t.Templates != nil {

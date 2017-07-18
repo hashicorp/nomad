@@ -438,6 +438,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	for _, place := range results.place {
 		s.queuedAllocs[place.taskGroup.Name] += 1
 	}
+	for _, destructive := range results.destructiveUpdate {
+		s.queuedAllocs[destructive.placeTaskGroup.Name] += 1
+	}
 
 	// Compute the placements
 	place := make([]placementResult, 0, len(results.place)+len(results.destructiveUpdate))
@@ -480,6 +483,15 @@ func (s *GenericScheduler) computePlacements(place []placementResult) error {
 		preferredNode, err := s.findPreferredNode(missing)
 		if err != nil {
 			return err
+		}
+
+		// Check if we should stop the previous allocation upon successful
+		// placement of its replacement. This allow atomic placements/stops. We
+		// stop the allocation before trying to find a replacement because this
+		// frees the resources currently used by the previous allocation.
+		stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
+		if stopPrevAlloc {
+			s.plan.AppendUpdate(missing.PreviousAllocation(), structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
 		}
 
 		// Attempt to match the task group
@@ -531,19 +543,20 @@ func (s *GenericScheduler) computePlacements(place []placementResult) error {
 			// Track the placement
 			s.plan.AppendAlloc(alloc)
 
-			// Since we have placed check to see if we should stop any previous
-			// allocation
-			if stop, desc := missing.StopPreviousAlloc(); stop {
-				s.plan.AppendUpdate(missing.PreviousAllocation(), structs.AllocDesiredStatusStop, desc, "")
-			}
-
 		} else {
 			// Lazy initialize the failed map
 			if s.failedTGAllocs == nil {
 				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
 
+			// Track the fact that we didn't find a placement
 			s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
+
+			// If we weren't able to find a replacement for the allocation, back
+			// out the fact that we asked to stop the allocation.
+			if stopPrevAlloc {
+				s.plan.PopUpdate(missing.PreviousAllocation())
+			}
 		}
 	}
 
