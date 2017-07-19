@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -406,6 +407,14 @@ func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error
 			c.Ui.Error(fmt.Sprintf("Bulletin [%s]: %s (%s)", alert.Level, alert.Message, alert.URL))
 		}
 	}
+}
+
+func (c *Command) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *Command) AutocompleteArgs() complete.Predictor {
+	return complete.PredictOr(complete.PredictFiles("*.json"), complete.PredictFiles("*.hcl"))
 }
 
 func (c *Command) Run(args []string) int {
