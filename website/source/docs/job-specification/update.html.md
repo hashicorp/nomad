@@ -78,6 +78,12 @@ job "docs" {
   last stable job on deployment failure. A job is marked as stable if all the
   allocations as part of its deployment were marked healthy.
 
+- `canary` `(int: 0)` - Specifies that changes to the job that would result in
+  destructive updates should create the specified number of canaries without
+  stopping any previous allocations. Once the operator determines the canaries
+  are healthy, they can be promoted which unblocks a rolling update of the
+  remaining allocations at a rate of `max_parallel`.
+
 - `stagger` `(string: "30s")` - Specifies the delay between migrating
   allocations off nodes marked for draining. This is specified using a label
   suffix like "30s" or "1h".
@@ -120,16 +126,54 @@ update {
 
 This example creates a canary allocation when the job is updated. The canary is
 created without stopping any previous allocations from the job and allows
-operators to determine if the new version of the job should be rolled out. Once
-the operator has determined the new job should be deployed, the deployment can
-be promoted and a rolling update will occur performing 3 updates at a time till
-the remainder of the groups allocations have been rolled to the new version.
+operators to determine if the new version of the job should be rolled out. 
 
 ```hcl
 update {
   canary       = 1
   max_parallel = 3
 }
+```
+
+Once the operator has determined the new job should be deployed, the deployment
+can be promoted and a rolling update will occur performing 3 updates at a time
+until the remainder of the groups allocations have been rolled to the new
+version.
+
+```text
+# Promote the canaries for the job.
+$ nomad job promote <job-id>
+```
+
+### Blue/Green Upgrades
+
+By setting the canary count equal to that of the task group, blue/green
+deployments can be achieved. When a new version of the job is submitted, instead
+of doing a rolling upgrade of the existing allocations, the new version of the
+group is deployed along side the existing set. While this duplicates the
+resources required during the upgrade process, it allows very safe deployments
+as the original version of the group is untouched.
+
+```hcl
+group "api-server" {
+    count = 3
+
+    update {
+      canary       = 3
+      max_parallel = 3
+    }
+    ...
+}
+```
+
+Once the operator is satisfied that the new version of the group is stable, the
+group can be promoted which will result in all allocations for the old versions
+of the group to be shutdown. This completes the upgrade from blue to green, or
+old to new version.
+
+```text
+# Promote the canaries for the job.
+$ nomad job promote <job-id>
 ```
 
 ### Serial Upgrades
