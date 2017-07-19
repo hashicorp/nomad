@@ -7,13 +7,13 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestDeploymentPromoteCommand_Implements(t *testing.T) {
-	var _ cli.Command = &DeploymentPromoteCommand{}
+func TestJobPromoteCommand_Implements(t *testing.T) {
+	var _ cli.Command = &JobPromoteCommand{}
 }
 
-func TestDeploymentPromoteCommand_Fails(t *testing.T) {
+func TestJobPromoteCommand_Fails(t *testing.T) {
 	ui := new(cli.MockUi)
-	cmd := &DeploymentPromoteCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobPromoteCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -27,8 +27,8 @@ func TestDeploymentPromoteCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope", "12"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error retrieving deployment") {
-		t.Fatalf("expected failed query error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error promoting") {
+		t.Fatalf("expected failed to promote error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 }
