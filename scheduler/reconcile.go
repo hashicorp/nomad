@@ -548,6 +548,12 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 		}
 	}
 
+	// The limit can be less than zero in the case that the job was changed such
+	// that it required destructive changes and the count was scaled up.
+	if limit < 0 {
+		return 0
+	}
+
 	return limit
 }
 
