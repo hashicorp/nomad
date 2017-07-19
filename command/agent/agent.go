@@ -192,12 +192,14 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 		conf.DeploymentGCThreshold = dur
 	}
 
-	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != "" {
-		dur, err := time.ParseDuration(heartbeatGrace)
-		if err != nil {
-			return nil, err
-		}
-		conf.HeartbeatGrace = dur
+	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {
+		conf.HeartbeatGrace = heartbeatGrace
+	}
+	if min := agentConfig.Server.MinHeartbeatTTL; min != 0 {
+		conf.MinHeartbeatTTL = min
+	}
+	if maxHPS := agentConfig.Server.MaxHeartbeatsPerSecond; maxHPS != 0 {
+		conf.MaxHeartbeatsPerSecond = maxHPS
 	}
 
 	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {

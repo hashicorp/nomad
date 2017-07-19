@@ -73,6 +73,8 @@ server {
 	eval_gc_threshold = "12h"
 	deployment_gc_threshold = "12h"
 	heartbeat_grace   = "30s"
+	min_heartbeat_ttl = "33s"
+	max_heartbeats_per_second = 11.0
 	retry_join = [ "1.1.1.1", "2.2.2.2" ]
 	start_join = [ "1.1.1.1", "2.2.2.2" ]
 	retry_max = 3

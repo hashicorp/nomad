@@ -80,6 +80,23 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
+- `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
+  grace period beyond the heartbeat TTL of nodes to account for network and
+  processing delays as well as clock skew. This is specified using a label
+  suffix like "30s" or "1h".
+
+- `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
+  node heartbeats. This is used as a floor to prevent excessive updates. This is
+  specified using a label suffix like "30s" or "1h". Lowering the minimum TTL is
+  a tradeoff as it lowers failure detection time of nodes at the tradeoff of
+  false positives and increased load on the leader.
+
+- `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
+  rate of heartbeats being processed per second. This allows the TTL to be
+  increased to meet the target rate. Increasing the maximum heartbeats per
+  second is a tradeoff as it lowers failure detection time of nodes at the
+  tradeoff of false positives and increased load on the leader.
+
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
   disallow this server from making any scheduling decisions. This defaults to
