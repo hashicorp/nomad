@@ -410,11 +410,17 @@ func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error
 }
 
 func (c *Command) AutocompleteFlags() complete.Flags {
-	return nil
+	configFilePredictor := complete.PredictOr(
+		complete.PredictFiles("*.json"),
+		complete.PredictFiles("*.hcl"))
+
+	return map[string]complete.Predictor{
+		"-config": configFilePredictor,
+	}
 }
 
 func (c *Command) AutocompleteArgs() complete.Predictor {
-	return complete.PredictOr(complete.PredictFiles("*.json"), complete.PredictFiles("*.hcl"))
+	return nil
 }
 
 func (c *Command) Run(args []string) int {
