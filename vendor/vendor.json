@@ -881,6 +881,13 @@
 			"revisionTime": "2017-07-14T18:26:01Z"
 		},
 		{
+			"checksumSHA1": "pvLOzocYsZtxuJ9pREHRTxYnoa4=",
+			"origin": "github.com/hashicorp/nomad/vendor/github.com/hashicorp/serf/serf",
+			"path": "github.com/hashicorp/serf/serf",
+			"revision": "bbeddf0b3ab3072a60525afbd6b6f47d33839eee",
+			"revisionTime": "2017-07-14T18:26:01Z"
+		},
+		{
 			"checksumSHA1": "eGzvBRMFD6ZB3A6uO750np7Om/E=",
 			"path": "github.com/hashicorp/vault",
 			"revision": "182ba68a9589d4cef95234134aaa498a686e3de3",
