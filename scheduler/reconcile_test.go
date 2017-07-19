@@ -68,6 +68,7 @@ Update stanza Tests:
 √  Failed deployment and updated job works
 √  Finished deployment gets marked as complete
 √  The stagger is correctly calculated when it is applied across multiple task groups.
+√  Change job change while scaling up
 */
 
 var (
@@ -2891,4 +2892,64 @@ func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), stopResultsToNames(r.stop))
+}
+
+// Tests the reconciler handles changing a job such that a deployment is created
+// while doing a scale up but as the second eval.
+func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
+	// Scale the job up to 15
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	job.TaskGroups[0].Count = 30
+
+	// Create a deployment that is paused and has placed some canaries
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 30,
+		PlacedAllocs: 20,
+	}
+
+	// Create 10 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	// Create 20 from new job
+	handled := make(map[string]allocUpdateType)
+	for i := 10; i < 30; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.DeploymentID = d.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+		handled[alloc.ID] = allocUpdateFnIgnore
+	}
+
+	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
+	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				// All should be ignored becasue nothing has been marked as
+				// healthy.
+				Ignore: 30,
+			},
+		},
+	})
 }
