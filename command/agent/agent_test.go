@@ -248,7 +248,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Server.MaxHeartbeatsPerSecond = 11.0
 	out, err = a.serverConfig()
 	if max := out.MaxHeartbeatsPerSecond; max != 11.0 {
-		t.Fatalf("expect 11, got: %s", max)
+		t.Fatalf("expect 11, got: %v", max)
 	}
 
 	// Defaults to the global bind addr
