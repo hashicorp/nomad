@@ -295,7 +295,7 @@ func (w *deploymentWatcher) watch() {
 		// something to change past what the scheduler has evaluated.
 		allocResp, err := w.getAllocs(allocIndex)
 		if err != nil {
-			if err == context.Canceled {
+			if err == context.Canceled || w.ctx.Err() == context.Canceled {
 				return
 			}
 
@@ -307,7 +307,7 @@ func (w *deploymentWatcher) watch() {
 		// Get the latest evaluation index
 		latestEval, err := w.latestEvalIndex()
 		if err != nil {
-			if err == context.Canceled {
+			if err == context.Canceled || w.ctx.Err() == context.Canceled {
 				return
 			}
 
