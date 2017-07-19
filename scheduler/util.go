@@ -698,25 +698,27 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 // adjustQueuedAllocations decrements the number of allocations pending per task
 // group based on the number of allocations successfully placed
 func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
-	if result != nil {
-		for _, allocations := range result.NodeAllocation {
-			for _, allocation := range allocations {
-				// Ensure that the allocation is newly created. We check that
-				// the CreateIndex is equal to the ModifyIndex in order to check
-				// that the allocation was just created. We do not check that
-				// the CreateIndex is equal to the results AllocIndex because
-				// the allocations we get back have gone through the planner's
-				// optimistic snapshot and thus their indexes may not be
-				// correct, but they will be consistent.
-				if allocation.CreateIndex != allocation.ModifyIndex {
-					continue
-				}
+	if result == nil {
+		return
+	}
 
-				if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
-					queuedAllocs[allocation.TaskGroup] -= 1
-				} else {
-					logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
-				}
+	for _, allocations := range result.NodeAllocation {
+		for _, allocation := range allocations {
+			// Ensure that the allocation is newly created. We check that
+			// the CreateIndex is equal to the ModifyIndex in order to check
+			// that the allocation was just created. We do not check that
+			// the CreateIndex is equal to the results AllocIndex because
+			// the allocations we get back have gone through the planner's
+			// optimistic snapshot and thus their indexes may not be
+			// correct, but they will be consistent.
+			if allocation.CreateIndex != allocation.ModifyIndex {
+				continue
+			}
+
+			if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
+				queuedAllocs[allocation.TaskGroup] -= 1
+			} else {
+				logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
 			}
 		}
 	}
