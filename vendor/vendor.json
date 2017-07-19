@@ -875,18 +875,10 @@
 			"revisionTime": "2016-06-01T22:40:23Z"
 		},
 		{
-			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
-			"comment": "v0.7.0-18-gc4c55f1",
+			"checksumSHA1": "/oss17GO4hXGM7QnUdI3VzcAHzA=",
 			"path": "github.com/hashicorp/serf/coordinate",
-			"revision": "b9642a47e6139e50548b6f14588a1a3c0839660a",
-			"revisionTime": "2016-09-14T16:26:25Z"
-		},
-		{
-			"checksumSHA1": "vLyudzMEdik8IpRY1H2vRa2PeLU=",
-			"comment": "v0.7.0-18-gc4c55f1",
-			"path": "github.com/hashicorp/serf/serf",
-			"revision": "b9642a47e6139e50548b6f14588a1a3c0839660a",
-			"revisionTime": "2016-09-14T16:26:25Z"
+			"revision": "bbeddf0b3ab3072a60525afbd6b6f47d33839eee",
+			"revisionTime": "2017-07-14T18:26:01Z"
 		},
 		{
 			"checksumSHA1": "eGzvBRMFD6ZB3A6uO750np7Om/E=",
