@@ -170,7 +170,7 @@ func (w *Watcher) watchDeployments() {
 		// Block getting all deployments using the last deployment index.
 		resp, err := w.getDeploys(dindex)
 		if err != nil {
-			if err == context.Canceled {
+			if err == context.Canceled || w.ctx.Err() == context.Canceled {
 				return
 			}
 
