@@ -9,6 +9,8 @@ IMPROVEMENTS:
    [GH-2621, GH-2634, GH-2799]
  * core: Back-pressure when evaluations are nacked and ensure scheduling
    progress on evaluation failures [GH-2555]
+ * core/networking: Shrink dynamic port range to not overlap with majority of
+   operating system's ephemeral port ranges to avoid port conflicts [GH-2856]
  * agent/config: Late binding to IP addresses using go-sockaddr/template syntax
    [GH-2399]
  * api: Add `verify_https_client` to require certificates from HTTP clients
