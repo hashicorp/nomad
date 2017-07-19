@@ -177,9 +177,12 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	if autorevert {
 		rowString += "Auto Revert|"
 	}
+	if canaries {
+		rowString += "Promoted|"
+	}
 	rowString += "Desired|"
 	if canaries {
-		rowString += "Canaries|Promoted|"
+		rowString += "Canaries|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
 
@@ -191,10 +194,12 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)
 		}
+		if canaries {
+			row += fmt.Sprintf("%v|", state.Promoted)
+		}
 		row += fmt.Sprintf("%d|", state.DesiredTotal)
 		if canaries {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
-			row += fmt.Sprintf("%v|", state.Promoted)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
 		rows[i] = row

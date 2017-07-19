@@ -122,7 +122,11 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't pause terminal deployment")
+		if args.Pause {
+			return fmt.Errorf("can't pause terminal deployment")
+		}
+
+		return fmt.Errorf("can't resume terminal deployment")
 	}
 
 	// Call into the deployment watcher

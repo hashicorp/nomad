@@ -42,7 +42,7 @@ func (c *DeploymentFailCommand) Synopsis() string {
 func (c *DeploymentFailCommand) Run(args []string) int {
 	var detach, verbose bool
 
-	flags := c.Meta.FlagSet("deployment resume", FlagSetClient)
+	flags := c.Meta.FlagSet("deployment fail", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
