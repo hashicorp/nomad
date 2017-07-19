@@ -233,22 +233,22 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 10s, got: %s", threshold)
 	}
 
-	conf.Server.HeartbeatGrace = "42g"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
-	out, err = a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
-		t.Fatalf("expected unknown unit error, got: %#v", err)
-	}
-
-	conf.Server.HeartbeatGrace = "37s"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	conf.Server.HeartbeatGrace = 37 * time.Second
 	out, err = a.serverConfig()
 	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
 		t.Fatalf("expect 37s, got: %s", threshold)
+	}
+
+	conf.Server.MinHeartbeatTTL = 37 * time.Second
+	out, err = a.serverConfig()
+	if min := out.MinHeartbeatTTL; min != time.Second*37 {
+		t.Fatalf("expect 37s, got: %s", min)
+	}
+
+	conf.Server.MaxHeartbeatsPerSecond = 11.0
+	out, err = a.serverConfig()
+	if max := out.MaxHeartbeatsPerSecond; max != 11.0 {
+		t.Fatalf("expect 11, got: %s", max)
 	}
 
 	// Defaults to the global bind addr
