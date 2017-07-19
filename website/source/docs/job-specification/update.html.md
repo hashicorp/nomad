@@ -82,6 +82,11 @@ job "docs" {
   allocations off nodes marked for draining. This is specified using a label
   suffix like "30s" or "1h".
 
+- `canary` `(int: 0)` - Specifies that Nomad will create a canary allocation, 
+  the canary is created without stopping any previous allocations. To remove
+  the old allocations the operator must manually promote the canary. [Canary Up
+  grades](/docs/job-specification/update.html#canary-upgrades)
+
 ## `update` Examples
 
 The following examples only show the `update` stanzas. Remember that the
@@ -131,6 +136,14 @@ update {
   max_parallel = 3
 }
 ```
+
+Promotion of the canary allocation can be completed using the cli with the command:
+
+```bash
+$ nomad deployment promote [options] <deployment id>
+```
+
+or by using the [Nomad API](/api/deployments.html#promote-deployment)
 
 ### Serial Upgrades
 

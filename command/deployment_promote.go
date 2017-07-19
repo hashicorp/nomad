@@ -49,7 +49,7 @@ Promote Options:
 }
 
 func (c *DeploymentPromoteCommand) Synopsis() string {
-	return "Manually fail a deployment"
+	return "Manually promote a deployment"
 }
 
 func (c *DeploymentPromoteCommand) Run(args []string) int {
