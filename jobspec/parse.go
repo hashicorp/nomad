@@ -159,7 +159,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
-		if err := parseUpdate(&result.Update, o, ""); err != nil {
+		if err := parseUpdate(&result.Update, o, 0); err != nil {
 			return multierror.Prefix(err, "update ->")
 		}
 	}
@@ -323,7 +323,10 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// If we have an update strategy, then parse that
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
-			count := fmt.Sprintf("%d", *g.Count)
+			count := 1
+			if g.Count != nil {
+				count = *g.Count
+			}
 			if err := parseUpdate(&g.Update, o, count); err != nil {
 				return multierror.Prefix(err, "update ->")
 			}
@@ -549,7 +552,7 @@ func parseBool(value interface{}) (bool, error) {
 	return enabled, err
 }
 
-func parseMaxParallel(maxParallel, count string) (string, error) {
+func parseMaxParallel(maxParallel string, count int) (string, error) {
 	var maxPar, countf float64
 	jobVal := maxParallel
 	var percent bool
@@ -560,10 +563,7 @@ func parseMaxParallel(maxParallel, count string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		countf, err = strconv.ParseFloat(count, 64)
-		if err != nil {
-			return "", err
-		}
+		countf = float64(count)
 		maxParVal := math.Ceil((maxPar * countf) / 100.0)
 		maxParallel = strconv.FormatFloat(maxParVal, 'f', -1, 64)
 		percent = true
@@ -1146,7 +1146,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 	return nil
 }
 
-func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList, count string) error {
+func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList, count int) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'update' block allowed")
@@ -1175,7 +1175,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList, count string
 		return err
 	}
 
-	if val, ok := m["max_parallel"].(string); ok && count != "" {
+	if val, ok := m["max_parallel"].(string); ok && count != 0 {
 		var parErr error
 		m["max_parallel"], parErr = parseMaxParallel(val, count)
 		if parErr != nil {
