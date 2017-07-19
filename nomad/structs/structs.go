@@ -1958,14 +1958,13 @@ var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
-		Stagger:            30 * time.Second,
-		MaxParallel:        0,
-		MaxParallelPercent: "0%",
-		HealthCheck:        UpdateStrategyHealthCheck_Checks,
-		MinHealthyTime:     10 * time.Second,
-		HealthyDeadline:    5 * time.Minute,
-		AutoRevert:         false,
-		Canary:             0,
+		Stagger:         30 * time.Second,
+		MaxParallel:     0,
+		HealthCheck:     UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+		AutoRevert:      false,
+		Canary:          0,
 	}
 )
 
@@ -2000,11 +1999,6 @@ type UpdateStrategy struct {
 	// Canary is the number of canaries to deploy when a change to the task
 	// group is detected.
 	Canary int
-
-	// MaxParallelPercent specifies the value of MaxParallel as a percentage of
-	// the group Count. If both MaxParallelPercent and MaxParallel are defined,
-	// MaxParallelPercet takes precedence over MaxParallel
-	MaxParallelPercent string
 }
 
 func (u *UpdateStrategy) Copy() *UpdateStrategy {

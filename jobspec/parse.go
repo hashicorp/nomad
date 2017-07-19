@@ -159,7 +159,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
-		if err := parseUpdate(&result.Update, o); err != nil {
+		if err := parseUpdate(&result.Update, o, ""); err != nil {
 			return multierror.Prefix(err, "update ->")
 		}
 	}
@@ -323,15 +323,9 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// If we have an update strategy, then parse that
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
-			if err := parseUpdate(&g.Update, o); err != nil {
+			count := fmt.Sprintf("%d", *g.Count)
+			if err := parseUpdate(&g.Update, o, count); err != nil {
 				return multierror.Prefix(err, "update ->")
-			}
-			if g.Update.MaxParallelPercent != nil && g.Count != nil {
-				maxPar, err := parseMaxParallelPercent(*g.Update.MaxParallelPercent, *g.Count)
-				if err != nil {
-					return err
-				}
-				g.Update.MaxParallel = helper.IntToPtr(maxPar)
 			}
 		}
 
@@ -555,22 +549,33 @@ func parseBool(value interface{}) (bool, error) {
 	return enabled, err
 }
 
-func parseMaxParallelPercent(maxParallelPercent string, count int) (int, error) {
-	jobVal := maxParallelPercent
-	maxParallelPercent = strings.Replace(maxParallelPercent, "%", "", -1)
-	maxPar, err := strconv.ParseFloat(maxParallelPercent, 64)
-	if err != nil {
-		return 0, err
+func parseMaxParallel(maxParallel, count string) (string, error) {
+	var maxPar, countf float64
+	jobVal := maxParallel
+	var percent bool
+	var err error
+	if strings.Contains(maxParallel, "%") {
+		maxParallel = strings.Replace(maxParallel, "%", "", -1)
+		maxPar, err = strconv.ParseFloat(maxParallel, 64)
+		if err != nil {
+			return "", err
+		}
+		countf, err = strconv.ParseFloat(count, 64)
+		if err != nil {
+			return "", err
+		}
+		maxParVal := math.Ceil((maxPar * countf) / 100.0)
+		maxParallel = strconv.FormatFloat(maxParVal, 'f', -1, 64)
+		percent = true
 	}
-	countf := float64(count)
-	maxParVal := math.Ceil((maxPar * countf) / 100.0)
-	maxParallel := int(maxParVal)
-	if maxPar > 100.0 {
-		err := fmt.Errorf("Percent may not be greater than 100, current value \"%v\" in update strategy, please fix the jobspec", jobVal)
-		return 0, err
+	if !percent {
+		return maxParallel, nil
+	} else if maxPar > 100.0 {
+		err = fmt.Errorf("Percent may not be greater than 100, current value \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return "", err
 	} else if maxPar <= 0.0 {
-		err := fmt.Errorf("Malformatted value (or 0) \"%v\" in update strategy, please fix the jobspec", jobVal)
-		return 0, err
+		err = fmt.Errorf("Malformatted value (or 0) \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return "", err
 	}
 	return maxParallel, nil
 }
@@ -1141,7 +1146,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 	return nil
 }
 
-func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
+func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList, count string) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'update' block allowed")
@@ -1160,7 +1165,6 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 		"stagger",
 		"max_parallel",
-		"max_parallel_percent",
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",
@@ -1169,6 +1173,14 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
+	}
+
+	if val, ok := m["max_parallel"].(string); ok && count != "" {
+		var parErr error
+		m["max_parallel"], parErr = parseMaxParallel(val, count)
+		if parErr != nil {
+			return parErr
+		}
 	}
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
