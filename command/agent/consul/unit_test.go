@@ -1250,7 +1250,7 @@ func TestIsNomadService(t *testing.T) {
 		t.Run(test.id, func(t *testing.T) {
 			actual := isNomadService(test.id)
 			if actual != test.result {
-				t.Error("%q should be %t but found %t", test.id, test.result, actual)
+				t.Errorf("%q should be %t but found %t", test.id, test.result, actual)
 			}
 		})
 	}
