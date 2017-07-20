@@ -416,6 +416,13 @@ func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
 
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
+	r.destroyLock.Lock()
+	defer r.destroyLock.Unlock()
+	if r.destroy {
+		// Don't save state if already destroyed
+		return nil
+	}
+
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 	snap := taskRunnerState{
