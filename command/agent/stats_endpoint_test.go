@@ -7,6 +7,7 @@ import (
 )
 
 func TestClientStatsRequest(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/stats/?since=foo", nil)
 		if err != nil {

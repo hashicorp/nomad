@@ -60,6 +60,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 }
 
 func TestSetIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setIndex(resp, 1000)
 	header := resp.Header().Get("X-Nomad-Index")
@@ -73,6 +74,7 @@ func TestSetIndex(t *testing.T) {
 }
 
 func TestSetKnownLeader(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setKnownLeader(resp, true)
 	header := resp.Header().Get("X-Nomad-KnownLeader")
@@ -88,6 +90,7 @@ func TestSetKnownLeader(t *testing.T) {
 }
 
 func TestSetLastContact(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setLastContact(resp, 123456*time.Microsecond)
 	header := resp.Header().Get("X-Nomad-LastContact")
@@ -97,6 +100,7 @@ func TestSetLastContact(t *testing.T) {
 }
 
 func TestSetMeta(t *testing.T) {
+	t.Parallel()
 	meta := structs.QueryMeta{
 		Index:       1000,
 		KnownLeader: true,
@@ -119,6 +123,7 @@ func TestSetMeta(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
 	defer s.Shutdown()
@@ -139,6 +144,7 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestContentTypeIsJSON(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -159,14 +165,17 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=1", true, t)
 }
 
 func TestPrettyPrintOff(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty", true, t)
 }
 
@@ -203,6 +212,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 }
 
 func TestParseWait(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -225,6 +235,7 @@ func TestParseWait(t *testing.T) {
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -244,6 +255,7 @@ func TestParseWait_InvalidTime(t *testing.T) {
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -263,6 +275,7 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 }
 
 func TestParseConsistency(t *testing.T) {
+	t.Parallel()
 	var b structs.QueryOptions
 
 	req, err := http.NewRequest("GET",
@@ -290,6 +303,7 @@ func TestParseConsistency(t *testing.T) {
 }
 
 func TestParseRegion(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -320,6 +334,7 @@ func TestParseRegion(t *testing.T) {
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
+	t.Parallel()
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"

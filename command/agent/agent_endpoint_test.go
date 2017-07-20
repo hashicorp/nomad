@@ -13,6 +13,7 @@ import (
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
@@ -39,6 +40,8 @@ func TestHTTP_AgentSelf(t *testing.T) {
 }
 
 func TestHTTP_AgentJoin(t *testing.T) {
+	// TODO(alexdadgar)
+	// t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
@@ -70,6 +73,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 }
 
 func TestHTTP_AgentMembers(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
@@ -93,6 +97,7 @@ func TestHTTP_AgentMembers(t *testing.T) {
 }
 
 func TestHTTP_AgentForceLeave(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
@@ -110,6 +115,7 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 }
 
 func TestHTTP_AgentSetServers(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Establish a baseline number of servers
 		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
@@ -183,6 +189,8 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 }
 
 func TestHTTP_AgentListKeys(t *testing.T) {
+	t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 
 	httpTest(t, func(c *Config) {
@@ -206,6 +214,9 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 }
 
 func TestHTTP_AgentInstallKey(t *testing.T) {
+	// TODO(alexdadgar)
+	// t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
 
@@ -244,6 +255,9 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 }
 
 func TestHTTP_AgentRemoveKey(t *testing.T) {
+	// TODO(alexdadgar)
+	// t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
 

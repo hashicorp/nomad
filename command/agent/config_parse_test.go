@@ -13,6 +13,7 @@ import (
 )
 
 func TestConfig_Parse(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		File   string
 		Result *Config

@@ -102,6 +102,7 @@ func (a *TestAgent) Start() *TestAgent {
 
 	for i := 10; i >= 0; i-- {
 		pickRandomPorts(a.Config)
+		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
 
 		// write the keyring
 		if a.Key != "" {
@@ -122,7 +123,9 @@ func (a *TestAgent) Start() *TestAgent {
 			fmt.Println(a.Name, "Error starting agent:", err)
 			runtime.Goexit()
 		} else {
-			agent.Shutdown()
+			if agent != nil {
+				agent.Shutdown()
+			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
 			fmt.Println(a.Name, "retrying in", wait)
 			time.Sleep(wait)
@@ -231,6 +234,10 @@ func pickRandomPorts(c *Config) {
 	c.Ports.HTTP = port + 1
 	c.Ports.RPC = port + 2
 	c.Ports.Serf = port + 3
+
+	if err := c.normalizeAddrs(); err != nil {
+		panic(fmt.Sprintf("error normalizing config: %v", err))
+	}
 }
 
 // TestConfig returns a unique default configuration for testing an
@@ -245,7 +252,6 @@ func (a *TestAgent) config() *Config {
 	// Bind and set ports
 	conf.BindAddr = "127.0.0.1"
 
-	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
 	conf.Consul = sconfig.DefaultConsulConfig()
 	conf.Vault.Enabled = new(bool)
 
@@ -262,10 +268,6 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
 	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
-
-	if err := conf.normalizeAddrs(); err != nil {
-		panic(fmt.Sprintf("error normalizing config: %v", err))
-	}
 
 	if a.ConfigCallback != nil {
 		a.ConfigCallback(conf)

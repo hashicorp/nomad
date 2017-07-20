@@ -13,6 +13,7 @@ import (
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -59,6 +60,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 }
 
 func TestHTTP_AllocsPrefixList(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -118,6 +120,7 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -164,6 +167,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery_Payload(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -220,6 +224,7 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_AllocStats(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/foo", nil)
@@ -237,6 +242,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 }
 
 func TestHTTP_AllocSnapshot(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
@@ -254,6 +260,7 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 }
 
 func TestHTTP_AllocGC(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
@@ -271,6 +278,7 @@ func TestHTTP_AllocGC(t *testing.T) {
 }
 
 func TestHTTP_AllocAllGC(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/gc", nil)

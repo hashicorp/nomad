@@ -10,6 +10,7 @@ import (
 )
 
 func TestHTTP_EvalList(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -54,6 +55,7 @@ func TestHTTP_EvalList(t *testing.T) {
 }
 
 func TestHTTP_EvalPrefixList(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -105,6 +107,7 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 }
 
 func TestHTTP_EvalAllocations(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -153,6 +156,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 }
 
 func TestHTTP_EvalQuery(t *testing.T) {
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
