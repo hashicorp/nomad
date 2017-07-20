@@ -283,6 +283,7 @@ func (r *AllocRunner) RestoreState() error {
 	}
 
 	// Restore the task runners
+	taskDestroyEvent := structs.NewTaskEvent(structs.TaskKilled)
 	var mErr multierror.Error
 	for _, task := range tg.Tasks {
 		name := task.Name
@@ -300,13 +301,13 @@ func (r *AllocRunner) RestoreState() error {
 			td = r.allocDir.NewTaskDir(name)
 		}
 
-		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
-		r.tasks[name] = tr
-
 		// Skip tasks in terminal states.
 		if state.State == structs.TaskStateDead {
 			continue
 		}
+
+		tr := NewTaskRunner(r.logger, r.config, r.stateDB, r.setTaskState, td, r.Alloc(), task, r.vaultClient, r.consulClient)
+		r.tasks[name] = tr
 
 		if restartReason, err := tr.RestoreState(); err != nil {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task %q: %v", r.allocID, name, err)
@@ -326,6 +327,8 @@ func (r *AllocRunner) RestoreState() error {
 				r.logger.Printf("[INFO] client: restarting alloc %s task %s: %v", r.allocID, name, restartReason)
 				tr.Restart("upgrade", restartReason)
 			}
+		} else {
+			tr.Destroy(taskDestroyEvent)
 		}
 	}
 
