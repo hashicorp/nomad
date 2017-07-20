@@ -44,6 +44,9 @@ const (
 	// TaskName is the environment variable for passing the task name.
 	TaskName = "NOMAD_TASK_NAME"
 
+	// GroupName is the environment variable for passing the task group name.
+	GroupName = "NOMAD_GROUP_NAME"
+
 	// JobName is the environment variable for passing the job name.
 	JobName = "NOMAD_JOB_NAME"
 
@@ -208,6 +211,7 @@ type Builder struct {
 	region           string
 	allocId          string
 	allocName        string
+	groupName        string
 	vaultToken       string
 	injectVaultToken bool
 	jobName          string
@@ -276,6 +280,9 @@ func (b *Builder) Build() *TaskEnv {
 	}
 	if b.allocName != "" {
 		envMap[AllocName] = b.allocName
+	}
+	if b.groupName != "" {
+		envMap[GroupName] = b.groupName
 	}
 	if b.allocIndex != -1 {
 		envMap[AllocIndex] = strconv.Itoa(b.allocIndex)
@@ -380,6 +387,7 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.allocId = alloc.ID
 	b.allocName = alloc.Name
+	b.groupName = alloc.TaskGroup
 	b.allocIndex = int(alloc.Index())
 	b.jobName = alloc.Job.Name
 
