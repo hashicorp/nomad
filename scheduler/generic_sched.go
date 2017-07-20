@@ -455,7 +455,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	return s.computePlacements(destructive, place)
 }
 
-// computePlacements computes placements for allocations
+// computePlacements computes placements for allocations. It is given the set of
+// destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
 	nodes, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
