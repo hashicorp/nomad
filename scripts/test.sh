@@ -21,5 +21,5 @@ go build -i -tags "$GOTEST_TAGS" -o $TEMPDIR/nomad || exit 1
 echo "--> Running tests"
 GOBIN="`which go`"
 sudo -E PATH=$TEMPDIR:$PATH  -E GOPATH=$GOPATH   -E NOMAD_TEST_RKT=1 \
-    $GOBIN test -tags "$GOTEST_TAGS" ${GOTEST_FLAGS:--cover -timeout=900s} $($GOBIN list ./... | grep -v /vendor/)
+    $GOBIN test -tags "$GOTEST_TAGS" ${GOTEST_FLAGS:--cover -timeout=900s -v -parallel 16} $($GOBIN list ./... | grep -v /vendor/)
 
