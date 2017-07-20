@@ -12,7 +12,7 @@ import (
 
 func TestHTTP_DeploymentList(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
@@ -42,7 +42,7 @@ func TestHTTP_DeploymentList(t *testing.T) {
 
 func TestHTTP_DeploymentPrefixList(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
@@ -75,7 +75,7 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 
 func TestHTTP_DeploymentAllocations(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -113,7 +113,7 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 
 func TestHTTP_DeploymentQuery(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d := mock.Deployment()
@@ -141,7 +141,7 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 
 func TestHTTP_DeploymentPause(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -178,7 +178,7 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 
 func TestHTTP_DeploymentPromote(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -215,7 +215,7 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 
 func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -256,7 +256,7 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 
 func TestHTTP_DeploymentFail(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()

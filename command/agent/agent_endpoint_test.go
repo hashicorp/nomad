@@ -13,7 +13,7 @@ import (
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
 		if err != nil {
@@ -39,7 +39,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 }
 
 func TestHTTP_AgentJoin(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
 		addr := fmt.Sprintf("%s:%d", member.Addr, member.Port)
@@ -70,7 +70,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 }
 
 func TestHTTP_AgentMembers(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
 		if err != nil {
@@ -93,7 +93,7 @@ func TestHTTP_AgentMembers(t *testing.T) {
 }
 
 func TestHTTP_AgentForceLeave(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
 		if err != nil {
@@ -110,7 +110,7 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 }
 
 func TestHTTP_AgentSetServers(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Establish a baseline number of servers
 		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
 		if err != nil {
@@ -187,7 +187,7 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -211,7 +211,7 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -249,7 +249,7 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
 		if err != nil {
 			t.Fatalf("err: %v", err)

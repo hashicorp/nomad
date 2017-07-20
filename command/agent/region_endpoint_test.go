@@ -7,7 +7,7 @@ import (
 )
 
 func TestHTTP_RegionList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/regions", nil)
 		if err != nil {

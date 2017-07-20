@@ -7,7 +7,7 @@ import (
 )
 
 func TestHTTP_StatusLeader(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/status/leader", nil)
 		if err != nil {
@@ -29,7 +29,7 @@ func TestHTTP_StatusLeader(t *testing.T) {
 }
 
 func TestHTTP_StatusPeers(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/status/peers", nil)
 		if err != nil {

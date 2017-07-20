@@ -18,7 +18,7 @@ import (
 )
 
 func TestHTTP_JobsList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
 			job := mock.Job()
@@ -70,7 +70,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		"aabbbbbb-e8f7-fd38-c855-ab94ceb89706",
 		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
 	}
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
 			job := mock.Job()
@@ -119,7 +119,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := api.MockJob()
 		args := api.JobRegisterRequest{
@@ -169,7 +169,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := api.MockJob()
 
@@ -226,7 +226,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 }
 
 func TestHTTP_JobQuery(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -271,7 +271,7 @@ func TestHTTP_JobQuery(t *testing.T) {
 }
 
 func TestHTTP_JobQuery_Payload(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 
@@ -324,7 +324,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_JobUpdate(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := api.MockJob()
 		args := api.JobRegisterRequest{
@@ -374,7 +374,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 }
 
 func TestHTTP_JobDelete(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -466,7 +466,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 }
 
 func TestHTTP_JobForceEvaluate(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -505,7 +505,7 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 }
 
 func TestHTTP_JobEvaluations(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -552,7 +552,7 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 }
 
 func TestHTTP_JobAllocations(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		alloc1 := mock.Alloc()
 		args := structs.JobRegisterRequest{
@@ -605,7 +605,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 
 func TestHTTP_JobDeployments(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -643,7 +643,7 @@ func TestHTTP_JobDeployments(t *testing.T) {
 
 func TestHTTP_JobDeployment(t *testing.T) {
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -680,7 +680,7 @@ func TestHTTP_JobDeployment(t *testing.T) {
 }
 
 func TestHTTP_JobVersions(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
 		args := structs.JobRegisterRequest{
@@ -751,7 +751,7 @@ func TestHTTP_JobVersions(t *testing.T) {
 }
 
 func TestHTTP_PeriodicForce(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create and register a periodic job.
 		job := mock.PeriodicJob()
 		args := structs.JobRegisterRequest{
@@ -790,7 +790,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 }
 
 func TestHTTP_JobPlan(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := api.MockJob()
 		args := api.JobPlanRequest{
@@ -826,7 +826,7 @@ func TestHTTP_JobPlan(t *testing.T) {
 }
 
 func TestHTTP_JobDispatch(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
 		job := mock.Job()
 		job.Type = "batch"
@@ -874,7 +874,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 }
 
 func TestHTTP_JobRevert(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
 		regReq := structs.JobRegisterRequest{
@@ -926,7 +926,7 @@ func TestHTTP_JobRevert(t *testing.T) {
 }
 
 func TestHTTP_JobStable(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
 		regReq := structs.JobRegisterRequest{

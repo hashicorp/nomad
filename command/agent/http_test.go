@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -23,41 +22,17 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-type TestServer struct {
-	T      testing.TB
-	Dir    string
-	Agent  *Agent
-	Server *HTTPServer
-}
-
-func (s *TestServer) Cleanup() {
-	s.Server.Shutdown()
-	s.Agent.Shutdown()
-	os.RemoveAll(s.Dir)
-}
-
 // makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
-func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
-	dir, agent := makeAgent(t, cb)
-	srv, err := NewHTTPServer(agent, agent.config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	s := &TestServer{
-		T:      t,
-		Dir:    dir,
-		Agent:  agent,
-		Server: srv,
-	}
-	return s
+func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestAgent {
+	return NewTestAgent(t.Name(), cb)
 }
 
 func BenchmarkHTTPRequests(b *testing.B) {
 	s := makeHTTPServer(b, func(c *Config) {
 		c.Client.Enabled = false
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	job := mock.Job()
 	var allocs []*structs.Allocation
@@ -146,7 +121,7 @@ func TestSetMeta(t *testing.T) {
 func TestSetHeaders(t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -165,7 +140,7 @@ func TestSetHeaders(t *testing.T) {
 
 func TestContentTypeIsJSON(t *testing.T) {
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 
@@ -197,7 +172,7 @@ func TestPrettyPrintBare(t *testing.T) {
 
 func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	r := &structs.Job{Name: "foo"}
 
@@ -316,7 +291,7 @@ func TestParseConsistency(t *testing.T) {
 
 func TestParseRegion(t *testing.T) {
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	req, err := http.NewRequest("GET",
 		"/v1/jobs?region=foo", nil)
@@ -360,7 +335,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 			KeyFile:           fookey,
 		}
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
@@ -492,9 +467,9 @@ func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
 	return uint64(val)
 }
 
-func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestServer)) {
+func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
-	defer s.Cleanup()
+	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
 }

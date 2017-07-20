@@ -7,7 +7,7 @@ import (
 )
 
 func TestClientStatsRequest(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/stats/?since=foo", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
