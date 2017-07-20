@@ -88,7 +88,8 @@ type AllocRunner struct {
 
 	// State related fields
 	// stateDB is used to store the alloc runners state
-	stateDB *bolt.DB
+	stateDB        *bolt.DB
+	allocStateLock sync.Mutex
 
 	// persistedEval is the last persisted evaluation ID. Since evaluation
 	// IDs change on every allocation update we only need to persist the
@@ -352,6 +353,13 @@ func (r *AllocRunner) SaveState() error {
 }
 
 func (r *AllocRunner) saveAllocRunnerState() error {
+	r.allocStateLock.Lock()
+	defer r.allocStateLock.Unlock()
+
+	if r.ctx.Err() == context.Canceled {
+		return nil
+	}
+
 	// Grab all the relevant data
 	alloc := r.Alloc()
 
@@ -445,6 +453,9 @@ func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
 
 // DestroyState is used to cleanup after ourselves
 func (r *AllocRunner) DestroyState() error {
+	r.allocStateLock.Lock()
+	defer r.allocStateLock.Unlock()
+
 	return r.stateDB.Update(func(tx *bolt.Tx) error {
 		if err := deleteAllocationBucket(tx, r.allocID); err != nil {
 			return fmt.Errorf("failed to delete allocation bucket: %v", err)
@@ -994,6 +1005,11 @@ func (r *AllocRunner) shouldUpdate(serverIndex uint64) bool {
 
 // Destroy is used to indicate that the allocation context should be destroyed
 func (r *AllocRunner) Destroy() {
+	// Lock when closing the context as that gives the save state code
+	// serialization.
+	r.allocStateLock.Lock()
+	defer r.allocStateLock.Unlock()
+
 	r.exitFn()
 	r.allocBroadcast.Close()
 }
