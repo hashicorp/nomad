@@ -122,11 +122,11 @@ $font-size-reg:         16px;
               transform: rotate(210deg) skewX(-30deg) scaleY(0.864);
             }
             &.left{
-              background-color: $nomad-green-dark;
+              background-color: $nomad-green;
               transform: rotate(90deg) skewX(-30deg) scaleY(0.864);
             }
             &.right{
-              background-color: $nomad-green-light;
+              background-color: $nomad-green-dark;
               transform: rotate(-30deg) skewX(-30deg) scaleY(0.864);
             }
           }
