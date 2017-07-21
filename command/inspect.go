@@ -23,6 +23,9 @@ General Options:
 
 Inspect Options:
 
+  -version <job version>
+    Display only the history for the given job version.
+
   -json
     Output the job in its JSON format.
 
@@ -38,12 +41,13 @@ func (c *InspectCommand) Synopsis() string {
 
 func (c *InspectCommand) Run(args []string) int {
 	var json bool
-	var tmpl string
+	var tmpl, versionStr string
 
 	flags := c.Meta.FlagSet("inspect", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&versionStr, "version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -93,12 +97,23 @@ func (c *InspectCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
+	}
+
+	var version *uint64
+	if versionStr != "" {
+		v, _, err := parseVersion(versionStr)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing version value %q: %v", versionStr, err))
+			return 1
+		}
+
+		version = &v
 	}
 
 	// Prefix lookup matched a single job
-	job, _, err := client.Jobs().Info(jobs[0].ID, nil)
+	job, err := getJob(client, jobs[0].ID, version)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error inspecting job: %s", err))
 		return 1
@@ -131,4 +146,26 @@ func (c *InspectCommand) Run(args []string) int {
 	}
 	c.Ui.Output(out)
 	return 0
+}
+
+// getJob retrieves the job optionally at a particular version.
+func getJob(client *api.Client, jobID string, version *uint64) (*api.Job, error) {
+	if version == nil {
+		job, _, err := client.Jobs().Info(jobID, nil)
+		return job, err
+	}
+
+	versions, _, _, err := client.Jobs().Versions(jobID, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, j := range versions {
+		if *j.Version != *version {
+			continue
+		}
+		return j, nil
+	}
+
+	return nil, fmt.Errorf("job %q with version %d couldn't be found", jobID, *version)
 }

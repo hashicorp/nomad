@@ -30,7 +30,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 			"deployment resume", "deployment fail", "deployment promote":
 		case "executor":
 		case "fs ls", "fs cat", "fs stat":
-		case "job deployments", "job dispatch", "job history", "job revert":
+		case "job deployments", "job dispatch", "job history", "job promote", "job revert":
 		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
 		case "syslog":
 		default:

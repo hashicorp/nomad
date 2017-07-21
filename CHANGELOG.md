@@ -1,5 +1,9 @@
 ## 0.6.0 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * cli: When given a prefix that does not resolve to a particular object,
+   commands now return exit code 1 rather than 0.
+
 IMPROVEMENTS:
  * core: Rolling updates based on allocation health [GH-2621, GH-2634, GH-2799]
  * core: New deployment object to track job updates [GH-2621, GH-2634, GH-2799]

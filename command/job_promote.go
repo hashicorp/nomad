@@ -8,21 +8,22 @@ import (
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 )
 
-type DeploymentPromoteCommand struct {
+type JobPromoteCommand struct {
 	Meta
 }
 
-func (c *DeploymentPromoteCommand) Help() string {
+func (c *JobPromoteCommand) Help() string {
 	helpText := `
-Usage: nomad deployment promote [options] <deployment id>
+Usage: nomad job promote [options] <job id>
 
-Promote is used to promote task groups in a deployment. Promotion should occur
-when the deployment has placed canaries for a task group and those canaries have
-been deemed healthy. When a task group is promoted, the rolling upgrade of the
-remaining allocations is unblocked. If the canaries are found to be unhealthy,
-the deployment may either be failed using the "nomad deployment fail" command,
-the job can be failed forward by submitting a new version or failed backwards by
-reverting to an older version using the "nomad job revert" command.
+Promote is used to promote task groups in the most recent deployment for the
+given job. Promotion should occur when the deployment has placed canaries for a
+task group and those canaries have been deemed healthy. When a task group is
+promoted, the rolling upgrade of the remaining allocations is unblocked. If the
+canaries are found to be unhealthy, the deployment may either be failed using
+the "nomad deployment fail" command, the job can be failed forward by submitting
+a new version or failed backwards by reverting to an older version using the
+"nomad job revert" command.
 
 General Options:
 
@@ -45,15 +46,15 @@ Promote Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *DeploymentPromoteCommand) Synopsis() string {
-	return "Promote canaries in a deployment"
+func (c *JobPromoteCommand) Synopsis() string {
+	return "Promote a job's canaries"
 }
 
-func (c *DeploymentPromoteCommand) Run(args []string) int {
+func (c *JobPromoteCommand) Run(args []string) int {
 	var detach, verbose bool
 	var groups []string
 
-	flags := c.Meta.FlagSet("deployment promote", FlagSetClient)
+	flags := c.Meta.FlagSet("job promote", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -69,7 +70,6 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
-	dID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -84,15 +84,32 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Check if the job exists
+	jobID := args[0]
+	jobs, _, err := client.Jobs().PrefixList(jobID)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error promoting job: %s", err))
+		return 1
+	}
+	if len(jobs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+		return 1
+	}
+	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
+	}
+	jobID = jobs[0].ID
+
 	// Do a prefix lookup
-	deploy, possible, err := getDeployment(client.Deployments(), dID)
+	deploy, _, err := client.Jobs().LatestDeployment(jobID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployment: %s", err))
 		return 1
 	}
 
-	if len(possible) != 0 {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+	if deploy == nil {
+		c.Ui.Error(fmt.Sprintf("Job %q has no deployment to promote", jobID))
 		return 1
 	}
 
@@ -104,7 +121,7 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 	}
 
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error promoting deployment: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error promoting deployment %q for job %q: %s", deploy.ID, jobID, err))
 		return 1
 	}
 
