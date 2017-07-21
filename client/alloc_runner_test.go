@@ -629,7 +629,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 		return last.ClientStatus == structs.AllocClientStatusRunning, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar2.alloc.TaskStates["web"])
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates["web"])
 	})
 
 	// Destroy and wait
@@ -643,7 +644,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
@@ -728,7 +730,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	// Send the destroy signal and ensure the AllocRunner cleans up.
@@ -845,7 +848,8 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
