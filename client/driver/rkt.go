@@ -80,7 +80,7 @@ type RktDriverConfig struct {
 	Net              []string            `mapstructure:"net"`                // Networks for the containers
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
-	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
 	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
@@ -319,11 +319,22 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		}
 		for i, rawvol := range driverConfig.Volumes {
 			parts := strings.Split(rawvol, ":")
-			if len(parts) != 2 {
+			readOnly := "false"
+			// job spec:
+			//   volumes = ["/host/path:/container/path[:readOnly]"]
+			// the third parameter is optional, mount is read-write by default
+			if len(parts) == 3 {
+				if parts[2] == "readOnly" {
+					d.logger.Printf("[DEBUG] Mounting %s:%s as readOnly", parts[0], parts[1])
+					readOnly = "true"
+				} else {
+					d.logger.Printf("[WARN] Unknown volume parameter '%s' ignored for mount %s", parts[2], parts[0])
+				}
+			} else if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
 			volName := fmt.Sprintf("%s-%s-%d", d.DriverContext.allocID, sanitizedName, i)
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, parts[0]))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%s", volName, parts[0], readOnly))
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
 	}
