@@ -113,16 +113,18 @@ func TestStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Created At") {
 		t.Fatal("should have created header")
 	}
+	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
 
 	// Query jobs with prefix match
-	if code := cmd.Run([]string{"-address=" + url, "job"}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
+	if code := cmd.Run([]string{"-address=" + url, "job"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	out = ui.OutputWriter.String()
+	out = ui.ErrorWriter.String()
 	if !strings.Contains(out, "job1_sfx") || !strings.Contains(out, "job2_sfx") {
 		t.Fatalf("expected job1_sfx and job2_sfx, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
 
 	// Query a single job with prefix match
