@@ -172,10 +172,6 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				return
 			}
 
-			//if strings.Contains(err.Error(), "cluster leader") {
-			//panic(fmt.Sprintf("why: %v: %v", w.enabled, ctx.Err()))
-			//}
-
 			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
 		}
 
