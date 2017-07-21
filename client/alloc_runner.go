@@ -348,8 +348,9 @@ func (r *AllocRunner) SaveState() error {
 	runners := r.getTaskRunners()
 	var mErr multierror.Error
 	for _, tr := range runners {
-		if err := r.saveTaskRunnerState(tr); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+		if err := tr.SaveState(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to save state for alloc %s task %q: %v",
+				r.allocID, tr.task.Name, err))
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -444,14 +445,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 
 		return nil
 	})
-}
-
-func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
-	if err := tr.SaveState(); err != nil {
-		return fmt.Errorf("failed to save state for alloc %s task '%s': %v",
-			r.allocID, tr.task.Name, err)
-	}
-	return nil
 }
 
 // DestroyState is used to cleanup after ourselves
