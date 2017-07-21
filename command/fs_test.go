@@ -8,10 +8,12 @@ import (
 )
 
 func TestFSCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &FSCommand{}
 }
 
 func TestFSCommand_Fails(t *testing.T) {
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

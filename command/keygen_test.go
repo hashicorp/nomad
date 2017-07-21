@@ -8,6 +8,7 @@ import (
 )
 
 func TestKeygenCommand(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	c := &KeygenCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)

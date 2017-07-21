@@ -8,10 +8,12 @@ import (
 )
 
 func TestEvalStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &EvalStatusCommand{}
 }
 
 func TestEvalStatusCommand_Fails(t *testing.T) {
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

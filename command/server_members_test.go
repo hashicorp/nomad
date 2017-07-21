@@ -8,10 +8,12 @@ import (
 )
 
 func TestServerMembersCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &ServerMembersCommand{}
 }
 
 func TestServerMembersCommand_Run(t *testing.T) {
+	t.Parallel()
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -43,6 +45,7 @@ func TestServerMembersCommand_Run(t *testing.T) {
 }
 
 func TestMembersCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 

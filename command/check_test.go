@@ -8,6 +8,7 @@ import (
 )
 
 func TestAgentCheckCommand_ServerHealth(t *testing.T) {
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

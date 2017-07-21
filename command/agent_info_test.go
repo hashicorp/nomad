@@ -8,10 +8,12 @@ import (
 )
 
 func TestAgentInfoCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &AgentInfoCommand{}
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -25,6 +27,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 

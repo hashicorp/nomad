@@ -8,10 +8,12 @@ import (
 )
 
 func TestStopCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &StopCommand{}
 }
 
 func TestStopCommand_Fails(t *testing.T) {
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

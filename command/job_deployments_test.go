@@ -8,10 +8,12 @@ import (
 )
 
 func TestJobDeploymentsCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &JobDeploymentsCommand{}
 }
 
 func TestJobDeploymentsCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 

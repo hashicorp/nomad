@@ -8,10 +8,12 @@ import (
 )
 
 func TestJobRevertCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &JobDispatchCommand{}
 }
 
 func TestJobRevertCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
 
