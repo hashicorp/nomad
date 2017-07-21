@@ -21,6 +21,7 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("NOMAD_TEST_RKT unset, skipping")
 	}
@@ -41,6 +42,7 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -70,6 +72,7 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -121,6 +124,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -180,6 +184,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -233,6 +238,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -305,6 +311,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -349,6 +356,7 @@ func TestRktDriverUser(t *testing.T) {
 }
 
 func TestRktTrustPrefix(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -390,6 +398,7 @@ func TestRktTrustPrefix(t *testing.T) {
 }
 
 func TestRktTaskValidate(t *testing.T) {
+	t.Parallel()
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
@@ -415,6 +424,7 @@ func TestRktTaskValidate(t *testing.T) {
 
 // TODO: Port Mapping test should be ran with proper ACI image and test the port access.
 func TestRktDriver_PortsMapping(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -479,6 +489,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 }
 
 func TestRktDriver_HandlerExec(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
