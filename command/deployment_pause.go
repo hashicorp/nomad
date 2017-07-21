@@ -73,8 +73,8 @@ func (c *DeploymentPauseCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	if _, _, err := client.Deployments().Pause(deploy.ID, true, nil); err != nil {

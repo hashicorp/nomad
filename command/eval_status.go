@@ -137,8 +137,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 				failures,
 			)
 		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
+		return 1
 	}
 
 	// If we are in monitor mode, monitor and exit

@@ -81,8 +81,8 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	u, _, err := client.Deployments().Fail(deploy.ID, nil)

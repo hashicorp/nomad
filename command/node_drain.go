@@ -124,8 +124,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 				node.Status)
 		}
 		// Dump the output
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		return 1
 	}
 
 	// Prefix lookup matched a single node

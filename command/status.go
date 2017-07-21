@@ -121,8 +121,8 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
 	}
 	// Prefix lookup matched a single job
 	job, _, err := client.Jobs().Info(jobs[0].ID, nil)

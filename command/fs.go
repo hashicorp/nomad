@@ -160,8 +160,8 @@ func (f *FSCommand) Run(args []string) int {
 	if len(allocs) > 1 {
 		// Format the allocs
 		out := formatAllocListStubs(allocs, verbose, length)
-		f.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
-		return 0
+		f.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
+		return 1
 	}
 	// Prefix lookup matched a single allocation
 	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)

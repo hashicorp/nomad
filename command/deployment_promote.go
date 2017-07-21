@@ -92,8 +92,8 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	var u *api.DeploymentUpdateResponse
