@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -277,6 +278,12 @@ func (a *TestAgent) config() *Config {
 	// Bootstrap ourselves
 	config.Bootstrap = true
 	config.BootstrapExpect = 1
+
+	// Tighten the fingerprinter timeouts
+	if conf.Client.Options == nil {
+		conf.Client.Options = make(map[string]string)
+	}
+	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 
 	if a.ConfigCallback != nil {
 		a.ConfigCallback(conf)

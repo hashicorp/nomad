@@ -16,9 +16,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// This is where the AWS metadata server normally resides. We hardcode the
-// "instance" path as well since it's the only one we access here.
-const DEFAULT_AWS_URL = "http://169.254.169.254/latest/meta-data/"
+const (
+	// This is where the AWS metadata server normally resides. We hardcode the
+	// "instance" path as well since it's the only one we access here.
+	DEFAULT_AWS_URL = "http://169.254.169.254/latest/meta-data/"
+
+	// AwsMetadataTimeout is the timeout used when contacting the AWS metadata
+	// service
+	AwsMetadataTimeout = 2 * time.Second
+)
 
 // map of instance type to approximate speed, in Mbits/s
 // Estimates from http://stackoverflow.com/a/35806587
@@ -44,16 +50,25 @@ var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	timeout time.Duration
+	logger  *log.Logger
 }
 
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
-	f := &EnvAWSFingerprint{logger: logger}
+	f := &EnvAWSFingerprint{
+		logger:  logger,
+		timeout: AwsMetadataTimeout,
+	}
 	return f
 }
 
 func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Check if we should tighten the timeout
+	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
+		f.timeout = 1 * time.Millisecond
+	}
+
 	if !f.isAWS() {
 		return false, nil
 	}
@@ -71,9 +86,8 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		metadataURL = DEFAULT_AWS_URL
 	}
 
-	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout:   2 * time.Second,
+		Timeout:   f.timeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
@@ -174,9 +188,8 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 		metadataURL = DEFAULT_AWS_URL
 	}
 
-	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout:   2 * time.Second,
+		Timeout:   f.timeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
@@ -217,9 +230,8 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 		metadataURL = DEFAULT_AWS_URL
 	}
 
-	// assume 2 seconds is enough time for inside AWS network
 	client := &http.Client{
-		Timeout:   2 * time.Second,
+		Timeout:   f.timeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
