@@ -12,8 +12,8 @@ func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
-	s, _, addr := testServer(t, nil)
-	defer s.Stop()
+	s, _, addr := testServer(t, false, nil)
+	defer s.Shutdown()
 
 	ui := new(cli.MockUi)
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}

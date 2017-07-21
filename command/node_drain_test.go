@@ -12,8 +12,8 @@ func TestNodeDrainCommand_Implements(t *testing.T) {
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}

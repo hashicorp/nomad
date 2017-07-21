@@ -12,8 +12,8 @@ func TestOperator_Raft_ListPeers_Implements(t *testing.T) {
 }
 
 func TestOperator_Raft_ListPeers(t *testing.T) {
-	s, _, addr := testServer(t, nil)
-	defer s.Stop()
+	s, _, addr := testServer(t, false, nil)
+	defer s.Shutdown()
 
 	ui := new(cli.MockUi)
 	c := &OperatorRaftListCommand{Meta: Meta{Ui: ui}}

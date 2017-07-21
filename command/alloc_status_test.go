@@ -15,8 +15,8 @@ func TestAllocStatusCommand_Implements(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -76,10 +76,8 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
-	})
-	defer srv.Stop()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
 	// Wait for a node to be ready
 	testutil.WaitForResult(func() (bool, error) {

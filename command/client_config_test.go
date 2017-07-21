@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 )
 
@@ -13,11 +13,10 @@ func TestClientConfigCommand_Implements(t *testing.T) {
 }
 
 func TestClientConfigCommand_UpdateServers(t *testing.T) {
-	srv, _, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.Client.Enabled = true
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
 		c.Server.BootstrapExpect = 0
 	})
-	defer srv.Stop()
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &ClientConfigCommand{Meta: Meta{Ui: ui}}

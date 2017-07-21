@@ -12,8 +12,8 @@ func TestServerMembersCommand_Implements(t *testing.T) {
 }
 
 func TestServerMembersCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t, nil)
-	defer srv.Stop()
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}

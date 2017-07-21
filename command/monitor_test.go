@@ -169,8 +169,8 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 }
 
 func TestMonitor_Monitor(t *testing.T) {
-	srv, client, _ := testServer(t, nil)
-	defer srv.Stop()
+	srv, client, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	// Create the monitor
 	ui := new(cli.MockUi)
@@ -215,8 +215,8 @@ func TestMonitor_Monitor(t *testing.T) {
 }
 
 func TestMonitor_MonitorWithPrefix(t *testing.T) {
-	srv, client, _ := testServer(t, nil)
-	defer srv.Stop()
+	srv, client, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	// Create the monitor
 	ui := new(cli.MockUi)

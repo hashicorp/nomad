@@ -12,8 +12,8 @@ func TestFSCommand_Implements(t *testing.T) {
 }
 
 func TestFSCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &FSCommand{Meta: Meta{Ui: ui}}

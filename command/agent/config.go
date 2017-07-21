@@ -774,7 +774,7 @@ func (c *Config) normalizeAddrs() error {
 
 	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
 	if err != nil {
-		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
+		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
 	c.AdvertiseAddrs.HTTP = addr
 

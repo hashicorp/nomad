@@ -43,8 +43,8 @@ func TestHelpers_FormatList(t *testing.T) {
 }
 
 func TestHelpers_NodeID(t *testing.T) {
-	srv, _, _ := testServer(t, nil)
-	defer srv.Stop()
+	srv, _, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	meta := Meta{Ui: new(cli.MockUi)}
 	client, err := meta.Client()

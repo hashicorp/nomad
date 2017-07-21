@@ -102,7 +102,9 @@ func (a *TestAgent) Start() *TestAgent {
 
 	for i := 10; i >= 0; i-- {
 		pickRandomPorts(a.Config)
-		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
+		if a.Config.NodeName == "" {
+			a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
+		}
 
 		// write the keyring
 		if a.Key != "" {
@@ -202,7 +204,7 @@ func (a *TestAgent) HTTPAddr() string {
 	if a.Server == nil {
 		return ""
 	}
-	return a.Server.Addr
+	return "http://" + a.Server.Addr
 }
 
 func (a *TestAgent) Client() *api.Client {
@@ -210,7 +212,7 @@ func (a *TestAgent) Client() *api.Client {
 	conf.Address = a.HTTPAddr()
 	c, err := api.NewClient(conf)
 	if err != nil {
-		panic(fmt.Sprintf("Error creating consul API client: %s", err))
+		panic(fmt.Sprintf("Error creating Nomad API client: %s", err))
 	}
 	return c
 }
@@ -248,6 +250,9 @@ func (a *TestAgent) config() *Config {
 	// Customize the server configuration
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
+
+	// Set the name
+	conf.NodeName = a.Name
 
 	// Bind and set ports
 	conf.BindAddr = "127.0.0.1"
