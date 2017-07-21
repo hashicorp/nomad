@@ -20,7 +20,6 @@ import (
 	"github.com/kr/pretty"
 
 	"github.com/hashicorp/nomad/client/config"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 )
 
@@ -66,11 +65,16 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 }
 
 func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	return testAllocRunnerFromAlloc(mock.Alloc(), restarts)
+	// Use mock driver
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
+	return testAllocRunnerFromAlloc(alloc, restarts)
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 	go ar.Run()
 	defer ar.Destroy()
@@ -91,7 +95,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 
 // Test that the watcher will mark the allocation as unhealthy.
 func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -129,7 +133,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 // Test that the watcher will mark the allocation as unhealthy if it hits its
 // deadline.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -168,7 +172,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy.
 func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -216,7 +220,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy with checks
 func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -285,7 +289,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy.
 func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -346,7 +350,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 // retrying fetching an artifact, other tasks in the group should be able
 // to proceed.
 func TestAllocRunner_RetryArtifact(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
@@ -365,7 +369,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	badtask.Name = "bad"
 	badtask.Artifacts = []*structs.TaskArtifact{
-		{GetterSource: "http://127.1.1.111:12315/foo/bar/baz"},
+		{GetterSource: "http://127.0.0.1:0/foo/bar/baz"},
 	}
 
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
@@ -404,6 +408,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 }
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
@@ -502,6 +507,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Destroy(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
@@ -557,6 +563,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Update(t *testing.T) {
+	t.Parallel()
 	_, ar := testAllocRunner(false)
 
 	// Deep copy the alloc to avoid races when updating
@@ -583,6 +590,7 @@ func TestAllocRunner_Update(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -657,6 +665,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 	ar.logger = prefixedTestLogger("ar1: ")
 
@@ -779,6 +788,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 // TestAllocRunner_SaveRestoreState_Upgrade asserts that pre-0.6 exec tasks are
 // restarted on upgrade.
 func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -876,6 +886,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 //    "AllocID": "2a54fcff-fc44-8d4f-e025-53c48e9cbbbb"
 //  }
 func TestAllocRunner_RestoreOldState(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -994,6 +1005,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 }
 
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
@@ -1061,6 +1073,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 }
 
 func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
@@ -1134,6 +1147,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping a task group
 // with a leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create 3 tasks in the task group
@@ -1218,6 +1232,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 }
 
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
+	t.Parallel()
 	// Create an alloc runner
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
