@@ -25,7 +25,8 @@ import (
 )
 
 func TestAllocDirFS_List_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -40,7 +41,8 @@ func TestAllocDirFS_List_MissingParams(t *testing.T) {
 }
 
 func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -67,7 +69,8 @@ func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
 }
 
 func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -500,7 +503,8 @@ func TestStreamFramer_Order_PlainText(t *testing.T) {
 }
 
 func TestHTTP_Stream_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -560,7 +564,8 @@ func (n nopWriteCloser) Close() error {
 }
 
 func TestHTTP_Stream_NoFile(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -576,7 +581,8 @@ func TestHTTP_Stream_NoFile(t *testing.T) {
 }
 
 func TestHTTP_Stream_Modify(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -651,7 +657,8 @@ func TestHTTP_Stream_Modify(t *testing.T) {
 }
 
 func TestHTTP_Stream_Truncate(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -760,7 +767,8 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 }
 
 func TestHTTP_Stream_Delete(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -842,7 +850,8 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 }
 
 func TestHTTP_Logs_NoFollow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir and create the log dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -923,7 +932,8 @@ func TestHTTP_Logs_NoFollow(t *testing.T) {
 }
 
 func TestHTTP_Logs_Follow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir and create the log dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -1029,7 +1039,7 @@ func BenchmarkHTTP_Logs_Follow(t *testing.B) {
 	runtime.MemProfileRate = 1
 
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 
 	// Get a temp alloc dir and create the log dir
