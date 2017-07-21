@@ -91,6 +91,7 @@ ID            = dadcdb81
 Eval ID       = 61b0b423
 Name          = example.cache[0]
 Node ID       = 72687b1a
+Node Name     = ip-10-20-30-40
 Job ID        = example
 Client Status = running
 Created At    = 06/23/16 01:41:13 UTC
