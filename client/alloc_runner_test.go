@@ -596,6 +596,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
+		ar.taskLock.RLock()
+		defer ar.taskLock.RUnlock()
 		return len(ar.tasks) == 1, nil
 	}, func(err error) {
 		t.Fatalf("task never started: %v", err)
