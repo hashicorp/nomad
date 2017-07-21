@@ -1482,6 +1482,9 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 }
 
 // This tests that the old allocation is stopped before placing.
+// It is critical to test that the updated job attempts to place more
+// allocations as this allows us to assert that destructive changes are done
+// first.
 func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	h := NewHarness(t)
 
@@ -1509,14 +1512,17 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
-	// Update the job
+	// Update the job to place more versions of the task group, drop the count
+	// and force destructive updates
 	job2 := job.Copy()
+	job2.TaskGroups[0].Count = 5
 	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
 		MaxParallel:     1,
 		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
 	}
+	job2.TaskGroups[0].Tasks[0].Resources = mock.Alloc().Resources
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
