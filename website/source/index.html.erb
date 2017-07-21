@@ -326,19 +326,19 @@ description: |-
               <span class="text-green">admin@hashicorp.com:</span>
               <span>nomad plan example.nomad</span>
             </span>
-            <span class="pre">+/- Job: "example"</span>
-            <span class="pre">+/- Task Group: "cache" (2 create, 1 in-place update)</span>
-            <span class="pre">  +/- Count: "1" => "3" (forces create)</span>
-            <span class="pre">      Task: "redis"</span>
+            <span class="pre"><span class="text-orange">+/-</span> <span class="text-bold">Job: "example"</span></span>
+            <span class="pre"><span class="text-bold text-orange">+/-</span> <span class="text-bold">Task Group: "cache"</span> (<span class="text-green">2 create</span>, <span class="text-blue">1 in-place update</span>)</span>
+            <span class="pre">  <span class="text-orange">+/-</span> Count: "1" => "3" (<span class="text-green">forces create</span>)</span>
+            <span class="pre">      <span class="text-bold">Task: "redis"</span></span>
             <span>&nbsp;</span>
-            <span class="pre">Scheduler dry-run:</span>
-            <span class="pre">- All tasks successfully allocated.</span>
+            <span class="pre"><span class="text-bold">Scheduler dry-run:</span></span>
+            <span class="pre"><span class="text-bold text-green">- All tasks successfully allocated.</span></span>
             <span>&nbsp;</span>
-            <span class="pre">Job Modify Index: 7</span>
+            <span class="pre"><span class="text-bold">Job Modify Index: 7</span></span>
             <span>&nbsp;</span>
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad run -check-index=7 example.nomad</span>
+              <span>nomad run -check-index 7 example.nomad</span>
             </span>
             <span>==> Monitoring evaluation "e338a6ae"</span>
             <span class="pre">    Evaluation triggered by job "example"</span>

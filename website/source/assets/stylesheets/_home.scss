@@ -254,8 +254,21 @@
           white-space: pre;
         }
 
+        &.text-bold {
+          font-weight: bold;
+        }
+
+
         &.text-green {
           color: lighten($nomad-green, 20%);
+        }
+
+        &.text-blue {
+          color: #71A4F5;
+        }
+
+        &.text-orange {
+          color: #F5BF49;
         }
       }
     }
