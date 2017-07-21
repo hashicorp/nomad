@@ -559,6 +559,9 @@ func TestAllocRunner_Destroy(t *testing.T) {
 func TestAllocRunner_Update(t *testing.T) {
 	_, ar := testAllocRunner(false)
 
+	// Deep copy the alloc to avoid races when updating
+	newAlloc := ar.Alloc().Copy()
+
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -567,8 +570,6 @@ func TestAllocRunner_Update(t *testing.T) {
 	defer ar.Destroy()
 
 	// Update the alloc definition
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *ar.alloc
 	newAlloc.Name = "FOO"
 	newAlloc.AllocModifyIndex++
 	ar.Update(newAlloc)
