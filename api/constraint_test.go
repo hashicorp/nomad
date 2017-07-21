@@ -6,6 +6,7 @@ import (
 )
 
 func TestCompose_Constraints(t *testing.T) {
+	t.Parallel()
 	c := NewConstraint("kernel.name", "=", "darwin")
 	expect := &Constraint{
 		LTarget: "kernel.name",

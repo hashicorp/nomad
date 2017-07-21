@@ -7,6 +7,7 @@ import (
 )
 
 func TestAllocations_List(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -53,6 +54,7 @@ func TestAllocations_List(t *testing.T) {
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -100,6 +102,7 @@ func TestAllocations_PrefixList(t *testing.T) {
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {
+	t.Parallel()
 	allocs := []*AllocationListStub{
 		&AllocationListStub{CreateIndex: 2},
 		&AllocationListStub{CreateIndex: 1},
