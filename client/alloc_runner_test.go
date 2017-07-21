@@ -685,7 +685,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.Update(update)
 
 	testutil.WaitForResult(func() (bool, error) {
-		return ar.alloc.DesiredStatus == structs.AllocDesiredStatusStop, nil
+		return ar.Alloc().DesiredStatus == structs.AllocDesiredStatusStop, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
@@ -1196,15 +1196,20 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 			return false, fmt.Errorf("no new updates (count: %d)", newCount)
 		}
 		if last.TaskStates["leader"].FinishedAt.UnixNano() >= last.TaskStates["follower1"].FinishedAt.UnixNano() {
-			t.Fatalf("expected leader to finish before follower1: %s >= %s",
+			return false, fmt.Errorf("expected leader to finish before follower1: %s >= %s",
 				last.TaskStates["leader"].FinishedAt, last.TaskStates["follower1"].FinishedAt)
 		}
 		if last.TaskStates["leader"].FinishedAt.UnixNano() >= last.TaskStates["follower2"].FinishedAt.UnixNano() {
-			t.Fatalf("expected leader to finish before follower2: %s >= %s",
+			return false, fmt.Errorf("expected leader to finish before follower2: %s >= %s",
 				last.TaskStates["leader"].FinishedAt, last.TaskStates["follower2"].FinishedAt)
 		}
 		return true, nil
 	}, func(err error) {
+		count, last := upd.Last()
+		t.Logf("Updates: %d", count)
+		for name, state := range last.TaskStates {
+			t.Logf("%s: %s", name, state.State)
+		}
 		t.Fatalf("err: %v", err)
 	})
 }
