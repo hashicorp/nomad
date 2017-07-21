@@ -1138,7 +1138,8 @@ func (r *TaskRunner) run() {
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				r.consul.RemoveTask(r.alloc.ID, r.task)
+				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+				r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
@@ -1186,7 +1187,8 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1247,7 +1249,8 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	// Unregister from Consul while waiting to restart.
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1392,14 +1395,15 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
+	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
 // task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
-	for _, service := range task.Services {
+func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task {
+	taskCopy := task.Copy()
+	for _, service := range taskCopy.Services {
 		for _, check := range service.Checks {
 			check.Name = taskEnv.ReplaceEnv(check.Name)
 			check.Type = taskEnv.ReplaceEnv(check.Type)
@@ -1414,6 +1418,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
 	}
+	return taskCopy
 }
 
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
@@ -1574,11 +1579,12 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), new)
+	newInterpolatedTask := interpolateServices(r.envBuilder.Build(), new)
+	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), old)
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, old, new, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
