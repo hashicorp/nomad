@@ -378,7 +378,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobIncrease(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	var args api.JobUpdateValues
-	log.Println(req)
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
@@ -397,27 +396,36 @@ func (s *HTTPServer) jobDecrease(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) updateJobValues(resp http.ResponseWriter, req *http.Request,
 	args *api.JobUpdateValues, jobName string) (interface{}, error) {
-	log.Printf("[DEBUG] %s", jobName)
 	jobResp, err := s.jobQuery(resp, req, jobName)
 	if err != nil {
-		log.Printf("[DEBUG] %s", err)
 		return nil, err
 	}
-	log.Printf("[DEBUG] jobResp: %v", jobResp)
 	var job *structs.Job = jobResp.(*structs.Job)
-	log.Printf("[DEBUG] job: %v", job)
 	if len(job.TaskGroups) > 1 && args.TaskGroupID == "" {
 		return nil, CodedError(400, "Multiple task groups found within the job and no group ID specified")
 	}
-	var ignoreGroupID bool
+	var ignoreGroupID, change bool
 	if len(job.TaskGroups) == 1 {
 		ignoreGroupID = true
 	}
-	log.Printf("[DEBUG] REGION: %s", job.Region)
 	for _, taskGroup := range job.TaskGroups {
 		if taskGroup.Name == args.TaskGroupID || ignoreGroupID {
-			taskGroup.Count = taskGroup.Count + args.Count
+			newCount := args.Count + taskGroup.Count
+			if newCount < 0 {
+				outErr := fmt.Sprintf("Task group count may not be less than 0: 0 > %d",
+					newCount)
+				return nil, CodedError(400, outErr)
+			} else if newCount < taskGroup.Update.MaxParallel {
+				outErr := fmt.Sprintf("Task group count may not be less than update strategy max parallel: %d > %d",
+					taskGroup.Update.MaxParallel, newCount)
+				return nil, CodedError(400, outErr)
+			}
+			taskGroup.Count = newCount
+			change = true
 		}
+	}
+	if !change {
+		return nil, CodedError(400, fmt.Sprintf("No task group with id %s found", args.TaskGroupID))
 	}
 	regReq := structs.JobRegisterRequest{
 		Job: job,
@@ -427,10 +435,9 @@ func (s *HTTPServer) updateJobValues(resp http.ResponseWriter, req *http.Request
 	}
 	var out structs.JobRegisterResponse
 	if err = s.agent.RPC("Job.Register", &regReq, &out); err != nil {
-		log.Printf("[DEBUG] Job.Register")
 		return nil, err
 	}
-	return out, nil
+	return job, nil
 }
 
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
