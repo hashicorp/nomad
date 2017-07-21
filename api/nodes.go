@@ -18,7 +18,7 @@ func (c *Client) Nodes() *Nodes {
 
 // Looks up Node Name by Node ID, returns N/A in case of failure
 func (c *Client) GetNodeNameByID(NodeID string) string {
-    node, _, err = c.Nodes().Info(NodeID, nil)
+    node, _, err := c.Nodes().Info(NodeID, nil)
     if err != nil {
         return "N/A"
     } else {
