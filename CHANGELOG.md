@@ -16,6 +16,7 @@ IMPROVEMENTS:
  * api/job: Ability to revert job to older versions [GH-2575]
  * cli: Autocomplete for CLI commands [GH-2848]
  * client: Use a random host UUID by default [GH-2735]
+ * client: Add `NOMAD_GROUP_NAME` environment variable [GH-2877]
  * client: Environment variables for client DC and Region [GH-2507]
  * client: Hash host ID so its stable and well distributed [GH-2541]
  * client: GC dead allocs if total allocs > `gc_max_allocs` tunable [GH-2636]
