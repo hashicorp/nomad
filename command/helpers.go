@@ -53,6 +53,10 @@ func limit(s string, length int) string {
 
 // formatTime formats the time to string based on RFC822
 func formatTime(t time.Time) string {
+	if t.Unix() < 1 {
+		// It's more confusing to display the UNIX epoch or a zero value than nothing
+		return ""
+	}
 	return t.Format("01/02/06 15:04:05 MST")
 }
 
