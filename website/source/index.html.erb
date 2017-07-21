@@ -140,6 +140,16 @@ description: |-
         <%= inline_svg "feature-simplify.svg" %>
       </div>
       <div class="col-sm-6">
+        <h3>Rolling Upgrades</h3>
+        <p>
+          In order to update an application while reducing downtime, Nomad
+          provides a built-in mechanism for rolling upgrades. Operators specify
+          their update strategy in the declarative job file, plan the changes,
+          and submit them for evaluation and allocation. With full control over
+          parallelization and stagger, rolling upgrades make application
+          deployments simple and safe.
+        </p>
+
         <h3>Blue/Green Deployments</h3>
         <p>
           Nomad supports blue/green and canary deployments through the
