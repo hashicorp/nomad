@@ -6,6 +6,7 @@ import (
 )
 
 func TestDriver_KillTimeout(t *testing.T) {
+	t.Parallel()
 	expected := 1 * time.Second
 	max := 10 * time.Second
 

@@ -19,6 +19,7 @@ import (
 )
 
 func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",
@@ -88,6 +89,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 }
 
 func TestExecDriver_Signal(t *testing.T) {
+	t.Parallel()
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "signal",
