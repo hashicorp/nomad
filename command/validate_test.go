@@ -12,10 +12,12 @@ import (
 )
 
 func TestValidateCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &ValidateCommand{}
 }
 
 func TestValidateCommand(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &ValidateCommand{Meta: Meta{Ui: ui}}
 
@@ -56,6 +58,7 @@ job "job1" {
 }
 
 func TestValidateCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &ValidateCommand{Meta: Meta{Ui: ui}}
 
@@ -113,6 +116,7 @@ func TestValidateCommand_Fails(t *testing.T) {
 }
 
 func TestValidateCommand_From_STDIN(t *testing.T) {
+	t.Parallel()
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -158,6 +162,7 @@ job "job1" {
 }
 
 func TestValidateCommand_From_URL(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{
 		Meta: Meta{Ui: ui},

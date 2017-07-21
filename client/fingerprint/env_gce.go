@@ -18,9 +18,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// This is where the GCE metadata server normally resides. We hardcode the
-// "instance" path as well since it's the only one we access here.
-const DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
+const (
+	// This is where the GCE metadata server normally resides. We hardcode the
+	// "instance" path as well since it's the only one we access here.
+	DEFAULT_GCE_URL = "http://169.254.169.254/computeMetadata/v1/instance/"
+
+	// GceMetadataTimeout is the timeout used when contacting the GCE metadata
+	// service
+	GceMetadataTimeout = 2 * time.Second
+)
 
 type GCEMetadataNetworkInterface struct {
 	AccessConfigs []struct {
@@ -64,7 +70,7 @@ func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
 
 	// assume 2 seconds is enough time for inside GCE network
 	client := &http.Client{
-		Timeout:   2 * time.Second,
+		Timeout:   GceMetadataTimeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
@@ -126,6 +132,11 @@ func checkError(err error, logger *log.Logger, desc string) error {
 }
 
 func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+	// Check if we should tighten the timeout
+	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
+		f.client.Timeout = 1 * time.Millisecond
+	}
+
 	if !f.isGCE() {
 		return false, nil
 	}

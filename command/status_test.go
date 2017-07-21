@@ -5,19 +5,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
 func TestStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &StatusCommand{}
 }
 
 func TestStatusCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
-	})
-	defer srv.Stop()
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
@@ -167,6 +166,7 @@ func TestStatusCommand_Run(t *testing.T) {
 }
 
 func TestStatusCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
 

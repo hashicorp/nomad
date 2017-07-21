@@ -8,10 +8,12 @@ import (
 )
 
 func TestDeploymentStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &DeploymentStatusCommand{}
 }
 
 func TestDeploymentStatusCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &DeploymentStatusCommand{Meta: Meta{Ui: ui}}
 

@@ -11,12 +11,14 @@ import (
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &AllocStatusCommand{}
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -76,10 +78,9 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
-	})
-	defer srv.Stop()
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
 	// Wait for a node to be ready
 	testutil.WaitForResult(func() (bool, error) {
