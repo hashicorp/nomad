@@ -259,6 +259,14 @@ func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
+// getHandle returns the task's handle or nil
+func (r *TaskRunner) getHandle() driver.DriverHandle {
+	r.handleLock.Lock()
+	h := r.handle
+	r.handleLock.Unlock()
+	return h
+}
+
 // pre060StateFilePath returns the path to our state file that would have been
 // written pre v0.6.0
 // COMPAT: Remove in 0.7.0
@@ -1003,9 +1011,7 @@ func (r *TaskRunner) run() {
 
 	// If we already have a handle, populate the stopCollection and handleWaitCh
 	// to fix the invariant that it exists.
-	r.handleLock.Lock()
-	handleEmpty := r.handle == nil
-	r.handleLock.Unlock()
+	handleEmpty := r.getHandle() == nil
 
 	if !handleEmpty {
 		stopCollection = make(chan struct{})
@@ -1031,9 +1037,7 @@ func (r *TaskRunner) run() {
 				// Start the task if not yet started or it is being forced. This logic
 				// is necessary because in the case of a restore the handle already
 				// exists.
-				r.handleLock.Lock()
-				handleEmpty := r.handle == nil
-				r.handleLock.Unlock()
+				handleEmpty := r.getHandle() == nil
 				if handleEmpty {
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
@@ -1298,9 +1302,7 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	// Mark that we received the kill event
 	r.setState(structs.TaskStateRunning, event)
 
-	r.handleLock.Lock()
-	handle := r.handle
-	r.handleLock.Unlock()
+	handle := r.getHandle()
 
 	// Kill the task using an exponential backoff in-case of failures.
 	destroySuccess, err := r.handleDestroy(handle)
@@ -1465,10 +1467,11 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 		select {
 		case <-next.C:
 			next.Reset(r.config.StatsCollectionInterval)
-			if r.handle == nil {
+			handle := r.getHandle()
+			if handle == nil {
 				continue
 			}
-			ru, err := r.handle.Stats()
+			ru, err := handle.Stats()
 
 			if err != nil {
 				// Check if the driver doesn't implement stats
