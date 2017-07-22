@@ -992,7 +992,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	expectedEnvironment := map[string]string{
 		"NOMAD_PORT_main":      "8080",
 		"NOMAD_PORT_REDIS":     "6379",
-		"NOMAD_HOST_PORT_main": strconv.Itoa(docker_reserved),
+		"NOMAD_HOST_PORT_main": strconv.Itoa(res),
 	}
 
 	sort.Strings(container.Config.Env)
