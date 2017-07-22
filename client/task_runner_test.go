@@ -425,6 +425,11 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	// Create an allocation that has a task with a list of artifacts.
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 	f1 := "task_runner_test.go"
 	f2 := "task_runner.go"
 	artifact1 := structs.TaskArtifact{
@@ -488,6 +493,11 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	// Create an allocation that has a task with bad artifacts.
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 	artifact := structs.TaskArtifact{
 		GetterSource: "http://127.1.1.111:12315/foo/bar/baz",
 	}
@@ -651,7 +661,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 			// Wait for the task to start again
 			testutil.WaitForResult(func() (bool, error) {
 				if len(ctx.upd.events) != 8 {
-					t.Fatalf("task %q in alloc %q should have 8 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
+					return false, fmt.Errorf("task %q in alloc %q should have 8 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
 				}
 
 				return true, nil
@@ -669,7 +679,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 10 {
-		t.Fatalf("should have 9 ctx.updates: %#v", ctx.upd.events)
+		t.Fatalf("should have 10 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
