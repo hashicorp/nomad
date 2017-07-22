@@ -348,8 +348,9 @@ func (r *AllocRunner) SaveState() error {
 	runners := r.getTaskRunners()
 	var mErr multierror.Error
 	for _, tr := range runners {
-		if err := r.saveTaskRunnerState(tr); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+		if err := tr.SaveState(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to save state for alloc %s task %q: %v",
+				r.allocID, tr.task.Name, err))
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -444,14 +445,6 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 
 		return nil
 	})
-}
-
-func (r *AllocRunner) saveTaskRunnerState(tr *TaskRunner) error {
-	if err := tr.SaveState(); err != nil {
-		return fmt.Errorf("failed to save state for alloc %s task '%s': %v",
-			r.allocID, tr.task.Name, err)
-	}
-	return nil
 }
 
 // DestroyState is used to cleanup after ourselves
@@ -856,26 +849,37 @@ func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
 // then saves state.
 func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
-	runners := r.getTaskRunners()
-
-	// First destroy the leader
-	for _, tr := range runners {
-		if tr.task.Leader {
-			r.logger.Printf("[DEBUG] client: destroying leader task %q of task group %q first", tr.task.Name, tr.alloc.TaskGroup)
-			tr.Destroy(destroyEvent)
-			<-tr.WaitCh()
+	// First destroy the leader if one exists
+	tg := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
+	leader := ""
+	for _, task := range tg.Tasks {
+		if task.Leader {
+			leader = task.Name
+			break
 		}
+	}
+	if leader != "" {
+		r.taskLock.RLock()
+		tr := r.tasks[leader]
+		r.taskLock.RUnlock()
+
+		r.logger.Printf("[DEBUG] client: alloc %q destroying leader task %q of task group %q first",
+			r.allocID, leader, r.alloc.TaskGroup)
+		tr.Destroy(destroyEvent)
+		<-tr.WaitCh()
 	}
 
 	// Then destroy non-leader tasks concurrently
-	for _, tr := range runners {
-		if !tr.task.Leader {
+	r.taskLock.RLock()
+	for name, tr := range r.tasks {
+		if name != leader {
 			tr.Destroy(destroyEvent)
 		}
 	}
+	r.taskLock.RUnlock()
 
 	// Wait for termination of the task runners
-	for _, tr := range runners {
+	for _, tr := range r.getTaskRunners() {
 		<-tr.WaitCh()
 	}
 }
