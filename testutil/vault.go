@@ -2,11 +2,12 @@ package testutil
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"runtime"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -19,22 +20,12 @@ import (
 // and offers and easy API to tear itself down on test end. The only
 // prerequisite is that the Vault binary is on the $PATH.
 
-const (
-	// vaultStartPort is the starting port we use to bind Vault servers to
-	vaultStartPort uint64 = 40000
-)
-
-var (
-	// vaultPortOffset is used to atomically increment the port numbers.
-	vaultPortOffset uint64
-	vaultPortLock   sync.Mutex
-)
-
 // TestVault wraps a test Vault server launched in dev mode, suitable for
 // testing.
 type TestVault struct {
-	cmd *exec.Cmd
-	t   *testing.T
+	cmd    *exec.Cmd
+	t      *testing.T
+	waitCh chan error
 
 	Addr      string
 	HTTPAddr  string
@@ -95,6 +86,20 @@ func (tv *TestVault) Start() *TestVault {
 		tv.t.Fatalf("failed to start vault: %v", err)
 	}
 
+	// Start the waiter
+	tv.waitCh = make(chan error, 1)
+	go func() {
+		err := tv.cmd.Wait()
+		tv.waitCh <- err
+	}()
+
+	// Ensure Vault started
+	select {
+	case err := <-tv.waitCh:
+		tv.t.Fatal(err.Error())
+	case <-time.After(time.Duration(500*TestMultiplier()) * time.Millisecond):
+	}
+
 	tv.waitForAPI()
 	return tv
 }
@@ -108,7 +113,9 @@ func (tv *TestVault) Stop() {
 	if err := tv.cmd.Process.Kill(); err != nil {
 		tv.t.Errorf("err: %s", err)
 	}
-	tv.cmd.Wait()
+	if tv.waitCh != nil {
+		<-tv.waitCh
+	}
 }
 
 // waitForAPI waits for the Vault HTTP endpoint to start
@@ -126,13 +133,8 @@ func (tv *TestVault) waitForAPI() {
 	})
 }
 
-// getPort returns the next available port to bind Vault against
-func getPort() uint64 {
-	vaultPortLock.Lock()
-	defer vaultPortLock.Unlock()
-	p := vaultStartPort + vaultPortOffset
-	vaultPortOffset += 1
-	return p
+func getPort() int {
+	return 1030 + int(rand.Int31n(6440))
 }
 
 // VaultVersion returns the Vault version as a string or an error if it couldn't
