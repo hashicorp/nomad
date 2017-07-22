@@ -382,13 +382,16 @@ func (h *lxcDriverHandle) Exec(ctx context.Context, cmd string, args []string) (
 }
 
 func (h *lxcDriverHandle) Kill() error {
-	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", h.container.Name())
+	name := h.container.Name()()
+
+	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", nmae)
 	if err := h.container.Shutdown(h.killTimeout); err != nil {
-		h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", h.container.Name(), err)
+		h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", name, err)
 		if err := h.container.Stop(); err != nil {
-			h.logger.Printf("[ERR] driver.lxc: error stopping container %q: %v", h.container.Name(), err)
+			h.logger.Printf("[ERR] driver.lxc: error stopping container %q: %v", name, err)
 		}
 	}
+
 	close(h.doneCh)
 	return nil
 }
