@@ -132,6 +132,14 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 		t.Skipf("nomad not found, skipping: %v", err)
 	}
 
+	// Do a sanity check that we are actually running nomad
+	vcmd := exec.Command(path, "-version")
+	vcmd.Stdout = nil
+	vcmd.Stderr = nil
+	if err := vcmd.Run(); err != nil {
+		t.Skipf("nomad version failed. Did you run your test with -tags nomad_test (%v)", err)
+	}
+
 	dataDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)

@@ -6,6 +6,7 @@ import (
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -22,6 +23,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
