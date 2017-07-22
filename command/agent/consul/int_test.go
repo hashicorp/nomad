@@ -4,9 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/user"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -38,11 +36,6 @@ func TestConsul_Integration(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("-short set; skipping")
-	}
-	if runtime.GOOS != "windows" {
-		if u, err := user.Current(); err == nil && u.Uid != "0" {
-			t.Skip("Must be run as root")
-		}
 	}
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
