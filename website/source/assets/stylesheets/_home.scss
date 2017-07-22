@@ -210,8 +210,15 @@
     &#simplify {
       svg {
         display: block;
-        margin: 60px 30px 0 0;
+        max-height: 150px;
+        margin: 0 auto;
         padding: 0;
+      }
+
+      @media(max-width: $screen-sm) {
+        svg {
+          margin: 60px auto;
+        }
       }
     }
 

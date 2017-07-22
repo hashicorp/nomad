@@ -136,11 +136,15 @@ description: |-
     </div>
 
     <div class="row">
-      <div class="col-sm-6">
-        <%= inline_svg "feature-simplify.svg" %>
+      <div class="col-sm-offset-5 col-sm-6">
+        <h3>Rolling Deploys</h3>
       </div>
-      <div class="col-sm-6">
-        <h3>Rolling Upgrades</h3>
+    </div>
+    <div class="row">
+      <div class="col-sm-5" id="feature-rolling-deploys">
+        <%= inline_svg "feature-rolling-deploys.svg" %>
+      </div>
+      <div class="col-sm-7">
         <p>
           In order to update an application while reducing downtime, Nomad
           provides a built-in mechanism for rolling upgrades. Operators specify
@@ -149,16 +153,40 @@ description: |-
           parallelization and stagger, rolling upgrades make application
           deployments simple and safe.
         </p>
+      </div>
+    </div>
 
+    <div class="row">
+      <div class="col-sm-12">
         <h3>Blue/Green Deployments</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-7">
         <p>
           Nomad supports blue/green and canary deployments through the
           declarative job file syntax. By specifying multiple task groups,
           Nomad allows for easily changing the quantity and parameters of
-          each group to perform automatic or manual rolling deploys.
+          each group to perform automatic or manual rolling deploys. Place the
+          job behind a shared load balancer to send a percentage of traffic to
+          the canary build to test changes on a portion of traffic.
         </p>
+      </div>
+      <div class="col-sm-5">
+        <%= inline_svg "feature-blue-green.svg" %>
+      </div>
+    </div>
 
+    <div class="row">
+      <div class="col-sm-offset-5 col-sm-6">
         <h3>Automatic Machine Failures</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-5">
+        <%= inline_svg "feature-machine-failure.svg" %>
+      </div>
+      <div class="col-sm-7">
         <p>
           Because it knows the state of all nodes and applications, if a
           node becomes unhealthy, Nomad will automatically reschedule the
