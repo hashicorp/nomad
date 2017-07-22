@@ -7,7 +7,7 @@ PING_LOOP_PID=$!
 
 trap "kill $PING_LOOP_PID" EXIT HUP INT QUIT TERM
 
-GOTEST_FLAGS="-parallel=4" make test
+GOTEST_FLAGS="-parallel=8" make test
 TEST_OUTPUT=$?
 
 kill $PING_LOOP_PID
