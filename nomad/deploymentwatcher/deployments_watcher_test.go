@@ -26,6 +26,7 @@ func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
 
 // Tests that the watcher properly watches for deployments and reconciles them
 func TestWatcher_WatchDeployments(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -107,6 +108,7 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 
 // Tests that calls against an unknown deployment fail
 func TestWatcher_UnknownDeployment(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 	w.SetEnabled(true)
@@ -168,6 +170,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 
 // Test setting an unknown allocation's health
 func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -216,6 +219,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 
 // Test setting allocation health
 func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -265,6 +269,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 
 // Test setting allocation unhealthy
 func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -321,6 +326,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 
 // Test setting allocation unhealthy and that there should be a rollback
 func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -390,6 +396,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 
 // Test promoting a deployment
 func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -448,6 +455,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 
 // Test promoting a deployment with unhealthy canaries
 func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -506,6 +514,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 
 // Test pausing a deployment that is running
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -553,6 +562,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 
 // Test pausing a deployment that is paused
 func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -601,6 +611,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is paused
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -650,6 +661,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is running
 func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -698,6 +710,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 
 // Test failing a deployment that is running
 func TestWatcher_FailDeployment_Running(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -746,6 +759,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 // Tests that the watcher properly watches for allocation changes and takes the
 // proper actions
 func TestDeploymentWatcher_Watch(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -874,6 +888,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 
 // Test evaluations are batched between watchers
 func TestWatcher_BatchEvals(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
 
