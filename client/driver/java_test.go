@@ -310,6 +310,9 @@ func TestJavaDriverUser(t *testing.T) {
 	if !javaLocated() {
 		t.Skip("Java not found; skipping")
 	}
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
 
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{

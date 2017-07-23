@@ -371,8 +371,10 @@ func TestAllocDir_SplitPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(info) != 6 {
-		t.Fatalf("expected: %v, actual: %v", 6, len(info))
+	// Testing that is 6 or more rather than 6 because on osx, the temp dir is
+	// randomized.
+	if len(info) < 6 {
+		t.Fatalf("expected more than: %v, actual: %v", 6, len(info))
 	}
 }
 

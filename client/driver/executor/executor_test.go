@@ -81,7 +81,7 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 
 func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	t.Parallel()
-	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"fail"}}
+	execCmd := ExecCommand{Cmd: "/bin/date", Args: []string{"fail"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
@@ -163,13 +163,13 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 		ru, err := executor.Stats()
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if len(ru.Pids) != 2 {
-			t.Fatalf("expected number of pids: 2, actual: %v", len(ru.Pids))
+		if len(ru.Pids) == 0 {
+			t.Fatalf("expected pids")
 		}
 		proc, err := os.FindProcess(ps.Pid)
 		if err != nil {

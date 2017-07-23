@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -261,6 +262,9 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 
 func TestRawExecDriverUser(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
