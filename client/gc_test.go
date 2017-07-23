@@ -20,6 +20,7 @@ func gcConfig() *GCConfig {
 }
 
 func TestIndexedGCAllocPQ(t *testing.T) {
+	t.Parallel()
 	pq := NewIndexedGCAllocPQ()
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
@@ -100,6 +101,7 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 }
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -115,6 +117,7 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -141,6 +144,7 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -163,6 +167,7 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -201,6 +206,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -240,6 +246,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -275,6 +282,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -309,6 +317,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
+	t.Parallel()
 	const (
 		liveAllocs   = 3
 		maxAllocs    = 6
@@ -346,6 +355,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -381,6 +391,7 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -418,6 +429,7 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MaxAllocsThreshold(t *testing.T) {
+	t.Parallel()
 	const (
 		liveAllocs   = 3
 		maxAllocs    = 6

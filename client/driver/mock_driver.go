@@ -200,7 +200,7 @@ func (h *mockDriverHandle) ID() string {
 		TaskName:    h.taskName,
 		RunFor:      h.runFor,
 		KillAfter:   h.killAfter,
-		KillTimeout: h.killAfter,
+		KillTimeout: h.killTimeout,
 		ExitCode:    h.exitCode,
 		ExitSignal:  h.exitSignal,
 		ExitErr:     h.exitErr,
@@ -250,6 +250,7 @@ func (h *mockDriverHandle) Exec(ctx context.Context, cmd string, args []string) 
 
 // TODO Implement when we need it.
 func (h *mockDriverHandle) Update(task *structs.Task) error {
+	h.killTimeout = task.KillTimeout
 	return nil
 }
 
