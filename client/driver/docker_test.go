@@ -42,8 +42,8 @@ func dockerIsRemote(t *testing.T) bool {
 
 // Ports used by tests
 var (
-	docker_reserved = 32768 + int(rand.Int31n(25000))
-	docker_dynamic  = 32768 + int(rand.Int31n(25000))
+	docker_reserved = 2000 + int(rand.Int31n(10000))
+	docker_dynamic  = 2000 + int(rand.Int31n(10000))
 )
 
 // Returns a task with a reserved and dynamic port. The ports are returned
