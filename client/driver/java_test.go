@@ -168,7 +168,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	select {
 	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
-			t.Fatal("err: %v", res.String())
+			t.Fatalf("err: %v", res.String())
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
@@ -403,7 +403,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	select {
 	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
-			t.Fatal("err: %v", res.String())
+			t.Fatalf("err: %v", res.String())
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout")
