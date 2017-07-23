@@ -56,7 +56,7 @@ const (
 	rktCmd = "rkt"
 
 	// rktUuidDeadline is how long to wait for the uuid file to be written
-	rktUuidDeadline = 5 * time.Second
+	rktUuidDeadline = 15 * time.Second
 )
 
 // RktDriver is a driver for running images via Rkt

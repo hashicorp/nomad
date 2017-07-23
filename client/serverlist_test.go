@@ -8,6 +8,7 @@ import (
 )
 
 func TestServerList(t *testing.T) {
+	t.Parallel()
 	s := newServerList()
 
 	// New lists should be empty
@@ -89,6 +90,7 @@ func TestServerList(t *testing.T) {
 // TestClient_ServerList tests client methods that interact with the internal
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
+	t.Parallel()
 	// manually create a mostly empty client to avoid spinning up a ton of
 	// goroutines that complicate testing
 	client := Client{servers: newServerList(), logger: log.New(os.Stderr, "", log.Ltime|log.Lshortfile)}
