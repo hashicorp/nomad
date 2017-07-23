@@ -55,7 +55,9 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 }
 
 func TestLxcDriver_Start_Wait(t *testing.T) {
-	t.Parallel()
+	if testutil.IsTravis() {
+		t.Parallel()
+	}
 	if !lxcPresent(t) {
 		t.Skip("lxc not present")
 	}
@@ -129,7 +131,9 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 }
 
 func TestLxcDriver_Open_Wait(t *testing.T) {
-	t.Parallel()
+	if testutil.IsTravis() {
+		t.Parallel()
+	}
 	if !lxcPresent(t) {
 		t.Skip("lxc not present")
 	}
