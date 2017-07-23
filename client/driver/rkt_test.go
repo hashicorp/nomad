@@ -72,7 +72,7 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -126,7 +126,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -188,7 +188,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -244,7 +244,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -319,7 +319,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -366,7 +366,7 @@ func TestRktDriverUser(t *testing.T) {
 }
 
 func TestRktTrustPrefix(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -436,7 +436,7 @@ func TestRktTaskValidate(t *testing.T) {
 
 // TODO: Port Mapping test should be ran with proper ACI image and test the port access.
 func TestRktDriver_PortsMapping(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
@@ -503,7 +503,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 }
 
 func TestRktDriver_HandlerExec(t *testing.T) {
-	if testutil.IsTravis() {
+	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
