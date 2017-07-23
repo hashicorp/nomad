@@ -31,6 +31,7 @@ func testLogger() *log.Logger {
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
+	t.Skip("-short set; skipping")
 	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
 		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
 	}

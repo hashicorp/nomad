@@ -137,6 +137,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
+			"args":     []string{"1"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -161,15 +162,14 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Task should terminate quickly
+	// Task should terminate after 1 seconds
 	select {
 	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
-			t.Fatalf("err: %v", res)
+			t.Fatal("err: %v", res.String())
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		// expect the timeout b/c it's a long lived process
-		break
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
 	}
 
 	// Get the stdout of the process and assrt that it's not empty
@@ -313,7 +313,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 	}
 }
 
-func TestJavaDriverUser(t *testing.T) {
+func TestJavaDriver_User(t *testing.T) {
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -369,6 +369,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 		Config: map[string]interface{}{
 			"class_path": "${NOMAD_TASK_DIR}",
 			"class":      "Hello",
+			"args":       []string{"1"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -393,15 +394,14 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Task should terminate quickly
+	// Task should terminate after 1 seconds
 	select {
 	case res := <-resp.Handle.WaitCh():
 		if !res.Successful() {
-			t.Fatalf("err: %v", res)
+			t.Fatal("err: %v", res.String())
 		}
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		// expect the timeout b/c it's a long lived process
-		break
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
 	}
 
 	// Get the stdout of the process and assrt that it's not empty
