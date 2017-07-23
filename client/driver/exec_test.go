@@ -20,7 +20,9 @@ import (
 )
 
 func TestExecDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",

@@ -31,7 +31,9 @@ func javaLocated() bool {
 
 // The fingerprinter test should always pass, even if Java is not installed.
 func TestJavaDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.JavaCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
