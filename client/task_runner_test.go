@@ -499,7 +499,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 		"run_for":   "10s",
 	}
 	artifact := structs.TaskArtifact{
-		GetterSource: "http://127.1.1.111:12315/foo/bar/baz",
+		GetterSource: "http://127.0.0.1:0/foo/bar/baz",
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
