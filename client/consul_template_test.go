@@ -136,7 +136,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	}
 
 	if vault {
-		harness.vault = testutil.NewTestVault(t).Start()
+		harness.vault = testutil.NewTestVault(t)
 		harness.config.VaultConfig = harness.vault.Config
 		harness.vaultToken = harness.vault.RootToken
 	}

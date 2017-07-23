@@ -36,6 +36,92 @@ type TestVault struct {
 
 // NewTestVault returns a new TestVault instance that has yet to be started
 func NewTestVault(t testing.T) *TestVault {
+	for i := 10; i >= 0; i-- {
+		port := getPort()
+		token := structs.GenerateUUID()
+		bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
+		http := fmt.Sprintf("http://127.0.0.1:%d", port)
+		root := fmt.Sprintf("-dev-root-token-id=%s", token)
+
+		bin := "vault"
+		if runtime.GOOS == "windows" {
+			bin = "vault.exe"
+		}
+		cmd := exec.Command(bin, "server", "-dev", bind, root)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		// Build the config
+		conf := vapi.DefaultConfig()
+		conf.Address = http
+
+		// Make the client and set the token to the root token
+		client, err := vapi.NewClient(conf)
+		if err != nil {
+			t.Fatalf("failed to build Vault API client: %v", err)
+		}
+		client.SetToken(token)
+
+		enable := true
+		tv := &TestVault{
+			cmd:       cmd,
+			t:         t,
+			Addr:      bind,
+			HTTPAddr:  http,
+			RootToken: token,
+			Client:    client,
+			Config: &config.VaultConfig{
+				Enabled: &enable,
+				Token:   token,
+				Addr:    http,
+			},
+		}
+
+		if err := tv.cmd.Start(); err != nil {
+			tv.t.Fatalf("failed to start vault: %v", err)
+		}
+
+		// Start the waiter
+		tv.waitCh = make(chan error, 1)
+		go func() {
+			err := tv.cmd.Wait()
+			tv.waitCh <- err
+		}()
+
+		// Ensure Vault started
+		var startErr error
+		select {
+		case startErr = <-tv.waitCh:
+		case <-time.After(time.Duration(500*TestMultiplier()) * time.Millisecond):
+		}
+
+		if startErr != nil && i == 0 {
+			t.Fatalf("failed to start vault: %v", startErr)
+		} else if startErr != nil {
+			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+			time.Sleep(wait)
+			continue
+		}
+
+		waitErr := tv.waitForAPI()
+		if waitErr != nil && i == 0 {
+			t.Fatalf("failed to start vault: %v", waitErr)
+		} else if waitErr != nil {
+			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+			time.Sleep(wait)
+			continue
+		}
+
+		return tv
+	}
+
+	return nil
+}
+
+// NewTestVaultDelayed returns a test Vault server that has not been started.
+// Start must be called and it is the callers responsibility to deal with any
+// port conflicts that may occur and retry accordingly.
+func NewTestVaultDelayed(t testing.T) *TestVault {
 	port := getPort()
 	token := structs.GenerateUUID()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
@@ -81,7 +167,7 @@ func NewTestVault(t testing.T) *TestVault {
 
 // Start starts the test Vault server and waits for it to respond to its HTTP
 // API
-func (tv *TestVault) Start() *TestVault {
+func (tv *TestVault) Start() error {
 	if err := tv.cmd.Start(); err != nil {
 		tv.t.Fatalf("failed to start vault: %v", err)
 	}
@@ -96,12 +182,11 @@ func (tv *TestVault) Start() *TestVault {
 	// Ensure Vault started
 	select {
 	case err := <-tv.waitCh:
-		tv.t.Fatal(err.Error())
+		return err
 	case <-time.After(time.Duration(500*TestMultiplier()) * time.Millisecond):
 	}
 
-	tv.waitForAPI()
-	return tv
+	return tv.waitForAPI()
 }
 
 // Stop stops the test Vault server
@@ -120,7 +205,8 @@ func (tv *TestVault) Stop() {
 
 // waitForAPI waits for the Vault HTTP endpoint to start
 // responding. This is an indication that the agent has started.
-func (tv *TestVault) waitForAPI() {
+func (tv *TestVault) waitForAPI() error {
+	var waitErr error
 	WaitForResult(func() (bool, error) {
 		inited, err := tv.Client.Sys().InitStatus()
 		if err != nil {
@@ -128,9 +214,9 @@ func (tv *TestVault) waitForAPI() {
 		}
 		return inited, nil
 	}, func(err error) {
-		defer tv.Stop()
-		tv.t.Fatalf("err: %s", err)
+		waitErr = err
 	})
+	return waitErr
 }
 
 func getPort() int {
