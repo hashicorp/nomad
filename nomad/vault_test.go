@@ -145,6 +145,7 @@ func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, vaultPolicies ma
 }
 
 func TestVaultClient_BadConfig(t *testing.T) {
+	t.Parallel()
 	conf := &config.VaultConfig{}
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
@@ -171,6 +172,7 @@ func TestVaultClient_BadConfig(t *testing.T) {
 // Test that the Vault Client can establish a connection even if it is started
 // before Vault is available.
 func TestVaultClient_EstablishConnection(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -196,6 +198,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 }
 
 func TestVaultClient_ValidateRole(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -248,6 +251,7 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 }
 
 func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -287,6 +291,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 }
 
 func TestVaultClient_ValidateToken(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -340,6 +345,7 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 }
 
 func TestVaultClient_SetActive(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -369,6 +375,7 @@ func TestVaultClient_SetActive(t *testing.T) {
 
 // Test that we can update the config and things keep working
 func TestVaultClient_SetConfig(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -405,6 +412,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 
 // Test that we can disable vault
 func TestVaultClient_SetConfig_Disable(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -438,6 +446,7 @@ func TestVaultClient_SetConfig_Disable(t *testing.T) {
 }
 
 func TestVaultClient_RenewalLoop(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -494,6 +503,7 @@ func parseTTLFromLookup(s *vapi.Secret, t *testing.T) int64 {
 }
 
 func TestVaultClient_LookupToken_Invalid(t *testing.T) {
+	t.Parallel()
 	tr := true
 	conf := &config.VaultConfig{
 		Enabled: &tr,
@@ -517,6 +527,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 }
 
 func TestVaultClient_LookupToken_Root(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -578,6 +589,7 @@ func TestVaultClient_LookupToken_Root(t *testing.T) {
 }
 
 func TestVaultClient_LookupToken_Role(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -642,6 +654,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 }
 
 func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -700,6 +713,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Root(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -743,6 +757,7 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Whitelist_Role(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -790,6 +805,7 @@ func TestVaultClient_CreateToken_Whitelist_Role(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -840,6 +856,7 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
+	t.Parallel()
 	// Need to skip if test is 0.6.4
 	version, err := testutil.VaultVersion()
 	if err != nil {
@@ -898,6 +915,7 @@ func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -937,6 +955,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -971,6 +990,7 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 }
 
 func TestVaultClient_CreateToken_Prestart(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -1000,6 +1020,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 }
 
 func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t)
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	client, err := NewVaultClient(v.Config, logger, nil)
@@ -1039,6 +1060,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 }
 
 func TestVaultClient_RevokeTokens_Root(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 
@@ -1103,6 +1125,7 @@ func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 }
 
 func TestVaultClient_RevokeTokens_Role(t *testing.T) {
+	t.Parallel()
 	v := testutil.NewTestVault(t).Start()
 	defer v.Stop()
 

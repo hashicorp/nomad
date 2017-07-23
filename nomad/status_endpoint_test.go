@@ -9,6 +9,7 @@ import (
 )
 
 func TestStatusVersion(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -39,6 +40,7 @@ func TestStatusVersion(t *testing.T) {
 }
 
 func TestStatusPing(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -51,6 +53,7 @@ func TestStatusPing(t *testing.T) {
 }
 
 func TestStatusLeader(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -72,6 +75,7 @@ func TestStatusLeader(t *testing.T) {
 }
 
 func TestStatusPeers(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

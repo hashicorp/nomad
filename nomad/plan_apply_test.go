@@ -59,6 +59,7 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 }
 
 func TestPlanApply_applyPlan(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -238,6 +239,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(1000, node)
@@ -280,6 +282,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(1000, node)
@@ -336,6 +339,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(1000, node)
@@ -385,6 +389,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(1000, node)
@@ -410,6 +415,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusInit
@@ -436,6 +442,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	node.Drain = true
@@ -462,6 +469,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	snap, _ := state.Snapshot()
 
@@ -486,6 +494,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -520,6 +529,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -549,6 +559,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -585,6 +596,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -616,6 +628,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
