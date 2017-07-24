@@ -180,8 +180,8 @@ func (c *ServiceClient) Run() {
 				if failures == 0 {
 					c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
 				}
-				failures++
 			}
+			failures++
 			if !retryTimer.Stop() {
 				// Timer already expired, since the timer may
 				// or may not have been read in the select{}
