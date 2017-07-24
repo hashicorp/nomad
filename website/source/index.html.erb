@@ -166,12 +166,12 @@ description: |-
     <div class="row">
       <div class="col-sm-7">
         <p>
-          Nomad supports blue/green and canary deployments through the
-          declarative job file syntax. By specifying multiple task groups,
-          Nomad allows for easily changing the quantity and parameters of
-          each group to perform automatic or manual rolling deploys. Place the
-          job behind a shared load balancer to send a percentage of traffic to
-          the canary build to test changes on a portion of traffic.
+          Nomad supports native blue/green and canary deployments through the
+          declarative job file syntax. Instead of doing a rolling upgrade of the
+          existing allocations, the new version of the group is deployed along
+          side the existing set. While this duplicates the resources required
+          during the upgrade process, it allows very safe deployments as the
+          original version of the group is untouched.
         </p>
       </div>
       <div class="col-sm-5">
@@ -230,7 +230,7 @@ description: |-
           By supporting a wide range of technologies such as Docker, rkt, and
           LXC, Nomad does not force you into a single technology. Easily use
           multiple container or virtualization runtimes simultaneously.
-          Applications with their own runtime such as Java or Golang can be
+          Applications with their own runtime such as Java or Go can be
           scheduled directly without the overhead of a container.
         </p>
       </div>
