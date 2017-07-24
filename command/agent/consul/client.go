@@ -648,28 +648,13 @@ func (c *ServiceClient) Shutdown() error {
 	// Serialize Shutdown calls with RegisterAgent to prevent leaking agent
 	// entries.
 	c.agentLock.Lock()
+	defer c.agentLock.Unlock()
 	select {
 	case <-c.shutdownCh:
 		return nil
 	default:
+		close(c.shutdownCh)
 	}
-
-	// Deregister Nomad agent Consul entries before closing shutdown.
-	ops := operations{}
-	for id := range c.agentServices {
-		ops.deregServices = append(ops.deregServices, id)
-	}
-	for id := range c.agentChecks {
-		ops.deregChecks = append(ops.deregChecks, id)
-	}
-	c.commit(&ops)
-
-	// Then signal shutdown
-	close(c.shutdownCh)
-
-	// Safe to unlock after shutdownCh closed as RegisterAgent will check
-	// shutdownCh before committing.
-	c.agentLock.Unlock()
 
 	// Give run loop time to sync, but don't block indefinitely
 	deadline := time.After(c.shutdownWait)
@@ -679,7 +664,19 @@ func (c *ServiceClient) Shutdown() error {
 	case <-c.exitCh:
 	case <-deadline:
 		// Don't wait forever though
-		return fmt.Errorf("timed out waiting for Consul operations to complete")
+	}
+
+	// Always attempt to deregister Nomad agent Consul entries, even if
+	// deadline was reached
+	for id := range c.agentServices {
+		if err := c.client.ServiceDeregister(id); err != nil {
+			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+		}
+	}
+	for id := range c.agentChecks {
+		if err := c.client.CheckDeregister(id); err != nil {
+			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+		}
 	}
 
 	// Give script checks time to exit (no need to lock as Run() has exited)
