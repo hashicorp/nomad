@@ -1,144 +1,436 @@
-<div id="hero">
+---
+description: |-
+  Nomad is a highly available, distributed, data-center aware cluster and
+  application scheduler designed to support the modern datacenter with support
+  for long-running services, batch jobs, and much more.
+---
+
+<header>
+  <div class="container hero">
+    <div class="row">
+      <div class="col-md-offset-2 col-md-8">
+        <%= inline_svg "logo-hashicorp.svg", height: 120, class: "logo" %>
+
+        <h1>Easily Deploy Applications at Any Scale</h1>
+
+        <a class="button primary" href="/intro/index.html">Get Started</a>
+        <a class="button" href="/downloads.html">Download <%= latest_version %></a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="features" class="marketing green">
   <div class="container">
     <div class="row">
-      <div class="col-md-12">
-        <div id="hero-graphic">
-          <div id="cubes">
-            <div class="cube">
-              <span class="face top"></span>
-              <span class="face left"></span>
-              <span class="face right"></span>
-            </div>
-          </div>
-          <div id="hero-logotype"></div>
-        </div>
-        <div id="hero-text">
-          <div id="hero-text-content">
-            <h1>Easily deploy applications at any scale</h1>
-            <h4>A Distributed, Highly Available, Datacenter-Aware Scheduler</h4>
-            <div id="hero-btns">
-              <a class="button primary" href="/intro/index.html">Get Started</a>
-              <a class="button" href="/downloads.html">Download Now</a>
-            </div>
+      <div class="col-sm-12">
+        <h2>Simple and Lightweight</h2>
+        <p class="lead">
+          Nomad is a single binary that schedules applications and services on
+          Linux, Windows, and Mac. It is an open source scheduler that uses a
+          declarative job file for scheduling virtualized, containerized, and
+          standalone applications.
+        </p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <h3>1. Declare Jobs</h3>
+        <p>
+          Users compose and submit high-level job files. Nomad handles the
+          scheduling and upgrading of the applications over time.
+        </p>
+        <p>
+          This flexibilty makes it easy to deploy one container, dozens of
+          containers, or even <a
+          href="https://www.hashicorp.com/c1m/">millions</a>.
+        </p>
+      </div>
+      <div class="col-sm-6">
+        <h3>2. Plan Changes</h3>
+        <p>
+          With built-in dry-run execution, Nomad shows what scheduling decisions
+          it will take before it takes them. Operators can approve or deny these
+          changes to create a safe and reproducible workflow.
+        </p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <h3>3. Run Applications</h3>
+        <p>
+          Nomad runs applications and ensures they keep running in failure
+          scenarios. In addition to long-running services, Nomad can schedule
+          batch jobs, distributed cron jobs, and parameterized jobs.
+        </p>
+      </div>
+      <div class="col-sm-6">
+        <h3>4. Monitor Progress</h3>
+        <p>
+          Stream logs, send signals, and interact with the file system of
+          scheduled applications. These operator-friendly commands bring the
+          familiar debugging tools to a scheduled world.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="hybrid-multi-cloud" class="marketing">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <span class="callout">Combine</span>
+        <h2>Hybrid &amp; Multi Cloud</h2>
+        <p class="lead">
+          As more organizations adopt cloud technologies, the desire to run in
+          multiple datacenters and multiple regions becomes critical. Nomad can
+          span public and private clouds and treat all your infrastructure as a
+          pool of resources.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <%= inline_svg "feature-public-private-clouds.svg" %>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6">
+        <h3>Hybrid Cloud</h3>
+        <p>
+          Nomad bridges the gap between the public and private cloud, creating a
+          unified interface for developers to run any application on any
+          infrastructure. Easily run services across your internal private cloud
+          and external public cloud transparently to application developers.
+        </p>
+      </div>
+      <div class="col-sm-6">
+        <h3>Multi Cloud</h3>
+        <p>
+          As more organizations adopt cloud technologies, the desire to run
+          applications simultaneously across multiple clouds increases. Nomad
+          combines the power of all cloud providers into a single, unified
+          interface for deploying applications and running services.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="simplify" class="marketing green">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <span class="callout">Maintain</span>
+        <h2>Simplify Operations</h2>
+        <p class="lead">
+          Nomad simplifies operations by supporting several deployment
+          strategies to safely upgrade jobs, automatically handling machine
+          failures, and providing a single workflow to deploy applications.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-offset-5 col-sm-6">
+        <h3>Rolling Deploys</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-5" id="feature-rolling-deploys">
+        <%= inline_svg "feature-rolling-deploys.svg" %>
+      </div>
+      <div class="col-sm-7">
+        <p>
+          In order to update an application while reducing downtime, Nomad
+          provides a built-in mechanism for rolling upgrades. Operators specify
+          the rate at which they would like to upgrade their service in the
+          declarative job file, plan the changes, and submit the new job. Nomad
+          then updates the service to the newest version using task health and
+          Consul health check information to ensure replacement allocations are
+          healthy. With full control over the update strategy, rolling upgrades
+          make application deployments simple and safe.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <h3>Blue/Green Deployments</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-7">
+        <p>
+          Nomad supports native blue/green and canary deployments through the
+          declarative job file syntax. Instead of doing a rolling upgrade of the
+          existing allocations, the new version of the group is deployed along
+          side the existing set. While this duplicates the resources required
+          during the upgrade process, it allows very safe deployments as the
+          original version of the group is untouched till the operator promotes
+          the new version.
+        </p>
+      </div>
+      <div class="col-sm-5">
+        <%= inline_svg "feature-blue-green.svg" %>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-offset-5 col-sm-6">
+        <h3>Automatic Machine Failures</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-5">
+        <%= inline_svg "feature-machine-failure.svg" %>
+      </div>
+      <div class="col-sm-7">
+        <p>
+          Because it knows the state of all nodes and applications, if a
+          node becomes unhealthy, Nomad will automatically reschedule the
+          applications that were previously running on the unhealthy host
+          onto a new, healthy host if capacity exists. As new clients are
+          added to the cluster, they can share the responsibility of
+          running applications and services.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="flexible-workloads" class="marketing">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <span class="callout">Support</span>
+        <h2>Flexible Workloads</h2>
+        <p class="lead">
+          In addition to supporting Linux, Windows, and Mac, Nomad has
+          extensible support for containerized, virtualized, and standalone
+          applications. Easily start Docker containers, VMs, or application
+          runtimes like Java.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <%= inline_svg "feature-flexible-workloads.svg" %>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6">
+        <h3>Diverse Technologies</h3>
+        <p>
+          By supporting a wide range of technologies such as Docker, rkt, and
+          LXC, Nomad does not force you into a single technology. Easily use
+          multiple container or virtualization runtimes simultaneously.
+          Applications with their own runtime such as Java or Go can be
+          scheduled directly without the overhead of a container.
+        </p>
+      </div>
+      <div class="col-sm-6">
+        <h3>Multi OS</h3>
+        <p>
+          The Nomad client runs on Linux, Windows, and Mac OS. This diverse
+          operating system support enables using the same application scheduler
+          for all your scheduling and runtime needs.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="binpacking" class="marketing black">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <span class="callout">Maximize</span>
+        <h2>Increase Utilization &amp; Reduce Costs</h2>
+        <p class="lead">
+          Nomad uses bin packing to optimize application placement onto servers
+          to maximize resource utilization, increase density, and help reduce
+          costs.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <%= inline_svg "feature-binpacking.svg" %>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6">
+        <h3>Increase Density</h3>
+        <p>
+          Nomad places applications and services based on a bin packing
+          algorithm, which is used to optimize the resource utilization and
+          density of applications. Nomad automatically augments the bin-packing
+          algorithm with anti-affinity rules to avoid colocating instances of
+          the same service to reduce the probability of correlated failures.
+        </p>
+      </div>
+      <div class="col-sm-6">
+        <h3>Reduce Costs</h3>
+        <p>
+          By maximizing resource utilization, Nomad can help remove unused or
+          under-utilized machines in the cluster, reducing overall costs.
+          Additionally, Nomad enables organizations to utilize larger, more
+          cost-effective compute devices which can be less expensive at scale.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="examples" class="marketing gray">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <h2>Examples</h2>
+        <h3>Create and Submit Jobs</h3>
+        <p>
+          Easily create, validate, submit, and check the status of jobs using
+          the Nomad CLI.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="terminal">
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <div class="terminal-content">
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad init</span>
+            </span>
+            <span>Example job file written to example.nomad</span>
+            <span>&nbsp;</span>
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad validate example.nomad</span>
+            </span>
+            <span>Job validation successful</span>
+            <span>&nbsp;</span>
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad run example.nomad</span>
+            </span>
+            <span>==> Monitoring evaluation "feb23392"</span>
+            <span class="pre">    Evaluation triggered by job "example"</span>
+            <span class="pre">    Evaluation within deployment: "7ffa7ed1"</span>
+            <span class="pre">    Allocation "a2f24fcf" created: node "3714a84a", group "cache"</span>
+            <span class="pre">    Evaluation status changed: "pending" -> "complete"</span>
+            <span>==> Evaluation "feb23392" finished with status "complete"</span>
+            <span>&nbsp;</span>
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad status</span>
+            </span>
+            <span class="pre">ID       Type     Priority  Status   Submit Date</span>
+            <span class="pre">example  service  50        running  <%= Time.now.strftime("%m/%d/%y %H:%M:%S %Z") %></span>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div id="subhero-banner" class="banner gray-banner">
-  <div class="container">
     <div class="row">
-      <div class="col col-md-12">
-        <p>Nomad scheduled 1 million containers on 5,000 hosts in under 5 minutes</p>
-        <a class="button inline" href="https://www.hashicorp.com/c1m.html">Read more</a>
+      <div class="col-sm-12">
+        <h3>Plan Changes</h3>
+        <p>
+          Perform a dry-run to check application placement, scheduling
+          decisions, and visualize failures before they happen.
+        </p>
       </div>
     </div>
-  </div>
-</div>
 
-<div id="content">
-  <div class="container">
     <div class="row">
-      <div class=" col-md-12">
-        <h2 class="feature-section-title">Overview</h2>
-
-        <div id="deploy" class="feature">
-          <div class="feature-header">
-            <h3>Easily Deploy</h3>
-            <p>
-              Users submit simple high-level jobs and Nomad handles
-              scheduling, deploying and upgrading applications.
-            </p>
+      <div class="col-sm-12">
+        <div class="terminal">
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <div class="terminal-content">
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad plan example.nomad</span>
+            </span>
+            <span class="pre"><span class="text-orange">+/-</span> <span class="text-bold">Job: "example"</span></span>
+            <span class="pre"><span class="text-bold text-orange">+/-</span> <span class="text-bold">Task Group: "cache"</span> (<span class="text-green">2 create</span>, <span class="text-blue">1 in-place update</span>)</span>
+            <span class="pre">  <span class="text-orange">+/-</span> Count: "1" => "3" (<span class="text-green">forces create</span>)</span>
+            <span class="pre">      <span class="text-bold">Task: "redis"</span></span>
+            <span>&nbsp;</span>
+            <span class="pre"><span class="text-bold">Scheduler dry-run:</span></span>
+            <span class="pre"><span class="text-bold text-green">- All tasks successfully allocated.</span></span>
+            <span>&nbsp;</span>
+            <span class="pre"><span class="text-bold">Job Modify Index: 7</span></span>
+            <span>&nbsp;</span>
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad run -check-index 7 example.nomad</span>
+            </span>
+            <span>==> Monitoring evaluation "e338a6ae"</span>
+            <span class="pre">    Evaluation triggered by job "example"</span>
+            <span class="pre">    Evaluation within deployment: "43310206"</span>
+            <span class="pre">    Allocation "991a0d89" created: node "c5916a99", group "cache"</span>
+            <span class="pre">    Allocation "daee8be1" created: node "c5916a99", group "cache"</span>
+            <span class="pre">    Allocation "83f29312" modified: node "c5916a99", group "cache"</span>
+            <span class="pre">    Evaluation status changed: "pending" -> "complete"</span>
+            <span>==> Evaluation "e338a6ae" finished with status "complete"</span>
           </div>
-          <div class="feature-graphic"></div>
-          <div class="feature-footer">
-            <p>Nomad makes it easy to deploy one container or thousands.</p>
-            <span class="docker-outline-logo"></span>
-          </div>
-        </div>
-
-        <div id="partners" class="feature">
-          <div class="feature-header right clearfix">
-            <div class="row">
-              <h3 class="">Any Cloud or Every Cloud</h3>
-            </div>
-            <div class="row">
-              <p>
-                Multi-Datacenter and Multi-Region support enables running applications
-                on any cloud, public or private.
-              </p>
-            </div>
-          </div>
-          <div class="partner-logos">
-            <div class="row">
-              <div class="col-sm-2 docker-wrap">
-                <span class="partner-logo docker-logo"></span>
-              </div>
-              <div class="col-sm-10 cloud-wrap clearfix">
-                <span class="partner-logo aws-logo"></span>
-                <span class="partner-logo google-logo"></span>
-                <span class="partner-logo microsoft-logo"></span>
-                <span class="partner-logo digitalocean-logo"></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="maintain" class="feature">
-          <div class="feature-header">
-            <h3>Flexible Workloads</h3>
-            <p>
-              Nomad has extensible support for task drivers, allowing it to run
-              containerized, virtualized, and standalone applications. Users can easily
-              start Docker containers, VMs, or application runtimes like Java. Nomad
-              supports Linux, Windows, BSD and OSX, providing the flexibility to run
-              any workload.
-            </p>
-          </div>
-          <div class="feature-graphic"></div>
-        </div>
-
-        <div id="healing" class="feature">
-          <div class="feature-header right clearfix">
-            <div class="row">
-              <div class="col-xs-12">
-                <h3>Simplify Operations</h3>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-xs-12">
-                <p>
-                  Nomad simplifies operations by supporting blue/green deployments,
-                  automatically handling machine failures, and providing a single workflow
-                  to deploy applications.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div class="feature-graphic"></div>
-        </div>
-
-        <div id="density" class="feature">
-          <div class="feature-header">
-            <h3>Increase Density, Reduce Cost</h3>
-            <p>Nomad packs applications onto servers to maximize resource utilization, increase density, and reduce costs.</p>
-          </div>
-          <div class="feature-graphic"></div>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div id="cta-banner" class="banner green-banner">
-  <div class="container">
     <div class="row">
-      <div class="col col-md-12">
-        <p>Completely free and open source.</p>
-        <a class="button" href="/intro">Get Started</a>
+      <div class="col-sm-12">
+        <h3>View Application Logs</h3>
+        <p>
+          Stream application logs directly in the terminal to help analyze and
+          debug applications.
+        </p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="terminal">
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <span class="circle"><%= inline_svg "terminal-circle.svg" %></span>
+          <div class="terminal-content">
+            <span>
+              <span class="text-green">admin@hashicorp.com:</span>
+              <span>nomad logs -tail -job example</span>
+            </span>
+            <span><%= Time.now.strftime("%d %b %H:%M:%S") %> # Server started, Redis version 3.2.9</span>
+            <span><%= Time.now.strftime("%d %b %H:%M:%S") %> * The server is now ready to accept connections on port 6379</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12 col-lg-8 col-lg-offset-2">
+        <p class="lead" align="center">
+          The introduction contains a walkthrough guide, glossary, and a range
+          of examples for learning and experimenting with Nomad.
+        </p>
+        <p align="center">
+          <a href="/intro/index.html" class="button primary">Get Started</a>
+        </p>
       </div>
     </div>
   </div>
-</div>
+</section>
