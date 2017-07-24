@@ -148,10 +148,12 @@ description: |-
         <p>
           In order to update an application while reducing downtime, Nomad
           provides a built-in mechanism for rolling upgrades. Operators specify
-          their update strategy in the declarative job file, plan the changes,
-          and submit them for evaluation and allocation. With full control over
-          parallelization and stagger, rolling upgrades make application
-          deployments simple and safe.
+          the rate at which they would like to upgrade their service in the
+          declarative job file, plan the changes, and submit the new job. Nomad
+          then updates the service to the newest version using task health and
+          Consul health check information to ensure replacement allocations are
+          healthy. With full control over the update strategy, rolling upgrades
+          make application deployments simple and safe.
         </p>
       </div>
     </div>
