@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -115,6 +116,10 @@ type ServiceClient struct {
 	agentServices map[string]struct{}
 	agentChecks   map[string]struct{}
 	agentLock     sync.Mutex
+
+	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
+	// atomics.
+	seen int64
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
@@ -139,6 +144,21 @@ func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log
 	}
 }
 
+// seen is used by MarkSeen and Seen
+const seen = 1
+
+// MarkSeen marks Consul as having been seen (meaning at least one operation
+// has succeeded).
+func (c *ServiceClient) MarkSeen() {
+	atomic.StoreInt64(&c.seen, seen)
+}
+
+// Seen returns true if any Consul operation has ever succeeded. Useful to
+// squelch errors if Consul isn't running.
+func (c *ServiceClient) Seen() bool {
+	return atomic.LoadInt64(&c.seen) == seen
+}
+
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
 func (c *ServiceClient) Run() {
@@ -155,10 +175,13 @@ func (c *ServiceClient) Run() {
 		}
 
 		if err := c.sync(); err != nil {
-			if failures == 0 {
-				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
+			// Only log and track failures after Consul has been seen
+			if c.Seen() {
+				if failures == 0 {
+					c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
+				}
+				failures++
 			}
-			failures++
 			if !retryTimer.Stop() {
 				// Timer already expired, since the timer may
 				// or may not have been read in the select{}
@@ -240,6 +263,9 @@ func (c *ServiceClient) sync() error {
 		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 		return fmt.Errorf("error querying Consul services: %v", err)
 	}
+
+	// A Consul operation has succeeded, mark Consul as having been seen
+	c.MarkSeen()
 
 	consulChecks, err := c.client.Checks()
 	if err != nil {
@@ -664,6 +690,11 @@ func (c *ServiceClient) Shutdown() error {
 	case <-c.exitCh:
 	case <-deadline:
 		// Don't wait forever though
+	}
+
+	// If Consul was never seen, exit early
+	if !c.Seen() {
+		return nil
 	}
 
 	// Always attempt to deregister Nomad agent Consul entries, even if
