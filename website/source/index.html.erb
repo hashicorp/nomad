@@ -273,9 +273,9 @@ description: |-
         <p>
           Nomad places applications and services based on a bin packing
           algorithm, which is used to optimize the resource utilization and
-          density of applications, but is also augmented by affinity and
-          anti-affinity rules. This algorithm ensures maximum utilization of
-          resources such as CPU, memory, and disk.
+          density of applications. Nomad automatically augments the bin-packing
+          algorithm with anti-affinity rules to avoid colocating instances of
+          the same service to reduce the probability of correlated failures.
         </p>
       </div>
       <div class="col-sm-6">
