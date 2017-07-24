@@ -147,15 +147,15 @@ func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log
 // seen is used by MarkSeen and Seen
 const seen = 1
 
-// MarkSeen marks Consul as having been seen (meaning at least one operation
+// markSeen marks Consul as having been seen (meaning at least one operation
 // has succeeded).
-func (c *ServiceClient) MarkSeen() {
+func (c *ServiceClient) markSeen() {
 	atomic.StoreInt64(&c.seen, seen)
 }
 
-// Seen returns true if any Consul operation has ever succeeded. Useful to
+// hasSeen returns true if any Consul operation has ever succeeded. Useful to
 // squelch errors if Consul isn't running.
-func (c *ServiceClient) Seen() bool {
+func (c *ServiceClient) hasSeen() bool {
 	return atomic.LoadInt64(&c.seen) == seen
 }
 
@@ -175,11 +175,8 @@ func (c *ServiceClient) Run() {
 		}
 
 		if err := c.sync(); err != nil {
-			// Only log and track failures after Consul has been seen
-			if c.Seen() {
-				if failures == 0 {
-					c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
-				}
+			if failures == 0 {
+				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
 			}
 			failures++
 			if !retryTimer.Stop() {
@@ -263,9 +260,6 @@ func (c *ServiceClient) sync() error {
 		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 		return fmt.Errorf("error querying Consul services: %v", err)
 	}
-
-	// A Consul operation has succeeded, mark Consul as having been seen
-	c.MarkSeen()
 
 	consulChecks, err := c.client.Checks()
 	if err != nil {
@@ -361,6 +355,9 @@ func (c *ServiceClient) sync() error {
 			c.runningScripts[id] = script.run()
 		}
 	}
+
+	// A Consul operation has succeeded, mark Consul as having been seen
+	c.markSeen()
 
 	c.logger.Printf("[DEBUG] consul.sync: registered %d services, %d checks; deregistered %d services, %d checks",
 		sreg, creg, sdereg, cdereg)
@@ -692,8 +689,8 @@ func (c *ServiceClient) Shutdown() error {
 		// Don't wait forever though
 	}
 
-	// If Consul was never seen, exit early
-	if !c.Seen() {
+	// If Consul was never seen nothing could be written so exit early
+	if !c.hasSeen() {
 		return nil
 	}
 

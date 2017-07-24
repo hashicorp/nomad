@@ -704,10 +704,8 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 
 	// Determine version for TLSSkipVerify
-	seen := false
 	if self, err := client.Agent().Self(); err == nil {
 		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
-		seen = true
 	}
 
 	// Create Consul Catalog client for service discovery.
@@ -715,12 +713,6 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 
 	// Create Consul Service client for service advertisement and checks.
 	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
-
-	// If we've seen the Consul agent already, mark it so future Consul
-	// errors are logged
-	if seen {
-		a.consulService.MarkSeen()
-	}
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()
