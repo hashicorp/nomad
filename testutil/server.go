@@ -21,10 +21,10 @@ import (
 	"os"
 	"os/exec"
 	"sync/atomic"
-	"testing"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/mitchellh/go-testing-interface"
 )
 
 // offset is used to atomically increment the port numbers.
@@ -117,7 +117,7 @@ func defaultServerConfig() *TestServerConfig {
 type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
-	t      *testing.T
+	t      testing.T
 
 	HTTPAddr   string
 	SerfAddr   string
@@ -126,7 +126,7 @@ type TestServer struct {
 
 // NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
-func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
+func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	path, err := discover.NomadExecutable()
 	if err != nil {
 		t.Skipf("nomad not found, skipping: %v", err)
