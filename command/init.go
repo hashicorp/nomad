@@ -337,8 +337,9 @@ job "example" {
       #   change_signal = "SIGHUP"
       # }
 
-      # The "template" stanza can also be used to create env vars for tasks
-      # that prefer those to config files.
+      # The "template" stanza can also be used to create environment variables
+      # for tasks that prefer those to config files. The task will be restarted
+      # when data pulled from Consul or Vault changes.
       #
       # template {
       #   data        = "KEY={{ key \"service/my-key\" }}"
