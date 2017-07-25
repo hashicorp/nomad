@@ -3338,6 +3338,9 @@ func (t *Template) Validate() error {
 		if t.ChangeSignal == "" {
 			multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
 		}
+		if t.Envvars {
+			multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
+		}
 	default:
 		multierror.Append(&mErr, TemplateChangeModeInvalidError)
 	}
