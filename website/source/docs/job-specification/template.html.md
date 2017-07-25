@@ -179,7 +179,7 @@ LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
 API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
 EOH
 
-  destination = "local/file.env"
+  destination = "secrets/file.env"
   env         = true
 }
 ```
