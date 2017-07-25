@@ -67,6 +67,7 @@ Parameterized = false
 Full status information of a job:
 
 ```
+$ nomad status example
 ID            = example
 Name          = example
 Submit Date   = 07/25/17 15:53:04 UTC
@@ -98,6 +99,7 @@ ID        Node ID   Task Group  Version  Desired  Status   Created At
 Full status information of a perodic job:
 
 ```
+$ nomad status example
 ID                   = example
 Name                 = example
 Submit Date          = 07/25/17 15:59:52 UTC
@@ -123,6 +125,7 @@ example/periodic-1500998420  running
 Full status information of a parameterized job:
 
 ```
+$ nomad status example
 ID            = example
 Name          = example
 Submit Date   = 07/25/17 15:59:52 UTC
@@ -151,6 +154,7 @@ example/dispatch-1485411499-fa2ee40e  running
 Full status information of a job with placement failures:
 
 ```
+$ nomad status example
 ID            = example
 Name          = example
 Submit Date   = 07/25/17 15:55:27 UTC

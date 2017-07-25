@@ -39,134 +39,134 @@ allocations and information will be displayed.
 Short status of an alloc:
 
 ```
-$ nomad alloc-status --short 13901f26
-ID            = 13901f26
-Eval ID       = c3c9a1db
-Name          = example.cache[0]
-Node ID       = 1f029d38
-Job ID        = example
-Client Status = running
-Created At    = 29/03/16 03:04:53 UTC
+$ nomad alloc-status --short 0af996ed
+ID                  = 0af996ed
+Eval ID             = be9bde98
+Name                = example.cache[0]
+Node ID             = 43c0b14e
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1
+Deployment Health   = healthy
 
-==> Tasks
+Tasks
 Name   State    Last Event  Time
-redis  running  Started     29/03/16 03:04:53 UTC
-web    running  Started     29/03/16 03:04:53 UTC
+redis  running  Started     07/25/17 16:12:48 UTC
+web    running  Started     07/25/17 16:12:49 UTC
 ```
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
-$ nomad alloc-status cfe85e72
-ID                  = cfe85e72
-Eval ID             = cdc88569
+$ nomad alloc-status 0af996ed
+ID                  = 0af996ed
+Eval ID             = be9bde98
 Name                = example.cache[0]
-Node ID             = bfd3aa86
+Node ID             = 43c0b14e
 Job ID              = example
-Job Version         = 1
+Job Version         = 0
 Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 07/25/17 23:42:01 UTC
-Deployment ID       = dd162708
-Deployment Health   = unset
-Canary              = true
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1
+Deployment Health   = healthy
 
 Task "redis" is "running"
 Task Resources
 CPU        Memory           Disk     IOPS  Addresses
-4/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:20055
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:27908
 
 Task Events:
-Started At     = 07/25/17 23:42:02 UTC
+Started At     = 07/25/17 16:12:48 UTC
 Finished At    = N/A
 Total Restarts = 0
 Last Restart   = N/A
 
 Recent Events:
 Time                   Type        Description
-07/25/17 23:42:02 UTC  Started     Task started by client
-07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
-07/25/17 23:42:01 UTC  Received    Task received by client
+07/25/17 16:12:48 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 
 Task "web" is "running"
 Task Resources
 CPU        Memory           Disk     IOPS  Addresses
-5/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:28235
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:30572
 
 Task Events:
-Started At     = 07/25/17 23:42:02 UTC
+Started At     = 07/25/17 16:12:49 UTC
+>>>>>>> alloc-status
 Finished At    = N/A
 Total Restarts = 0
 Last Restart   = N/A
 
 Recent Events:
-Time                   Type        Description
-07/25/17 23:42:02 UTC  Started     Task started by client
-07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
-07/25/17 23:42:01 UTC  Received    Task received by client
+07/25/17 16:12:49 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 ```
 
 Verbose status can also be accessed:
 
 ```
-$ nomad alloc-status --verbose cfe85e72
-ID                  = cfe85e72-220e-cb14-edfc-432602ac0981
-Eval ID             = cdc88569-bbc3-5549-855f-c0db59d4d4d3
+$ nomad alloc-status -verbose 0af996ed
+ID                  = 0af996ed-aff4-8ddb-a566-e55ebf8969c9
+Eval ID             = be9bde98-0490-1beb-ced0-012d10ddf22e
 Name                = example.cache[0]
-Node ID             = bfd3aa86-ecbf-0f6c-b234-0f4d35792543
+Node ID             = 43c0b14e-7f96-e432-a7da-06605257ce0c
 Job ID              = example
-Job Version         = 1
+Job Version         = 0
 Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 07/25/17 23:42:01 UTC
-Deployment ID       = dd162708-d810-a761-53b9-cfb1dc8637e8
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1-8a7b-136b-0e11-8383dc6c9276
 Deployment Health   = healthy
-Canary              = true
 Evaluated Nodes     = 1
 Filtered Nodes      = 0
 Exhausted Nodes     = 0
-Allocation Time     = 152.016µs
+Allocation Time     = 38.474µs
 Failures            = 0
 
 Task "redis" is "running"
 Task Resources
 CPU        Memory           Disk     IOPS  Addresses
-2/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:20055
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:27908
 
 Task Events:
-Started At     = 07/25/17 23:42:02 UTC
+Started At     = 07/25/17 16:12:48 UTC
 Finished At    = N/A
 Total Restarts = 0
 Last Restart   = N/A
 
 Recent Events:
 Time                   Type        Description
-07/25/17 23:42:02 UTC  Started     Task started by client
-07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
-07/25/17 23:42:01 UTC  Received    Task received by client
+07/25/17 16:12:48 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 
 Task "web" is "running"
 Task Resources
 CPU        Memory           Disk     IOPS  Addresses
-4/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:28235
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:30572
 
 Task Events:
-Started At     = 07/25/17 23:42:02 UTC
+Started At     = 07/25/17 16:12:49 UTC
 Finished At    = N/A
 Total Restarts = 0
 Last Restart   = N/A
 
 Recent Events:
 Time                   Type        Description
-07/25/17 23:42:02 UTC  Started     Task started by client
-07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
-07/25/17 23:42:01 UTC  Received    Task received by client
-
-Placement Metrics
-  * Score "bfd3aa86-ecbf-0f6c-b234-0f4d35792543.binpack" = 9.142490
-  * Score "bfd3aa86-ecbf-0f6c-b234-0f4d35792543.job-anti-affinity" = -20.000000
+07/25/17 16:12:49 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 ```
