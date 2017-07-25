@@ -165,8 +165,9 @@ or to change the count of a task group to scale with load.
 For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 
 ```
-# Control the number of instances of this group.
-# Defaults to 1
+# The "count" parameter specifies the number of the task groups that should
+# be running under this group. This value must be non-negative and defaults
+# to 1.
 count = 3
 ```
 
@@ -210,6 +211,7 @@ before you apply your modifications.
 $ nomad run -check-index 6 example.nomad
 ==> Monitoring evaluation "127a49d0"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "2e2c818f"
     Allocation "8ab24eef" created: node "171a583b", group "cache"
     Allocation "f6c29874" created: node "171a583b", group "cache"
     Allocation "8ba85cef" modified: node "171a583b", group "cache"
