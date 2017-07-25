@@ -28,11 +28,23 @@ Example job file written to example.nomad
 
 $ cat example.nomad
 
-# There can only be a single job definition per file.
-# Create a job with ID and Name 'example'
+# There can only be a single job definition per file. This job is named
+# "example" so it will create a job with the ID and Name "example".
+
+# The "job" stanza is the top-most configuration option in the job
+# specification. A job is a declarative specification of tasks that Nomad
+# should run. Jobs have a globally unique name, one or many task groups, which
+# are themselves collections of one or many tasks.
+#
+# For more information and examples on the "job" stanza, please see
+# the online documentation at:
+#
+#     https://www.nomadproject.io/docs/job-specification/job.html
+#
 job "example" {
-	# Run the job in the global region, which is the default.
-	# region = "global"
+  # The "region" parameter specifies the region in which to execute the job. If
+  # omitted, this inherits the default region name of "global".
+  # region = "global"
 ...
 ```
 
