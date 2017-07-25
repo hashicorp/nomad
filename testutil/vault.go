@@ -6,12 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
+	"github.com/mitchellh/go-testing-interface"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -24,7 +24,7 @@ import (
 // testing.
 type TestVault struct {
 	cmd    *exec.Cmd
-	t      *testing.T
+	t      testing.T
 	waitCh chan error
 
 	Addr      string
@@ -35,7 +35,7 @@ type TestVault struct {
 }
 
 // NewTestVault returns a new TestVault instance that has yet to be started
-func NewTestVault(t *testing.T) *TestVault {
+func NewTestVault(t testing.T) *TestVault {
 	port := getPort()
 	token := structs.GenerateUUID()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
