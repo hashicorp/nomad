@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -414,10 +413,6 @@ func (s *HTTPServer) updateJobValues(resp http.ResponseWriter, req *http.Request
 			if newCount < 0 {
 				outErr := fmt.Sprintf("Task group count may not be less than 0: 0 > %d",
 					newCount)
-				return nil, CodedError(400, outErr)
-			} else if newCount < taskGroup.Update.MaxParallel {
-				outErr := fmt.Sprintf("Task group count may not be less than update strategy max parallel: %d > %d",
-					taskGroup.Update.MaxParallel, newCount)
 				return nil, CodedError(400, outErr)
 			}
 			taskGroup.Count = newCount

@@ -1357,3 +1357,141 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
 }
+
+func TestHTTP_JobIncrease(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		// Create two task groups
+		task2 := &structs.TaskGroup{}
+		*task2 = *job.TaskGroups[0]
+		oldCount := job.TaskGroups[0].Count
+		task2.Name = "web2"
+		job.TaskGroups = append(job.TaskGroups, task2)
+		regReq := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var regResp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Create a faulty request, missing group ID
+		incrCount := 5
+		args := api.JobUpdateValues{
+			TaskGroupID: "",
+			Count:       incrCount,
+		}
+		buf := encodeReq(args)
+		respW := httptest.NewRecorder()
+
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/increase", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		// Expect err as group count > 1
+		if err == nil {
+			t.Fatalf("Expected error, got: %v", obj)
+		}
+
+		// Create request updating web group
+		args.TaskGroupID = job.TaskGroups[0].Name
+		buf = encodeReq(args)
+		req, err = http.NewRequest("PUT", "/v1/job/"+job.ID+"/increase", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		_, err = s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Verify the values are updated at the end point
+		getReq := structs.JobSpecificRequest{
+			JobID:        job.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var getResp structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if getResp.Job == nil {
+			t.Fatalf("job does not exist")
+		}
+		// Check the response
+		if getResp.Job.TaskGroups[0].Count != oldCount+incrCount {
+			t.Fatalf("err, count mismatch expected %d, got %d", oldCount+incrCount, getResp.Job.TaskGroups[0].Count)
+		}
+	})
+}
+
+func TestHTTP_JobDecrease(t *testing.T) {
+	httpTest(t, nil, func(s *TestServer) {
+		// Create the job
+		job := mock.Job()
+		// Create two task groups
+		task2 := &structs.TaskGroup{}
+		*task2 = *job.TaskGroups[0]
+		oldCount := job.TaskGroups[0].Count
+		task2.Name = "web2"
+		job.TaskGroups = append(job.TaskGroups, task2)
+		regReq := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var regResp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Create a faulty request with decrease count > group count
+		decrCount := 5
+		args := api.JobUpdateValues{
+			TaskGroupID: job.TaskGroups[0].Name,
+			Count:       decrCount + oldCount,
+		}
+		buf := encodeReq(args)
+		respW := httptest.NewRecorder()
+
+		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/decrease", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		// Expect err as decrease count > group count
+		if err == nil {
+			t.Fatalf("Expected error, got: %v", obj)
+		}
+
+		// Create request updating web group
+		args.Count = decrCount
+		buf = encodeReq(args)
+		req, err = http.NewRequest("PUT", "/v1/job/"+job.ID+"/decrease", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		_, err = s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Verify the values are updated at the end point
+		getReq := structs.JobSpecificRequest{
+			JobID:        job.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var getResp structs.SingleJobResponse
+		if err := s.Agent.RPC("Job.GetJob", &getReq, &getResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if getResp.Job == nil {
+			t.Fatalf("job does not exist")
+		}
+		// Check the response
+		if getResp.Job.TaskGroups[0].Count != oldCount-decrCount {
+			t.Fatalf("err, count mismatch expected %d, got %d", oldCount-decrCount, getResp.Job.TaskGroups[0].Count)
+		}
+	})
+}
