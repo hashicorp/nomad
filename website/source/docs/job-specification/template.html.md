@@ -119,6 +119,7 @@ template {
   ---
     bind_port:   {{ env "NOMAD_PORT_db" }}
     scratch_dir: {{ env "NOMAD_TASK_DIR" }}
+    node_id:     {{ env "node.unique.id" }}
     service_key: {{ key "service/my-key" }}
   EOH
 

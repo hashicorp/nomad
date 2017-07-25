@@ -141,7 +141,8 @@ See the [`env`](/docs/job-specification/env.html.md) docs for details.
 
 Nomad's [`template`][template] stanza can be used
 to generate environment variables. Environment variables may be templated with
-the contents of files on disk, Consul keys, or secrets from Vault:
+[Node attributes and metadata][nodevars], the contents of files on disk, Consul
+keys, or secrets from Vault:
 
 ```hcl
 template {
@@ -149,6 +150,7 @@ template {
 LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
 API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
 CERT={{ file "path/to/cert.pem" | to JSON }}
+NODE_ID="{{ env "node.unique.id" }}"
 EOH
 
   destination = "secrets/config.env"
@@ -204,5 +206,6 @@ job "docs" {
 For more information on the artifact resource, please see the [artifact
 documentation](/docs/job-specification/artifact.html).
 
-[template]: /docs/job-specification/template.html "Nomad template Job Specification"
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
+[nodevars]: /docs/runtime/interpolation.html#interpreted_node_vars "Nomad Node Variables"
+[template]: /docs/job-specification/template.html "Nomad template Job Specification"
