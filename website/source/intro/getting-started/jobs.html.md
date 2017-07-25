@@ -74,21 +74,23 @@ To inspect the status of our job we use the [`status` command](/docs/commands/st
 
 ```
 $ nomad status example
-ID          = example
-Name        = example
-Type        = service
-Priority    = 50
-Datacenters = dc1
-Status      = running
-Periodic    = false
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 23:14:43 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
 cache       0       0         1        0       0         0
 
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
-8ba85cef  26cfc69e  171a583b  cache       run      running  06/23/16 01:41:13 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+8ba85cef  171a583b  cache       0        run      running  06/23/16 01:41:13 UTC
 ```
 
 Here we can see that the result of our evaluation was the creation of an
