@@ -84,3 +84,6 @@
 /docs/http/status.html                  /api/status.html
 /docs/http/operator.html                /api/operator.html
 /docs/http/system.html                  /api/system.html
+/docs/commands/operator-index.html      /docs/commands/operator.html
+/docs/commands/operator-raft-list-peers.html /docs/commands/operator/raft-list-peers.html
+/docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html
