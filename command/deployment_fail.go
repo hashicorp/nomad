@@ -25,9 +25,9 @@ General Options:
 Fail Options:
 
   -detach
-	Return immediately instead of entering monitor mode. After deployment
-	resume, the evaluation ID will be printed to the screen, which can be used
-	to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.

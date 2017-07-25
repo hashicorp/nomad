@@ -60,6 +60,10 @@
 /docs/cluster/manual.html               /guides/cluster/manual.html
 /docs/cluster/federation.html           /guides/cluster/federation.html
 /docs/cluster/requirements.html         /guides/cluster/requirements.html
+/docs/commands/operator-index.html      /docs/commands/operator.html
+/docs/commands/operator-raft-list-peers.html /docs/commands/operator/raft-list-peers.html
+/docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html
+/docs/commands/job-dispatch.html /docs/commands/job/dispatch.html
 
 # API
 /docs/http/index.html                   /api/index.html
@@ -84,6 +88,3 @@
 /docs/http/status.html                  /api/status.html
 /docs/http/operator.html                /api/operator.html
 /docs/http/system.html                  /api/system.html
-/docs/commands/operator-index.html      /docs/commands/operator.html
-/docs/commands/operator-raft-list-peers.html /docs/commands/operator/raft-list-peers.html
-/docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html

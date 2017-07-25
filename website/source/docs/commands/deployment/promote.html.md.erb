@@ -1,0 +1,221 @@
+---
+layout: "docs"
+page_title: "Commands: deployment promote"
+sidebar_current: "docs-commands-deployment-promote"
+description: >
+  The deployment promote command is used to promote canaries in a deployment.
+---
+
+# Command: deployment promote
+
+The `deployment promote` command is used to promote task groups in a deployment.
+Promotion should occur when the deployment has placed canaries for a task group
+and those canaries have been deemed healthy. When a task group is promoted, the
+rolling upgrade of the remaining allocations is unblocked. If the canaries are
+found to be unhealthy, the deployment may either be failed using the "nomad
+deployment fail" command, the job can be failed forward by submitting a new
+version or failed backwards by reverting to an older version using the [`job
+revert`](/docs/commands/job-revert.html) command.
+
+## Usage
+
+```
+nomad deployment promote [options] <deployment id>
+```
+
+The `deployment promote` command requires a single argument, a deployment ID or
+prefix. When run without specifying any groups to promote, the promote command
+promotes all task groups. The group flag can be specified multiple times to
+select particular groups to promote.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Promote Options
+
+* `-group`: Group may be specified many times and is used to promote that
+  particular group. If no specific groups are specified, all groups are
+  promoted.
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Promote canaries in all groups:
+
+```
+# Have two task groups waiting for promotion.
+$ nomad status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 18:35:05 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         3        0       0         0
+web         0       0         3        0       0         0
+
+Latest Deployment
+ID          = 9fa81f27
+Status      = running
+Description = Deployment is running but requires promotion
+
+Deployed
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
+web         false     2        1         1       0        0
+cache       false     2        1         1       0        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+091377e5  a8dcce2d  web         1        run      running  07/25/17 18:35:05 UTC
+d2b13584  a8dcce2d  cache       1        run      running  07/25/17 18:35:05 UTC
+4bb185b7  a8dcce2d  web         0        run      running  07/25/17 18:31:34 UTC
+9b6811ee  a8dcce2d  cache       0        run      running  07/25/17 18:31:34 UTC
+e0a2441b  a8dcce2d  cache       0        run      running  07/25/17 18:31:34 UTC
+f2409f7d  a8dcce2d  web         0        run      running  07/25/17 18:31:34 UTC
+
+# Promote all groups within the deployment
+$ nomad deployment promote 9fa81f27
+==> Monitoring evaluation "6c6e64ae"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "9fa81f27"
+    Allocation "8fa21654" created: node "a8dcce2d", group "web"
+    Allocation "9f6727a6" created: node "a8dcce2d", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "6c6e64ae" finished with status "complete"
+
+# Inspect the status and see both groups have been promoted.
+$ nomad status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 18:35:05 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         2        0       2         0
+web         0       0         2        0       2         0
+
+Latest Deployment
+ID          = 9fa81f27
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
+web         true      2        1         2       2        0
+cache       true      2        1         2       2        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status    Created At
+8fa21654  a8dcce2d  web         1        run      running   07/25/17 18:35:21 UTC
+9f6727a6  a8dcce2d  cache       1        run      running   07/25/17 18:35:21 UTC
+091377e5  a8dcce2d  web         1        run      running   07/25/17 18:35:05 UTC
+d2b13584  a8dcce2d  cache       1        run      running   07/25/17 18:35:05 UTC
+4bb185b7  a8dcce2d  web         0        stop     complete  07/25/17 18:31:34 UTC
+9b6811ee  a8dcce2d  cache       0        stop     complete  07/25/17 18:31:34 UTC
+e0a2441b  a8dcce2d  cache       0        stop     complete  07/25/17 18:31:34 UTC
+f2409f7d  a8dcce2d  web         0        stop     complete  07/25/17 18:31:34 UTC
+```
+
+Promote canaries in a particular group:
+
+```
+# Have two task groups waiting for promotion.
+$ nomad status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 18:37:14 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         3        0       0         0
+web         0       0         3        0       0         0
+
+Latest Deployment
+ID          = a6b87a6c
+Status      = running
+Description = Deployment is running but requires promotion
+
+Deployed
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
+cache       false     2        1         1       1        0
+web         false     2        1         1       1        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+3071ab8f  6240eed6  web         1        run      running  07/25/17 18:37:14 UTC
+eeeed13b  6240eed6  cache       1        run      running  07/25/17 18:37:14 UTC
+0ee7800c  6240eed6  cache       0        run      running  07/25/17 18:37:08 UTC
+a714a926  6240eed6  cache       0        run      running  07/25/17 18:37:08 UTC
+cee52788  6240eed6  web         0        run      running  07/25/17 18:37:08 UTC
+ee8f972e  6240eed6  web         0        run      running  07/25/17 18:37:08 UTC
+
+# Promote only the cache canaries
+$ nomad deployment promote -group cache a6b87a6c
+==> Monitoring evaluation "37383564"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "a6b87a6c"
+    Allocation "bbddf5c3" created: node "6240eed6", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "37383564" finished with status "complete"
+
+# Inspect the status and see that only the cache canaries are promoted
+$ nomad status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 18:37:14 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         2        0       2         0
+web         0       0         3        0       0         0
+
+Latest Deployment
+ID          = a6b87a6c
+Status      = running
+Description = Deployment is running but requires promotion
+
+Deployed
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
+web         false     2        1         1       1        0
+cache       true      2        1         2       2        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status    Created At
+bbddf5c3  6240eed6  cache       1        run      running   07/25/17 18:37:40 UTC
+eeeed13b  6240eed6  cache       1        run      running   07/25/17 18:37:14 UTC
+3071ab8f  6240eed6  web         1        run      running   07/25/17 18:37:14 UTC
+a714a926  6240eed6  cache       0        stop     complete  07/25/17 18:37:08 UTC
+cee52788  6240eed6  web         0        run      running   07/25/17 18:37:08 UTC
+ee8f972e  6240eed6  web         0        run      running   07/25/17 18:37:08 UTC
+0ee7800c  6240eed6  cache       0        stop     complete  07/25/17 18:37:08 UTC
+```
