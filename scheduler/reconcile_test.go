@@ -1990,6 +1990,62 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 }
 
+// Tests the reconciler creates new canaries when the job changes for multiple
+// task groups
+func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = canaryUpdate
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[0].Name = "tg2"
+
+	// Create 10 allocations from the old job for each tg
+	var allocs []*structs.Allocation
+	for j := 0; j < 2; j++ {
+		for i := 0; i < 10; i++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = structs.GenerateUUID()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
+			alloc.TaskGroup = job.TaskGroups[j].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	state := &structs.DeploymentState{
+		DesiredCanaries: 2,
+		DesiredTotal:    10,
+	}
+	newD.TaskGroups[job.TaskGroups[0].Name] = state
+	newD.TaskGroups[job.TaskGroups[1].Name] = state.Copy()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  newD,
+		deploymentUpdates: nil,
+		place:             4,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Canary: 2,
+				Ignore: 10,
+			},
+			job.TaskGroups[1].Name: {
+				Canary: 2,
+				Ignore: 10,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1, 0, 1), placeResultsToNames(r.place))
+}
+
 // Tests the reconciler creates new canaries when the job changes and scales up
 func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 	// Scale the job up to 15

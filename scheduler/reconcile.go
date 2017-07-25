@@ -435,9 +435,14 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 
 	// Create a new deployment if necessary
-	if a.deployment == nil && strategy != nil && dstate.DesiredTotal != 0 {
-		a.deployment = structs.NewDeployment(a.job)
-		a.result.deployment = a.deployment
+	if !existingDeployment && strategy != nil && dstate.DesiredTotal != 0 {
+		// A previous group may have made the deployment already
+		if a.deployment == nil {
+			a.deployment = structs.NewDeployment(a.job)
+			a.result.deployment = a.deployment
+		}
+
+		// Attach the groups deployment state to the deployment
 		a.deployment.TaskGroups[group] = dstate
 	}
 
