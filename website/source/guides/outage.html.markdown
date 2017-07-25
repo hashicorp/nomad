@@ -56,7 +56,7 @@ able to remove the server, you have two methods available to remove it,
 depending on your version of Nomad:
 
 * In Nomad 0.5.5 and later, you can use the [`nomad operator raft
-  remove-peer`](/docs/commands/operator-raft-remove-peer.html) command to remove
+  remove-peer`](/docs/commands/operator/raft-remove-peer.html) command to remove
   the stale peer server on the fly with no downtime.
 
 * In versions of Nomad prior to 0.5.5, you can manually remove the stale peer
@@ -65,7 +65,7 @@ depending on your version of Nomad:
   procedure. This process requires Nomad downtime to complete.
 
 In Nomad 0.5.5 and later, you can use the [`nomad operator raft
-list-peers`](/docs/commands/operator-raft-list-peers.html) command to inspect
+list-peers`](/docs/commands/operator/raft-list-peers.html) command to inspect
 the Raft configuration:
 
 ```
@@ -176,7 +176,7 @@ nodes should claim leadership and emit a log like:
 ```
 
 In Nomad 0.5.5 and later, you can use the [`nomad operator raft
-list-peers`](/docs/commands/operator-raft-list-peers.html) command to inspect
+list-peers`](/docs/commands/operator/raft-list-peers.html) command to inspect
 the Raft configuration:
 
 ```
