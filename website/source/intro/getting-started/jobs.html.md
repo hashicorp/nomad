@@ -101,13 +101,19 @@ an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.ht
 
 ```
 $ nomad alloc-status 8ba85cef
-ID            = dadcdb81
-Eval ID       = 61b0b423
-Name          = example.cache[0]
-Node ID       = 72687b1a
-Job ID        = example
-Client Status = running
-Created At    = 06/23/16 01:41:13 UTC
+ID                  = dadcdb81
+Eval ID             = 61b0b423
+Name                = example.cache[0]
+Node ID             = 72687b1a
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 06/23/16 01:41:13 UTC
+Deployment ID       = 54b0562d
+Deployment Health   = unhealthy
 
 Task "redis" is "running"
 Task Resources
@@ -116,8 +122,10 @@ CPU    Memory           Disk     IOPS  Addresses
 
 Recent Events:
 Time                   Type      Description
-06/23/16 01:41:16 UTC  Started   Task started by client
-06/23/16 01:41:13 UTC  Received  Task received by client
+07/25/17 23:14:53 UTC  Started     Task started by client
+07/25/17 23:14:43 UTC  Driver      Downloading image redis:3.2
+07/25/17 23:14:43 UTC  Task Setup  Building Task Directory
+07/25/17 23:14:43 UTC  Received    Task received by client
 ```
 
 We can see that Nomad reports the state of the allocation as well as its
