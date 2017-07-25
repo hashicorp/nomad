@@ -1314,7 +1314,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 		MaxParallel:     -1,
 		HealthCheck:     "foo",
 		MinHealthyTime:  -10,
-		HealthyDeadline: -10,
+		HealthyDeadline: -15,
 		AutoRevert:      false,
 		Canary:          -1,
 	}
@@ -1334,6 +1334,9 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[5].Error(), "Minimum healthy time must be less than healthy deadline") {
 		t.Fatalf("err: %s", err)
 	}
 }
