@@ -144,7 +144,7 @@ func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log
 	}
 }
 
-// seen is used by MarkSeen and Seen
+// seen is used by markSeen and hasSeen
 const seen = 1
 
 // markSeen marks Consul as having been seen (meaning at least one operation
