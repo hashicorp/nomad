@@ -175,11 +175,11 @@ template {
 # Lines starting with a # are ignored
 
 # Empty lines are also ignored
-CORES={{ env "attr.cpu.numcores" }}
-SERVICE_KEY={{ key "service/my-key" }}
+LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
+API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
 EOH
 
-  destination = "local/file.env"
+  destination = "secrets/file.env"
   env         = true
 }
 ```
@@ -188,8 +188,8 @@ The task's environment would then have environment variables like the
 following:
 
 ```
-CORES=4
-SERVICE_KEY=12345678-1234-1234-1234-1234-123456789abc
+LOG_LEVEL=DEBUG
+API_KEY=12345678-1234-1234-1234-1234-123456789abc
 ```
 
 This allows [12factor app](https://12factor.net/config) style environment
