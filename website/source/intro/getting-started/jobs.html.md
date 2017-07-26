@@ -239,7 +239,7 @@ the Docker image from "redis:latest" to "redis:2.8":
 ```
 # Configure Docker driver with the image
 config {
-    image = "redis:2.8"
+    image = "redis:3.2"
 }
 ```
 
@@ -311,6 +311,7 @@ is stopping the job. This is done with the [`stop` command](/docs/commands/stop.
 $ nomad stop example
 ==> Monitoring evaluation "fd03c9f8"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "ec900d13"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "fd03c9f8" finished with status "complete"
 ```
