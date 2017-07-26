@@ -448,6 +448,6 @@ b1c88d20  f6646949  api         1        run      running   07/26/17 20:28:59 UT
 f58abbb2  f6646949  api         0        stop     complete  07/26/17 20:28:37 UTC
 ```
 
-Alternatively, the deployment could be failed if the canary was not performing
-properly using the `nomad deployment fail` command, similar to the blue/green
+Alternatively, if the canary was not performing properly, we could abandon the
+change using the `nomad deployment fail` command, similar to the blue/green
 example.

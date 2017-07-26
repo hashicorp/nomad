@@ -24,8 +24,8 @@ Rolling updates are enabled by adding the [`update` stanza][update] to the job
 specification. The `update` stanza may be placed at the job level or in an
 individual task group. When placed at the job level, the update strategy is
 inherited by all task groups in the job. When placed at both the job and group
-level, the `update` stanzas are merged with the group's taking precedence. See
-the [`update` stanza
+level, the 'update` stanzas are merged, with group stanzas taking precedance
+over job level stanzas. See the [`update` stanza
 documentation](/docs/job-specification/update.html#upgrade-stanza-inheritance)
 for an example.
 
@@ -61,9 +61,9 @@ group, we inform Nomad that updates to the group should be handled with a
 rolling update strategy.
 
 Thus when a change is made to the job file that requires new allocations to be
-made, Nomad will deploy 2 allocations at a time and require that the be running
-in a healthy state for 30 seconds before deploying more versions of the new
-group.
+made, Nomad will deploy 2 allocations at a time and require that the allocations
+running in a healthy state for 30 seconds before deploying more versions of the
+new group.
 
 By default Nomad determines allocation health by ensuring that all tasks in the
 group are running and that any [service
