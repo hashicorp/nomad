@@ -6,17 +6,17 @@ description: |-
   In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades incrementally
   transistions jobs between versions and using health check information to
-  reduce down time.
+  reduce downtime.
 ---
 
 # Rolling Upgrades
 
 Nomad supports rolling updates as a first class feature. To enable rolling
-updates a job or a specific task group is annotated with a high-level
-description of the update strategy using the [`update` stanza][update]. Under
-the covers, Nomad handles limiting parallelism, interfacing with Consul to
-determine service health and even automatically reverting to an older, healthy
-job when a deployment fails.  
+updates a job or task group is annotated with a high-level description of the
+update strategy using the [`update` stanza][update]. Under the hood, Nomad
+handles limiting parallelism, interfacing with Consul to determine service
+health and even automatically reverting to an older, healthy job when a
+deployment fails.  
 
 ## Enabling Rolling Updates
 
@@ -221,7 +221,7 @@ af115865  f7b1ee08  api-server  0        stop     complete  07/26/17 18:04:30 UT
 ```
 
 Nomad has successfully transitioned the group to running the updated canary and
-did so with no down time to our service by ensuring only two allocations were
+did so with no downtime to our service by ensuring only two allocations were
 changed at a time and the newly placed allocations ran successfully. Had any of
 the newly placed allocations failed their health check, Nomad would have aborted
 the deployment and stopped placing new allocations. If configured, Nomad can

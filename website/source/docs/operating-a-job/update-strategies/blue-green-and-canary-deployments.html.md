@@ -165,9 +165,9 @@ $ nomad deployment promote 32a080c1
 ==> Evaluation "61ac2be5" finished with status "complete"
 ```
 
-If we now look at the job's status we can see that after promotion, Nomad
-stopped the older allocations and is only running the new one. This now
-completes our blue/green deployment.
+If we look at the job's status we see that after promotion, Nomad stopped the
+older allocations and is only running the new one. This now completes our
+blue/green deployment.
 
 ```text
 $ nomad status docs
@@ -210,7 +210,7 @@ b53b4289  087852e2  api         0        stop     complete  07/26/17 19:53:56 UT
 
 ### Failing the Deployment
 
-After deploying the new image along side the old version we have determined it
+After deploying the new image alongside the old version we have determined it
 is not functioning properly and we want to roll back to the old version.  Doing
 so is as simple as failing the deployment:
 
@@ -359,8 +359,8 @@ $ nomad run docs.nomad
 # ...
 ```
 
-We can see from the plan output that Nomad is going to create 1 canaries that
-is running the "api-server:1.4" image and ignore all the allocations running
+We can see from the plan output that Nomad is going to create 1 canary that
+will run the "api-server:1.4" image and ignore all the allocations running
 the older image. If we inspect the status we see that the canary is running
 along side the older version of the job:
 
@@ -401,7 +401,7 @@ b53b4289  087852e2  api         0        run      running  07/26/17 19:53:56 UTC
 
 Now if we promote the canary, this will trigger a rolling update to replace the
 remaining allocations running the older image. The rolling update will happen at
-a rate of `max_parallel`, so in the case one allocation at a time:
+a rate of `max_parallel`, so in this case one allocation at a time:
 
 ```text
 $ nomad deployment promote 37033151
