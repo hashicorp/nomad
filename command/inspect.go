@@ -24,7 +24,7 @@ General Options:
 Inspect Options:
 
   -version <job version>
-    Display only the history for the given job version.
+    Display the job at the given job version.
 
   -json
     Output the job in its JSON format.

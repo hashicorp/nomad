@@ -195,7 +195,11 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 			row += fmt.Sprintf("%v|", state.AutoRevert)
 		}
 		if canaries {
-			row += fmt.Sprintf("%v|", state.Promoted)
+			if state.DesiredCanaries > 0 {
+				row += fmt.Sprintf("%v|", state.Promoted)
+			} else {
+				row += fmt.Sprintf("%v|", "N/A")
+			}
 		}
 		row += fmt.Sprintf("%d|", state.DesiredTotal)
 		if canaries {

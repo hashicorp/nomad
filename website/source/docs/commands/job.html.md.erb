@@ -1,0 +1,32 @@
+---
+layout: "docs"
+page_title: "Commands: job"
+sidebar_current: "docs-commands-job"
+description: >
+  The job command is used to interact with jobs.
+---
+
+# Nomad Job
+ 
+Command: `nomad job`
+
+The `job` command is used to interact with jobs.
+
+## Usage
+
+Usage: `nomad job <subcommand> [options]`
+
+Run `nomad job <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+* [`job deployments`][deployments] - List deployments for a job
+* [`job dispatch`][dispatch] - Dispatch an instance of a parameterized job
+* [`job history`][history] - Display all tracked versions of a job
+* [`job promote`][promote] - Promote a job's canaries
+* [`job revert`][revert] - Revert to a prior version of the job
+
+[deployments]: /docs/commands/job/deployments.html "List deployments for a job"
+[dispatch]: /docs/commands/job/dispatch.html "Dispatch an instance of a parameterized job"
+[history]: /docs/commands/job/history.html "Display all tracked versions of a job"
+[promote]: /docs/commands/job/promote.html "Promote a job's canaries"
+[revert]: /docs/commands/job/revert.html "Revert to a prior version of the job"

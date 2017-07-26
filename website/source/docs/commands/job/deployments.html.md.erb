@@ -1,0 +1,47 @@
+---
+layout: "docs"
+page_title: "Commands: job deployments"
+sidebar_current: "docs-commands-job-deployments"
+description: >
+  The deployments command is used to list deployments for a job.
+---
+
+# Command: job deployments
+
+The `job dispatch` command is used to display the deployments for a particular
+job.
+
+## Usage
+
+```
+nomad job deployments [options] <job>
+```
+
+The `job deployments` command requires a single argument, the job ID or an ID prefix
+of a job to display the list of deployments for.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Deployment Options
+
+* `-latest`: Display the latest deployment only.
+
+* `-json` : Output the deployment in its JSON format.
+
+* `-t` : Format and display the deployment using a Go template.
+
+* `-verbose`: Show full information.
+
+## Examples
+
+List the deployment for a particular job:
+
+```
+$ nomad job deployments example
+ID        Job ID   Job Version  Status      Description
+0b23b149  example  1            running     Deployment is running but requires promotion
+06ca68a2  example  0            successful  Deployment completed successfully
+```
+

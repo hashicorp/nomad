@@ -43,11 +43,10 @@ List of all jobs:
 
 ```
 $ nomad status
-ID     Type     Priority  Status
-job1   service  3         pending
-job2   service  3         running
-job3   service  2         pending
-job4   service  1         complete
+ID       Type     Priority  Status          Submit Date
+job1     service  80        running         07/25/17 15:47:11 UTC
+job2     batch    40        complete        07/24/17 19:22:11 UTC
+job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 ```
 
 Short view of a specific job:
@@ -56,6 +55,7 @@ Short view of a specific job:
 $ nomad status -short job1
 ID            = job1
 Name          = Test Job
+Submit Date   = 07/25/17 15:47:11 UTC
 Type          = service
 Priority      = 3
 Datacenters   = dc1,dc2,dc3
@@ -70,6 +70,7 @@ Full status information of a job:
 $ nomad status example
 ID            = example
 Name          = example
+Submit Date   = 07/25/17 15:53:04 UTC
 Type          = service
 Priority      = 50
 Datacenters   = dc1
@@ -81,42 +82,53 @@ Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
 cache       0       0         1        0       0         0
 
+Latest Deployment
+ID          = 6294be0c
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       1        1       1        0
+
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
-24cfd201  81efc2fa  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+478ce836  5ed166e8  cache       0        run      running  07/25/17 15:53:04 UTC
 ```
 
 Full status information of a perodic job:
 
 ```
+$ nomad status example
 ID                   = example
 Name                 = example
+Submit Date          = 07/25/17 15:59:52 UTC
 Type                 = batch
 Priority             = 50
 Datacenters          = dc1
 Status               = running
 Periodic             = true
 Parameterized        = false
-Next Periodic Launch = 01/26/17 06:19:46 UTC (1s from now)
+Next Periodic Launch = 07/25/17 16:00:30 UTC (5s from now)
 
 Children Job Summary
 Pending  Running  Dead
-0        5        0
+0        3        0
 
 Previously Launched Jobs
 ID                           Status
-example/periodic-1485411581  running
-example/periodic-1485411582  running
-example/periodic-1485411583  running
-example/periodic-1485411584  running
-example/periodic-1485411585  running
+example/periodic-1500998400  running
+example/periodic-1500998410  running
+example/periodic-1500998420  running
 ```
 
 Full status information of a parameterized job:
 
 ```
+$ nomad status example
 ID            = example
 Name          = example
+Submit Date   = 07/25/17 15:59:52 UTC
 Type          = batch
 Priority      = 50
 Datacenters   = dc1
@@ -145,6 +157,7 @@ Full status information of a job with placement failures:
 $ nomad status example
 ID            = example
 Name          = example
+Submit Date   = 07/25/17 15:55:27 UTC
 Type          = service
 Priority      = 50
 Datacenters   = dc1
@@ -154,20 +167,28 @@ Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
-cache       0       0         5        0       0         0
+cache       1       0         4        0       0         0
 
 Placement Failure
 Task Group "cache":
   * Resources exhausted on 1 nodes
   * Dimension "cpu exhausted" exhausted on 1 nodes
 
+Latest Deployment
+ID          = bb4b2fb1
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       5        4       4        0
+
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
-0b8b9e37  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
-b206088c  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:18 CDT
-b82f58b6  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:17 CDT
-ed3665f5  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:21 CDT
-24cfd201  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
 ```
 
 Full status information showing evaluations with a placement failure. The in
@@ -178,6 +199,7 @@ become availables so that it can place the remaining allocations.
 $ nomad status -evals example
 ID            = example
 Name          = example
+Submit Date   = 07/25/17 15:55:27 UTC
 Type          = service
 Priority      = 50
 Datacenters   = dc1
@@ -187,25 +209,37 @@ Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
-cache       0       0         5        0       0         0
+cache       1       0         4        0       0         0
 
 Evaluations
-ID        Priority  Triggered By  Status    Placement Failures
-69f34a37  50        job-register  blocked   N/A - In Progress
-8bf94335  50        job-register  complete  true
-df79bec7  50        job-register  complete  false
-81efc2fa  50        job-register  complete  false
+ID        Priority  Triggered By        Status    Placement Failures
+e44a39e8  50        deployment-watcher  canceled  false
+97018573  50        deployment-watcher  complete  true
+d5a7300c  50        deployment-watcher  canceled  false
+f05a4495  50        deployment-watcher  complete  true
+e3f3bdb4  50        deployment-watcher  canceled  false
+b5f08700  50        deployment-watcher  complete  true
+73bb867a  50        job-register        blocked   N/A - In Progress
+85052989  50        job-register        complete  true
 
 Placement Failure
 Task Group "cache":
   * Resources exhausted on 1 nodes
   * Dimension "cpu exhausted" exhausted on 1 nodes
 
+Latest Deployment
+ID          = bb4b2fb1
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       5        4       4        0
+
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
-0b8b9e37  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
-b206088c  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
-b82f58b6  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
-ed3665f5  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
-24cfd201  8bf94335  8d0331e9  cache       run      running  08/08/16 21:03:19 CDT
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
 ```

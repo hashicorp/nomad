@@ -1,0 +1,94 @@
+---
+layout: "docs"
+page_title: "Commands: job revert"
+sidebar_current: "docs-commands-job-revert"
+description: >
+  The revert command is used to revert to a prior version of the job.
+---
+
+# Command: job dispatch
+
+The `job dispatch` command is used to revert a job to a prior version of the
+job. The available versions to revert to can be found using [`job
+history`](/docs/commands/job/history.html) command.
+
+## Usage
+
+```
+nomad job revert [options] <job> <version>
+```
+
+The `job revert` command requires two inputs, the job ID and the version of that job
+to revert to.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Revert Options
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Revert to an older version of a job:
+
+```
+$ nomad job history -p example
+Version     = 1
+Stable      = false
+Submit Date = 07/25/17 21:27:30 UTC
+Diff        =
++/- Job: "example"
++/- Task Group: "cache"
+  +/- Task: "redis"
+    +/- Config {
+      +/- image:           "redis:3.2" => "redis:4.0"
+          port_map[0][db]: "6379"
+        }
+
+Version     = 0
+Stable      = false
+Submit Date = 07/25/17 21:27:18 UTC
+
+$ nomad job revert example 0
+==> Monitoring evaluation "faff5c30"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "e17c8592"
+    Allocation "4ed0ca3b" modified: node "e8a2243d", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "faff5c30" finished with status "complete"
+
+$ nomad job history -p example
+Version     = 2
+Stable      = true
+Submit Date = 07/25/17 21:27:43 UTC
+Diff        =
++/- Job: "example"
++/- Task Group: "cache"
+  +/- Task: "redis"
+    +/- Config {
+      +/- image:           "redis:4.0" => "redis:3.2"
+          port_map[0][db]: "6379"
+        }
+
+Version     = 1
+Stable      = false
+Submit Date = 07/25/17 21:27:30 UTC
+Diff        =
++/- Job: "example"
++/- Task Group: "cache"
+  +/- Task: "redis"
+    +/- Config {
+      +/- image:           "redis:3.2" => "redis:4.0"
+          port_map[0][db]: "6379"
+        }
+
+Version     = 0
+Stable      = false
+Submit Date = 07/25/17 21:27:18 UTC
+```
