@@ -1,0 +1,43 @@
+---
+layout: "docs"
+page_title: "Commands: deployment list"
+sidebar_current: "docs-commands-deployment-list"
+description: >
+  The deployment list command is used to list deployments.
+---
+
+# Command: deployment list
+
+The `deployment list` command is used list all deployments.
+
+## Usage
+
+```
+nomad deployment list [options]
+```
+
+The `deployment list` command requires no arguments.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## List Options
+
+* `-json` : Output the deployments in their JSON format.
+
+* `-t` : Format and display the deployments using a Go template.
+
+* `-verbose`: Show full information.
+
+## Examples
+
+List all tracked deployments:
+
+```
+$ nomad deployment list
+ID        Job ID   Job Version  Status      Description
+8990cfbc  example  2            failed      Deployment marked as failed
+62eb607c  example  1            successful  Deployment completed successfully
+5f271fe2  example  0            successful  Deployment completed successfully
+```

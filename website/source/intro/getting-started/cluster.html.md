@@ -159,6 +159,7 @@ Then, use the [`run` command](/docs/commands/run.html) to submit the job:
 $ nomad run example.nomad
 ==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "0917b771"
     Allocation "501154ac" created: node "c887deef", group "cache"
     Allocation "7e2b3900" created: node "fca62612", group "cache"
     Allocation "9c66fcaf" created: node "c887deef", group "cache"
@@ -176,11 +177,22 @@ We can again use the [`status` command](/docs/commands/status.html) to verify:
 $ nomad status example
 ID          = example
 Name        = example
+Submit Date   = 07/26/17 16:34:58 UTC
 Type        = service
 Priority    = 50
 Datacenters = dc1
 Status      = running
 Periodic    = false
+Parameterized = false
+
+Latest Deployment
+ID          = fc49bd6c
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       3        3       0        0
 
 Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status   Created At

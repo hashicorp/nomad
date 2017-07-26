@@ -13,6 +13,7 @@ import (
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -54,6 +55,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

@@ -289,6 +289,12 @@ func (r *AllocRunner) RestoreState() error {
 		name := task.Name
 		state := r.taskStates[name]
 
+		// Nomad exited before task could start, nothing to restore.
+		// AllocRunner.Run will start a new TaskRunner for this task
+		if state == nil {
+			continue
+		}
+
 		// Mark the task as restored.
 		r.restored[name] = struct{}{}
 

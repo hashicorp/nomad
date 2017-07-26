@@ -11,6 +11,7 @@ import (
 )
 
 func TestTimeTable(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	index := tt.NearestIndex(time.Now())
@@ -87,6 +88,7 @@ func TestTimeTable(t *testing.T) {
 }
 
 func TestTimeTable_SerializeDeserialize(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	// Witness some data
@@ -126,6 +128,7 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 }
 
 func TestTimeTable_Overflow(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, 3*time.Second)
 
 	// Witness some data

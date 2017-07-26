@@ -306,6 +306,7 @@ is stopping the job. This is done with the [`stop` command](/docs/commands/stop.
 $ nomad stop example
 ==> Monitoring evaluation "fd03c9f8"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "ec900d13"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "fd03c9f8" finished with status "complete"
 ```

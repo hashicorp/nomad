@@ -32,13 +32,13 @@ General Options:
 Promote Options:
 
   -group
-	Group may be specified many times and is used to promote that particular
-	group. If no specific groups are specified, all groups are promoted.
+    Group may be specified many times and is used to promote that particular
+    group. If no specific groups are specified, all groups are promoted.
 
   -detach
-	Return immediately instead of entering monitor mode. After deployment
-	resume, the evaluation ID will be printed to the screen, which can be used
-	to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.

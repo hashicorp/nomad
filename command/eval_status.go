@@ -229,7 +229,7 @@ func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []strin
 
 func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	switch eval.TriggeredBy {
-	case "job-register", "job-deregister", "periodic-job", "rolling-update":
+	case "job-register", "job-deregister", "periodic-job", "rolling-update", "deployment-watcher":
 		return "Job ID", eval.JobID
 	case "node-update":
 		return "Node ID", eval.NodeID

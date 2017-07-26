@@ -10,6 +10,7 @@ import (
 )
 
 func TestIsNomadServer(t *testing.T) {
+	t.Parallel()
 	m := serf.Member{
 		Name: "foo",
 		Addr: net.IP([]byte{127, 0, 0, 1}),
@@ -57,6 +58,7 @@ func TestIsNomadServer(t *testing.T) {
 }
 
 func TestShuffleStrings(t *testing.T) {
+	t.Parallel()
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
@@ -77,6 +79,7 @@ func TestShuffleStrings(t *testing.T) {
 }
 
 func TestMaxUint64(t *testing.T) {
+	t.Parallel()
 	if maxUint64(1, 2) != 2 {
 		t.Fatalf("bad")
 	}

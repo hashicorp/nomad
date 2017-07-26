@@ -5,12 +5,12 @@ import (
 	"log"
 	"os"
 	"sync"
-	"testing"
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/go-testing-interface"
 )
 
 // RejectPlan is used to always reject the entire plan and force a state refresh
@@ -55,7 +55,7 @@ type Harness struct {
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t *testing.T) *Harness {
+func NewHarness(t testing.T) *Harness {
 	state, err := state.NewStateStore(os.Stderr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -70,7 +70,7 @@ func NewHarness(t *testing.T) *Harness {
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t *testing.T, state *state.StateStore) *Harness {
+func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
 	return &Harness{
 		State:     state,
 		nextIndex: 1,
@@ -215,7 +215,7 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 	return sched.Process(eval)
 }
 
-func (h *Harness) AssertEvalStatus(t *testing.T, state string) {
+func (h *Harness) AssertEvalStatus(t testing.T, state string) {
 	if len(h.Evals) != 1 {
 		t.Fatalf("bad: %#v", h.Evals)
 	}

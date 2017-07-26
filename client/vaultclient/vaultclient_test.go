@@ -13,7 +13,7 @@ import (
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	t.Parallel()
-	v := testutil.NewTestVault(t).Start()
+	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
 	logger := log.New(os.Stderr, "TEST: ", log.Lshortfile|log.LstdFlags)

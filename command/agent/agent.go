@@ -713,6 +713,8 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 
 	// Create Consul Service client for service advertisement and checks.
 	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
+
+	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()
 	return nil
 }
