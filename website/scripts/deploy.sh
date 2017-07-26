@@ -188,8 +188,13 @@ if [ -z "$NO_WARM" ]; then
   echo "wget --recursive --delete-after https://$PROJECT_URL/"
   echo ""
   wget \
-    --recursive \
     --delete-after \
-    --quiet \
+    --level inf \
+    --no-directories \
+    --no-host-directories \
+    --no-verbose \
+    --page-requisites \
+    --recursive \
+    --spider \
     "https://$PROJECT_URL/"
 fi
