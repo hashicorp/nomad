@@ -57,81 +57,116 @@ web    running  Started     29/03/16 03:04:53 UTC
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
-$ nomad alloc-status a7365fe4
-ID            = a7365fe4
-Eval ID       = c3c9a1db
-Name          = example.cache[0]
-Node ID       = 1f029d38
-Job ID        = example
-Client Status = running
-Created At    = 29/03/16 03:04:53 UTC
+$ nomad alloc-status cfe85e72
+ID                  = cfe85e72
+Eval ID             = cdc88569
+Name                = example.cache[0]
+Node ID             = bfd3aa86
+Job ID              = example
+Job Version         = 1
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 23:42:01 UTC
+Deployment ID       = dd162708
+Deployment Health   = unset
+Canary              = true
 
-==> Task Resources
-Task: "redis"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:46321
+Task "redis" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+4/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:20055
 
-Task: "web"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:38537
+Task Events:
+Started At     = 07/25/17 23:42:02 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
 
-==> Task "redis" is "running"
-Recent Events:
-Time                   Type      Description
-29/03/16 03:04:53 UTC  Started   Task started by client
-29/03/16 03:04:51 UTC  Received  Task received by client
-
-==> Task "web" is "pending"
 Recent Events:
 Time                   Type        Description
-29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
-29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
-29/03/16 03:04:53 UTC  Started     Task started by client
-29/03/16 03:04:51 UTC  Received    Task received by client
+07/25/17 23:42:02 UTC  Started     Task started by client
+07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
+07/25/17 23:42:01 UTC  Received    Task received by client
+
+Task "web" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+5/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:28235
+
+Task Events:
+Started At     = 07/25/17 23:42:02 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                   Type        Description
+07/25/17 23:42:02 UTC  Started     Task started by client
+07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
+07/25/17 23:42:01 UTC  Received    Task received by client
 ```
 
 Verbose status can also be accessed:
 
 ```
-$ nomad alloc-status --verbose a7365fe4
-ID              = a7365fe4-cb28-a6e9-f3d4-f99e49c89776
-Eval ID         = c3c9a1db-dbeb-8afa-0a83-4f1b8b5a03f5
-Name            = example.cache[0]
-Node ID         = 1f029d38-8d4b-a552-261f-e457b60f9b4b
-Job ID          = example
-Client Status   = running
-Created At      = 29/03/16 03:04:53 UTC
-Evaluated Nodes = 1
-Filtered Nodes  = 0
-Exhausted Nodes = 0
-Allocation Time = 1.085001ms
-Failures        = 0
+$ nomad alloc-status --verbose cfe85e72
+ID                  = cfe85e72-220e-cb14-edfc-432602ac0981
+Eval ID             = cdc88569-bbc3-5549-855f-c0db59d4d4d3
+Name                = example.cache[0]
+Node ID             = bfd3aa86-ecbf-0f6c-b234-0f4d35792543
+Job ID              = example
+Job Version         = 1
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 23:42:01 UTC
+Deployment ID       = dd162708-d810-a761-53b9-cfb1dc8637e8
+Deployment Health   = healthy
+Canary              = true
+Evaluated Nodes     = 1
+Filtered Nodes      = 0
+Exhausted Nodes     = 0
+Allocation Time     = 152.016µs
+Failures            = 0
 
-==> Task Resources
-Task: "web"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:38537
+Task "redis" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+2/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:20055
 
-Task: "redis"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:46321
+Task Events:
+Started At     = 07/25/17 23:42:02 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
 
-==> Task "redis" is "running"
-Recent Events:
-Time                   Type      Description
-29/03/16 03:04:53 UTC  Started   Task started by client
-29/03/16 03:04:51 UTC  Received  Task received by client
-
-==> Task "web" is "running"
 Recent Events:
 Time                   Type        Description
-29/03/16 03:07:38 UTC  Started     Task started by client
-29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
-29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
-29/03/16 03:04:53 UTC  Started     Task started by client
-29/03/16 03:04:51 UTC  Received    Task received by client
+07/25/17 23:42:02 UTC  Started     Task started by client
+07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
+07/25/17 23:42:01 UTC  Received    Task received by client
 
-==> Status
-Allocation "13901f26-cb28-a6e9-f3d4-f99e49c89776" status "running" (0/1 nodes filtered)
-  * Score "1f029d38-8d4b-a552-261f-e457b60f9b4b.binpack" = 10.334026
+Task "web" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+4/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:28235
+
+Task Events:
+Started At     = 07/25/17 23:42:02 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                   Type        Description
+07/25/17 23:42:02 UTC  Started     Task started by client
+07/25/17 23:42:01 UTC  Task Setup  Building Task Directory
+07/25/17 23:42:01 UTC  Received    Task received by client
+
+Placement Metrics
+  * Score "bfd3aa86-ecbf-0f6c-b234-0f4d35792543.binpack" = 9.142490
+  * Score "bfd3aa86-ecbf-0f6c-b234-0f4d35792543.job-anti-affinity" = -20.000000
 ```
