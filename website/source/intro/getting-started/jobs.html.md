@@ -110,18 +110,18 @@ an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.ht
 
 ```
 $ nomad alloc-status 8ba85cef
-ID                  = dadcdb81
+ID                  = 8ba85cef
 Eval ID             = 61b0b423
 Name                = example.cache[0]
-Node ID             = 72687b1a
+Node ID             = 171a583b
 Job ID              = example
 Job Version         = 0
 Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 06/23/16 01:41:13 UTC
-Deployment ID       = 54b0562d
+Created At          = 07/25/17 23:14:43 UTC
+Deployment ID       = fa882a5b
 Deployment Health   = healthy
 
 Task "redis" is "running"
