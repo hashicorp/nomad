@@ -25,18 +25,10 @@ generates a skeleton job file:
 ```
 $ nomad init
 Example job file written to example.nomad
-
-$ cat example.nomad
-
-# There can only be a single job definition per file.
-# Create a job with ID and Name 'example'
-job "example" {
-	# Run the job in the global region, which is the default.
-	# region = "global"
-...
 ```
 
-In this example job file, we have declared a single task 'redis' which is using
+You can view the contents of this file by running `cat example.nomad`. In this
+example job file, we have declared a single task 'redis' which is using
 the Docker driver to run the task. The primary way you interact with Nomad
 is with the [`run` command](/docs/commands/run.html). The `run` command takes
 a job file and registers it with Nomad. This is used both to register new
@@ -62,38 +54,55 @@ To inspect the status of our job we use the [`status` command](/docs/commands/st
 
 ```
 $ nomad status example
-ID          = example
-Name        = example
-Type        = service
-Priority    = 50
-Datacenters = dc1
-Status      = running
-Periodic    = false
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 23:14:43 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
 
 Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
 cache       0       0         1        0       0         0
 
+Latest Deployment
+ID          = 11c5cdc8
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       1        1       1        0
+
 Allocations
-ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
-8ba85cef  26cfc69e  171a583b  cache       run      running  06/23/16 01:41:13 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+8ba85cef  171a583b  cache       0        run      running  07/25/17 23:14:43 UTC
 ```
 
 Here we can see that the result of our evaluation was the creation of an
 allocation that is now running on the local node.
 
 An allocation represents an instance of Task Group placed on a node. To inspect
-an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
+an allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
 
 ```
 $ nomad alloc-status 8ba85cef
-ID            = dadcdb81
-Eval ID       = 61b0b423
-Name          = example.cache[0]
-Node ID       = 72687b1a
-Job ID        = example
-Client Status = running
-Created At    = 06/23/16 01:41:13 UTC
+ID                  = 8ba85cef
+Eval ID             = 61b0b423
+Name                = example.cache[0]
+Node ID             = 171a583b
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 23:14:43 UTC
+Deployment ID       = fa882a5b
+Deployment Health   = healthy
 
 Task "redis" is "running"
 Task Resources
@@ -102,8 +111,10 @@ CPU    Memory           Disk     IOPS  Addresses
 
 Recent Events:
 Time                   Type      Description
-06/23/16 01:41:16 UTC  Started   Task started by client
-06/23/16 01:41:13 UTC  Received  Task received by client
+07/25/17 23:14:53 UTC  Started     Task started by client
+07/25/17 23:14:43 UTC  Driver      Downloading image redis:3.2
+07/25/17 23:14:43 UTC  Task Setup  Building Task Directory
+07/25/17 23:14:43 UTC  Received    Task received by client
 ```
 
 We can see that Nomad reports the state of the allocation as well as its
@@ -140,15 +151,16 @@ The definition of a job is not static, and is meant to be updated over time.
 You may update a job to change the docker container, to update the application version,
 or to change the count of a task group to scale with load.
 
-For now, edit the `example.nomad` file to uncomment the count and set it to 3:
+For now, edit the `example.nomad` file to update the count and set it to 3:
 
 ```
-# Control the number of instances of this group.
-# Defaults to 1
+# The "count" parameter specifies the number of the task groups that should
+# be running under this group. This value must be non-negative and defaults
+# to 1.
 count = 3
 ```
 
-Once you have finished modifying the job specification, use [`plan`
+Once you have finished modifying the job specification, use the [`plan`
 command](/docs/commands/plan.html) to invoke a dry-run of the scheduler to see
 what would happen if you ran the updated job:
 
@@ -188,6 +200,7 @@ before you apply your modifications.
 $ nomad run -check-index 6 example.nomad
 ==> Monitoring evaluation "127a49d0"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "2e2c818f"
     Allocation "8ab24eef" created: node "171a583b", group "cache"
     Allocation "f6c29874" created: node "171a583b", group "cache"
     Allocation "8ba85cef" modified: node "171a583b", group "cache"
@@ -201,12 +214,12 @@ run the same job specification again and no new allocations will be created.
 
 Now, let's try to do an application update. In this case, we will simply change
 the version of redis we want to run. Edit the `example.nomad` file and change
-the Docker image from "redis:latest" to "redis:2.8":
+the Docker image from "redis:3.2" to "redis:4.0":
 
 ```
 # Configure Docker driver with the image
 config {
-    image = "redis:2.8"
+    image = "redis:4.0"
 }
 ```
 
@@ -215,12 +228,12 @@ We can run `plan` again to see what will happen if we submit this change:
 ```
 $ nomad plan example.nomad
 +/- Job: "example"
-+/- Task Group: "cache" (3 create/destroy update)
++/- Task Group: "cache" (1 create/destroy update, 2 ignore)
   +/- Task: "redis" (forces create/destroy update)
     +/- Config {
-      +/- image:           "redis:latest" => "redis:2.8"
+      +/- image:           "redis:3.2" => "redis:4.0"
           port_map[0][db]: "6379"
-    }
+        }
 
 Scheduler dry-run:
 - All tasks successfully allocated.
@@ -237,37 +250,34 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-Here we can see the `plan` reports it will do three create/destroy updates
-which stops the old tasks and starts the new tasks because we have changed the
-version of redis to run. We also see that the update will happen with a rolling
-update. This is because our example job is configured to do a rolling update
-via the `stagger` attribute, doing a single update every 10 seconds.
+Here we can see the `plan` reports it will ignore two allocations and do one
+create/destroy update which stops the old allocation and starts the new
+allocation because we have changed the version of redis to run.
 
-Once ready, use `run` to push the updated specification now:
+The reason the plan only reports a single change to occur is because the job
+file has an `update` stanza that tells Nomad to perform rolling updates when the
+job changes at a rate of `max_parallel`, which is set to 1 in the example file.
+
+Once ready, use `run` to push the updated specification:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "ebcc3e14"
+==> Monitoring evaluation "02161762"
     Evaluation triggered by job "example"
-    Allocation "9a3743f4" created: node "171a583b", group "cache"
+    Evaluation within deployment: "429f8160"
+    Allocation "de4e3f7a" created: node "6c027e58", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "ebcc3e14" finished with status "complete"
-==> Monitoring evaluation "b508d8f0"
-    Evaluation triggered by job "example"
-    Allocation "926e5876" created: node "171a583b", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "b508d8f0" finished with status "complete"
-==> Monitoring next evaluation "ea78c05a" in 10s
-==> Monitoring evaluation "ea78c05a"
-    Evaluation triggered by job "example"
-    Allocation "3c8589d5" created: node "171a583b", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "ea78c05a" finished with status "complete"
+==> Evaluation "02161762" finished with status "complete"
 ```
 
-We can see that Nomad handled the update in three phases, only updating a single task
-group in each phase. The update strategy can be configured, but rolling updates makes
-it easy to upgrade an application at large scale.
+After running, the rolling upgrade can be followed by running `nomad status` and
+watching the deployed count.
+
+We can see that Nomad handled the update in three phases, only updating a single
+allocation in each phase and waiting for it to be healthy for `min_healthy_time`
+of 10 seconds before moving on to the next. The update strategy can be
+configured, but rolling updates makes it easy to upgrade an application at large
+scale.
 
 ## Stopping a Job
 
@@ -276,19 +286,48 @@ is stopping the job. This is done with the [`stop` command](/docs/commands/stop.
 
 ```
 $ nomad stop example
-==> Monitoring evaluation "fd03c9f8"
+==> Monitoring evaluation "ddc4eb7d"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "ec46fb3b"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "fd03c9f8" finished with status "complete"
+==> Evaluation "ddc4eb7d" finished with status "complete"
 ```
 
 When we stop a job, it creates an evaluation which is used to stop all
-the existing allocations. This also deletes the job definition out of Nomad.
-If we try to query the job status, we can see it is no longer registered:
+the existing allocations. If we now query the job status, we can see it is
+now marked as `dead (stopped)`, indicating that the job has been stopped and
+Nomad is no longer running it:
 
 ```
 $ nomad status example
-No job(s) with prefix or id "example" found
+ID            = example
+Name          = example
+Submit Date   = 07/26/17 17:51:01 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = dead (stopped)
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         0        0       3         0
+
+Latest Deployment
+ID          = ec46fb3b
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       3        3       3        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status    Created At
+8ace140d  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
+8af5330a  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
+df50c3ae  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
 ```
 
 If we wanted to start the job again, we could simply `run` it again.
