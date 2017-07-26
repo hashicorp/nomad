@@ -1973,6 +1973,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
+	haveCanaries := false
 	var unhealthyErr multierror.Error
 	for {
 		raw := iter.Next()
@@ -1997,10 +1998,16 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
+
+		haveCanaries = true
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
 		return err
+	}
+
+	if !haveCanaries {
+		return fmt.Errorf("no canaries to promote")
 	}
 
 	// Update deployment
