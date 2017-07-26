@@ -31,7 +31,7 @@ for an example.
 
 ```hcl
 job "geo-api-server" {
-  ...
+  # ...
 
   group "api-server" {
     count = 6
@@ -50,7 +50,7 @@ job "geo-api-server" {
         image = "geo-api-server:0.1"
       }
 
-      ...
+      # ...
     }
   }
 }
@@ -90,7 +90,7 @@ The [`nomad plan` command](/docs/commands/plan.html) allows
 us to visualize the series of steps the scheduler would perform. We can analyze
 this output to confirm it is correct:
 
-```shell
+```text
 $ nomad plan geo-api-server.nomad
 ```
 
@@ -130,7 +130,7 @@ run`. Once run, Nomad will begin the rolling upgrade of our service by placing
 
 We can inspect the current state of a rolling deployment using `nomad status`:
 
-```shell
+```text
 $ nomad status geo-api-server
 ID            = geo-api-server
 Name          = geo-api-server
@@ -179,7 +179,7 @@ haven't been healthy for the required 30 seconds yet.
 If we wait for the deployment to complete and re-issue the command, we get the
 following:
 
-```shell
+```text
 $ nomad status geo-api-server
 ID            = geo-api-server
 Name          = geo-api-server
@@ -220,13 +220,12 @@ a2574bb6  f7b1ee08  api-server  1        run      running   07/26/17 18:08:56 UT
 af115865  f7b1ee08  api-server  0        stop     complete  07/26/17 18:04:30 UTC
 ```
 
-We can see that Nomad has successfully transitioned the group to running the
-updated canary and did so with no down time to our service by ensuring only two
-allocations were changed at a time and the newly placed allocations ran
-successfully. Had any of the newly placed allocations failed their health check,
-Nomad would have aborted the deployment and stopped placing new allocations. If
-configured, Nomad can automatically revert back to the old job definition when
-the deployment fails.
+Nomad has successfully transitioned the group to running the updated canary and
+did so with no down time to our service by ensuring only two allocations were
+changed at a time and the newly placed allocations ran successfully. Had any of
+the newly placed allocations failed their health check, Nomad would have aborted
+the deployment and stopped placing new allocations. If configured, Nomad can
+automatically revert back to the old job definition when the deployment fails.
 
 ## Auto Reverting on Failed Deployments
 
@@ -268,7 +267,7 @@ update it to the below and run the job:
 If we run `nomad job deployments` we can see that the deployment fails and Nomad
 auto-reverts to the last stable job:
 
-```shell
+```text
 $ nomad job deployments geo-api-server
 ID        Job ID          Job Version  Status      Description
 0c6f87a5  geo-api-server  3            successful  Deployment completed successfully
@@ -282,7 +281,7 @@ job specification at version 1, it creates a new job version. We can see the
 differences between a jobs versions and how Nomad auto-reverted the job using
 the `job history` command:
 
-```shell
+```text
 $ nomad job history -p geo-api-server
 Version     = 3
 Stable      = true

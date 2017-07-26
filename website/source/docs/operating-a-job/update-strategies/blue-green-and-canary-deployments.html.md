@@ -3,8 +3,8 @@ layout: "docs"
 page_title: "Blue/Green & Canary Deployments - Operating a Job"
 sidebar_current: "docs-operating-a-job-updating-blue-green-deployments"
 description: |-
-  In order to update a service while reducing downtime, Nomad provides a
-  built-in mechanism for doing blue/green, and canary upgrades.
+  Nomad has built-in support for doing blue/green and canary deployments to more
+  safely update existing applications and services.
 ---
 
 # Blue/Green &amp; Canary Deployments
@@ -34,7 +34,7 @@ To start, we examine our job which is running in production:
 
 ```hcl
 job "docs" {
-  ...
+  # ...
 
   group "api" {
     count = 5
@@ -75,7 +75,7 @@ can see how this works by changing the image to run the new version:
 
 Next we plan and run these changes:
 
-```shell
+```text
 $ nomad plan docs.nomad
 +/- Job: "docs"
 +/- Task Group: "api" (5 canary, 5 ignore)
@@ -98,7 +98,7 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 
 $ nomad run docs.nomad
-...
+# ...
 ```
 
 We can see from the plan output that Nomad is going to create 5 canaries that
@@ -106,7 +106,7 @@ are running the "api-server:1.4" image and ignore all the allocations running
 the older image. Now if we examine the status of the job we can see that both
 the blue ("api-server:1.3") and green ("api-server:1.4") set are running.
 
-```shell
+```text
 $ nomad status docs
 ID            = docs
 Name          = docs
@@ -156,7 +156,7 @@ After deploying the new image along side the old version we have determined it
 is functioning properly and we want to transistion fully to the new version.
 Doing so is as simple as promoting the deployment:
 
-```shell
+```text
 $ nomad deployment promote 32a080c1
 ==> Monitoring evaluation "61ac2be5"
     Evaluation triggered by job "docs"
@@ -169,7 +169,7 @@ If we now look at the job's status we can see that after promotion, Nomad
 stopped the older allocations and is only running the new one. This now
 completes our blue/green deployment.
 
-```shell
+```text
 $ nomad status docs
 ID            = docs
 Name          = docs
@@ -214,7 +214,7 @@ After deploying the new image along side the old version we have determined it
 is not functioning properly and we want to roll back to the old version.  Doing
 so is as simple as failing the deployment:
 
-```shell
+```text
 $ nomad deployment fail 32a080c1
 Deployment "32a080c1-de5a-a4e7-0218-521d8344c328" failed. Auto-reverted to job version 0.
 
@@ -235,7 +235,7 @@ Nomad stopped the new allocations and is only running the old ones and reverted
 the working copy of the job back to the original specification running
 "api-server:1.3".
 
-```shell
+```text
 $ nomad status docs
 ID            = docs
 Name          = docs
@@ -294,7 +294,7 @@ application is performing properly.
 
 ```hcl
 job "docs" {
-  ...
+  # ...
 
   group "api" {
     count = 5
@@ -333,7 +333,7 @@ changing the image to run the new version:
 
 Next we plan and run these changes:
 
-```shell
+```text
 $ nomad plan docs.nomad
 +/- Job: "docs"
 +/- Task Group: "api" (1 canary, 5 ignore)
@@ -356,7 +356,7 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 
 $ nomad run docs.nomad
-...
+# ...
 ```
 
 We can see from the plan output that Nomad is going to create 1 canaries that
@@ -364,7 +364,7 @@ is running the "api-server:1.4" image and ignore all the allocations running
 the older image. If we inspect the status we see that the canary is running
 along side the older version of the job:
 
-```shell
+```text
 $ nomad status docs
 ID            = docs
 Name          = docs
@@ -403,7 +403,7 @@ Now if we promote the canary, this will trigger a rolling update to replace the
 remaining allocations running the older image. The rolling update will happen at
 a rate of `max_parallel`, so in the case one allocation at a time:
 
-```shell
+```text
 $ nomad deployment promote 37033151
 ==> Monitoring evaluation "37033151"
     Evaluation triggered by job "docs"
