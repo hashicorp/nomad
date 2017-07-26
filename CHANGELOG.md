@@ -1,4 +1,4 @@
-## 0.6.0 (Unreleased)
+## 0.6.0 (July 26, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * cli: When given a prefix that does not resolve to a particular object,
