@@ -280,22 +280,17 @@ Once ready, use `run` to push the updated specification now:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "ebcc3e14"
+==> Monitoring evaluation "9a848c78"
     Evaluation triggered by job "example"
-    Allocation "9a3743f4" created: node "171a583b", group "cache"
+    Allocation "16dcff7c" created: node "cda85d23", group "cache"
+    Allocation "1d65e6ea" created: node "cda85d23", group "cache"
+    Allocation "689aba5e" created: node "cda85d23", group "cache"
+    Evaluation within deployment: "c45e89c8"
+    Allocation "16dcff7c" status changed: "pending" -> "running"
+    Allocation "1d65e6ea" status changed: "pending" -> "running"
+    Allocation "689aba5e" status changed: "pending" -> "running"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "ebcc3e14" finished with status "complete"
-==> Monitoring evaluation "b508d8f0"
-    Evaluation triggered by job "example"
-    Allocation "926e5876" created: node "171a583b", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "b508d8f0" finished with status "complete"
-==> Monitoring next evaluation "ea78c05a" in 10s
-==> Monitoring evaluation "ea78c05a"
-    Evaluation triggered by job "example"
-    Allocation "3c8589d5" created: node "171a583b", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "ea78c05a" finished with status "complete"
+==> Evaluation "9a848c78" finished with status "complete"
 ```
 
 We can see that Nomad handled the update in three phases, only updating a single task
