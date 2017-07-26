@@ -113,7 +113,7 @@ Desired Status      = run
 Desired Description = <none>
 Created At          = 06/23/16 01:41:13 UTC
 Deployment ID       = 54b0562d
-Deployment Health   = unhealthy
+Deployment Health   = healthy
 
 Task "redis" is "running"
 Task Resources
