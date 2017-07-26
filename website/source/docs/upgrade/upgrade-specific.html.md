@@ -15,6 +15,19 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.6.0
+
+### Default `advertise` address changes
+
+When no `advertise` address was specified and Nomad's `bind_addr` was loopback
+or `0.0.0.0`, Nomad attempted to resolve the local hostname to use as an
+advertise address.
+
+Many hosts cannot properly resolve their hostname, so Nomad 0.6 defaults
+`advertise` to the first private IP on the host (e.g. `10.1.2.3`).
+
+If you manually configure `advertise` addresses no changes are necessary.
+
 ## Nomad 0.5.5
 
 ### Docker `load` changes
