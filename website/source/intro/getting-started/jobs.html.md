@@ -86,7 +86,7 @@ Here we can see that the result of our evaluation was the creation of an
 allocation that is now running on the local node.
 
 An allocation represents an instance of Task Group placed on a node. To inspect
-an Allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
+an allocation we use the [`alloc-status` command](/docs/commands/alloc-status.html):
 
 ```
 $ nomad alloc-status 8ba85cef
@@ -151,7 +151,7 @@ The definition of a job is not static, and is meant to be updated over time.
 You may update a job to change the docker container, to update the application version,
 or to change the count of a task group to scale with load.
 
-For now, edit the `example.nomad` file to uncomment the count and set it to 3:
+For now, edit the `example.nomad` file to update the count and set it to 3:
 
 ```
 # The "count" parameter specifies the number of the task groups that should
@@ -250,32 +250,34 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-Here we can see the `plan` reports it will do three create/destroy updates
-which stops the old tasks and starts the new tasks because we have changed the
-version of redis to run. We also see that the update will happen with a rolling
-update. This is because our example job is configured to do a rolling update
-via the `stagger` attribute, doing a single update every 10 seconds.
+Here we can see the `plan` reports it will ignore two allocations and do one
+create/destroy update which stops the old allocation and starts the new
+allocation because we have changed the version of redis to run.
 
-Once ready, use `run` to push the updated specification now:
+The reason the plan only reports a single change to occur is because the job
+file has an `update` stanza that tells Nomad to perform rolling updates when the
+job changes at a rate of `max_parallel`, which is set to 1 in the example file.
+
+Once ready, use `run` to push the updated specification:
 
 ```
 $ nomad run example.nomad
-==> Monitoring evaluation "4c8c1bc7"
+==> Monitoring evaluation "02161762"
     Evaluation triggered by job "example"
-    Allocation "8ace140d" created: node "2cfe061e", group "cache"
-    Allocation "8af5330a" created: node "2cfe061e", group "cache"
-    Allocation "df50c3ae" created: node "2cfe061e", group "cache"
-    Evaluation within deployment: "ec46fb3b"
-    Allocation "8af5330a" status changed: "pending" -> "running"
-    Allocation "df50c3ae" status changed: "pending" -> "running"
-    Allocation "8ace140d" status changed: "pending" -> "running"
+    Evaluation within deployment: "429f8160"
+    Allocation "de4e3f7a" created: node "6c027e58", group "cache"
     Evaluation status changed: "pending" -> "complete"
-==> Evaluation "4c8c1bc7" finished with status "complete"
+==> Evaluation "02161762" finished with status "complete"
 ```
 
-We can see that Nomad handled the update in three phases, only updating a single task
-group in each phase. The update strategy can be configured, but rolling updates makes
-it easy to upgrade an application at large scale.
+After running, the rolling upgrade can be followed by running `nomad status` and
+watching the deployed count.
+
+We can see that Nomad handled the update in three phases, only updating a single
+allocation in each phase and waiting for it to be healthy for `min_healthy_time`
+of 10 seconds before moving on to the next. The update strategy can be
+configured, but rolling updates makes it easy to upgrade an application at large
+scale.
 
 ## Stopping a Job
 
@@ -292,8 +294,9 @@ $ nomad stop example
 ```
 
 When we stop a job, it creates an evaluation which is used to stop all
-the existing allocations. This also deletes the job definition out of Nomad.
-If we try to query the job status, we can see it is no longer registered:
+the existing allocations. If we now query the job status, we can see it is
+now marked as `dead (stopped)`, indicating that the job has been stopped and
+Nomad is no longer running it:
 
 ```
 $ nomad status example
