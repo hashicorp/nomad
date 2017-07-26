@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -91,8 +90,7 @@ func helpFunc(commands map[string]cli.CommandFactory) string {
 
 		command, err := commandFunc()
 		if err != nil {
-			log.Printf("[ERR] cli: Command '%s' failed to load: %s",
-				key, err)
+			fmt.Fprintf(os.Stderr, "[ERR] cli: Command '%s' failed to load: %s", key, err)
 			continue
 		}
 
