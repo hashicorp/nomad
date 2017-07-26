@@ -350,7 +350,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
+	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length, client))
 	return nil
 }
 
@@ -371,19 +371,20 @@ func (c *StatusCommand) formatDeployment(d *api.Deployment) string {
 	return base
 }
 
-func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {
+func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int, client *api.Client) string {
 	if len(stubs) == 0 {
 		return "No allocations placed"
 	}
 
 	allocs := make([]string, len(stubs)+1)
 	if verbose {
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		allocs[0] = "ID|Eval ID|Node ID|Node Name|Task Group|Version|Desired|Status|Created At"
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
+				limit(client.GetNodeNameByID(alloc.NodeID), uuidLength),
 				alloc.TaskGroup,
 				alloc.JobVersion,
 				alloc.DesiredStatus,

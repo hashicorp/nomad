@@ -46,6 +46,7 @@ ID            = 04d9627d
 Eval ID       = 42d788a3
 Name          = docs.example[2]
 Node ID       = a1f934c9
+Node Name     = ip-10-20-30-40
 Job ID        = docs
 Client Status = running
 

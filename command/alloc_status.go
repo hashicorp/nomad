@@ -135,7 +135,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(allocs) > 1 {
-		out := formatAllocListStubs(allocs, verbose, length)
+		out := formatAllocListStubs(allocs, verbose, length, client)
 		c.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
 		return 0
 	}
@@ -198,6 +198,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, uuidLength)),
+		fmt.Sprintf("Node Name|%s", client.GetNodeNameByID(alloc.NodeID)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Job Version|%d", *alloc.Job.Version),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
