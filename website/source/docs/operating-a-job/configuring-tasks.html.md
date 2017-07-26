@@ -134,7 +134,7 @@ task "server" {
 }
 ```
 
-See the [`env`](/docs/job-specification/env.html.md) docs for details.
+See the [`env`](/docs/job-specification/env.html) docs for details.
 
 
 ### Environment Templates
