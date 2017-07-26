@@ -53,6 +53,7 @@ $ sudo nomad agent -config server.hcl
              Log Level: DEBUG
                 Region: global (DC: dc1)
                 Server: true
+               Version: 0.6.0
 
 ==> Nomad agent started! Log data will stream in below:
 
@@ -120,6 +121,7 @@ $ sudo nomad agent -config client1.hcl
              Log Level: DEBUG
                 Region: global (DC: dc1)
                 Server: false
+               Version: 0.6.0
 
 ==> Nomad agent started! Log data will stream in below:
 
