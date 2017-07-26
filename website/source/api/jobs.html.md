@@ -124,6 +124,7 @@ $ curl \
   "EvalID": "",
   "EvalCreateIndex": 0,
   "JobModifyIndex": 109,
+  "Warnings": "",
   "Index": 0,
   "LastContact": 0,
   "KnownLeader": false
@@ -1250,6 +1251,7 @@ $ curl \
 {
   "Index": 0,
   "NextPeriodicLaunch": "0001-01-01T00:00:00Z",
+  "Warnings": "",
   "Diff": {
     "Type": "Added",
     "TaskGroups": [

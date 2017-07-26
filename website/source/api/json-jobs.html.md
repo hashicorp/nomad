@@ -85,6 +85,15 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
                 ]
               }
             ],
+            "Update": {
+              "Stagger": 10000000000,
+              "MaxParallel": 3,
+              "HealthCheck": "checks",
+              "MinHealthyTime": 15000000000,
+              "HealthyDeadline": 180000000000,
+              "AutoRevert": false,
+              "Canary": 1
+            },
             "Vault": {
               "Policies": [
                 "policy-name"
@@ -159,10 +168,6 @@ Below is an example of a JSON object that submits a `periodic` job to Nomad:
         }
       }
     ],
-    "Update": {
-      "Stagger": 10000000000,
-      "MaxParallel": 1
-    },
     "Periodic": {
       "Enabled": true,
       "Spec": "- *",
@@ -241,25 +246,10 @@ The `Job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/runtime/schedulers.html)
 
-- `Update` - Specifies the task's update strategy. When omitted, rolling
-  updates are disabled. The `Update` object supports the following attributes:
-
-  - `MaxParallel` - `MaxParallel` is given as an integer value and specifies
-  the number of tasks that can be updated at the same time.
-
-  - `Stagger` - `Stagger` introduces a delay between sets of task updates and
-  is given in nanoseconds.
-
-    An example `Update` block:
-
-    ```json
-    {
-      "Update": {
-        "MaxParallel" : 3,
-        "Stagger" : 10000000000
-      }
-    }
-    ```
+- `Update` - Specifies an update strategy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the update blocks are merged with the task group's taking precedence. For more
+  details on the update stanza, please see below.
 
 -   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The periodic expression is always evaluated in the UTC
@@ -322,6 +312,11 @@ attributes:
 
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
+
+- `Update` - Specifies an update strategy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the update blocks are merged with the task group's taking precedence. For more
+  details on the update stanza, please see below.
 
 - `Tasks` - A list of `Task` object that are part of the task group.
 
@@ -519,6 +514,70 @@ The `RestartPolicy` object supports the following keys:
       reached.
 
     - `fail` - `fail` will not restart the task again.
+
+### Update
+
+Specifies the task group update strategy. When omitted, rolling updates are
+disabled. The update stanza can be specified at the job or task group level.
+When specified at the job, the update stanza is inherited by all task groups.
+When specified in both the job and in a task group, the stanzas are merged with
+the task group's taking precedence. The `Update` object supports the following
+attributes:
+
+- `MaxParallel` - `MaxParallel` is given as an integer value and specifies
+the number of tasks that can be updated at the same time.
+
+- `HealthCheck` - Specifies the mechanism in which allocations health is
+determined. The potential values are:
+
+  - "checks" - Specifies that the allocation should be considered healthy when
+    all of its tasks are running and their associated [checks][] are healthy,
+    and unhealthy if any of the tasks fail or not all checks become healthy.
+    This is a superset of "task_states" mode.
+
+  - "task_states" - Specifies that the allocation should be considered healthy
+    when all its tasks are running and unhealthy if tasks fail.
+
+  - "manual" - Specifies that Nomad should not automatically determine health
+    and that the operator will specify allocation health using the [HTTP
+    API](/api/deployments.html#set-allocation-health-in-deployment).
+
+- `MinHealthyTime` - Specifies the minimum time the allocation must be in the
+  healthy state before it is marked as healthy and unblocks further allocations
+  from being updated. This is specified using a label suffix like "30s" or
+  "15m".
+
+- `HealthyDeadline` - Specifies the deadline in which the allocation must be
+  marked as healthy after which the allocation is automatically transitioned to
+  unhealthy. This is specified using a label suffix like "2m" or "1h".
+
+- `AutoRevert` - Specifies if the job should auto-revert to the last stable job
+  on deployment failure. A job is marked as stable if all the allocations as
+  part of its deployment were marked healthy.
+
+- `Canary` - Specifies that changes to the job that would result in destructive
+  updates should create the specified number of canaries without stopping any
+  previous allocations. Once the operator determines the canaries are healthy,
+  they can be promoted which unblocks a rolling update of the remaining
+  allocations at a rate of `max_parallel`.
+
+- `Stagger` - Specifies the delay between migrating allocations off nodes marked
+  for draining. This is specified using a label suffix like "30s" or "1h".
+
+An example `Update` block:
+
+```json
+{
+  "Update": {
+        "MaxParallel": 3,
+        "HealthCheck": "checks",
+        "MinHealthyTime": 15000000000,
+        "HealthyDeadline": 180000000000,
+        "AutoRevert": false,
+        "Canary": 1
+  }
+}
+```
 
 ### Constraint
 
@@ -724,6 +783,9 @@ README][ct].
   or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
   templates, but we recommend using `SourcePath` for larger templates.
 
+- `Envvars` - Specifies the template should be read back as environment
+  variables for the task.
+
 - `LeftDelim` - Specifies the left delimiter to use in the template. The default
   is "{{" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
@@ -759,7 +821,6 @@ README][ct].
     }
   ]
 }
-
 ```
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"

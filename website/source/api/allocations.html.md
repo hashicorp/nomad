@@ -61,6 +61,10 @@ $ curl \
     "TaskStates": {
       "redis": {
         "State": "running",
+        "FinishedAt": "0001-01-01T00:00:00Z",
+        "LastRestart": "0001-01-01T00:00:00Z",
+        "Restarts": 0,
+        "StartedAt": "2017-07-25T23:36:26.106431265Z",
         "Failed": false,
         "Events": [
           {
@@ -376,6 +380,10 @@ $ curl \
     "redis": {
       "State": "running",
       "Failed": false,
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "LastRestart": "0001-01-01T00:00:00Z",
+      "Restarts": 0,
+      "StartedAt": "2017-07-25T23:36:26.106431265Z",
       "Events": [
         {
           "Type": "Received",
