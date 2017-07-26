@@ -1167,6 +1167,22 @@ func TestTask_Validate_Template(t *testing.T) {
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Env templates can't use signals
+	task.Templates = []*Template{
+		{
+			Envvars:    true,
+			ChangeMode: "signal",
+		},
+	}
+
+	err = task.Validate(ephemeralDisk)
+	if err == nil {
+		t.Fatalf("expected error from Template.Validate")
+	}
+	if expected := "cannot use signals"; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected to find %q but found %v", expected, err)
+	}
 }
 
 func TestTemplate_Validate(t *testing.T) {
