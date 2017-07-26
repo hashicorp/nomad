@@ -25,30 +25,10 @@ generates a skeleton job file:
 ```
 $ nomad init
 Example job file written to example.nomad
-
-$ cat example.nomad
-
-# There can only be a single job definition per file. This job is named
-# "example" so it will create a job with the ID and Name "example".
-
-# The "job" stanza is the top-most configuration option in the job
-# specification. A job is a declarative specification of tasks that Nomad
-# should run. Jobs have a globally unique name, one or many task groups, which
-# are themselves collections of one or many tasks.
-#
-# For more information and examples on the "job" stanza, please see
-# the online documentation at:
-#
-#     https://www.nomadproject.io/docs/job-specification/job.html
-#
-job "example" {
-  # The "region" parameter specifies the region in which to execute the job. If
-  # omitted, this inherits the default region name of "global".
-  # region = "global"
-...
 ```
 
-In this example job file, we have declared a single task 'redis' which is using
+You can view the contents of this file by running `cat example.nomad`. In this
+example job file, we have declared a single task 'redis' which is using
 the Docker driver to run the task. The primary way you interact with Nomad
 is with the [`run` command](/docs/commands/run.html). The `run` command takes
 a job file and registers it with Nomad. This is used both to register new
