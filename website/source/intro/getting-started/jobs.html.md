@@ -88,6 +88,15 @@ Summary
 Task Group  Queued  Starting  Running  Failed  Complete  Lost
 cache       0       0         1        0       0         0
 
+Latest Deployment
+ID          = fa882a5b
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       1        1       1        0
+
 Allocations
 ID        Node ID   Task Group  Version  Desired  Status   Created At
 8ba85cef  171a583b  cache       0        run      running  07/25/17 23:14:43 UTC
