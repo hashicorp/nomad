@@ -123,7 +123,7 @@ spark-submit \
   --conf spark.eventLog.dir=hdfs://hdfs.service.consul/spark-events \
   --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
   https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar \
-  /home/ubuntu/.bashrc hdfs://hdfs.service.consul/foo
+  /etc/sudoers hdfs://hdfs.service.consul/foo
 ```
 
 ### spark-shell
