@@ -187,6 +187,10 @@ Status      = running
 Periodic    = false
 Parameterized = false
 
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         3        0       0         0
+
 Latest Deployment
 ID          = fc49bd6c
 Status      = running
