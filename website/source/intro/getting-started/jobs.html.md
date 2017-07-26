@@ -180,7 +180,7 @@ For now, edit the `example.nomad` file to uncomment the count and set it to 3:
 count = 3
 ```
 
-Once you have finished modifying the job specification, use [`plan`
+Once you have finished modifying the job specification, use the [`plan`
 command](/docs/commands/plan.html) to invoke a dry-run of the scheduler to see
 what would happen if you ran the updated job:
 
@@ -234,12 +234,12 @@ run the same job specification again and no new allocations will be created.
 
 Now, let's try to do an application update. In this case, we will simply change
 the version of redis we want to run. Edit the `example.nomad` file and change
-the Docker image from "redis:latest" to "redis:2.8":
+the Docker image from "redis:3.2" to "redis:4.0":
 
 ```
 # Configure Docker driver with the image
 config {
-    image = "redis:3.2"
+    image = "redis:4.0"
 }
 ```
 
@@ -248,12 +248,12 @@ We can run `plan` again to see what will happen if we submit this change:
 ```
 $ nomad plan example.nomad
 +/- Job: "example"
-+/- Task Group: "cache" (3 create/destroy update)
++/- Task Group: "cache" (1 create/destroy update, 2 ignore)
   +/- Task: "redis" (forces create/destroy update)
     +/- Config {
-      +/- image:           "redis:latest" => "redis:2.8"
+      +/- image:           "redis:3.2" => "redis:4.0"
           port_map[0][db]: "6379"
-    }
+        }
 
 Scheduler dry-run:
 - All tasks successfully allocated.
