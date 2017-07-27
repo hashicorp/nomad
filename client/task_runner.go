@@ -1444,6 +1444,8 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	if len(r.config.ChrootEnv) > 0 {
 		chroot = r.config.ChrootEnv
 	}
+	chroot = r.interpolateChroot(r.envBuilder.Build(), chroot)
+
 	if err := r.taskDir.Build(built, chroot, fsi); err != nil {
 		return err
 	}
@@ -1456,6 +1458,19 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	// Set path and host related env vars
 	driver.SetEnvvars(r.envBuilder, fsi, r.taskDir, r.config)
 	return nil
+}
+
+// interpolateChroot interpolates any variables in the chroot config, intended primarily for the NOMAD_TASK_USER
+// variable, to allow the mapping of the task user's home directory into the chroot
+func (r *TaskRunner) interpolateChroot(taskEnv *env.TaskEnv, chroot map[string]string) map[string]string {
+	interpolatedChroot := make(map[string]string)
+
+	for source, dest := range chroot {
+		k := taskEnv.ReplaceEnv(source)
+		interpolatedChroot[k] = taskEnv.ReplaceEnv(dest)
+	}
+
+	return interpolatedChroot
 }
 
 // collectResourceUsageStats starts collecting resource usage stats of a Task.

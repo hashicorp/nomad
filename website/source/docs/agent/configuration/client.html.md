@@ -141,6 +141,14 @@ client {
 }
 ```
 
+Both source and destination paths support [interpretable Nomad variables]
+(/docs/runtime/interpolation.html) and so the task user's home directory can be
+mapped into the chroot by adding the following to the `chroot_env` map:
+
+```hcl
+    "/home/${NOMAD_TASK_USER}" = "/home/${NOMAD_TASK_USER}"
+```
+
 When `chroot_env` is unspecified, the `exec` driver will use a default chroot
 environment with the most commonly used parts of the operating system. Please
 see the [Nomad `exec` driver documentation](/docs/drivers/exec.html#chroot) for

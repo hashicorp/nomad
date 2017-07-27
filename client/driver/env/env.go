@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
@@ -49,6 +50,9 @@ const (
 
 	// JobName is the environment variable for passing the job name.
 	JobName = "NOMAD_JOB_NAME"
+
+	// TaskUser is the user the task will be run under.
+	TaskUser = "NOMAD_TASK_USER"
 
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
@@ -206,6 +210,7 @@ type Builder struct {
 	cpuLimit         int
 	memLimit         int
 	taskName         string
+	taskUser         string
 	allocIndex       int
 	datacenter       string
 	region           string
@@ -293,6 +298,9 @@ func (b *Builder) Build() *TaskEnv {
 	if b.jobName != "" {
 		envMap[JobName] = b.jobName
 	}
+	if b.taskUser != "" {
+		envMap[TaskUser] = b.taskUser
+	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
 	}
@@ -378,6 +386,11 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 		for i, n := range task.Resources.Networks {
 			b.networks[i] = n.Copy()
 		}
+	}
+	if task.User == "" {
+		b.taskUser = dstructs.DefaultUnpriviledgedUser
+	} else {
+		b.taskUser = task.User
 	}
 	return b
 }

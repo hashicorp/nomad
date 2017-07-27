@@ -116,7 +116,14 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 		fsi = cstructs.FSIsolationChroot
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
-	if err := taskDir.Build(false, config.DefaultChrootEnv, fsi); err != nil {
+
+	chroot := config.DefaultChrootEnv
+	// For the ChrootInterpolation test
+	if _, ok := task.Meta["testdir"]; ok {
+		chroot["${NOMAD_META_testdir}"] = "${NOMAD_META_testdir}"
+	}
+
+	if err := taskDir.Build(false, chroot, fsi); err != nil {
 		t.Fatalf("error building task dir %q: %v", task.Name, err)
 		return nil
 	}
@@ -1493,6 +1500,34 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 	}
 	if !reflect.DeepEqual(data, expected) {
 		t.Fatalf("Bad; got %v; want %v", string(data), string(expected))
+	}
+}
+
+// Test that the chroot config supports interpolation
+func TestTaskRunner_ChrootInterpolation(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := ioutil.TempDir("", "chroot-interpolation")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory for chroot: %v", err)
+	}
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "exec"
+	task.Meta["testdir"] = tmpDir
+
+	ctx := testTaskRunnerFromAlloc(t, false, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, ctx)
+
+	if _, err := os.Stat(filepath.Join(ctx.tr.taskDir.Dir, tmpDir)); os.IsNotExist(err) {
+		t.Fatalf("task directory %v should contain temp directory %v following chroot interpolation",
+			ctx.tr.taskDir.Dir, tmpDir)
 	}
 }
 

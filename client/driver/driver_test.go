@@ -132,6 +132,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	task := &structs.Task{
 		Name:   "Foo",
 		Driver: driver,
+		User:   "ubuntu",
 		Env: map[string]string{
 			"HELLO": "world",
 			"lorem": "ipsum",
@@ -211,6 +212,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"NOMAD_TASK_NAME":               task.Name,
 		"NOMAD_GROUP_NAME":              alloc.TaskGroup,
 		"NOMAD_JOB_NAME":                alloc.Job.Name,
+		"NOMAD_TASK_USER":               task.User,
 		"NOMAD_DC":                      "dc1",
 		"NOMAD_REGION":                  "global",
 	}
