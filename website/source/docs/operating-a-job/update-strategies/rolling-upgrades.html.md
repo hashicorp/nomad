@@ -16,7 +16,7 @@ updates a job or task group is annotated with a high-level description of the
 update strategy using the [`update` stanza][update]. Under the hood, Nomad
 handles limiting parallelism, interfacing with Consul to determine service
 health and even automatically reverting to an older, healthy job when a
-deployment fails.  
+deployment fails.
 
 ## Enabling Rolling Updates
 
@@ -24,7 +24,7 @@ Rolling updates are enabled by adding the [`update` stanza][update] to the job
 specification. The `update` stanza may be placed at the job level or in an
 individual task group. When placed at the job level, the update strategy is
 inherited by all task groups in the job. When placed at both the job and group
-level, the 'update` stanzas are merged, with group stanzas taking precedance
+level, the `update` stanzas are merged, with group stanzas taking precedance
 over job level stanzas. See the [`update` stanza
 documentation](/docs/job-specification/update.html#upgrade-stanza-inheritance)
 for an example.
@@ -245,7 +245,7 @@ update {
   healthy_deadline = "10m"
 
   # Enable automatically reverting to the last stable job on a failed
-  # deployment. 
+  # deployment.
   auto_revert = true
 }
 ```
