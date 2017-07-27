@@ -222,17 +222,20 @@ the node. This guide assumes they're in Nomad's current directory.
 ```
 
 These two settings are important for ensuring all of Nomad's mTLS security
-properties are met. `verify_server_hostname` may be set to `false` to only
-ensure that a node's certificate is signed by the same CA. This means any
-service with a certificate from the same CA as Nomad can act as a client or
-server of any region.
+properties are met. If `verify_server_hostname` is set to `false` the node's
+cerificate will be checked to ensure it is signed by the same CA, but its role
+and region will not be verified. This means any service with a certificate from
+the same CA as Nomad can act as a client or server of any region.
 
-`verify_https_client` may be disabled to allow non-Nomad clients (eg Consul or
-curl) to communicate with the HTTPS API.
+`verify_https_client` may be disabled to allow HTTP API clients (eg Nomad CLI, Consul, or
+curl) to communicate with the HTTPS API without presenting a client-side
+certificate. If `verify_https_client` is enabled ony HTTP API clients
+presenting a certificate signed by the same CA as Nomad's certificate are
+allowed to access Nomad.
 
 ~> Enabling `verify_https_client` feature effectively protects Nomad from
    unauthorized network access at the cost of breaking compatibility with Consul
-   HTTPS health checks and third party tools like curl.
+   HTTPS health checks.
 
 ### Client configuration
 
