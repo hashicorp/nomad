@@ -202,9 +202,11 @@ type NodeUpdateStatusRequest struct {
 }
 
 // NodeUpdateDrainRequest is used for updatin the drain status
+// adding an additional param in order to control the drain behavior
 type NodeUpdateDrainRequest struct {
-	NodeID string
-	Drain  bool
+	NodeID     string
+	Drain      bool
+	Reallocate bool
 	WriteRequest
 }
 
@@ -3856,6 +3858,9 @@ type Evaluation struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// reallocate indicates whether a job should be reallocated or not
+	Reallocate bool
 }
 
 // TerminalStatus returns if the current status is terminal and
