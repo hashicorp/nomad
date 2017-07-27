@@ -26,7 +26,7 @@ the expected region and configured for the expected role (e.g.
 `client.us-west.nomad`).
 
 Configuring TLS can be unfortunately complex process, but if you used the
-[Getting Started guide's Vagrantfile][Vagrantfile] or have [cfssl][] and Nomad
+[Getting Started Guide's Vagrantfile][Vagrantfile] or have [cfssl][] and Nomad
 installed this guide will provide you with a production ready TLS
 configuration.
 
