@@ -156,6 +156,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		},
 	}
 	task := a.Job.TaskGroups[0].Tasks[0]
+	task.User = "ubuntu"
 	task.Env = map[string]string{
 		"taskEnvKey": "taskEnvVal",
 	}
