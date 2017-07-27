@@ -7,7 +7,8 @@ sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl vim \
     apt-transport-https \
     ca-certificates \
-    software-properties-common
+    software-properties-common \
+    openssl
 
 # Download Nomad
 NOMAD_VERSION=0.6.0
