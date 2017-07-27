@@ -3,7 +3,9 @@ layout: "guides"
 page_title: "Securing Nomad with TLS"
 sidebar_current: "guides-tls"
 description: |-
-  Securing Nomad's cluster communication with TLS is XXX TODO XXX
+  Securing Nomad's cluster communication is not only important for security but
+  can even ease operations by preventing mistakes and misconfigurations. Nomad
+  optionally uses mutual TLS (mTLS) for all HTTP and RPC communication.
 ---
 
 # Securing Nomad with TLS
@@ -31,8 +33,6 @@ configuration.
 ~> Note that while Nomad's TLS configuration will be production ready, key
    management and rotation is a complex subject not covered by this guide.
    [Vault][] is the suggested solution for key generation and management.
-
-XXX TODO XXX - serf encryption key
 
 ## Creating Certificates
 
@@ -310,9 +310,60 @@ vagrant@nomad:~$ nomad run example.nomad
 ==> Evaluation "e9970e1d" finished with status "complete"
 ```
 
+## Server Gossip
+
+We haven't quite completely secured Nomad's communications: Nomad server's
+gossip protocol uses a shared key instead of TLS for encryption. This
+encryption key must be added to every server's configuration using the
+[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter.
+
+As a convenience the Nomad CLI includes a `keygen` command for generating a new
+secure gossip encryption key:
+
+```text
+$ nomad keygen
+cg8StVXbQJ0gPvMd9o7yrg==
+```
+
+Put the generated key into each server's configuration file:
+
+```hcl
+server {
+    enabled = true
+
+    # Self-elect, should be 3 or 5 for production
+    bootstrap_expect = 1
+
+    # Encrypt gossip communication
+    encrypt = "cg8StVXbQJ0gPvMd9o7yrg=="
+}
+```
+
 ## Switching an existing cluster to TLS
 
-XXX TODO XXX
+Since Nomad does *not* use different ports for TLS and non-TLS communication,
+the use of TLS should be consistent across the cluster. Switching an existing
+cluster to use TLS everywhere is similar to upgrading between versions of
+Nomad.
+
+First make sure all of your nodes are ready to be switched:
+
+* Add the appropriate key and certificates to all nodes.
+  * Ensure the private key file is only readable by the Nomad user.
+* Add the environment variables to all nodes where the CLI is used.
+* Add the appropriate `tls` block to the configuration file on all nodes.
+* Generate a gossip key and add it the Nomad server configuration.
+
+At this point a rolling restart of the cluster will enable TLS everywhere.
+
+1. Restart servers, one at a time
+2. Restart clients, one or more at a time
+
+~> As soon as a quorum of servers are TLS-enabled, clients will not be able to
+   communicate with them until they are restarted.
+
+Jobs running in the cluster will *not* be affected and will continue running
+throughout the switch.
 
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
 [guide-cluster]: https://www.nomadproject.io/intro/getting-started/cluster.html
