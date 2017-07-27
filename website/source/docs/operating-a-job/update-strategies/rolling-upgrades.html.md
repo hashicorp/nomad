@@ -62,7 +62,7 @@ rolling update strategy.
 
 Thus when a change is made to the job file that requires new allocations to be
 made, Nomad will deploy 2 allocations at a time and require that the allocations
-running in a healthy state for 30 seconds before deploying more versions of the
+be running in a healthy state for 30 seconds before deploying more versions of the
 new group.
 
 By default Nomad determines allocation health by ensuring that all tasks in the
