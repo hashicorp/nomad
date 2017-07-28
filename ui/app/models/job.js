@@ -1,6 +1,7 @@
 import Ember from 'ember';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
+import { hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
@@ -22,7 +23,7 @@ export default Model.extend({
   parameterized: attr('boolean'),
 
   datacenters: attr(),
-  taskGroups: fragmentArray('task-group'),
+  taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
   taskGroupSummaries: fragmentArray('task-group-summary'),
 
   // Aggregate allocation counts across all summaries
@@ -47,4 +48,17 @@ export default Model.extend({
   pendingChildren: attr('number'),
   runningChildren: attr('number'),
   deadChildren: attr('number'),
+
+  allocations: hasMany('allocations'),
+
+  // Since allocations are fetched manually, tracking the status of fetching
+  // the allocations must also be done manually
+  allocationsIsLoaded: false,
+
+  findAllocations() {
+    const promise = this.store.adapterFor('job').findAllocations(this).then(() => {
+      this.set('allocationsIsLoaded', true);
+    });
+    return promise;
+  },
 });

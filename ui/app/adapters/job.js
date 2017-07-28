@@ -15,4 +15,13 @@ export default ApplicationAdapter.extend({
       return job;
     });
   },
+
+  findAllocations(job) {
+    const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
+    return this.ajax(url, 'GET').then(allocs => {
+      return this.store.pushPayload('allocation', {
+        allocations: allocs,
+      });
+    });
+  },
 });
