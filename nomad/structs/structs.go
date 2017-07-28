@@ -231,6 +231,18 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
+type ResourcesResponse struct {
+	Resources ResourcesListStub
+	QueryMeta
+}
+
+// TODO can there be a more generic Request object, if a specific one is not
+// needed?
+// ResourcesRequest is used to parameterize a resources request
+type ResourcesRequest struct {
+	QueryOptions
+}
+
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
@@ -1869,6 +1881,12 @@ func (j *Job) SpecChanged(new *Job) bool {
 
 func (j *Job) SetSubmitTime() {
 	j.SubmitTime = time.Now().UTC().UnixNano()
+}
+
+// ResourcesListStub is used to return a subset of information
+// for jobs, allocations, evaluations, and nodes
+type ResourcesListStub struct {
+	Matches map[string][]string
 }
 
 // JobListStub is used to return a subset of job information

@@ -174,6 +174,7 @@ type endpoints struct {
 	Alloc      *Alloc
 	Deployment *Deployment
 	Region     *Region
+	Resources  *Resources
 	Periodic   *Periodic
 	System     *System
 	Operator   *Operator
@@ -725,6 +726,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Region = &Region{s}
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
+	s.endpoints.Resources = &Resources{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.Alloc)
@@ -738,6 +740,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Region)
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
+	s.rpcServer.Register(s.endpoints.Resources)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
