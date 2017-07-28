@@ -516,11 +516,11 @@
 			"revision": "6ec4abd8f8d587536da56f730858f0e27aeb4126"
 		},
 		{
-			"checksumSHA1": "wDZdTaY9JiqqqnF4c3pHP71nWmk=",
+			"checksumSHA1": "IvHj/4iR2nYa/S3cB2GXoyDG/xQ=",
 			"comment": "v1.2.0-4-g5005588",
 			"path": "github.com/go-ole/go-ole",
-			"revision": "5e9c030faf78847db7aa77e3661b9cc449de29b7",
-			"revisionTime": "2016-11-16T06:46:58Z"
+			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
+			"revisionTime": "2017-07-12T17:44:59Z"
 		},
 		{
 			"comment": "v1.2.0-4-g5005588",
