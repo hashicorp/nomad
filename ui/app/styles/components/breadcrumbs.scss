@@ -12,9 +12,9 @@
         left: -7px;
       }
     }
-  }
 
-  a.breadcrumb {
-    opacity: 1;
+    &:last-child {
+      opacity: 1;
+    }
   }
 }
