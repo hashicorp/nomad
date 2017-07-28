@@ -1,31 +1,11 @@
 import Ember from 'ember';
+import { HOSTS } from './common';
 
 const { copy } = Ember;
 
 export default function() {
-  // These comments are here to help you get started. Feel free to delete them.
+  this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  /*
-    Config (with defaults).
-
-    Note: these only affect routes defined *after* them!
-  */
-
-  // this.urlPrefix = '';    // make this `http://localhost:8080`, for example, if your API is on a different server
-  // this.namespace = '';    // make this `/api`, for example, if your API is namespaced
-  this.timing = 400; // delay for each request, automatically set to 0 during testing
-
-  /*
-    Shorthand cheatsheet:
-
-    this.get('/posts');
-    this.post('/posts');
-    this.get('/posts/:id');
-    this.put('/posts/:id'); // or this.patch
-    this.del('/posts/:id');
-
-    http://www.ember-cli-mirage.com/docs/v0.3.x/shorthands/
-  */
   this.namespace = 'v1';
 
   this.get('/jobs', function({ jobs }) {
@@ -39,12 +19,22 @@ export default function() {
     return this.serialize(jobSummaries.findBy({ jobId: params.id }));
   });
 
+  this.get('/job/:id/allocations', function({ allocations }, { params }) {
+    return this.serialize(allocations.where({ jobId: params.id }));
+  });
+
   this.get('/nodes', function({ nodes }) {
     const json = this.serialize(nodes.all());
     return json;
   });
 
   this.get('/node/:id');
+
+  this.get('/node/:id/allocations', function({ allocations }, { params }) {
+    return this.serialize(allocations.where({ nodeId: params.id }));
+  });
+
+  this.get('/allocation/:id');
 
   this.get('/agent/members', function({ agents }) {
     return {
@@ -55,6 +45,21 @@ export default function() {
   this.get('/status/leader', function({ agents }) {
     const agent = agents.first();
     return JSON.stringify(`${agent.address}:${agent.tags.port}`);
+  });
+
+  // TODO: in the future, this hack may be replaceable with dynamic host name
+  // support in pretender: https://github.com/pretenderjs/pretender/issues/210
+  HOSTS.forEach(host => {
+    this.get(`http://${host}/v1/client/allocation/:id/stats`, function(
+      { clientAllocationStats },
+      { params }
+    ) {
+      return this.serialize(clientAllocationStats.find(params.id));
+    });
+
+    this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
+      return this.serialize(clientStats.find(host));
+    });
   });
 }
 
