@@ -1,6 +1,15 @@
 .table {
   color: $text;
 
+  &.is-fixed {
+    table-layout: fixed;
+
+    td {
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+
   thead {
     td, th {
       font-weight: $weight-bold;
@@ -46,5 +55,13 @@
         border-left: 2px solid $primary;
       }
     }
+
+    td.is-subheading {
+      font-weight: $weight-bold;
+    }
+  }
+
+  .is-faded {
+    color: $grey-light;
   }
 }
