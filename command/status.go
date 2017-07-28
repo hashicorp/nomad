@@ -138,11 +138,11 @@ func (c *StatusCommand) Run(args []string) int {
 	basic := []string{
 		fmt.Sprintf("ID|%s", *job.ID),
 		fmt.Sprintf("Name|%s", *job.Name),
-		fmt.Sprintf("Submit Date|%s", formatTime(time.Unix(0, *job.SubmitTime))),
+		fmt.Sprintf("Submit Date|%s", formatTime(getSubmitTime(job))),
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
-		fmt.Sprintf("Status|%s", getStatusString(*job.Status, *job.Stop)),
+		fmt.Sprintf("Status|%s", getStatusString(*job.Status, job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
@@ -421,7 +421,7 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
-				*alloc.Job.Version,
+				getVersion(alloc.Job),
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
 				formatUnixNanoTime(alloc.CreateTime))
@@ -433,7 +433,7 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
-				*alloc.Job.Version,
+				getVersion(alloc.Job),
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
 				formatUnixNanoTime(alloc.CreateTime))
@@ -534,7 +534,7 @@ func createStatusListOutput(jobs []*api.JobListStub) string {
 			job.ID,
 			getTypeString(job),
 			job.Priority,
-			getStatusString(job.Status, job.Stop),
+			getStatusString(job.Status, &job.Stop),
 			formatTime(time.Unix(0, job.SubmitTime)))
 	}
 	return formatList(out)
@@ -554,8 +554,8 @@ func getTypeString(job *api.JobListStub) string {
 	return t
 }
 
-func getStatusString(status string, stop bool) string {
-	if stop {
+func getStatusString(status string, stop *bool) string {
+	if stop != nil && *stop {
 		return fmt.Sprintf("%s (stopped)", status)
 	}
 	return status
