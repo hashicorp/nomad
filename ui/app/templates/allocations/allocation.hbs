@@ -1,0 +1,74 @@
+<div class="container">
+  <section class="section">
+    <h1 class="title">Allocation {{model.name}}</h1>
+    <h3 class="subtitle">
+      For job <a href="{{href-to "jobs.job" model.job}}">{{model.job.name}}</a>
+      on node <a href="{{href-to "nodes.node" model.node}}">{{model.node.shortId}}</a>
+    </h3>
+
+    <div class="message">
+      <div class="message-header">
+        Tasks
+      </div>
+      <table class="table is-striped">
+        <thead>
+          <td>Name</td>
+          <td>State</td>
+          <td>Last Event</td>
+          <td>Time</td>
+        </thead>
+        <tbody>
+          {{#each model.states as |taskState|}}
+            <tr>
+              <td>{{taskState.task.name}}</td>
+              <td>{{taskState.state}}</td>
+              <td>
+                {{#if taskState.events.lastObject.displayMessage}}
+                  {{taskState.events.lastObject.displayMessage}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+              <td>{{moment-format taskState.ewvents.lastObject.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    {{#each model.states as |state|}}
+      <div class="message">
+        <div class="message-header">
+          {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "DD/MM/YY HH:mm:ss [UTC]"}}
+          {{#unless state.isActive}}
+            Ended: {{moment-format state.finishedAt "DD/MM/YY HH:mm:ss [UTC]"}}
+          {{/unless}}
+        </div>
+        <table class="table is-striped">
+          <thead>
+            <tr>
+              <td>Time</td>
+              <td>Type</td>
+              <td>Description</td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each (reverse state.events) as |event|}}
+              <tr>
+                <td>{{moment-format event.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+                <td>{{event.type}}</td>
+                <td>
+                  {{#if event.displayMessage}}
+                    {{event.displayMessage}}
+                  {{else}}
+                    <em>No message</em>
+                  {{/if}}
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+     {{/each}}
+  </section>
+</div>

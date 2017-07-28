@@ -5,4 +5,47 @@
   </div>
 </nav>
 <div class="container">
+  <section class="section">
+    <div class="message">
+      <div class="message-header">
+        Allocations
+      </div>
+      <table class="table">
+        <thead>
+          <td>Name</td>
+          <td>Job</td>
+          <td>CPU</td>
+        </thead>
+        <tbody>
+          {{#each model.allocations as |allocation|}}
+            <tr>
+              <td>
+                <a href="{{href-to "allocations.allocation" allocation}}">{{allocation.name}}</a>
+              </td>
+              <td>
+                <a href="{{href-to "jobs.job" allocation.job}}">{{allocation.job.name}}</a>
+                <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
+              </td>
+              <td>
+                {{#if allocation.stats.isPending}}
+                  ...
+                {{else if allocation.stats.isRejected}}
+                  !!!
+                {{else}}
+                  {{allocation.stats.ResourceUsage.CpuStats.Percent}}
+                {{/if}}
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="message">
+      <div class="message-header">
+        Attributes
+      </div>
+      {{attributes-table attributes=model.attributes.attributesStructured}}
+    </div>
+  </section>
 </div>
