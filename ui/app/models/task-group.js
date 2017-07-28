@@ -14,6 +14,10 @@ export default Fragment.extend({
 
   tasks: fragmentArray('task'),
 
+  allocations: computed('job.allocations.@each.taskGroup', function() {
+    return this.get('job.allocations').filterBy('taskGroupName', this.get('name'));
+  }),
+
   reservedCPU: sumAggregation('tasks', 'reservedCPU'),
   reservedMemory: sumAggregation('tasks', 'reservedMemory'),
   reservedDisk: sumAggregation('tasks', 'reservedDisk'),

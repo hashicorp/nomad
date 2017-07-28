@@ -1,0 +1,71 @@
+<nav class="nav is-secondary">
+  <div class="nav-left breadcrumbs">
+    {{#each breadcrumbs as |breadcrumb|}}
+      <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+    {{/each}}
+  </div>
+</nav>
+<div class="container">
+  <section class="section">
+    <div class="level">
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{model.reservedCPU}} MHz</h3>
+          <p class="heading">Reserved CPU</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{model.reservedMemory}} MiB</h3>
+          <p class="heading">Reserved Memory</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{model.reservedDisk}} MiB</h3>
+          <p class="heading">Reserved Disk</p>
+        </div>
+      </div>
+      <div class="level-item has-text-centered">
+        <div>
+          <h3 class="title is-1">{{model.tasks.length}}</h3>
+          <p class="heading">{{pluralize "Task" model.tasks.length}}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="message">
+      <div class="message-header">
+        Allocations
+      </div>
+      <table class="table">
+        <thead>
+          <td>Name</td>
+          <td>Node</td>
+          <td>CPU</td>
+        </thead>
+        <tbody>
+          {{#each model.allocations as |allocation|}}
+            <tr>
+              <td>
+                <a href="{{href-to "allocations.allocation" allocation}}">{{allocation.name}}</a>
+              </td>
+              <td>
+                <a href="{{href-to "nodes.node" allocation.node}}">{{allocation.node.name}}</a>
+              </td>
+              <td>
+                {{#if allocation.stats.isPending}}
+                  ...
+                {{else if allocation.stats.isRejected}}
+                  !!!
+                {{else}}
+                  wat {{allocation.stats.Resources.CpuStats.Percent}}
+                {{/if}}
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
