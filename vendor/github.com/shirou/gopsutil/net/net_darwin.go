@@ -18,7 +18,7 @@ var (
 
 const endOfLine = "\n"
 
-func parseNetstatLine(line string) (stat *IOCountersStat, linkId *uint, err error) {
+func parseNetstatLine(line string) (stat *IOCountersStat, linkID *uint, err error) {
 	var (
 		numericValue uint64
 		columns      = strings.Fields(line)
@@ -35,8 +35,8 @@ func parseNetstatLine(line string) (stat *IOCountersStat, linkId *uint, err erro
 		if err != nil {
 			return
 		}
-		linkIdUint := uint(numericValue)
-		linkId = &linkIdUint
+		linkIDUint := uint(numericValue)
+		linkID = &linkIDUint
 	}
 
 	base := 1
@@ -91,7 +91,7 @@ func parseNetstatLine(line string) (stat *IOCountersStat, linkId *uint, err erro
 }
 
 type netstatInterface struct {
-	linkId *uint
+	linkID *uint
 	stat   *IOCountersStat
 }
 
@@ -112,7 +112,7 @@ func parseNetstatOutput(output string) ([]netstatInterface, error) {
 
 	for index := 0; index < numberInterfaces; index++ {
 		nsIface := netstatInterface{}
-		if nsIface.stat, nsIface.linkId, err = parseNetstatLine(lines[index+1]); err != nil {
+		if nsIface.stat, nsIface.linkID, err = parseNetstatLine(lines[index+1]); err != nil {
 			return nil, err
 		}
 		interfaces[index] = nsIface
@@ -126,7 +126,7 @@ type mapInterfaceNameUsage map[string]uint
 func newMapInterfaceNameUsage(ifaces []netstatInterface) mapInterfaceNameUsage {
 	output := make(mapInterfaceNameUsage)
 	for index := range ifaces {
-		if ifaces[index].linkId != nil {
+		if ifaces[index].linkID != nil {
 			ifaceName := ifaces[index].stat.Name
 			usage, ok := output[ifaceName]
 			if ok {
@@ -192,7 +192,7 @@ func IOCounters(pernic bool) ([]IOCountersStat, error) {
 	if !ifaceUsage.isTruncated() {
 		// no truncated interface name, return stats of all interface with <Link#...>
 		for index := range nsInterfaces {
-			if nsInterfaces[index].linkId != nil {
+			if nsInterfaces[index].linkID != nil {
 				ret[retIndex] = *nsInterfaces[index].stat
 				retIndex++
 			}
@@ -212,7 +212,7 @@ func IOCounters(pernic bool) ([]IOCountersStat, error) {
 		for _, interfaceName := range interfaceNames {
 			truncated := true
 			for index := range nsInterfaces {
-				if nsInterfaces[index].linkId != nil && nsInterfaces[index].stat.Name == interfaceName {
+				if nsInterfaces[index].linkID != nil && nsInterfaces[index].stat.Name == interfaceName {
 					// handle the non truncated name to avoid execute netstat for them again
 					ret[retIndex] = *nsInterfaces[index].stat
 					retIndex++
@@ -234,7 +234,7 @@ func IOCounters(pernic bool) ([]IOCountersStat, error) {
 					continue
 				}
 				for index := range parsedIfaces {
-					if parsedIfaces[index].linkId != nil {
+					if parsedIfaces[index].linkID != nil {
 						ret = append(ret, *parsedIfaces[index].stat)
 						break
 					}
