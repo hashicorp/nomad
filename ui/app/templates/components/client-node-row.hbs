@@ -1,6 +1,13 @@
-<td><a href="{{href-to "nodes.node" node.id}}">{{node.id}}</a></td>
+<td><a href="{{href-to "nodes.node" node.id}}">{{node.shortId}}</a></td>
 <td>{{node.name}}</td>
 <td>{{node.status}}</td>
 <td>{{node.address}}</td>
 <td>{{node.port}}</td>
 <td>{{node.datacenter}}</td>
+<td>
+  {{#if node.allocationsIsLoaded}}
+    {{node.allocations.length}}
+  {{else}}
+    ...
+  {{/if}}
+</td>

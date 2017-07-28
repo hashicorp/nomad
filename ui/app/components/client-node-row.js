@@ -18,7 +18,7 @@ export default Component.extend({
     // Reload the node in order to get detail information
     const node = this.get('node');
     if (node) {
-      node.reload();
+      node.reload().then(node => node.findAllocations());
     }
   },
 });

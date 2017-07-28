@@ -55,7 +55,7 @@ test('/nodes should list all clients', function(assert) {
     server.db.nodes.forEach((node, index) => {
       assert.equal(
         find(`.client-node-row:eq(${index}) td:eq(0)`).text(),
-        node.id,
+        node.id.split('-')[0],
         'Nodes are ordered'
       );
     });
@@ -71,7 +71,7 @@ test('each client record should show high-level info of the client', function(as
   andThen(() => {
     const nodeRow = find('.client-node-row:eq(0)');
 
-    assert.equal(nodeRow.find('td:eq(0)').text(), node.id, 'ID');
+    assert.equal(nodeRow.find('td:eq(0)').text(), node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.find('td:eq(1)').text(), node.name, 'Name');
     assert.equal(nodeRow.find('td:eq(2)').text(), node.status, 'Status');
     assert.equal(nodeRow.find('td:eq(3)').text(), node.http_addr.split(':')[0], 'Address');

@@ -1,7 +1,9 @@
 import Ember from 'ember';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
+import { hasMany } from 'ember-data/relationships';
 import { fragment } from 'ember-data-model-fragments/attributes';
+import shortUUIDProperty from '../utils/properties/short-uuid';
 
 const { computed } = Ember;
 
@@ -12,6 +14,7 @@ export default Model.extend({
   isDraining: attr('boolean'),
   status: attr('string'),
   statusDescription: attr('string'),
+  shortId: shortUUIDProperty('id'),
 
   // Available from single response
   httpAddr: attr('string'),
@@ -29,4 +32,21 @@ export default Model.extend({
     const addr = this.get('httpAddr');
     return addr && addr.split(':')[1];
   }),
+
+  isPartial: computed('httpAddr', function() {
+    return this.get('httpAddr') == null;
+  }),
+
+  allocations: hasMany('allocations'),
+
+  // Since allocations are fetched manually, tracking the status of fetching
+  // the allocations must also be done manually
+  allocationsIsLoaded: false,
+
+  findAllocations() {
+    const promise = this.store.adapterFor('node').findAllocations(this).then(() => {
+      this.set('allocationsIsLoaded', true);
+    });
+    return promise;
+  },
 });
