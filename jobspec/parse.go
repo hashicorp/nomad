@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -158,7 +159,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
-		if err := parseUpdate(&result.Update, o); err != nil {
+		if err := parseUpdate(&result.Update, o, 0); err != nil {
 			return multierror.Prefix(err, "update ->")
 		}
 	}
@@ -322,7 +323,11 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// If we have an update strategy, then parse that
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
-			if err := parseUpdate(&g.Update, o); err != nil {
+			count := 1
+			if g.Count != nil {
+				count = *g.Count
+			}
+			if err := parseUpdate(&g.Update, o, count); err != nil {
 				return multierror.Prefix(err, "update ->")
 			}
 		}
@@ -545,6 +550,34 @@ func parseBool(value interface{}) (bool, error) {
 	}
 
 	return enabled, err
+}
+
+func parseMaxParallel(maxParallel string, count int) (string, error) {
+	var maxPar, countf float64
+	jobVal := maxParallel
+	var percent bool
+	var err error
+	if strings.Contains(maxParallel, "%") {
+		maxParallel = strings.Replace(maxParallel, "%", "", -1)
+		maxPar, err = strconv.ParseFloat(maxParallel, 64)
+		if err != nil {
+			return "", err
+		}
+		countf = float64(count)
+		maxParVal := math.Ceil((maxPar * countf) / 100.0)
+		maxParallel = strconv.FormatFloat(maxParVal, 'f', -1, 64)
+		percent = true
+	}
+	if !percent {
+		return maxParallel, nil
+	} else if maxPar > 100.0 {
+		err = fmt.Errorf("Percent may not be greater than 100, current value \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return "", err
+	} else if maxPar <= 0.0 {
+		err = fmt.Errorf("Malformatted value (or 0) \"%v\" in update strategy, please fix the jobspec", jobVal)
+		return "", err
+	}
+	return maxParallel, nil
 }
 
 func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list *ast.ObjectList) error {
@@ -1113,7 +1146,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 	return nil
 }
 
-func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
+func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList, count int) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
 		return fmt.Errorf("only one 'update' block allowed")
@@ -1140,6 +1173,14 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
+	}
+
+	if val, ok := m["max_parallel"].(string); ok && count != 0 {
+		var parErr error
+		m["max_parallel"], parErr = parseMaxParallel(val, count)
+		if parErr != nil {
+			return parErr
+		}
 	}
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
