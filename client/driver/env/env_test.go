@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -155,6 +156,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		},
 	}
 	task := a.Job.TaskGroups[0].Tasks[0]
+	task.User = "ubuntu"
 	task.Env = map[string]string{
 		"taskEnvKey": "taskEnvVal",
 	}
@@ -180,6 +182,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_IP_https=127.0.0.1",
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
+		"NOMAD_TASK_USER=ubuntu",
 		"NOMAD_TASK_NAME=web",
 		"NOMAD_GROUP_NAME=web",
 		"NOMAD_ADDR_ssh_other=192.168.0.100:1234",
@@ -332,6 +335,7 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta": "tgmetaval"}
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Name = "orig"
+	task.User = "user1"
 	task.Env = map[string]string{"taskenv": "taskenvval"}
 	task.Meta = map[string]string{"taskmeta": "taskmetaval"}
 	builder := NewBuilder(mock.Node(), a, task, "global")
@@ -339,6 +343,9 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	origMap := builder.Build().Map()
 	if origMap["NOMAD_TASK_NAME"] != "orig" {
 		t.Errorf("Expected NOMAD_TASK_NAME=orig but found %q", origMap["NOMAD_TASK_NAME"])
+	}
+	if origMap["NOMAD_TASK_USER"] != "user1" {
+		t.Errorf("Expected NOMAD_TASK_USER=user1 but found %q", origMap["NOMAD_TASK_USER"])
 	}
 	if origMap["NOMAD_META_taskmeta"] != "taskmetaval" {
 		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", origMap["NOMAD_META_taskmeta"])
@@ -352,12 +359,16 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta2": "tgmetaval2"}
 	task.Name = "new"
+	task.User = ""
 	task.Env = map[string]string{"taskenv2": "taskenvval2"}
 	task.Meta = map[string]string{"taskmeta2": "taskmetaval2"}
 
 	newMap := builder.UpdateTask(a, task).Build().Map()
 	if newMap["NOMAD_TASK_NAME"] != "new" {
 		t.Errorf("Expected NOMAD_TASK_NAME=new but found %q", newMap["NOMAD_TASK_NAME"])
+	}
+	if newMap["NOMAD_TASK_USER"] != dstructs.DefaultUnpriviledgedUser {
+		t.Errorf("Expected NOMAD_TASK_USER=%s but found %q", dstructs.DefaultUnpriviledgedUser, newMap["NOMAD_TASK_USER"])
 	}
 	if newMap["NOMAD_META_taskmeta2"] != "taskmetaval2" {
 		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", newMap["NOMAD_META_taskmeta2"])
