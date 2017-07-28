@@ -9,13 +9,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 	"unsafe"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/internal/common"
 	"github.com/shirou/gopsutil/net"
+	"golang.org/x/sys/unix"
 )
 
 // copied from sys/sysctl.h
@@ -99,8 +99,8 @@ func (p *Process) Exe() (string, error) {
 		return "", err
 	}
 
-	lsof := exec.Command(lsof_bin, "-p", strconv.Itoa(int(p.Pid)), "-Fn")
-	awk := exec.Command(awk_bin, "NR==3{print}")
+	lsof := exec.Command(lsof_bin, "-p", strconv.Itoa(int(p.Pid)), "-Fpfn")
+	awk := exec.Command(awk_bin, "NR==5{print}")
 	sed := exec.Command(sed_bin, "s/n\\//\\//")
 
 	output, _, err := common.Pipeline(lsof, awk, sed)
@@ -152,7 +152,7 @@ func (p *Process) CreateTime() (int64, error) {
 		elapsedDurations = append(elapsedDurations, time.Duration(p))
 	}
 
-	var elapsed time.Duration = time.Duration(elapsedDurations[0]) * time.Second
+	var elapsed = time.Duration(elapsedDurations[0]) * time.Second
 	if len(elapsedDurations) > 1 {
 		elapsed += time.Duration(elapsedDurations[1]) * time.Minute
 	}
@@ -443,8 +443,8 @@ func (p *Process) getKProc() (*KinfoProc, error) {
 	procK := KinfoProc{}
 	length := uint64(unsafe.Sizeof(procK))
 	buf := make([]byte, length)
-	_, _, syserr := syscall.Syscall6(
-		syscall.SYS___SYSCTL,
+	_, _, syserr := unix.Syscall6(
+		unix.SYS___SYSCTL,
 		uintptr(unsafe.Pointer(&mib[0])),
 		uintptr(len(mib)),
 		uintptr(unsafe.Pointer(&buf[0])),

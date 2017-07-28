@@ -130,3 +130,7 @@ func uptimeSince(since uint64) uint64 {
 func Users() ([]UserStat, error) {
 	return []UserStat{}, common.ErrNotImplementedError
 }
+
+func SensorsTemperatures() ([]TemperatureStat, error) {
+	return []TemperatureStat{}, common.ErrNotImplementedError
+}
