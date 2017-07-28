@@ -16,6 +16,8 @@ export default Factory.extend({
 
   JobID: '',
 
+  name: () => `task-${faker.hacker.noun()}`,
+
   Resources: () => ({
     CPU: faker.list.random(...CPU_RESERVATIONS)(),
     MemoryMB: faker.list.random(...MEMORY_RESERVATIONS)(),
