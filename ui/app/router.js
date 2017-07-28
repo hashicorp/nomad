@@ -8,7 +8,9 @@ const Router = Ember.Router.extend({
 
 Router.map(function() {
   this.route('jobs', function() {
-    this.route('job', { path: '/:job_id' });
+    this.route('job', { path: '/:job_id' }, function() {
+      this.route('task-group', { path: '/:name' });
+    });
   });
 
   this.route('nodes', function() {
@@ -16,6 +18,10 @@ Router.map(function() {
     this.route('servers', function() {
       this.route('server', { path: '/:agent_id' });
     });
+  });
+
+  this.route('allocations', function() {
+    this.route('allocation', { path: '/:allocation_id' });
   });
 
   if (config.environment === 'development') {
