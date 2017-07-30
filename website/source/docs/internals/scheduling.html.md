@@ -72,7 +72,10 @@ failing the specified constraints.
 
 The second phase is ranking, where the scheduler scores feasible nodes to find the best fit.
 Scoring is primarily based on bin packing, which is used to optimize the resource utilization
-and density of applications, but is also augmented by affinity and anti-affinity rules.
+and density of applications, but is also augmented by affinity and anti-affinity rules. One such
+anti-affinity rule exists to avoid colocating instances of the same service to reduce the 
+probability of correlated failures.
+
 Once the scheduler has ranked enough nodes, the highest ranking node is selected and
 added to the allocation plan.
 
