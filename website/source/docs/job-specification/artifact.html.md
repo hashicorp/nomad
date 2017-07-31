@@ -41,8 +41,8 @@ job "docs" {
 ```
 
 Nomad supports downloading `http`, `https`, `git`, `hg` and `S3` artifacts. If
-these artifacts are archived (`zip`, `tgz`, `bz2`), they are automatically
-unarchived before the starting the task.
+these artifacts are archived (`zip`, `tgz`, `bz2`, `xz`), they are
+automatically unarchived before the starting the task.
 
 ## `artifact` Parameters
 
