@@ -56,6 +56,12 @@ func (p *propertySet) SetJobConstraint(constraint *structs.Constraint) {
 	// Store the constraint
 	p.constraint = constraint
 	p.populateExisting(constraint)
+
+	// Populate the proposed when setting the constraint. We do this because
+	// when detecting if we can inplace update an allocation we stage an
+	// eviction and then select. This means the plan has an eviction before a
+	// single select has finished.
+	p.PopulateProposed()
 }
 
 // SetTGConstraint is used to parameterize the property set for a
@@ -67,8 +73,13 @@ func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup 
 
 	// Store the constraint
 	p.constraint = constraint
-
 	p.populateExisting(constraint)
+
+	// Populate the proposed when setting the constraint. We do this because
+	// when detecting if we can inplace update an allocation we stage an
+	// eviction and then select. This means the plan has an eviction before a
+	// single select has finished.
+	p.PopulateProposed()
 }
 
 // populateExisting is a helper shared when setting the constraint to populate
