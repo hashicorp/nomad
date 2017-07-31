@@ -1454,7 +1454,7 @@ $ curl \
 }
 ```
 
-## Delete a Job
+## Stop a Job
 
 This endpoint deregisters a job, and stops all allocations part of it.
 
@@ -1475,12 +1475,16 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `Purge` `(bool: false)` - Specifies that the job should stopped and purged
+  immediately. This means the job will not be queryable after being stopped. If
+  not set, the job will be purged by the garbage collector.
+
 ### Sample Request
 
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/job/my-job
+    https://nomad.rocks/v1/job/my-job?purge=true
 ```
 
 ### Sample Response
