@@ -1,7 +1,8 @@
 Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 =========
--	Website: https://www.nomadproject.io
--	Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
+
+* Website: [www.nomadproject.io](https://www.nomadproject.io)
+* Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
 
 <p align="center" style="text-align:center;">
   <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-text.svg" width="500" />
@@ -78,7 +79,7 @@ needed dependencies.
 
 **Developing locally**
 For local dev first make sure Go is properly installed, including setting up a
-[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this 
+[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this
 repository into `$GOPATH/src/github.com/hashicorp/nomad`. Then you can
 download the required build tools such as vet, cover, godep etc by bootstrapping
 your environment.
