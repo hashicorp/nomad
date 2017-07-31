@@ -1,7 +1,6 @@
 PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 EXTERNAL_TOOLS=\
 	       github.com/kardianos/govendor \
-	       github.com/mitchellh/gox \
 	       golang.org/x/tools/cmd/cover \
 	       github.com/axw/gocov/gocov \
 	       gopkg.in/matm/v1/gocov-html \
