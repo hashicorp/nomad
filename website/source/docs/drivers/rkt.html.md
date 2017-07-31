@@ -103,12 +103,14 @@ The `rkt` driver supports the following configuration in the job spec:
 * `no_overlay` - (Optional) When enabled, will use `--no-overlay=true` flag for 'rkt run'.
   Useful when running jobs on older systems affected by https://github.com/rkt/rkt/issues/1922
 
-* `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+* `volumes` - (Optional) A list of `host_path:container_path[:readOnly]` strings to bind
   host paths to container paths.
+  Mount is done read-write by default; an optional third parameter `readOnly` can be provided
+  to make it read-only.
 
     ```hcl
     config {
-      volumes = ["/path/on/host:/path/in/container"]
+      volumes = ["/path/on/host:/path/in/container", "/readonly/path/on/host:/path/in/container:readOnly"]
     }
     ```
 
