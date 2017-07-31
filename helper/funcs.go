@@ -76,6 +76,20 @@ func IntMin(a, b int) int {
 	return b
 }
 
+func IntMax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Uint64Max(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // MapStringStringSliceValueSet returns the set of values in a map[string][]string
 func MapStringStringSliceValueSet(m map[string][]string) []string {
 	set := make(map[string]struct{})

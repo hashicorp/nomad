@@ -537,7 +537,9 @@ The `Constraint` object supports the following keys:
         omitted.
 
   - `distinct_property` - If set, the scheduler selects nodes that have a
-        distinct value of the specified property for each allocation. This can
+        distinct value of the specified property. The `RTarget` specifies how
+        many allocations are allowed to share the value of a property. The
+        `RTarget` must be 1 or greater and if omitted, defaults to 1. This can
         be specified as a job constraint which applies the constraint to all
         task groups in the job, or as a task group constraint which scopes the
         effect to just that group. The constraint may not be specified at the
