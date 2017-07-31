@@ -1,5 +1,8 @@
 ## 0.6.1 (Unreleased)
 
+IMPROVEMENTS:
+ * driver/rkt: support read-only volume mounts [GH-2883]
+
 BUG FIXES:
  * driver/docker: Fix leaking plugin file used by syslog server [GH-2937]
 
