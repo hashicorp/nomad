@@ -19,9 +19,11 @@ export default Factory.extend({
       server.db.nodes.length
     );
 
-    const job = pickOne(server.db.jobs);
-    const node = pickOne(server.db.nodes);
-    const taskGroup = pickOne(server.db.taskGroups.where({ jobId: job.id }));
+    const job = allocation.job || pickOne(server.db.jobs);
+    const node = allocation.node || pickOne(server.db.nodes);
+    const taskGroup = allocation.taskGroup
+      ? server.db.taskGroups.findBy({ name: allocation.taskGroup })
+      : pickOne(server.db.taskGroups.where({ jobId: job.id }));
 
     const states = taskGroup.taskIds.map(id =>
       server.create('task-state', {

@@ -2,7 +2,7 @@ import { Factory, faker } from 'ember-cli-mirage';
 
 export default Factory.extend({
   name: id => `${faker.hacker.noun()}-g-${id}`,
-  count: () => faker.random.number({ min: 1, max: 10 }),
+  count: () => faker.random.number({ min: 1, max: 4 }),
 
   afterCreate(group, server) {
     const tasks = server.createList('task', group.count, {

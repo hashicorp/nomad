@@ -10,6 +10,8 @@ export default Factory.extend({
   id: i => `job-${i}`,
   name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun()}-${i}`,
 
+  groupsCount: () => faker.random.number({ min: 1, max: 10 }),
+
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
   priority: () => faker.random.number(200),
@@ -21,7 +23,7 @@ export default Factory.extend({
   ),
 
   afterCreate(job, server) {
-    const groups = server.createList('task-group', faker.random.number({ min: 1, max: 10 }), {
+    const groups = server.createList('task-group', job.groupsCount, {
       job,
     });
 

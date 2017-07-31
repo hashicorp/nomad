@@ -19,9 +19,9 @@ export default Factory.extend({
   name: () => `task-${faker.hacker.noun()}`,
 
   Resources: () => ({
-    CPU: faker.list.random(...CPU_RESERVATIONS)(),
-    MemoryMB: faker.list.random(...MEMORY_RESERVATIONS)(),
-    DiskMB: faker.list.random(...DISK_RESERVATIONS)(),
-    IOPS: faker.list.random(...IOPS_RESERVATIONS)(),
+    CPU: faker.random.arrayElement(CPU_RESERVATIONS),
+    MemoryMB: faker.random.arrayElement(MEMORY_RESERVATIONS),
+    DiskMB: faker.random.arrayElement(DISK_RESERVATIONS),
+    IOPS: faker.random.arrayElement(IOPS_RESERVATIONS),
   }),
 });
