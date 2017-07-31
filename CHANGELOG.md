@@ -1,5 +1,8 @@
 ## 0.6.1 (Unreleased)
 
+BUG FIXES:
+ * driver/docker: Fix leaking plugin file used by syslog server [GH-2937]
+
 ## 0.6.0 (July 26, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
