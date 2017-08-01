@@ -10,7 +10,7 @@
       <div class="message-header">
         Tasks
       </div>
-      <table class="table is-striped">
+      <table class="table is-striped tasks">
         <thead>
           <td>Name</td>
           <td>State</td>
@@ -29,7 +29,7 @@
                   <em>No message</em>
                 {{/if}}
               </td>
-              <td>{{moment-format taskState.ewvents.lastObject.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+              <td>{{moment-format taskState.events.lastObject.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
             </tr>
           {{/each}}
         </tbody>
@@ -37,14 +37,14 @@
     </div>
 
     {{#each model.states as |state|}}
-      <div class="message">
+      <div class="message task-state-events">
         <div class="message-header">
           {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "DD/MM/YY HH:mm:ss [UTC]"}}
           {{#unless state.isActive}}
             Ended: {{moment-format state.finishedAt "DD/MM/YY HH:mm:ss [UTC]"}}
           {{/unless}}
         </div>
-        <table class="table is-striped">
+        <table class="table is-striped task-events">
           <thead>
             <tr>
               <td>Time</td>
