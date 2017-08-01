@@ -41,11 +41,12 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 
 func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
+	testJobPrefix := "aaaaaaaa-e8f7-fd38"
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s", testJob)
+		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s", testJobPrefix)
 		req, err := http.NewRequest("GET", endpoint, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -67,8 +68,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (1)", j)
 		}
 
-		// TODO verify that the job we are getting is the same that we created
-		//	assert.Equal(t, j[0], testJob)
+		assert.Equal(t, j[0], testJob)
 	})
 }
 
