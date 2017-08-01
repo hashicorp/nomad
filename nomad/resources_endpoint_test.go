@@ -7,13 +7,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-	"net/rpc"
+	"strconv"
 	"testing"
 )
 
-func registerAndVerifyJob(codec rpc.ClientCodec, s *Server, t *testing.T) string {
-	// Create the register request
+func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) string {
 	job := mock.Job()
+
+	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
 	err := state.UpsertJob(1000, job)
 	if err != nil {
@@ -24,6 +25,8 @@ func registerAndVerifyJob(codec rpc.ClientCodec, s *Server, t *testing.T) string
 }
 
 func TestResourcesEndpoint_List(t *testing.T) {
+	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -33,7 +36,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID := registerAndVerifyJob(codec, s, t)
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
 	req := &structs.ResourcesRequest{
 		QueryOptions: structs.QueryOptions{Region: "global", Prefix: jobID},
