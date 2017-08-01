@@ -35,6 +35,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-dev`: Start the agent in development mode. This enables a pre-configured
   dual-role agent (client + server) which is useful for developing or testing
   Nomad. No other configuration is required to start the agent in this mode.
+* `-encrypt`: Set the Serf encryption key. See [Agent
+  Encryption](/docs/agent/encryption.html) for more details.
 * `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
 * `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.

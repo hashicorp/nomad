@@ -3,51 +3,61 @@ layout: "guides"
 page_title: "Securing Nomad with TLS"
 sidebar_current: "guides-tls"
 description: |-
-  Securing Nomad's cluster communication is not only important for security but
-  can even ease operations by preventing mistakes and misconfigurations. Nomad
-  optionally uses mutual TLS (mTLS) for all HTTP and RPC communication.
+  Securing Nomad's cluster communication with TLS is important for both
+  security and easing operations. Nomad can use mutual TLS (mTLS) for
+  authenticating for all HTTP and RPC communication.
 ---
 
 # Securing Nomad with TLS
 
 Securing Nomad's cluster communication is not only important for security but
 can even ease operations by preventing mistakes and misconfigurations. Nomad
-optionally uses mutual TLS (mTLS) for all HTTP and RPC communication. Nomad's
-use of mTLS provides the following properties:
+optionally uses mutual [TLS][tls] (mTLS) for all HTTP and RPC communication.
+Nomad's use of mTLS provides the following properties:
 
 * Prevent unauthorized Nomad access
 * Prevent observing or tampering with Nomad communication
 * Prevent client/server role or region misconfigurations
+* Prevent other services from masquerading as Nomad agents
 
-The 3rd property is fairly unique to Nomad's use of TLS. While most uses of TLS
-verify the identity of the server you're connecting to based on a domain name
-such as `nomadproject.io`, Nomad verifies the node you're connecting to is in
+Preventing region misconfigurations is a property of Nomad's mTLS not commonly
+found in the TLS implementations on the public Internet.  While most uses of
+TLS verify the identity of the server you are connecting to based on a domain
+name such as `example.com`, Nomad verifies the node you are connecting to is in
 the expected region and configured for the expected role (e.g.
-`client.us-west.nomad`).
+`client.us-west.nomad`). This also prevents other services who may have access
+to certificates signed by the same private CA from masquerading as Nomad
+agents. If certificates were identified based on hostname/IP then any other
+service on a host could masquerade as a Nomad agent.
 
-Configuring TLS can be unfortunately complex process, but if you used the
-[Getting Started Guide's Vagrantfile][Vagrantfile] or have [cfssl][] and Nomad
-installed this guide will provide you with a production ready TLS
-configuration.
+Correctly configuring TLS can be a complex process, especially given the wide
+range of deployment methodologies. If you use the sample
+[Vagrantfile][vagrantfile] from the [Getting Started Guide][guide-install] - or
+have [cfssl][cfssl] and Nomad installed - this guide will provide you with a
+production ready TLS configuration.
 
 ~> Note that while Nomad's TLS configuration will be production ready, key
    management and rotation is a complex subject not covered by this guide.
-   [Vault][] is the suggested solution for key generation and management.
+   [Vault][vault] is the suggested solution for key generation and management.
 
 ## Creating Certificates
 
 The first step to configuring TLS for Nomad is generating certificates. In
 order to prevent unauthorized cluster access, Nomad requires all certificates
-be signed by the same Certificate Authority (CA). This should be a *private* CA
+be signed by the same Certificate Authority (CA). This should be a _private_ CA
 and not a public one like [Let's Encrypt][letsencrypt] as any certificate
 signed by this CA will be allowed to communicate with the cluster.
+
+~> Nomad certificates may be signed by different intermediate CAs as long as
+   the full `ca_file` on each node contains all of the CA certificates in the
+   chain.
 
 ### Certificate Authority
 
 There are a variety of tools for managing your own CA, [like the PKI secret
-backend in Vault][vault-pki], but for the sake of simplicity in this guide
-we'll use [cfssl][]. You can generate a private CA certificate and key with
-[cfssl][]:
+backend in Vault][vault-pki], but for the sake of simplicity this guide will
+use [cfssl][cfssl]. You can generate a private CA certificate and key with
+[cfssl][cfssl]:
 
 ```shell
 # Generate the CA's private key and certificate
@@ -65,44 +75,43 @@ Once you have a CA certifacte and key you can generate and sign the
 certificates Nomad will use directly. TLS certificates commonly use the
 fully-qualified domain name of the system being identified as the certificate's
 Common Name (CN). However, hosts (and therefore hostnames and IPs) are often
-ephemeral in Nomad clusters. They come and go as clusters are scaled up and
-down or outages occur. Not only would signing a new certificate per Nomad node
-be difficult, but using a hostname provides no security or functional benefits
-to Nomad. To fulfill the desired security properties (above) Nomad certificates
-are signed with their region and role such as:
+ephemeral in Nomad clusters.  Not only would signing a new certificate per
+Nomad node be difficult, but using a hostname provides no security or
+functional benefits to Nomad. To fulfill the desired security properties
+(above) Nomad certificates are signed with their region and role such as:
 
 * `client.global.nomad` for a client node in the `global` region
 * `server.us-west.nomad` for a server node in the `us-west` region
 
 To create certificates for the client and server in the cluster from the
-[Getting Started guide][guide-cluster] with [cfssl][] create ([or
+[Getting Started guide][guide-cluster] with [cfssl][cfssl] create ([or
 download][cfssl.json]) the following configuration file as `cfssl.json` to
 increase the default certificate expiration time:
 
 ```json
 {
-    "signing": {
-        "default": {
-            "expiry": "87600h",
-            "usages": [
-                "signing",
-                "key encipherment",
-                "server auth",
-                "client auth"
-            ]
-        }
+  "signing": {
+    "default": {
+      "expiry": "87600h",
+      "usages": [
+        "signing",
+        "key encipherment",
+        "server auth",
+        "client auth"
+      ]
     }
+  }
 }
 ```
 
 ```shell
 # Generate a certificate for the Nomad server
 echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
-    -hostname="server.global.nomad,localhost" - | cfssljson -bare server
+    -hostname="server.global.nomad,localhost,127.0.0.1" - | cfssljson -bare server
 
 # Generate a certificate for the Nomad client
 echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
-    -hostname="client.global.nomad,localhost" - | cfssljson -bare client
+    -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
 echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
@@ -136,10 +145,10 @@ public certificate (`nomad-ca.pem`).
 
 ## Configuring Nomad
 
-Once you have the appropriate key and certificates installed you're ready to
-configure Nomad to use them for mTLS. Starting with the [server configuration
-from the Getting Started guide][guide-server] add the following TLS
-CONFIGUration options:
+Next Nomad must be configured to use the newly-created key and certificates for
+mTLS. Starting with the [server configuration from the Getting Started
+guide][guide-server] add the following TLS
+configuration options:
 
 ```hcl
 # Increase log verbosity
@@ -150,10 +159,10 @@ data_dir = "/tmp/server1"
 
 # Enable the server
 server {
-    enabled = true
+  enabled = true
 
-    # Self-elect, should be 3 or 5 for production
-    bootstrap_expect = 1
+  # Self-elect, should be 3 or 5 for production
+  bootstrap_expect = 1
 }
 
 # Require TLS
@@ -173,8 +182,11 @@ tls {
 The new `tls` section is worth breaking down in more detail:
 
 ```hcl
+tls {
   http = true
   rpc  = true
+  # ...
+}
 ```
 
 This enables TLS for the HTTP and RPC protocols. Unlike web servers, Nomad
@@ -182,24 +194,34 @@ doesn't use separate ports for TLS and non-TLS traffic: your cluster should
 either use TLS or not.
 
 ```hcl
+tls {
+  # ...
+
   ca_file   = "nomad-ca.pem"
   cert_file = "server.pem"
   key_file  = "server-key.pem"
+
+  # ...
+}
 ```
 
 The file lines should point to whereever you placed the certificate files on
 the node. This guide assumes they are in Nomad's current directory.
 
 ```hcl
+tls {
+  # ...
+
   verify_server_hostname = true
   verify_https_client    = true
+}
 ```
 
 These two settings are important for ensuring all of Nomad's mTLS security
 properties are met. If `verify_server_hostname` is set to `false` the node's
 cerificate will be checked to ensure it is signed by the same CA, but its role
-and region will not be verified. This means any service with a certificate from
-the same CA as Nomad can act as a client or server of any region.
+and region will not be verified. This means any service with a certificate
+signed by same CA as Nomad can act as a client or server of any region.
 
 `verify_https_client` requires HTTP API clients to present a certificate signed
 by the same CA as Nomad's certificate. It may be disabled to allow HTTP API
@@ -212,10 +234,10 @@ Nomad's certificate are allowed to access Nomad.
    unauthorized network access at the cost of breaking compatibility with Consul
    HTTPS health checks.
 
-### Client configuration
+### Client Configuration
 
-The Nomad client configuration is similar with the only difference being the
-certificate and key used:
+The Nomad client configuration is similar to the server configuration. The
+biggest difference is in the certificate and key used for configuration.
 
 ```hcl
 # Increase log verbosity
@@ -226,17 +248,17 @@ data_dir = "/tmp/client1"
 
 # Enable the client
 client {
-    enabled = true
+  enabled = true
 
-    # For demo assume we are talking to server1. For production,
-    # this should be like "nomad.service.consul:4647" and a system
-    # like Consul used for service discovery.
-    servers = ["127.0.0.1:4647"]
+  # For demo assume we are talking to server1. For production,
+  # this should be like "nomad.service.consul:4647" and a system
+  # like Consul used for service discovery.
+  servers = ["127.0.0.1:4647"]
 }
 
 # Modify our port to avoid a collision with server1
 ports {
-    http = 5656
+  http = 5656
 }
 
 # Require TLS
@@ -268,38 +290,48 @@ nomad agent -config server1.hcl
 nomad agent -config client1.hcl
 ```
 
-Finally in a third terminal test out `nomad node-status`:
+If you run `nomad node-status` now, you'll get an error, like:
 
-```text
-vagrant@nomad:~$ nomad node-status
+```
 Error querying node status: Get http://127.0.0.1:4646/v1/nodes: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
 ```
 
-Oh no! That didn't work!
+This is because the Nomad CLI defaults to communicating via HTTP instead of
+HTTPS. We can configure the local Nomad client to connect using TLS and specify
+our custom keys and certificates using the command line:
 
-Don't worry, the Nomad CLI just defaults to `http://...` instead of
-`https://...`. We can override this with an environment variable:
+```shell
+nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
+```
+
+This process can be cumbersome to type each time, so the Nomad CLI also
+searches environment variables for default values. Set the following
+environment variables in your shell:
 
 ```shell
 export NOMAD_ADDR=https://localhost:4646
 export NOMAD_CACERT=nomad-ca.pem
-export NOMAD_CLIENT_CERT=client.pem
-export NOMAD_CLIENT_KEY=client-key.pem
+export NOMAD_CLIENT_CERT=cli.pem
+export NOMAD_CLIENT_KEY=cli-key.pem
 ```
 
-The `NOMAD_CACERT` also needs to be set so the CLI can verify it's talking to
-an actual Nomad node. Finally, `NOMAD_CLIENT_CERT` and `NOMAD_CLIENT_KEY` need
-to be set since we enabled `verify_https_client` above which prevents any
-access lacking a client certificate.
+* `NOMAD_ADDR` is the URL of the Nomad agent and sets the default for `-addr`.
+* `NOMAD_CACERT` is the location of your CA certificate and sets the default
+  for `-ca-cert`.
+* `NOMAD_CLIENT_CERT` is the location of your CLI certificate and sets the
+  default for `-client-cert`.
+* `NOMAD_CLIENT_KEY` is the location of your CLI key and sets the default for
+  `-client-key`.
 
-Now the CLI works as expected:
+After these environment variables are correctly configured, the CLI will
+respond as expected:
 
 ```text
-vagrant@nomad:~$ nomad node-status
+$ nomad node-status
 ID        DC   Name   Class   Drain  Status
 237cd4c5  dc1  nomad  <none>  false  ready
 
-vagrant@nomad:~$ nomad init
+$ nomad init
 Example job file written to example.nomad
 vagrant@nomad:~$ nomad run example.nomad
 ==> Monitoring evaluation "e9970e1d"
@@ -312,64 +344,83 @@ vagrant@nomad:~$ nomad run example.nomad
 
 ## Server Gossip
 
-We haven't quite completely secured Nomad's communications: Nomad server's
-gossip protocol uses a shared key instead of TLS for encryption. This
-encryption key must be added to every server's configuration using the
-[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter.
+At this point all of Nomad's RPC and HTTP communication is secured with mTLS.
+However, Nomad servers also communicate with a gossip protocol, Serf, that does
+not use TLS:
 
-As a convenience the Nomad CLI includes a `keygen` command for generating a new
-secure gossip encryption key:
+* HTTP - Used to communicate between CLI and Nomad agents. Secured by mTLS.
+* RPC - Used to communicate between Nomad agents. Secured by mTLS.
+* Serf - Used to communicate between Nomad servers. Secured by a shared key.
+
+Nomad server's gossip protocol use a shared key instead of TLS for encryption.
+This encryption key must be added to every server's configuration using the
+[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter or with
+the [`-encrypt` command line option](/docs/commands/agent.html).
+
+The Nomad CLI includes a `keygen` command for generating a new secure gossip
+encryption key:
 
 ```text
 $ nomad keygen
 cg8StVXbQJ0gPvMd9o7yrg==
 ```
 
-Put the generated key into each server's configuration file:
+Alternatively, you can use any method that base64 encodes 16 random bytes:
+
+```text
+$ dd if=/dev/urandom bs=16 count=1 status=none | base64
+LsuYyj93KVfT3pAJPMMCgA==
+$ python -c 'import base64; print base64.b64encode(open("/dev/urandom").read(16))'
+uTI2KkW+5WrRTETEfc0ZBQ==
+```
+
+Put the same generated key into every server's configuration file or command
+line arguments:
 
 ```hcl
 server {
-    enabled = true
+  enabled = true
 
-    # Self-elect, should be 3 or 5 for production
-    bootstrap_expect = 1
+  # Self-elect, should be 3 or 5 for production
+  bootstrap_expect = 1
 
-    # Encrypt gossip communication
-    encrypt = "cg8StVXbQJ0gPvMd9o7yrg=="
+  # Encrypt gossip communication
+  encrypt = "cg8StVXbQJ0gPvMd9o7yrg=="
 }
 ```
 
 ## Switching an existing cluster to TLS
 
-Since Nomad does *not* use different ports for TLS and non-TLS communication,
+Since Nomad does _not_ use different ports for TLS and non-TLS communication,
 the use of TLS should be consistent across the cluster. Switching an existing
 cluster to use TLS everywhere is similar to upgrading between versions of
-Nomad.
+Nomad:
 
-First make sure all of your nodes are ready to be switched:
-
-* Add the appropriate key and certificates to all nodes.
+1. Add the appropriate key and certificates to all nodes.
   * Ensure the private key file is only readable by the Nomad user.
-* Add the environment variables to all nodes where the CLI is used.
-* Add the appropriate `tls` block to the configuration file on all nodes.
-* Generate a gossip key and add it the Nomad server configuration.
+1. Add the environment variables to all nodes where the CLI is used.
+1. Add the appropriate `tls` block to the configuration file on all nodes.
+1. Generate a gossip key and add it the Nomad server configuration.
 
 At this point a rolling restart of the cluster will enable TLS everywhere.
 
 1. Restart servers, one at a time
-2. Restart clients, one or more at a time
+1. Restart clients, one or more at a time
 
-~> As soon as a quorum of servers are TLS-enabled, clients will not be able to
-   communicate with them until they are restarted.
+~> Once a quorum of servers are TLS-enabled, clients will no longer be able to
+   communicate with the servers until their client configuration is updated and
+   reloaded.
 
-Jobs running in the cluster will *not* be affected and will continue running
+Jobs running in the cluster will _not_ be affected and will continue running
 throughout the switch.
 
-[guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
-[guide-cluster]: https://www.nomadproject.io/intro/getting-started/cluster.html
-[letsencrypt]: https://letsencrypt.org/
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
-[Vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile
-[Vault]: https://www.vaultproject.io/
+[guide-install]: https://www.nomadproject.io/intro/getting-started/install.html
+[guide-cluster]: https://www.nomadproject.io/intro/getting-started/cluster.html
+[guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
+[letsencrypt]: https://letsencrypt.org/
+[tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
+[vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile
+[vault]: https://www.vaultproject.io/
 [vault-pki]: https://www.vaultproject.io/docs/secrets/pki/index.html
