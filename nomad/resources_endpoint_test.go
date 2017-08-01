@@ -39,7 +39,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
 	req := &structs.ResourcesRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: jobID},
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: prefix},
 	}
 
 	var resp structs.ResourcesResponse
@@ -53,4 +53,35 @@ func TestResourcesEndpoint_List(t *testing.T) {
 	}
 
 	assert.Equal(t, jobID, resp.Resources.Matches["jobs"][0])
+}
+
+func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
+	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	for counter := 0; counter < 25; counter++ {
+		registerAndVerifyJob(s, t, prefix, counter)
+	}
+
+	req := &structs.ResourcesRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", Prefix: prefix},
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	num_matches := len(resp.Resources.Matches["jobs"])
+	if num_matches != 20 {
+		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs returned %d", 20, num_matches))
+	}
 }

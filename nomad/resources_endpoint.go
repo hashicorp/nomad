@@ -13,7 +13,6 @@ type Resources struct {
 // List is used to list the jobs registered in the system
 // TODO logic to determine context, to return only that context if needed
 // TODO if no context, return all
-// TODO return top n matches
 // TODO refactor to prevent duplication
 func (r *Resources) List(args *structs.ResourcesRequest,
 	reply *structs.ResourcesResponse) error {
@@ -36,7 +35,7 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			}
 
 			var jobs []string
-			for {
+			for i := 0; i < 20; i++ {
 				raw := iter.Next()
 				if raw == nil {
 					break
