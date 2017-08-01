@@ -20,25 +20,6 @@ func registerAndVerifyJob(codec rpc.ClientCodec, s *Server, t *testing.T) string
 		t.Fatalf("err: %v", err)
 	}
 
-	// Verify the job was created
-	get := &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
-	}
-	var resp2 structs.JobListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
-	}
-
-	if len(resp2.Jobs) != 1 {
-		t.Fatalf("bad: %#v", resp2.Jobs)
-	}
-	if resp2.Jobs[0].ID != job.ID {
-		t.Fatalf("bad: %#v", resp2.Jobs[0])
-	}
-
 	return job.ID
 }
 
