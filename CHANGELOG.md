@@ -1,6 +1,8 @@
 ## 0.6.1 (Unreleased)
 
 IMPROVEMENTS:
+ * core: `distinct_property` constraint can set the number of allocations that
+   are allowed to share a property value [GH-2942]
  * driver/rkt: support read-only volume mounts [GH-2883]
 
 BUG FIXES:
