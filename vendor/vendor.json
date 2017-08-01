@@ -911,16 +911,16 @@
 			"revisionTime": "2016-08-21T23:40:57Z"
 		},
 		{
-			"checksumSHA1": "31yBeS6U3xm7VJ7ZvDxRgBxXP0A=",
+			"checksumSHA1": "hLIXn9iQhPcjY+/G64j3mIlLlK8=",
 			"path": "github.com/hashicorp/vault/api",
-			"revision": "f4adc7fa960ed8e828f94bc6785bcdbae8d1b263",
-			"revisionTime": "2016-12-16T21:07:16Z"
+			"revision": "0c3e14f047aede0a70256e1e8b321610910b246e",
+			"revisionTime": "2017-08-01T15:50:41Z"
 		},
 		{
-			"checksumSHA1": "5lR6EdY0ARRdKAq3hZcL38STD8Q=",
+			"checksumSHA1": "yUiSTPf0QUuL2r/81sjuytqBoeQ=",
 			"path": "github.com/hashicorp/vault/helper/jsonutil",
-			"revision": "bcf98fa8d61d1870c3af689f1b090b29a9c12d8c",
-			"revisionTime": "2016-08-02T20:35:37Z"
+			"revision": "0c3e14f047aede0a70256e1e8b321610910b246e",
+			"revisionTime": "2017-08-01T15:50:41Z"
 		},
 		{
 			"checksumSHA1": "VMaF3Q7RIrRzvbnPbqxuSLryOvc=",

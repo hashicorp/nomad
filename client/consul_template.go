@@ -480,6 +480,7 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &config.VaultConfig.Addr
 		conf.Vault.Token = &vaultToken
+		// XXX
 
 		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
