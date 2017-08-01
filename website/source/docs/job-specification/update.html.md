@@ -43,6 +43,10 @@ job "docs" {
 }
 ```
 
+~> For `system` jobs, only `max_parallel` and `stagger` are enforced. The job is
+updated at a rate of `max_parallel`, waiting `stagger` duration before the next
+set of updates. The `system` scheduler will be updated to support the new
+`update` stanza in a future release.
 
 ## `update` Parameters
 
