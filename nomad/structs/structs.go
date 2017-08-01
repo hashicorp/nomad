@@ -3287,6 +3287,11 @@ type Template struct {
 	// Empty lines and lines starting with # will be ignored, but to avoid
 	// escaping issues #s within lines will not be treated as comments.
 	Envvars bool
+
+	// VaultGrace is the grace duration between lease renewal and reacquiring a
+	// secret. If the lease of a secret is less than the grace, a new secret is
+	// acquired.
+	VaultGrace time.Duration
 }
 
 // DefaultTemplate returns a default template.
@@ -3358,6 +3363,10 @@ func (t *Template) Validate() error {
 		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
 			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
 		}
+	}
+
+	if t.VaultGrace.Nanoseconds() < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Vault grace must be greater than zero: %v < 0", t.VaultGrace))
 	}
 
 	return mErr.ErrorOrNil()

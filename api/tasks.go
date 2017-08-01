@@ -364,6 +364,7 @@ type Template struct {
 	LeftDelim    *string        `mapstructure:"left_delimiter"`
 	RightDelim   *string        `mapstructure:"right_delimiter"`
 	Envvars      *bool          `mapstructure:"env"`
+	VaultGrace   *time.Duration `mapstructure:"vault_grace"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -403,6 +404,9 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = helper.BoolToPtr(false)
+	}
+	if tmpl.VaultGrace == nil {
+		tmpl.VaultGrace = helper.TimeToPtr(5 * time.Minute)
 	}
 }
 

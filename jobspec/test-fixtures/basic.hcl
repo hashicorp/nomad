@@ -158,6 +158,7 @@ job "binstore-storagelocker" {
         change_signal = "foo"
         splay = "10s"
         env = true
+        vault_grace = "33s"
       }
 
       template {

@@ -17,6 +17,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -341,11 +342,6 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 		return nil, nil, nil
 	}
 
-	runnerConfig, err := runnerConfig(config, vaultToken)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Parse the templates
 	allowAbs := config.ReadBoolDefault(hostSrcOption, true)
 	ctmplMapping, err := parseTemplateConfigs(tmpls, taskDir, taskEnv, allowAbs)
@@ -353,13 +349,11 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 		return nil, nil, err
 	}
 
-	// Set the config
-	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(ctmplMapping)))
-	for ctmpl := range ctmplMapping {
-		local := ctmpl
-		flat = append(flat, &local)
+	// Create the runner configuration.
+	runnerConfig, err := runnerConfig(config, vaultToken, ctmplMapping)
+	if err != nil {
+		return nil, nil, err
 	}
-	runnerConfig.Templates = &flat
 
 	runner, err := manager.NewRunner(runnerConfig, false, false)
 	if err != nil {
@@ -430,11 +424,32 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 }
 
 // runnerConfig returns a consul-template runner configuration, setting the
-// Vault and Consul configurations based on the clients configs.
-func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, error) {
+// Vault and Consul configurations based on the clients configs. The parameters
+// are the client config, Vault token if set and the mapping of consul-templates
+// to Nomad templates.
+func runnerConfig(config *config.Config, vaultToken string,
+	templateMapping map[ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
+
 	conf := ctconf.DefaultConfig()
 
-	t, f := true, false
+	// Gather the consul-template tempates
+	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(templateMapping)))
+	for ctmpl := range templateMapping {
+		local := ctmpl
+		flat = append(flat, &local)
+	}
+	conf.Templates = &flat
+
+	// Go through the templates and determine the minimum Vault grace
+	vaultGrace := time.Duration(-1)
+	for _, tmpl := range templateMapping {
+		// Initial condition
+		if vaultGrace < 0 {
+			vaultGrace = tmpl.VaultGrace
+		} else if tmpl.VaultGrace < vaultGrace {
+			vaultGrace = tmpl.VaultGrace
+		}
+	}
 
 	// Force faster retries
 	if testRetryRate != 0 {
@@ -450,7 +465,7 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
 			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: &t,
+				Enabled: helper.BoolToPtr(true),
 				Verify:  &verify,
 				Cert:    &config.ConsulConfig.CertFile,
 				Key:     &config.ConsulConfig.KeyFile,
@@ -465,7 +480,7 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  &t,
+				Enabled:  helper.BoolToPtr(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -475,18 +490,18 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 	// Setup the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = &f
+	conf.Vault.RenewToken = helper.BoolToPtr(false)
 	conf.Vault.Token = &emptyStr
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &config.VaultConfig.Addr
 		conf.Vault.Token = &vaultToken
-		// XXX
+		conf.Vault.Grace = helper.TimeToPtr(vaultGrace)
 
 		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    &t,
+				Enabled:    helper.BoolToPtr(true),
 				Verify:     &verify,
 				Cert:       &config.VaultConfig.TLSCertFile,
 				Key:        &config.VaultConfig.TLSKeyFile,
@@ -496,8 +511,8 @@ func runnerConfig(config *config.Config, vaultToken string) (*ctconf.Config, err
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    &f,
-				Verify:     &f,
+				Enabled:    helper.BoolToPtr(false),
+				Verify:     helper.BoolToPtr(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,

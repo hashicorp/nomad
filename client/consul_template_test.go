@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -1062,7 +1063,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 		Addr:          "https://localhost/",
 		TLSServerName: "notlocalhost",
 	}
-	ctconf, err := runnerConfig(c, "token")
+	ctconf, err := runnerConfig(c, "token", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1070,4 +1071,42 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
 		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
 	}
+}
+
+// TestTaskTemplateManager_Config_VaultGrace asserts the vault_grace setting is
+// propogated to consul-template's configuration.
+func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	c := config.DefaultConfig()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+	}
+
+	// Make a template that will render immediately
+	templates := []*structs.Template{
+		{
+			EmbeddedTmpl: "bar",
+			DestPath:     "foo",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+			VaultGrace:   10 * time.Second,
+		},
+		{
+			EmbeddedTmpl: "baz",
+			DestPath:     "bam",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+			VaultGrace:   100 * time.Second,
+		},
+	}
+
+	taskEnv := env.NewTaskEnv(nil, nil)
+	ctmplMapping, err := parseTemplateConfigs(templates, "/fake/dir", taskEnv, false)
+	assert.Nil(err, "Parsing Templates")
+
+	ctconf, err := runnerConfig(c, "token", ctmplMapping)
+	assert.Nil(err, "Building Runner Config")
+	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
+	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
 }
