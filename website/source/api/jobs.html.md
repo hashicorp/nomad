@@ -104,8 +104,88 @@ There are no parameters, but the request _body_ contains the entire job file.
 
 ### Sample Payload
 
-```text
-(any valid nomad job IN JSON FORMAT)
+```json
+{
+    "Job": {
+        "ID": "example",
+        "Name": "example",
+        "Type": "service",
+        "Priority": 50,
+        "Datacenters": [
+            "dc1"
+        ],
+        "TaskGroups": [{
+            "Name": "cache",
+            "Count": 1,
+            "Tasks": [{
+                "Name": "redis",
+                "Driver": "docker",
+                "User": "",
+                "Config": {
+                    "image": "redis:3.2",
+                    "port_map": [{
+                        "db": 6379
+                    }]
+                },
+                "Services": [{
+                    "Id": "",
+                    "Name": "global-redis-check",
+                    "Tags": [
+                        "global",
+                        "cache"
+                    ],
+                    "PortLabel": "db",
+                    "AddressMode": "",
+                    "Checks": [{
+                        "Id": "",
+                        "Name": "alive",
+                        "Type": "tcp",
+                        "Command": "",
+                        "Args": null,
+                        "Path": "",
+                        "Protocol": "",
+                        "PortLabel": "",
+                        "Interval": 10000000000,
+                        "Timeout": 2000000000,
+                        "InitialStatus": "",
+                        "TLSSkipVerify": false
+                    }]
+                }],
+                "Resources": {
+                    "CPU": 500,
+                    "MemoryMB": 256,
+                    "Networks": [{
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "MBits": 10,
+                        "DynamicPorts": [{
+                            "Label": "db",
+                            "Value": 0
+                        }]
+                    }]
+                },
+                "Leader": false
+            }],
+            "RestartPolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+                "Delay": 25000000000,
+                "Mode": "delay"
+            },
+            "EphemeralDisk": {
+                "SizeMB": 300
+            }
+        }],
+        "Update": {
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "HealthyDeadline": 180000000000,
+            "AutoRevert": false,
+            "Canary": 0
+        }
+    }
+}
 ```
 
 ### Sample Request
