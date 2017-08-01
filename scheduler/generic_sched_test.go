@@ -342,11 +342,12 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	// Create a job that uses distinct property and has count higher than what is
 	// possible.
 	job := mock.Job()
-	job.TaskGroups[0].Count = 4
+	job.TaskGroups[0].Count = 8
 	job.Constraints = append(job.Constraints,
 		&structs.Constraint{
 			Operand: structs.ConstraintDistinctProperty,
 			LTarget: "${meta.rack}",
+			RTarget: "2",
 		})
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
@@ -391,7 +392,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 2 {
+	if len(planned) != 4 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -401,17 +402,17 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 2 {
+	if len(out) != 4 {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	// Ensure different node was used per.
-	used := make(map[string]struct{})
+	// Ensure each node was only used twice
+	used := make(map[string]uint64)
 	for _, alloc := range out {
-		if _, ok := used[alloc.NodeID]; ok {
-			t.Fatalf("Node collision %v", alloc.NodeID)
+		if count, _ := used[alloc.NodeID]; count > 2 {
+			t.Fatalf("Node %v used too much: %d", alloc.NodeID, count)
 		}
-		used[alloc.NodeID] = struct{}{}
+		used[alloc.NodeID]++
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
@@ -427,8 +428,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
-	// Create a job that uses distinct property and has count higher than what is
-	// possible.
+	// Create a job that uses distinct property only on one task group.
 	job := mock.Job()
 	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
 	job.TaskGroups[0].Count = 1
@@ -439,7 +439,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 		})
 
 	job.TaskGroups[1].Name = "tg2"
-	job.TaskGroups[1].Count = 1
+	job.TaskGroups[1].Count = 2
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
@@ -477,7 +477,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 2 {
+	if len(planned) != 3 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -487,7 +487,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	noErr(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 2 {
+	if len(out) != 3 {
 		t.Fatalf("bad: %#v", out)
 	}
 

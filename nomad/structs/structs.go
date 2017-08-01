@@ -3874,8 +3874,24 @@ func (c *Constraint) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing constraint operand"))
 	}
 
+	// requireLtarget specifies whether the constraint requires an LTarget to be
+	// provided.
+	requireLtarget := true
+
 	// Perform additional validation based on operand
 	switch c.Operand {
+	case ConstraintDistinctHosts:
+		requireLtarget = false
+		if c.RTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow RTarget. Got %q", c.RTarget))
+		}
+		if c.LTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow LTarget. Got %q", c.LTarget))
+		}
+	case ConstraintSetContains:
+		if c.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
+		}
 	case ConstraintRegex:
 		if _, err := regexp.Compile(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Regular expression failed to compile: %v", err))
@@ -3884,7 +3900,29 @@ func (c *Constraint) Validate() error {
 		if _, err := version.NewConstraint(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
 		}
+	case ConstraintDistinctProperty:
+		// If a count is set, make sure it is convertible to a uint64
+		if c.RTarget != "" {
+			count, err := strconv.ParseUint(c.RTarget, 10, 64)
+			if err != nil {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Failed to convert RTarget %q to uint64: %v", c.RTarget, err))
+			} else if count < 1 {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct Property must have an allowed count of 1 or greater: %d < 1", count))
+			}
+		}
+	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
+		if c.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q requires an RTarget", c.Operand))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Unknown constraint type %q", c.Operand))
 	}
+
+	// Ensure we have an LTarget for the constraints that need one
+	if requireLtarget && c.LTarget == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 

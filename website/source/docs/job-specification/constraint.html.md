@@ -75,6 +75,8 @@ all groups (and tasks) in the job.
     >=
     <
     <=
+    distinct_hosts
+    distinct_property
     regexp
     set_contains
     version
@@ -124,16 +126,18 @@ constraint {
     ```
 
 - `"distinct_property"` - Instructs the scheduler to select nodes that have a
-  distinct value of the specified property for each allocation. When specified
-  as a job constraint, it applies to all groups in the job. When specified as a
-  group constraint, the effect is constrained to that group. This constraint can
-  not be specified at the task level. Note that the `value` parameter should be
-  omitted when using this constraint.
+  distinct value of the specified property. The `value` parameter specifies how
+  many allocations are allowed to share the value of a property. The `value`
+  must be 1 or greater and if omitted, defaults to 1.  When specified as a job
+  constraint, it applies to all groups in the job. When specified as a group
+  constraint, the effect is constrained to that group. This constraint can not
+  be specified at the task level. 
 
     ```hcl
     constraint {
       operator  = "distinct_property"
       attribute = "${meta.rack}"
+      value     = "3"
     }
     ```
 
@@ -142,7 +146,8 @@ constraint {
 
     ```hcl
     constraint {
-        distinct_property = "${meta.rack}"
+      distinct_property = "${meta.rack}"
+      value     = "3"
     }
     ```
 
@@ -209,13 +214,14 @@ constraint {
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
 be annotated with which rack they are on using [client
-metadata][client-metadata] with values
-such as "rack-12-1", "rack-12-2", etc. The following constraint would then
-assure no two instances of the task group existed on the same rack.
+metadata][client-metadata] with values such as "rack-12-1", "rack-12-2", etc.
+The following constraint would assure that an individual rack is not running
+more than 2 instances of the task group.
 
 ```hcl
 constraint {
   distinct_property = "${meta.rack}"
+  value = "2"
 }
 ```
 

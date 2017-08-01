@@ -1323,6 +1323,61 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform distinct_property validation
+	c.Operand = ConstraintDistinctProperty
+	c.RTarget = "0"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "count of 1 or greater") {
+		t.Fatalf("err: %s", err)
+	}
+
+	c.RTarget = "-1"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "to uint64") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform distinct_hosts validation
+	c.Operand = ConstraintDistinctHosts
+	c.RTarget = "foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "doesn't allow RTarget") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "doesn't allow LTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform set_contains validation
+	c.Operand = ConstraintSetContains
+	c.RTarget = ""
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform LTarget validation
+	c.Operand = ConstraintRegex
+	c.RTarget = "foo"
+	c.LTarget = ""
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "No LTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform constraint type validation
+	c.Operand = "foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestUpdateStrategy_Validate(t *testing.T) {
