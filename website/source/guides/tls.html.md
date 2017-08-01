@@ -118,10 +118,10 @@ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=cli
     - | cfssljson -bare cli
 ```
 
-Using `localhost` as a subject alternate name (SAN) allows tools like `curl` to
-be able to communicate with Nomad's HTTP API when run on the same host. Other
-SANs may be added including a DNS resolvable hostname to allow remote HTTP
-requests from third party tools.
+Using `localhost` and `127.0.0.1` as subject alternate names (SANs) allows
+tools like `curl` to be able to communicate with Nomad's HTTP API when run on
+the same host. Other SANs may be added including a DNS resolvable hostname to
+allow remote HTTP requests from third party tools.
 
 You should now have the following files:
 
