@@ -46,7 +46,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s", testJobPrefix)
+		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s&context=job", testJobPrefix)
 		req, err := http.NewRequest("GET", endpoint, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -69,6 +69,47 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 		}
 
 		assert.Equal(t, j[0], testJob)
+	})
+}
+
+func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
+	testJobA := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
+	testJobB := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89707"
+	testJobC := "bbbbbbbb-e8f7-fd38-c855-ab94ceb89707"
+
+	testJobPrefix := "aaaaaaaa-e8f7-fd38"
+
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		createJobForTest(testJobA, s, t)
+		createJobForTest(testJobB, s, t)
+		createJobForTest(testJobC, s, t)
+
+		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s&context=job", testJobPrefix)
+		req, err := http.NewRequest("GET", endpoint, nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.ResourcesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		res := resp.(*structs.ResourcesListStub)
+		if len(res.Matches) != 1 {
+			t.Fatalf("No expected key values in resources list")
+		}
+
+		j := res.Matches["jobs"]
+		if j == nil || len(j) != 2 {
+			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (2)", j)
+		}
+
+		assert.Contains(t, j, testJobA)
+		assert.Contains(t, j, testJobB)
+		assert.NotContains(t, j, testJobC)
 	})
 }
 
