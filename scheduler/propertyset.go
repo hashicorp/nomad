@@ -102,7 +102,6 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 	// eviction and then select. This means the plan has an eviction before a
 	// single select has finished.
 	p.PopulateProposed()
-
 }
 
 // populateExisting is a helper shared when setting the constraint to populate
@@ -219,7 +218,11 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 		}
 
 		// Don't clear below 0.
-		combinedUse[propertyValue] = helper.Uint64Max(0, combined-clearedCount)
+		if combined >= clearedCount {
+			combinedUse[propertyValue] = combined - clearedCount
+		} else {
+			combinedUse[propertyValue] = 0
+		}
 	}
 
 	usedCount, used := combinedUse[nValue]
