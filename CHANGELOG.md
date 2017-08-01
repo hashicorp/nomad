@@ -1,5 +1,15 @@
 ## 0.6.1 (Unreleased)
 
+IMPROVEMENTS:
+ * driver/rkt: support read-only volume mounts [GH-2883]
+
+BUG FIXES:
+ * core: Fix incorrect destructive update with `distinct_property` constraint
+   [GH-2939]
+ * cli: Fix autocmpleting global flags [GH-2928]
+ * cli: Fix panic when using 0.6.0 cli with an older cluster [GH-2929]
+ * driver/docker: Fix leaking plugin file used by syslog server [GH-2937]
+
 ## 0.6.0 (July 26, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__

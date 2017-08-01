@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServiceSched_JobRegister(t *testing.T) {
@@ -489,6 +490,84 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	if len(out) != 2 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) {
+	h := NewHarness(t)
+	assert := assert.New(t)
+
+	// Create a job that uses distinct property over the node-id
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Constraints = append(job.TaskGroups[0].Constraints,
+		&structs.Constraint{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${node.unique.id}",
+		})
+	assert.Nil(h.State.UpsertJob(h.NextIndex(), job), "UpsertJob")
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 6; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		assert.Nil(h.State.UpsertNode(h.NextIndex(), node), "UpsertNode")
+	}
+
+	// Create some allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	assert.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs), "UpsertAllocs")
+
+	// Update the count
+	job2 := job.Copy()
+	job2.TaskGroups[0].Count = 6
+	assert.Nil(h.State.UpsertJob(h.NextIndex(), job2), "UpsertJob")
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		ID:          structs.GenerateUUID(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+	}
+
+	// Process the evaluation
+	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
+
+	// Ensure a single plan
+	assert.Len(h.Plans, 1, "Number of plans")
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	assert.Nil(plan.Annotations, "Plan.Annotations")
+
+	// Ensure the eval hasn't spawned blocked eval
+	assert.Len(h.CreateEvals, 0, "Created Evals")
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	assert.Len(planned, 6, "Planned Allocations")
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.ID, false)
+	assert.Nil(err, "AllocsByJob")
+
+	// Ensure all allocations placed
+	assert.Len(out, 6, "Placed Allocations")
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }

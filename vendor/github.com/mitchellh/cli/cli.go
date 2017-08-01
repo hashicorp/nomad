@@ -153,6 +153,14 @@ func (c *CLI) IsVersion() bool {
 func (c *CLI) Run() (int, error) {
 	c.once.Do(c.init)
 
+	// If this is a autocompletion request, satisfy it. This must be called
+	// first before anything else since its possible to be autocompleting
+	// -help or -version or other flags and we want to show completions
+	// and not actually write the help or version.
+	if c.Autocomplete && c.autocomplete.Complete() {
+		return 0, nil
+	}
+
 	// Just show the version and exit if instructed.
 	if c.IsVersion() && c.Version != "" {
 		c.HelpWriter.Write([]byte(c.Version + "\n"))
@@ -195,11 +203,6 @@ func (c *CLI) Run() (int, error) {
 				return 1, err
 			}
 
-			return 0, nil
-		}
-
-		// If this is a autocompletion request, satisfy it
-		if c.autocomplete.Complete() {
 			return 0, nil
 		}
 	}

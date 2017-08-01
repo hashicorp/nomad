@@ -14,7 +14,7 @@ func (c *StopCommand) Help() string {
 Usage: nomad stop [options] <job>
 
   Stop an existing job. This command is used to signal allocations
-  to shut down for the given job ID. Upon successful deregistraion,
+  to shut down for the given job ID. Upon successful deregistration,
   an interactive monitor session will start to display log lines as
   the job unwinds its allocations and completes shutting down. It
   is safe to exit the monitor early using ctrl+c.
