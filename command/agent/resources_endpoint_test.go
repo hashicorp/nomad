@@ -58,7 +58,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		res := resp.(*structs.ResourcesListStub)
+		res := resp.(structs.ResourcesResponse)
 		if len(res.Matches) != 1 {
 			t.Fatalf("No expected key values in resources list")
 		}
@@ -97,7 +97,7 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		res := resp.(*structs.ResourcesListStub)
+		res := resp.(structs.ResourcesResponse)
 		if len(res.Matches) != 1 {
 			t.Fatalf("No expected key values in resources list")
 		}

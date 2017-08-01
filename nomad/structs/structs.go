@@ -232,13 +232,14 @@ type NodeSpecificRequest struct {
 }
 
 type ResourcesResponse struct {
-	Resources ResourcesListStub
+	Matches     map[string][]string
+	Truncations map[string]bool
 	QueryMeta
 }
 
-// TODO can there be a more generic Request object, if a specific one is not
-// needed?
-// ResourcesRequest is used to parameterize a resources request
+// ResourcesRequest is used to parameterize a resources request, and returns a
+// subset of information for jobs, allocations, evaluations, and nodes, along
+// with whether or not the information returned is truncated.
 type ResourcesRequest struct {
 	QueryOptions
 }
@@ -1881,12 +1882,6 @@ func (j *Job) SpecChanged(new *Job) bool {
 
 func (j *Job) SetSubmitTime() {
 	j.SubmitTime = time.Now().UTC().UnixNano()
-}
-
-// ResourcesListStub is used to return a subset of information
-// for jobs, allocations, evaluations, and nodes
-type ResourcesListStub struct {
-	Matches map[string][]string
 }
 
 // JobListStub is used to return a subset of job information

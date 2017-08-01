@@ -47,12 +47,12 @@ func TestResourcesEndpoint_List(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	num_matches := len(resp.Resources.Matches["jobs"])
+	num_matches := len(resp.Matches["jobs"])
 	if num_matches != 1 {
 		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs registered %d", 1, num_matches))
 	}
 
-	assert.Equal(t, jobID, resp.Resources.Matches["jobs"][0])
+	assert.Equal(t, jobID, resp.Matches["jobs"][0])
 }
 
 func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
@@ -80,7 +80,7 @@ func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	num_matches := len(resp.Resources.Matches["jobs"])
+	num_matches := len(resp.Matches["jobs"])
 	if num_matches != 20 {
 		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs returned %d", 20, num_matches))
 	}

@@ -17,8 +17,7 @@ type Resources struct {
 func (r *Resources) List(args *structs.ResourcesRequest,
 	reply *structs.ResourcesResponse) error {
 
-	resources := structs.ResourcesListStub{}
-	resources.Matches = make(map[string][]string)
+	matches := make(map[string][]string)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -45,8 +44,8 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				jobs = append(jobs, job.ID)
 			}
 
-			resources.Matches["jobs"] = jobs
-			reply.Resources = resources
+			matches["jobs"] = jobs
+			reply.Matches = matches
 
 			return nil
 		}}

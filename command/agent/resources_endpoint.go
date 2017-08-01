@@ -26,5 +26,5 @@ func (s *HTTPServer) resourcesRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, err
 	}
 
-	return &out.Resources, nil
+	return out, nil
 }
