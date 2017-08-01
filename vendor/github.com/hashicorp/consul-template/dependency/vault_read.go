@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 )
 
@@ -21,6 +22,9 @@ type VaultReadQuery struct {
 
 	path   string
 	secret *Secret
+
+	// vaultSecret is the actual Vault secret which we are renewing
+	vaultSecret *api.Secret
 }
 
 // NewVaultReadQuery creates a new datacenter dependency.
@@ -47,71 +51,68 @@ func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 
 	opts = opts.Merge(&QueryOptions{})
 
-	// If this is not the first query and we have a lease duration, sleep until we
-	// try to renew.
-	if opts.WaitIndex != 0 && d.secret != nil && d.secret.LeaseDuration != 0 {
-		dur := vaultRenewDuration(d.secret.LeaseDuration)
+	if d.secret != nil {
+		if vaultSecretRenewable(d.secret) {
+			log.Printf("[TRACE] %s: starting renewer", d)
 
-		log.Printf("[TRACE] %s: long polling for %s", d, dur)
+			renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
+				Grace:  opts.VaultGrace,
+				Secret: d.vaultSecret,
+			})
+			if err != nil {
+				return nil, nil, errors.Wrap(err, d.String())
+			}
+			go renewer.Renew()
+			defer renewer.Stop()
 
-		select {
-		case <-d.stopCh:
-			return nil, nil, ErrStopped
-		case <-time.After(dur):
+		RENEW:
+			for {
+				select {
+				case err := <-renewer.DoneCh():
+					if err != nil {
+						log.Printf("[WARN] %s: failed to renew: %s", d, err)
+					}
+					log.Printf("[WARN] %s: renewer returned (maybe the lease expired)", d)
+					break RENEW
+				case renewal := <-renewer.RenewCh():
+					log.Printf("[TRACE] %s: successfully renewed", d)
+					printVaultWarnings(d, renewal.Secret.Warnings)
+					updateSecret(d.secret, renewal.Secret)
+				case <-d.stopCh:
+					return nil, nil, ErrStopped
+				}
+			}
+		} else {
+			// The secret isn't renewable, probably the generic secret backend.
+			dur := vaultRenewDuration(d.secret)
+			if dur < opts.VaultGrace {
+				log.Printf("[TRACE] %s: remaining lease %s is less than grace, skipping sleep", d, dur)
+			} else {
+				log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
+				select {
+				case <-time.After(dur):
+					// The lease is almost expired, it's time to request a new one.
+				case <-d.stopCh:
+					return nil, nil, ErrStopped
+				}
+			}
 		}
 	}
 
-	// Attempt to renew the secret. If we do not have a secret or if that secret
-	// is not renewable, we will attempt a (re-)read later.
-	if d.secret != nil && d.secret.LeaseID != "" && d.secret.Renewable {
-		log.Printf("[TRACE] %s: PUT %s", d, &url.URL{
-			Path:     "/v1/sys/renew/" + d.secret.LeaseID,
-			RawQuery: opts.String(),
-		})
-
-		renewal, err := clients.Vault().Sys().Renew(d.secret.LeaseID, 0)
-		if err == nil {
-			log.Printf("[TRACE] %s: successfully renewed %s", d, d.secret.LeaseID)
-
-			// Print any warnings
-			d.printWarnings(renewal.Warnings)
-
-			secret := &Secret{
-				RequestID:     renewal.RequestID,
-				LeaseID:       renewal.LeaseID,
-				LeaseDuration: d.secret.LeaseDuration,
-				Renewable:     renewal.Renewable,
-				Data:          d.secret.Data,
-			}
-			// For some older versions of Vault, the renewal did not include the
-			// remaining lease duration, so just use the original lease duration,
-			// because it's the best we can do.
-			if renewal.LeaseDuration != 0 {
-				secret.LeaseDuration = renewal.LeaseDuration
-			}
-			d.secret = secret
-
-			// If the remaining time on the lease is less than or equal to our
-			// configured grace period, generate a new credential now. This will help
-			// minimize downtime, since Vault will revoke credentials immediately
-			// when their maximum TTL expires.
-			remaining := time.Duration(d.secret.LeaseDuration) * time.Second
-			if remaining <= opts.VaultGrace {
-				log.Printf("[DEBUG] %s: remaining lease (%s) < grace (%s), acquiring new",
-					d, remaining, opts.VaultGrace)
-				return d.readSecret(clients, opts)
-			}
-
-			return respWithMetadata(secret)
-		}
-
-		// The renewal failed for some reason.
-		log.Printf("[WARN] %s: failed to renew %s: %s", d, d.secret.LeaseID, err)
+	// We don't have a secret, or the prior renewal failed
+	vaultSecret, err := d.readSecret(clients, opts)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, d.String())
 	}
 
-	// If we got this far, we either didn't have a secret to renew, the secret was
-	// not renewable, or the renewal failed, so attempt a fresh read.
-	return d.readSecret(clients, opts)
+	// Print any warnings
+	printVaultWarnings(d, vaultSecret.Warnings)
+
+	// Create the cloned secret which will be exposed to the template.
+	d.vaultSecret = vaultSecret
+	d.secret = transformSecret(vaultSecret)
+
+	return respWithMetadata(d.secret)
 }
 
 // CanShare returns if this dependency is shareable.
@@ -134,38 +135,17 @@ func (d *VaultReadQuery) Type() Type {
 	return TypeVault
 }
 
-func (d *VaultReadQuery) printWarnings(warnings []string) {
-	for _, w := range warnings {
-		log.Printf("[WARN] %s: %s", d, w)
-	}
-}
-
-func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (*api.Secret, error) {
 	log.Printf("[TRACE] %s: GET %s", d, &url.URL{
 		Path:     "/v1/" + d.path,
 		RawQuery: opts.String(),
 	})
 	vaultSecret, err := clients.Vault().Logical().Read(d.path)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, d.String())
+		return nil, errors.Wrap(err, d.String())
 	}
-
-	// The secret could be nil if it does not exist.
 	if vaultSecret == nil {
-		return nil, nil, fmt.Errorf("%s: no secret exists at %s", d, d.path)
+		return nil, fmt.Errorf("no secret exists at %s", d.path)
 	}
-
-	// Print any warnings.
-	d.printWarnings(vaultSecret.Warnings)
-
-	// Create our cloned secret.
-	secret := &Secret{
-		LeaseID:       vaultSecret.LeaseID,
-		LeaseDuration: leaseDurationOrDefault(vaultSecret.LeaseDuration),
-		Renewable:     vaultSecret.Renewable,
-		Data:          vaultSecret.Data,
-	}
-	d.secret = secret
-
-	return respWithMetadata(secret)
+	return vaultSecret, nil
 }
