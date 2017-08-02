@@ -29,7 +29,6 @@ job "client" {
 
       template {
         data = <<EOF
-# Increase log verbosity
 log_level = "DEBUG"
 data_dir = "/tmp/client{{ env "NOMAD_ALLOC_INDEX" }}"
 name = "client-{{ env "NOMAD_ALLOC_INDEX" }}"
@@ -39,10 +38,6 @@ client {
 	options {
 	  "driver.raw_exec.enable" = "1"
     }
-    meta {
-        "rack" = "{{env "NOMAD_ALLOC_INDEX" }}"
-    }
-	no_host_uuid = true
 }
 
 ports {
