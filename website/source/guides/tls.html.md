@@ -147,8 +147,7 @@ public certificate (`nomad-ca.pem`).
 
 Next Nomad must be configured to use the newly-created key and certificates for
 mTLS. Starting with the [server configuration from the Getting Started
-guide][guide-server] add the following TLS
-configuration options:
+guide][guide-server] add the following TLS configuration options:
 
 ```hcl
 # Increase log verbosity
