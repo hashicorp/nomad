@@ -130,8 +130,8 @@ You should now have the following files:
 * `nomad-ca-key.pem` - CA private key. Keep safe!
 * `nomad-ca.pem` - CA public certificate.
 * `cli.csr` - Nomad CLI certificate signing request.
-* `cli.pem` - Nomad CLI certificate.
 * `cli-key.pem` - Nomad CLI private key.
+* `cli.pem` - Nomad CLI certificate.
 * `client.csr` - Nomad client node certificate signing request for the `global` region.
 * `client-key.pem` - Nomad client node private key for the `global` region.
 * `client.pem` - Nomad client node public certificate for the `global` region.
