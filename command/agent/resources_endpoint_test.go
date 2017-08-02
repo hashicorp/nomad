@@ -28,12 +28,10 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	job := mock.Job()
 	job.ID = jobID
 	job.TaskGroups[0].Count = 1
-	args := structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-	var resp structs.JobRegisterResponse
-	if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+
+	state := s.Agent.server.State()
+	err := state.UpsertJob(1000, job)
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
