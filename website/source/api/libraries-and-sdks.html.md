@@ -30,7 +30,7 @@ the community.
 
 ## Third-Party Libraries
 
-- [`python-nomad`](https://github.com/jrxfive/python-nomad) Python client
-  Python client for the Nomad HTTP API.
+- [`python-nomad`](https://github.com/jrxfive/python-nomad) - Python client
+  for the Nomad HTTP API.
 
 _Want to see your library here? [Submit a Pull Request](https://github.com/hashicorp/nomad)._
