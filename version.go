@@ -15,7 +15,7 @@ const Version = "0.6.0"
 // A pre-release marker for the version. If this is "" (empty string)
 // then it means that it is a final release. Otherwise, this is a pre-release
 // such as "dev" (in development), "beta", "rc1", etc.
-const VersionPrerelease = ""
+const VersionPrerelease = "dev"
 
 // GetVersionParts returns the Nomad version strings. Printing of the Nomad
 // version should be used in conjunction with the PrettyVersion method.
