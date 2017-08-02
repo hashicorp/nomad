@@ -28,23 +28,47 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			// return jobs matching given prefix
 			var err error
 			var iter memdb.ResultIterator
-			iter, err = state.JobsByIDPrefix(ws, args.Prefix)
-			if err != nil {
-				return err
-			}
 
-			var jobs []string
-			for i := 0; i < 20; i++ {
-				raw := iter.Next()
-				if raw == nil {
-					break
+			if args.Context == "job" {
+				iter, err = state.JobsByIDPrefix(ws, args.Prefix)
+				if err != nil {
+					return err
 				}
 
-				job := raw.(*structs.Job)
-				jobs = append(jobs, job.ID)
+				var jobs []string
+				for i := 0; i < 20; i++ {
+					raw := iter.Next()
+					if raw == nil {
+						break
+					}
+
+					job := raw.(*structs.Job)
+					jobs = append(jobs, job.ID)
+				}
+
+				matches["job"] = jobs
 			}
 
-			matches["jobs"] = jobs
+			if args.Context == "eval" {
+				iter, err = state.EvalsByIDPrefix(ws, args.Prefix)
+				if err != nil {
+					return err
+				}
+
+				var evals []string
+				for i := 0; i < 20; i++ { // TODO extract magic number
+					raw := iter.Next()
+					if raw == nil {
+						break
+					}
+
+					eval := raw.(*structs.Evaluation)
+					evals = append(evals, eval.ID)
+				}
+
+				matches["eval"] = evals
+			}
+
 			reply.Matches = matches
 
 			return nil

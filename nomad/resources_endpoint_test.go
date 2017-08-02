@@ -48,12 +48,12 @@ func TestResourcesEndpoint_List(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	num_matches := len(resp.Matches["jobs"])
+	num_matches := len(resp.Matches["job"])
 	if num_matches != 1 {
 		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs registered %d", 1, num_matches))
 	}
 
-	assert.Equal(t, jobID, resp.Matches["jobs"][0])
+	assert.Equal(t, jobID, resp.Matches["job"][0])
 }
 
 func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
@@ -82,8 +82,44 @@ func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	num_matches := len(resp.Matches["jobs"])
+	num_matches := len(resp.Matches["job"])
 	if num_matches != 20 {
 		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs returned %d", 20, num_matches))
+	}
+}
+
+func TestResourcesEndpoint_List_ShouldReturnEvals(t *testing.T) {
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	eval1 := mock.Eval()
+	s.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+
+	prefix := eval1.ID[:len(eval1.ID)-2]
+
+	req := &structs.ResourcesRequest{
+		Prefix:  prefix,
+		Context: "eval",
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	numMatches := len(resp.Matches["eval"])
+	if numMatches != 1 {
+		t.Fatalf(fmt.Sprintf("err: the number of evaluations expected %d does not match the number expected %d", 1, numMatches))
+	}
+
+	recEval := resp.Matches["eval"][0]
+	if recEval != eval1.ID {
+		t.Fatalf(fmt.Sprintf("err: expected %s evaluation but received %s", eval1.ID, recEval))
 	}
 }

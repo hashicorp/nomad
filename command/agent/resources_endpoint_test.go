@@ -45,7 +45,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "job"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 
 		if err != nil {
@@ -63,7 +63,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 			t.Fatalf("No expected key values in resources list")
 		}
 
-		j := res.Matches["jobs"]
+		j := res.Matches["job"]
 		if j == nil || len(j) != 1 {
 			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (1)", j)
 		}
@@ -85,7 +85,7 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 		createJobForTest(testJobB, s, t)
 		createJobForTest(testJobC, s, t)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "job"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 
 		if err != nil {
@@ -103,7 +103,7 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 			t.Fatalf("No expected key values in resources list")
 		}
 
-		j := res.Matches["jobs"]
+		j := res.Matches["job"]
 		if j == nil || len(j) != 2 {
 			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (2)", j)
 		}
@@ -111,6 +111,47 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 		assert.Contains(t, j, testJobA)
 		assert.Contains(t, j, testJobB)
 		assert.NotContains(t, j, testJobC)
+	})
+}
+
+func TestHTTP_ResoucesListForEvaluations(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		eval1 := mock.Eval()
+		eval2 := mock.Eval()
+		err := state.UpsertEvals(1000,
+			[]*structs.Evaluation{eval1, eval2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request
+		evalPrefix := eval1.ID[:len(eval1.ID)-2]
+		data := structs.ResourcesRequest{Prefix: evalPrefix, Context: "eval"}
+		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.ResourcesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		res := resp.(structs.ResourcesResponse)
+		if len(res.Matches) != 1 {
+			t.Fatalf("No expected key values in resources list")
+		}
+
+		j := res.Matches["eval"]
+		if len(j) != 1 {
+			t.Fatalf("The number of evaluations that were returned does not equal the number we expected (1)", j)
+		}
+
+		assert.Contains(t, j, eval1.ID)
+		assert.NotContains(t, j, eval2.ID)
 	})
 }
 
