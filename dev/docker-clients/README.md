@@ -9,7 +9,7 @@ directory:
 ## Non-persistent server
 
 ```
-nomad agent -dev -config docker-privileged.conf
+nomad agent -dev -config docker-privileged.hcl
 ```
 
 The configuration allows the Docker driver to start containers with
@@ -20,7 +20,7 @@ The configuration allows the Docker driver to start containers with
 To start a server that can be shutdown and restarted run the following:
 
 ```
-nomad agent -config persistent-server.conf 
+nomad agent -config persistent.hcl
 ```
 
 # Clients
