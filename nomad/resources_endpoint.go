@@ -10,14 +10,48 @@ type Resources struct {
 	srv *Server
 }
 
+func getMatches(iter memdb.ResultIterator, context, prefix string) ([]string, bool) {
+	var matches []string
+	isTruncated := false
+
+	for i := 0; i < 20; i++ {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		getID := func(i interface{}) string {
+			switch i.(type) {
+			case *structs.Job:
+				return i.(*structs.Job).ID
+			case *structs.Evaluation:
+				return i.(*structs.Evaluation).ID
+			default:
+				return ""
+			}
+		}
+
+		id := getID(raw)
+		if id == "" {
+			continue
+		}
+
+		matches = append(matches, id)
+	}
+
+	if iter.Next() != nil {
+		isTruncated = true
+	}
+
+	return matches, isTruncated
+}
+
 // List is used to list the jobs registered in the system
-// TODO logic to determine context, to return only that context if needed
 // TODO if no context, return all
-// TODO refactor to prevent duplication
 func (r *Resources) List(args *structs.ResourcesRequest,
 	reply *structs.ResourcesResponse) error {
-
-	matches := make(map[string][]string)
+	reply.Matches = make(map[string][]string)
+	reply.Truncations = make(map[string]bool)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -28,58 +62,21 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			// return jobs matching given prefix
 			var err error
 			var iter memdb.ResultIterator
-			truncations := make(map[string]bool)
+			res := make([]string, 0)
+			isTrunc := false
 
 			if args.Context == "job" {
 				iter, err = state.JobsByIDPrefix(ws, args.Prefix)
-				if err != nil {
-					return err
-				}
-
-				var jobs []string
-				for i := 0; i < 20; i++ {
-					raw := iter.Next()
-					if raw == nil {
-						break
-					}
-
-					job := raw.(*structs.Job)
-					jobs = append(jobs, job.ID)
-				}
-
-				if iter.Next() != nil {
-					truncations["job"] = true
-				}
-
-				matches["job"] = jobs
-			}
-
-			if args.Context == "eval" {
+			} else if args.Context == "eval" {
 				iter, err = state.EvalsByIDPrefix(ws, args.Prefix)
-				if err != nil {
-					return err
-				}
-
-				var evals []string
-				for i := 0; i < 20; i++ { // TODO extract magic number
-					raw := iter.Next()
-					if raw == nil {
-						break
-					}
-
-					eval := raw.(*structs.Evaluation)
-					evals = append(evals, eval.ID)
-				}
-
-				if iter.Next() != nil {
-					truncations["eval"] = true
-				}
-
-				matches["eval"] = evals
 			}
 
-			reply.Matches = matches
-			reply.Truncations = truncations
+			if err != nil {
+				return err
+			}
+			res, isTrunc = getMatches(iter, args.Context, args.Prefix)
+			reply.Matches[args.Context] = res
+			reply.Truncations[args.Context] = isTrunc
 
 			return nil
 		}}
