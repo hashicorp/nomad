@@ -21,14 +21,14 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 
 	// Setup the blocking query
 	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
+		queryOpts: &structs.QueryOptions{},
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
 			// return jobs matching given prefix
 			var err error
 			var iter memdb.ResultIterator
-			iter, err = state.JobsByIDPrefix(ws, args.QueryOptions.Prefix)
+			iter, err = state.JobsByIDPrefix(ws, args.Prefix)
 			if err != nil {
 				return err
 			}

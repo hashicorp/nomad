@@ -7,7 +7,7 @@ import (
 
 func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case "POST":
 		return s.resourcesRequest(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -17,8 +17,10 @@ func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Reques
 func (s *HTTPServer) resourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// TODO test a failure case for this?
 	args := structs.ResourcesRequest{}
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
+
+	// TODO this should be tested
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
 	}
 
 	var out structs.ResourcesResponse

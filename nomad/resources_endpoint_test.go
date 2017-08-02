@@ -39,7 +39,8 @@ func TestResourcesEndpoint_List(t *testing.T) {
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
 	req := &structs.ResourcesRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: prefix},
+		Prefix:  prefix,
+		Context: "job",
 	}
 
 	var resp structs.ResourcesResponse
@@ -72,7 +73,8 @@ func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
 	}
 
 	req := &structs.ResourcesRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: prefix},
+		Prefix:  prefix,
+		Context: "job",
 	}
 
 	var resp structs.ResourcesResponse

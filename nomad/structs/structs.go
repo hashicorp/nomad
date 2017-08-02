@@ -241,7 +241,8 @@ type ResourcesResponse struct {
 // subset of information for jobs, allocations, evaluations, and nodes, along
 // with whether or not the information returned is truncated.
 type ResourcesRequest struct {
-	QueryOptions
+	Prefix  string
+	Context string
 }
 
 // JobRegisterRequest is used for Job.Register endpoint

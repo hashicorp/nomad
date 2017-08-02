@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -46,8 +45,9 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s&context=job", testJobPrefix)
-		req, err := http.NewRequest("GET", endpoint, nil)
+		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -85,8 +85,9 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 		createJobForTest(testJobB, s, t)
 		createJobForTest(testJobC, s, t)
 
-		endpoint := fmt.Sprintf("/v1/resources?context=job&prefix=%s&context=job", testJobPrefix)
-		req, err := http.NewRequest("GET", endpoint, nil)
+		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -113,6 +114,6 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 	})
 }
 
-//
+// TODO
 //func TestHTTP_ResourcesWithNoJob(t *testing.T) {
 //}
