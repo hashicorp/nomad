@@ -86,6 +86,8 @@ func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
 	if num_matches != 20 {
 		t.Fatalf(fmt.Sprintf("err: the number of jobs expected %d does not match the number of jobs returned %d", 20, num_matches))
 	}
+
+	assert.Equal(t, resp.Truncations["job"], true)
 }
 
 func TestResourcesEndpoint_List_ShouldReturnEvals(t *testing.T) {
@@ -122,4 +124,6 @@ func TestResourcesEndpoint_List_ShouldReturnEvals(t *testing.T) {
 	if recEval != eval1.ID {
 		t.Fatalf(fmt.Sprintf("err: expected %s evaluation but received %s", eval1.ID, recEval))
 	}
+
+	assert.Equal(t, resp.Truncations["job"], false)
 }

@@ -28,6 +28,7 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			// return jobs matching given prefix
 			var err error
 			var iter memdb.ResultIterator
+			truncations := make(map[string]bool)
 
 			if args.Context == "job" {
 				iter, err = state.JobsByIDPrefix(ws, args.Prefix)
@@ -44,6 +45,10 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 
 					job := raw.(*structs.Job)
 					jobs = append(jobs, job.ID)
+				}
+
+				if iter.Next() != nil {
+					truncations["job"] = true
 				}
 
 				matches["job"] = jobs
@@ -66,10 +71,15 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 					evals = append(evals, eval.ID)
 				}
 
+				if iter.Next() != nil {
+					truncations["eval"] = true
+				}
+
 				matches["eval"] = evals
 			}
 
 			reply.Matches = matches
+			reply.Truncations = truncations
 
 			return nil
 		}}

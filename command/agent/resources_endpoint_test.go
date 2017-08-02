@@ -69,6 +69,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 		}
 
 		assert.Equal(t, j[0], testJob)
+		assert.Equal(t, res.Truncations["job"], false)
 	})
 }
 
@@ -152,6 +153,7 @@ func TestHTTP_ResoucesListForEvaluations(t *testing.T) {
 
 		assert.Contains(t, j, eval1.ID)
 		assert.NotContains(t, j, eval2.ID)
+		assert.Equal(t, res.Truncations["eval"], false)
 	})
 }
 
