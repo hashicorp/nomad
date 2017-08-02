@@ -60,8 +60,8 @@ use [cfssl][cfssl]. You can generate a private CA certificate and key with
 [cfssl][cfssl]:
 
 ```shell
-# Generate the CA's private key and certificate
-cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare nomad-ca
+$ # Generate the CA's private key and certificate
+$ cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare nomad-ca
 ```
 
 The CA key (`nomad-ca-key.pem`) will be used to sign certificates for Nomad
@@ -105,16 +105,16 @@ increase the default certificate expiration time:
 ```
 
 ```shell
-# Generate a certificate for the Nomad server
-echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
+$ # Generate a certificate for the Nomad server
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
     -hostname="server.global.nomad,localhost,127.0.0.1" - | cfssljson -bare server
 
 # Generate a certificate for the Nomad client
-echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cfssl.json \
     -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
-echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
+$ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
     - | cfssljson -bare cli
 ```
 
@@ -282,16 +282,16 @@ server we can test our TLS-enabled cluster!
 In separate terminals start a server and client agent:
 
 ```shell
-# In one terminal...
-nomad agent -config server1.hcl
+$ # In one terminal...
+$ nomad agent -config server1.hcl
 
-# ...and in another
-nomad agent -config client1.hcl
+$ # ...and in another
+$ nomad agent -config client1.hcl
 ```
 
 If you run `nomad node-status` now, you'll get an error, like:
 
-```
+```text
 Error querying node status: Get http://127.0.0.1:4646/v1/nodes: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
 ```
 
@@ -300,7 +300,7 @@ HTTPS. We can configure the local Nomad client to connect using TLS and specify
 our custom keys and certificates using the command line:
 
 ```shell
-nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
+$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
 ```
 
 This process can be cumbersome to type each time, so the Nomad CLI also
@@ -308,10 +308,10 @@ searches environment variables for default values. Set the following
 environment variables in your shell:
 
 ```shell
-export NOMAD_ADDR=https://localhost:4646
-export NOMAD_CACERT=nomad-ca.pem
-export NOMAD_CLIENT_CERT=cli.pem
-export NOMAD_CLIENT_KEY=cli-key.pem
+$ export NOMAD_ADDR=https://localhost:4646
+$ export NOMAD_CACERT=nomad-ca.pem
+$ export NOMAD_CLIENT_CERT=cli.pem
+$ export NOMAD_CLIENT_KEY=cli-key.pem
 ```
 
 * `NOMAD_ADDR` is the URL of the Nomad agent and sets the default for `-addr`.
