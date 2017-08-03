@@ -3,7 +3,10 @@ import Ember from 'ember';
 const { Component, inject, computed } = Ember;
 
 export default Component.extend({
-  router: inject.service(),
+  // TODO Switch back to the router service style when it is no longer feature-flagged
+  // router: inject.service('router'),
+  _router: inject.service('-routing'),
+  router: computed.alias('_router.router'),
 
   tagName: 'tr',
   classNames: ['server-agent-row', 'is-interactive'],
@@ -11,8 +14,14 @@ export default Component.extend({
 
   agent: null,
   isActive: computed('agent', 'router.currentURL', function() {
-    const targetURL = this.get('router').urlFor('nodes.servers.server', this.get('agent'));
-    const currentURL = `${this.get('router.rootURL').slice(0, -1)}${this.get('router.currentURL')}`;
+    // TODO Switch back to the router service style when it is no longer feature-flagged
+    // const targetURL = this.get('router').urlFor('nodes.servers.server', this.get('agent'));
+    // const currentURL = `${this.get('router.rootURL').slice(0, -1)}${this.get('router.currentURL')}`;
+
+    const router = this.get('router');
+    const targetURL = router.generate('nodes.servers.server', this.get('agent'));
+    const currentURL = `${router.get('rootURL').slice(0, -1)}${router.get('currentURL')}`;
+
     return currentURL === targetURL;
   }),
 
