@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -69,14 +70,17 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			res := make([]string, 0)
 			isTrunc := false
 
-			if args.Context == "job" {
+			switch args.Context {
+			case "job":
 				iter, err = state.JobsByIDPrefix(ws, args.Prefix)
-			} else if args.Context == "eval" {
+			case "eval":
 				iter, err = state.EvalsByIDPrefix(ws, args.Prefix)
-			} else if args.Context == "alloc" {
+			case "alloc":
 				iter, err = state.AllocsByIDPrefix(ws, args.Prefix)
-			} else if args.Context == "node" {
+			case "node":
 				iter, err = state.NodesByIDPrefix(ws, args.Prefix)
+			default:
+				return fmt.Errorf("invalid context")
 			}
 
 			if err != nil {

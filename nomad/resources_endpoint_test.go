@@ -29,7 +29,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.NumSchedulers = 0
 	})
 
 	defer s.Shutdown()
@@ -56,12 +56,13 @@ func TestResourcesEndpoint_List(t *testing.T) {
 	assert.Equal(t, jobID, resp.Matches["job"][0])
 }
 
-func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
+// truncate should limit results to 20
+func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.NumSchedulers = 0
 	})
 
 	defer s.Shutdown()
@@ -90,10 +91,10 @@ func TestResourcesEndpoint_List_ShouldTruncateResultsToUnder20(t *testing.T) {
 	assert.Equal(t, resp.Truncations["job"], true)
 }
 
-func TestResourcesEndpoint_List_ShouldReturnEvals(t *testing.T) {
+func TestResourcesEndpoint_List_Evals(t *testing.T) {
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.NumSchedulers = 0
 	})
 
 	defer s.Shutdown()
@@ -214,4 +215,24 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 	}
 
 	assert.Equal(t, resp.Truncations["node"], false)
+}
+
+func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	req := &structs.ResourcesRequest{
+		Prefix:  "anyPrefix",
+		Context: "invalid",
+	}
+
+	var resp structs.ResourcesResponse
+	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
+	assert.Equal(t, err.Error(), "invalid context")
 }

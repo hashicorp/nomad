@@ -36,7 +36,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	}
 }
 
-func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
+func TestHTTP_Resources_SingleJob(t *testing.T) {
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
 	t.Parallel()
@@ -71,7 +71,7 @@ func TestHTTP_ResourcesWithSingleJob(t *testing.T) {
 	})
 }
 
-func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
+func TestHTTP_Resources_MultipleJobs(t *testing.T) {
 	testJobA := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobB := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89707"
 	testJobC := "bbbbbbbb-e8f7-fd38-c855-ab94ceb89707"
@@ -113,7 +113,7 @@ func TestHTTP_ResourcesWithMultipleJobs(t *testing.T) {
 	})
 }
 
-func TestHTTP_ResoucesListForEvaluations(t *testing.T) {
+func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
