@@ -127,3 +127,91 @@ func TestResourcesEndpoint_List_ShouldReturnEvals(t *testing.T) {
 
 	assert.Equal(t, resp.Truncations["job"], false)
 }
+
+func TestResourcesEndpoint_List_Allocation(t *testing.T) {
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	alloc := mock.Alloc()
+	summary := mock.JobSummary(alloc.JobID)
+	state := s.fsm.State()
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	prefix := alloc.ID[:len(alloc.ID)-2]
+
+	req := &structs.ResourcesRequest{
+		Prefix:  prefix,
+		Context: "alloc",
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	numMatches := len(resp.Matches["alloc"])
+	if numMatches != 1 {
+		t.Fatalf(fmt.Sprintf("err: the number of allocations expected %d does not match the number expected %d", 1, numMatches))
+	}
+
+	recAlloc := resp.Matches["alloc"][0]
+	if recAlloc != alloc.ID {
+		t.Fatalf(fmt.Sprintf("err: expected %s allocation but received %s", alloc.ID, recAlloc))
+	}
+
+	assert.Equal(t, resp.Truncations["alloc"], false)
+}
+
+func TestResourcesEndpoint_List_Node(t *testing.T) {
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	state := s.fsm.State()
+	node := mock.Node()
+
+	if err := state.UpsertNode(100, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	prefix := node.ID[:len(node.ID)-2]
+
+	req := &structs.ResourcesRequest{
+		Prefix:  prefix,
+		Context: "node",
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	numMatches := len(resp.Matches["node"])
+	if numMatches != 1 {
+		t.Fatalf(fmt.Sprintf("err: the number of nodes expected %d does not match the number expected %d", 1, numMatches))
+	}
+
+	recNode := resp.Matches["node"][0]
+	if recNode != node.ID {
+		t.Fatalf(fmt.Sprintf("err: expected %s node but received %s", node.ID, recNode))
+	}
+
+	assert.Equal(t, resp.Truncations["node"], false)
+}
