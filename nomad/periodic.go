@@ -164,11 +164,13 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	}
 }
 
+// TODO Why have a seperate start method
 // Start begins the goroutine that creates derived jobs and evals.
 func (p *PeriodicDispatch) Start() {
 	p.l.Lock()
 	p.running = true
 	p.l.Unlock()
+	// XXX There must be two insances of the run routine
 	go p.run()
 }
 
