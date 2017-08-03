@@ -6,12 +6,10 @@ import (
 )
 
 func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	switch req.Method {
-	case "POST":
+	if req.Method == "POST" || req.Method == "PUT" {
 		return s.resourcesRequest(resp, req)
-	default:
-		return nil, CodedError(405, ErrInvalidMethod)
 	}
+	return nil, CodedError(405, ErrInvalidMethod)
 }
 
 func (s *HTTPServer) resourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

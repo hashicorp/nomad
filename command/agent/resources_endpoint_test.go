@@ -36,7 +36,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	}
 }
 
-func TestHTTP_Resources_SingleJob(t *testing.T) {
+func TestHTTP_Resources_POST(t *testing.T) {
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
 	t.Parallel()
@@ -45,6 +45,41 @@ func TestHTTP_Resources_SingleJob(t *testing.T) {
 
 		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "job"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.ResourcesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		res := resp.(structs.ResourcesResponse)
+		if len(res.Matches) != 1 {
+			t.Fatalf("No expected key values in resources list")
+		}
+
+		j := res.Matches["job"]
+		if j == nil || len(j) != 1 {
+			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (1)", j)
+		}
+
+		assert.Equal(t, j[0], testJob)
+		assert.Equal(t, res.Truncations["job"], false)
+	})
+}
+
+func TestHTTP_Resources_PUT(t *testing.T) {
+	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
+	testJobPrefix := "aaaaaaaa-e8f7-fd38"
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		createJobForTest(testJob, s, t)
+
+		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "job"}
+		req, err := http.NewRequest("PUT", "/v1/resources", encodeReq(data))
 
 		if err != nil {
 			t.Fatalf("err: %v", err)

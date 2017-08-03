@@ -91,6 +91,13 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 			reply.Matches[args.Context] = res
 			reply.Truncations[args.Context] = isTrunc
 
+			// Use the last index that affected the table
+			index, err := state.Index(args.Context)
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
 			return nil
 		}}
 	return r.srv.blockingRPC(&opts)
