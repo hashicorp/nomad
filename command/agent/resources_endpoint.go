@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+// ResourcesRequest accepts a prefix and context and returns a list of matching
+// prefixes for that context.
 func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method == "POST" || req.Method == "PUT" {
 		return s.resourcesRequest(resp, req)
@@ -13,10 +15,8 @@ func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Reques
 }
 
 func (s *HTTPServer) resourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	// TODO test a failure case for this?
 	args := structs.ResourcesRequest{}
 
-	// TODO this should be tested
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
@@ -26,5 +26,6 @@ func (s *HTTPServer) resourcesRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, err
 	}
 
+	setMeta(resp, &out.QueryMeta)
 	return out, nil
 }

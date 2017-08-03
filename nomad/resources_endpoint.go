@@ -7,15 +7,22 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// truncateLimit is the maximum number of matches that will be returned for a
+// prefix for a specific context
+const truncateLimit = 20
+
+// Resource endpoint is used to lookup matches for a given prefix and context
 type Resources struct {
 	srv *Server
 }
 
+// getMatches extracts matches for an iterator, and returns a list of ids for
+// these matches.
 func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 	var matches []string
 	isTruncated := false
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < truncateLimit; i++ {
 		raw := iter.Next()
 		if raw == nil {
 			break
@@ -51,6 +58,8 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 	return matches, isTruncated
 }
 
+// getResourceIter takes a context and returns a memdb iterator specific to
+// that context
 func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case "job":
@@ -66,7 +75,8 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 	}
 }
 
-// List is used to list the jobs registered in the system
+// List is used to list the resouces registered in the system that matches the
+// given prefix. Resources are jobs, evaluations, allocations, and/or nodes.
 func (r *Resources) List(args *structs.ResourcesRequest,
 	reply *structs.ResourcesResponse) error {
 	reply.Matches = make(map[string][]string)
