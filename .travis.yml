@@ -12,6 +12,8 @@ go:
 git:
   depth: 300
 
+go_import_path: github.com/hashicorp/nomad
+
 branches:
   only:
     - master
