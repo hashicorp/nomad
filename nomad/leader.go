@@ -148,7 +148,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
-	s.periodicDispatcher.Start()
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {

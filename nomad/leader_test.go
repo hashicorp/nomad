@@ -408,7 +408,6 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
-	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
@@ -460,7 +459,6 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
-	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
