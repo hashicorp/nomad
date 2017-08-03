@@ -57,15 +57,12 @@ func TestHTTP_Resources_POST(t *testing.T) {
 		}
 
 		res := resp.(structs.ResourcesResponse)
-		if len(res.Matches) != 1 {
-			t.Fatalf("No expected key values in resources list")
-		}
+
+		assert.Equal(t, 1, len(res.Matches))
 
 		j := res.Matches["job"]
-		if j == nil || len(j) != 1 {
-			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (1)", j)
-		}
 
+		assert.Equal(t, 1, len(j))
 		assert.Equal(t, j[0], testJob)
 		assert.Equal(t, res.Truncations["job"], false)
 	})
@@ -92,15 +89,12 @@ func TestHTTP_Resources_PUT(t *testing.T) {
 		}
 
 		res := resp.(structs.ResourcesResponse)
-		if len(res.Matches) != 1 {
-			t.Fatalf("No expected key values in resources list")
-		}
+
+		assert.Equal(t, 1, len(res.Matches))
 
 		j := res.Matches["job"]
-		if j == nil || len(j) != 1 {
-			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (1)", j)
-		}
 
+		assert.Equal(t, 1, len(j))
 		assert.Equal(t, j[0], testJob)
 		assert.Equal(t, res.Truncations["job"], false)
 	})
@@ -133,15 +127,12 @@ func TestHTTP_Resources_MultipleJobs(t *testing.T) {
 		}
 
 		res := resp.(structs.ResourcesResponse)
-		if len(res.Matches) != 1 {
-			t.Fatalf("No expected key values in resources list")
-		}
+
+		assert.Equal(t, 1, len(res.Matches))
 
 		j := res.Matches["job"]
-		if j == nil || len(j) != 2 {
-			t.Fatalf("The number of jobs that were returned does not equal the number of jobs we expected (2)", j)
-		}
 
+		assert.Equal(t, 2, len(j))
 		assert.Contains(t, j, testJobA)
 		assert.Contains(t, j, testJobB)
 		assert.NotContains(t, j, testJobC)
@@ -175,21 +166,79 @@ func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
 		}
 
 		res := resp.(structs.ResourcesResponse)
-		if len(res.Matches) != 1 {
-			t.Fatalf("No expected key values in resources list")
-		}
+
+		assert.Equal(t, 1, len(res.Matches))
 
 		j := res.Matches["eval"]
-		if len(j) != 1 {
-			t.Fatalf("The number of evaluations that were returned does not equal the number we expected (1)", j)
-		}
 
+		assert.Equal(t, 1, len(j))
 		assert.Contains(t, j, eval1.ID)
 		assert.NotContains(t, j, eval2.ID)
 		assert.Equal(t, res.Truncations["eval"], false)
 	})
 }
 
-// TODO
-//func TestHTTP_ResourcesWithNoJob(t *testing.T) {
-//}
+func TestHTTP_Resources_NoJob(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		data := structs.ResourcesRequest{Prefix: "12345", Context: "job"}
+		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.ResourcesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		res := resp.(structs.ResourcesResponse)
+
+		assert.Equal(t, 1, len(res.Matches))
+		assert.Equal(t, 0, len(res.Matches["jobs"]))
+	})
+}
+
+func TestHTTP_Resources_NoContext(t *testing.T) {
+	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
+	testJobPrefix := "aaaaaaaa-e8f7-fd38"
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		createJobForTest(testJobID, s, t)
+
+		state := s.Agent.server.State()
+		eval1 := mock.Eval()
+		eval1.ID = testJobID
+		err := state.UpsertEvals(1000,
+			[]*structs.Evaluation{eval1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		data := structs.ResourcesRequest{Prefix: testJobPrefix}
+		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.ResourcesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		res := resp.(structs.ResourcesResponse)
+
+		matchedJobs := res.Matches["job"]
+		matchedEvals := res.Matches["eval"]
+
+		assert.Equal(t, 1, len(matchedJobs))
+		assert.Equal(t, 1, len(matchedEvals))
+
+		assert.Equal(t, matchedJobs[0], testJobID)
+		assert.Equal(t, matchedEvals[0], eval1.ID)
+	})
+}
