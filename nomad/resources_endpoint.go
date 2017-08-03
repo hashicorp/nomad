@@ -106,20 +106,32 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				}
 			}
 
-			// return jobs matching given prefix
+			// Return jobs matching given prefix
 			for k, v := range iters {
 				res, isTrunc := getMatches(v)
 				reply.Matches[k] = res
 				reply.Truncations[k] = isTrunc
 			}
 
-			// Use the last index that affected the table
-			index, err := state.Index(args.Context)
+			// Set the index of the context if it is specified. Otherwise, set the
+			// index of the first non-empty match set.
+			var index uint64
+			var err error
+			if args.Context != "" {
+				index, err = state.Index(args.Context)
+			} else {
+				for k, v := range reply.Matches {
+					if len(v) != 0 {
+						index, err = state.Index(k)
+					}
+				}
+			}
 			if err != nil {
 				return err
 			}
 			reply.Index = index
 
+			r.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
 	return r.srv.blockingRPC(&opts)

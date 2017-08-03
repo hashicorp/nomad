@@ -49,6 +49,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	assert.Equal(t, 1, len(resp.Matches["job"]))
 	assert.Equal(t, jobID, resp.Matches["job"][0])
+	assert.NotEqual(t, 0, resp.Index)
 }
 
 // truncate should limit results to 20
@@ -80,6 +81,7 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 
 	assert.Equal(t, 20, len(resp.Matches["job"]))
 	assert.Equal(t, resp.Truncations["job"], true)
+	assert.NotEqual(t, 0, resp.Index)
 }
 
 func TestResourcesEndpoint_List_Evals(t *testing.T) {
@@ -110,6 +112,8 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 	assert.Equal(t, 1, len(resp.Matches["eval"]))
 	assert.Equal(t, eval1.ID, resp.Matches["eval"][0])
 	assert.Equal(t, resp.Truncations["job"], false)
+
+	assert.NotEqual(t, 0, resp.Index)
 }
 
 func TestResourcesEndpoint_List_Allocation(t *testing.T) {
@@ -148,6 +152,8 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 	assert.Equal(t, 1, len(resp.Matches["alloc"]))
 	assert.Equal(t, alloc.ID, resp.Matches["alloc"][0])
 	assert.Equal(t, resp.Truncations["alloc"], false)
+
+	assert.NotEqual(t, 0, resp.Index)
 }
 
 func TestResourcesEndpoint_List_Node(t *testing.T) {
@@ -202,6 +208,8 @@ func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
 	var resp structs.ResourcesResponse
 	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
 	assert.Equal(t, err.Error(), "invalid context")
+
+	assert.NotEqual(t, 0, resp.Index)
 }
 
 func TestResourcesEndpoint_List_NoContext(t *testing.T) {
@@ -244,4 +252,64 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 
 	assert.Equal(t, node.ID, resp.Matches["node"][0])
 	assert.Equal(t, eval1.ID, resp.Matches["eval"][0])
+
+	assert.NotEqual(t, 0, resp.Index)
+}
+
+// Tests that the top 20 matches are returned when no prefix is set
+func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
+	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
+
+	req := &structs.ResourcesRequest{
+		Prefix:  "",
+		Context: "job",
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(t, 1, len(resp.Matches["job"]))
+	assert.Equal(t, jobID, resp.Matches["job"][0])
+	assert.NotEqual(t, 0, resp.Index)
+}
+
+// Tests that the zero matches are returned when a prefix has no matching
+// results
+func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
+	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	req := &structs.ResourcesRequest{
+		Prefix:  prefix,
+		Context: "job",
+	}
+
+	var resp structs.ResourcesResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(t, 0, len(resp.Matches["job"]))
+	assert.Equal(t, uint64(0), resp.Index)
 }
