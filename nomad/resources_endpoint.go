@@ -28,23 +28,17 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 			break
 		}
 
-		getID := func(i interface{}) (string, error) {
-			switch i.(type) {
-			case *structs.Job:
-				return i.(*structs.Job).ID, nil
-			case *structs.Evaluation:
-				return i.(*structs.Evaluation).ID, nil
-			case *structs.Allocation:
-				return i.(*structs.Allocation).ID, nil
-			case *structs.Node:
-				return i.(*structs.Node).ID, nil
-			default:
-				return "", fmt.Errorf("invalid type")
-			}
-		}
-
-		id, err := getID(raw)
-		if err != nil {
+		var id string
+		switch raw.(type) {
+		case *structs.Job:
+			id = raw.(*structs.Job).ID
+		case *structs.Evaluation:
+			id = raw.(*structs.Evaluation).ID
+		case *structs.Allocation:
+			id = raw.(*structs.Allocation).ID
+		case *structs.Node:
+			id = raw.(*structs.Node).ID
+		default:
 			continue
 		}
 
@@ -113,24 +107,20 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				reply.Truncations[k] = isTrunc
 			}
 
-			// Set the index of the context if it is specified. Otherwise, set the
-			// index of the first non-empty match set.
-			var index uint64
-			var err error
-			if args.Context != "" {
-				index, err = state.Index(args.Context)
-			} else {
-				for k, v := range reply.Matches {
-					if len(v) != 0 {
-						index, err = state.Index(k)
-						break
+			// Set the index for the context. If the context has been specified, it
+			// is the only non-empty match set, and the index is set for it.
+			// If the context was not specified, we set the index of the first
+			// non-empty match set.
+			for k, v := range reply.Matches {
+				if len(v) != 0 {
+					index, err := state.Index(k)
+					if err != nil {
+						return err
 					}
+					reply.Index = index
+					break
 				}
 			}
-			if err != nil {
-				return err
-			}
-			reply.Index = index
 
 			r.srv.setQueryMeta(&reply.QueryMeta)
 			return nil

@@ -232,7 +232,7 @@ type NodeSpecificRequest struct {
 }
 
 // ResourcesResponse is used to return matches and information about whether
-// the match list is truncated, specific to each type of context.
+// the match list is truncated specific to each type of context.
 type ResourcesResponse struct {
 	Matches     map[string][]string
 	Truncations map[string]bool
