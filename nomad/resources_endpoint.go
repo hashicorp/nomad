@@ -9,7 +9,15 @@ import (
 
 // truncateLimit is the maximum number of matches that will be returned for a
 // prefix for a specific context
-const truncateLimit = 20
+const (
+	truncateLimit = 20
+)
+
+// allContexts are the available contexts which searched to find matches for a
+// given prefix
+var (
+	allContexts = []string{"allocs", "nodes", "jobs", "evals"}
+)
 
 // Resource endpoint is used to lookup matches for a given prefix and context
 type Resources struct {
@@ -39,6 +47,8 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
 		default:
+			//s.logger.Printf("[ERR] nomad: unexpected type for resources context; not a job, allocation, node, or evaluation")
+			// TODO
 			continue
 		}
 
@@ -65,14 +75,14 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 	case "nodes":
 		return state.NodesByIDPrefix(ws, prefix)
 	default:
-		return nil, fmt.Errorf("invalid context")
+		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
 	}
 }
 
 // List is used to list the resouces registered in the system that matches the
 // given prefix. Resources are jobs, evaluations, allocations, and/or nodes.
-func (r *Resources) List(args *structs.ResourcesRequest,
-	reply *structs.ResourcesResponse) error {
+func (r *Resources) List(args *structs.ResourceListRequest,
+	reply *structs.ResourceListResponse) error {
 	reply.Matches = make(map[string][]string)
 	reply.Truncations = make(map[string]bool)
 
@@ -84,20 +94,17 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 
 			iters := make(map[string]memdb.ResultIterator)
 
+			contexts := allContexts
 			if args.Context != "" {
-				iter, err := getResourceIter(args.Context, args.Prefix, ws, state)
+				contexts = []string{args.Context}
+			}
+
+			for _, e := range contexts {
+				iter, err := getResourceIter(e, args.Prefix, ws, state)
 				if err != nil {
 					return err
 				}
-				iters[args.Context] = iter
-			} else {
-				for _, e := range []string{"allocs", "nodes", "jobs", "evals"} {
-					iter, err := getResourceIter(e, args.Prefix, ws, state)
-					if err != nil {
-						return err
-					}
-					iters[e] = iter
-				}
+				iters[e] = iter
 			}
 
 			// Return matches for the given prefix

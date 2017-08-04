@@ -39,12 +39,12 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -72,12 +72,12 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 		registerAndVerifyJob(s, t, prefix, counter)
 	}
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -103,12 +103,12 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "evals",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -144,12 +144,12 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 
 	prefix := alloc.ID[:len(alloc.ID)-2]
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "allocs",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -181,12 +181,12 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "nodes",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -210,14 +210,14 @@ func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  "anyPrefix",
 		Context: "invalid",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
-	assert.Equal(err.Error(), "invalid context")
+	assert.Equal(err.Error(), "context must be one of [allocs nodes jobs evals]; got \"invalid\"")
 
 	assert.Equal(uint64(0), resp.Index)
 }
@@ -248,12 +248,12 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -284,12 +284,12 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  "",
 		Context: "jobs",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -315,12 +315,12 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	req := &structs.ResourcesRequest{
+	req := &structs.ResourceListRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourcesResponse
+	var resp structs.ResourceListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

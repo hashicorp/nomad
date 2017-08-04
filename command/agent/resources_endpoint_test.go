@@ -18,7 +18,7 @@ func TestHTTP_ResourcesWithIllegalMethod(t *testing.T) {
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
-		_, err = s.Server.ResourcesRequest(respW, req)
+		_, err = s.Server.ResourceListRequest(respW, req)
 		assert.NotNil(err, "HTTP DELETE should not be accepted for this endpoint")
 	})
 }
@@ -44,16 +44,16 @@ func TestHTTP_Resources_POST(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.ResourceListRequest{Prefix: testJobPrefix, Context: "jobs"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -76,16 +76,16 @@ func TestHTTP_Resources_PUT(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.ResourceListRequest{Prefix: testJobPrefix, Context: "jobs"}
 		req, err := http.NewRequest("PUT", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -114,16 +114,16 @@ func TestHTTP_Resources_MultipleJobs(t *testing.T) {
 		createJobForTest(testJobB, s, t)
 		createJobForTest(testJobC, s, t)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.ResourceListRequest{Prefix: testJobPrefix, Context: "jobs"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -152,16 +152,16 @@ func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := eval1.ID[:len(eval1.ID)-2]
-		data := structs.ResourcesRequest{Prefix: prefix, Context: "evals"}
+		data := structs.ResourceListRequest{Prefix: prefix, Context: "evals"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -186,16 +186,16 @@ func TestHTTP_ResoucesList_Allocations(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
-		data := structs.ResourcesRequest{Prefix: prefix, Context: "allocs"}
+		data := structs.ResourceListRequest{Prefix: prefix, Context: "allocs"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -219,16 +219,16 @@ func TestHTTP_ResoucesList_Nodes(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := node.ID[:len(node.ID)-2]
-		data := structs.ResourcesRequest{Prefix: prefix, Context: "nodes"}
+		data := structs.ResourceListRequest{Prefix: prefix, Context: "nodes"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -246,16 +246,16 @@ func TestHTTP_Resources_NoJob(t *testing.T) {
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		data := structs.ResourcesRequest{Prefix: "12345", Context: "jobs"}
+		data := structs.ResourceListRequest{Prefix: "12345", Context: "jobs"}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		assert.Equal(1, len(res.Matches))
 		assert.Equal(0, len(res.Matches["jobs"]))
@@ -279,16 +279,16 @@ func TestHTTP_Resources_NoContext(t *testing.T) {
 		err := state.UpsertEvals(8000, []*structs.Evaluation{eval1})
 		assert.Nil(err)
 
-		data := structs.ResourcesRequest{Prefix: testJobPrefix}
+		data := structs.ResourceListRequest{Prefix: testJobPrefix}
 		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ResourcesRequest(respW, req)
+		resp, err := s.Server.ResourceListRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ResourcesResponse)
+		res := resp.(structs.ResourceListResponse)
 
 		matchedJobs := res.Matches["jobs"]
 		matchedEvals := res.Matches["evals"]
