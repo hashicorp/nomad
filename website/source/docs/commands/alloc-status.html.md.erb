@@ -32,106 +32,141 @@ allocations and information will be displayed.
 * `-short`: Display short output. Shows only the most recent task event.
 * `-verbose`: Show full information.
 * `-json` : Output the allocation in its JSON format.
-* `-t` : Format and display allocation using a Go template.
+* `-t` : Format and display the allocation using a Go template.
 
 ## Examples
 
 Short status of an alloc:
 
 ```
-$ nomad alloc-status --short 13901f26
-ID            = 13901f26
-Eval ID       = c3c9a1db
-Name          = example.cache[0]
-Node ID       = 1f029d38
-Job ID        = example
-Client Status = running
-Created At    = 29/03/16 03:04:53 UTC
+$ nomad alloc-status --short 0af996ed
+ID                  = 0af996ed
+Eval ID             = be9bde98
+Name                = example.cache[0]
+Node ID             = 43c0b14e
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1
+Deployment Health   = healthy
 
-==> Tasks
+Tasks
 Name   State    Last Event  Time
-redis  running  Started     29/03/16 03:04:53 UTC
-web    running  Started     29/03/16 03:04:53 UTC
+redis  running  Started     07/25/17 16:12:48 UTC
+web    running  Started     07/25/17 16:12:49 UTC
 ```
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
-$ nomad alloc-status a7365fe4
-ID            = a7365fe4
-Eval ID       = c3c9a1db
-Name          = example.cache[0]
-Node ID       = 1f029d38
-Job ID        = example
-Client Status = running
-Created At    = 29/03/16 03:04:53 UTC
+$ nomad alloc-status 0af996ed
+ID                  = 0af996ed
+Eval ID             = be9bde98
+Name                = example.cache[0]
+Node ID             = 43c0b14e
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1
+Deployment Health   = healthy
 
-==> Task Resources
-Task: "redis"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:46321
+Task "redis" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:27908
 
-Task: "web"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:38537
+Task Events:
+Started At     = 07/25/17 16:12:48 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
 
-==> Task "redis" is "running"
-Recent Events:
-Time                   Type      Description
-29/03/16 03:04:53 UTC  Started   Task started by client
-29/03/16 03:04:51 UTC  Received  Task received by client
-
-==> Task "web" is "pending"
 Recent Events:
 Time                   Type        Description
-29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
-29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
-29/03/16 03:04:53 UTC  Started     Task started by client
-29/03/16 03:04:51 UTC  Received    Task received by client
+07/25/17 16:12:48 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
+
+Task "web" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:30572
+
+Task Events:
+Started At     = 07/25/17 16:12:49 UTC
+>>>>>>> alloc-status
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+07/25/17 16:12:49 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 ```
 
 Verbose status can also be accessed:
 
 ```
-$ nomad alloc-status --verbose a7365fe4
-ID              = a7365fe4-cb28-a6e9-f3d4-f99e49c89776
-Eval ID         = c3c9a1db-dbeb-8afa-0a83-4f1b8b5a03f5
-Name            = example.cache[0]
-Node ID         = 1f029d38-8d4b-a552-261f-e457b60f9b4b
-Job ID          = example
-Client Status   = running
-Created At      = 29/03/16 03:04:53 UTC
-Evaluated Nodes = 1
-Filtered Nodes  = 0
-Exhausted Nodes = 0
-Allocation Time = 1.085001ms
-Failures        = 0
+$ nomad alloc-status -verbose 0af996ed
+ID                  = 0af996ed-aff4-8ddb-a566-e55ebf8969c9
+Eval ID             = be9bde98-0490-1beb-ced0-012d10ddf22e
+Name                = example.cache[0]
+Node ID             = 43c0b14e-7f96-e432-a7da-06605257ce0c
+Job ID              = example
+Job Version         = 0
+Client Status       = running
+Client Description  = <none>
+Desired Status      = run
+Desired Description = <none>
+Created At          = 07/25/17 16:12:48 UTC
+Deployment ID       = 0c83a3b1-8a7b-136b-0e11-8383dc6c9276
+Deployment Health   = healthy
+Evaluated Nodes     = 1
+Filtered Nodes      = 0
+Exhausted Nodes     = 0
+Allocation Time     = 38.474µs
+Failures            = 0
 
-==> Task Resources
-Task: "web"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:38537
+Task "redis" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:27908
 
-Task: "redis"
-CPU  Memory MB  Disk MB  IOPS  Addresses
-500  256        300      0     db: 127.0.0.1:46321
+Task Events:
+Started At     = 07/25/17 16:12:48 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
 
-==> Task "redis" is "running"
-Recent Events:
-Time                   Type      Description
-29/03/16 03:04:53 UTC  Started   Task started by client
-29/03/16 03:04:51 UTC  Received  Task received by client
-
-==> Task "web" is "running"
 Recent Events:
 Time                   Type        Description
-29/03/16 03:07:38 UTC  Started     Task started by client
-29/03/16 03:07:18 UTC  Restarting  Task restarting in 18.580059474s
-29/03/16 03:07:18 UTC  Terminated  Exit Code: 137, Exit Message: "Docker container exited with non-zero exit code: 137"
-29/03/16 03:04:53 UTC  Started     Task started by client
-29/03/16 03:04:51 UTC  Received    Task received by client
+07/25/17 16:12:48 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 
-==> Status
-Allocation "13901f26-cb28-a6e9-f3d4-f99e49c89776" status "running" (0/1 nodes filtered)
-  * Score "1f029d38-8d4b-a552-261f-e457b60f9b4b.binpack" = 10.334026
+Task "web" is "running"
+Task Resources
+CPU        Memory           Disk     IOPS  Addresses
+1/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:30572
+
+Task Events:
+Started At     = 07/25/17 16:12:49 UTC
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                   Type        Description
+07/25/17 16:12:49 UTC  Started     Task started by client
+07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
+07/25/17 16:12:48 UTC  Received    Task received by client
 ```

@@ -137,8 +137,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 				failures,
 			)
 		}
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
+		return 1
 	}
 
 	// If we are in monitor mode, monitor and exit
@@ -229,7 +229,7 @@ func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []strin
 
 func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	switch eval.TriggeredBy {
-	case "job-register", "job-deregister", "periodic-job", "rolling-update":
+	case "job-register", "job-deregister", "periodic-job", "rolling-update", "deployment-watcher":
 		return "Job ID", eval.JobID
 	case "node-update":
 		return "Node ID", eval.NodeID

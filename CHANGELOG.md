@@ -1,4 +1,22 @@
-## 0.6.0 (Unreleased)
+## 0.6.1 (Unreleased)
+
+IMPROVEMENTS:
+ * core: `distinct_property` constraint can set the number of allocations that
+   are allowed to share a property value [GH-2942]
+ * driver/rkt: support read-only volume mounts [GH-2883]
+
+BUG FIXES:
+ * core: Fix incorrect destructive update with `distinct_property` constraint
+   [GH-2939]
+ * cli: Fix autocmpleting global flags [GH-2928]
+ * cli: Fix panic when using 0.6.0 cli with an older cluster [GH-2929]
+ * driver/docker: Fix leaking plugin file used by syslog server [GH-2937]
+
+## 0.6.0 (July 26, 2017)
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * cli: When given a prefix that does not resolve to a particular object,
+   commands now return exit code 1 rather than 0.
 
 IMPROVEMENTS:
  * core: Rolling updates based on allocation health [GH-2621, GH-2634, GH-2799]
@@ -14,7 +32,9 @@ IMPROVEMENTS:
  * api: Add `verify_https_client` to require certificates from HTTP clients
    [GH-2587]
  * api/job: Ability to revert job to older versions [GH-2575]
+ * cli: Autocomplete for CLI commands [GH-2848]
  * client: Use a random host UUID by default [GH-2735]
+ * client: Add `NOMAD_GROUP_NAME` environment variable [GH-2877]
  * client: Environment variables for client DC and Region [GH-2507]
  * client: Hash host ID so its stable and well distributed [GH-2541]
  * client: GC dead allocs if total allocs > `gc_max_allocs` tunable [GH-2636]
@@ -22,11 +42,13 @@ IMPROVEMENTS:
    [GH-2610]
  * client: Fingerprint all routable addresses on an interface including IPv6
    addresses [GH-2536]
+ * client/artifact: Support .xz archives [GH-2836]
  * client/artifact: Allow specifying a go-getter mode [GH-2781]
  * client/artifact: Support non-Amazon S3-compatible sources [GH-2781]
  * client/template: Support reading env vars from templates [GH-2654]
  * config: Support Unix socket addresses for Consul [GH-2622]
  * discovery: Advertise driver-specified IP address and port [GH-2709]
+ * discovery: Support `tls_skip_verify` for Consul HTTPS checks [GH-2467]
  * driver/docker: Allow specifying extra hosts [GH-2547]
  * driver/docker: Allow setting seccomp profiles [GH-2658]
  * driver/docker: Support Docker credential helpers [GH-2651]
@@ -36,6 +58,9 @@ IMPROVEMENTS:
    [GH-2535]
  * driver/rkt: Support `no_overlay` [GH-2702]
  * driver/rkt: Support `insecure_options` list [GH-2695]
+ * server: Allow tuning of node heartbeat TTLs [GH-2859]
+ * server/networking: Shrink dynamic port range to not overlap with majority of
+   operating system's ephemeral port ranges to avoid port conflicts [GH-2856]
 
 BUG FIXES:
  * core: Protect against nil job in new allocation, avoiding panic [GH-2592]
@@ -50,6 +75,7 @@ BUG FIXES:
  * client: Client syncs allocation state with server before waiting for
    allocation destroy fixing a corner case in which an allocation may be blocked
    till destroy [GH-2563]
+ * client: Improved state file handling and reduced write volume [GH-2878]
  * client/artifact: Honor netrc [GH-2524]
  * client/artifact: Handle tars where file in directory is listed before
    directory [GH-2524]

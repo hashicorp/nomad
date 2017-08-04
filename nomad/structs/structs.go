@@ -1666,6 +1666,15 @@ func (j *Job) Validate() error {
 // deprecation warnings.
 func (j *Job) Warnings() error {
 	var mErr multierror.Error
+
+	// Check the groups
+	for _, tg := range j.TaskGroups {
+		if err := tg.Warnings(j); err != nil {
+			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2034,6 +2043,9 @@ func (u *UpdateStrategy) Validate() error {
 	}
 	if u.HealthyDeadline <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
+	}
+	if u.MinHealthyTime >= u.HealthyDeadline {
+		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
 	}
 	if u.Stagger <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
@@ -2519,16 +2531,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-
-		// Validate the counts are appropriate
-		if u.MaxParallel > tg.Count {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Update max parallel count is greater than task group count: %d > %d", u.MaxParallel, tg.Count))
-		}
-		if u.Canary > tg.Count {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Update canary count is greater than task group count: %d > %d", u.Canary, tg.Count))
-		}
 	}
 
 	// Check for duplicate tasks, that there is only leader task if any,
@@ -2576,6 +2578,24 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
+	return mErr.ErrorOrNil()
+}
+
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (tg *TaskGroup) Warnings(j *Job) error {
+	var mErr multierror.Error
+
+	// Validate the update strategy
+	if u := tg.Update; u != nil {
+		// Check the counts are appropriate
+		if u.MaxParallel > tg.Count {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
+					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2980,6 +3000,8 @@ func (t *Task) Copy() *Task {
 	}
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
+		panic(err.Error())
+	} else {
 		nt.Config = i.(map[string]interface{})
 	}
 
@@ -3318,6 +3340,9 @@ func (t *Template) Validate() error {
 	case TemplateChangeModeSignal:
 		if t.ChangeSignal == "" {
 			multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
+		}
+		if t.Envvars {
+			multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	default:
 		multierror.Append(&mErr, TemplateChangeModeInvalidError)
@@ -3849,8 +3874,24 @@ func (c *Constraint) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing constraint operand"))
 	}
 
+	// requireLtarget specifies whether the constraint requires an LTarget to be
+	// provided.
+	requireLtarget := true
+
 	// Perform additional validation based on operand
 	switch c.Operand {
+	case ConstraintDistinctHosts:
+		requireLtarget = false
+		if c.RTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow RTarget. Got %q", c.RTarget))
+		}
+		if c.LTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow LTarget. Got %q", c.LTarget))
+		}
+	case ConstraintSetContains:
+		if c.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
+		}
 	case ConstraintRegex:
 		if _, err := regexp.Compile(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Regular expression failed to compile: %v", err))
@@ -3859,7 +3900,29 @@ func (c *Constraint) Validate() error {
 		if _, err := version.NewConstraint(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
 		}
+	case ConstraintDistinctProperty:
+		// If a count is set, make sure it is convertible to a uint64
+		if c.RTarget != "" {
+			count, err := strconv.ParseUint(c.RTarget, 10, 64)
+			if err != nil {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Failed to convert RTarget %q to uint64: %v", c.RTarget, err))
+			} else if count < 1 {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct Property must have an allowed count of 1 or greater: %d < 1", count))
+			}
+		}
+	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
+		if c.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q requires an RTarget", c.Operand))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Unknown constraint type %q", c.Operand))
 	}
+
+	// Ensure we have an LTarget for the constraints that need one
+	if requireLtarget && c.LTarget == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 

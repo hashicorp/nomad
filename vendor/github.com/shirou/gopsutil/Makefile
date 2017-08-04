@@ -15,7 +15,7 @@ build_test:  ## test only buildable
 	# Supported operating systems
 	GOOS=linux go test ./... | $(BUILD_FAIL_PATTERN)
 	GOOS=freebsd go test ./... | $(BUILD_FAIL_PATTERN)
-	GOOS=openbsd go test ./... | $(BUILD_FAIL_PATTERN)
+#	GOOS=openbsd go test ./... | $(BUILD_FAIL_PATTERN)
 	CGO_ENABLED=0 GOOS=darwin go test ./... | $(BUILD_FAIL_PATTERN)
 	CGO_ENABLED=1 GOOS=darwin go test ./... | $(BUILD_FAIL_PATTERN)
 	GOOS=windows go test ./... | $(BUILD_FAIL_PATTERN)

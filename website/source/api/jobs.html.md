@@ -104,8 +104,88 @@ There are no parameters, but the request _body_ contains the entire job file.
 
 ### Sample Payload
 
-```text
-(any valid nomad job IN JSON FORMAT)
+```json
+{
+    "Job": {
+        "ID": "example",
+        "Name": "example",
+        "Type": "service",
+        "Priority": 50,
+        "Datacenters": [
+            "dc1"
+        ],
+        "TaskGroups": [{
+            "Name": "cache",
+            "Count": 1,
+            "Tasks": [{
+                "Name": "redis",
+                "Driver": "docker",
+                "User": "",
+                "Config": {
+                    "image": "redis:3.2",
+                    "port_map": [{
+                        "db": 6379
+                    }]
+                },
+                "Services": [{
+                    "Id": "",
+                    "Name": "global-redis-check",
+                    "Tags": [
+                        "global",
+                        "cache"
+                    ],
+                    "PortLabel": "db",
+                    "AddressMode": "",
+                    "Checks": [{
+                        "Id": "",
+                        "Name": "alive",
+                        "Type": "tcp",
+                        "Command": "",
+                        "Args": null,
+                        "Path": "",
+                        "Protocol": "",
+                        "PortLabel": "",
+                        "Interval": 10000000000,
+                        "Timeout": 2000000000,
+                        "InitialStatus": "",
+                        "TLSSkipVerify": false
+                    }]
+                }],
+                "Resources": {
+                    "CPU": 500,
+                    "MemoryMB": 256,
+                    "Networks": [{
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "MBits": 10,
+                        "DynamicPorts": [{
+                            "Label": "db",
+                            "Value": 0
+                        }]
+                    }]
+                },
+                "Leader": false
+            }],
+            "RestartPolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+                "Delay": 25000000000,
+                "Mode": "delay"
+            },
+            "EphemeralDisk": {
+                "SizeMB": 300
+            }
+        }],
+        "Update": {
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "HealthyDeadline": 180000000000,
+            "AutoRevert": false,
+            "Canary": 0
+        }
+    }
+}
 ```
 
 ### Sample Request
@@ -124,6 +204,7 @@ $ curl \
   "EvalID": "",
   "EvalCreateIndex": 0,
   "JobModifyIndex": 109,
+  "Warnings": "",
   "Index": 0,
   "LastContact": 0,
   "KnownLeader": false
@@ -1250,6 +1331,7 @@ $ curl \
 {
   "Index": 0,
   "NextPeriodicLaunch": "0001-01-01T00:00:00Z",
+  "Warnings": "",
   "Diff": {
     "Type": "Added",
     "TaskGroups": [
@@ -1452,7 +1534,7 @@ $ curl \
 }
 ```
 
-## Delete a Job
+## Stop a Job
 
 This endpoint deregisters a job, and stops all allocations part of it.
 
@@ -1473,12 +1555,16 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `Purge` `(bool: false)` - Specifies that the job should stopped and purged
+  immediately. This means the job will not be queryable after being stopped. If
+  not set, the job will be purged by the garbage collector.
+
 ### Sample Request
 
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/job/my-job
+    https://nomad.rocks/v1/job/my-job?purge=true
 ```
 
 ### Sample Response

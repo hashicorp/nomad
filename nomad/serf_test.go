@@ -13,6 +13,7 @@ import (
 )
 
 func TestNomad_JoinPeer(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {
@@ -53,6 +54,7 @@ func TestNomad_JoinPeer(t *testing.T) {
 }
 
 func TestNomad_RemovePeer(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {
@@ -91,6 +93,7 @@ func TestNomad_RemovePeer(t *testing.T) {
 }
 
 func TestNomad_ReapPeer(t *testing.T) {
+	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	s1 := testServer(t, func(c *Config) {
@@ -179,6 +182,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 }
 
 func TestNomad_BootstrapExpect(t *testing.T) {
+	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
@@ -279,6 +283,7 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 }
 
 func TestNomad_BadExpect(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevDisableBootstrap = true

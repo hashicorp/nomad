@@ -8,12 +8,14 @@ import (
 )
 
 func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &OperatorRaftRemoveCommand{}
 }
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
-	s, _, addr := testServer(t, nil)
-	defer s.Stop()
+	t.Parallel()
+	s, _, addr := testServer(t, false, nil)
+	defer s.Shutdown()
 
 	ui := new(cli.MockUi)
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}

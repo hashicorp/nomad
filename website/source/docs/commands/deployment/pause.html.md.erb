@@ -1,0 +1,40 @@
+---
+layout: "docs"
+page_title: "Commands: deployment pause"
+sidebar_current: "docs-commands-deployment-pause"
+description: >
+  The deployment pause command is used to pause a deployment and disallow new
+  placements.
+---
+
+# Command: deployment pause
+
+The `deployment pause` command is used to pause a deployment. Pausing a
+deployment will pause the placement of new allocations as part of rolling
+deployment.
+
+## Usage
+
+```
+nomad deployment pause [options] <deployment id>
+```
+
+The `deployment pause` command requires a single argument, a deployment ID or
+prefix. 
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Pause Options
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Manually pause a deployment:
+
+```
+$ nomad deployment pause 2f14ba55
+Deployment "2f14ba55-acfb-cb31-821c-facf1b9b0830" paused
+```

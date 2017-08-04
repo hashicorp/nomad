@@ -61,6 +61,10 @@ $ curl \
     "TaskStates": {
       "redis": {
         "State": "running",
+        "FinishedAt": "0001-01-01T00:00:00Z",
+        "LastRestart": "0001-01-01T00:00:00Z",
+        "Restarts": 0,
+        "StartedAt": "2017-07-25T23:36:26.106431265Z",
         "Failed": false,
         "Events": [
           {
@@ -376,6 +380,10 @@ $ curl \
     "redis": {
       "State": "running",
       "Failed": false,
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "LastRestart": "0001-01-01T00:00:00Z",
+      "Restarts": 0,
+      "StartedAt": "2017-07-25T23:36:26.106431265Z",
       "Events": [
         {
           "Type": "Received",
@@ -483,7 +491,7 @@ $ curl \
     - `Restarts`: The number of times the task has restarted.
 
     - `Events` - An event contains metadata about the event. The latest 10 events
-      are stored per task. Each event is timestamped (unix nano-seconds) and has one
+      are stored per task. Each event is timestamped (Unix nanoseconds) and has one
       of the following types:
 
         - `Setup Failure` - The task could not be started because there was a

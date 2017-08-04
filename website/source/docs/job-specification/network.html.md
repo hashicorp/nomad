@@ -85,7 +85,7 @@ The following examples only show the `network` stanzas. Remember that the
 
 ### Bandwidth
 
-This example specifies a resource requirement of 1GBits in bandwidth:
+This example specifies a resource requirement of 1 Gbit in bandwidth:
 
 ```hcl
 network {

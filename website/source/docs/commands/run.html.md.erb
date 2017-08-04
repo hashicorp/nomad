@@ -68,8 +68,6 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 * `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
 
-## Status Options
-
 * `-verbose`: Show full information.
 
 ## Examples
@@ -79,6 +77,8 @@ Schedule the job contained in the file `job1.nomad`, monitoring placement:
 ```
 $ nomad run job1.nomad
 ==> Monitoring evaluation "52dee78a"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "62eb607c"
     Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
     Allocation "5e0b39f0" status changed: "pending" -> "running"
     Evaluation status changed: "pending" -> "complete"
@@ -95,6 +95,7 @@ Job not updated
 $ nomad run -check-index 6 example.nomad
 ==> Monitoring evaluation "5ef16dff"
     Evaluation triggered by job "example"
+    Evaluation within deployment: "62eb607c"
     Allocation "6ec7d16f" modified: node "6e1f9bf6", group "cache"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "5ef16dff" finished with status "complete"

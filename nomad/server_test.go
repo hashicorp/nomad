@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -18,12 +19,15 @@ import (
 )
 
 var (
-	nextPort   uint32 = 15000
 	nodeNumber uint32 = 0
 )
 
 func getPort() int {
-	return int(atomic.AddUint32(&nextPort, 1))
+	return 1030 + int(rand.Int31n(6440))
+}
+
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
 func tmpDir(t *testing.T) string {
@@ -39,16 +43,11 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config := DefaultConfig()
 	config.Build = "unittest"
 	config.DevMode = true
-	config.RPCAddr = &net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: getPort(),
-	}
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	config.SerfConfig.MemberlistConfig.BindPort = getPort()
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
 	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
@@ -81,12 +80,30 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
 	catalog := consul.NewMockCatalog(logger)
 
-	// Create server
-	server, err := NewServer(config, catalog, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	for i := 10; i >= 0; i-- {
+		// Get random ports
+		config.RPCAddr = &net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: getPort(),
+		}
+		config.SerfConfig.MemberlistConfig.BindPort = getPort()
+
+		// Create server
+		server, err := NewServer(config, catalog, logger)
+		if err == nil {
+			return server
+		} else if i == 0 {
+			t.Fatalf("err: %v", err)
+		} else {
+			if server != nil {
+				server.Shutdown()
+			}
+			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+			time.Sleep(wait)
+		}
 	}
-	return server
+
+	return nil
 }
 
 func testJoin(t *testing.T, s1 *Server, other ...*Server) {
@@ -102,6 +119,7 @@ func testJoin(t *testing.T, s1 *Server, other ...*Server) {
 }
 
 func TestServer_RPC(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 
@@ -112,6 +130,7 @@ func TestServer_RPC(t *testing.T) {
 }
 
 func TestServer_RPC_MixedTLS(t *testing.T) {
+	t.Parallel()
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -187,6 +206,7 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 }
 
 func TestServer_Regions(t *testing.T) {
+	t.Parallel()
 	// Make the servers
 	s1 := testServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -218,6 +238,7 @@ func TestServer_Regions(t *testing.T) {
 }
 
 func TestServer_Reload_Vault(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.Region = "region1"
 	})

@@ -16,6 +16,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 var (
@@ -50,7 +51,10 @@ var (
 )
 
 func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
+	if testing.Verbose() {
+		return log.New(os.Stderr, "", log.LstdFlags)
+	}
+	return log.New(ioutil.Discard, "", log.LstdFlags)
 }
 
 // Test that AllocDir.Build builds just the alloc directory.
@@ -367,8 +371,10 @@ func TestAllocDir_SplitPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(info) != 6 {
-		t.Fatalf("expected: %v, actual: %v", 6, len(info))
+	// Testing that is 6 or more rather than 6 because on osx, the temp dir is
+	// randomized.
+	if len(info) < 6 {
+		t.Fatalf("expected more than: %v, actual: %v", 6, len(info))
 	}
 }
 
@@ -406,6 +412,25 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 	if fi.Mode() != subdirMode.Mode() {
 		t.Fatalf("wrong file mode: %v, expected: %v", fi.Mode(), subdirMode.Mode())
+	}
+}
+
+// TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
+// all TaskDirs.
+func TestAllocDir_Copy(t *testing.T) {
+	a := NewAllocDir(testLogger(), "foo")
+	a.NewTaskDir("bar")
+	a.NewTaskDir("baz")
+
+	b := a.Copy()
+	if diff := pretty.Diff(a, b); len(diff) > 0 {
+		t.Errorf("differences between copies: %# v", pretty.Formatter(diff))
+	}
+
+	// Make sure TaskDirs map is copied
+	a.NewTaskDir("new")
+	if b.TaskDirs["new"] != nil {
+		t.Errorf("TaskDirs map shared between copied")
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 )
 
 func TestConfig_Parse(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		File   string
 		Result *Config
@@ -82,23 +83,25 @@ func TestConfig_Parse(t *testing.T) {
 					NoHostUUID:            helper.BoolToPtr(false),
 				},
 				Server: &ServerConfig{
-					Enabled:               true,
-					BootstrapExpect:       5,
-					DataDir:               "/tmp/data",
-					ProtocolVersion:       3,
-					NumSchedulers:         2,
-					EnabledSchedulers:     []string{"test"},
-					NodeGCThreshold:       "12h",
-					EvalGCThreshold:       "12h",
-					JobGCThreshold:        "12h",
-					DeploymentGCThreshold: "12h",
-					HeartbeatGrace:        "30s",
-					RetryJoin:             []string{"1.1.1.1", "2.2.2.2"},
-					StartJoin:             []string{"1.1.1.1", "2.2.2.2"},
-					RetryInterval:         "15s",
-					RejoinAfterLeave:      true,
-					RetryMaxAttempts:      3,
-					EncryptKey:            "abc",
+					Enabled:                true,
+					BootstrapExpect:        5,
+					DataDir:                "/tmp/data",
+					ProtocolVersion:        3,
+					NumSchedulers:          2,
+					EnabledSchedulers:      []string{"test"},
+					NodeGCThreshold:        "12h",
+					EvalGCThreshold:        "12h",
+					JobGCThreshold:         "12h",
+					DeploymentGCThreshold:  "12h",
+					HeartbeatGrace:         30 * time.Second,
+					MinHeartbeatTTL:        33 * time.Second,
+					MaxHeartbeatsPerSecond: 11.0,
+					RetryJoin:              []string{"1.1.1.1", "2.2.2.2"},
+					StartJoin:              []string{"1.1.1.1", "2.2.2.2"},
+					RetryInterval:          "15s",
+					RejoinAfterLeave:       true,
+					RetryMaxAttempts:       3,
+					EncryptKey:             "abc",
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",

@@ -23,9 +23,9 @@ General Options:
 Resume Options:
 
   -detach
-	Return immediately instead of entering monitor mode. After deployment
-	resume, the evaluation ID will be printed to the screen, which can be used
-	to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -79,8 +79,8 @@ func (c *DeploymentResumeCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	u, _, err := client.Deployments().Pause(deploy.ID, false, nil)

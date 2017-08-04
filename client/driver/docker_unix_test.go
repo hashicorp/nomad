@@ -16,6 +16,9 @@ import (
 )
 
 func TestDockerDriver_Signal(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
 	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}

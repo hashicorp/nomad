@@ -30,17 +30,14 @@ General Options:
 
 Promote Options:
 
-  -all
-    All promotes all task groups in the deployment.
-
   -group
-	Group may be specified many times and is used to promote that particular
-	group.
+    Group may be specified many times and is used to promote that particular
+    group. If no specific groups are specified, all groups are promoted.
 
   -detach
-	Return immediately instead of entering monitor mode. After deployment
-	resume, the evaluation ID will be printed to the screen, which can be used
-	to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -49,16 +46,15 @@ Promote Options:
 }
 
 func (c *DeploymentPromoteCommand) Synopsis() string {
-	return "Manually fail a deployment"
+	return "Promote canaries in a deployment"
 }
 
 func (c *DeploymentPromoteCommand) Run(args []string) int {
-	var all, detach, verbose bool
+	var detach, verbose bool
 	var groups []string
 
-	flags := c.Meta.FlagSet("deployment resume", FlagSetClient)
+	flags := c.Meta.FlagSet("deployment promote", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&all, "all", false, "")
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.Var((*flaghelper.StringFlag)(&groups), "group", "")
@@ -71,10 +67,6 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error(c.Help())
-		return 1
-	}
-	if !all && len(groups) == 0 {
-		c.Ui.Error("Either -all or one or more -group flags must be specified.")
 		return 1
 	}
 	dID := args[0]
@@ -100,19 +92,19 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	var u *api.DeploymentUpdateResponse
-	if all {
+	if len(groups) == 0 {
 		u, _, err = client.Deployments().PromoteAll(deploy.ID, nil)
 	} else {
 		u, _, err = client.Deployments().PromoteGroups(deploy.ID, groups, nil)
 	}
 
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error failing deployment: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error promoting deployment: %s", err))
 		return 1
 	}
 

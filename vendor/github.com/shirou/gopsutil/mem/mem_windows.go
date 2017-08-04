@@ -3,10 +3,10 @@
 package mem
 
 import (
-	"syscall"
 	"unsafe"
 
 	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -30,7 +30,7 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 	memInfo.cbSize = uint32(unsafe.Sizeof(memInfo))
 	mem, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memInfo)))
 	if mem == 0 {
-		return nil, syscall.GetLastError()
+		return nil, windows.GetLastError()
 	}
 
 	ret := &VirtualMemoryStat{

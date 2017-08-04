@@ -181,6 +181,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_HOST_PORT_http=80",
 		"NOMAD_HOST_PORT_https=8080",
 		"NOMAD_TASK_NAME=web",
+		"NOMAD_GROUP_NAME=web",
 		"NOMAD_ADDR_ssh_other=192.168.0.100:1234",
 		"NOMAD_ADDR_ssh_ssh=192.168.0.100:22",
 		"NOMAD_IP_ssh_other=192.168.0.100",

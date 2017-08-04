@@ -8,10 +8,12 @@ import (
 )
 
 func TestDeploymentResumeCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &DeploymentResumeCommand{}
 }
 
 func TestDeploymentResumeCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &DeploymentResumeCommand{Meta: Meta{Ui: ui}}
 

@@ -13,7 +13,8 @@ import (
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
@@ -59,7 +60,8 @@ func TestHTTP_AllocsList(t *testing.T) {
 }
 
 func TestHTTP_AllocsPrefixList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 
@@ -118,7 +120,8 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
@@ -164,7 +167,8 @@ func TestHTTP_AllocQuery(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery_Payload(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
@@ -220,7 +224,8 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_AllocStats(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/foo", nil)
 		if err != nil {
@@ -237,7 +242,8 @@ func TestHTTP_AllocStats(t *testing.T) {
 }
 
 func TestHTTP_AllocSnapshot(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
 		if err != nil {
@@ -254,7 +260,8 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 }
 
 func TestHTTP_AllocGC(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
 		if err != nil {
@@ -271,7 +278,8 @@ func TestHTTP_AllocGC(t *testing.T) {
 }
 
 func TestHTTP_AllocAllGC(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
 		if err != nil {

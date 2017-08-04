@@ -8,12 +8,14 @@ import (
 )
 
 func TestLogsCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &LogsCommand{}
 }
 
 func TestLogsCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &LogsCommand{Meta: Meta{Ui: ui}}

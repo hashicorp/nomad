@@ -84,8 +84,8 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	if json || len(tmpl) > 0 {
@@ -177,9 +177,12 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	if autorevert {
 		rowString += "Auto Revert|"
 	}
+	if canaries {
+		rowString += "Promoted|"
+	}
 	rowString += "Desired|"
 	if canaries {
-		rowString += "Canaries|Promoted|"
+		rowString += "Canaries|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
 
@@ -191,10 +194,16 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)
 		}
+		if canaries {
+			if state.DesiredCanaries > 0 {
+				row += fmt.Sprintf("%v|", state.Promoted)
+			} else {
+				row += fmt.Sprintf("%v|", "N/A")
+			}
+		}
 		row += fmt.Sprintf("%d|", state.DesiredTotal)
 		if canaries {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
-			row += fmt.Sprintf("%v|", state.Promoted)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
 		rows[i] = row

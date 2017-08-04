@@ -13,6 +13,7 @@ import (
 )
 
 func TestSystemEndpoint_GarbageCollect(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -62,6 +63,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 }
 
 func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

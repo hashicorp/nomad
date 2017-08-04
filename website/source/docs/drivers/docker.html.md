@@ -46,7 +46,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
     ```
 
 * `args` - (Optional) A list of arguments to the optional `command`. If no
-  `command` is specified, the args are passed directly to the container.
+  `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
   variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task. For example:
@@ -435,7 +435,7 @@ through Nomad plugins or dynamic job configuration.
 Nomad requires Docker to be installed and running on the host alongside the
 Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
 
-By default Nomad communicates with the Docker daemon using the daemon's unix
+By default Nomad communicates with the Docker daemon using the daemon's Unix
 socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
@@ -550,9 +550,9 @@ job "docs" {
 Nomad limits containers' CPU based on CPU shares. CPU shares allow containers
 to burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
-throttled to stabilize QOS depending on how many shares it has. You can see how
+throttled to stabilize QoS depending on how many shares it has. You can see how
 many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`.
-1000 shares are approximately equal to 1Ghz.
+1000 shares are approximately equal to 1 GHz.
 
 Please keep the implications of CPU shares in mind when you load test workloads
 on Nomad.
@@ -568,11 +568,11 @@ Since memory is not an elastic resource, you will need to make sure your
 container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
 limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
-usage. Memory limit is expressed in megabytes so 1024 = 1Gb.
+usage. Memory limit is expressed in megabytes so 1024 = 1 GB.
 
 ### IO
 
-Nomad's Docker integration does not currently provide QOS around network or
+Nomad's Docker integration does not currently provide QoS around network or
 filesystem IO. These will be added in a later release.
 
 ### Security
@@ -588,9 +588,9 @@ reasons, it is recommended to use full virtualization like
 
 Docker For Mac runs docker inside a small VM and then allows access to parts of
 the host filesystem into that VM. At present, nomad uses a syslog server bound to
-a unix socket within a path that both the host and the VM can access to forward
+a Unix socket within a path that both the host and the VM can access to forward
 log messages back to nomad. But at present, Docker For Mac does not work for
-unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
+Unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
 these shared paths.
 
 As a result, using nomad with the docker driver on OS X/macOS will work, but no

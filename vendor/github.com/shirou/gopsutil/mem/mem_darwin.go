@@ -6,18 +6,18 @@ import (
 	"encoding/binary"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 func getHwMemsize() (uint64, error) {
-	totalString, err := syscall.Sysctl("hw.memsize")
+	totalString, err := unix.Sysctl("hw.memsize")
 	if err != nil {
 		return 0, err
 	}
 
-	// syscall.sysctl() helpfully assumes the result is a null-terminated string and
+	// unix.sysctl() helpfully assumes the result is a null-terminated string and
 	// removes the last byte of the result if it's 0 :/
 	totalString += "\x00"
 

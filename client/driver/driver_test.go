@@ -209,6 +209,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 		"NOMAD_ALLOC_INDEX":             "0",
 		"NOMAD_ALLOC_NAME":              alloc.Name,
 		"NOMAD_TASK_NAME":               task.Name,
+		"NOMAD_GROUP_NAME":              alloc.TaskGroup,
 		"NOMAD_JOB_NAME":                alloc.Job.Name,
 		"NOMAD_DC":                      "dc1",
 		"NOMAD_REGION":                  "global",
@@ -219,6 +220,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 }
 
 func TestDriver_GetTaskEnv_None(t *testing.T) {
+	t.Parallel()
 	taskDir, exp, act := setupTaskEnv(t, "raw_exec")
 
 	// raw_exec should use host alloc dir path
@@ -247,6 +249,7 @@ func TestDriver_GetTaskEnv_None(t *testing.T) {
 }
 
 func TestDriver_GetTaskEnv_Chroot(t *testing.T) {
+	t.Parallel()
 	_, exp, act := setupTaskEnv(t, "exec")
 
 	exp[env.AllocDir] = allocdir.SharedAllocContainerPath
@@ -276,6 +279,7 @@ func TestDriver_GetTaskEnv_Chroot(t *testing.T) {
 // TestDriver_TaskEnv_Image ensures host environment variables are not set
 // for image based drivers. See #2211
 func TestDriver_TaskEnv_Image(t *testing.T) {
+	t.Parallel()
 	_, exp, act := setupTaskEnv(t, "docker")
 
 	exp[env.AllocDir] = allocdir.SharedAllocContainerPath
@@ -301,6 +305,7 @@ func TestDriver_TaskEnv_Image(t *testing.T) {
 }
 
 func TestMapMergeStrInt(t *testing.T) {
+	t.Parallel()
 	a := map[string]int{
 		"cakes":   5,
 		"cookies": 3,
@@ -325,6 +330,7 @@ func TestMapMergeStrInt(t *testing.T) {
 }
 
 func TestMapMergeStrStr(t *testing.T) {
+	t.Parallel()
 	a := map[string]string{
 		"cake":   "chocolate",
 		"cookie": "caramel",
@@ -349,6 +355,7 @@ func TestMapMergeStrStr(t *testing.T) {
 }
 
 func TestCreatedResources_AddMerge(t *testing.T) {
+	t.Parallel()
 	res1 := NewCreatedResources()
 	res1.Add("k1", "v1")
 	res1.Add("k1", "v2")
@@ -388,6 +395,7 @@ func TestCreatedResources_AddMerge(t *testing.T) {
 }
 
 func TestCreatedResources_CopyRemove(t *testing.T) {
+	t.Parallel()
 	res1 := NewCreatedResources()
 	res1.Add("k1", "v1")
 	res1.Add("k1", "v2")

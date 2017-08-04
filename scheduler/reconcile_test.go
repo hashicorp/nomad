@@ -68,6 +68,7 @@ Update stanza Tests:
 √  Failed deployment and updated job works
 √  Finished deployment gets marked as complete
 √  The stagger is correctly calculated when it is applied across multiple task groups.
+√  Change job change while scaling up
 */
 
 var (
@@ -235,6 +236,14 @@ func placeResultsToNames(place []allocPlaceResult) []string {
 	return names
 }
 
+func destructiveResultsToNames(destructive []allocDestructiveResult) []string {
+	names := make([]string, 0, len(destructive))
+	for _, d := range destructive {
+		names = append(names, d.placeName)
+	}
+	return names
+}
+
 func stopResultsToNames(stop []allocStopResult) []string {
 	names := make([]string, 0, len(stop))
 	for _, s := range stop {
@@ -255,6 +264,7 @@ type resultExpectation struct {
 	createDeployment  *structs.Deployment
 	deploymentUpdates []*structs.DeploymentStatusUpdate
 	place             int
+	destructive       int
 	inplace           int
 	stop              int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
@@ -281,6 +291,9 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	}
 	if l := len(r.place); l != exp.place {
 		t.Fatalf("Expected %d placements; got %d", exp.place, l)
+	}
+	if l := len(r.destructiveUpdate); l != exp.destructive {
+		t.Fatalf("Expected %d destructive; got %d", exp.destructive, l)
 	}
 	if l := len(r.inplaceUpdate); l != exp.inplace {
 		t.Fatalf("Expected %d inplaceUpdate; got %d", exp.inplace, l)
@@ -582,9 +595,7 @@ func TestReconciler_Destructive(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             10,
-		inplace:           0,
-		stop:              10,
+		destructive:       10,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				DestructiveUpdate: 10,
@@ -592,9 +603,7 @@ func TestReconciler_Destructive(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 9), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.stop))
-	assertPlaceResultsHavePreviousAllocs(t, 10, r.place)
+	assertNamesHaveIndexes(t, intRange(0, 9), destructiveResultsToNames(r.destructiveUpdate))
 }
 
 // Tests the reconciler properly handles destructive upgrading allocations while
@@ -622,9 +631,8 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             15,
-		inplace:           0,
-		stop:              10,
+		place:             5,
+		destructive:       10,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:             5,
@@ -633,9 +641,8 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.stop))
-	assertNamesHaveIndexes(t, intRange(0, 14), placeResultsToNames(r.place))
-	assertPlaceResultsHavePreviousAllocs(t, 10, r.place)
+	assertNamesHaveIndexes(t, intRange(0, 9), destructiveResultsToNames(r.destructiveUpdate))
+	assertNamesHaveIndexes(t, intRange(10, 14), placeResultsToNames(r.place))
 }
 
 // Tests the reconciler properly handles destructive upgrading allocations while
@@ -663,9 +670,8 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             5,
-		inplace:           0,
-		stop:              10,
+		destructive:       5,
+		stop:              5,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Stop:              5,
@@ -674,9 +680,8 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.stop))
-	assertNamesHaveIndexes(t, intRange(0, 4), placeResultsToNames(r.place))
-	assertPlaceResultsHavePreviousAllocs(t, 5, r.place)
+	assertNamesHaveIndexes(t, intRange(5, 9), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 4), destructiveResultsToNames(r.destructiveUpdate))
 }
 
 // Tests the reconciler properly handles lost nodes with allocations
@@ -1320,9 +1325,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  d,
 		deploymentUpdates: nil,
-		place:             4,
-		inplace:           0,
-		stop:              4,
+		destructive:       4,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				DestructiveUpdate: 4,
@@ -1331,8 +1334,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 3), destructiveResultsToNames(r.destructiveUpdate))
 }
 
 // Tests the reconciler creates a deployment for inplace updates
@@ -1988,6 +1990,62 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 }
 
+// Tests the reconciler creates new canaries when the job changes for multiple
+// task groups
+func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = canaryUpdate
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[0].Name = "tg2"
+
+	// Create 10 allocations from the old job for each tg
+	var allocs []*structs.Allocation
+	for j := 0; j < 2; j++ {
+		for i := 0; i < 10; i++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = structs.GenerateUUID()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
+			alloc.TaskGroup = job.TaskGroups[j].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	state := &structs.DeploymentState{
+		DesiredCanaries: 2,
+		DesiredTotal:    10,
+	}
+	newD.TaskGroups[job.TaskGroups[0].Name] = state
+	newD.TaskGroups[job.TaskGroups[1].Name] = state.Copy()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  newD,
+		deploymentUpdates: nil,
+		place:             4,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Canary: 2,
+				Ignore: 10,
+			},
+			job.TaskGroups[1].Name: {
+				Canary: 2,
+				Ignore: 10,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1, 0, 1), placeResultsToNames(r.place))
+}
+
 // Tests the reconciler creates new canaries when the job changes and scales up
 func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 	// Scale the job up to 15
@@ -2208,9 +2266,8 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             2,
-		inplace:           0,
-		stop:              4,
+		destructive:       2,
+		stop:              2,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Stop:              2,
@@ -2221,8 +2278,8 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 	})
 
 	assertNoCanariesStopped(t, d, r.stop)
-	assertNamesHaveIndexes(t, intRange(2, 3), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(2, 3), destructiveResultsToNames(r.destructiveUpdate))
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
 // Tests the reconciler handles canary promotion when the canary count equals
@@ -2381,9 +2438,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 			assertResults(t, r, &resultExpectation{
 				createDeployment:  nil,
 				deploymentUpdates: nil,
-				place:             c.healthy,
-				inplace:           0,
-				stop:              c.healthy,
+				destructive:       c.healthy,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					job.TaskGroups[0].Name: {
 						DestructiveUpdate: uint64(c.healthy),
@@ -2393,8 +2448,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 			})
 
 			if c.healthy != 0 {
-				assertNamesHaveIndexes(t, intRange(4, 3+c.healthy), placeResultsToNames(r.place))
-				assertNamesHaveIndexes(t, intRange(4, 3+c.healthy), stopResultsToNames(r.stop))
+				assertNamesHaveIndexes(t, intRange(4, 3+c.healthy), destructiveResultsToNames(r.destructiveUpdate))
 			}
 		})
 	}
@@ -2411,7 +2465,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     true,
 		DesiredTotal: 10,
-		PlacedAllocs: 4,
+		PlacedAllocs: 7,
 	}
 
 	// Create 3 allocations from the old job
@@ -2464,9 +2518,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             5,
-		inplace:           0,
-		stop:              5,
+		place:             2,
+		destructive:       3,
+		stop:              2,
 		followupEvalWait:  31 * time.Second,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
@@ -2479,8 +2533,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 1, 7, 9), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 1, 7, 9), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(7, 9), destructiveResultsToNames(r.destructiveUpdate))
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
 // Tests the reconciler handles a failed deployment and does no placements
@@ -2762,9 +2817,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  dnew,
 		deploymentUpdates: nil,
-		place:             4,
-		inplace:           0,
-		stop:              4,
+		destructive:       4,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				DestructiveUpdate: 4,
@@ -2773,8 +2826,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 3), stopResultsToNames(r.stop))
-	assertNamesHaveIndexes(t, intRange(0, 3), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 3), destructiveResultsToNames(r.destructiveUpdate))
 }
 
 // Tests the reconciler marks a deployment as complete
@@ -2896,4 +2948,64 @@ func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), stopResultsToNames(r.stop))
+}
+
+// Tests the reconciler handles changing a job such that a deployment is created
+// while doing a scale up but as the second eval.
+func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
+	// Scale the job up to 15
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	job.TaskGroups[0].Count = 30
+
+	// Create a deployment that is paused and has placed some canaries
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 30,
+		PlacedAllocs: 20,
+	}
+
+	// Create 10 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	// Create 20 from new job
+	handled := make(map[string]allocUpdateType)
+	for i := 10; i < 30; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.DeploymentID = d.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+		handled[alloc.ID] = allocUpdateFnIgnore
+	}
+
+	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
+	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				// All should be ignored becasue nothing has been marked as
+				// healthy.
+				Ignore: 30,
+			},
+		},
+	})
 }

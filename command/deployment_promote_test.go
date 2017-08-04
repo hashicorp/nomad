@@ -8,10 +8,12 @@ import (
 )
 
 func TestDeploymentPromoteCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &DeploymentPromoteCommand{}
 }
 
 func TestDeploymentPromoteCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &DeploymentPromoteCommand{Meta: Meta{Ui: ui}}
 
@@ -25,14 +27,6 @@ func TestDeploymentPromoteCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	if code := cmd.Run([]string{"-address=nope", "12"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "flags must be specified") {
-		t.Fatalf("expected missing flags error, got: %s", out)
-	}
-	ui.ErrorWriter.Reset()
-
-	if code := cmd.Run([]string{"-address=nope", "-all", "12"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error retrieving deployment") {

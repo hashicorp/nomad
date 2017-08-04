@@ -12,6 +12,7 @@ import (
 )
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -93,6 +94,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -193,6 +195,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 // An EvalGC should  reap a batch job that has been stopped
 func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -280,6 +283,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 }
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -379,6 +383,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 }
 
 func TestCoreScheduler_EvalGC_Force(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -440,6 +445,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -486,6 +492,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -540,6 +547,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -596,6 +604,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -638,6 +647,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -760,6 +770,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -898,6 +909,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 // This test ensures that batch jobs are GC'd in one shot, meaning it all
 // allocs/evals and job or nothing
 func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1009,6 +1021,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 
 // This test ensures that stopped jobs are GCd
 func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1105,6 +1118,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_Force(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1166,6 +1180,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 
 // This test ensures parameterized jobs only get gc'd when stopped
 func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1244,6 +1259,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 
 // This test ensures periodic jobs don't get GCd til they are stopped
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
+	t.Parallel()
 
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -1317,6 +1333,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 }
 
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1325,12 +1342,19 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
-	// Insert terminal and active deployment
+	// Insert an active, terminal, and terminal with allocations edeployment
 	state := s1.fsm.State()
-	d1, d2 := mock.Deployment(), mock.Deployment()
+	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
+	d3.Status = structs.DeploymentStatusSuccessful
 	assert.Nil(state.UpsertDeployment(1000, d1), "UpsertDeployment")
 	assert.Nil(state.UpsertDeployment(1001, d2), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d3), "UpsertDeployment")
+
+	a := mock.Alloc()
+	a.JobID = d3.JobID
+	a.DeploymentID = d3.ID
+	assert.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -1353,9 +1377,13 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	out2, err := state.DeploymentByID(ws, d2.ID)
 	assert.Nil(err, "DeploymentByID")
 	assert.NotNil(out2, "Active Deployment")
+	out3, err := state.DeploymentByID(ws, d3.ID)
+	assert.Nil(err, "DeploymentByID")
+	assert.NotNil(out3, "Terminal Deployment With Allocs")
 }
 
 func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1391,6 +1419,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1432,6 +1461,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)

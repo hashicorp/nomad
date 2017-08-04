@@ -8,6 +8,7 @@ import (
 )
 
 func TestEvaluatePool(t *testing.T) {
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(1000, node)
@@ -40,6 +41,7 @@ func TestEvaluatePool(t *testing.T) {
 }
 
 func TestEvaluatePool_Resize(t *testing.T) {
+	t.Parallel()
 	pool := NewEvaluatePool(1, 4)
 	defer pool.Shutdown()
 	if n := pool.Size(); n != 1 {

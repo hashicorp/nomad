@@ -8,10 +8,12 @@ import (
 )
 
 func TestJobHistoryCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &JobDispatchCommand{}
 }
 
 func TestJobHistoryCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
 

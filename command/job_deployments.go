@@ -82,8 +82,8 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
 	}
 	jobID = jobs[0].ID
 
@@ -100,6 +100,17 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 			return 1
 		}
 
+		if json || len(tmpl) > 0 {
+			out, err := Format(json, tmpl, deploy)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			c.Ui.Output(out)
+			return 0
+		}
+
 		c.Ui.Output(c.Colorize().Color(formatDeployment(deploy, length)))
 		return 0
 	}
@@ -108,6 +119,17 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 		return 1
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, deploys)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	c.Ui.Output(formatDeployments(deploys, length))

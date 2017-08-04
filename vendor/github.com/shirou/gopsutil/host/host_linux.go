@@ -9,10 +9,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/shirou/gopsutil/internal/common"
@@ -84,10 +86,14 @@ func Info() (*InfoStat, error) {
 	return ret, nil
 }
 
+// cachedBootTime must be accessed via atomic.Load/StoreUint64
+var cachedBootTime uint64
+
 // BootTime returns the system boot time expressed in seconds since the epoch.
 func BootTime() (uint64, error) {
-	if cachedBootTime != 0 {
-		return cachedBootTime, nil
+	t := atomic.LoadUint64(&cachedBootTime)
+	if t != 0 {
+		return t, nil
 	}
 	filename := common.HostProc("stat")
 	lines, err := common.ReadLines(filename)
@@ -104,8 +110,9 @@ func BootTime() (uint64, error) {
 			if err != nil {
 				return 0, err
 			}
-			cachedBootTime = uint64(b)
-			return cachedBootTime, nil
+			t = uint64(b)
+			atomic.StoreUint64(&cachedBootTime, t)
+			return t, nil
 		}
 	}
 
@@ -431,8 +438,8 @@ func Virtualization() (string, string, error) {
 		system = "xen"
 		role = "guest" // assume guest
 
-		if common.PathExists(filename + "/capabilities") {
-			contents, err := common.ReadLines(filename + "/capabilities")
+		if common.PathExists(filepath.Join(filename, "capabilities")) {
+			contents, err := common.ReadLines(filepath.Join(filename, "capabilities"))
 			if err == nil {
 				if common.StringsContains(contents, "control_d") {
 					role = "host"
@@ -454,6 +461,9 @@ func Virtualization() (string, string, error) {
 			} else if common.StringsContains(contents, "vboxguest") {
 				system = "vbox"
 				role = "guest"
+			} else if common.StringsContains(contents, "vmware") {
+				system = "vmware"
+				role = "guest"
 			}
 		}
 	}
@@ -472,17 +482,17 @@ func Virtualization() (string, string, error) {
 	}
 
 	filename = common.HostProc()
-	if common.PathExists(filename + "/bc/0") {
+	if common.PathExists(filepath.Join(filename, "bc", "0")) {
 		system = "openvz"
 		role = "host"
-	} else if common.PathExists(filename + "/vz") {
+	} else if common.PathExists(filepath.Join(filename, "vz")) {
 		system = "openvz"
 		role = "guest"
 	}
 
 	// not use dmidecode because it requires root
-	if common.PathExists(filename + "/self/status") {
-		contents, err := common.ReadLines(filename + "/self/status")
+	if common.PathExists(filepath.Join(filename, "self", "status")) {
+		contents, err := common.ReadLines(filepath.Join(filename, "self", "status"))
 		if err == nil {
 
 			if common.StringsContains(contents, "s_context:") ||
@@ -493,8 +503,8 @@ func Virtualization() (string, string, error) {
 		}
 	}
 
-	if common.PathExists(filename + "/self/cgroup") {
-		contents, err := common.ReadLines(filename + "/self/cgroup")
+	if common.PathExists(filepath.Join(filename, "self", "cgroup")) {
+		contents, err := common.ReadLines(filepath.Join(filename, "self", "cgroup"))
 		if err == nil {
 			if common.StringsContains(contents, "lxc") {
 				system = "lxc"
@@ -520,4 +530,41 @@ func Virtualization() (string, string, error) {
 		}
 	}
 	return system, role, nil
+}
+
+func SensorsTemperatures() ([]TemperatureStat, error) {
+	var temperatures []TemperatureStat
+	files, err := filepath.Glob(common.HostSys("/class/hwmon/hwmon*/temp*_*"))
+	if err != nil {
+		return temperatures, err
+	}
+	if len(files) == 0 {
+		// CentOS has an intermediate /device directory:
+		// https://github.com/giampaolo/psutil/issues/971
+		files, err = filepath.Glob(common.HostSys("/class/hwmon/hwmon*/temp*_*"))
+		if err != nil {
+			return temperatures, err
+		}
+	}
+
+	for _, match := range files {
+		match = strings.Split(match, "_")[0]
+		name, err := ioutil.ReadFile(filepath.Join(filepath.Dir(match), "name"))
+		if err != nil {
+			return temperatures, err
+		}
+		current, err := ioutil.ReadFile(match + "_input")
+		if err != nil {
+			return temperatures, err
+		}
+		temperature, err := strconv.ParseFloat(string(current), 64)
+		if err != nil {
+			continue
+		}
+		temperatures = append(temperatures, TemperatureStat{
+			SensorKey:   string(name),
+			Temperature: temperature / 1000.0,
+		})
+	}
+	return temperatures, nil
 }

@@ -18,6 +18,7 @@ import (
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -93,6 +94,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -122,6 +124,7 @@ func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Payload(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -151,6 +154,7 @@ func TestJobEndpoint_Register_Payload(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Existing(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -263,6 +267,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Periodic(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -311,6 +316,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -355,6 +361,7 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -468,6 +475,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 		f := false
@@ -497,6 +505,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -546,6 +555,7 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -582,6 +592,7 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -716,6 +727,7 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 }
 
 func TestJobEndpoint_Revert(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -866,6 +878,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 }
 
 func TestJobEndpoint_Stable(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -922,6 +935,7 @@ func TestJobEndpoint_Stable(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluate(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -994,6 +1008,7 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1030,6 +1045,7 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1068,6 +1084,7 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1203,6 +1220,7 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1259,6 +1277,7 @@ func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1310,6 +1329,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1363,6 +1383,7 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJob(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -1433,6 +1454,7 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -1507,6 +1529,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobVersions(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -1572,6 +1595,7 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -1661,6 +1685,7 @@ func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -1743,6 +1768,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobSummary(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1796,6 +1822,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 }
 
 func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -1887,6 +1914,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_ListJobs(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -1940,6 +1968,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 }
 
 func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -2004,6 +2033,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Allocations(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2041,6 +2071,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 }
 
 func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2096,6 +2127,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluations(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2131,6 +2163,7 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2184,6 +2217,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Deployments(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2213,6 +2247,7 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 }
 
 func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2257,6 +2292,7 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_LatestDeployment(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2289,6 +2325,7 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 }
 
 func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -2333,6 +2370,7 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -2385,6 +2423,7 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 }
 
 func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -2437,6 +2476,7 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 }
 
 func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -2502,6 +2542,7 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 }
 
 func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -2560,6 +2601,7 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
+	t.Parallel()
 	// Create a mock job with an invalid config
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
@@ -2577,6 +2619,7 @@ func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
+	t.Parallel()
 	// Create a mock job that wants to send a signal to a driver that can't
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Driver = "qemu"
@@ -2597,6 +2640,7 @@ func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
+	t.Parallel()
 	old := mock.Job()
 	new := mock.Job()
 
@@ -2629,6 +2673,7 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 }
 
 func TestJobEndpoint_Dispatch(t *testing.T) {
+	t.Parallel()
 
 	// No requirements
 	d1 := mock.Job()

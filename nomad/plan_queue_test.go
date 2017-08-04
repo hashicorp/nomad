@@ -17,6 +17,7 @@ func testPlanQueue(t *testing.T) *PlanQueue {
 }
 
 func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	if pq.Enabled() {
 		t.Fatalf("should not be enabled")
@@ -74,6 +75,7 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 }
 
 func TestPlanQueue_Enqueue_Disable(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 
 	// Enqueue
@@ -104,6 +106,7 @@ func TestPlanQueue_Enqueue_Disable(t *testing.T) {
 }
 
 func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -125,6 +128,7 @@ func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
 
 // Ensure higher priority dequeued first
 func TestPlanQueue_Dequeue_Priority(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -158,6 +162,7 @@ func TestPlanQueue_Dequeue_Priority(t *testing.T) {
 
 // Ensure FIFO at fixed priority
 func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 

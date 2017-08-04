@@ -9,12 +9,16 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
@@ -44,6 +48,9 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:   "linux",
@@ -110,6 +117,9 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestQemuDriverUser(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:   "linux",

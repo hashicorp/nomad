@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -16,20 +17,33 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 
 	"github.com/hashicorp/nomad/client/config"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 )
 
 type MockAllocStateUpdater struct {
-	Count  int
 	Allocs []*structs.Allocation
+	mu     sync.Mutex
 }
 
+// Update fulfills the TaskStateUpdater interface
 func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
-	m.Count += 1
+	m.mu.Lock()
 	m.Allocs = append(m.Allocs, alloc)
+	m.mu.Unlock()
+}
+
+// Last returns the total number of updates and the last alloc (or nil)
+func (m *MockAllocStateUpdater) Last() (int, *structs.Allocation) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := len(m.Allocs)
+	if n == 0 {
+		return 0, nil
+	}
+	return n, m.Allocs[n-1].Copy()
 }
 
 func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
@@ -51,20 +65,25 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 }
 
 func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	return testAllocRunnerFromAlloc(mock.Alloc(), restarts)
+	// Use mock driver
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
+	return testAllocRunnerFromAlloc(alloc, restarts)
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 	go ar.Run()
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -76,7 +95,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 
 // Test that the watcher will mark the allocation as unhealthy.
 func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -96,10 +115,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
@@ -114,7 +133,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 // Test that the watcher will mark the allocation as unhealthy if it hits its
 // deadline.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -136,10 +155,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
@@ -153,7 +172,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy.
 func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -181,10 +200,10 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
@@ -201,7 +220,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy with checks
 func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -249,10 +268,10 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
@@ -270,7 +289,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 
 // Test that the watcher will mark the allocation as healthy.
 func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -291,10 +310,10 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
@@ -306,17 +325,16 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	})
 
 	// Mimick an update to a new deployment id
-	oldCount := upd.Count
-	last := upd.Allocs[oldCount-1].Copy()
+	oldCount, last := upd.Last()
 	last.DeploymentStatus = nil
 	last.DeploymentID = structs.GenerateUUID()
 	ar.Update(last)
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count <= oldCount {
+		newCount, last := upd.Last()
+		if newCount <= oldCount {
 			return false, fmt.Errorf("No new updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
@@ -332,7 +350,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 // retrying fetching an artifact, other tasks in the group should be able
 // to proceed.
 func TestAllocRunner_RetryArtifact(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
@@ -351,7 +369,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	badtask.Name = "bad"
 	badtask.Artifacts = []*structs.TaskArtifact{
-		{GetterSource: "http://127.1.1.111:12315/foo/bar/baz"},
+		{GetterSource: "http://127.0.0.1:0/foo/bar/baz"},
 	}
 
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
@@ -360,10 +378,10 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count < 6 {
-			return false, fmt.Errorf("Not enough updates")
+		count, last := upd.Last()
+		if min := 6; count < min {
+			return false, fmt.Errorf("Not enough updates (%d < %d)", count, min)
 		}
-		last := upd.Allocs[upd.Count-1]
 
 		// web task should have completed successfully while bad task
 		// retries artififact fetching
@@ -390,6 +408,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 }
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
@@ -399,10 +418,10 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusRunning {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
 		}
@@ -418,12 +437,12 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ar.Update(update)
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 
 		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -453,12 +472,12 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 
 		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -488,6 +507,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Destroy(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Ensure task takes some time
@@ -504,12 +524,12 @@ func TestAllocRunner_Destroy(t *testing.T) {
 	}()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 
 		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -543,7 +563,11 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_Update(t *testing.T) {
+	t.Parallel()
 	_, ar := testAllocRunner(false)
+
+	// Deep copy the alloc to avoid races when updating
+	newAlloc := ar.Alloc().Copy()
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -553,8 +577,6 @@ func TestAllocRunner_Update(t *testing.T) {
 	defer ar.Destroy()
 
 	// Update the alloc definition
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *ar.alloc
 	newAlloc.Name = "FOO"
 	newAlloc.AllocModifyIndex++
 	ar.Update(newAlloc)
@@ -568,6 +590,7 @@ func TestAllocRunner_Update(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -582,6 +605,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
+		ar.taskLock.RLock()
+		defer ar.taskLock.RUnlock()
 		return len(ar.tasks) == 1, nil
 	}, func(err error) {
 		t.Fatalf("task never started: %v", err)
@@ -608,14 +633,15 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 			return false, fmt.Errorf("Incorrect number of tasks")
 		}
 
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, nil
 		}
 
-		last := upd.Allocs[upd.Count-1]
 		return last.ClientStatus == structs.AllocClientStatusRunning, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar2.alloc.TaskStates["web"])
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates["web"])
 	})
 
 	// Destroy and wait
@@ -629,7 +655,8 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
@@ -638,6 +665,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 }
 
 func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 	ar.logger = prefixedTestLogger("ar1: ")
 
@@ -649,10 +677,11 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
+
 		if last.ClientStatus != structs.AllocClientStatusRunning {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
 		}
@@ -668,7 +697,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar.Update(update)
 
 	testutil.WaitForResult(func() (bool, error) {
-		return ar.alloc.DesiredStatus == structs.AllocDesiredStatusStop, nil
+		return ar.Alloc().DesiredStatus == structs.AllocDesiredStatusStop, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
@@ -713,7 +742,8 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	// Send the destroy signal and ensure the AllocRunner cleans up.
@@ -721,12 +751,12 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar2.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
-			return false, nil
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 
 		// Check the status has changed.
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got client status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -758,6 +788,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 // TestAllocRunner_SaveRestoreState_Upgrade asserts that pre-0.6 exec tasks are
 // restarted on upgrade.
 func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -775,10 +806,11 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
+
 		if last.ClientStatus != structs.AllocClientStatusRunning {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
 		}
@@ -803,22 +835,19 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
-		if len(ar2.tasks) != 1 {
-			return false, fmt.Errorf("Incorrect number of tasks")
+		count, last := upd.Last()
+		if min := 3; count < min {
+			return false, fmt.Errorf("expected at least %d updates but found %d", min, count)
 		}
-
-		if upd.Count < 3 {
-			return false, nil
-		}
-
-		for _, ev := range ar2.taskStates["web"].Events {
+		for _, ev := range last.TaskStates["web"].Events {
 			if strings.HasSuffix(ev.RestartReason, pre06ScriptCheckReason) {
 				return true, nil
 			}
 		}
 		return false, fmt.Errorf("no restart with proper reason found")
 	}, func(err error) {
-		t.Fatalf("err: %v\nAllocs: %#v\nWeb State: %#v", err, upd.Allocs, ar2.taskStates["web"])
+		count, last := upd.Last()
+		t.Fatalf("err: %v\nAllocs: %d\nweb state: % #v", err, count, pretty.Formatter(last.TaskStates["web"]))
 	})
 
 	// Destroy and wait
@@ -832,7 +861,8 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v %#v %#v", err, upd.Allocs[0], ar.alloc.TaskStates)
+		_, last := upd.Last()
+		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
 	if time.Since(start) > time.Duration(testutil.TestMultiplier()*5)*time.Second {
@@ -856,6 +886,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 //    "AllocID": "2a54fcff-fc44-8d4f-e025-53c48e9cbbbb"
 //  }
 func TestAllocRunner_RestoreOldState(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -974,6 +1005,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 }
 
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
@@ -996,10 +1028,10 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusFailed {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusFailed)
 		}
@@ -1041,6 +1073,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 }
 
 func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create two tasks in the task group
@@ -1061,12 +1094,13 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
 	ar.alloc.TaskResources[task2.Name] = task2.Resources
 	go ar.Run()
+	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -1113,6 +1147,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping a task group
 // with a leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
+	t.Parallel()
 	upd, ar := testAllocRunner(false)
 
 	// Create 3 tasks in the task group
@@ -1142,33 +1177,62 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	}
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2, task3)
 	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	defer ar.Destroy()
 
-	// Destroy before running so it shuts down the alloc runner right after
-	// starting all tasks
-	ar.Destroy()
 	go ar.Run()
-	select {
-	case <-ar.WaitCh():
-	case <-time.After(8 * time.Second):
-		t.Fatalf("timed out waiting for alloc runner to exit")
-	}
 
-	if len(upd.Allocs) != 1 {
-		t.Fatalf("expected 1 alloc update but found %d", len(upd.Allocs))
-	}
+	// Wait for tasks to start
+	oldCount, last := upd.Last()
+	testutil.WaitForResult(func() (bool, error) {
+		oldCount, last = upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if n := len(last.TaskStates); n != 3 {
+			return false, fmt.Errorf("Not enough task states (want: 3; found %d)", n)
+		}
+		for name, state := range last.TaskStates {
+			if state.State != structs.TaskStateRunning {
+				return false, fmt.Errorf("Task %q is not running yet (it's %q)", name, state.State)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
-	a := upd.Allocs[0]
-	if a.TaskStates["leader"].FinishedAt.UnixNano() >= a.TaskStates["follower1"].FinishedAt.UnixNano() {
-		t.Fatalf("expected leader to finish before follower1: %s >= %s",
-			a.TaskStates["leader"].FinishedAt, a.TaskStates["follower1"].FinishedAt)
-	}
-	if a.TaskStates["leader"].FinishedAt.UnixNano() >= a.TaskStates["follower2"].FinishedAt.UnixNano() {
-		t.Fatalf("expected leader to finish before follower2: %s >= %s",
-			a.TaskStates["leader"].FinishedAt, a.TaskStates["follower2"].FinishedAt)
-	}
+	// Stop alloc
+	update := ar.Alloc()
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(update)
+
+	// Wait for tasks to stop
+	testutil.WaitForResult(func() (bool, error) {
+		newCount, last := upd.Last()
+		if newCount == oldCount {
+			return false, fmt.Errorf("no new updates (count: %d)", newCount)
+		}
+		if last.TaskStates["leader"].FinishedAt.UnixNano() >= last.TaskStates["follower1"].FinishedAt.UnixNano() {
+			return false, fmt.Errorf("expected leader to finish before follower1: %s >= %s",
+				last.TaskStates["leader"].FinishedAt, last.TaskStates["follower1"].FinishedAt)
+		}
+		if last.TaskStates["leader"].FinishedAt.UnixNano() >= last.TaskStates["follower2"].FinishedAt.UnixNano() {
+			return false, fmt.Errorf("expected leader to finish before follower2: %s >= %s",
+				last.TaskStates["leader"].FinishedAt, last.TaskStates["follower2"].FinishedAt)
+		}
+		return true, nil
+	}, func(err error) {
+		count, last := upd.Last()
+		t.Logf("Updates: %d", count)
+		for name, state := range last.TaskStates {
+			t.Logf("%s: %s", name, state.State)
+		}
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
+	t.Parallel()
 	// Create an alloc runner
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1181,10 +1245,10 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd.Count == 0 {
+		_, last := upd.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd.Allocs[upd.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}
@@ -1213,10 +1277,10 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	defer ar1.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if upd1.Count == 0 {
+		_, last := upd1.Last()
+		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		last := upd1.Allocs[upd1.Count-1]
 		if last.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
 		}

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -23,41 +22,17 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-type TestServer struct {
-	T      testing.TB
-	Dir    string
-	Agent  *Agent
-	Server *HTTPServer
-}
-
-func (s *TestServer) Cleanup() {
-	s.Server.Shutdown()
-	s.Agent.Shutdown()
-	os.RemoveAll(s.Dir)
-}
-
 // makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
-func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
-	dir, agent := makeAgent(t, cb)
-	srv, err := NewHTTPServer(agent, agent.config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	s := &TestServer{
-		T:      t,
-		Dir:    dir,
-		Agent:  agent,
-		Server: srv,
-	}
-	return s
+func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestAgent {
+	return NewTestAgent(t.Name(), cb)
 }
 
 func BenchmarkHTTPRequests(b *testing.B) {
 	s := makeHTTPServer(b, func(c *Config) {
 		c.Client.Enabled = false
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	job := mock.Job()
 	var allocs []*structs.Allocation
@@ -85,6 +60,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 }
 
 func TestSetIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setIndex(resp, 1000)
 	header := resp.Header().Get("X-Nomad-Index")
@@ -98,6 +74,7 @@ func TestSetIndex(t *testing.T) {
 }
 
 func TestSetKnownLeader(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setKnownLeader(resp, true)
 	header := resp.Header().Get("X-Nomad-KnownLeader")
@@ -113,6 +90,7 @@ func TestSetKnownLeader(t *testing.T) {
 }
 
 func TestSetLastContact(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setLastContact(resp, 123456*time.Microsecond)
 	header := resp.Header().Get("X-Nomad-LastContact")
@@ -122,6 +100,7 @@ func TestSetLastContact(t *testing.T) {
 }
 
 func TestSetMeta(t *testing.T) {
+	t.Parallel()
 	meta := structs.QueryMeta{
 		Index:       1000,
 		KnownLeader: true,
@@ -144,9 +123,10 @@ func TestSetMeta(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -164,8 +144,9 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestContentTypeIsJSON(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 
@@ -184,20 +165,23 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=1", true, t)
 }
 
 func TestPrettyPrintOff(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty", true, t)
 }
 
 func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	r := &structs.Job{Name: "foo"}
 
@@ -228,6 +212,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 }
 
 func TestParseWait(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -250,6 +235,7 @@ func TestParseWait(t *testing.T) {
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -269,6 +255,7 @@ func TestParseWait_InvalidTime(t *testing.T) {
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -288,6 +275,7 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 }
 
 func TestParseConsistency(t *testing.T) {
+	t.Parallel()
 	var b structs.QueryOptions
 
 	req, err := http.NewRequest("GET",
@@ -315,8 +303,9 @@ func TestParseConsistency(t *testing.T) {
 }
 
 func TestParseRegion(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	req, err := http.NewRequest("GET",
 		"/v1/jobs?region=foo", nil)
@@ -345,6 +334,7 @@ func TestParseRegion(t *testing.T) {
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
+	t.Parallel()
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -360,7 +350,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 			KeyFile:           fookey,
 		}
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
@@ -492,9 +482,9 @@ func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
 	return uint64(val)
 }
 
-func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestServer)) {
+func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
-	defer s.Cleanup()
+	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
 }

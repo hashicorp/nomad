@@ -2,8 +2,10 @@ package scheduler
 
 import (
 	"fmt"
+	"strconv"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -21,21 +23,25 @@ type propertySet struct {
 	// constraint is the constraint this property set is checking
 	constraint *structs.Constraint
 
+	// allowedCount is the allowed number of allocations that can have the
+	// distinct property
+	allowedCount uint64
+
 	// errorBuilding marks whether there was an error when building the property
 	// set
 	errorBuilding error
 
-	// existingValues is the set of values for the given property that have been
-	// used by pre-existing allocations.
-	existingValues map[string]struct{}
+	// existingValues is a mapping of the values of a property to the number of
+	// times the value has been used by pre-existing allocations.
+	existingValues map[string]uint64
 
-	// proposedValues is the set of values for the given property that are used
-	// from proposed allocations.
-	proposedValues map[string]struct{}
+	// proposedValues is a mapping of the values of a property to the number of
+	// times the value has been used by proposed allocations.
+	proposedValues map[string]uint64
 
-	// clearedValues is the set of values that are no longer being used by
-	// existingValues because of proposed stops.
-	clearedValues map[string]struct{}
+	// clearedValues is a mapping of the values of a property to the number of
+	// times the value has been used by proposed stopped allocations.
+	clearedValues map[string]uint64
 }
 
 // NewPropertySet returns a new property set used to guarantee unique property
@@ -44,7 +50,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 	p := &propertySet{
 		ctx:            ctx,
 		jobID:          job.ID,
-		existingValues: make(map[string]struct{}),
+		existingValues: make(map[string]uint64),
 	}
 
 	return p
@@ -53,22 +59,49 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 // SetJobConstraint is used to parameterize the property set for a
 // distinct_property constraint set at the job level.
 func (p *propertySet) SetJobConstraint(constraint *structs.Constraint) {
-	// Store the constraint
-	p.constraint = constraint
-	p.populateExisting(constraint)
+	p.setConstraint(constraint, "")
 }
 
 // SetTGConstraint is used to parameterize the property set for a
 // distinct_property constraint set at the task group level. The inputs are the
 // constraint and the task group name.
 func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup string) {
+	p.setConstraint(constraint, taskGroup)
+}
+
+// setConstraint is a shared helper for setting a job or task group constraint.
+func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup string) {
 	// Store that this is for a task group
-	p.taskGroup = taskGroup
+	if taskGroup != "" {
+		p.taskGroup = taskGroup
+	}
 
 	// Store the constraint
 	p.constraint = constraint
 
+	// Determine the number of allowed allocations with the property.
+	if v := constraint.RTarget; v != "" {
+		c, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			p.errorBuilding = fmt.Errorf("failed to convert RTarget %q to uint64: %v", v, err)
+			p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", p.errorBuilding)
+			return
+		}
+
+		p.allowedCount = c
+	} else {
+		p.allowedCount = 1
+	}
+
+	// Determine the number of existing allocations that are using a property
+	// value
 	p.populateExisting(constraint)
+
+	// Populate the proposed when setting the constraint. We do this because
+	// when detecting if we can inplace update an allocation we stage an
+	// eviction and then select. This means the plan has an eviction before a
+	// single select has finished.
+	p.PopulateProposed()
 }
 
 // populateExisting is a helper shared when setting the constraint to populate
@@ -104,8 +137,8 @@ func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 func (p *propertySet) PopulateProposed() {
 
 	// Reset the proposed properties
-	p.proposedValues = make(map[string]struct{})
-	p.clearedValues = make(map[string]struct{})
+	p.proposedValues = make(map[string]uint64)
+	p.clearedValues = make(map[string]uint64)
 
 	// Gather the set of proposed stops.
 	var stopping []*structs.Allocation
@@ -140,7 +173,14 @@ func (p *propertySet) PopulateProposed() {
 
 	// Remove any cleared value that is now being used by the proposed allocs
 	for value := range p.proposedValues {
-		delete(p.clearedValues, value)
+		current, ok := p.clearedValues[value]
+		if !ok {
+			continue
+		} else if current == 0 {
+			delete(p.clearedValues, value)
+		} else if current > 1 {
+			p.clearedValues[value]--
+		}
 	}
 }
 
@@ -160,27 +200,44 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 		return false, fmt.Sprintf("missing property %q", p.constraint.LTarget)
 	}
 
-	// both is used to iterate over both the proposed and existing used
-	// properties
-	bothAll := []map[string]struct{}{p.existingValues, p.proposedValues}
-
-	// Check if the nodes value has already been used.
-	for _, usedProperties := range bothAll {
-		// Check if the nodes value has been used
-		_, used := usedProperties[nValue]
-		if !used {
-			continue
+	// combine the counts of how many times the property has been used by
+	// existing and proposed allocations
+	combinedUse := make(map[string]uint64, helper.IntMax(len(p.existingValues), len(p.proposedValues)))
+	for _, usedValues := range []map[string]uint64{p.existingValues, p.proposedValues} {
+		for propertyValue, usedCount := range usedValues {
+			combinedUse[propertyValue] += usedCount
 		}
-
-		// Check if the value has been cleared from a proposed stop
-		if _, cleared := p.clearedValues[nValue]; cleared {
-			continue
-		}
-
-		return false, fmt.Sprintf("distinct_property: %s=%s already used", p.constraint.LTarget, nValue)
 	}
 
-	return true, ""
+	// Go through and discount the combined count when the value has been
+	// cleared by a proposed stop.
+	for propertyValue, clearedCount := range p.clearedValues {
+		combined, ok := combinedUse[propertyValue]
+		if !ok {
+			continue
+		}
+
+		// Don't clear below 0.
+		if combined >= clearedCount {
+			combinedUse[propertyValue] = combined - clearedCount
+		} else {
+			combinedUse[propertyValue] = 0
+		}
+	}
+
+	usedCount, used := combinedUse[nValue]
+	if !used {
+		// The property value has never been used so we can use it.
+		return true, ""
+	}
+
+	// The property value has been used but within the number of allowed
+	// allocations.
+	if usedCount < p.allowedCount {
+		return true, ""
+	}
+
+	return false, fmt.Sprintf("distinct_property: %s=%s used by %d allocs", p.constraint.LTarget, nValue, usedCount)
 }
 
 // filterAllocs filters a set of allocations to just be those that are running
@@ -234,7 +291,7 @@ func (p *propertySet) buildNodeMap(allocs []*structs.Allocation) (map[string]*st
 // populateProperties goes through all allocations and builds up the used
 // properties from the nodes storing the results in the passed properties map.
 func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map[string]*structs.Node,
-	properties map[string]struct{}) {
+	properties map[string]uint64) {
 
 	for _, alloc := range allocs {
 		nProperty, ok := getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
@@ -242,7 +299,7 @@ func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map
 			continue
 		}
 
-		properties[nProperty] = struct{}{}
+		properties[nProperty]++
 	}
 }
 

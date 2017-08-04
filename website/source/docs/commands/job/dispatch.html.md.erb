@@ -1,0 +1,110 @@
+---
+layout: "docs"
+page_title: "Commands: job dispatch"
+sidebar_current: "docs-commands-job-dispatch"
+description: >
+  The dispatch command is used to create an instance of a parameterized job.
+---
+
+# Command: job dispatch
+
+The `job dispatch` command is used to create new instances of a [parameterized
+job]. The parameterized job captures a job's configuration and runtime
+requirements in a generic way and `dispatch` is used to provide the input for
+the job to run against. A parameterized job is similar to a function definition,
+and dispatch is used to invoke the function.
+
+Each time a job is dispatched, a unique job ID is generated. This allows a
+caller to track the status of the job, much like a future or promise in some
+programming languages.
+
+## Usage
+
+```
+nomad job dispatch [options] <parameterized job> [input source]
+```
+
+Dispatch creates an instance of a parameterized job. A data payload to the
+dispatched instance can be provided via stdin by using "-" for the input source
+or by specifiying a path to a file. Metadata can be supplied by using the meta
+flag one or more times.
+
+The payload has a **size limit of 16KiB**.
+
+Upon successful creation, the dispatched job ID will be printed and the
+triggered evaluation will be monitored. This can be disabled by supplying the
+detach flag.
+
+On successful job submission and scheduling, exit code 0 will be returned. If
+there are job placement issues encountered (unsatisfiable constraints, resource
+exhaustion, etc), then the exit code will be 2. Any other errors, including
+client connection issues or internal errors, are indicated by exit code 1.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Dispatch Options
+
+* `-meta`: Meta takes a key/value pair seperated by "=". The metadata key will
+  be merged into the job's metadata. The job may define a default value for the
+  key which is overriden when dispatching. The flag can be provided more than
+  once to inject multiple metadata key/value pairs. Arbitrary keys are not
+  allowed. The parameterized job must allow the key to be merged.
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Dispatch against a parameterized job with the ID "video-encode" and
+passing in a configuration payload via stdin:
+
+```
+$ cat << EOF | nomad job dispatch video-encode -
+{
+  "s3-input": "https://s3-us-west-1.amazonaws.com/video-bucket/cb31dabb1",
+  "s3-output": "https://s3-us-west-1.amazonaws.com/video-bucket/a149adbe3",
+  "input-codec": "mp4",
+  "output-codec": "webm",
+  "quality": "1080p"
+}
+EOF
+Dispatched Job ID = video-encode/dispatch-1485379325-cb38d00d
+Evaluation ID     = 31199841
+
+==> Monitoring evaluation "31199841"
+    Evaluation triggered by job "example/dispatch-1485379325-cb38d00d"
+    Allocation "8254b85f" created: node "82ff9c50", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "31199841" finished with status "complete"
+```
+
+Dispatch against a parameterized job with the ID "video-encode" and
+passing in a configuration payload via a file:
+
+```
+$ nomad job dispatch video-encode video-config.json
+Dispatched Job ID = video-encode/dispatch-1485379325-cb38d00d
+Evaluation ID     = 31199841
+
+==> Monitoring evaluation "31199841"
+    Evaluation triggered by job "example/dispatch-1485379325-cb38d00d"
+    Allocation "8254b85f" created: node "82ff9c50", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "31199841" finished with status "complete"
+```
+
+Dispatch against a parameterized job with the ID "video-encode" using the detach
+flag:
+
+```
+$ nomad job dispatch -detach video-encode video-config.json
+Dispatched Job ID = example/dispatch-1485380684-c37b3dba
+Evaluation ID     = d9034c4e
+```
+
+[parameterized job]: /docs/job-specification/parameterized.html "Nomad parameterized Job Specification"

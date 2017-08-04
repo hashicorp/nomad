@@ -20,6 +20,9 @@ import (
 )
 
 func TestExecDriver_Fingerprint(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
@@ -47,6 +50,9 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestExecDriver_StartOpen_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",
@@ -88,6 +94,9 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestExecDriver_Start_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",
@@ -133,6 +142,9 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 
 	exp := []byte{'w', 'i', 'n'}
@@ -189,6 +201,9 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestExecDriver_Start_Kill_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",
@@ -237,6 +252,9 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestExecDriverUser(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",
@@ -275,6 +293,9 @@ func TestExecDriverUser(t *testing.T) {
 // TestExecDriver_HandlerExec ensures the exec driver's handle properly
 // executes commands inside the container.
 func TestExecDriver_HandlerExec(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.ExecCompatible(t)
 	task := &structs.Task{
 		Name:   "sleep",

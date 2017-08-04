@@ -259,6 +259,14 @@ func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
 }
 
+// getHandle returns the task's handle or nil
+func (r *TaskRunner) getHandle() driver.DriverHandle {
+	r.handleLock.Lock()
+	h := r.handle
+	r.handleLock.Unlock()
+	return h
+}
+
 // pre060StateFilePath returns the path to our state file that would have been
 // written pre v0.6.0
 // COMPAT: Remove in 0.7.0
@@ -416,6 +424,13 @@ func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
 
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
+	r.destroyLock.Lock()
+	defer r.destroyLock.Unlock()
+	if r.destroy {
+		// Don't save state if already destroyed
+		return nil
+	}
+
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 	snap := taskRunnerState{
@@ -852,10 +867,12 @@ func (r *TaskRunner) updatedTokenHandler() {
 }
 
 // prestart handles life-cycle tasks that occur before the task has started.
-func (r *TaskRunner) prestart(resultCh chan bool) {
-	if r.task.Vault != nil {
+// Since it's run asynchronously with the main Run() loop the alloc & task are
+// passed in to avoid racing with updates.
+func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, resultCh chan bool) {
+	if task.Vault != nil {
 		// Wait for the token
-		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
+		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", task.Name, alloc.ID)
 		tokenCh := r.vaultFuture.Wait()
 		select {
 		case <-tokenCh:
@@ -863,16 +880,16 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			resultCh <- false
 			return
 		}
-		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
-		r.envBuilder.SetVaultToken(r.vaultFuture.Get(), r.task.Vault.Env)
+		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", task.Name, alloc.ID)
+		r.envBuilder.SetVaultToken(r.vaultFuture.Get(), task.Vault.Env)
 	}
 
 	// If the job is a dispatch job and there is a payload write it to disk
-	requirePayload := len(r.alloc.Job.Payload) != 0 &&
+	requirePayload := len(alloc.Job.Payload) != 0 &&
 		(r.task.DispatchPayload != nil && r.task.DispatchPayload.File != "")
 	if !r.payloadRendered && requirePayload {
-		renderTo := filepath.Join(r.taskDir.LocalDir, r.task.DispatchPayload.File)
-		decoded, err := snappy.Decode(nil, r.alloc.Job.Payload)
+		renderTo := filepath.Join(r.taskDir.LocalDir, task.DispatchPayload.File)
+		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
 		if err != nil {
 			r.setState(
 				structs.TaskStateDead,
@@ -906,10 +923,10 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		r.persistLock.Unlock()
 
 		// Download the task's artifacts
-		if !downloaded && len(r.task.Artifacts) > 0 {
+		if !downloaded && len(task.Artifacts) > 0 {
 			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 			taskEnv := r.envBuilder.Build()
-			for _, artifact := range r.task.Artifacts {
+			for _, artifact := range task.Artifacts {
 				if err := getter.GetArtifact(taskEnv, artifact, r.taskDir.Dir); err != nil {
 					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
@@ -926,7 +943,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		}
 
 		// We don't have to wait for any template
-		if len(r.task.Templates) == 0 {
+		if len(task.Templates) == 0 {
 			// Send the start signal
 			select {
 			case r.startCh <- struct{}{}:
@@ -940,12 +957,12 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// Build the template manager
 		if r.templateManager == nil {
 			var err error
-			r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
+			r.templateManager, err = NewTaskTemplateManager(r, task.Templates,
 				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
 			if err != nil {
 				err := fmt.Errorf("failed to build task's template manager: %v", err)
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
-				r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+				r.logger.Printf("[ERR] client: alloc %q, task %q %v", alloc.ID, task.Name, err)
 				resultCh <- false
 				return
 			}
@@ -996,9 +1013,7 @@ func (r *TaskRunner) run() {
 
 	// If we already have a handle, populate the stopCollection and handleWaitCh
 	// to fix the invariant that it exists.
-	r.handleLock.Lock()
-	handleEmpty := r.handle == nil
-	r.handleLock.Unlock()
+	handleEmpty := r.getHandle() == nil
 
 	if !handleEmpty {
 		stopCollection = make(chan struct{})
@@ -1009,7 +1024,7 @@ func (r *TaskRunner) run() {
 	for {
 		// Do the prestart activities
 		prestartResultCh := make(chan bool, 1)
-		go r.prestart(prestartResultCh)
+		go r.prestart(r.alloc, r.task, prestartResultCh)
 
 	WAIT:
 		for {
@@ -1024,9 +1039,7 @@ func (r *TaskRunner) run() {
 				// Start the task if not yet started or it is being forced. This logic
 				// is necessary because in the case of a restore the handle already
 				// exists.
-				r.handleLock.Lock()
-				handleEmpty := r.handle == nil
-				r.handleLock.Unlock()
+				handleEmpty := r.getHandle() == nil
 				if handleEmpty {
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
@@ -1131,7 +1144,8 @@ func (r *TaskRunner) run() {
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				r.consul.RemoveTask(r.alloc.ID, r.task)
+				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+				r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
@@ -1179,7 +1193,8 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1240,7 +1255,8 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	// Unregister from Consul while waiting to restart.
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1288,9 +1304,7 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	// Mark that we received the kill event
 	r.setState(structs.TaskStateRunning, event)
 
-	r.handleLock.Lock()
-	handle := r.handle
-	r.handleLock.Unlock()
+	handle := r.getHandle()
 
 	// Kill the task using an exponential backoff in-case of failures.
 	destroySuccess, err := r.handleDestroy(handle)
@@ -1385,14 +1399,15 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
+	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
 // task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
-	for _, service := range task.Services {
+func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task {
+	taskCopy := task.Copy()
+	for _, service := range taskCopy.Services {
 		for _, check := range service.Checks {
 			check.Name = taskEnv.ReplaceEnv(check.Name)
 			check.Type = taskEnv.ReplaceEnv(check.Type)
@@ -1407,6 +1422,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
 	}
+	return taskCopy
 }
 
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
@@ -1453,10 +1469,11 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 		select {
 		case <-next.C:
 			next.Reset(r.config.StatsCollectionInterval)
-			if r.handle == nil {
+			handle := r.getHandle()
+			if handle == nil {
 				continue
 			}
-			ru, err := r.handle.Stats()
+			ru, err := handle.Stats()
 
 			if err != nil {
 				// Check if the driver doesn't implement stats
@@ -1567,11 +1584,12 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), new)
+	newInterpolatedTask := interpolateServices(r.envBuilder.Build(), new)
+	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), old)
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, old, new, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,

@@ -111,9 +111,12 @@ job "example" {
   #   value     = "linux"
   # }
 
-  # The "update" stanza specifies the job update strategy. The update strategy
-  # is used to control things like rolling upgrades. If omitted, rolling
-  # updates are disabled.
+  # The "update" stanza specifies the update strategy of task groups. The update
+  # strategy is used to control things like rolling upgrades, canaries, and
+  # blue/green deployments. If omitted, no update strategy is enforced. The
+  # "update" stanza may be placed at the job or task group. When placed at the
+  # job, it applies to all groups within the job. When placed at both the job and
+  # group level, the stanzas are merged with the group's taking precedence.
   #
   # For more information and examples on the "update" stanza, please see
   # the online documentation at:
@@ -121,14 +124,38 @@ job "example" {
   #     https://www.nomadproject.io/docs/job-specification/update.html
   #
   update {
-    # The "stagger" parameter specifies to do rolling updates of this job every
-    # 10 seconds.
-    stagger = "10s"
-
     # The "max_parallel" parameter specifies the maximum number of updates to
     # perform in parallel. In this case, this specifies to update a single task
     # at a time.
     max_parallel = 1
+    
+    # The "min_healthy_time" parameter specifies the minimum time the allocation
+    # must be in the healthy state before it is marked as healthy and unblocks
+    # further allocations from being updated.
+    min_healthy_time = "10s"
+    
+    # The "healthy_deadline" parameter specifies the deadline in which the
+    # allocation must be marked as healthy after which the allocation is
+    # automatically transitioned to unhealthy. Transitioning to unhealthy will
+    # fail the deployment and potentially roll back the job if "auto_revert" is
+    # set to true.
+    healthy_deadline = "3m"
+    
+    # The "auto_revert" parameter specifies if the job should auto-revert to the
+    # last stable job on deployment failure. A job is marked as stable if all the
+    # allocations as part of its deployment were marked healthy.
+    auto_revert = false
+    
+    # The "canary" parameter specifies that changes to the job that would result
+    # in destructive updates should create the specified number of canaries
+    # without stopping any previous allocations. Once the operator determines the
+    # canaries are healthy, they can be promoted which unblocks a rolling update
+    # of the remaining allocations at a rate of "max_parallel".
+    #
+    # Further, setting "canary" equal to the count of the task group allows
+    # blue/green deployments. When the job is updated, a full set of the new
+    # version is deployed and upon promotion the old version is stopped.
+    canary = 0
   }
 
   # The "group" stanza defines a series of tasks that should be co-located on
@@ -308,6 +335,16 @@ job "example" {
       #   destination   = "local/file.yml"
       #   change_mode   = "signal"
       #   change_signal = "SIGHUP"
+      # }
+
+      # The "template" stanza can also be used to create environment variables
+      # for tasks that prefer those to config files. The task will be restarted
+      # when data pulled from Consul or Vault changes.
+      #
+      # template {
+      #   data        = "KEY={{ key \"service/my-key\" }}"
+      #   destination = "local/file.env"
+      #   env         = true
       # }
 
       # The "vault" stanza instructs the Nomad client to acquire a token from

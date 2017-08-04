@@ -26,7 +26,7 @@ stanza is added to a job, the job acts as a function to the cluster as a whole.
 
 The `parameterized` stanza allows job operators to configure a job that carries
 out a particular action, define its resource requirements and configure how
-inputs and configuration are retreived by the tasks within the job.
+inputs and configuration are retrieved by the tasks within the job.
 
 To invoke a parameterized job, [`nomad job
 dispatch`][dispatch command] or the equivalent HTTP APIs are

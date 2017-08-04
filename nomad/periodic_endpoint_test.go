@@ -11,6 +11,7 @@ import (
 )
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -57,6 +58,7 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 }
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

@@ -1,0 +1,33 @@
+{
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "us-east-1",
+    "source_ami": "ami-80861296",
+    "instance_type": "t2.medium",
+    "ssh_username": "ubuntu",
+    "ami_name": "nomad-packer {{timestamp}}",
+    "ami_groups": ["all"]
+  }],
+  "provisioners":  [
+  {
+    "type": "shell",
+    "inline": [
+      "sudo mkdir /ops",
+      "sudo chmod 777 /ops"
+    ]
+  },
+  {
+    "type": "file",
+    "source": "../../shared",
+    "destination": "/ops"
+  },
+  {
+    "type": "file",
+    "source": "../../examples",
+    "destination": "/ops"
+  },
+  {
+    "type": "shell",
+    "script": "../../shared/scripts/setup.sh"
+  }]
+}

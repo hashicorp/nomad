@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 )
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:      "foo",
 		Driver:    "raw_exec",
@@ -60,6 +62,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
@@ -106,6 +109,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
@@ -150,6 +154,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
+	t.Parallel()
 	exp := []byte("win")
 	file := "output.txt"
 	outPath := fmt.Sprintf(`${%s}/%s`, env.AllocDir, file)
@@ -206,6 +211,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
@@ -255,6 +261,10 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestRawExecDriverUser(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
@@ -290,6 +300,7 @@ func TestRawExecDriverUser(t *testing.T) {
 }
 
 func TestRawExecDriver_HandlerExec(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",

@@ -26,7 +26,7 @@ job "docs" {
   group "example" {
     task "server" {
       env {
-        my-key = "my-value"
+        my_key = "my-value"
       }
     }
   }
@@ -37,7 +37,8 @@ job "docs" {
 
 The "parameters" for the `env` stanza can be any key-value. The keys and values
 are both of type `string`, but they can be specified as other types. They will
-automatically be converted to strings.
+automatically be converted to strings. Invalid characters such as dashes (`-`)
+will be converted to underscores.
 
 ## `env` Examples
 

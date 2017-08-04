@@ -8,12 +8,14 @@ import (
 )
 
 func TestNodeDrainCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &NodeDrainCommand{}
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}

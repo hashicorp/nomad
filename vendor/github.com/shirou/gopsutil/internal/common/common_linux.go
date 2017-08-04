@@ -35,7 +35,7 @@ func NumProcs() (uint64, error) {
 	}
 	defer f.Close()
 
-	list, err := f.Readdir(-1)
+	list, err := f.Readdirnames(-1)
 	if err != nil {
 		return 0, err
 	}

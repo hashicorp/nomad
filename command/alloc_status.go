@@ -199,7 +199,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, uuidLength)),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
-		fmt.Sprintf("Job Version|%d", *alloc.Job.Version),
+		fmt.Sprintf("Job Version|%d", getVersion(alloc.Job)),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
 		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
 		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),

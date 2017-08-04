@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/posener/complete"
 )
 
 var (
@@ -94,6 +95,14 @@ Run Options:
 
 func (c *RunCommand) Synopsis() string {
 	return "Run a new job or update an existing job"
+}
+
+func (c *RunCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *RunCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
 func (c *RunCommand) Run(args []string) int {

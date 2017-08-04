@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -408,6 +409,20 @@ func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error
 	}
 }
 
+func (c *Command) AutocompleteFlags() complete.Flags {
+	configFilePredictor := complete.PredictOr(
+		complete.PredictFiles("*.json"),
+		complete.PredictFiles("*.hcl"))
+
+	return map[string]complete.Predictor{
+		"-config": configFilePredictor,
+	}
+}
+
+func (c *Command) AutocompleteArgs() complete.Predictor {
+	return nil
+}
+
 func (c *Command) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "==> ",
@@ -475,12 +490,6 @@ func (c *Command) Run(args []string) int {
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
-	if config.Atlas != nil && config.Atlas.Infrastructure != "" {
-		info["atlas"] = fmt.Sprintf("(Infrastructure: '%s' Join: %v)",
-			config.Atlas.Infrastructure, config.Atlas.Join)
-	} else {
-		info["atlas"] = "<disabled>"
-	}
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))

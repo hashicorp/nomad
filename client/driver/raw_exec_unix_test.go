@@ -15,6 +15,7 @@ import (
 )
 
 func TestRawExecDriver_Signal(t *testing.T) {
+	t.Parallel()
 	task := &structs.Task{
 		Name:   "signal",
 		Driver: "raw_exec",

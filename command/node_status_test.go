@@ -5,21 +5,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
 func TestNodeStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &NodeStatusCommand{}
 }
 
 func TestNodeStatusCommand_Self(t *testing.T) {
+	t.Parallel()
 	// Start in dev mode so we get a node registration
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
 	})
-	defer srv.Stop()
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
@@ -65,12 +67,12 @@ func TestNodeStatusCommand_Self(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Run(t *testing.T) {
+	t.Parallel()
 	// Start in dev mode so we get a node registration
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
 	})
-	defer srv.Stop()
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
@@ -160,8 +162,9 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}

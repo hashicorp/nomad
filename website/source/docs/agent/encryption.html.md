@@ -19,7 +19,7 @@ starting the Nomad server. The key can be set via the
 [`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter: the value
 of this setting is a server configuration file containing the encryption key.
 
-The key must be 16-bytes, base64 encoded. As a convenience, Nomad provides the
+The key must be 16 bytes, base64 encoded. As a convenience, Nomad provides the
 [`nomad keygen`](/docs/commands/keygen.html) command to generate a cryptographically suitable key:
 
 ```sh

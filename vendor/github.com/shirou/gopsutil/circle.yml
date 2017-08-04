@@ -1,6 +1,8 @@
 machine:
   timezone:
     Asia/Tokyo
+  pre:
+    - sudo chown -R ubuntu:ubuntu /usr/local/go/pkg/
 test:
   override:
     - GOOS=linux GOARCH=amd64 go test -v ./...

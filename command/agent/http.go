@@ -35,7 +35,7 @@ type HTTPServer struct {
 	mux      *http.ServeMux
 	listener net.Listener
 	logger   *log.Logger
-	addr     string
+	Addr     string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -76,7 +76,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		mux:      mux,
 		listener: ln,
 		logger:   agent.logger,
-		addr:     ln.Addr().String(),
+		Addr:     ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
@@ -97,7 +97,7 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 		mux:      mux,
 		listener: list,
 		logger:   agent.logger,
-		addr:     scadaHTTPAddr,
+		Addr:     scadaHTTPAddr,
 	}
 	srv.registerHandlers(false) // Never allow debug for SCADA
 

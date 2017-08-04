@@ -51,13 +51,18 @@ Available commands are:
     agent-info            Display status information about the local agent
     alloc-status          Display allocation status information and metadata
     client-config         View or modify client configuration details
+    deployment            Interact with deployments
     eval-status           Display evaluation status and placement failure reasons
     fs                    Inspect the contents of an allocation directory
     init                  Create an example job file
     inspect               Inspect a submitted job
+    job                   Interact with jobs
+    keygen                Generates a new encryption key
+    keyring               Manages gossip layer encryption keys
     logs                  Streams the logs of a task.
     node-drain            Toggle drain mode on a given node
     node-status           Display status information about nodes
+    operator              Provides cluster-level tools for Nomad operators
     plan                  Dry-run a job update to determine its effects
     run                   Run a new job or update an existing job
     server-force-leave    Force a server into the 'left' state

@@ -14,6 +14,7 @@ import (
 )
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -41,6 +42,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -88,6 +90,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -136,6 +139,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -210,6 +214,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -251,6 +256,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -314,6 +320,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -380,6 +387,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -466,6 +474,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -504,6 +513,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -559,6 +569,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -592,6 +603,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
@@ -657,6 +669,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

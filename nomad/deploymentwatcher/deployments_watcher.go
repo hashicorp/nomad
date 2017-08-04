@@ -127,16 +127,17 @@ func NewDeploymentsWatcher(logger *log.Logger, watchers DeploymentStateWatchers,
 // should only be enabled on the active leader.
 func (w *Watcher) SetEnabled(enabled bool) error {
 	w.l.Lock()
+	defer w.l.Unlock()
+
 	wasEnabled := w.enabled
 	w.enabled = enabled
-	w.l.Unlock()
 
 	// Flush the state to create the necessary objects
 	w.flush()
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
-		go w.watchDeployments()
+		go w.watchDeployments(w.ctx)
 	}
 
 	return nil
@@ -144,9 +145,6 @@ func (w *Watcher) SetEnabled(enabled bool) error {
 
 // flush is used to clear the state of the watcher
 func (w *Watcher) flush() {
-	w.l.Lock()
-	defer w.l.Unlock()
-
 	// Stop all the watchers and clear it
 	for _, watcher := range w.watchers {
 		watcher.StopWatch()
@@ -164,13 +162,13 @@ func (w *Watcher) flush() {
 
 // watchDeployments is the long lived go-routine that watches for deployments to
 // add and remove watchers on.
-func (w *Watcher) watchDeployments() {
-	dindex := uint64(0)
+func (w *Watcher) watchDeployments(ctx context.Context) {
+	dindex := uint64(1)
 	for {
 		// Block getting all deployments using the last deployment index.
-		resp, err := w.getDeploys(dindex)
+		resp, err := w.getDeploys(ctx, dindex)
 		if err != nil {
-			if err == context.Canceled {
+			if err == context.Canceled || ctx.Err() == context.Canceled {
 				return
 			}
 
@@ -200,7 +198,7 @@ func (w *Watcher) watchDeployments() {
 }
 
 // getDeploys retrieves all deployments blocking at the given index.
-func (w *Watcher) getDeploys(index uint64) (*structs.DeploymentListResponse, error) {
+func (w *Watcher) getDeploys(ctx context.Context, index uint64) (*structs.DeploymentListResponse, error) {
 	// Build the request
 	args := &structs.DeploymentListRequest{
 		QueryOptions: structs.QueryOptions{
@@ -210,7 +208,7 @@ func (w *Watcher) getDeploys(index uint64) (*structs.DeploymentListResponse, err
 	var resp structs.DeploymentListResponse
 
 	for resp.Index <= index {
-		if err := w.queryLimiter.Wait(w.ctx); err != nil {
+		if err := w.queryLimiter.Wait(ctx); err != nil {
 			return nil, err
 		}
 

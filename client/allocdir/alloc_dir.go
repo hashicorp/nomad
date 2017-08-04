@@ -98,6 +98,24 @@ func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
 	}
 }
 
+// Copy an AllocDir and all of its TaskDirs. Returns nil if AllocDir is
+// nil.
+func (d *AllocDir) Copy() *AllocDir {
+	if d == nil {
+		return nil
+	}
+	dcopy := &AllocDir{
+		AllocDir:  d.AllocDir,
+		SharedDir: d.SharedDir,
+		TaskDirs:  make(map[string]*TaskDir, len(d.TaskDirs)),
+		logger:    d.logger,
+	}
+	for k, v := range d.TaskDirs {
+		dcopy.TaskDirs[k] = v.Copy()
+	}
+	return dcopy
+}
+
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
 func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 	td := newTaskDir(d.logger, d.AllocDir, name)

@@ -109,7 +109,24 @@ func TestJob_Warnings(t *testing.T) {
 		Name     string
 		Job      *Job
 		Expected []string
-	}{}
+	}{
+		{
+			Name:     "Higher counts for update stanza",
+			Expected: []string{"max parallel count is greater"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							MaxParallel: 10,
+						},
+					},
+				},
+			},
+		},
+	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -881,15 +898,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
-		Update: &UpdateStrategy{
-			Stagger:         10 * time.Second,
-			MaxParallel:     3,
-			HealthCheck:     UpdateStrategyHealthCheck_Manual,
-			MinHealthyTime:  1 * time.Second,
-			HealthyDeadline: 1 * time.Second,
-			AutoRevert:      false,
-			Canary:          3,
-		},
 	}
 
 	err = tg.Validate(j)
@@ -897,22 +905,16 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "max parallel count is greater") {
+	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[2].Error(), "canary count is greater") {
+	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "2 redefines 'web' from task 1") {
+	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Only one task may be marked as leader") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "Task web validation failed") {
+	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -1165,6 +1167,22 @@ func TestTask_Validate_Template(t *testing.T) {
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Env templates can't use signals
+	task.Templates = []*Template{
+		{
+			Envvars:    true,
+			ChangeMode: "signal",
+		},
+	}
+
+	err = task.Validate(ephemeralDisk)
+	if err == nil {
+		t.Fatalf("expected error from Template.Validate")
+	}
+	if expected := "cannot use signals"; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected to find %q but found %v", expected, err)
+	}
 }
 
 func TestTemplate_Validate(t *testing.T) {
@@ -1305,6 +1323,61 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform distinct_property validation
+	c.Operand = ConstraintDistinctProperty
+	c.RTarget = "0"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "count of 1 or greater") {
+		t.Fatalf("err: %s", err)
+	}
+
+	c.RTarget = "-1"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "to uint64") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform distinct_hosts validation
+	c.Operand = ConstraintDistinctHosts
+	c.RTarget = "foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "doesn't allow RTarget") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "doesn't allow LTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform set_contains validation
+	c.Operand = ConstraintSetContains
+	c.RTarget = ""
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform LTarget validation
+	c.Operand = ConstraintRegex
+	c.RTarget = "foo"
+	c.LTarget = ""
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "No LTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform constraint type validation
+	c.Operand = "foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestUpdateStrategy_Validate(t *testing.T) {
@@ -1312,7 +1385,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 		MaxParallel:     -1,
 		HealthCheck:     "foo",
 		MinHealthyTime:  -10,
-		HealthyDeadline: -10,
+		HealthyDeadline: -15,
 		AutoRevert:      false,
 		Canary:          -1,
 	}
@@ -1332,6 +1405,9 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[5].Error(), "Minimum healthy time must be less than healthy deadline") {
 		t.Fatalf("err: %s", err)
 	}
 }

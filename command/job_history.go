@@ -36,7 +36,7 @@ History Options:
   -full
     Display the full job definition for each version.
 
-  -job-version <job version>
+  -version <job version>
     Display only the history for the given job version.
 
   -json
@@ -61,7 +61,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	flags.BoolVar(&diff, "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
 	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&versionStr, "job-version", "", "")
+	flags.StringVar(&versionStr, "version", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -100,8 +100,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
 	}
 
 	// Prefix lookup matched a single job

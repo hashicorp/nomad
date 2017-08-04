@@ -5030,6 +5030,39 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	}
 }
 
+// Test promoting a deployment with no canaries
+func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
+	state := testStateStore(t)
+
+	// Create a job
+	j := mock.Job()
+	if err := state.UpsertJob(1, j); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Create a deployment
+	d := mock.Deployment()
+	d.JobID = j.ID
+	if err := state.UpsertDeployment(2, d); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Promote the canaries
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+	}
+	err := state.UpdateDeploymentPromotion(4, req)
+	if err == nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !strings.Contains(err.Error(), "no canaries to promote") {
+		t.Fatalf("expect error promoting non-existant canaries: %v", err)
+	}
+}
+
 // Test promoting all canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	state := testStateStore(t)

@@ -277,7 +277,16 @@ type ServerConfig struct {
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
-	HeartbeatGrace string `mapstructure:"heartbeat_grace"`
+	HeartbeatGrace time.Duration `mapstructure:"heartbeat_grace"`
+
+	// MinHeartbeatTTL is the minimum time between heartbeats. This is used as
+	// a floor to prevent excessive updates.
+	MinHeartbeatTTL time.Duration `mapstructure:"min_heartbeat_ttl"`
+
+	// MaxHeartbeatsPerSecond is the maximum target rate of heartbeats
+	// being processed per second. This allows the TTL to be increased
+	// to meet the target rate.
+	MaxHeartbeatsPerSecond float64 `mapstructure:"max_heartbeats_per_second"`
 
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
@@ -765,7 +774,7 @@ func (c *Config) normalizeAddrs() error {
 
 	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
 	if err != nil {
-		return fmt.Errorf("Failed to parse HTTP advertise address: %v", err)
+		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
 	c.AdvertiseAddrs.HTTP = addr
 
@@ -924,8 +933,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
 	}
-	if b.HeartbeatGrace != "" {
+	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
+	}
+	if b.MinHeartbeatTTL != 0 {
+		result.MinHeartbeatTTL = b.MinHeartbeatTTL
+	}
+	if b.MaxHeartbeatsPerSecond != 0.0 {
+		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
 	}
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
