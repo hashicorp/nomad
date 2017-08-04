@@ -74,4 +74,11 @@ env {
 }
 ```
 
+### Dynamic Environment Variables
+
+Nomad also supports populating dynamic environment variables from data stored in
+HashiCorp Consul and Vault. To use this feature please see the documentation on
+the [`template` stanza][template-env].
+
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[template-env]: /docs/job-specification/template.html#environment-variables "Nomad template Stanza"

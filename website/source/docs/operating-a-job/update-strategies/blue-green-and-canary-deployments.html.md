@@ -39,16 +39,16 @@ job "docs" {
   group "api" {
     count = 5
 
+    update {
+      max_parallel     = 1
+      canary           = 5
+      min_healthy_time = "30s"
+      healthy_deadline = "10m"
+      auto_revert      = true
+    }
+
     task "api-server" {
       driver = "docker"
-
-      update {
-        max_parallel     = 1
-        canary           = 5
-        min_healthy_time = "30s"
-        healthy_deadline = "10m"
-        auto_revert      = true
-      }
 
       config {
         image = "api-server:1.3"
@@ -299,16 +299,16 @@ job "docs" {
   group "api" {
     count = 5
 
+    update {
+      max_parallel     = 1
+      canary           = 1
+      min_healthy_time = "30s"
+      healthy_deadline = "10m"
+      auto_revert      = true
+    }
+
     task "api-server" {
       driver = "docker"
-
-      update {
-        max_parallel     = 1
-        canary           = 1
-        min_healthy_time = "30s"
-        healthy_deadline = "10m"
-        auto_revert      = true
-      }
 
       config {
         image = "api-server:1.3"
