@@ -758,6 +758,8 @@ func (r *AllocRunner) Run() {
 	// clean up the allocation.
 	if alloc.TerminalStatus() {
 		r.logger.Printf("[DEBUG] client: alloc %q in terminal status, waiting for destroy", r.allocID)
+		// mark this allocation as completed.
+		r.setStatus(structs.AllocClientStatusComplete, "cancelled running tasks for allocation in terminal state")
 		r.handleDestroy()
 		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 		return
