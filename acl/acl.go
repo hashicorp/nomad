@@ -1,0 +1,205 @@
+package acl
+
+import (
+	iradix "github.com/hashicorp/go-immutable-radix"
+)
+
+// capabilitySet is a type wrapper to help managing a set of capabilities
+type capabilitySet map[string]struct{}
+
+func (c capabilitySet) Check(k string) bool {
+	_, ok := c[k]
+	return ok
+}
+
+func (c capabilitySet) Set(k string) {
+	c[k] = struct{}{}
+}
+
+func (c capabilitySet) Clear() {
+	for cap := range c {
+		delete(c, cap)
+	}
+}
+
+// ACL object is used to convert a set of policies into a structure that
+// can be efficiently evaluated to determine if an action is allowed.
+type ACL struct {
+	// management tokens are allowed to do anything
+	management bool
+
+	// namespaces maps a namespace to a capabilitySet
+	namespaces *iradix.Tree
+
+	agent    string
+	node     string
+	operator string
+}
+
+// maxPrivilege returns the policy which grants the most privilege
+func maxPrivilege(a, b string) string {
+	switch {
+	case a == PolicyDeny || b == PolicyDeny:
+		return PolicyDeny
+	case a == PolicyWrite || b == PolicyWrite:
+		return PolicyWrite
+	case a == PolicyRead || b == PolicyRead:
+		return PolicyRead
+	default:
+		return ""
+	}
+}
+
+// NewACL compiles a set of policies into an ACL object
+func NewACL(management bool, policies []*Policy) (*ACL, error) {
+	// Hot-path management tokens
+	if management {
+		return &ACL{management: true}, nil
+	}
+
+	// Create the ACL object
+	acl := &ACL{}
+	nsTxn := iradix.New().Txn()
+
+	for _, policy := range policies {
+	NAMESPACES:
+		for _, ns := range policy.Namespaces {
+			// Check for existing capabilities
+			var capabilities capabilitySet
+			raw, ok := nsTxn.Get([]byte(ns.Name))
+			if ok {
+				capabilities = raw.(capabilitySet)
+			} else {
+				capabilities = make(capabilitySet)
+				nsTxn.Insert([]byte(ns.Name), capabilities)
+			}
+
+			// Deny always takes precedence
+			if capabilities.Check(NamespaceCapabilityDeny) {
+				continue NAMESPACES
+			}
+
+			// Add in all the capabilities
+			for _, cap := range ns.Capabilities {
+				if cap == NamespaceCapabilityDeny {
+					// Overwrite any existing capabilities
+					capabilities.Clear()
+					capabilities.Set(NamespaceCapabilityDeny)
+					continue NAMESPACES
+				}
+				capabilities.Set(cap)
+			}
+		}
+
+		// Take the maximum privilege for agent, node, and operator
+		if policy.Agent != nil {
+			acl.agent = maxPrivilege(acl.agent, policy.Agent.Policy)
+		}
+		if policy.Node != nil {
+			acl.node = maxPrivilege(acl.node, policy.Node.Policy)
+		}
+		if policy.Operator != nil {
+			acl.operator = maxPrivilege(acl.operator, policy.Operator.Policy)
+		}
+	}
+
+	// Finalize the namespaces
+	acl.namespaces = nsTxn.Commit()
+	return acl, nil
+}
+
+// AllowNamespaceOperation checks if a given operation is allowed for a namespace
+func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
+	// Hot path management tokens
+	if a.management {
+		return true
+	}
+
+	// Check for a matching capability set
+	raw, ok := a.namespaces.Get([]byte(ns))
+	if !ok {
+		return false
+	}
+
+	// Check if the capability has been granted
+	capabilities := raw.(capabilitySet)
+	return capabilities.Check(op)
+}
+
+// AllowAgentRead checks if read operations are allowed for an agent
+func (a *ACL) AllowAgentRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.agent == PolicyWrite:
+		return true
+	case a.agent == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowAgentWrite checks if write operations are allowed for an agent
+func (a *ACL) AllowAgentWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.agent == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowNodeRead checks if read operations are allowed for a node
+func (a *ACL) AllowNodeRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.node == PolicyWrite:
+		return true
+	case a.node == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowNodeWrite checks if write operations are allowed for a node
+func (a *ACL) AllowNodeWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.node == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowOperatorRead checks if read operations are allowed for a operator
+func (a *ACL) AllowOperatorRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.operator == PolicyWrite:
+		return true
+	case a.operator == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowOperatorWrite checks if write operations are allowed for a operator
+func (a *ACL) AllowOperatorWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.operator == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
