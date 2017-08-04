@@ -264,7 +264,7 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 	assert.Equal(node.ID, resp.Matches["nodes"][0])
 	assert.Equal(eval1.ID, resp.Matches["evals"][0])
 
-	assert.NotEqual(uint64(0), resp.Index)
+	assert.Equal(uint64(1000), resp.Index)
 }
 
 //// Tests that the top 20 matches are returned when no prefix is set

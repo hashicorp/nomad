@@ -276,8 +276,7 @@ func TestHTTP_Resources_NoContext(t *testing.T) {
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
 		eval1.ID = testJobID
-		err := state.UpsertEvals(9000,
-			[]*structs.Evaluation{eval1})
+		err := state.UpsertEvals(8000, []*structs.Evaluation{eval1})
 		assert.Nil(err)
 
 		data := structs.ResourcesRequest{Prefix: testJobPrefix}
@@ -299,5 +298,7 @@ func TestHTTP_Resources_NoContext(t *testing.T) {
 
 		assert.Equal(matchedJobs[0], testJobID)
 		assert.Equal(matchedEvals[0], eval1.ID)
+
+		assert.Equal("8000", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
