@@ -39,7 +39,7 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 			case *structs.Node:
 				return i.(*structs.Node).ID, nil
 			default:
-				return "", fmt.Errorf("invalid context")
+				return "", fmt.Errorf("invalid type")
 			}
 		}
 
@@ -62,13 +62,13 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 // that context
 func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
-	case "job":
+	case "jobs":
 		return state.JobsByIDPrefix(ws, prefix)
-	case "eval":
+	case "evals":
 		return state.EvalsByIDPrefix(ws, prefix)
-	case "alloc":
+	case "allocs":
 		return state.AllocsByIDPrefix(ws, prefix)
-	case "node":
+	case "nodes":
 		return state.NodesByIDPrefix(ws, prefix)
 	default:
 		return nil, fmt.Errorf("invalid context")
@@ -97,7 +97,7 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				}
 				iters[args.Context] = iter
 			} else {
-				for _, e := range []string{"alloc", "node", "job", "eval"} {
+				for _, e := range []string{"allocs", "nodes", "jobs", "evals"} {
 					iter, err := getResourceIter(e, args.Prefix, ws, state)
 					if err != nil {
 						return err
@@ -106,7 +106,7 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				}
 			}
 
-			// Return jobs matching given prefix
+			// Return matches for the given prefix
 			for k, v := range iters {
 				res, isTrunc := getMatches(v)
 				reply.Matches[k] = res
@@ -123,6 +123,7 @@ func (r *Resources) List(args *structs.ResourcesRequest,
 				for k, v := range reply.Matches {
 					if len(v) != 0 {
 						index, err = state.Index(k)
+						break
 					}
 				}
 			}

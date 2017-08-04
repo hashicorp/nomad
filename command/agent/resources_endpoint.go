@@ -6,7 +6,7 @@ import (
 )
 
 // ResourcesRequest accepts a prefix and context and returns a list of matching
-// prefixes for that context.
+// IDs for that context.
 func (s *HTTPServer) ResourcesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method == "POST" || req.Method == "PUT" {
 		return s.resourcesRequest(resp, req)

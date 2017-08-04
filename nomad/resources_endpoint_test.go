@@ -10,12 +10,14 @@ import (
 	"testing"
 )
 
+const jobIndex = 1000
+
 func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) string {
 	job := mock.Job()
 
 	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(jobIndex, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -39,7 +41,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "job",
+		Context: "jobs",
 	}
 
 	var resp structs.ResourcesResponse
@@ -47,9 +49,9 @@ func TestResourcesEndpoint_List(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["job"]))
-	assert.Equal(t, jobID, resp.Matches["job"][0])
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, 1, len(resp.Matches["jobs"]))
+	assert.Equal(t, jobID, resp.Matches["jobs"][0])
+	assert.Equal(t, uint64(jobIndex), resp.Index)
 }
 
 // truncate should limit results to 20
@@ -71,7 +73,7 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "job",
+		Context: "jobs",
 	}
 
 	var resp structs.ResourcesResponse
@@ -79,9 +81,9 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 20, len(resp.Matches["job"]))
-	assert.Equal(t, resp.Truncations["job"], true)
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, 20, len(resp.Matches["jobs"]))
+	assert.Equal(t, resp.Truncations["jobs"], true)
+	assert.Equal(t, uint64(jobIndex), resp.Index)
 }
 
 func TestResourcesEndpoint_List_Evals(t *testing.T) {
@@ -95,13 +97,13 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	eval1 := mock.Eval()
-	s.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "eval",
+		Context: "evals",
 	}
 
 	var resp structs.ResourcesResponse
@@ -109,11 +111,11 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["eval"]))
-	assert.Equal(t, eval1.ID, resp.Matches["eval"][0])
-	assert.Equal(t, resp.Truncations["job"], false)
+	assert.Equal(t, 1, len(resp.Matches["evals"]))
+	assert.Equal(t, eval1.ID, resp.Matches["evals"][0])
+	assert.Equal(t, resp.Truncations["evals"], false)
 
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, uint64(2000), resp.Index)
 }
 
 func TestResourcesEndpoint_List_Allocation(t *testing.T) {
@@ -133,7 +135,7 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(90, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -141,7 +143,7 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "alloc",
+		Context: "allocs",
 	}
 
 	var resp structs.ResourcesResponse
@@ -149,11 +151,11 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["alloc"]))
-	assert.Equal(t, alloc.ID, resp.Matches["alloc"][0])
-	assert.Equal(t, resp.Truncations["alloc"], false)
+	assert.Equal(t, 1, len(resp.Matches["allocs"]))
+	assert.Equal(t, alloc.ID, resp.Matches["allocs"][0])
+	assert.Equal(t, resp.Truncations["allocs"], false)
 
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, uint64(90), resp.Index)
 }
 
 func TestResourcesEndpoint_List_Node(t *testing.T) {
@@ -177,7 +179,7 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "node",
+		Context: "nodes",
 	}
 
 	var resp structs.ResourcesResponse
@@ -185,9 +187,11 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["node"]))
-	assert.Equal(t, node.ID, resp.Matches["node"][0])
-	assert.Equal(t, resp.Truncations["node"], false)
+	assert.Equal(t, 1, len(resp.Matches["nodes"]))
+	assert.Equal(t, node.ID, resp.Matches["nodes"][0])
+	assert.Equal(t, false, resp.Truncations["nodes"])
+
+	assert.Equal(t, uint64(100), resp.Index)
 }
 
 func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
@@ -209,7 +213,7 @@ func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
 	assert.Equal(t, err.Error(), "invalid context")
 
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, uint64(0), resp.Index)
 }
 
 func TestResourcesEndpoint_List_NoContext(t *testing.T) {
@@ -247,13 +251,13 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["node"]))
-	assert.Equal(t, 1, len(resp.Matches["eval"]))
+	assert.Equal(t, 1, len(resp.Matches["nodes"]))
+	assert.Equal(t, 1, len(resp.Matches["evals"]))
 
-	assert.Equal(t, node.ID, resp.Matches["node"][0])
-	assert.Equal(t, eval1.ID, resp.Matches["eval"][0])
+	assert.Equal(t, node.ID, resp.Matches["nodes"][0])
+	assert.Equal(t, eval1.ID, resp.Matches["evals"][0])
 
-	assert.NotEqual(t, 0, resp.Index)
+	assert.NotEqual(t, uint64(0), resp.Index)
 }
 
 // Tests that the top 20 matches are returned when no prefix is set
@@ -273,7 +277,7 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  "",
-		Context: "job",
+		Context: "jobs",
 	}
 
 	var resp structs.ResourcesResponse
@@ -281,9 +285,9 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 1, len(resp.Matches["job"]))
-	assert.Equal(t, jobID, resp.Matches["job"][0])
-	assert.NotEqual(t, 0, resp.Index)
+	assert.Equal(t, 1, len(resp.Matches["jobs"]))
+	assert.Equal(t, jobID, resp.Matches["jobs"][0])
+	assert.Equal(t, uint64(jobIndex), resp.Index)
 }
 
 // Tests that the zero matches are returned when a prefix has no matching
@@ -302,7 +306,7 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 
 	req := &structs.ResourcesRequest{
 		Prefix:  prefix,
-		Context: "job",
+		Context: "jobs",
 	}
 
 	var resp structs.ResourcesResponse
@@ -310,6 +314,6 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(t, 0, len(resp.Matches["job"]))
+	assert.Equal(t, 0, len(resp.Matches["jobs"]))
 	assert.Equal(t, uint64(0), resp.Index)
 }
