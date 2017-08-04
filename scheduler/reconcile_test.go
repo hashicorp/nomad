@@ -47,7 +47,7 @@ Update stanza Tests:
 √  Don't create a deployment if there are no changes
 √  Deployment created by all inplace updates
 √  Paused or failed deployment doesn't create any more canaries
-√  Paused or failed deployment doesn't do any placements
+√  Paused or failed deployment doesn't do any placements unless replacing lost allocs
 √  Paused or failed deployment doesn't do destructive updates
 √  Paused does do migrations
 √  Failed deployment doesn't do migrations
@@ -2538,8 +2538,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
-// Tests the reconciler handles a failed deployment and does no placements
-func TestReconciler_FailedDeployment_NoPlacements(t *testing.T) {
+// Tests the reconciler handles a failed deployment and only replaces lost
+// deployments
+func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -2602,18 +2603,20 @@ func TestReconciler_FailedDeployment_NoPlacements(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             0,
+		place:             1, // Only replace the lost node
 		inplace:           0,
 		stop:              2,
 		followupEvalWait:  0, // Since the deployment is failed, there should be no followup
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
+				Place:  1,
 				Stop:   2,
 				Ignore: 8,
 			},
 		},
 	})
 
+	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
