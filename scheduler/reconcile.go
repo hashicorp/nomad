@@ -365,13 +365,29 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		dstate.DesiredTotal += len(place)
 	}
 
-	if !a.deploymentPaused && !a.deploymentFailed && !canaryState {
-		// Place all new allocations
+	// deploymentPlaceReady tracks whether the deployment is in a state where
+	// placements can be made without any other consideration.
+	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !canaryState
+
+	if deploymentPlaceReady {
 		desiredChanges.Place += uint64(len(place))
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)
 		}
+	} else if !deploymentPlaceReady && len(lost) != 0 {
+		// We are in a situation where we shouldn't be placing more than we need
+		// to but we have lost allocations. It is a very weird user experience
+		// if you have a node go down and Nomad doesn't replace the allocations
+		// because the deployment is paused/failed so we only place to recover
+		// the lost allocations.
+		allowed := helper.IntMin(len(lost), len(place))
+		desiredChanges.Place += uint64(allowed)
+		for _, p := range place[:allowed] {
+			a.result.place = append(a.result.place, p)
+		}
+	}
 
+	if deploymentPlaceReady {
 		// Do all destructive updates
 		min := helper.IntMin(len(destructive), limit)
 		limit -= min
