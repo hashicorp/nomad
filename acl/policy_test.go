@@ -142,6 +142,15 @@ func TestParse(t *testing.T) {
 			"Invalid operator policy",
 			nil,
 		},
+		{
+			`
+			namespace "has a space"{
+				policy = "read"
+			}
+			`,
+			"Invalid namespace name",
+			nil,
+		},
 	}
 
 	for idx, tc := range tcases {

@@ -2,6 +2,7 @@ package acl
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/hcl"
 )
@@ -19,6 +20,10 @@ const (
 	NamespaceCapabilitySubmitJob = "submit-job"
 	NamespaceCapabilityReadLogs  = "read-logs"
 	NamespaceCapabilityReadFS    = "read-fs"
+)
+
+var (
+	validNamespace = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // Policy represents a parsed HCL or JSON policy.
@@ -125,6 +130,9 @@ func Parse(rules string) (*Policy, error) {
 
 	// Validate the policy
 	for _, ns := range p.Namespaces {
+		if !validNamespace.MatchString(ns.Name) {
+			return nil, fmt.Errorf("Invalid namespace name: %#v", ns)
+		}
 		if ns.Policy != "" && !isPolicyValid(ns.Policy) {
 			return nil, fmt.Errorf("Invalid namespace policy: %#v", ns)
 		}
