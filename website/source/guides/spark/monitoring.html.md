@@ -83,13 +83,13 @@ job "spark-history-server" {
 }
 ```
 
-The job file above can also be found [here](https://github.com/hashicorp/nomad/blob/f-terraform-config/terraform/examples/spark/spark-history-server.nomad).
+The job file above can also be found [here](https://github.com/hashicorp/nomad/blob/master/terraform/examples/spark/spark-history-server-hdfs.nomad).
 
 To run the history server, first [deploy HDFS](/guides/spark/hdfs.html) and then 
 create a directory in HDFS to store events:
 
 ```shell
-$ hdfs dfs -mkdir /spark-events
+$ hdfs dfs -fs hdfs://hdfs.service.consul:8020 -mkdir /spark-events
 ```
 
 You can then deploy the history server with:
@@ -101,7 +101,7 @@ $ nomad run spark-history-server-hdfs.nomad
 You can get the private IP for the history server with a Consul DNS lookup:
 
 ```shell
-$ dig.spark-history.service.consul
+$ dig spark-history.service.consul
 ```
 
 Find the public IP that corresponds to the private IP returned by the `dig` 
