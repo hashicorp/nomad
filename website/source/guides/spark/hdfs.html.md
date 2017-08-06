@@ -16,9 +16,9 @@ datasets. HDFS can be deployed as its own Nomad job.
 
 ## Running HDFS on Nomad
 
-A sample HDFS job file can be found [here](https://github.com/hashicorp/nomad/terraform/examples/spark/spark-history-server-hdfs.nomad). 
+A sample HDFS job file can be found [here](https://github.com/hashicorp/nomad/blob/master/terraform/examples/spark/hdfs.nomad).
 It has two task groups, one for the HDFS NameNode and one for the 
-DataNodes. Both task groups use a [Docker image](https://github.com/hashicorp/nomad/terraform/examples/spark/docker/hdfs) that includes Hadoop:
+DataNodes. Both task groups use a [Docker image](https://github.com/hashicorp/nomad/tree/master/terraform/examples/spark/docker/hdfs) that includes Hadoop:
 
 ```hcl
   group "NameNode" {
