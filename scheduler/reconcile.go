@@ -37,7 +37,7 @@ type allocReconciler struct {
 	job *structs.Job
 
 	// jobID is the ID of the job being operated on. The job may be nil if it is
-	// being stopped so we require this seperately.
+	// being stopped so we require this separately.
 	jobID string
 
 	// oldDeployment is the last deployment for the job
@@ -579,7 +579,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 }
 
 // computePlacement returns the set of allocations to place given the group
-// definiton, the set of untainted and migrating allocations for the group.
+// definition, the set of untainted and migrating allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate allocSet) []allocPlaceResult {
 
@@ -601,7 +601,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 }
 
 // computeStop returns the set of allocations that are marked for stopping given
-// the group definiton, the set of allocations in various states and whether we
+// the group definition, the set of allocations in various states and whether we
 // are canarying.
 func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
 	untainted, migrate, lost, canaries allocSet, canaryState bool) allocSet {

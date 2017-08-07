@@ -188,7 +188,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		return nil, err
 	}
 
-	// Interpolate everthing that is a string
+	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)

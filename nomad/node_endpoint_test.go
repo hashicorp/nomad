@@ -420,7 +420,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Transistion it to down and then ready
+	// Transition it to down and then ready
 	node.Status = structs.NodeStatusDown
 	reg = &structs.NodeRegisterRequest{
 		Node:         node,

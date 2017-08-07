@@ -50,7 +50,7 @@ func (c *Client) AllocFS() *AllocFS {
 }
 
 // getNodeClient returns a Client that will dial the node. If the QueryOptions
-// is set, the function will ensure that it is initalized and that the Params
+// is set, the function will ensure that it is initialized and that the Params
 // field is valid.
 func (a *AllocFS) getNodeClient(node *Node, allocID string, q **QueryOptions) (*Client, error) {
 	if node.HTTPAddr == "" {

@@ -1201,7 +1201,7 @@ func TestLogs_findClosest(t *testing.T) {
 			Error:      true,
 		},
 
-		// Test begining cases
+		// Test beginning cases
 		{
 			Entries:      entries,
 			DesiredIdx:   0,

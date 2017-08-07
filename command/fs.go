@@ -21,7 +21,7 @@ const (
 	bytesToLines int64 = 120
 
 	// defaultTailLines is the number of lines to tail by default if the value
-	// is not overriden.
+	// is not overridden.
 	defaultTailLines int64 = 10
 )
 

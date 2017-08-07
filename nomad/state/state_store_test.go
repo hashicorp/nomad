@@ -4728,11 +4728,11 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	}
 }
 
-// Test that non-existant deployment can't be updated
-func TestStateStore_UpsertDeploymentStatusUpdate_NonExistant(t *testing.T) {
+// Test that non-existent deployment can't be updated
+func TestStateStore_UpsertDeploymentStatusUpdate_NonExistent(t *testing.T) {
 	state := testStateStore(t)
 
-	// Update the non-existant deployment
+	// Update the non-existent deployment
 	req := &structs.DeploymentStatusUpdateRequest{
 		DeploymentUpdate: &structs.DeploymentStatusUpdate{
 			DeploymentID: structs.GenerateUUID(),
@@ -4938,11 +4938,11 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 	}
 }
 
-// Test that non-existant deployment can't be promoted
-func TestStateStore_UpsertDeploymentPromotion_NonExistant(t *testing.T) {
+// Test that non-existent deployment can't be promoted
+func TestStateStore_UpsertDeploymentPromotion_NonExistent(t *testing.T) {
 	state := testStateStore(t)
 
-	// Promote the non-existant deployment
+	// Promote the non-existent deployment
 	req := &structs.ApplyDeploymentPromoteRequest{
 		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
 			DeploymentID: structs.GenerateUUID(),
@@ -5059,7 +5059,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 	if !strings.Contains(err.Error(), "no canaries to promote") {
-		t.Fatalf("expect error promoting non-existant canaries: %v", err)
+		t.Fatalf("expect error promoting non-existent canaries: %v", err)
 	}
 }
 
@@ -5255,11 +5255,11 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	}
 }
 
-// Test that allocation health can't be set against a non-existant deployment
-func TestStateStore_UpsertDeploymentAllocHealth_NonExistant(t *testing.T) {
+// Test that allocation health can't be set against a non-existent deployment
+func TestStateStore_UpsertDeploymentAllocHealth_NonExistent(t *testing.T) {
 	state := testStateStore(t)
 
-	// Set health against the non-existant deployment
+	// Set health against the non-existent deployment
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
 			DeploymentID:         structs.GenerateUUID(),
@@ -5297,8 +5297,8 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 	}
 }
 
-// Test that allocation health can't be set against a non-existant alloc
-func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistant(t *testing.T) {
+// Test that allocation health can't be set against a non-existent alloc
+func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistent(t *testing.T) {
 	state := testStateStore(t)
 
 	// Insert a deployment

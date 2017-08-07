@@ -523,7 +523,7 @@ type DeriveVaultTokenResponse struct {
 	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
 
-	// Error stores any error that occured. Errors are stored here so we can
+	// Error stores any error that occurred. Errors are stored here so we can
 	// communicate whether it is retriable
 	Error *RecoverableError
 
@@ -688,7 +688,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include
@@ -3619,7 +3619,7 @@ func NewTaskEvent(event string) *TaskEvent {
 	}
 }
 
-// SetSetupError is used to store an error that occured while setting up the
+// SetSetupError is used to store an error that occurred while setting up the
 // task
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
@@ -3999,7 +3999,7 @@ const (
 	VaultChangeModeRestart = "restart"
 )
 
-// Vault stores the set of premissions a task needs access to from Vault.
+// Vault stores the set of permissions a task needs access to from Vault.
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
@@ -4054,7 +4054,7 @@ func (v *Vault) Validate() error {
 
 	for _, p := range v.Policies {
 		if p == "root" {
-			multierror.Append(&mErr, fmt.Errorf("Can not specifiy \"root\" policy"))
+			multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))
 		}
 	}
 
@@ -4098,7 +4098,7 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 }
 
 // Deployment is the object that represents a job deployment which is used to
-// transistion a job between versions.
+// transition a job between versions.
 type Deployment struct {
 	// ID is a generated UUID for the deployment
 	ID string
@@ -4959,7 +4959,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 }
 
 // CreateFailedFollowUpEval creates a follow up evaluation when the current one
-// has been marked as failed becasue it has hit the delivery limit and will not
+// has been marked as failed because it has hit the delivery limit and will not
 // be retried by the eval_broker.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
@@ -5093,7 +5093,7 @@ type PlanResult struct {
 	// Deployment is the deployment that was committed.
 	Deployment *Deployment
 
-	// DeploymentUpdates is the set of deployment updates that were commited.
+	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
 	// RefreshIndex is the index the worker should refresh state up to.

@@ -18,7 +18,7 @@ func (c *JobDispatchCommand) Help() string {
 Usage: nomad job dispatch [options] <parameterized job> [input source]
 
 Dispatch creates an instance of a parameterized job. A data payload to the
-dispatched instance can be provided via stdin by using "-" or by specifiying a
+dispatched instance can be provided via stdin by using "-" or by specifying a
 path to a file. Metadata can be supplied by using the meta flag one or more
 times. 
 
@@ -33,9 +33,9 @@ General Options:
 Dispatch Options:
 
   -meta <key>=<value>
-    Meta takes a key/value pair seperated by "=". The metadata key will be
+    Meta takes a key/value pair separated by "=". The metadata key will be
     merged into the job's metadata. The job may define a default value for the
-    key which is overriden when dispatching. The flag can be provided more than
+    key which is overridden when dispatching. The flag can be provided more than
     once to inject multiple metadata key/value pairs. Arbitrary keys are not
     allowed. The parameterized job must allow the key to be merged.
     

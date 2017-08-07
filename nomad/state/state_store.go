@@ -563,7 +563,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
-// upsertJobImpl is the inplementation for registering a job or updating a job definition
+// upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.ID)
@@ -2369,7 +2369,7 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 				pSummary.Children = new(structs.JobChildrenSummary)
 			}
 
-			// Determine the transistion and update the correct fields
+			// Determine the transition and update the correct fields
 			children := pSummary.Children
 
 			// Decrement old status

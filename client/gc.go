@@ -236,7 +236,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 	}
 
-	// If the host has enough free space to accomodate the new allocations then
+	// If the host has enough free space to accommodate the new allocations then
 	// we don't need to garbage collect terminated allocations
 	if hostStats := a.statsCollector.Stats(); hostStats != nil {
 		var availableForAllocations uint64

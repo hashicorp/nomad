@@ -26,7 +26,7 @@ var (
 )
 
 // pullFuture is a sharable future for retrieving a pulled images ID and any
-// error that may have occured during the pull.
+// error that may have occurred during the pull.
 type pullFuture struct {
 	waitCh chan struct{}
 
@@ -129,7 +129,7 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 }
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
-// error that occured during the pull
+// error that occurred during the pull
 func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()

@@ -13,7 +13,7 @@ func TestSyslogServer_Start_Shutdown(t *testing.T) {
 	t.Parallel()
 	dir, err := ioutil.TempDir("", "sock")
 	if err != nil {
-		t.Fatalf("Failed to create temporary direcotry: %v", err)
+		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
 
 	sock := path.Join(dir, "socket")

@@ -250,7 +250,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
-	// Check to ensure the job version didn't get bumped becasue we submitted
+	// Check to ensure the job version didn't get bumped because we submitted
 	// the same job
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
@@ -902,7 +902,7 @@ func TestJobEndpoint_Stable(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
-	// Create stablility request
+	// Create stability request
 	stableReq := &structs.JobStabilityRequest{
 		JobID:        job.ID,
 		JobVersion:   0,

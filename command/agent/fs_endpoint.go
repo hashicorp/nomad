@@ -423,7 +423,7 @@ func (s *StreamFramer) readData() []byte {
 
 // Send creates and sends a StreamFrame based on the passed parameters. An error
 // is returned if the run routine hasn't run or encountered an error. Send is
-// asyncronous and does not block for the data to be transferred.
+// asynchronous and does not block for the data to be transferred.
 func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) error {
 	s.l.Lock()
 	defer s.l.Unlock()

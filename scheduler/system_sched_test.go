@@ -1188,7 +1188,7 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 
 // This test ensures that the scheduler doesn't increment the queued allocation
 // count for a task group when allocations can't be created on currently
-// availabe nodes because of constrain mismatches.
+// available nodes because of constrain mismatches.
 func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 	h := NewHarness(t)
 
