@@ -20,7 +20,9 @@ export default Component.extend({
 
     const router = this.get('router');
     const targetURL = router.generate('nodes.servers.server', this.get('agent'));
-    const currentURL = `${router.get('rootURL').slice(0, -1)}${router.get('currentURL')}`;
+    const currentURL = `${router.get('rootURL').slice(0, -1)}${router
+      .get('currentURL')
+      .split('?')[0]}`;
 
     return currentURL === targetURL;
   }),

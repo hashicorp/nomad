@@ -3,6 +3,11 @@ import { HOSTS } from './common';
 
 const { copy } = Ember;
 
+export function findLeader(schema) {
+  const agent = schema.agents.first();
+  return `${agent.address}:${agent.tags.port}`;
+}
+
 export default function() {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
@@ -42,9 +47,8 @@ export default function() {
     };
   });
 
-  this.get('/status/leader', function({ agents }) {
-    const agent = agents.first();
-    return JSON.stringify(`${agent.address}:${agent.tags.port}`);
+  this.get('/status/leader', function(schema) {
+    return JSON.stringify(findLeader(schema));
   });
 
   // TODO: in the future, this hack may be replaceable with dynamic host name
