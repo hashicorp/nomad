@@ -119,7 +119,7 @@ type ServiceClient struct {
 
 	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
 	// atomics.
-	seen int64
+	seen int32
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
@@ -150,13 +150,13 @@ const seen = 1
 // markSeen marks Consul as having been seen (meaning at least one operation
 // has succeeded).
 func (c *ServiceClient) markSeen() {
-	atomic.StoreInt64(&c.seen, seen)
+	atomic.StoreInt32(&c.seen, seen)
 }
 
 // hasSeen returns true if any Consul operation has ever succeeded. Useful to
 // squelch errors if Consul isn't running.
 func (c *ServiceClient) hasSeen() bool {
-	return atomic.LoadInt64(&c.seen) == seen
+	return atomic.LoadInt32(&c.seen) == seen
 }
 
 // Run the Consul main loop which retries operations against Consul. It should
