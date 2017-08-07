@@ -194,7 +194,7 @@ $ curl \
 
 ### Sample Response
 
-```
+```json
 [
   {
     "ID": "8dfa702d-0c03-6fd4-ade6-386d72fb8192",
