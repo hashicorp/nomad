@@ -869,10 +869,10 @@
 			"revision": "a14192a58a694c123d8fe5481d4a4727d6ae82f3"
 		},
 		{
-			"checksumSHA1": "OCPP4JxnuSSmweEL9khCd6OdIts=",
+			"checksumSHA1": "ecpaHOImbL/NaivWrUDUUe5461E=",
 			"path": "github.com/hashicorp/raft",
-			"revision": "e45173826775c4b782961c7b5758ba484b91464b",
-			"revisionTime": "2017-07-10T17:20:01Z"
+			"revision": "3a6f3bdfe4fc69e300c6d122b1a92051af6f0b95",
+			"revisionTime": "2017-08-07T22:22:24Z"
 		},
 		{
 			"checksumSHA1": "QAxukkv54/iIvLfsUP6IK4R0m/A=",
