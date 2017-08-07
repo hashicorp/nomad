@@ -1,16 +1,16 @@
 log_level = "DEBUG"
-data_dir = "/tmp/server"
+data_dir = "/tmp/nomad-server"
 
 server {
-    enabled = true
+  enabled = true
 
-    # Self-elect, should be 3 or 5 for production
-    bootstrap_expect = 1
+  # Self-elect, should be 3 or 5 for production
+  bootstrap_expect = 1
 }
 
 client {
-    enabled = true
-    options {
-        "docker.privileged.enabled" = "true"
-    }
+  enabled = true
+  options {
+    "docker.privileged.enabled" = "true"
+  }
 }
