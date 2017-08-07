@@ -2788,29 +2788,31 @@ func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	}
 }
 
-// UpsertACLPolicy is used to create or update an ACL policy
-func (s *StateStore) UpsertACLPolicy(index uint64, policy *structs.ACLPolicy) error {
+// UpsertACLPolicies is used to create or update a set of ACL policies
+func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Check if the policy already exists
-	existing, err := txn.First("acl_policy", "id", policy.Name)
-	if err != nil {
-		return fmt.Errorf("policy lookup failed: %v", err)
-	}
+	for _, policy := range policies {
+		// Check if the policy already exists
+		existing, err := txn.First("acl_policy", "id", policy.Name)
+		if err != nil {
+			return fmt.Errorf("policy lookup failed: %v", err)
+		}
 
-	// Update all the indexes
-	if existing != nil {
-		policy.CreateIndex = existing.(*structs.ACLPolicy).CreateIndex
-		policy.ModifyIndex = index
-	} else {
-		policy.CreateIndex = index
-		policy.ModifyIndex = index
-	}
+		// Update all the indexes
+		if existing != nil {
+			policy.CreateIndex = existing.(*structs.ACLPolicy).CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
+		}
 
-	// Update the policy
-	if err := txn.Insert("acl_policy", policy); err != nil {
-		return fmt.Errorf("upserting policy failed: %v", err)
+		// Update the policy
+		if err := txn.Insert("acl_policy", policy); err != nil {
+			return fmt.Errorf("upserting policy failed: %v", err)
+		}
 	}
 
 	// Update the indexes tabl
@@ -2822,14 +2824,16 @@ func (s *StateStore) UpsertACLPolicy(index uint64, policy *structs.ACLPolicy) er
 	return nil
 }
 
-// DeleteACLPolicy deletes the policy with the given name
-func (s *StateStore) DeleteACLPolicy(index uint64, name string) error {
+// DeleteACLPolicies deletes the policies with the given names
+func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	// Delete the policy
-	if _, err := txn.DeleteAll("acl_policy", "id", name); err != nil {
-		return fmt.Errorf("deleting acl policy failed: %v", err)
+	for _, name := range names {
+		if _, err := txn.DeleteAll("acl_policy", "id", name); err != nil {
+			return fmt.Errorf("deleting acl policy failed: %v", err)
+		}
 	}
 	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)

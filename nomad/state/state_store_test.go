@@ -5838,14 +5838,8 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err := state.UpsertACLPolicy(1000, policy); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
-
-	if err := state.UpsertACLPolicy(1001, policy2); err != nil {
+	if err := state.UpsertACLPolicies(1000,
+		[]*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -5895,9 +5889,11 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	state := testStateStore(t)
 	policy := mock.ACLPolicy()
+	policy2 := mock.ACLPolicy()
 
 	// Create the policy
-	if err := state.UpsertACLPolicy(1000, policy); err != nil {
+	if err := state.UpsertACLPolicies(1000,
+		[]*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -5908,7 +5904,8 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	}
 
 	// Delete the policy
-	if err := state.DeleteACLPolicy(1001, policy.Name); err != nil {
+	if err := state.DeleteACLPolicies(1001,
+		[]string{policy.Name, policy2.Name}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
