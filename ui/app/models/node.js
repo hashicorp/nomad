@@ -15,6 +15,7 @@ export default Model.extend({
   status: attr('string'),
   statusDescription: attr('string'),
   shortId: shortUUIDProperty('id'),
+  modifyIndex: attr('number'),
 
   // Available from single response
   httpAddr: attr('string'),

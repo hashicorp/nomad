@@ -14,6 +14,9 @@ export default Factory.extend({
   status: faker.list.random(...NODE_STATUSES),
   tls_enabled: faker.random.boolean,
 
+  createIndex: i => i,
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+
   http_addr() {
     return this.name.split('@')[1];
   },
