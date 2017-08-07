@@ -5233,3 +5233,12 @@ func IsRecoverable(e error) bool {
 	}
 	return false
 }
+
+// ACLPolicy is used to represent an ACL policy
+type ACLPolicy struct {
+	Name  string // Unique name
+	Rules string // HCL or JSON format
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}

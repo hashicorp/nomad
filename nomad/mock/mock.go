@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -335,4 +336,19 @@ func Plan() *structs.Plan {
 
 func PlanResult() *structs.PlanResult {
 	return &structs.PlanResult{}
+}
+
+func ACLPolicy() *structs.ACLPolicy {
+	return &structs.ACLPolicy{
+		Name: fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Rules: `
+		namespace "default" {
+			policy = "write"
+		}
+		node = "read"
+		agent = "read"
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
 }
