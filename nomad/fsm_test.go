@@ -1864,8 +1864,7 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 	state := fsm.State()
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
-	state.UpsertACLPolicy(1000, p1)
-	state.UpsertACLPolicy(1001, p2)
+	state.UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
