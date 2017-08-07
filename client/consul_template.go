@@ -350,7 +350,7 @@ func templateRunner(tmpls []*structs.Template, config *config.Config,
 	}
 
 	// Create the runner configuration.
-	runnerConfig, err := runnerConfig(config, vaultToken, ctmplMapping)
+	runnerConfig, err := newRunnerConfig(config, vaultToken, ctmplMapping)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -423,11 +423,11 @@ func parseTemplateConfigs(tmpls []*structs.Template, taskDir string,
 	return ctmpls, nil
 }
 
-// runnerConfig returns a consul-template runner configuration, setting the
+// newRunnerConfig returns a consul-template runner configuration, setting the
 // Vault and Consul configurations based on the clients configs. The parameters
 // are the client config, Vault token if set and the mapping of consul-templates
 // to Nomad templates.
-func runnerConfig(config *config.Config, vaultToken string,
+func newRunnerConfig(config *config.Config, vaultToken string,
 	templateMapping map[ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
 
 	conf := ctconf.DefaultConfig()

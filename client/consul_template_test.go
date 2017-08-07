@@ -1063,7 +1063,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 		Addr:          "https://localhost/",
 		TLSServerName: "notlocalhost",
 	}
-	ctconf, err := runnerConfig(c, "token", nil)
+	ctconf, err := newRunnerConfig(c, "token", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1105,7 +1105,7 @@ func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 	ctmplMapping, err := parseTemplateConfigs(templates, "/fake/dir", taskEnv, false)
 	assert.Nil(err, "Parsing Templates")
 
-	ctconf, err := runnerConfig(c, "token", ctmplMapping)
+	ctconf, err := newRunnerConfig(c, "token", ctmplMapping)
 	assert.Nil(err, "Building Runner Config")
 	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
 	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
