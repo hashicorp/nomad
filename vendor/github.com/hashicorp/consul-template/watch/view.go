@@ -150,7 +150,7 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 			// example, Consul make have an outage, but when it returns, the view
 			// is unchanged. We have to reset the counter retries, but not update the
 			// actual template.
-			log.Printf("[TRACE] view %s successful contact, resetting retries", v.dependency)
+			log.Printf("[TRACE] (view) %s successful contact, resetting retries", v.dependency)
 			retries = 0
 			goto WAIT
 		case err := <-fetchErrCh:

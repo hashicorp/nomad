@@ -781,6 +781,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				LeftDelim:    *template.LeftDelim,
 				RightDelim:   *template.RightDelim,
 				Envvars:      *template.Envvars,
+				VaultGrace:   *template.VaultGrace,
 			}
 		}
 	}

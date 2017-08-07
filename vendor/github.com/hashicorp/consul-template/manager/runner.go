@@ -42,8 +42,7 @@ type Runner struct {
 	dry, once bool
 
 	// outStream and errStream are the io.Writer streams where the runner will
-	// write information. These streams can be set using the SetOutStream()
-	// and SetErrStream() functions.
+	// write information.
 
 	// inStream is the ioReader where the runner will read information.
 	outStream, errStream io.Writer
@@ -117,6 +116,9 @@ type RenderEvent struct {
 
 	// Template is the template attempting to be rendered.
 	Template *template.Template
+
+	// Contents is the raw, rendered contents from the template.
+	Contents []byte
 
 	// TemplateConfigs is the list of template configs that correspond to this
 	// template.
@@ -642,6 +644,9 @@ func (r *Runner) Run() error {
 				// This event did render
 				event.DidRender = true
 				event.LastDidRender = renderTime
+
+				// Update the contents
+				event.Contents = result.Contents
 
 				// Record that at least one template was rendered.
 				renderedAny = true
@@ -1175,6 +1180,7 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 		RetryFuncDefault: nil,
 		RetryFuncVault:   watch.RetryFunc(c.Vault.Retry.RetryFunc()),
 		VaultGrace:       config.TimeDurationVal(c.Vault.Grace),
+		VaultToken:       config.StringVal(c.Vault.Token),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "runner")

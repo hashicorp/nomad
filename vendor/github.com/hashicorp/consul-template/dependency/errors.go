@@ -9,3 +9,5 @@ var ErrStopped = errors.New("dependency stopped")
 
 // ErrContinue is a special error which says to continue (retry) on error.
 var ErrContinue = errors.New("dependency continue")
+
+var ErrLeaseExpired = errors.New("lease expired or is not renewable")

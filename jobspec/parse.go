@@ -863,6 +863,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"source",
 			"splay",
 			"env",
+			"vault_grace",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
