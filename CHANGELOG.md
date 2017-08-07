@@ -57,6 +57,7 @@ IMPROVEMENTS:
  * driver/docker: Add `driver.docker.bridge_ip` node attribute [GH-2797]
  * driver/docker: Allow setting container IP with user defined networks
    [GH-2535]
+ * driver/docker: Allow using soft memory limit instead of hard one [GH-2771]
  * driver/rkt: Support `no_overlay` [GH-2702]
  * driver/rkt: Support `insecure_options` list [GH-2695]
  * server: Allow tuning of node heartbeat TTLs [GH-2859]

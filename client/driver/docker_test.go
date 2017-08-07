@@ -797,6 +797,45 @@ func TestDockerDriver_Labels(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_MemLimitDisable_IsInvalidConfig(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["mem_limit_disable"] = "nothing"
+
+	ctx := testDockerDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	driver := NewDockerDriver(ctx.DriverCtx)
+
+	if _, err := driver.Prestart(ctx.ExecCtx, task); err == nil {
+		t.Fatalf("error expected in prestart")
+	}
+}
+
+func TestDockerDriver_MemLimitDisable(t *testing.T) {
+	task, _, _ := dockerTask()
+	task.Config["mem_limit_disable"] = "true"
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	actualMemory := container.HostConfig.Memory
+	actualMemoryReservation := container.HostConfig.MemoryReservation
+
+	if actualMemory != 0 {
+		t.Fatalf("Got Memory Limit %q; want 0", actualMemory)
+	}
+
+	if actualMemoryReservation == 0 {
+		t.Fatalf("Got Memory Reservation 0; want %q", actualMemoryReservation)
+	}
+}
+
 func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
