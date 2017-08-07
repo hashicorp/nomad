@@ -28,7 +28,6 @@ type Resources struct {
 // these matches.
 func (r *Resources) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 	var matches []string
-	isTruncated := false
 
 	for i := 0; i < truncateLimit; i++ {
 		raw := iter.Next()
@@ -47,18 +46,14 @@ func (r *Resources) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
 		default:
-			r.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context; %T \n", t)
+			r.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
 		}
 
 		matches = append(matches, id)
 	}
 
-	if iter.Next() != nil {
-		isTruncated = true
-	}
-
-	return matches, isTruncated
+	return matches, iter.Next() != nil
 }
 
 // getResourceIter takes a context and returns a memdb iterator specific to
@@ -116,7 +111,6 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 			// Set the index for the context. If the context has been specified, it
 			// will be used as the index of the response. Otherwise, the
 			// maximum index from all resources will be used.
-			reply.Index = 0
 			for _, e := range contexts {
 				index, err := state.Index(e)
 				if err != nil {
