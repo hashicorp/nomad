@@ -7,6 +7,7 @@ IMPROVEMENTS:
  * driver/rkt: support read-only volume mounts [GH-2883]
 
 BUG FIXES:
+ * core: Fix restoration of parameterized, periodic jobs [GH-2959]
  * core: Fix incorrect destructive update with `distinct_property` constraint
    [GH-2939]
  * cli: Fix autocmpleting global flags [GH-2928]
