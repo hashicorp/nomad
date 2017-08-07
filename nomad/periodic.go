@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -19,14 +20,12 @@ import (
 type PeriodicDispatch struct {
 	dispatcher JobEvalDispatcher
 	enabled    bool
-	running    bool
 
 	tracked map[string]*structs.Job
 	heap    *periodicHeap
 
 	updateCh chan struct{}
-	stopCh   chan struct{}
-	waitCh   chan struct{}
+	stopFn   context.CancelFunc
 	logger   *log.Logger
 	l        sync.RWMutex
 }
@@ -141,8 +140,6 @@ func NewPeriodicDispatch(logger *log.Logger, dispatcher JobEvalDispatcher) *Peri
 		tracked:    make(map[string]*structs.Job),
 		heap:       NewPeriodicHeap(),
 		updateCh:   make(chan struct{}, 1),
-		stopCh:     make(chan struct{}),
-		waitCh:     make(chan struct{}),
 		logger:     logger,
 	}
 }
@@ -152,24 +149,21 @@ func NewPeriodicDispatch(logger *log.Logger, dispatcher JobEvalDispatcher) *Peri
 // will stop any launched go routine and flush the dispatcher.
 func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	p.l.Lock()
+	defer p.l.Unlock()
+	wasRunning := p.enabled
 	p.enabled = enabled
-	p.l.Unlock()
-	if !enabled {
-		if p.running {
-			close(p.stopCh)
-			<-p.waitCh
-			p.running = false
-		}
-		p.Flush()
-	}
-}
 
-// Start begins the goroutine that creates derived jobs and evals.
-func (p *PeriodicDispatch) Start() {
-	p.l.Lock()
-	p.running = true
-	p.l.Unlock()
-	go p.run()
+	// If we are transistioning from enabled to disabled, stop the daemon and
+	// flush.
+	if !enabled && wasRunning {
+		p.stopFn()
+		p.flush()
+	} else if enabled && !wasRunning {
+		// If we are transitioning from disabled to enabled, run the daemon.
+		ctx, cancel := context.WithCancel(context.Background())
+		p.stopFn = cancel
+		go p.run(ctx)
+	}
 }
 
 // Tracked returns the set of tracked job IDs.
@@ -230,11 +224,9 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	}
 
 	// Signal an update.
-	if p.running {
-		select {
-		case p.updateCh <- struct{}{}:
-		default:
-		}
+	select {
+	case p.updateCh <- struct{}{}:
+	default:
 	}
 
 	return nil
@@ -267,11 +259,9 @@ func (p *PeriodicDispatch) removeLocked(jobID string) error {
 	}
 
 	// Signal an update.
-	if p.running {
-		select {
-		case p.updateCh <- struct{}{}:
-		default:
-		}
+	select {
+	case p.updateCh <- struct{}{}:
+	default:
 	}
 
 	p.logger.Printf("[DEBUG] nomad.periodic: deregistered periodic job %q", jobID)
@@ -303,13 +293,12 @@ func (p *PeriodicDispatch) ForceRun(jobID string) (*structs.Evaluation, error) {
 func (p *PeriodicDispatch) shouldRun() bool {
 	p.l.RLock()
 	defer p.l.RUnlock()
-	return p.enabled && p.running
+	return p.enabled
 }
 
 // run is a long-lived function that waits till a job's periodic spec is met and
 // then creates an evaluation to run the job.
-func (p *PeriodicDispatch) run() {
-	defer close(p.waitCh)
+func (p *PeriodicDispatch) run(ctx context.Context) {
 	var launchCh <-chan time.Time
 	for p.shouldRun() {
 		job, launch := p.nextLaunch()
@@ -322,7 +311,7 @@ func (p *PeriodicDispatch) run() {
 		}
 
 		select {
-		case <-p.stopCh:
+		case <-ctx.Done():
 			return
 		case <-p.updateCh:
 			continue
@@ -453,15 +442,12 @@ func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
 	return time.Unix(int64(launch), 0), nil
 }
 
-// Flush clears the state of the PeriodicDispatcher
-func (p *PeriodicDispatch) Flush() {
-	p.l.Lock()
-	defer p.l.Unlock()
-	p.stopCh = make(chan struct{})
+// flush clears the state of the PeriodicDispatcher
+func (p *PeriodicDispatch) flush() {
 	p.updateCh = make(chan struct{}, 1)
-	p.waitCh = make(chan struct{})
 	p.tracked = make(map[string]*structs.Job)
 	p.heap = NewPeriodicHeap()
+	p.stopFn = nil
 }
 
 // periodicHeap wraps a heap and gives operations other than Push/Pop.

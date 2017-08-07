@@ -78,7 +78,6 @@ func testPeriodicDispatcher() (*PeriodicDispatch, *MockJobEvalDispatcher) {
 	m := NewMockJobEvalDispatcher()
 	d := NewPeriodicDispatch(logger, m)
 	d.SetEnabled(true)
-	d.Start()
 	return d, m
 }
 
@@ -95,6 +94,31 @@ func testPeriodicJob(times ...time.Time) *structs.Job {
 
 	job.Periodic.Spec = strings.Join(l, ",")
 	return job
+}
+
+// TestPeriodicDispatch_SetEnabled test that setting enabled twice is a no-op.
+// This tests the reported issue: https://github.com/hashicorp/nomad/issues/2829
+func TestPeriodicDispatch_SetEnabled(t *testing.T) {
+	t.Parallel()
+	p, _ := testPeriodicDispatcher()
+
+	// SetEnabled has been called once but do it again.
+	p.SetEnabled(true)
+
+	// Now disable and make sure everything is fine.
+	p.SetEnabled(false)
+
+	// Enable and track something
+	p.SetEnabled(true)
+	job := mock.PeriodicJob()
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+
+	tracked := p.Tracked()
+	if len(tracked) != 1 {
+		t.Fatalf("Add didn't track the job: %v", tracked)
+	}
 }
 
 func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {

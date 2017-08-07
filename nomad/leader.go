@@ -71,8 +71,7 @@ RECONCILE:
 	// Check if we need to handle initial leadership actions
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v",
-				err)
+			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
 			goto WAIT
 		}
 		establishedLeader = true
@@ -149,7 +148,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
-	s.periodicDispatcher.Start()
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -288,6 +286,13 @@ func (s *Server) restorePeriodicDispatcher() error {
 	now := time.Now()
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
+
+		// We skip adding parameterized jobs because they themselves aren't
+		// tracked, only the dispatched children are.
+		if job.IsParameterized() {
+			continue
+		}
+
 		s.periodicDispatcher.Add(job)
 
 		// If the periodic job has never been launched before, launch will hold

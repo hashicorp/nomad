@@ -328,10 +328,12 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 		t.Fatalf("Should have a leader")
 	}
 
-	// Inject a periodic job and non-periodic job
+	// Inject a periodic job, a parameterized periodic job and a non-periodic job
 	periodic := mock.PeriodicJob()
 	nonPeriodic := mock.Job()
-	for _, job := range []*structs.Job{nonPeriodic, periodic} {
+	parameterizedPeriodic := mock.PeriodicJob()
+	parameterizedPeriodic.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	for _, job := range []*structs.Job{nonPeriodic, periodic, parameterizedPeriodic} {
 		req := structs.JobRegisterRequest{
 			Job: job,
 		}
@@ -359,12 +361,20 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 		t.Fatalf("should have leader")
 	})
 
-	// Check that the new leader is tracking the periodic job.
+	// Check that the new leader is tracking the periodic job only
 	testutil.WaitForResult(func() (bool, error) {
-		_, tracked := leader.periodicDispatcher.tracked[periodic.ID]
-		return tracked, nil
+		if _, tracked := leader.periodicDispatcher.tracked[periodic.ID]; !tracked {
+			return false, fmt.Errorf("periodic job not tracked")
+		}
+		if _, tracked := leader.periodicDispatcher.tracked[nonPeriodic.ID]; tracked {
+			return false, fmt.Errorf("non periodic job tracked")
+		}
+		if _, tracked := leader.periodicDispatcher.tracked[parameterizedPeriodic.ID]; tracked {
+			return false, fmt.Errorf("parameterized periodic job tracked")
+		}
+		return true, nil
 	}, func(err error) {
-		t.Fatalf("periodic job not tracked")
+		t.Fatalf(err.Error())
 	})
 }
 
@@ -398,7 +408,6 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
-	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
@@ -450,7 +459,6 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
-	s1.periodicDispatcher.Start()
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
