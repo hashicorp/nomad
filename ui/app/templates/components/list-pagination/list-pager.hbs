@@ -1,0 +1,5 @@
+{{#if visible}}
+  {{#link-to (query-params currentPage=page)}}
+    {{yield}}
+  {{/link-to}}
+{{/if}}
