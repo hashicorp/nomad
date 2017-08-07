@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 type MockSink struct {
@@ -1856,6 +1857,26 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	if !reflect.DeepEqual(d2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, d2)
 	}
+}
+
+func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	p1 := mock.ACLPolicy()
+	p2 := mock.ACLPolicy()
+	state.UpsertACLPolicy(1000, p1)
+	state.UpsertACLPolicy(1001, p2)
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.ACLPolicyByName(ws, p1.Name)
+	out2, _ := state2.ACLPolicyByName(ws, p2.Name)
+	assert.Equal(t, p1, out1)
+	assert.Equal(t, p2, out2)
 }
 
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
