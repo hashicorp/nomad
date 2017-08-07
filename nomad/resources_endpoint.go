@@ -114,19 +114,16 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 			}
 
 			// Set the index for the context. If the context has been specified, it
-			// is the only non-empty match set, and the index is set for it.
-			// If the context was not specified, we set the index to be the max index
-			// from  available matches.
+			// will be used as the index of the response. Otherwise, the
+			// maximum index from all resources will be used.
 			reply.Index = 0
-			for k, v := range reply.Matches {
-				if len(v) != 0 { // make sure matches exist for this context
-					index, err := state.Index(k)
-					if err != nil {
-						return err
-					}
-					if index > reply.Index {
-						reply.Index = index
-					}
+			for _, e := range contexts {
+				index, err := state.Index(e)
+				if err != nil {
+					return err
+				}
+				if index > reply.Index {
+					reply.Index = index
 				}
 			}
 
