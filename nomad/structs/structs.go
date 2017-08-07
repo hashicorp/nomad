@@ -235,8 +235,12 @@ type NodeSpecificRequest struct {
 // the match list is truncated specific to each type of context.
 type ResourceListResponse struct {
 	// Map of context types to resource ids which match a specified prefix
-	Matches     map[string][]string
+	Matches map[string][]string
+
+	// Truncations indicates whether the matches for a particular context have
+	// been truncated
 	Truncations map[string]bool
+
 	QueryMeta
 }
 
@@ -247,6 +251,7 @@ type ResourceListRequest struct {
 	// Prefix is what resources are matched to. I.e, if the given prefix were
 	// "a", potential matches might be "abcd" or "aabb"
 	Prefix string
+
 	// Context is the resource that can be matched. A context can be a job, node,
 	// evaluation, allocation, or empty (indicated every context should be
 	// matched)

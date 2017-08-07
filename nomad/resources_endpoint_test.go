@@ -267,7 +267,7 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 	assert.Equal(uint64(1000), resp.Index)
 }
 
-//// Tests that the top 20 matches are returned when no prefix is set
+// Tests that the top 20 matches are returned when no prefix is set
 func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 

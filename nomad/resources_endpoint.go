@@ -26,7 +26,7 @@ type Resources struct {
 
 // getMatches extracts matches for an iterator, and returns a list of ids for
 // these matches.
-func getMatches(iter memdb.ResultIterator) ([]string, bool) {
+func (r *Resources) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 	var matches []string
 	isTruncated := false
 
@@ -37,7 +37,7 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		}
 
 		var id string
-		switch raw.(type) {
+		switch t := raw.(type) {
 		case *structs.Job:
 			id = raw.(*structs.Job).ID
 		case *structs.Evaluation:
@@ -47,8 +47,7 @@ func getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
 		default:
-			//s.logger.Printf("[ERR] nomad: unexpected type for resources context; not a job, allocation, node, or evaluation")
-			// TODO
+			r.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context; %T \n", t)
 			continue
 		}
 
@@ -109,7 +108,7 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 
 			// Return matches for the given prefix
 			for k, v := range iters {
-				res, isTrunc := getMatches(v)
+				res, isTrunc := r.getMatches(v)
 				reply.Matches[k] = res
 				reply.Truncations[k] = isTrunc
 			}
@@ -117,7 +116,7 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 			// Set the index for the context. If the context has been specified, it
 			// is the only non-empty match set, and the index is set for it.
 			// If the context was not specified, we set the index to be the max index
-			// from  available contexts
+			// from  available matches.
 			reply.Index = 0
 			for k, v := range reply.Matches {
 				if len(v) != 0 { // make sure matches exist for this context
