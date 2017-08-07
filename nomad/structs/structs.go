@@ -231,6 +231,33 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
+// ResourceListResponse is used to return matches and information about whether
+// the match list is truncated specific to each type of context.
+type ResourceListResponse struct {
+	// Map of context types to resource ids which match a specified prefix
+	Matches map[string][]string
+
+	// Truncations indicates whether the matches for a particular context have
+	// been truncated
+	Truncations map[string]bool
+
+	QueryMeta
+}
+
+// ResourceListRequest is used to parameterize a resources request, and returns a
+// subset of information for jobs, allocations, evaluations, and nodes, along
+// with whether or not the information returned is truncated.
+type ResourceListRequest struct {
+	// Prefix is what resources are matched to. I.e, if the given prefix were
+	// "a", potential matches might be "abcd" or "aabb"
+	Prefix string
+
+	// Context is the resource that can be matched. A context can be a job, node,
+	// evaluation, allocation, or empty (indicated every context should be
+	// matched)
+	Context string
+}
+
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {

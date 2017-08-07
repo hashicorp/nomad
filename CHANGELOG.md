@@ -1,6 +1,8 @@
 ## 0.6.1 (Unreleased)
 
 IMPROVEMENTS:
+ * core: Add autocomplete functionality for resources: allocations,
+   evaluations, jobs, and nodes [GH-2964]
  * core: `distinct_property` constraint can set the number of allocations that
    are allowed to share a property value [GH-2942]
  * core: Lost allocations replaced even if part of failed deployment [GH-2961]
