@@ -5288,3 +5288,9 @@ type ACLPolicyDeleteRequest struct {
 	Names []string
 	WriteRequest
 }
+
+// ACLPolicyUpsertRequest is used to upsert a set of policies
+type ACLPolicyUpsertRequest struct {
+	Policies []*ACLPolicy
+	WriteRequest
+}

@@ -1517,6 +1517,31 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	req := structs.ACLPolicyUpsertRequest{
+		Policies: []*structs.ACLPolicy{policy},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
 func TestFSM_DeleteACLPolicies(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

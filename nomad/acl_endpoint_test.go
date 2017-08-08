@@ -221,7 +221,7 @@ func TestACLEndpoint_List_Blocking(t *testing.T) {
 	assert.Equal(t, 0, len(resp2.Policies))
 }
 
-func TestACLEndpoint_DeletePolicy(t *testing.T) {
+func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -242,4 +242,31 @@ func TestACLEndpoint_DeletePolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.NotEqual(t, uint64(0), resp.Index)
+}
+
+func TestACLEndpoint_UpsertPolicies(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	p1 := mock.ACLPolicy()
+
+	// Lookup the policies
+	req := &structs.ACLPolicyUpsertRequest{
+		Policies:     []*structs.ACLPolicy{p1},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertPolicies", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+
+	// Check we created the policy
+	out, err := s1.fsm.State().ACLPolicyByName(nil, p1.Name)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
 }

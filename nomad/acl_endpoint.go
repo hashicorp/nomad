@@ -15,13 +15,26 @@ type ACL struct {
 	srv *Server
 }
 
-// UpsertPolicy is used to create or update a policy
-func (a *ACL) UpsertPolicy(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
-	if done, err := a.srv.forward("ACL.UpsertPolicy", args, args, reply); done {
+// UpsertPolicies is used to create or update a set of policies
+func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *structs.GenericResponse) error {
+	if done, err := a.srv.forward("ACL.UpsertPolicies", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policy"}, time.Now())
-	// TODO
+	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
+
+	// Validate non-zero set of policies
+	if len(args.Policies) == 0 {
+		return fmt.Errorf("must specify as least one policy")
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.ACLPolicyUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
 	return nil
 }
 
