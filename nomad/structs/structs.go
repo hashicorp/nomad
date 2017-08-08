@@ -59,6 +59,8 @@ const (
 	DeploymentAllocHealthRequestType
 	DeploymentDeleteRequestType
 	JobStabilityRequestType
+	ACLPolicyUpsertRequestType
+	ACLPolicyDeleteRequestType
 )
 
 const (
@@ -5370,4 +5372,10 @@ type ACLPolicyListResponse struct {
 type SingleACLPolicyResponse struct {
 	Policy *ACLPolicy
 	QueryMeta
+}
+
+// ACLPolicyDeleteRequest is used to delete a set of policies
+type ACLPolicyDeleteRequest struct {
+	Names []string
+	WriteRequest
 }
