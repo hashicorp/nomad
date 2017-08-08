@@ -921,7 +921,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/deployments
+    https://nomad.rocks/v1/job/my-job/deployment
 ```
 
 ### Sample Response
