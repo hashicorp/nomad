@@ -22,6 +22,9 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
+  createIndex: i => i,
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
       job,

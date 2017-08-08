@@ -9,7 +9,7 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  this.timing = 0; // delay for each request, automatically set to 0 during testing
+  this.timing = 200; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
 

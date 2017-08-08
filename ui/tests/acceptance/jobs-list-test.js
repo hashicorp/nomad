@@ -11,20 +11,29 @@ test('visiting /jobs', function(assert) {
   });
 });
 
-test('/jobs should list all jobs', function(assert) {
-  const jobsCount = 5;
+test('/jobs should list the first page of jobs sorted by modify index', function(assert) {
+  const jobsCount = 11;
+  const pageSize = 10;
   server.createList('job', jobsCount);
 
   visit('/jobs');
 
   andThen(() => {
-    assert.equal(find('.job-row').length, jobsCount);
+    const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
+    assert.equal(find('.job-row').length, pageSize);
+    for (var jobNumber = 0; jobNumber < pageSize; jobNumber++) {
+      assert.equal(
+        find(`.job-row:eq(${jobNumber}) td:eq(0)`).text(),
+        sortedJobs[jobNumber].name,
+        'Jobs are ordered'
+      );
+    }
   });
 });
 
 test('each job row should contain information about the job', function(assert) {
   server.createList('job', 2);
-  const job = server.db.jobs[0];
+  const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
   const summary = server.db.jobSummaries.findBy({ jobId: job.id });
   const taskGroups = server.db.taskGroups.where({ jobId: job.id });
 
