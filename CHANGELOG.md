@@ -6,6 +6,7 @@ IMPROVEMENTS:
  * core: `distinct_property` constraint can set the number of allocations that
    are allowed to share a property value [GH-2942]
  * core: Lost allocations replaced even if part of failed deployment [GH-2961]
+ * api: Redact Vault.Token from AgentSelf response [GH-2988]
  * client/template: Allow template to set Vault grace [GH-2947]
  * driver/rkt: support read-only volume mounts [GH-2883]
 
