@@ -49,7 +49,7 @@ test('/allocation/:id should list all tasks for the allocation', function(assert
 });
 
 test('each task row should list high-level information for the task', function(assert) {
-  const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+  const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
   const taskRow = find('.tasks tbody tr:eq(0)');
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
