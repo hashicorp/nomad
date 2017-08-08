@@ -75,7 +75,7 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 }
 
 // If the length of a string is odd, return a subset of the string to the last
-// even character (n-1)
+// even character
 func roundDownIfOdd(s string) string {
 	if len(s)%2 == 0 {
 		return s

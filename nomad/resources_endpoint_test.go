@@ -347,7 +347,7 @@ func TestResourcesEndpoint_List_RoundDownToEven(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	jobID := registerAndVerifyJob(s, t, id, 0)
-	jobID := registerAndVerifyJob(s, t, "bbafaaaa-e8f7-fd38-c855-ab94ceb89", 50)
+	registerAndVerifyJob(s, t, "bbafaaaa-e8f7-fd38-c855-ab94ceb89", 50)
 
 	req := &structs.ResourceListRequest{
 		Prefix:  prefix,

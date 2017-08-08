@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client"
+	"github.com/posener/complete"
 )
 
 type AllocStatusCommand struct {
@@ -190,6 +191,21 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		resp, err := client.JobResources().List(a.Last, "allocs")
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches["allocs"]
+	})
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {
