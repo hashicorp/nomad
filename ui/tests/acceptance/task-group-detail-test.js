@@ -90,16 +90,35 @@ test('/jobs/:id/:task-group second breadcrumb should link to the job for the tas
   });
 });
 
-test('/jobs/:id/:task-group should list all allocations for the task group', function(assert) {
-  assert.equal(
-    find('.allocations tbody tr').length,
-    allocations.length,
-    'All allocations for the task group'
-  );
+test('/jobs/:id/:task-group should list one page of allocations for the task group', function(
+  assert
+) {
+  const pageSize = 10;
+
+  server.createList('allocation', 10, {
+    jobId: job.id,
+    taskGroup: taskGroup.name,
+  });
+
+  visit('/jobs');
+  visit(`/jobs/${job.id}/${taskGroup.name}`);
+
+  andThen(() => {
+    assert.ok(
+      server.db.allocations.where({ jobId: job.id }).length > pageSize,
+      'There are enough allocations to invoke pagination'
+    );
+
+    assert.equal(
+      find('.allocations tbody tr').length,
+      pageSize,
+      'All allocations for the task group'
+    );
+  });
 });
 
 test('each allocation should show basic information about the allocation', function(assert) {
-  const allocation = allocations[0];
+  const allocation = allocations.sortBy('name')[0];
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(allocationRow.find('td:eq(0)').text().trim(), allocation.name, 'Allocation name');
@@ -113,7 +132,7 @@ test('each allocation should show basic information about the allocation', funct
 test('each allocation should show stats about the allocation, retrieved directly from the node', function(
   assert
 ) {
-  const allocation = allocations[0];
+  const allocation = allocations.sortBy('name')[0];
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(
