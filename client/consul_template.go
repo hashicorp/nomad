@@ -48,6 +48,9 @@ type TaskHooks interface {
 	// Kill is used to kill the task because of the passed error. If fail is set
 	// to true, the task is marked as failed
 	Kill(source, reason string, fail bool)
+
+	// EmitEvent is used to emit an event to be stored in the tasks events.
+	EmitEvent(source, message string)
 }
 
 // TaskTemplateManager is used to run a set of templates for a given task

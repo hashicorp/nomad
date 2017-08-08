@@ -43,14 +43,18 @@ type MockTaskHooks struct {
 
 	KillReason string
 	KillCh     chan struct{}
+
+	Events      []string
+	EmitEventCh chan struct{}
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
 	return &MockTaskHooks{
-		UnblockCh: make(chan struct{}, 1),
-		RestartCh: make(chan struct{}, 1),
-		SignalCh:  make(chan struct{}, 1),
-		KillCh:    make(chan struct{}, 1),
+		UnblockCh:   make(chan struct{}, 1),
+		RestartCh:   make(chan struct{}, 1),
+		SignalCh:    make(chan struct{}, 1),
+		KillCh:      make(chan struct{}, 1),
+		EmitEventCh: make(chan struct{}, 1),
 	}
 }
 func (m *MockTaskHooks) Restart(source, reason string) {
@@ -85,6 +89,14 @@ func (m *MockTaskHooks) UnblockStart(source string) {
 	}
 
 	m.Unblocked = true
+}
+
+func (m *MockTaskHooks) EmitEvent(source, message string) {
+	m.Events = append(m.Events, message)
+	select {
+	case m.EmitEventCh <- struct{}{}:
+	default:
+	}
 }
 
 // testHarness is used to test the TaskTemplateManager by spinning up

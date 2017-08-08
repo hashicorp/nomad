@@ -41,7 +41,7 @@ type MockTaskStateUpdater struct {
 	events []*structs.TaskEvent
 }
 
-func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
+func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent, _ bool) {
 	if state != "" {
 		m.state = state
 	}

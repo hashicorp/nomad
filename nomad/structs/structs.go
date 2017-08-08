@@ -3539,6 +3539,9 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
+
+	// TaskGenericMessage is used by various subsystems to emit a message.
+	TaskGenericMessage = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -3600,6 +3603,9 @@ type TaskEvent struct {
 
 	// DriverMessage indicates a driver action being taken.
 	DriverMessage string
+
+	// GenericSource is the source of a message.
+	GenericSource string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -3736,6 +3742,11 @@ func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
+	return e
+}
+
+func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
+	e.GenericSource = s
 	return e
 }
 
