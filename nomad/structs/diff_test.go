@@ -3798,6 +3798,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						VaultGrace:   3 * time.Second,
 					},
 					{
 						SourcePath:   "foo2",
@@ -3808,6 +3809,7 @@ func TestTaskDiff(t *testing.T) {
 						Splay:        2,
 						Perms:        "0666",
 						Envvars:      true,
+						VaultGrace:   5 * time.Second,
 					},
 				},
 			},
@@ -3821,6 +3823,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						VaultGrace:   3 * time.Second,
 					},
 					{
 						SourcePath:   "foo3",
@@ -3830,6 +3833,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
 						Perms:        "0776",
+						VaultGrace:   10 * time.Second,
 					},
 				},
 			},
@@ -3888,6 +3892,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "3",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "VaultGrace",
+								Old:  "",
+								New:  "10000000000",
+							},
 						},
 					},
 					{
@@ -3940,6 +3950,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Splay",
 								Old:  "2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "VaultGrace",
+								Old:  "5000000000",
 								New:  "",
 							},
 						},
