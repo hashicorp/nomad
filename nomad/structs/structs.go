@@ -5236,9 +5236,47 @@ func IsRecoverable(e error) bool {
 
 // ACLPolicy is used to represent an ACL policy
 type ACLPolicy struct {
-	Name  string // Unique name
-	Rules string // HCL or JSON format
-
+	Name        string // Unique name
+	Description string // Human readable
+	Rules       string // HCL or JSON format
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// ACLPolicyListStub is used to for listing ACL policies
+type ACLPolicyListStub struct {
+	Name        string
+	Description string
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (a *ACLPolicyListStub) FromPolicy(p *ACLPolicy) {
+	a.Name = p.Name
+	a.Description = p.Description
+	a.CreateIndex = p.CreateIndex
+	a.ModifyIndex = p.ModifyIndex
+}
+
+// ACLPolicyListRequest is used to request a list of policies
+type ACLPolicyListRequest struct {
+	QueryOptions
+}
+
+// ACLPolicySpecificRequest is used to query a specific policy
+type ACLPolicySpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// ACLPolicyListResponse is used for a list request
+type ACLPolicyListResponse struct {
+	Policies []*ACLPolicyListStub
+	QueryMeta
+}
+
+// SingleACLPolicyResponse is used to return a single policy
+type SingleACLPolicyResponse struct {
+	Policy *ACLPolicy
+	QueryMeta
 }

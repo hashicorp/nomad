@@ -177,6 +177,7 @@ type endpoints struct {
 	Periodic   *Periodic
 	System     *System
 	Operator   *Operator
+	ACL        *ACL
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -714,6 +715,7 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Create endpoints
+	s.endpoints.ACL = &ACL{s}
 	s.endpoints.Alloc = &Alloc{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Job = &Job{s}
@@ -727,6 +729,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.System = &System{s}
 
 	// Register the handlers
+	s.rpcServer.Register(s.endpoints.ACL)
 	s.rpcServer.Register(s.endpoints.Alloc)
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Job)
