@@ -168,6 +168,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeploymentDelete(buf[1:], log.Index)
 	case structs.JobStabilityRequestType:
 		return n.applyJobStability(buf[1:], log.Index)
+	case structs.ACLPolicyUpsertRequestType:
+		return n.applyACLPolicyUpsert(buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
 		return n.applyACLPolicyDelete(buf[1:], log.Index)
 	default:
@@ -669,6 +671,21 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 		return err
 	}
 
+	return nil
+}
+
+// applyACLPolicyUpsert is used to upsert a set of policies
+func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
+	var req structs.ACLPolicyUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertACLPolicies failed: %v", err)
+		return err
+	}
 	return nil
 }
 
