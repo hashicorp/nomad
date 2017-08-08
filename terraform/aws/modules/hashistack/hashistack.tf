@@ -21,6 +21,14 @@ resource "aws_security_group" "primary" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Consul UI
+  ingress {
+    from_port   = 8500
+    to_port     = 8500
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # HDFS NameNode UI
   ingress {
     from_port   = 50070

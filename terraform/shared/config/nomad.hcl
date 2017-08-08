@@ -1,5 +1,5 @@
 data_dir = "/opt/nomad/data"
-bind_addr = "IP_ADDRESS"
+bind_addr = "0.0.0.0"
 
 # Enable the server
 server {
@@ -10,7 +10,7 @@ server {
 name = "nomad@IP_ADDRESS"
 
 consul {
-  address = "IP_ADDRESS:8500"
+  address = "127.0.0.1:8500"
 }
 
 vault {

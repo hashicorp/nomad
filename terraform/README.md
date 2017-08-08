@@ -49,7 +49,7 @@ Update terraform.tfvars with your SSH key name:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-577d212c"
+ami                     = "ami-a780afdc"
 instance_type           = "t2.medium"
 key_name                = "KEY_NAME"
 server_count            = "3"
