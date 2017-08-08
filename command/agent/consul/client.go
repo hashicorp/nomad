@@ -516,7 +516,7 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 	return nil
 }
 
-// RegisterTask with Consul. Adds all sevice entries and checks to Consul. If
+// RegisterTask with Consul. Adds all service entries and checks to Consul. If
 // exec is nil and a script check exists an error is returned.
 //
 // If the service IP is set it used as the address in the service registration.
@@ -555,7 +555,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 	for existingID, existingSvc := range existingIDs {
 		newSvc, ok := newIDs[existingID]
 		if !ok {
-			// Existing sevice entry removed
+			// Existing service entry removed
 			ops.deregServices = append(ops.deregServices, existingID)
 			for _, check := range existingSvc.Checks {
 				ops.deregChecks = append(ops.deregChecks, makeCheckID(existingID, check))

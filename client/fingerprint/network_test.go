@@ -186,7 +186,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 	if net.MBits != 101 {
-		t.Fatalf("Expected Network Resource to have bandwith %d; got %d", 101, net.MBits)
+		t.Fatalf("Expected Network Resource to have bandwidth %d; got %d", 101, net.MBits)
 	}
 }
 
@@ -263,7 +263,7 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 	if net.MBits == 0 {
-		t.Fatal("Expected Network Resource to have a non-zero bandwith")
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
 	}
 }
 
@@ -306,7 +306,7 @@ func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
 		t.Fatal("Expected Network Resource to be eth0. Actual: ", net.Device)
 	}
 	if net.MBits == 0 {
-		t.Fatal("Expected Network Resource to have a non-zero bandwith")
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
 	}
 
 	// Test the CIDR of the IPs

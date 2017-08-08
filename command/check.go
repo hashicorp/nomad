@@ -35,7 +35,7 @@ Agent Check Options:
      Minimum number of peers that a server is expected to know.
 
   -min-servers
-     Minumum number of servers that a client is expected to know.
+     Minimum number of servers that a client is expected to know.
 `
 
 	return strings.TrimSpace(helpText)

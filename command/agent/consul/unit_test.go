@@ -442,7 +442,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
 			}
 		default:
-			t.Errorf("Unkown check: %q", k)
+			t.Errorf("Unknown check: %q", k)
 		}
 	}
 }
@@ -542,7 +542,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 				t.Errorf("expected Port x=%v but found: %v", expected, v.HTTP)
 			}
 		default:
-			t.Errorf("Unkown check: %q", k)
+			t.Errorf("Unknown check: %q", k)
 		}
 	}
 }

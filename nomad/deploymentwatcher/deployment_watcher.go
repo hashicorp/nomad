@@ -203,7 +203,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 func (w *deploymentWatcher) PauseDeployment(
 	req *structs.DeploymentPauseRequest,
 	resp *structs.DeploymentUpdateResponse) error {
-	// Determine the status we should transistion to and if we need to create an
+	// Determine the status we should transition to and if we need to create an
 	// evaluation
 	status, desc := structs.DeploymentStatusPaused, structs.DeploymentStatusDescriptionPaused
 	var eval *structs.Evaluation

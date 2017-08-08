@@ -264,7 +264,7 @@ func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocName
 
 // bitmapFrom creates a bitmap from the given allocation set and a minimum size
 // maybe given. The size of the bitmap is as the larger of the passed minimum
-// and t the maximum alloc index of the passed input (byte alligned).
+// and t the maximum alloc index of the passed input (byte aligned).
 func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	var max uint
 	for _, a := range input {
@@ -376,7 +376,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 		}
 	}
 
-	// We have exhausted the prefered and free set, now just pick overlapping
+	// We have exhausted the preferred and free set, now just pick overlapping
 	// indexes
 	var i uint
 	for i = 0; i < remainder; i++ {

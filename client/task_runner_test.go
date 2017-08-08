@@ -718,7 +718,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskStarted)
 	}
 	if ctx.upd.events[8].Type != structs.TaskKilling {
-		t.Fatalf("Nineth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
+		t.Fatalf("Ninth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
 	}
 
 	if ctx.upd.events[9].Type != structs.TaskKilled {

@@ -90,8 +90,8 @@ type deploymentWatcherRaftShim struct {
 }
 
 // convertApplyErrors parses the results of a raftApply and returns the index at
-// which it was applied and any error that occured. Raft Apply returns two
-// seperate errors, Raft library errors and user returned errors from the FSM.
+// which it was applied and any error that occurred. Raft Apply returns two
+// separate errors, Raft library errors and user returned errors from the FSM.
 // This helper, joins the errors by inspecting the applyResponse for an error.
 func (d *deploymentWatcherRaftShim) convertApplyErrors(applyResp interface{}, index uint64, err error) (uint64, error) {
 	if applyResp != nil {

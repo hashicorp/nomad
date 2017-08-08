@@ -159,7 +159,7 @@ type TaskRunner struct {
 	persistLock sync.Mutex
 
 	// persistedHash is the hash of the last persisted snapshot. It is used to
-	// detect if a new snapshot has to be writen to disk.
+	// detect if a new snapshot has to be written to disk.
 	persistedHash []byte
 }
 

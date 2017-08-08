@@ -3005,7 +3005,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 		deploymentUpdates: nil,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				// All should be ignored becasue nothing has been marked as
+				// All should be ignored because nothing has been marked as
 				// healthy.
 				Ignore: 30,
 			},

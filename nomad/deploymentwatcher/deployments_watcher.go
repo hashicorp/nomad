@@ -18,7 +18,7 @@ const (
 	LimitStateQueriesPerSecond = 100.0
 
 	// CrossDeploymentEvalBatchDuration is the duration in which evaluations are
-	// batched across all deployment watchers before commiting to Raft.
+	// batched across all deployment watchers before committing to Raft.
 	CrossDeploymentEvalBatchDuration = 250 * time.Millisecond
 )
 

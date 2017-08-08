@@ -21,7 +21,7 @@ Usage: nomad job history [options] <job>
 
 History is used to display the known versions of a particular job. The command
 can display the diff between job versions and can be useful for understanding
-the changes that occured to the job as well as deciding job versions to revert
+the changes that occurred to the job as well as deciding job versions to revert
 to.
 
 General Options:

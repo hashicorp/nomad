@@ -130,7 +130,7 @@ type Server struct {
 	blockedEvals *BlockedEvals
 
 	// deploymentWatcher is used to watch deployments and their allocations and
-	// make the required calls to continue to transistion the deployment.
+	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
 
 	// evalBroker is used to manage the in-progress evaluations
@@ -1122,7 +1122,7 @@ func (s *Server) Stats() map[string]map[string]string {
 	return stats
 }
 
-// Region retuns the region of the server
+// Region returns the region of the server
 func (s *Server) Region() string {
 	return s.config.Region
 }
