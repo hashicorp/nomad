@@ -340,7 +340,8 @@ func PlanResult() *structs.PlanResult {
 
 func ACLPolicy() *structs.ACLPolicy {
 	return &structs.ACLPolicy{
-		Name: fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
 			policy = "write"
