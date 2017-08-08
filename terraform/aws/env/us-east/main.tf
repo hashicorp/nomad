@@ -43,22 +43,6 @@ module "hashistack" {
   cluster_tag_value = "${var.cluster_tag_value}"
 }
 
-output "primary_server_private_ips" {
-  value = "${module.hashistack.primary_server_private_ips}"
-}
-
-output "primary_server_public_ips" {
-  value = "${module.hashistack.primary_server_public_ips}"
-}
-
-output "client_private_ips" {
-  value = "${module.hashistack.client_private_ips}"
-}
-
-output "client_public_ips" {
-  value = "${module.hashistack.client_public_ips}"
-}
-
 output "IP_Addresses" {
   value = <<CONFIGURATION
 
