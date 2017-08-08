@@ -44,7 +44,7 @@ test('the job detail page should list all task groups', function(assert) {
 test('each row in the task group table should show basic information about the task group', function(
   assert
 ) {
-  const taskGroup = server.db.taskGroups.findBy({ id: job.taskGroupIds[0] });
+  const taskGroup = job.taskGroupIds.map(id => server.db.taskGroups.find(id)).sortBy('name')[0];
   const taskGroupRow = find('.task-group-row:eq(0)');
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);

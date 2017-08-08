@@ -18,23 +18,27 @@
       <div class="message-header">
         Task Groups
       </div>
-      <table class="table is-striped">
-        <thead>
-          <tr>
-            <td>Name</td>
-            <td>Count</td>
-            <td class="is-3">Allocation Status</td>
-            <td>Reserved CPU</td>
-            <td>Reserved Memory</td>
-            <td>Reserved Disk</td>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each model.taskGroups as |group|}}
-            {{task-group-row taskGroup=group}}
-          {{/each}}
-        </tbody>
-      </table>
+      {{#list-pagination
+        source=sortedTaskGroups
+        sortProperty=sortProperty
+        sortDescending=sortDescending as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="count"}}Count{{/t.sort-by}}
+            {{#t.sort-by prop="queuedOrStartingAllocs" class="is-3"}}Allocation Status{{/t.sort-by}}
+            {{#t.sort-by prop="reservedCPU"}}Reserved CPU{{/t.sort-by}}
+            {{#t.sort-by prop="reservedMemory"}}Reserved Memory{{/t.sort-by}}
+            {{#t.sort-by prop="reservedDisk"}}Reserved Disk{{/t.sort-by}}
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{task-group-row taskGroup=row.model}}
+          {{/t.body}}
+        {{/list-table}}
+      {{/list-pagination}}
     </div>
   </section>
 </div>
