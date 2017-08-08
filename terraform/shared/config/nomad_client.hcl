@@ -1,5 +1,5 @@
 data_dir = "/opt/nomad/data"
-bind_addr = "IP_ADDRESS"
+bind_addr = "0.0.0.0"
 name = "nomad@IP_ADDRESS"
 
 # Enable the client
