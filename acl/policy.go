@@ -8,12 +8,19 @@ import (
 )
 
 const (
+	// The following levels are the only valid values for the `policy = "read"` stanza.
+	// When policies are merged together, the most privilege is granted, except for deny
+	// which always takes precedence and supercedes.
 	PolicyDeny  = "deny"
 	PolicyRead  = "read"
 	PolicyWrite = "write"
 )
 
 const (
+	// The following are the fine-grained capabilities that can be granted within a namespace.
+	// The Policy stanza is a short hand for granting several of these. When capabilities are
+	// combined we take the union of all capabilities. If the deny capability is present, it
+	// takes precedence and overwrites all other capabilities.
 	NamespaceCapabilityDeny      = "deny"
 	NamespaceCapabilityListJobs  = "list-jobs"
 	NamespaceCapabilityReadJob   = "read-job"
@@ -57,11 +64,7 @@ type OperatorPolicy struct {
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
-	case PolicyDeny:
-		return true
-	case PolicyRead:
-		return true
-	case PolicyWrite:
+	case PolicyDeny, PolicyRead, PolicyWrite:
 		return true
 	default:
 		return false
@@ -71,17 +74,8 @@ func isPolicyValid(policy string) bool {
 // isNamespaceCapabilityValid ensures the given capability is valid for a namespace policy
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
-	case NamespaceCapabilityDeny:
-		return true
-	case NamespaceCapabilityListJobs:
-		return true
-	case NamespaceCapabilityReadJob:
-		return true
-	case NamespaceCapabilitySubmitJob:
-		return true
-	case NamespaceCapabilityReadLogs:
-		return true
-	case NamespaceCapabilityReadFS:
+	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
+		NamespaceCapabilitySubmitJob, NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS:
 		return true
 	default:
 		return false
@@ -138,7 +132,7 @@ func Parse(rules string) (*Policy, error) {
 		}
 		for _, cap := range ns.Capabilities {
 			if !isNamespaceCapabilityValid(cap) {
-				return nil, fmt.Errorf("Invalid namespace capability: %#v", ns)
+				return nil, fmt.Errorf("Invalid namespace capability '%s': %#v", cap, ns)
 			}
 		}
 

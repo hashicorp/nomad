@@ -37,6 +37,7 @@ type ACL struct {
 }
 
 // maxPrivilege returns the policy which grants the most privilege
+// This handles the case of Deny always taking maximum precedence.
 func maxPrivilege(a, b string) string {
 	switch {
 	case a == PolicyDeny || b == PolicyDeny:

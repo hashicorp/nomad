@@ -1324,7 +1324,7 @@ func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 
 func (s *nomadSnapshot) persistACLPolicies(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
-	// Get all the jobs
+	// Get all the policies
 	ws := memdb.NewWatchSet()
 	policies, err := s.snap.ACLPolicies(ws)
 	if err != nil {
@@ -1341,7 +1341,7 @@ func (s *nomadSnapshot) persistACLPolicies(sink raft.SnapshotSink,
 		// Prepare the request struct
 		policy := raw.(*structs.ACLPolicy)
 
-		// Write out a job registration
+		// Write out a policy registration
 		sink.Write([]byte{byte(ACLPolicySnapshot)})
 		if err := encoder.Encode(policy); err != nil {
 			return err
