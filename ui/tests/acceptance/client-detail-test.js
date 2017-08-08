@@ -42,7 +42,10 @@ test('/nodes/:id should list all allocations on the node', function(assert) {
 
 test('each allocation should have high-level details for the allocation', function(assert) {
   const allocationRow = find('.allocations tbody tr:eq(0)');
-  const allocation = server.db.allocations.where({ nodeId: node.id })[0];
+  const allocation = server.db.allocations
+    .where({ nodeId: node.id })
+    .sortBy('modifyIndex')
+    .reverse()[0];
 
   assert.equal(allocationRow.find('td:eq(0)').text().trim(), allocation.name, 'Allocation name');
   assert.ok(
@@ -61,7 +64,11 @@ test('each allocation should have high-level details for the allocation', functi
 });
 
 test('each allocation should link to the allocation detail page', function(assert) {
-  const allocation = server.db.allocations.where({ nodeId: node.id })[0];
+  const allocation = server.db.allocations
+    .where({ nodeId: node.id })
+    .sortBy('modifyIndex')
+    .reverse()[0];
+
   click('.allocations tbody tr:eq(0) td:eq(0) a');
 
   andThen(() => {

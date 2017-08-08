@@ -10,35 +10,55 @@
       <div class="message-header">
         Allocations
       </div>
-      <table class="table allocations">
-        <thead>
-          <td>Name</td>
-          <td>Job</td>
-          <td>CPU</td>
-        </thead>
-        <tbody>
-          {{#each model.allocations as |allocation|}}
+      {{#list-pagination
+        source=sortedAllocations
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="allocations" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="job.name"}}Job{{/t.sort-by}}
+            <th>CPU</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
             <tr>
               <td>
-                <a href="{{href-to "allocations.allocation" allocation}}">{{allocation.name}}</a>
+                <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.name}}</a>
               </td>
               <td>
-                <a href="{{href-to "jobs.job" allocation.job}}">{{allocation.job.name}}</a>
-                <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
+                <a href="{{href-to "jobs.job" row.model.job}}">{{row.model.job.name}}</a>
+                <span class="is-faded">/ {{row.model.taskGroup.name}}</span>
               </td>
               <td>
-                {{#if allocation.stats.isPending}}
+                {{#if row.model.stats.isPending}}
                   ...
-                {{else if allocation.stats.isRejected}}
+                {{else if row.model.stats.isRejected}}
                   !!!
                 {{else}}
-                  {{allocation.stats.ResourceUsage.CpuStats.Percent}}
+                  {{row.model.stats.ResourceUsage.CpuStats.Percent}}
                 {{/if}}
               </td>
             </tr>
-          {{/each}}
-        </tbody>
-      </table>
+          {{/t.body}}
+        {{/list-table}}
+        <nav class="pagination is-centered">
+          <ul class="pagination-list">
+            {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
+            {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
+            {{#each p.pageLinks as |link|}}
+              {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
+                {{link.pageNumber}}
+              {{/link-to}}
+            {{/each}}
+            {{#p.next class="pagination-link"}} &gt; {{/p.next}}
+            {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
+          </ul>
+        </nav>
+      {{/list-pagination}}
     </div>
 
     <div class="message">
