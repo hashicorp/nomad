@@ -300,8 +300,8 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
-//// Tests that the zero matches are returned when a prefix has no matching
-//// results
+// Tests that the zero matches are returned when a prefix has no matching
+// results
 func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 	assert := assert.New(t)
 
@@ -328,4 +328,37 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 
 	assert.Equal(0, len(resp.Matches["jobs"]))
 	assert.Equal(uint64(0), resp.Index)
+}
+
+// Prefixes can only be looked up if their length is a power of two. For
+// prefixes which are an odd length, use the length-1 characters.
+func TestResourcesEndpoint_List_RoundDownToEven(t *testing.T) {
+	assert := assert.New(t)
+	id := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
+	prefix := "aaafe"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	jobID := registerAndVerifyJob(s, t, id, 0)
+	jobID := registerAndVerifyJob(s, t, "bbafaaaa-e8f7-fd38-c855-ab94ceb89", 50)
+
+	req := &structs.ResourceListRequest{
+		Prefix:  prefix,
+		Context: "jobs",
+	}
+
+	var resp structs.ResourceListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches["jobs"]))
+	assert.Equal(jobID, resp.Matches["jobs"][0])
 }

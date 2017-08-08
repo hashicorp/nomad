@@ -74,6 +74,15 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 	}
 }
 
+// If the length of a string is odd, return a subset of the string to the last
+// even character (n-1)
+func roundDownIfOdd(s string) string {
+	if len(s)%2 == 0 {
+		return s
+	}
+	return s[:len(s)-1]
+}
+
 // List is used to list the resouces registered in the system that matches the
 // given prefix. Resources are jobs, evaluations, allocations, and/or nodes.
 func (r *Resources) List(args *structs.ResourceListRequest,
@@ -95,7 +104,7 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 			}
 
 			for _, e := range contexts {
-				iter, err := getResourceIter(e, args.Prefix, ws, state)
+				iter, err := getResourceIter(e, roundDownIfOdd(args.Prefix), ws, state)
 				if err != nil {
 					return err
 				}
