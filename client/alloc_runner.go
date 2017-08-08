@@ -82,6 +82,9 @@ type AllocRunner struct {
 
 	otherAllocDir *allocdir.AllocDir
 
+	// blocker blocks until a previous allocation has terminated
+	blocker *allocBlocker
+
 	ctx    context.Context
 	exitFn context.CancelFunc
 	waitCh chan struct{}
@@ -149,8 +152,8 @@ type allocRunnerMutableState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,
-	alloc *structs.Allocation, vaultClient vaultclient.VaultClient,
-	consulClient ConsulServiceAPI) *AllocRunner {
+	alloc *structs.Allocation, vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI,
+	blocker *allocBlocker, prevAllocDir *allocdir.AllocDir) *AllocRunner {
 
 	ar := &AllocRunner{
 		config:         config,
@@ -160,6 +163,8 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		alloc:          alloc,
 		allocID:        alloc.ID,
 		allocBroadcast: cstructs.NewAllocBroadcaster(8),
+		blocker:        blocker,
+		otherAllocDir:  prevAllocDir,
 		dirtyCh:        make(chan struct{}, 1),
 		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
 		tasks:          make(map[string]*TaskRunner),
@@ -742,7 +747,6 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
-	// Create the execution context
 	r.allocDirLock.Lock()
 	// Build allocation directory (idempotent)
 	if err := r.allocDir.Build(); err != nil {
@@ -751,16 +755,40 @@ func (r *AllocRunner) Run() {
 		r.allocDirLock.Unlock()
 		return
 	}
+	r.allocDirLock.Unlock()
 
-	if r.otherAllocDir != nil {
-		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
-			r.logger.Printf("[ERR] client: failed to move alloc dir into alloc %q: %v", r.allocID, err)
+	// If there was a previous allocation block until it has terminated
+	if alloc.PreviousAllocation != "" {
+		//TODO remove me
+		r.logger.Printf("[TRACE] client: XXXX blocking %q on -> %q", alloc.ID, alloc.PreviousAllocation)
+		if nodeID, err := r.blocker.BlockOnAlloc(r.ctx, alloc.PreviousAllocation); err != nil {
+			if err == context.Canceled {
+				// Exiting
+				return
+			}
+
+			// Non-canceled errors are fatal as an invariant has been broken.
+			r.logger.Printf("[ERR] client: alloc %q encountered an error waiting for alloc %q to terminate: %v",
+				alloc.ID, alloc.PreviousAllocation, err)
+			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error waiting for alloc %q to terminate: %v",
+				alloc.PreviousAllocation, err))
+			return
 		}
-		if err := r.otherAllocDir.Destroy(); err != nil {
-			r.logger.Printf("[ERR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
+
+		// Move data if there's a previous alloc dir and sticky volumes is on
+		if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
+			if err := r.migrateAllocDir(r.ctx, nodeID); err != nil {
+				if err == context.Canceled {
+					// Exiting
+					return
+				}
+
+				//TODO(schmichael) task event?
+				r.logger.Printf("[WARN] client: alloc %q encountered an error migrating data from previous alloc %q: %v",
+					alloc.ID, alloc.PreviousAllocation, err)
+			}
 		}
 	}
-	r.allocDirLock.Unlock()
 
 	// Check if the allocation is in a terminal status. In this case, we don't
 	// start any of the task runners and directly wait for the destroy signal to
@@ -769,10 +797,7 @@ func (r *AllocRunner) Run() {
 		r.logger.Printf("[DEBUG] client: alloc %q in terminal status, waiting for destroy", r.allocID)
 		// mark this allocation as completed if it is not already in a
 		// terminal state
-		r.allocLock.Lock()
-		terminal := r.alloc.Terminated()
-		r.allocLock.Unlock()
-		if !terminal {
+		if !alloc.Terminated() {
 			r.setStatus(structs.AllocClientStatusComplete, "canceled running tasks for allocation in terminal state")
 		}
 		r.handleDestroy()
@@ -863,10 +888,33 @@ OUTER:
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 }
 
-// SetPreviousAllocDir sets the previous allocation directory of the current
-// allocation
-func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
-	r.otherAllocDir = allocDir
+// migrateAllocDir handles migrating data from a previous alloc. Only call from
+// Run.
+func (r *AllocRunner) migrateAllocDir(ctx context.Context, nodeID string) error {
+	if r.otherAllocDir != nil {
+		// The other alloc was local, move it over
+		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
+			r.logger.Printf("[ERR] client: failed to move alloc dir into alloc %q: %v", alloc.ID, err)
+		}
+		//TODO(schmichael) task event?
+		if err := r.otherAllocDir.Destroy(); err != nil {
+			r.logger.Printf("[ERR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
+		}
+		return nil
+	}
+
+	// No previous alloc dir set, try to migrate from a remote node
+	if tg.EphemeralDisk.Migrate {
+		if nodeID == "" {
+			return fmt.Errorf("unable to find remote node")
+		}
+
+		//TODO(schmichael) add a timeout to context?
+		nodeAddr, err := r.blocker.GetNodeAddr(ctx, nodeID)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // destroyTaskRunners destroys the task runners, waits for them to terminate and

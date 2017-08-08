@@ -130,6 +130,9 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
+	// allocBlocker is used to block until local or remote allocations terminate
+	allocBlocker *allocBlocker
+
 	// blockedAllocations are allocations which are blocked because their
 	// chained allocations haven't finished running
 	blockedAllocations map[string]*structs.Allocation
@@ -296,6 +299,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	if err := c.setupVaultClient(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
 	}
+
+	// Create an alloc blocker for tracking alloc terminations; must exist
+	// before NewAllocRunner is called by methods like restoreState and run
+	c.allocBlocker = newAllocBlocker(c.logger, c, c.config.Region)
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
@@ -658,7 +665,7 @@ func (c *Client) restoreState() error {
 		alloc := &structs.Allocation{ID: id}
 
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, c.allocBlocker)
 		c.configLock.RUnlock()
 
 		c.allocLock.Lock()
@@ -1254,36 +1261,20 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	// If this alloc was blocking another alloc and transitioned to a
 	// terminal state then start the blocked allocation
 	if alloc.Terminated() {
-		c.blockedAllocsLock.Lock()
-		blockedAlloc, ok := c.blockedAllocations[alloc.ID]
-		if ok {
-			var prevAllocDir *allocdir.AllocDir
+		// Mark the allocation for GC if it is in terminal state and won't be migrated
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		if tg == nil || tg.EphemeralDisk == nil || !tg.EphemeralDisk.Sticky {
 			if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-				tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-				if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
-					prevAllocDir = ar.GetAllocDir()
-				}
+				c.garbageCollector.MarkForCollection(ar)
 			}
-
-			delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
-			c.blockedAllocsLock.Unlock()
-
-			c.logger.Printf("[DEBUG] client: unblocking alloc %q because alloc %q terminated", blockedAlloc.ID, alloc.ID)
-
-			// Need to call addAlloc without holding the lock
-			if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
-				c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
-					blockedAlloc.ID, err)
-			}
-		} else {
-			c.blockedAllocsLock.Unlock()
 		}
+	}
 
-		// Mark the allocation for GC if it is in terminal state
-		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-			if err := c.garbageCollector.MarkForCollection(ar); err != nil {
-				c.logger.Printf("[DEBUG] client: couldn't add alloc %q for GC: %v", alloc.ID, err)
-			}
+	// If this allocation isn't pending and had a previous allocation, the
+	// previous allocation is now free to be GC'd.
+	if alloc.ClientStatus != structs.AllocClientStatusPending && alloc.PreviousAllocation != "" {
+		if ar, ok := c.getAllocRunners()[alloc.PreviousAllocation]; ok {
+			c.garbageCollector.MarkForCollection(ar)
 		}
 	}
 
@@ -1919,35 +1910,6 @@ func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAll
 	}
 }
 
-// getNode gets the node from the server with the given Node ID
-func (c *Client) getNode(nodeID string) (*structs.Node, error) {
-	req := structs.NodeSpecificRequest{
-		NodeID: nodeID,
-		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: true,
-		},
-	}
-
-	resp := structs.SingleNodeResponse{}
-	for {
-		err := c.RPC("Node.GetNode", &req, &resp)
-		if err != nil {
-			c.logger.Printf("[ERR] client: failed to query node info %q: %v", nodeID, err)
-			retry := c.retryIntv(getAllocRetryIntv)
-			select {
-			case <-time.After(retry):
-				continue
-			case <-c.shutdownCh:
-				return nil, fmt.Errorf("aborting because client is shutting down")
-			}
-		}
-		break
-	}
-
-	return resp.Node, nil
-}
-
 // removeAlloc is invoked when we should remove an allocation
 func (c *Client) removeAlloc(alloc *structs.Allocation) error {
 	c.allocLock.Lock()
@@ -1983,7 +1945,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 }
 
 // addAlloc is invoked when we should add an allocation
-func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.AllocDir) error {
+func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	// Check if we already have an alloc runner
 	c.allocLock.Lock()
 	if _, ok := c.allocs[alloc.ID]; ok {
@@ -1992,8 +1954,17 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 		return nil
 	}
 
+	// If the previous allocation is local, pass in its allocation dir
+	var prevAllocDir *allocdir.AllocDir
+	tg := alloc.Job.LookupTaskGroup(add.TaskGroup)
+	if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky && ar != nil {
+		if prevAR, ok := c.allocs[alloc.PreviousAllocation]; ok {
+			prevAllocDir = prevAR.GetAllocDir()
+		}
+	}
+
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, c.allocBlocker, prevAllocDir)
 	ar.SetPreviousAllocDir(prevAllocDir)
 	c.configLock.RUnlock()
 
