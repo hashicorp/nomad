@@ -346,8 +346,12 @@ func ACLPolicy() *structs.ACLPolicy {
 		namespace "default" {
 			policy = "write"
 		}
-		node = "read"
-		agent = "read"
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
 		`,
 		CreateIndex: 10,
 		ModifyIndex: 20,
