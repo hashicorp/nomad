@@ -2,12 +2,24 @@ package nomad
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// maxPolicyDescriptionLength limits a policy description length
+	maxPolicyDescriptionLength = 256
+)
+
+var (
+	// validPolicyName is used to validate a policy name
+	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // ACL endpoint is used for manipulating ACL tokens and policies
@@ -25,6 +37,19 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	// Validate non-zero set of policies
 	if len(args.Policies) == 0 {
 		return fmt.Errorf("must specify as least one policy")
+	}
+
+	// Validate each policy
+	for idx, policy := range args.Policies {
+		if !validPolicyName.MatchString(policy.Name) {
+			return fmt.Errorf("policy %d has invalid name '%s'", idx, policy.Name)
+		}
+		if _, err := acl.Parse(policy.Rules); err != nil {
+			return fmt.Errorf("policy %d rules failed to parse: %v", idx, err)
+		}
+		if len(policy.Description) > maxPolicyDescriptionLength {
+			return fmt.Errorf("policy %d description longer than %d", idx, maxPolicyDescriptionLength)
+		}
 	}
 
 	// Update via Raft
@@ -93,9 +118,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 					break
 				}
 				policy := raw.(*structs.ACLPolicy)
-				stub := new(structs.ACLPolicyListStub)
-				stub.FromPolicy(policy)
-				reply.Policies = append(reply.Policies, stub)
+				reply.Policies = append(reply.Policies, policy.Stub())
 			}
 
 			// Use the last index that affected the policy table

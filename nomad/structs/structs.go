@@ -5336,19 +5336,21 @@ type ACLPolicy struct {
 	ModifyIndex uint64
 }
 
+func (a *ACLPolicy) Stub() *ACLPolicyListStub {
+	return &ACLPolicyListStub{
+		Name:        a.Name,
+		Description: a.Description,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
 // ACLPolicyListStub is used to for listing ACL policies
 type ACLPolicyListStub struct {
 	Name        string
 	Description string
 	CreateIndex uint64
 	ModifyIndex uint64
-}
-
-func (a *ACLPolicyListStub) FromPolicy(p *ACLPolicy) {
-	a.Name = p.Name
-	a.Description = p.Description
-	a.CreateIndex = p.CreateIndex
-	a.ModifyIndex = p.ModifyIndex
 }
 
 // ACLPolicyListRequest is used to request a list of policies
