@@ -1517,6 +1517,59 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	req := structs.ACLPolicyUpsertRequest{
+		Policies: []*structs.ACLPolicy{policy},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	err := fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
+	assert.Nil(t, err)
+
+	req := structs.ACLPolicyDeleteRequest{
+		Names: []string{policy.Name},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -1864,8 +1917,7 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 	state := fsm.State()
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
-	state.UpsertACLPolicy(1000, p1)
-	state.UpsertACLPolicy(1001, p2)
+	state.UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
