@@ -1517,6 +1517,34 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 	}
 }
 
+func TestFSM_DeleteACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	err := fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
+	assert.Nil(t, err)
+
+	req := structs.ACLPolicyDeleteRequest{
+		Names: []string{policy.Name},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()

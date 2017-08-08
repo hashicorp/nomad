@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -24,13 +25,26 @@ func (a *ACL) UpsertPolicy(args *structs.AllocListRequest, reply *structs.AllocL
 	return nil
 }
 
-// DeletePolicy is used to delete a policy
-func (a *ACL) DeletePolicy(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
-	if done, err := a.srv.forward("ACL.DeletePolicy", args, args, reply); done {
+// DeletePolicies is used to delete policies
+func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *structs.GenericResponse) error {
+	if done, err := a.srv.forward("ACL.DeletePolicies", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policy"}, time.Now())
-	// TODO
+	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
+
+	// Validate non-zero set of policies
+	if len(args.Names) == 0 {
+		return fmt.Errorf("must specify as least one policy")
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.ACLPolicyDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
 	return nil
 }
 

@@ -220,3 +220,26 @@ func TestACLEndpoint_List_Blocking(t *testing.T) {
 	assert.Equal(t, uint64(3), resp2.Index)
 	assert.Equal(t, 0, len(resp2.Policies))
 }
+
+func TestACLEndpoint_DeletePolicy(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	p1 := mock.ACLPolicy()
+	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{p1})
+
+	// Lookup the policies
+	req := &structs.ACLPolicyDeleteRequest{
+		Names:        []string{p1.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.DeletePolicies", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+}
