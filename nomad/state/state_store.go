@@ -2743,6 +2743,102 @@ func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	}
 }
 
+// UpsertACLPolicies is used to create or update a set of ACL policies
+func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, policy := range policies {
+		// Check if the policy already exists
+		existing, err := txn.First("acl_policy", "id", policy.Name)
+		if err != nil {
+			return fmt.Errorf("policy lookup failed: %v", err)
+		}
+
+		// Update all the indexes
+		if existing != nil {
+			policy.CreateIndex = existing.(*structs.ACLPolicy).CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
+		}
+
+		// Update the policy
+		if err := txn.Insert("acl_policy", policy); err != nil {
+			return fmt.Errorf("upserting policy failed: %v", err)
+		}
+	}
+
+	// Update the indexes tabl
+	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteACLPolicies deletes the policies with the given names
+func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the policy
+	for _, name := range names {
+		if _, err := txn.DeleteAll("acl_policy", "id", name); err != nil {
+			return fmt.Errorf("deleting acl policy failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// ACLPolicyByName is used to lookup a policy by name
+func (s *StateStore) ACLPolicyByName(ws memdb.WatchSet, name string) (*structs.ACLPolicy, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_policy", "id", name)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLPolicy), nil
+	}
+	return nil, nil
+}
+
+// ACLPolicyByNamePrefix is used to lookup policies by prefix
+func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("acl_policy", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// ACLPolicies returns an iterator over all the nodes
+func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire nodes table
+	iter, err := txn.Get("acl_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -2858,6 +2954,14 @@ func (r *StateRestore) DeploymentRestore(deployment *structs.Deployment) error {
 func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) error {
 	if err := r.txn.Insert("vault_accessors", accessor); err != nil {
 		return fmt.Errorf("vault accessor insert failed: %v", err)
+	}
+	return nil
+}
+
+// ACLPolicyRestore is used to restore an ACL policy
+func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
+	if err := r.txn.Insert("acl_policy", policy); err != nil {
+		return fmt.Errorf("inserting acl policy failed: %v", err)
 	}
 	return nil
 }

@@ -41,6 +41,7 @@ const (
 	VaultAccessorSnapshot
 	JobVersionSnapshot
 	DeploymentSnapshot
+	ACLPolicySnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -826,6 +827,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case ACLPolicySnapshot:
+			policy := new(structs.ACLPolicy)
+			if err := dec.Decode(policy); err != nil {
+				return err
+			}
+			if err := restore.ACLPolicyRestore(policy); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
 		}
@@ -1029,6 +1039,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistDeployments(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLPolicies(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1302,6 +1316,34 @@ func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 		// Write out a job registration
 		sink.Write([]byte{byte(DeploymentSnapshot)})
 		if err := encoder.Encode(deployment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistACLPolicies(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the policies
+	ws := memdb.NewWatchSet()
+	policies, err := s.snap.ACLPolicies(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := policies.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		policy := raw.(*structs.ACLPolicy)
+
+		// Write out a policy registration
+		sink.Write([]byte{byte(ACLPolicySnapshot)})
+		if err := encoder.Encode(policy); err != nil {
 			return err
 		}
 	}
