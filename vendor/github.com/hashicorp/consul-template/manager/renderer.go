@@ -66,7 +66,7 @@ func Render(i *RenderInput) (*RenderResult, error) {
 	return &RenderResult{
 		DidRender:   true,
 		WouldRender: true,
-		Contents:    existing,
+		Contents:    i.Contents,
 	}, nil
 }
 
