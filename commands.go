@@ -154,6 +154,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job status": func() (cli.Command, error) {
+			return &command.JobStatusCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &command.LogsCommand{
 				Meta: meta,
@@ -217,11 +222,6 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 		"server-members": func() (cli.Command, error) {
 			return &command.ServerMembersCommand{
-				Meta: meta,
-			}, nil
-		},
-		"status": func() (cli.Command, error) {
-			return &command.StatusCommand{
 				Meta: meta,
 			}, nil
 		},

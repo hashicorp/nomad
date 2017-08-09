@@ -16,7 +16,7 @@ const (
 	maxFailedTGs = 5
 )
 
-type StatusCommand struct {
+type JobStatusCommand struct {
 	Meta
 	length    int
 	evals     bool
@@ -24,7 +24,7 @@ type StatusCommand struct {
 	verbose   bool
 }
 
-func (c *StatusCommand) Help() string {
+func (c *JobStatusCommand) Help() string {
 	helpText := `
 Usage: nomad status [options] <job>
 
@@ -54,11 +54,11 @@ Status Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *StatusCommand) Synopsis() string {
+func (c *JobStatusCommand) Synopsis() string {
 	return "Display status information about jobs"
 }
 
-func (c *StatusCommand) Run(args []string) int {
+func (c *JobStatusCommand) Run(args []string) int {
 	var short bool
 
 	flags := c.Meta.FlagSet("status", FlagSetClient)
@@ -192,7 +192,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 // outputPeriodicInfo prints information about the passed periodic job. If a
 // request fails, an error is returned.
-func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) error {
+func (c *JobStatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) error {
 	// Output the summary
 	if err := c.outputJobSummary(client, job); err != nil {
 		return err
@@ -231,7 +231,7 @@ func (c *StatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) err
 
 // outputParameterizedInfo prints information about a parameterized job. If a
 // request fails, an error is returned.
-func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job) error {
+func (c *JobStatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job) error {
 	// Output parameterized job details
 	c.Ui.Output(c.Colorize().Color("\n[bold]Parameterized Job[reset]"))
 	parameterizedJob := make([]string, 3)
@@ -278,7 +278,7 @@ func (c *StatusCommand) outputParameterizedInfo(client *api.Client, job *api.Job
 
 // outputJobInfo prints information about the passed non-periodic job. If a
 // request fails, an error is returned.
-func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
+func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 
 	// Query the allocations
 	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, nil)
@@ -354,7 +354,7 @@ func (c *StatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
 	return nil
 }
 
-func (c *StatusCommand) formatDeployment(d *api.Deployment) string {
+func (c *JobStatusCommand) formatDeployment(d *api.Deployment) string {
 	// Format the high-level elements
 	high := []string{
 		fmt.Sprintf("ID|%s", limit(d.ID, c.length)),
@@ -445,7 +445,7 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 
 // outputJobSummary displays the given jobs summary and children job summary
 // where appropriate
-func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
+func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
 	// Query the summary
 	summary, _, err := client.Jobs().Summary(*job.ID, nil)
 	if err != nil {
@@ -498,7 +498,7 @@ func (c *StatusCommand) outputJobSummary(client *api.Client, job *api.Job) error
 	return nil
 }
 
-func (c *StatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
+func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	if failedEval == nil || len(failedEval.FailedTGAllocs) == 0 {
 		return
 	}

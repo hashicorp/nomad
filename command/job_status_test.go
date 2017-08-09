@@ -8,18 +8,18 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestStatusCommand_Implements(t *testing.T) {
+func TestJobStatusCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &StatusCommand{}
+	var _ cli.Command = &JobStatusCommand{}
 }
 
-func TestStatusCommand_Run(t *testing.T) {
+func TestJobStatusCommand_Run(t *testing.T) {
 	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Should return blank for no jobs
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
@@ -165,10 +165,10 @@ func TestStatusCommand_Run(t *testing.T) {
 	}
 }
 
-func TestStatusCommand_Fails(t *testing.T) {
+func TestJobStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &StatusCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
