@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -269,4 +270,28 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	out, err := s1.fsm.State().ACLPolicyByName(nil, p1.Name)
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
+}
+
+func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	p1 := mock.ACLPolicy()
+	p1.Rules = "blah blah invalid"
+
+	// Lookup the policies
+	req := &structs.ACLPolicyUpsertRequest{
+		Policies:     []*structs.ACLPolicy{p1},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertPolicies", req, &resp)
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "failed to parse") {
+		t.Fatalf("bad: %s", err)
+	}
 }

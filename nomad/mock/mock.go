@@ -340,13 +340,18 @@ func PlanResult() *structs.PlanResult {
 
 func ACLPolicy() *structs.ACLPolicy {
 	return &structs.ACLPolicy{
-		Name: fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
 			policy = "write"
 		}
-		node = "read"
-		agent = "read"
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
 		`,
 		CreateIndex: 10,
 		ModifyIndex: 20,
