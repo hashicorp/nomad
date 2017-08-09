@@ -15,7 +15,7 @@ func (c *Client) JobResources() *JobResources {
 
 // List returns a list of all resources for a particular context. If a
 // context is not specified, matches for all contezts are returned.
-func (j *JobResources) List(prefix string, context string) (*structs.ResourceListResponse, error) {
+func (j *JobResources) List(prefix, context string) (*structs.ResourceListResponse, error) {
 	var resp structs.ResourceListResponse
 	req := &structs.ResourceListRequest{Prefix: prefix, Context: context}
 

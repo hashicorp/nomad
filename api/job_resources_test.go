@@ -25,5 +25,5 @@ func TestJobResource_PrefixList(t *testing.T) {
 
 	jobMatches := resp.Matches["jobs"]
 	assert.Equal(1, len(jobMatches))
-	assert.Equal(job.ID, jobMatches[0])
+	assert.Equal(id, jobMatches[0])
 }
