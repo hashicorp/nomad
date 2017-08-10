@@ -25,7 +25,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) s
 	return job.ID
 }
 
-func TestResourcesEndpoint_List(t *testing.T) {
+func TestClusterEndpoint_List(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -40,13 +40,13 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestResourcesEndpoint_List(t *testing.T) {
 }
 
 // truncate should limit results to 20
-func TestResourcesEndpoint_List_Truncate(t *testing.T) {
+func TestClusterEndpoint_List_Truncate(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -73,13 +73,13 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 		registerAndVerifyJob(s, t, prefix, counter)
 	}
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -88,7 +88,7 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Evals(t *testing.T) {
+func TestClusterEndpoint_List_Evals(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -104,13 +104,13 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "evals",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -121,7 +121,7 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 	assert.Equal(uint64(2000), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Allocation(t *testing.T) {
+func TestClusterEndpoint_List_Allocation(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -145,13 +145,13 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 
 	prefix := alloc.ID[:len(alloc.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "allocs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -162,7 +162,7 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 	assert.Equal(uint64(90), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Node(t *testing.T) {
+func TestClusterEndpoint_List_Node(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -182,13 +182,13 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "nodes",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -199,7 +199,7 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 	assert.Equal(uint64(100), resp.Index)
 }
 
-func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
+func TestClusterEndpoint_List_InvalidContext(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Parallel()
@@ -211,19 +211,19 @@ func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  "anyPrefix",
 		Context: "invalid",
 	}
 
-	var resp structs.ResourceListResponse
-	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
+	var resp structs.ClusterSearchResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp)
 	assert.Equal(err.Error(), "context must be one of [allocs nodes jobs evals]; got \"invalid\"")
 
 	assert.Equal(uint64(0), resp.Index)
 }
 
-func TestResourcesEndpoint_List_NoContext(t *testing.T) {
+func TestClusterEndpoint_List_NoContext(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -249,13 +249,13 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -269,7 +269,7 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 }
 
 // Tests that the top 20 matches are returned when no prefix is set
-func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
+func TestClusterEndpoint_List_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -285,13 +285,13 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  "",
 		Context: "jobs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -302,7 +302,7 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 
 // Tests that the zero matches are returned when a prefix has no matching
 // results
-func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
+func TestClusterEndpoint_List_NoMatches(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -316,13 +316,13 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -332,9 +332,10 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 
 // Prefixes can only be looked up if their length is a power of two. For
 // prefixes which are an odd length, use the length-1 characters.
-func TestResourcesEndpoint_List_RoundDownToEven(t *testing.T) {
+func TestClusterEndpoint_List_RoundDownToEven(t *testing.T) {
 	assert := assert.New(t)
-	id := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
+	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
+	id2 := "aaaeeaaa-e8f7-fd38-c855-ab94ceb89"
 	prefix := "aaafe"
 
 	t.Parallel()
@@ -346,19 +347,19 @@ func TestResourcesEndpoint_List_RoundDownToEven(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID := registerAndVerifyJob(s, t, id, 0)
-	registerAndVerifyJob(s, t, "bbafaaaa-e8f7-fd38-c855-ab94ceb89", 50)
+	jobID1 := registerAndVerifyJob(s, t, id1, 0)
+	registerAndVerifyJob(s, t, id2, 50)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.ClusterSearchRequest{
 		Prefix:  prefix,
 		Context: "jobs",
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.ClusterSearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ClusterSearch.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID, resp.Matches["jobs"][0])
+	assert.Equal(jobID1, resp.Matches["jobs"][0])
 }

@@ -18,7 +18,7 @@ func TestJobResource_PrefixList(t *testing.T) {
 
 	id := *job.ID
 	prefix := id[:len(id)-2]
-	resp, err := c.JobResources().List(prefix, "jobs")
+	resp, err := c.ClusterSearch().List(prefix, "jobs")
 
 	assert.Nil(err)
 	assert.NotEqual(0, resp.Index)

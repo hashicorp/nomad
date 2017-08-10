@@ -20,14 +20,14 @@ var (
 	allContexts = []string{"allocs", "nodes", "jobs", "evals"}
 )
 
-// Resource endpoint is used to lookup matches for a given prefix and context
-type Resources struct {
+// ClusterSearch endpoint is used to lookup matches for a given prefix and context
+type ClusterSearch struct {
 	srv *Server
 }
 
 // getMatches extracts matches for an iterator, and returns a list of ids for
 // these matches.
-func (r *Resources) getMatches(iter memdb.ResultIterator) ([]string, bool) {
+func (c *ClusterSearch) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 	var matches []string
 
 	for i := 0; i < truncateLimit; i++ {
@@ -47,7 +47,7 @@ func (r *Resources) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
 		default:
-			r.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
+			c.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
 		}
 
@@ -84,9 +84,10 @@ func roundDownIfOdd(s string) string {
 }
 
 // List is used to list the resouces registered in the system that matches the
-// given prefix. Resources are jobs, evaluations, allocations, and/or nodes.
-func (r *Resources) List(args *structs.ResourceListRequest,
-	reply *structs.ResourceListResponse) error {
+// given prefix. ClusterSearch returns jobs, evaluations, allocations, and/or
+// nodes.
+func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
+	reply *structs.ClusterSearchResponse) error {
 	reply.Matches = make(map[string][]string)
 	reply.Truncations = make(map[string]bool)
 
@@ -113,7 +114,7 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 
 			// Return matches for the given prefix
 			for k, v := range iters {
-				res, isTrunc := r.getMatches(v)
+				res, isTrunc := c.getMatches(v)
 				reply.Matches[k] = res
 				reply.Truncations[k] = isTrunc
 			}
@@ -131,8 +132,8 @@ func (r *Resources) List(args *structs.ResourceListRequest,
 				}
 			}
 
-			r.srv.setQueryMeta(&reply.QueryMeta)
+			c.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
-	return r.srv.blockingRPC(&opts)
+	return c.srv.blockingRPC(&opts)
 }

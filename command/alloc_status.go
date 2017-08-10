@@ -200,7 +200,7 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		resp, err := client.JobResources().List(a.Last, "allocs")
+		resp, err := client.ClusterSearch().List(a.Last, "allocs")
 		if err != nil {
 			return []string{}
 		}

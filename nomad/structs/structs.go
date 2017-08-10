@@ -231,9 +231,9 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
-// ResourceListResponse is used to return matches and information about whether
+// ClusterSearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of context.
-type ResourceListResponse struct {
+type ClusterSearchResponse struct {
 	// Map of context types to resource ids which match a specified prefix
 	Matches map[string][]string
 
@@ -244,10 +244,10 @@ type ResourceListResponse struct {
 	QueryMeta
 }
 
-// ResourceListRequest is used to parameterize a resources request, and returns a
+// ClusterSearchRequest is used to parameterize a resources request, and returns a
 // subset of information for jobs, allocations, evaluations, and nodes, along
 // with whether or not the information returned is truncated.
-type ResourceListRequest struct {
+type ClusterSearchRequest struct {
 	// Prefix is what resources are matched to. I.e, if the given prefix were
 	// "a", potential matches might be "abcd" or "aabb"
 	Prefix string
