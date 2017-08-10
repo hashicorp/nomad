@@ -80,10 +80,14 @@ type AllocRunner struct {
 	vaultClient  vaultclient.VaultClient
 	consulClient ConsulServiceAPI
 
-	otherAllocDir *allocdir.AllocDir
+	prevAlloc prevAllocWatcher
 
-	// blocker blocks until a previous allocation has terminated
-	blocker *allocBlocker
+	// blocked and migrating are true when alloc runner is waiting on the
+	// prevAllocWatcher. Writers must acquire the waitingLock and readers
+	// should use the helper methods Blocked and Migrating.
+	blocked     bool
+	migrating   bool
+	waitingLock sync.RWMutex
 
 	ctx    context.Context
 	exitFn context.CancelFunc
@@ -153,7 +157,7 @@ type allocRunnerMutableState struct {
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,
 	alloc *structs.Allocation, vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI,
-	blocker *allocBlocker, prevAllocDir *allocdir.AllocDir) *AllocRunner {
+	prevAlloc prevAllocWatcher) *AllocRunner {
 
 	ar := &AllocRunner{
 		config:         config,
@@ -163,8 +167,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		alloc:          alloc,
 		allocID:        alloc.ID,
 		allocBroadcast: cstructs.NewAllocBroadcaster(8),
-		blocker:        blocker,
-		otherAllocDir:  prevAllocDir,
+		prevAlloc:      prevAlloc,
 		dirtyCh:        make(chan struct{}, 1),
 		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
 		tasks:          make(map[string]*TaskRunner),
@@ -481,6 +484,12 @@ func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
 	return r.allocDir
 }
 
+// GetListener returns a listener for updates broadcast by this alloc runner.
+// Callers are responsible for calling Close on their Listener.
+func (r *AllocRunner) GetListener() *cstructs.AllocListener {
+	return r.allocBroadcast.Listen()
+}
+
 // copyTaskStates returns a copy of the passed task states.
 func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.TaskState {
 	copy := make(map[string]*structs.TaskState, len(states))
@@ -757,38 +766,35 @@ func (r *AllocRunner) Run() {
 	}
 	r.allocDirLock.Unlock()
 
-	// If there was a previous allocation block until it has terminated
-	if alloc.PreviousAllocation != "" {
-		//TODO remove me
-		r.logger.Printf("[TRACE] client: XXXX blocking %q on -> %q", alloc.ID, alloc.PreviousAllocation)
-		if nodeID, err := r.blocker.BlockOnAlloc(r.ctx, alloc.PreviousAllocation); err != nil {
-			if err == context.Canceled {
-				// Exiting
-				return
-			}
-
-			// Non-canceled errors are fatal as an invariant has been broken.
-			r.logger.Printf("[ERR] client: alloc %q encountered an error waiting for alloc %q to terminate: %v",
-				alloc.ID, alloc.PreviousAllocation, err)
-			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error waiting for alloc %q to terminate: %v",
-				alloc.PreviousAllocation, err))
+	// Wait for a previous alloc - if any - to terminate
+	r.waitingLock.Lock()
+	r.blocked = true
+	r.waitingLock.Unlock()
+	if err := r.prevAlloc.Wait(r.ctx); err != nil {
+		if err == context.Canceled {
 			return
 		}
-
-		// Move data if there's a previous alloc dir and sticky volumes is on
-		if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
-			if err := r.migrateAllocDir(r.ctx, nodeID); err != nil {
-				if err == context.Canceled {
-					// Exiting
-					return
-				}
-
-				//TODO(schmichael) task event?
-				r.logger.Printf("[WARN] client: alloc %q encountered an error migrating data from previous alloc %q: %v",
-					alloc.ID, alloc.PreviousAllocation, err)
-			}
-		}
+		//TODO(schmichael)
+		panic("todo")
 	}
+
+	r.waitingLock.Lock()
+	r.blocked = false
+	r.migrating = true
+	r.waitingLock.Unlock()
+
+	// Wait for data to be migrated from a previous alloc if applicable
+	if err := r.prevAlloc.Migrate(r.ctx, r.allocDir); err != nil {
+		if err == context.Canceled {
+			return
+		}
+		//TODO(schmichael)
+		panic("todo")
+	}
+
+	r.waitingLock.Lock()
+	r.migrating = false
+	r.waitingLock.Unlock()
 
 	// Check if the allocation is in a terminal status. In this case, we don't
 	// start any of the task runners and directly wait for the destroy signal to
@@ -888,35 +894,6 @@ OUTER:
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 }
 
-// migrateAllocDir handles migrating data from a previous alloc. Only call from
-// Run.
-func (r *AllocRunner) migrateAllocDir(ctx context.Context, nodeID string) error {
-	if r.otherAllocDir != nil {
-		// The other alloc was local, move it over
-		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
-			r.logger.Printf("[ERR] client: failed to move alloc dir into alloc %q: %v", alloc.ID, err)
-		}
-		//TODO(schmichael) task event?
-		if err := r.otherAllocDir.Destroy(); err != nil {
-			r.logger.Printf("[ERR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
-		}
-		return nil
-	}
-
-	// No previous alloc dir set, try to migrate from a remote node
-	if tg.EphemeralDisk.Migrate {
-		if nodeID == "" {
-			return fmt.Errorf("unable to find remote node")
-		}
-
-		//TODO(schmichael) add a timeout to context?
-		nodeAddr, err := r.blocker.GetNodeAddr(ctx, nodeID)
-		if err != nil {
-			return err
-		}
-	}
-}
-
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
 // then saves state.
 func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
@@ -997,6 +974,24 @@ func (r *AllocRunner) handleDestroy() {
 			r.logger.Printf("[DEBUG] client: dropping update to terminal alloc '%s'", r.allocID)
 		}
 	}
+}
+
+// Blocked returns true if this alloc is waiting on a previous allocation to
+// terminate.
+func (r *AllocRunner) Blocked() bool {
+	r.waitingLock.RLock()
+	b := r.blocked
+	r.waitingLock.RUnlock()
+	return b
+}
+
+// Migrating returns true if this alloc is migrating data from a previous
+// allocation.
+func (r *AllocRunner) Migrating() bool {
+	r.waitingLock.RLock()
+	m := r.migrating
+	r.waitingLock.RUnlock()
+	return m
 }
 
 // Update is used to update the allocation of the context
