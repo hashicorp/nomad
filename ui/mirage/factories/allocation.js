@@ -32,11 +32,19 @@ export default Factory.extend({
       })
     );
 
+    const resources = taskGroup.taskIds.map(id =>
+      server.create('task-resources', {
+        allocation,
+        name: server.db.tasks.find(id).name,
+      })
+    );
+
     allocation.update({
       jobId: job.id,
       nodeId: node.id,
       taskStateIds: states.mapBy('id'),
       task_state_ids: states.mapBy('id'),
+      taskResourcesIds: resources.mapBy('id'),
       taskGroup: taskGroup.name,
       name: `${taskGroup.name}.[${faker.random.number(10)}]`,
     });
