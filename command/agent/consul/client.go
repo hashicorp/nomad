@@ -92,13 +92,13 @@ type AllocRegistration struct {
 	Tasks map[string]*TaskRegistration
 }
 
-func (a *AllocRegistration) Copy() *AllocRegistration {
+func (a *AllocRegistration) copy() *AllocRegistration {
 	c := &AllocRegistration{
 		Tasks: make(map[string]*TaskRegistration, len(a.Tasks)),
 	}
 
 	for k, v := range a.Tasks {
-		c.Tasks[k] = v.Copy()
+		c.Tasks[k] = v.copy()
 	}
 
 	return c
@@ -144,13 +144,13 @@ type TaskRegistration struct {
 	Services map[string]*ServiceRegistration
 }
 
-func (t *TaskRegistration) Copy() *TaskRegistration {
+func (t *TaskRegistration) copy() *TaskRegistration {
 	c := &TaskRegistration{
 		Services: make(map[string]*ServiceRegistration, len(t.Services)),
 	}
 
 	for k, v := range t.Services {
-		c.Services[k] = v.Copy()
+		c.Services[k] = v.copy()
 	}
 
 	return c
@@ -172,7 +172,10 @@ type ServiceRegistration struct {
 	Checks []*api.AgentCheck
 }
 
-func (s *ServiceRegistration) Copy() *ServiceRegistration {
+func (s *ServiceRegistration) copy() *ServiceRegistration {
+	// Copy does not copy the external fields but only the internal fields. This
+	// is so that the caller of AllocRegistrations can not access the internal
+	// fields and that method uses these fields to populate the external fields.
 	return &ServiceRegistration{
 		serviceID: s.serviceID,
 		checkIDs:  helper.CopyMapStringStruct(s.checkIDs),
@@ -673,7 +676,6 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec dr
 	}
 
 	// Add the task to the allocation's registration
-	// Add the task to the allocation's registration
 	c.addTaskRegistration(allocID, task.Name, t)
 
 	c.commit(ops)
@@ -809,7 +811,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	}
 
 	// Copy so we don't expose internal structs
-	reg := regInternal.Copy()
+	reg := regInternal.copy()
 	c.allocRegistrationsLock.RUnlock()
 
 	// Query the services and checks to populate the allocation registrations.
