@@ -16,6 +16,7 @@ export default ApplicationSerializer.extend({
       const state = get(hash, `TaskStates.${key}`);
       const summary = { Name: key };
       Object.keys(state).forEach(stateKey => (summary[stateKey] = state[stateKey]));
+      summary.Resources = hash.TaskResources && hash.TaskResources[key];
       return summary;
     });
 
