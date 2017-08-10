@@ -1,8 +1,9 @@
 import Ember from 'ember';
+import Sortable from 'nomad-ui/mixins/sortable';
 
 const { Controller, computed } = Ember;
 
-export default Controller.extend({
+export default Controller.extend(Sortable, {
   pendingJobs: computed.filterBy('model', 'status', 'pending'),
   runningJobs: computed.filterBy('model', 'status', 'running'),
   deadJobs: computed.filterBy('model', 'status', 'dead'),
@@ -16,14 +17,10 @@ export default Controller.extend({
 
   currentPage: 1,
   pageSize: 10,
+
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  sortedJobs: computed('model.[]', 'sortProperty', 'sortDescending', function() {
-    const sorted = this.get('model').sortBy(this.get('sortProperty'));
-    if (this.get('sortDescending')) {
-      return sorted.reverse();
-    }
-    return sorted;
-  }),
+  listToSort: computed.alias('model'),
+  sortedJobs: computed.alias('listSorted'),
 });

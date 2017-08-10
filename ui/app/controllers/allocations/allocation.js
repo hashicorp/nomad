@@ -1,8 +1,9 @@
 import Ember from 'ember';
+import Sortable from 'nomad-ui/mixins/sortable';
 
 const { Controller, computed } = Ember;
 
-export default Controller.extend({
+export default Controller.extend(Sortable, {
   queryParams: {
     sortProperty: 'sort',
     sortDescending: 'desc',
@@ -11,11 +12,6 @@ export default Controller.extend({
   sortProperty: 'name',
   sortDescending: false,
 
-  sortedStates: computed('model.states.[]', 'sortProperty', 'sortDescending', function() {
-    const sorted = (this.get('model.states') || []).sortBy(this.get('sortProperty'));
-    if (this.get('sortDescending')) {
-      return sorted.reverse();
-    }
-    return sorted;
-  }),
+  listToSort: computed.alias('model.states'),
+  sortedStates: computed.alias('listSorted'),
 });

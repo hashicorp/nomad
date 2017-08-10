@@ -1,8 +1,9 @@
 import Ember from 'ember';
+import Sortable from 'nomad-ui/mixins/sortable';
 
 const { Controller, computed } = Ember;
 
-export default Controller.extend({
+export default Controller.extend(Sortable, {
   nodes: computed.alias('model.nodes'),
   agents: computed.alias('model.agents'),
 
@@ -15,14 +16,10 @@ export default Controller.extend({
 
   currentPage: 1,
   pageSize: 8,
+
   sortProperty: 'isLeader',
   sortDescending: true,
 
-  sortedAgents: computed('agents.[]', 'sortProperty', 'sortDescending', function() {
-    const sorted = this.get('agents').sortBy(this.get('sortProperty'));
-    if (this.get('sortDescending')) {
-      return sorted.reverse();
-    }
-    return sorted;
-  }),
+  listToSort: computed.alias('agents'),
+  sortedAgents: computed.alias('listSorted'),
 });
