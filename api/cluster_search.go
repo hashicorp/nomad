@@ -8,12 +8,12 @@ type ClusterSearch struct {
 	client *Client
 }
 
-// ClusterSearch returns a handle on the CLusterSearch endpoints
+// ClusterSearch returns a handle on the ClusterSearch endpoints
 func (c *Client) ClusterSearch() *ClusterSearch {
 	return &ClusterSearch{client: c}
 }
 
-// List returns a list of all resources for a particular context. If a
+// List returns a list of matches for a particular context and prefix. If a
 // context is not specified, matches for all contexts are returned.
 func (cs *ClusterSearch) List(prefix, context string) (*structs.ClusterSearchResponse, error) {
 	var resp structs.ClusterSearchResponse

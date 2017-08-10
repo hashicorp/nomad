@@ -84,8 +84,8 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 
 // If the length of a prefix is odd, return a subset to the last even character
 // This only applies to UUIDs, Job names are excluded
-func roundUUIDDownIfOdd(prefix string, isJob bool) string {
-	if isJob {
+func roundUUIDDownIfOdd(prefix, context string) string {
+	if context == "job" {
 		return prefix
 	}
 
@@ -95,9 +95,8 @@ func roundUUIDDownIfOdd(prefix string, isJob bool) string {
 	return prefix[:len(prefix)-1]
 }
 
-// List is used to list the resouces registered in the system that matches the
-// given prefix. ClusterSearch returns jobs, evaluations, allocations, and/or
-// nodes.
+// List is used to list matches for a given prefix. ClusterSearch returns jobs,
+// evaluations, allocations, and/or nodes.
 func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 	reply *structs.ClusterSearchResponse) error {
 	reply.Matches = make(map[string][]string)
@@ -117,7 +116,7 @@ func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 			}
 
 			for _, e := range contexts {
-				iter, err := getResourceIter(e, roundUUIDDownIfOdd(args.Prefix, args.Context == "job"), ws, state)
+				iter, err := getResourceIter(e, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 				if err != nil {
 					return err
 				}
