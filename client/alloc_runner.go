@@ -920,6 +920,12 @@ func (r *AllocRunner) handleDestroy() {
 			r.allocID, err)
 	}
 
+	// Unmount any mounted directories as no tasks are running and makes
+	// cleaning up Nomad's data directory simpler.
+	if err := r.allocDir.UnmountAll(); err != nil {
+		r.logger.Printf("[ERR] client: alloc %q unable unmount task directories: %v", r.allocID, err)
+	}
+
 	for {
 		select {
 		case <-r.ctx.Done():
