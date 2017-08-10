@@ -10,7 +10,7 @@ moduleForAcceptance('Acceptance | allocation detail', {
   beforeEach() {
     job = server.create('job');
     node = server.create('node');
-    allocation = server.create('allocation');
+    allocation = server.create('allocation', 'withTaskWithPorts');
 
     server.create('agent');
 
@@ -50,6 +50,10 @@ test('/allocation/:id should list all tasks for the allocation', function(assert
 
 test('each task row should list high-level information for the task', function(assert) {
   const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
+  const taskResources = allocation.taskResourcesIds
+    .map(id => server.db.taskResources.find(id))
+    .sortBy('name')[0];
+  const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
   const taskRow = find('.tasks tbody tr:eq(0)');
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
@@ -62,6 +66,14 @@ test('each task row should list high-level information for the task', function(a
     moment(event.time / 1000000).format('DD/MM/YY HH:mm:ss [UTC]'),
     'Event Time'
   );
+
+  assert.ok(reservedPorts.length, 'The task has reserved ports');
+
+  const addressesText = taskRow.find('td:eq(4)').text();
+  reservedPorts.forEach(port => {
+    assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
+    assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+  });
 });
 
 test('/allocation/:id should list recent events for each task', function(assert) {

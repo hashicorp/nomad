@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
@@ -7,7 +7,23 @@ const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
 
-  // resources: fragment('resources'),
+  withTaskWithPorts: trait({
+    afterCreate(allocation, server) {
+      const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
+      const resources = taskGroup.taskIds.map(id =>
+        server.create(
+          'task-resources',
+          {
+            allocation,
+            name: server.db.tasks.find(id).name,
+          },
+          'withReservedPorts'
+        )
+      );
+
+      allocation.update({ taskResourcesIds: resources.mapBy('id') });
+    },
+  }),
 
   afterCreate(allocation, server) {
     Ember.assert(
