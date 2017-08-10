@@ -20,6 +20,7 @@
           {{#t.sort-by prop="state"}}State{{/t.sort-by}}
           <th>Last Event</th>
           {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
+          <th>Addresses</th>
         {{/t.head}}
         {{#t.body as |row|}}
           <tr>
@@ -33,6 +34,16 @@
               {{/if}}
             </td>
             <td>{{moment-format row.model.events.lastObject.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+            <td>
+              <ul>
+                {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
+                  <li>
+                    <strong>{{port.Label}}:</strong>
+                    <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                  </li>
+                {{/each}}
+              </ul>
+            </td>
           </tr>
         {{/t.body}}
       {{/list-table}}
