@@ -188,7 +188,8 @@ func (s *taskRunnerState) Hash() []byte {
 	return h.Sum(nil)
 }
 
-// TaskStateUpdater is used to signal that tasks state has changed.
+// TaskStateUpdater is used to signal that tasks state has changed. If lazySync
+// is set the event won't be immediately pushed to the server.
 type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent, lazySync bool)
 
 // SignalEvent is a tuple of the signal and the event generating it
@@ -857,8 +858,16 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 		// Create a new templateManager
 		var err error
-		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
+		r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+			Hooks:                r,
+			Templates:            r.task.Templates,
+			ClientConfig:         r.config,
+			VaultToken:           r.vaultFuture.Get(),
+			TaskDir:              r.taskDir.Dir,
+			EnvBuilder:           r.envBuilder,
+			MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+		})
+
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
 			r.setState(structs.TaskStateDead,
@@ -965,8 +974,15 @@ func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, res
 		// Build the template manager
 		if r.templateManager == nil {
 			var err error
-			r.templateManager, err = NewTaskTemplateManager(r, task.Templates,
-				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
+			r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+				Hooks:                r,
+				Templates:            r.task.Templates,
+				ClientConfig:         r.config,
+				VaultToken:           r.vaultFuture.Get(),
+				TaskDir:              r.taskDir.Dir,
+				EnvBuilder:           r.envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			})
 			if err != nil {
 				err := fmt.Errorf("failed to build task's template manager: %v", err)
 				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(), false)

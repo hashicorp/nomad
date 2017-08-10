@@ -620,8 +620,9 @@ func (r *AllocRunner) setStatus(status, desc string) {
 	}
 }
 
-// setTaskState is used to set the status of a task. If state is empty then the
-// event is appended but not synced with the server. The event may be omitted
+// setTaskState is used to set the status of a task. If lazySync is set then the
+// event is appended but not synced with the server. If state is omitted, the
+// last known state is used.
 func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEvent, lazySync bool) {
 	r.taskStatusLock.Lock()
 	defer r.taskStatusLock.Unlock()
