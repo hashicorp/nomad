@@ -231,9 +231,9 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
-// ClusterSearchResponse is used to return matches and information about whether
+// SearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of context.
-type ClusterSearchResponse struct {
+type SearchResponse struct {
 	// Map of context types to ids which match a specified prefix
 	Matches map[string][]string
 
@@ -244,10 +244,10 @@ type ClusterSearchResponse struct {
 	QueryMeta
 }
 
-// ClusterSearchRequest is used to parameterize a request, and returns a
+// SearchRequest is used to parameterize a request, and returns a
 // list of matches made up of jobs, allocations, evaluations, and/or nodes,
 // along with whether or not the information returned is truncated.
-type ClusterSearchRequest struct {
+type SearchRequest struct {
 	// Prefix is what ids are matched to. I.e, if the given prefix were
 	// "a", potential matches might be "abcd" or "aabb"
 	Prefix string

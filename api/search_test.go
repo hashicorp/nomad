@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestJobResource_PrefixList(t *testing.T) {
+func TestSearch_List(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
@@ -18,7 +19,7 @@ func TestJobResource_PrefixList(t *testing.T) {
 
 	id := *job.ID
 	prefix := id[:len(id)-2]
-	resp, err := c.ClusterSearch().List(prefix, "jobs")
+	resp, err := c.Search().List(prefix, "jobs")
 
 	assert.Nil(err)
 	assert.NotEqual(0, resp.Index)

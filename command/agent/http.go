@@ -145,7 +145,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
 
-	s.mux.HandleFunc("/v1/cluster/search", s.wrap(s.ClusterSearchRequest))
+	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
 	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))

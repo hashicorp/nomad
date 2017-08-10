@@ -3,7 +3,7 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -20,8 +20,8 @@ var (
 	allContexts = []string{"allocs", "nodes", "jobs", "evals"}
 )
 
-// ClusterSearch endpoint is used to lookup matches for a given prefix and context
-type ClusterSearch struct {
+// Search endpoint is used to lookup matches for a given prefix and context
+type Search struct {
 	srv *Server
 }
 
@@ -31,7 +31,7 @@ func isSubset(prefix, id string) bool {
 
 // getMatches extracts matches for an iterator, and returns a list of ids for
 // these matches.
-func (c *ClusterSearch) getMatches(iter memdb.ResultIterator, prefix string) ([]string, bool) {
+func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string, bool) {
 	var matches []string
 
 	for i := 0; i < truncateLimit; i++ {
@@ -51,7 +51,7 @@ func (c *ClusterSearch) getMatches(iter memdb.ResultIterator, prefix string) ([]
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
 		default:
-			c.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
+			s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
 		}
 
@@ -95,10 +95,10 @@ func roundUUIDDownIfOdd(prefix, context string) string {
 	return prefix[:len(prefix)-1]
 }
 
-// List is used to list matches for a given prefix. ClusterSearch returns jobs,
+// List is used to list matches for a given prefix. Search returns jobs,
 // evaluations, allocations, and/or nodes.
-func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
-	reply *structs.ClusterSearchResponse) error {
+func (s *Search) List(args *structs.SearchRequest,
+	reply *structs.SearchResponse) error {
 	reply.Matches = make(map[string][]string)
 	reply.Truncations = make(map[string]bool)
 
@@ -125,7 +125,7 @@ func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 
 			// Return matches for the given prefix
 			for k, v := range iters {
-				res, isTrunc := c.getMatches(v, args.Prefix)
+				res, isTrunc := s.getMatches(v, args.Prefix)
 				reply.Matches[k] = res
 				reply.Truncations[k] = isTrunc
 			}
@@ -143,8 +143,8 @@ func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 				}
 			}
 
-			c.srv.setQueryMeta(&reply.QueryMeta)
+			s.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
-	return c.srv.blockingRPC(&opts)
+	return s.srv.blockingRPC(&opts)
 }

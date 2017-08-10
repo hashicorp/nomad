@@ -10,7 +10,7 @@ import (
 	a "github.com/stretchr/testify/assert"
 )
 
-func TestHTTP_ClusterSearchWithIllegalMethod(t *testing.T) {
+func TestHTTP_SearchWithIllegalMethod(t *testing.T) {
 	assert := a.New(t)
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -18,7 +18,7 @@ func TestHTTP_ClusterSearchWithIllegalMethod(t *testing.T) {
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
-		_, err = s.Server.ClusterSearchRequest(respW, req)
+		_, err = s.Server.SearchRequest(respW, req)
 		assert.NotNil(err, "HTTP DELETE should not be accepted for this endpoint")
 	})
 }
@@ -35,7 +35,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	assert.Nil(err)
 }
 
-func TestHTTP_Resources_POST(t *testing.T) {
+func TestHTTP_Search_POST(t *testing.T) {
 	assert := a.New(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
@@ -44,16 +44,16 @@ func TestHTTP_Resources_POST(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.ClusterSearchRequest{Prefix: testJobPrefix, Context: "jobs"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -67,7 +67,7 @@ func TestHTTP_Resources_POST(t *testing.T) {
 	})
 }
 
-func TestHTTP_Resources_PUT(t *testing.T) {
+func TestHTTP_Search_PUT(t *testing.T) {
 	assert := a.New(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
@@ -76,16 +76,16 @@ func TestHTTP_Resources_PUT(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.ClusterSearchRequest{Prefix: testJobPrefix, Context: "jobs"}
-		req, err := http.NewRequest("PUT", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		req, err := http.NewRequest("PUT", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -99,7 +99,7 @@ func TestHTTP_Resources_PUT(t *testing.T) {
 	})
 }
 
-func TestHTTP_Resources_MultipleJobs(t *testing.T) {
+func TestHTTP_Search_MultipleJobs(t *testing.T) {
 	assert := a.New(t)
 
 	testJobA := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
@@ -114,16 +114,16 @@ func TestHTTP_Resources_MultipleJobs(t *testing.T) {
 		createJobForTest(testJobB, s, t)
 		createJobForTest(testJobC, s, t)
 
-		data := structs.ClusterSearchRequest{Prefix: testJobPrefix, Context: "jobs"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -139,7 +139,7 @@ func TestHTTP_Resources_MultipleJobs(t *testing.T) {
 	})
 }
 
-func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
+func TestHTTP_Search_Evaluation(t *testing.T) {
 	assert := a.New(t)
 
 	t.Parallel()
@@ -152,16 +152,16 @@ func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := eval1.ID[:len(eval1.ID)-2]
-		data := structs.ClusterSearchRequest{Prefix: prefix, Context: "evals"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: prefix, Context: "evals"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -175,7 +175,7 @@ func TestHTTP_ResoucesList_Evaluation(t *testing.T) {
 	})
 }
 
-func TestHTTP_ResoucesList_Allocations(t *testing.T) {
+func TestHTTP_Search_Allocations(t *testing.T) {
 	assert := a.New(t)
 
 	t.Parallel()
@@ -186,16 +186,16 @@ func TestHTTP_ResoucesList_Allocations(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
-		data := structs.ClusterSearchRequest{Prefix: prefix, Context: "allocs"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: prefix, Context: "allocs"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -208,7 +208,7 @@ func TestHTTP_ResoucesList_Allocations(t *testing.T) {
 	})
 }
 
-func TestHTTP_ResoucesList_Nodes(t *testing.T) {
+func TestHTTP_Search_Nodes(t *testing.T) {
 	assert := a.New(t)
 
 	t.Parallel()
@@ -219,16 +219,16 @@ func TestHTTP_ResoucesList_Nodes(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := node.ID[:len(node.ID)-2]
-		data := structs.ClusterSearchRequest{Prefix: prefix, Context: "nodes"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: prefix, Context: "nodes"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 
@@ -241,21 +241,21 @@ func TestHTTP_ResoucesList_Nodes(t *testing.T) {
 	})
 }
 
-func TestHTTP_Resources_NoJob(t *testing.T) {
+func TestHTTP_Search_NoJob(t *testing.T) {
 	assert := a.New(t)
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		data := structs.ClusterSearchRequest{Prefix: "12345", Context: "jobs"}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: "12345", Context: "jobs"}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
 		assert.Equal(0, len(res.Matches["jobs"]))
@@ -264,7 +264,7 @@ func TestHTTP_Resources_NoJob(t *testing.T) {
 	})
 }
 
-func TestHTTP_Resources_NoContext(t *testing.T) {
+func TestHTTP_Search_NoContext(t *testing.T) {
 	assert := a.New(t)
 
 	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
@@ -279,16 +279,16 @@ func TestHTTP_Resources_NoContext(t *testing.T) {
 		err := state.UpsertEvals(8000, []*structs.Evaluation{eval1})
 		assert.Nil(err)
 
-		data := structs.ClusterSearchRequest{Prefix: testJobPrefix}
-		req, err := http.NewRequest("POST", "/v1/resources", encodeReq(data))
+		data := structs.SearchRequest{Prefix: testJobPrefix}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
 		respW := httptest.NewRecorder()
 
-		resp, err := s.Server.ClusterSearchRequest(respW, req)
+		resp, err := s.Server.SearchRequest(respW, req)
 		assert.Nil(err)
 
-		res := resp.(structs.ClusterSearchResponse)
+		res := resp.(structs.SearchResponse)
 
 		matchedJobs := res.Matches["jobs"]
 		matchedEvals := res.Matches["evals"]
