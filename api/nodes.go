@@ -169,6 +169,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Build             string
 	Drain             bool
 	Status            string
 	StatusDescription string

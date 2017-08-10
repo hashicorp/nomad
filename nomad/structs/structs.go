@@ -996,6 +996,9 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// Build represents the Nomad version the node is running
+	Build string
+
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
 	ComputedClass string
@@ -1057,6 +1060,7 @@ func (n *Node) Stub() *NodeListStub {
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
 		NodeClass:         n.NodeClass,
+		Build:             n.Build,
 		Drain:             n.Drain,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
@@ -1072,6 +1076,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Build             string
 	Drain             bool
 	Status            string
 	StatusDescription string

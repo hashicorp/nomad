@@ -57,7 +57,7 @@ Node Status Options:
   -self
     Query the status of the local node.
 
-  -stats 
+  -stats
     Display detailed resource usage statistics.
 
   -allocs
@@ -149,9 +149,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
 		if c.list_allocs {
-			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
+			out[0] = "ID|DC|Name|Class|Build|Drain|Status|Running Allocs"
 		} else {
-			out[0] = "ID|DC|Name|Class|Drain|Status"
+			out[0] = "ID|DC|Name|Class|Build|Drain|Status"
 		}
 
 		for i, node := range nodes {
@@ -161,20 +161,22 @@ func (c *NodeStatusCommand) Run(args []string) int {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s|%v",
 					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
+					node.Build,
 					node.Drain,
 					node.Status,
 					len(numAllocs))
 			} else {
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s",
 					limit(node.ID, c.length),
 					node.Datacenter,
 					node.Name,
 					node.NodeClass,
+					node.Build,
 					node.Drain,
 					node.Status)
 			}
@@ -220,13 +222,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Format the nodes list that matches the prefix so that the user
 		// can create a more specific request
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Status"
+		out[0] = "ID|DC|Name|Class|Build|Drain|Status"
 		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
+				node.Build,
 				node.Drain,
 				node.Status)
 		}
