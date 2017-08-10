@@ -627,10 +627,10 @@
 			"revisionTime": "2017-08-01T00:58:49Z"
 		},
 		{
-			"checksumSHA1": "Cu8hIII8Z6FAuunFI/jXPLl0nQA=",
+			"checksumSHA1": "tkMwyjIrH+reCJWIg45lvcmkhVQ=",
 			"path": "github.com/hashicorp/consul-template/manager",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "252f61dede55b1009323aae8b0ffcd2e2e933173",
+			"revisionTime": "2017-08-09T17:59:55Z"
 		},
 		{
 			"checksumSHA1": "oskgb0WteBKOItG8NNDduM7E/D0=",
