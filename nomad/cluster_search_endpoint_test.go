@@ -335,8 +335,8 @@ func TestClusterEndpoint_List_NoMatches(t *testing.T) {
 func TestClusterEndpoint_List_RoundDownToEven(t *testing.T) {
 	assert := assert.New(t)
 	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
-	id2 := "aaaeeaaa-e8f7-fd38-c855-ab94ceb89"
-	prefix := "aaafe"
+	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
+	prefix := "aaafa"
 
 	t.Parallel()
 	s := testServer(t, func(c *Config) {

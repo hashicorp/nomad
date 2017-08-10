@@ -25,9 +25,13 @@ type ClusterSearch struct {
 	srv *Server
 }
 
+func isSubset(prefix, id string) bool {
+	return id[0:len(prefix)] == prefix
+}
+
 // getMatches extracts matches for an iterator, and returns a list of ids for
 // these matches.
-func (c *ClusterSearch) getMatches(iter memdb.ResultIterator) ([]string, bool) {
+func (c *ClusterSearch) getMatches(iter memdb.ResultIterator, prefix string) ([]string, bool) {
 	var matches []string
 
 	for i := 0; i < truncateLimit; i++ {
@@ -49,6 +53,10 @@ func (c *ClusterSearch) getMatches(iter memdb.ResultIterator) ([]string, bool) {
 		default:
 			c.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
+		}
+
+		if !isSubset(prefix, id) {
+			break
 		}
 
 		matches = append(matches, id)
@@ -74,13 +82,17 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 	}
 }
 
-// If the length of a string is odd, return a subset of the string to the last
-// even character
-func roundDownIfOdd(s string) string {
-	if len(s)%2 == 0 {
-		return s
+// If the length of a prefix is odd, return a subset to the last even character
+// This only applies to UUIDs, Job names are excluded
+func roundUUIDDownIfOdd(prefix string, isJob bool) string {
+	if isJob {
+		return prefix
 	}
-	return s[:len(s)-1]
+
+	if len(prefix)%2 == 0 {
+		return prefix
+	}
+	return prefix[:len(prefix)-1]
 }
 
 // List is used to list the resouces registered in the system that matches the
@@ -105,7 +117,7 @@ func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 			}
 
 			for _, e := range contexts {
-				iter, err := getResourceIter(e, roundDownIfOdd(args.Prefix), ws, state)
+				iter, err := getResourceIter(e, roundUUIDDownIfOdd(args.Prefix, args.Context == "job"), ws, state)
 				if err != nil {
 					return err
 				}
@@ -114,7 +126,7 @@ func (c *ClusterSearch) List(args *structs.ClusterSearchRequest,
 
 			// Return matches for the given prefix
 			for k, v := range iters {
-				res, isTrunc := c.getMatches(v)
+				res, isTrunc := c.getMatches(v, args.Prefix)
 				reply.Matches[k] = res
 				reply.Truncations[k] = isTrunc
 			}
