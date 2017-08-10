@@ -173,6 +173,19 @@ func CopyMapStringString(m map[string]string) map[string]string {
 	return c
 }
 
+func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]struct{}, l)
+	for k, _ := range m {
+		c[k] = struct{}{}
+	}
+	return c
+}
+
 func CopyMapStringInt(m map[string]int) map[string]int {
 	l := len(m)
 	if l == 0 {

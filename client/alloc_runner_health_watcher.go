@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -105,7 +106,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	// Store whether the last consul checks call was successful or not
 	consulChecksErr := false
 
-	var checks []*api.AgentCheck
+	var allocReg *consul.AllocRegistration
 	first := true
 OUTER:
 	for {
@@ -121,15 +122,15 @@ OUTER:
 				alloc = newAlloc
 				r.logger.Printf("[TRACE] client.alloc_watcher: new alloc version for %q", alloc.ID)
 			case <-checkCh:
-				newChecks, err := r.consulClient.Checks(alloc)
+				newAllocReg, err := r.consulClient.AllocRegistrations(alloc.ID)
 				if err != nil {
 					if !consulChecksErr {
 						consulChecksErr = true
-						r.logger.Printf("[WARN] client.alloc_watcher: failed to lookup consul checks for allocation %q: %v", alloc.ID, err)
+						r.logger.Printf("[WARN] client.alloc_watcher: failed to lookup consul registrations for allocation %q: %v", alloc.ID, err)
 					}
 				} else {
 					consulChecksErr = false
-					checks = newChecks
+					allocReg = newAllocReg
 				}
 			case <-deadline.C:
 				// We have exceeded our deadline without being healthy.
@@ -174,23 +175,29 @@ OUTER:
 		}
 
 		// If we should have checks and they aren't all healthy continue
-		if len(checks) != desiredChecks {
-			r.logger.Printf("[TRACE] client.alloc_watcher: continuing since all checks (want %d; got %d) haven't been registered for alloc %q", desiredChecks, len(checks), alloc.ID)
-			cancelHealthyTimer()
-			continue OUTER
-		}
-
-		// Check if all the checks are passing
-		for _, check := range checks {
-			if check.Status != api.HealthPassing {
-				r.logger.Printf("[TRACE] client.alloc_watcher: continuing since check %q isn't passing for alloc %q", check.CheckID, alloc.ID)
-				latestChecksHealthy = time.Time{}
+		if desiredChecks > 0 {
+			if allocReg.NumChecks() != desiredChecks {
+				r.logger.Printf("[TRACE] client.alloc_watcher: continuing since all checks (want %d; got %d) haven't been registered for alloc %q", desiredChecks, allocReg.NumChecks(), alloc.ID)
 				cancelHealthyTimer()
 				continue OUTER
 			}
-		}
-		if latestChecksHealthy.IsZero() {
-			latestChecksHealthy = time.Now()
+
+			// Check if all the checks are passing
+			for _, treg := range allocReg.Tasks {
+				for _, sreg := range treg.Services {
+					for _, check := range sreg.Checks {
+						if check.Status != api.HealthPassing {
+							r.logger.Printf("[TRACE] client.alloc_watcher: continuing since check %q isn't passing for alloc %q", check.CheckID, alloc.ID)
+							latestChecksHealthy = time.Time{}
+							cancelHealthyTimer()
+							continue OUTER
+						}
+					}
+				}
+			}
+			if latestChecksHealthy.IsZero() {
+				latestChecksHealthy = time.Now()
+			}
 		}
 
 		// Determine if the allocation is healthy

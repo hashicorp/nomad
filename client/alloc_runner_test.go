@@ -14,6 +14,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -254,12 +255,32 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 
 	// Only return the check as healthy after a duration
 	trigger := time.After(500 * time.Millisecond)
-	ar.consulClient.(*mockConsulServiceClient).checksFn = func(a *structs.Allocation) ([]*api.AgentCheck, error) {
+	ar.consulClient.(*mockConsulServiceClient).allocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		select {
 		case <-trigger:
-			return []*api.AgentCheck{checkHealthy}, nil
+			return &consul.AllocRegistration{
+				Tasks: map[string]*consul.TaskRegistration{
+					task.Name: {
+						Services: map[string]*consul.ServiceRegistration{
+							"123": {
+								Checks: []*api.AgentCheck{checkHealthy},
+							},
+						},
+					},
+				},
+			}, nil
 		default:
-			return []*api.AgentCheck{checkUnhealthy}, nil
+			return &consul.AllocRegistration{
+				Tasks: map[string]*consul.TaskRegistration{
+					task.Name: {
+						Services: map[string]*consul.ServiceRegistration{
+							"123": {
+								Checks: []*api.AgentCheck{checkUnhealthy},
+							},
+						},
+					},
+				},
+			}, nil
 		}
 	}
 
