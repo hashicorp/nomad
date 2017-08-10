@@ -45,7 +45,7 @@ $ export AWS_SECRET_ACCESS_KEY=[SECRET_ACCESS_KEY]
 $ cd env/us-east
 ```
 
-Update terraform.tfvars with your SSH key name:
+Update `terraform.tfvars` with your SSH key name:
 
 ```bash
 region                  = "us-east-1"
