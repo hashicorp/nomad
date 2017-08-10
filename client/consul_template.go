@@ -23,6 +23,9 @@ import (
 )
 
 const (
+	// consulTemplateSourceName is the source name when using the TaskHooks.
+	consulTemplateSourceName = "Template"
+
 	// hostSrcOption is the Client option that determines whether the template
 	// source may be from the host
 	hostSrcOption = "template.allow_host_source"
@@ -198,7 +201,7 @@ func (tm *TaskTemplateManager) run() {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
-		tm.config.Hooks.UnblockStart("Template")
+		tm.config.Hooks.UnblockStart(consulTemplateSourceName)
 		return
 	}
 
@@ -218,13 +221,13 @@ func (tm *TaskTemplateManager) run() {
 	// Read environment variables from env templates before we unblock
 	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
 	if err != nil {
-		tm.config.Hooks.Kill("Template", err.Error(), true)
+		tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
 
 	// Unblock the task
-	tm.config.Hooks.UnblockStart("Template")
+	tm.config.Hooks.UnblockStart(consulTemplateSourceName)
 
 	// If all our templates are change mode no-op, then we can exit here
 	if tm.allTemplatesNoop() {
@@ -242,8 +245,10 @@ func (tm *TaskTemplateManager) handleFirstRender() {
 
 	// eventTimer is used to trigger the firing of an event showing the missing
 	// dependencies.
-	var eventTimer *time.Timer
-	var eventTimerCh <-chan time.Time
+	eventTimer := time.NewTimer(tm.config.MaxTemplateEventRate)
+	if !eventTimer.Stop() {
+		<-eventTimer.C
+	}
 
 	// outstandingEvent tracks whether there is an outstanding event that should
 	// be fired.
@@ -260,7 +265,7 @@ WAIT:
 				continue
 			}
 
-			tm.config.Hooks.Kill("template", err.Error(), true)
+			tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			events := tm.runner.RenderEvents()
@@ -312,19 +317,12 @@ WAIT:
 			missingDependencies = joinedSet
 
 			// Update the event timer channel
-			if eventTimer == nil {
-				// We are creating the event channel for the first time.
-				eventTimer = time.NewTimer(tm.config.MaxTemplateEventRate)
-				eventTimerCh = eventTimer.C
-				defer eventTimer.Stop()
-				outstandingEvent = true
-				continue
-			} else if !outstandingEvent {
+			if !outstandingEvent {
 				// We got new data so reset
 				outstandingEvent = true
 				eventTimer.Reset(tm.config.MaxTemplateEventRate)
 			}
-		case <-eventTimerCh:
+		case <-eventTimer.C:
 			if missingDependencies == nil {
 				continue
 			}
@@ -345,7 +343,7 @@ WAIT:
 			}
 
 			missingStr := strings.Join(missingSlice, ", ")
-			tm.config.Hooks.EmitEvent("Template", fmt.Sprintf("Missing: %s", missingStr))
+			tm.config.Hooks.EmitEvent(consulTemplateSourceName, fmt.Sprintf("Missing: %s", missingStr))
 		}
 	}
 }
@@ -367,7 +365,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				continue
 			}
 
-			tm.config.Hooks.Kill("Template", err.Error(), true)
+			tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			var handling []string
@@ -392,14 +390,14 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				// Lookup the template and determine what to do
 				tmpls, ok := tm.lookup[id]
 				if !ok {
-					tm.config.Hooks.Kill("Template", fmt.Sprintf("template runner returned unknown template id %q", id), true)
+					tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("template runner returned unknown template id %q", id), true)
 					return
 				}
 
 				// Read environment variables from templates
 				envMap, err := loadTemplateEnv(tmpls, tm.config.TaskDir)
 				if err != nil {
-					tm.config.Hooks.Kill("Template", err.Error(), true)
+					tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 					return
 				}
 				tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -441,11 +439,11 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				}
 
 				if restart {
-					tm.config.Hooks.Restart("template", "template with change_mode restart re-rendered")
+					tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered")
 				} else if len(signals) != 0 {
 					var mErr multierror.Error
 					for signal := range signals {
-						err := tm.config.Hooks.Signal("Template", "template re-rendered", tm.signals[signal])
+						err := tm.config.Hooks.Signal(consulTemplateSourceName, "template re-rendered", tm.signals[signal])
 						if err != nil {
 							multierror.Append(&mErr, err)
 						}
@@ -456,7 +454,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 						for signal := range signals {
 							flat = append(flat, tm.signals[signal])
 						}
-						tm.config.Hooks.Kill("Template", fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
+						tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
 					}
 				}
 			}
