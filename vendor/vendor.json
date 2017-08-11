@@ -917,10 +917,22 @@
 			"revisionTime": "2017-08-01T15:50:41Z"
 		},
 		{
+			"checksumSHA1": "au+CDkddC4sVFV15UaPiI7FvSw0=",
+			"path": "github.com/hashicorp/vault/helper/compressutil",
+			"revision": "1fd46cbcb10569bd205c3f662e7a4f16f1e69056",
+			"revisionTime": "2017-08-11T01:28:18Z"
+		},
+		{
 			"checksumSHA1": "yUiSTPf0QUuL2r/81sjuytqBoeQ=",
 			"path": "github.com/hashicorp/vault/helper/jsonutil",
 			"revision": "0c3e14f047aede0a70256e1e8b321610910b246e",
 			"revisionTime": "2017-08-01T15:50:41Z"
+		},
+		{
+			"checksumSHA1": "GGveKvOwScWGZAAnupzpyw+0Jko=",
+			"path": "github.com/hashicorp/vault/helper/parseutil",
+			"revision": "1fd46cbcb10569bd205c3f662e7a4f16f1e69056",
+			"revisionTime": "2017-08-11T01:28:18Z"
 		},
 		{
 			"checksumSHA1": "VMaF3Q7RIrRzvbnPbqxuSLryOvc=",
