@@ -23,7 +23,7 @@ func (s *HTTPServer) newSearchRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	var out structs.SearchResponse
-	if err := s.agent.RPC("Search.List", &args, &out); err != nil {
+	if err := s.agent.RPC("Search.PrefixSearch", &args, &out); err != nil {
 		return nil, err
 	}
 

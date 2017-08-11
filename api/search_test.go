@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,12 +20,12 @@ func TestSearch_List(t *testing.T) {
 
 	id := *job.ID
 	prefix := id[:len(id)-2]
-	resp, err := c.Search().List(prefix, "jobs")
+	resp, err := c.Search().PrefixSearch(prefix, contexts.Jobs)
 
 	assert.Nil(err)
 	assert.NotEqual(0, resp.Index)
 
-	jobMatches := resp.Matches["jobs"]
+	jobMatches := resp.Matches[contexts.jobs]
 	assert.Equal(1, len(jobMatches))
 	assert.Equal(id, jobMatches[0])
 }
