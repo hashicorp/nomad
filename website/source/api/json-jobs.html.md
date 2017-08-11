@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: JSON Job Specification - HTTP API
-sidebar_current: api-jobs
+sidebar_current: api-json-jobs
 description: |-
   Jobs can also be specified via the HTTP API using a JSON format. This guide
   discusses the job specification in JSON format.
