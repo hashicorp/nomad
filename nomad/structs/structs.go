@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -88,6 +87,17 @@ const (
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"
+)
+
+// Context is a type which is searchable via a unique identifier.
+type Context string
+
+const (
+	Allocs Context = "allocs"
+	Evals  Context = "evals"
+	Jobs   Context = "jobs"
+	Nodes  Context = "nodes"
+	All    Context = ""
 )
 
 // RPCInfo is used to describe common information about query
@@ -236,11 +246,11 @@ type NodeSpecificRequest struct {
 // the match list is truncated specific to each type of context.
 type SearchResponse struct {
 	// Map of context types to ids which match a specified prefix
-	Matches map[contexts.Context][]string
+	Matches map[Context][]string
 
 	// Truncations indicates whether the matches for a particular context have
 	// been truncated
-	Truncations map[contexts.Context]bool
+	Truncations map[Context]bool
 
 	QueryMeta
 }
@@ -256,7 +266,7 @@ type SearchRequest struct {
 	// Context is the type that can be matched against. A context can be a job,
 	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
-	Context contexts.Context
+	Context Context
 }
 
 // JobRegisterRequest is used for Job.Register endpoint

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	c "github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -43,7 +42,7 @@ func TestSearch_PrefixSearch(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Jobs,
+		Context: structs.Jobs,
 	}
 
 	var resp structs.SearchResponse
@@ -51,8 +50,8 @@ func TestSearch_PrefixSearch(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID, resp.Matches["jobs"][0])
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
@@ -76,7 +75,7 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Jobs,
+		Context: structs.Jobs,
 	}
 
 	var resp structs.SearchResponse
@@ -84,8 +83,8 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(20, len(resp.Matches["jobs"]))
-	assert.Equal(resp.Truncations["jobs"], true)
+	assert.Equal(20, len(resp.Matches[structs.Jobs]))
+	assert.Equal(resp.Truncations[structs.Jobs], true)
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
@@ -107,7 +106,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Evals,
+		Context: structs.Evals,
 	}
 
 	var resp structs.SearchResponse
@@ -115,9 +114,9 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["evals"]))
-	assert.Equal(eval1.ID, resp.Matches["evals"][0])
-	assert.Equal(resp.Truncations["evals"], false)
+	assert.Equal(1, len(resp.Matches[structs.Evals]))
+	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
+	assert.Equal(resp.Truncations[structs.Evals], false)
 
 	assert.Equal(uint64(2000), resp.Index)
 }
@@ -148,7 +147,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Allocs,
+		Context: structs.Allocs,
 	}
 
 	var resp structs.SearchResponse
@@ -156,9 +155,9 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["allocs"]))
-	assert.Equal(alloc.ID, resp.Matches["allocs"][0])
-	assert.Equal(resp.Truncations["allocs"], false)
+	assert.Equal(1, len(resp.Matches[structs.Allocs]))
+	assert.Equal(alloc.ID, resp.Matches[structs.Allocs][0])
+	assert.Equal(resp.Truncations[structs.Allocs], false)
 
 	assert.Equal(uint64(90), resp.Index)
 }
@@ -185,7 +184,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Nodes,
+		Context: structs.Nodes,
 	}
 
 	var resp structs.SearchResponse
@@ -193,9 +192,9 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["nodes"]))
-	assert.Equal(node.ID, resp.Matches["nodes"][0])
-	assert.Equal(false, resp.Truncations["nodes"])
+	assert.Equal(1, len(resp.Matches[structs.Nodes]))
+	assert.Equal(node.ID, resp.Matches[structs.Nodes][0])
+	assert.Equal(false, resp.Truncations[structs.Nodes])
 
 	assert.Equal(uint64(100), resp.Index)
 }
@@ -228,7 +227,7 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.All,
+		Context: structs.All,
 	}
 
 	var resp structs.SearchResponse
@@ -236,11 +235,11 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["nodes"]))
-	assert.Equal(1, len(resp.Matches["evals"]))
+	assert.Equal(1, len(resp.Matches[structs.Nodes]))
+	assert.Equal(1, len(resp.Matches[structs.Evals]))
 
-	assert.Equal(node.ID, resp.Matches["nodes"][0])
-	assert.Equal(eval1.ID, resp.Matches["evals"][0])
+	assert.Equal(node.ID, resp.Matches[structs.Nodes][0])
+	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
 
 	assert.Equal(uint64(1000), resp.Index)
 }
@@ -264,7 +263,7 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
-		Context: c.Jobs,
+		Context: structs.Jobs,
 	}
 
 	var resp structs.SearchResponse
@@ -272,8 +271,8 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID, resp.Matches["jobs"][0])
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
@@ -295,7 +294,7 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Jobs,
+		Context: structs.Jobs,
 	}
 
 	var resp structs.SearchResponse
@@ -303,7 +302,7 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(0, len(resp.Matches["jobs"]))
+	assert.Equal(0, len(resp.Matches[structs.Jobs]))
 	assert.Equal(uint64(0), resp.Index)
 }
 
@@ -329,7 +328,7 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: c.Jobs,
+		Context: structs.Jobs,
 	}
 
 	var resp structs.SearchResponse
@@ -337,6 +336,6 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID1, resp.Matches["jobs"][0])
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID1, resp.Matches[structs.Jobs][0])
 }

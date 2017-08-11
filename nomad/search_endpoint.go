@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	memdb "github.com/hashicorp/go-memdb"
-	c "github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	st "github.com/hashicorp/nomad/nomad/structs"
 )
 
 // truncateLimit is the maximum number of matches that will be returned for a
@@ -18,7 +17,7 @@ const (
 // allContexts are the available contexts which are searched to find matches
 // for a given prefix
 var (
-	allContexts = []c.Context{c.Allocs, c.Jobs, c.Nodes, c.Evals}
+	allContexts = []st.Context{st.Allocs, st.Jobs, st.Nodes, st.Evals}
 )
 
 // Search endpoint is used to look up matches for a given prefix and context
@@ -43,14 +42,14 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 		var id string
 		switch t := raw.(type) {
-		case *structs.Job:
-			id = raw.(*structs.Job).ID
-		case *structs.Evaluation:
-			id = raw.(*structs.Evaluation).ID
-		case *structs.Allocation:
-			id = raw.(*structs.Allocation).ID
-		case *structs.Node:
-			id = raw.(*structs.Node).ID
+		case *st.Job:
+			id = raw.(*st.Job).ID
+		case *st.Evaluation:
+			id = raw.(*st.Evaluation).ID
+		case *st.Allocation:
+			id = raw.(*st.Allocation).ID
+		case *st.Node:
+			id = raw.(*st.Node).ID
 		default:
 			s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
@@ -68,15 +67,15 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context c.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context st.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
-	case c.Jobs:
+	case st.Jobs:
 		return state.JobsByIDPrefix(ws, prefix)
-	case c.Evals:
+	case st.Evals:
 		return state.EvalsByIDPrefix(ws, prefix)
-	case c.Allocs:
+	case st.Allocs:
 		return state.AllocsByIDPrefix(ws, prefix)
-	case c.Nodes:
+	case st.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
 	default:
 		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
@@ -85,8 +84,8 @@ func getResourceIter(context c.Context, prefix string, ws memdb.WatchSet, state 
 
 // If the length of a prefix is odd, return a subset to the last even character
 // This only applies to UUIDs, jobs are excluded
-func roundUUIDDownIfOdd(prefix string, context c.Context) string {
-	if context == c.Jobs {
+func roundUUIDDownIfOdd(prefix string, context st.Context) string {
+	if context == st.Jobs {
 		return prefix
 	}
 
@@ -99,22 +98,22 @@ func roundUUIDDownIfOdd(prefix string, context c.Context) string {
 
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
-func (s *Search) PrefixSearch(args *structs.SearchRequest,
-	reply *structs.SearchResponse) error {
-	reply.Matches = make(map[c.Context][]string)
-	reply.Truncations = make(map[c.Context]bool)
+func (s *Search) PrefixSearch(args *st.SearchRequest,
+	reply *st.SearchResponse) error {
+	reply.Matches = make(map[st.Context][]string)
+	reply.Truncations = make(map[st.Context]bool)
 
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryMeta: &reply.QueryMeta,
-		queryOpts: &structs.QueryOptions{},
+		queryOpts: &st.QueryOptions{},
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
-			iters := make(map[c.Context]memdb.ResultIterator)
+			iters := make(map[st.Context]memdb.ResultIterator)
 
 			contexts := allContexts
-			if args.Context != c.All {
-				contexts = []c.Context{args.Context}
+			if args.Context != st.All {
+				contexts = []st.Context{args.Context}
 			}
 
 			for _, e := range contexts {

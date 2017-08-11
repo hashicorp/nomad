@@ -23,7 +23,6 @@ func TestSearch_List(t *testing.T) {
 	resp, err := c.Search().PrefixSearch(prefix, contexts.Jobs)
 
 	assert.Nil(err)
-	assert.NotEqual(0, resp.Index)
 
 	jobMatches := resp.Matches[contexts.Jobs]
 	assert.Equal(1, len(jobMatches))
