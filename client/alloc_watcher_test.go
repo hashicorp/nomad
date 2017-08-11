@@ -10,10 +10,66 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/nomad/mock"
 )
 
+// TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
+// set a localPrevAlloc will block on it.
+func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
+	_, prevAR := testAllocRunner(false)
+	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
+
+	newAlloc := mock.Alloc()
+	newAlloc.PreviousAllocation = prevAR.Alloc().ID
+	newAlloc.Job.TaskGroups[0].EphemeralDisk.Sticky = false
+	task := newAlloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
+
+	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testLogger())
+
+	// Wait in a goroutine with a context to make sure it exits at the right time
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		defer cancel()
+		waiter.Wait(ctx)
+	}()
+
+	select {
+	case <-ctx.Done():
+		t.Fatalf("Wait exited too early")
+	case <-time.After(33 * time.Millisecond):
+		// Good! It's blocking
+	}
+
+	// Start the previous allocs to cause it to update but not terminate
+	go prevAR.Run()
+	defer prevAR.Destroy()
+
+	select {
+	case <-ctx.Done():
+		t.Fatalf("Wait exited too early")
+	case <-time.After(33 * time.Millisecond):
+		// Good! It's still blocking
+	}
+
+	// Stop the previous alloc
+	prevAR.Destroy()
+
+	select {
+	case <-ctx.Done():
+		// Good! We unblocked when the previous alloc stopped
+	case <-time.After(time.Second):
+		t.Fatalf("Wait exited too early")
+	}
+}
+
+// TestPrevAlloc_StreamAllocDir asserts that streaming a tar to an alloc dir
+// works.
 func TestPrevAlloc_StreamAllocDir(t *testing.T) {
 	t.Parallel()
 	dir, err := ioutil.TempDir("", "")
