@@ -790,8 +790,9 @@ func (r *AllocRunner) Run() {
 		if err == context.Canceled {
 			return
 		}
-		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error while migrating data from previous alloc: %v", err))
-		return
+
+		// Soft-fail on migration errors
+		r.logger.Printf("[WARN] client: alloc %q error while migrating data from previous alloc: %v", r.allocID, err)
 	}
 
 	r.waitingLock.Lock()
