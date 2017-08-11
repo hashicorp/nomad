@@ -18,9 +18,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// rpcer is the interface needed by a prevAllocWatcher to make RPC calls.
 type rpcer interface {
 	// RPC allows retrieving remote allocs.
 	RPC(method string, args interface{}, reply interface{}) error
+}
+
+// terminated is the interface needed by a prevAllocWatcher to check if an
+// alloc is terminated.
+type terminated interface {
+	Terminated() bool
 }
 
 type prevAllocWatcher interface {
@@ -52,6 +59,7 @@ func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, 
 			prevAllocDir: prevAR.GetAllocDir(),
 			prevListener: prevAR.GetListener(),
 			prevWaitCh:   prevAR.WaitCh(),
+			prevStatus:   prevAR.Alloc(),
 			logger:       l,
 		}
 	}
@@ -77,6 +85,7 @@ type localPrevAlloc struct {
 	sticky       bool
 	prevAllocDir *allocdir.AllocDir
 	prevListener *cstructs.AllocListener
+	prevStatus   terminated
 	prevWaitCh   <-chan struct{}
 
 	logger *log.Logger
@@ -85,16 +94,27 @@ type localPrevAlloc struct {
 // Wait on a local alloc to become terminal, exit, or the context to be done.
 func (p *localPrevAlloc) Wait(ctx context.Context) error {
 	defer p.prevListener.Close()
+
+	if p.prevStatus.Terminated() {
+		// Fast path - previous alloc already terminated!
+		return nil
+	}
+
+	// Block until previous alloc exits
 	p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate", p.allocID, p.prevAllocID)
 	for {
+		p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate - XXX LOOP", p.allocID, p.prevAllocID)
 		select {
 		case prevAlloc := <-p.prevListener.Ch:
+			p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate - XXX UPDATE %v", p.allocID, p.prevAllocID, prevAlloc.Terminated())
 			if prevAlloc.Terminated() {
 				return nil
 			}
 		case <-p.prevWaitCh:
+			p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate - XXX CLOSED", p.allocID, p.prevAllocID)
 			return nil
 		case <-ctx.Done():
+			p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate - XXX DONE", p.allocID, p.prevAllocID)
 			return ctx.Err()
 		}
 	}
