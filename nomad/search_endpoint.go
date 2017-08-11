@@ -56,7 +56,7 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		}
 
 		if !isSubset(prefix, id) {
-			break
+			continue
 		}
 
 		matches = append(matches, id)
@@ -83,16 +83,17 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 }
 
 // If the length of a prefix is odd, return a subset to the last even character
-// This only applies to UUIDs, Job names are excluded
+// This only applies to UUIDs, jobs are excluded
 func roundUUIDDownIfOdd(prefix, context string) string {
 	if context == "job" {
 		return prefix
 	}
 
-	if len(prefix)%2 == 0 {
+	l := len(prefix)
+	if l%2 == 0 {
 		return prefix
 	}
-	return prefix[:len(prefix)-1]
+	return prefix[:l-1]
 }
 
 // List is used to list matches for a given prefix. Search returns jobs,
