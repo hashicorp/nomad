@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: JSON Job Specification - HTTP API
-sidebar_current: api-jobs
+sidebar_current: api-json-jobs
 description: |-
   Jobs can also be specified via the HTTP API using a JSON format. This guide
   discusses the job specification in JSON format.
@@ -525,7 +525,7 @@ The `Constraint` object supports the following keys:
   - `set_contains` - Allows the `RTarget` to be a comma separated list of values
     that should be contained in the LTarget's value.
 
-  - `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
+  - `distinct_hosts` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which
         scopes the effect to just that group. The constraint may not be
