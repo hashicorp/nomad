@@ -1,9 +1,10 @@
 import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
+import Searchable from 'nomad-ui/mixins/searchable';
 
 const { Controller, computed } = Ember;
 
-export default Controller.extend(Sortable, {
+export default Controller.extend(Sortable, Searchable, {
   pendingJobs: computed.filterBy('model', 'status', 'pending'),
   runningJobs: computed.filterBy('model', 'status', 'running'),
   deadJobs: computed.filterBy('model', 'status', 'dead'),
@@ -21,6 +22,9 @@ export default Controller.extend(Sortable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
+  searchProps: computed(() => ['id', 'name']),
+
   listToSort: computed.alias('model'),
-  sortedJobs: computed.alias('listSorted'),
+  listToSearch: computed.alias('listSorted'),
+  sortedJobs: computed.alias('listSearched'),
 });
