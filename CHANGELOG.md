@@ -10,6 +10,7 @@ IMPROVEMENTS:
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]
+ * driver/docker: Added DNS options [GH-2992]
  * driver/rkt: support read-only volume mounts [GH-2883]
 
 BUG FIXES:
