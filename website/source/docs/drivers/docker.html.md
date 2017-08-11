@@ -600,4 +600,3 @@ logs will be available to nomad. Users must use the native docker facilities to
 examine the logs of any jobs running under docker.
 
 In the future, we will resolve this issue, one way or another.
-
