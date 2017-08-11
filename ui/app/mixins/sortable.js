@@ -5,7 +5,7 @@ const { Mixin, computed } = Ember;
 /**
   Sortable mixin
 
-  Simply sorting behavior for a list of objects.
+  Simple sorting behavior for a list of objects.
 
   Properties to override:
     - sortProperty: the property to sort by
