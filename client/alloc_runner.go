@@ -756,26 +756,28 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
-	r.allocDirLock.Lock()
 	// Build allocation directory (idempotent)
-	if err := r.allocDir.Build(); err != nil {
+	r.allocDirLock.Lock()
+	err := r.allocDir.Build()
+	r.allocDirLock.Unlock()
+
+	if err != nil {
 		r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
-		r.allocDirLock.Unlock()
 		return
 	}
-	r.allocDirLock.Unlock()
 
 	// Wait for a previous alloc - if any - to terminate
 	r.waitingLock.Lock()
 	r.blocked = true
 	r.waitingLock.Unlock()
+
 	if err := r.prevAlloc.Wait(r.ctx); err != nil {
 		if err == context.Canceled {
 			return
 		}
-		//TODO(schmichael)
-		panic("todo")
+		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error while waiting for previous alloc to terminate: %v", err))
+		return
 	}
 
 	r.waitingLock.Lock()
@@ -788,8 +790,8 @@ func (r *AllocRunner) Run() {
 		if err == context.Canceled {
 			return
 		}
-		//TODO(schmichael)
-		panic("todo")
+		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error while migrating data from previous alloc: %v", err))
+		return
 	}
 
 	r.waitingLock.Lock()
