@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	a "github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestHTTP_SearchWithIllegalMethod(t *testing.T) {
 	assert := a.New(t)
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("DELETE", "/v1/resources", nil)
+		req, err := http.NewRequest("DELETE", "/v1/search", nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -44,7 +45,7 @@ func TestHTTP_Search_POST(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: contexts.Jobs}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -57,12 +58,12 @@ func TestHTTP_Search_POST(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		j := res.Matches["jobs"]
+		j := res.Matches[contexts.Jobs]
 
 		assert.Equal(1, len(j))
 		assert.Equal(j[0], testJob)
 
-		assert.Equal(res.Truncations["job"], false)
+		assert.Equal(res.Truncations[contexts.Jobs], false)
 		assert.NotEqual("0", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -76,7 +77,7 @@ func TestHTTP_Search_PUT(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
-		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: contexts.Jobs}
 		req, err := http.NewRequest("PUT", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -89,12 +90,12 @@ func TestHTTP_Search_PUT(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		j := res.Matches["jobs"]
+		j := res.Matches[contexts.Jobs]
 
 		assert.Equal(1, len(j))
 		assert.Equal(j[0], testJob)
 
-		assert.Equal(res.Truncations["job"], false)
+		assert.Equal(res.Truncations[contexts.Jobs], false)
 		assert.NotEqual("0", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -114,7 +115,7 @@ func TestHTTP_Search_MultipleJobs(t *testing.T) {
 		createJobForTest(testJobB, s, t)
 		createJobForTest(testJobC, s, t)
 
-		data := structs.SearchRequest{Prefix: testJobPrefix, Context: "jobs"}
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: contexts.Jobs}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -127,14 +128,14 @@ func TestHTTP_Search_MultipleJobs(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		j := res.Matches["jobs"]
+		j := res.Matches[contexts.Jobs]
 
 		assert.Equal(2, len(j))
 		assert.Contains(j, testJobA)
 		assert.Contains(j, testJobB)
 		assert.NotContains(j, testJobC)
 
-		assert.Equal(res.Truncations["job"], false)
+		assert.Equal(res.Truncations[contexts.Jobs], false)
 		assert.NotEqual("0", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -152,7 +153,7 @@ func TestHTTP_Search_Evaluation(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := eval1.ID[:len(eval1.ID)-2]
-		data := structs.SearchRequest{Prefix: prefix, Context: "evals"}
+		data := structs.SearchRequest{Prefix: prefix, Context: contexts.Evals}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -165,12 +166,12 @@ func TestHTTP_Search_Evaluation(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		j := res.Matches["evals"]
+		j := res.Matches[contexts.Evals]
 		assert.Equal(1, len(j))
 		assert.Contains(j, eval1.ID)
 		assert.NotContains(j, eval2.ID)
 
-		assert.Equal(res.Truncations["evals"], false)
+		assert.Equal(res.Truncations[contexts.Evals], false)
 		assert.Equal("9000", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -186,7 +187,7 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
-		data := structs.SearchRequest{Prefix: prefix, Context: "allocs"}
+		data := structs.SearchRequest{Prefix: prefix, Context: contexts.Allocs}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -199,11 +200,11 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		a := res.Matches["allocs"]
+		a := res.Matches[contexts.Allocs]
 		assert.Equal(1, len(a))
 		assert.Contains(a, alloc.ID)
 
-		assert.Equal(res.Truncations["allocs"], false)
+		assert.Equal(res.Truncations[contexts.Allocs], false)
 		assert.Equal("7000", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -219,7 +220,7 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 		assert.Nil(err)
 
 		prefix := node.ID[:len(node.ID)-2]
-		data := structs.SearchRequest{Prefix: prefix, Context: "nodes"}
+		data := structs.SearchRequest{Prefix: prefix, Context: contexts.Nodes}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -232,11 +233,11 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 
 		assert.Equal(1, len(res.Matches))
 
-		n := res.Matches["nodes"]
+		n := res.Matches[contexts.Nodes]
 		assert.Equal(1, len(n))
 		assert.Contains(n, node.ID)
 
-		assert.Equal(res.Truncations["nodes"], false)
+		assert.Equal(res.Truncations[contexts.Nodes], false)
 		assert.Equal("6000", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
@@ -246,7 +247,7 @@ func TestHTTP_Search_NoJob(t *testing.T) {
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		data := structs.SearchRequest{Prefix: "12345", Context: "jobs"}
+		data := structs.SearchRequest{Prefix: "12345", Context: contexts.Jobs}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -258,13 +259,13 @@ func TestHTTP_Search_NoJob(t *testing.T) {
 		res := resp.(structs.SearchResponse)
 
 		assert.Equal(1, len(res.Matches))
-		assert.Equal(0, len(res.Matches["jobs"]))
+		assert.Equal(0, len(res.Matches[contexts.Jobs]))
 
 		assert.Equal("0", respW.HeaderMap.Get("X-Nomad-Index"))
 	})
 }
 
-func TestHTTP_Search_NoContext(t *testing.T) {
+func TestHTTP_Search_AllContext(t *testing.T) {
 	assert := a.New(t)
 
 	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
@@ -279,7 +280,7 @@ func TestHTTP_Search_NoContext(t *testing.T) {
 		err := state.UpsertEvals(8000, []*structs.Evaluation{eval1})
 		assert.Nil(err)
 
-		data := structs.SearchRequest{Prefix: testJobPrefix}
+		data := structs.SearchRequest{Prefix: testJobPrefix, Context: contexts.All}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		assert.Nil(err)
 
@@ -290,8 +291,8 @@ func TestHTTP_Search_NoContext(t *testing.T) {
 
 		res := resp.(structs.SearchResponse)
 
-		matchedJobs := res.Matches["jobs"]
-		matchedEvals := res.Matches["evals"]
+		matchedJobs := res.Matches[contexts.Jobs]
+		matchedEvals := res.Matches[contexts.Evals]
 
 		assert.Equal(1, len(matchedJobs))
 		assert.Equal(1, len(matchedEvals))

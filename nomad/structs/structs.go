@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -235,11 +236,11 @@ type NodeSpecificRequest struct {
 // the match list is truncated specific to each type of context.
 type SearchResponse struct {
 	// Map of context types to ids which match a specified prefix
-	Matches map[string][]string
+	Matches map[contexts.Context][]string
 
 	// Truncations indicates whether the matches for a particular context have
 	// been truncated
-	Truncations map[string]bool
+	Truncations map[contexts.Context]bool
 
 	QueryMeta
 }
@@ -255,7 +256,7 @@ type SearchRequest struct {
 	// Context is the type that can be matched against. A context can be a job,
 	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
-	Context string
+	Context contexts.Context
 }
 
 // JobRegisterRequest is used for Job.Register endpoint

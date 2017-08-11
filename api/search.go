@@ -18,7 +18,7 @@ func (c *Client) Search() *Search {
 // context is not specified, matches for all contexts are returned.
 func (s *Search) PrefixSearch(prefix string, context c.Context) (*structs.SearchResponse, error) {
 	var resp structs.SearchResponse
-	req := &structs.SearchRequest{Prefix: prefix, Context: string(context)}
+	req := &structs.SearchRequest{Prefix: prefix, Context: context}
 
 	_, err := s.client.write("/v1/search", req, &resp, nil)
 	if err != nil {

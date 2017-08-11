@@ -205,7 +205,7 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[api.contexts.Allocs]
+		return resp.Matches[contexts.Allocs]
 	})
 }
 

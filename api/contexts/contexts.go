@@ -1,11 +1,12 @@
 package contexts
 
+// Context is a type which is searchable via a unique identifier.
 type Context string
 
 const (
-	Alloc Context = "allocs"
-	Eval  Context = "evals"
-	Job   Context = "jobs"
-	Node  Context = "nodes"
-	All   Context = ""
+	Allocs Context = "allocs"
+	Evals  Context = "evals"
+	Jobs   Context = "jobs"
+	Nodes  Context = "nodes"
+	All    Context = ""
 )

@@ -25,7 +25,7 @@ func TestSearch_List(t *testing.T) {
 	assert.Nil(err)
 	assert.NotEqual(0, resp.Index)
 
-	jobMatches := resp.Matches[contexts.jobs]
+	jobMatches := resp.Matches[contexts.Jobs]
 	assert.Equal(1, len(jobMatches))
 	assert.Equal(id, jobMatches[0])
 }

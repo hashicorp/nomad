@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	c "github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -25,7 +26,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) s
 	return job.ID
 }
 
-func TestSearch_List(t *testing.T) {
+func TestSearch_PrefixSearch(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -42,11 +43,11 @@ func TestSearch_List(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: c.Jobs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -56,7 +57,7 @@ func TestSearch_List(t *testing.T) {
 }
 
 // truncate should limit results to 20
-func TestSearch_List_Truncate(t *testing.T) {
+func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -75,11 +76,11 @@ func TestSearch_List_Truncate(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: c.Jobs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -88,7 +89,7 @@ func TestSearch_List_Truncate(t *testing.T) {
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
-func TestSearch_List_Evals(t *testing.T) {
+func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -106,11 +107,11 @@ func TestSearch_List_Evals(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "evals",
+		Context: c.Evals,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -121,7 +122,7 @@ func TestSearch_List_Evals(t *testing.T) {
 	assert.Equal(uint64(2000), resp.Index)
 }
 
-func TestSearch_List_Allocation(t *testing.T) {
+func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -147,11 +148,11 @@ func TestSearch_List_Allocation(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "allocs",
+		Context: c.Allocs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -162,7 +163,7 @@ func TestSearch_List_Allocation(t *testing.T) {
 	assert.Equal(uint64(90), resp.Index)
 }
 
-func TestSearch_List_Node(t *testing.T) {
+func TestSearch_PrefixSearch_Node(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -184,11 +185,11 @@ func TestSearch_List_Node(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "nodes",
+		Context: c.Nodes,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -199,31 +200,7 @@ func TestSearch_List_Node(t *testing.T) {
 	assert.Equal(uint64(100), resp.Index)
 }
 
-func TestSearch_List_InvalidContext(t *testing.T) {
-	assert := assert.New(t)
-
-	t.Parallel()
-	s := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-
-	defer s.Shutdown()
-	codec := rpcClient(t, s)
-	testutil.WaitForLeader(t, s.RPC)
-
-	req := &structs.SearchRequest{
-		Prefix:  "anyPrefix",
-		Context: "invalid",
-	}
-
-	var resp structs.SearchResponse
-	err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp)
-	assert.Equal(err.Error(), "context must be one of [allocs nodes jobs evals]; got \"invalid\"")
-
-	assert.Equal(uint64(0), resp.Index)
-}
-
-func TestSearch_List_NoContext(t *testing.T) {
+func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -251,11 +228,11 @@ func TestSearch_List_NoContext(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "",
+		Context: c.All,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -269,7 +246,7 @@ func TestSearch_List_NoContext(t *testing.T) {
 }
 
 // Tests that the top 20 matches are returned when no prefix is set
-func TestSearch_List_NoPrefix(t *testing.T) {
+func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -287,11 +264,11 @@ func TestSearch_List_NoPrefix(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
-		Context: "jobs",
+		Context: c.Jobs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -302,7 +279,7 @@ func TestSearch_List_NoPrefix(t *testing.T) {
 
 // Tests that the zero matches are returned when a prefix has no matching
 // results
-func TestSearch_List_NoMatches(t *testing.T) {
+func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -318,11 +295,11 @@ func TestSearch_List_NoMatches(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: c.Jobs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -332,7 +309,7 @@ func TestSearch_List_NoMatches(t *testing.T) {
 
 // Prefixes can only be looked up if their length is a power of two. For
 // prefixes which are an odd length, use the length-1 characters.
-func TestSearch_List_RoundDownToEven(t *testing.T) {
+func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	assert := assert.New(t)
 	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
 	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
@@ -352,11 +329,11 @@ func TestSearch_List_RoundDownToEven(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: c.Jobs,
 	}
 
 	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.List", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

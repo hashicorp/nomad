@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	memdb "github.com/hashicorp/go-memdb"
+	c "github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -14,13 +15,13 @@ const (
 	truncateLimit = 20
 )
 
-// allContexts are the available contexts which searched to find matches for a
-// given prefix
+// allContexts are the available contexts which are searched to find matches
+// for a given prefix
 var (
-	allContexts = []string{"allocs", "nodes", "jobs", "evals"}
+	allContexts = []c.Context{c.Allocs, c.Jobs, c.Nodes, c.Evals}
 )
 
-// Search endpoint is used to lookup matches for a given prefix and context
+// Search endpoint is used to look up matches for a given prefix and context
 type Search struct {
 	srv *Server
 }
@@ -67,15 +68,15 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context c.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
-	case "jobs":
+	case c.Jobs:
 		return state.JobsByIDPrefix(ws, prefix)
-	case "evals":
+	case c.Evals:
 		return state.EvalsByIDPrefix(ws, prefix)
-	case "allocs":
+	case c.Allocs:
 		return state.AllocsByIDPrefix(ws, prefix)
-	case "nodes":
+	case c.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
 	default:
 		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
@@ -84,8 +85,8 @@ func getResourceIter(context, prefix string, ws memdb.WatchSet, state *state.Sta
 
 // If the length of a prefix is odd, return a subset to the last even character
 // This only applies to UUIDs, jobs are excluded
-func roundUUIDDownIfOdd(prefix, context string) string {
-	if context == "job" {
+func roundUUIDDownIfOdd(prefix string, context c.Context) string {
+	if context == c.Jobs {
 		return prefix
 	}
 
@@ -96,12 +97,12 @@ func roundUUIDDownIfOdd(prefix, context string) string {
 	return prefix[:l-1]
 }
 
-// List is used to list matches for a given prefix. Search returns jobs,
-// evaluations, allocations, and/or nodes.
-func (s *Search) List(args *structs.SearchRequest,
+// PrefixSearch is used to list matches for a given prefix, and returns
+// matching jobs, evaluations, allocations, and/or nodes.
+func (s *Search) PrefixSearch(args *structs.SearchRequest,
 	reply *structs.SearchResponse) error {
-	reply.Matches = make(map[string][]string)
-	reply.Truncations = make(map[string]bool)
+	reply.Matches = make(map[c.Context][]string)
+	reply.Truncations = make(map[c.Context]bool)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -109,11 +110,11 @@ func (s *Search) List(args *structs.SearchRequest,
 		queryOpts: &structs.QueryOptions{},
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
-			iters := make(map[string]memdb.ResultIterator)
+			iters := make(map[c.Context]memdb.ResultIterator)
 
 			contexts := allContexts
-			if args.Context != "" {
-				contexts = []string{args.Context}
+			if args.Context != c.All {
+				contexts = []c.Context{args.Context}
 			}
 
 			for _, e := range contexts {
@@ -135,7 +136,7 @@ func (s *Search) List(args *structs.SearchRequest,
 			// will be used as the index of the response. Otherwise, the
 			// maximum index from all resources will be used.
 			for _, e := range contexts {
-				index, err := state.Index(e)
+				index, err := state.Index(string(e))
 				if err != nil {
 					return err
 				}
