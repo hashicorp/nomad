@@ -12,7 +12,7 @@ export default Component.extend({
     return Math.ceil(this.get('source.length') / this.get('size'));
   }),
 
-  pageLinks: computed('page', 'spread', function() {
+  pageLinks: computed('source.[]', 'page', 'spread', function() {
     const { spread, page, lastPage } = this.getProperties('spread', 'page', 'lastPage');
 
     // When there is only one page, don't bother with page links
