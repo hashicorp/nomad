@@ -78,6 +78,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
+* `dns_options` - (Optional) A list of DNS options for the container to use.
+
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
