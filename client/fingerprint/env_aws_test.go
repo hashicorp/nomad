@@ -61,7 +61,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	keys := []string{
-		"unique.platform.aws.ami-id",
+		"platform.aws.ami-id",
 		"unique.platform.aws.hostname",
 		"unique.platform.aws.instance-id",
 		"platform.aws.instance-type",
