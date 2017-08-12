@@ -151,6 +151,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
 
+	s.mux.HandleFunc("/v1/acl/tokens", s.wrap(s.ACLTokensRequest))
+	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
+
 	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
 	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
 	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))

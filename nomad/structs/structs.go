@@ -5343,6 +5343,30 @@ type ACLToken struct {
 	ModifyIndex uint64
 }
 
+type ACLTokenListStub struct {
+	AccessorID  string
+	Name        string
+	Type        string
+	Policies    []string
+	Global      bool
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (a *ACLToken) Stub() *ACLTokenListStub {
+	return &ACLTokenListStub{
+		AccessorID:  a.AccessorID,
+		Name:        a.Name,
+		Type:        a.Type,
+		Policies:    a.Policies,
+		Global:      a.Global,
+		CreateTime:  a.CreateTime,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
 // Validate is used to sanity check a token
 func (a *ACLToken) Validate() error {
 	var mErr multierror.Error
@@ -5377,7 +5401,7 @@ type ACLTokenSpecificRequest struct {
 
 // ACLTokenListResponse is used for a list request
 type ACLTokenListResponse struct {
-	Tokens []*ACLToken
+	Tokens []*ACLTokenListStub
 	QueryMeta
 }
 
