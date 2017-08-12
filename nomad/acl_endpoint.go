@@ -234,7 +234,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 					break
 				}
 				token := raw.(*structs.ACLToken)
-				reply.Tokens = append(reply.Tokens, token)
+				reply.Tokens = append(reply.Tokens, token.Stub())
 			}
 
 			// Use the last index that affected the token table
