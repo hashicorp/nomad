@@ -2826,12 +2826,122 @@ func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (me
 	return iter, nil
 }
 
-// ACLPolicies returns an iterator over all the nodes
+// ACLPolicies returns an iterator over all the acl policies
 func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	// Walk the entire nodes table
+	// Walk the entire table
 	iter, err := txn.Get("acl_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// UpsertACLTokens is used to create or update a set of ACL tokens
+func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, token := range tokens {
+		// Check if the token already exists
+		existing, err := txn.First("acl_token", "id", token.AccessorID)
+		if err != nil {
+			return fmt.Errorf("token lookup failed: %v", err)
+		}
+
+		// Update all the indexes
+		if existing != nil {
+			token.CreateIndex = existing.(*structs.ACLToken).CreateIndex
+			token.ModifyIndex = index
+		} else {
+			token.CreateIndex = index
+			token.ModifyIndex = index
+		}
+
+		// Update the token
+		if err := txn.Insert("acl_token", token); err != nil {
+			return fmt.Errorf("upserting token failed: %v", err)
+		}
+	}
+
+	// Update the indexes table
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// DeleteACLTokens deletes the tokens with the given accessor ids
+func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the tokens
+	for _, id := range ids {
+		if _, err := txn.DeleteAll("acl_token", "id", id); err != nil {
+			return fmt.Errorf("deleting acl token failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// ACLTokenByPublicID is used to lookup a token by accessor ID
+func (s *StateStore) ACLTokenByPublicID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLToken), nil
+	}
+	return nil, nil
+}
+
+// ACLTokenBySecretID is used to lookup a token by secret ID
+func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLToken), nil
+	}
+	return nil, nil
+}
+
+// ACLTokenByPublicIDPrefix is used to lookup tokens by prefix
+func (s *StateStore) ACLTokenByPublicIDPrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("acl_token", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// ACLTokens returns an iterator over all the tokens
+func (s *StateStore) ACLTokens(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("acl_token", "id")
 	if err != nil {
 		return nil, err
 	}
@@ -2962,6 +3072,14 @@ func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) err
 func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 	if err := r.txn.Insert("acl_policy", policy); err != nil {
 		return fmt.Errorf("inserting acl policy failed: %v", err)
+	}
+	return nil
+}
+
+// ACLTokenRestore is used to restore an ACL token
+func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
+	if err := r.txn.Insert("acl_token", token); err != nil {
+		return fmt.Errorf("inserting acl token failed: %v", err)
 	}
 	return nil
 }
