@@ -48,9 +48,8 @@ be signed by the same Certificate Authority (CA). This should be a _private_ CA
 and not a public one like [Let's Encrypt][letsencrypt] as any certificate
 signed by this CA will be allowed to communicate with the cluster.
 
-~> Nomad certificates may be signed by different intermediate CAs as long as
-   the full `ca_file` on each node contains all of the CA certificates in the
-   chain.
+~> Nomad certificates may be signed by intermediate CAs as long as the root CA
+   is the same. Append all intermediate CAs to the `cert_file`.
 
 ### Certificate Authority
 
@@ -367,10 +366,10 @@ cg8StVXbQJ0gPvMd9o7yrg==
 Alternatively, you can use any method that base64 encodes 16 random bytes:
 
 ```text
+$ openssl rand -base64 16
+raZjciP8vikXng2S5X0m9w==
 $ dd if=/dev/urandom bs=16 count=1 status=none | base64
 LsuYyj93KVfT3pAJPMMCgA==
-$ python -c 'import base64; print base64.b64encode(open("/dev/urandom").read(16))'
-uTI2KkW+5WrRTETEfc0ZBQ==
 ```
 
 Put the same generated key into every server's configuration file or command
