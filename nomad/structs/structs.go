@@ -65,6 +65,8 @@ const (
 	JobStabilityRequestType
 	ACLPolicyUpsertRequestType
 	ACLPolicyDeleteRequestType
+	ACLTokenUpsertRequestType
+	ACLTokenDeleteRequestType
 )
 
 const (
@@ -5451,4 +5453,39 @@ func (a *ACLToken) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
 	}
 	return mErr.ErrorOrNil()
+}
+
+// ACLTokenListRequest is used to request a list of tokens
+type ACLTokenListRequest struct {
+	QueryOptions
+}
+
+// ACLTokenSpecificRequest is used to query a specific token
+type ACLTokenSpecificRequest struct {
+	AccessorID string
+	QueryOptions
+}
+
+// ACLTokenListResponse is used for a list request
+type ACLTokenListResponse struct {
+	Tokens []*ACLToken
+	QueryMeta
+}
+
+// SingleACLTokenResponse is used to return a single token
+type SingleACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenDeleteRequest is used to delete a set of tokens
+type ACLTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenUpsertRequest is used to upsert a set of tokens
+type ACLTokenUpsertRequest struct {
+	Tokens []*ACLToken
+	WriteRequest
 }
