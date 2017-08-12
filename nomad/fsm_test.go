@@ -1570,6 +1570,59 @@ func TestFSM_DeleteACLPolicies(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+func TestFSM_UpsertACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	req := structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{token},
+	}
+	buf, err := structs.Encode(structs.ACLTokenUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByPublicID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	err := fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	req := structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{token.AccessorID},
+	}
+	buf, err := structs.Encode(structs.ACLTokenDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByPublicID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
