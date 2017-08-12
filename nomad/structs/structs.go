@@ -96,6 +96,13 @@ const (
 
 	// maxPolicyDescriptionLength limits a policy description length
 	maxPolicyDescriptionLength = 256
+
+	// maxTokenNameLength limits a ACL token name length
+	maxTokenNameLength = 64
+
+	// ACLClientToken and ACLManagementToken are the only types of tokens
+	ACLClientToken     = "client"
+	ACLManagementToken = "management"
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -5410,4 +5417,38 @@ type ACLPolicyDeleteRequest struct {
 type ACLPolicyUpsertRequest struct {
 	Policies []*ACLPolicy
 	WriteRequest
+}
+
+// ACLToken represents a client token which is used to Authenticate
+type ACLToken struct {
+	AccessorID  string    // Public Accessor ID (UUID)
+	SecretID    string    // Secret ID, private (UUID)
+	Name        string    // Human friendly name
+	Type        string    // Client or Management
+	Policies    []string  // Policies this token ties to
+	Global      bool      // Global or Region local
+	CreateTime  time.Time // Time of creation
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// Validate is used to sanity check a token
+func (a *ACLToken) Validate() error {
+	var mErr multierror.Error
+	if len(a.Name) > maxTokenNameLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token name too long"))
+	}
+	switch a.Type {
+	case ACLClientToken:
+		if len(a.Policies) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("client token missing policies"))
+		}
+	case ACLManagementToken:
+		if len(a.Policies) != 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("management token cannot be associated with policies"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
+	}
+	return mErr.ErrorOrNil()
 }

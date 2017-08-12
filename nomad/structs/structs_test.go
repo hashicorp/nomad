@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -2263,4 +2264,46 @@ func TestIsRecoverable(t *testing.T) {
 	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
 		t.Errorf("Explicitly recoverable errors *should* be recoverable")
 	}
+}
+
+func TestACLTokenValidate(t *testing.T) {
+	tk := &ACLToken{}
+
+	// Mising a type
+	err := tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "client or management") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Missing policies
+	tk.Type = ACLClientToken
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "missing policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Invalid policices
+	tk.Type = ACLManagementToken
+	tk.Policies = []string{"foo"}
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "associated with policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Name too long policices
+	tk.Name = GenerateUUID() + GenerateUUID()
+	tk.Policies = nil
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "too long") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Make it valid
+	tk.Name = "foo"
+	err = tk.Validate()
+	assert.Nil(t, err)
 }
