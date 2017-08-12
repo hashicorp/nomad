@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Securing Nomad with TLS"
-sidebar_current: "guides-tls"
+sidebar_current: "guides-securing-nomad"
 description: |-
   Securing Nomad's cluster communication with TLS is important for both
   security and easing operations. Nomad can use mutual TLS (mTLS) for
