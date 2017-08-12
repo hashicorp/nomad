@@ -538,22 +538,48 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 
 	// Create the register request
 	p1 := mock.ACLToken()
+	p1.AccessorID = "" // Blank to create
 
 	// Lookup the tokens
 	req := &structs.ACLTokenUpsertRequest{
 		Tokens:       []*structs.ACLToken{p1},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	var resp structs.GenericResponse
+	var resp structs.ACLTokenUpsertResponse
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	assert.NotEqual(t, uint64(0), resp.Index)
 
+	// Get the token out from the response
+	created := resp.Tokens[0]
+	assert.NotEqual(t, "", created.AccessorID)
+	assert.NotEqual(t, "", created.SecretID)
+	assert.NotEqual(t, time.Time{}, created.CreateTime)
+	assert.Equal(t, p1.Type, created.Type)
+	assert.Equal(t, p1.Policies, created.Policies)
+	assert.Equal(t, p1.Name, created.Name)
+
 	// Check we created the token
-	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, p1.AccessorID)
+	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
 	assert.Nil(t, err)
-	assert.NotNil(t, out)
+	assert.Equal(t, created, out)
+
+	// Update the token type
+	req.Tokens[0] = created
+	created.Type = "management"
+	created.Policies = nil
+
+	// Upsert again
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+
+	// Check we modified the token
+	out, err = s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+	assert.Nil(t, err)
+	assert.Equal(t, created, out)
 }
 
 func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {

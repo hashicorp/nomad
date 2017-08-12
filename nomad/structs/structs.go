@@ -5422,3 +5422,9 @@ type ACLTokenUpsertRequest struct {
 	Tokens []*ACLToken
 	WriteRequest
 }
+
+// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
+type ACLTokenUpsertResponse struct {
+	Tokens []*ACLToken
+	WriteMeta
+}
