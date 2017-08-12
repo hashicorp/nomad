@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -35,6 +36,9 @@ import (
 var (
 	ErrNoLeader     = fmt.Errorf("No cluster leader")
 	ErrNoRegionPath = fmt.Errorf("No path to region")
+
+	// validPolicyName is used to validate a policy name
+	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 type MessageType uint8
@@ -89,6 +93,9 @@ const (
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"
+
+	// maxPolicyDescriptionLength limits a policy description length
+	maxPolicyDescriptionLength = 256
 )
 
 // RPCInfo is used to describe common information about query
@@ -5252,6 +5259,23 @@ func (a *ACLPolicy) Stub() *ACLPolicyListStub {
 		CreateIndex: a.CreateIndex,
 		ModifyIndex: a.ModifyIndex,
 	}
+}
+
+func (a *ACLPolicy) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(a.Name) {
+		err := fmt.Errorf("invalid name '%s'", a.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if _, err := acl.Parse(a.Rules); err != nil {
+		err = fmt.Errorf("failed to parse rules: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(a.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	return mErr.ErrorOrNil()
 }
 
 // ACLPolicyListStub is used to for listing ACL policies
