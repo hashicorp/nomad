@@ -257,6 +257,8 @@ func (w *deploymentWatcher) FailDeployment(
 
 		if rollbackJob != nil {
 			desc = structs.DeploymentStatusDescriptionRollback(desc, rollbackJob.Version)
+		} else {
+			desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 		}
 	}
 
@@ -361,6 +363,8 @@ func (w *deploymentWatcher) watch() {
 				// version N
 				if j != nil {
 					desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+				} else {
+					desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 				}
 			}
 

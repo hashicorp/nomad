@@ -4117,6 +4117,12 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
+// DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
+// a deployment when there is no target to rollback to but autorevet is desired.
+func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
+	return fmt.Sprintf("%s - no stable job version to auto revert to", baseDescription)
+}
+
 // Deployment is the object that represents a job deployment which is used to
 // transition a job between versions.
 type Deployment struct {
