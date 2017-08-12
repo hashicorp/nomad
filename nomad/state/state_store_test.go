@@ -6006,10 +6006,10 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 	tk2 := mock.ACLToken()
 
 	ws := memdb.NewWatchSet()
-	if _, err := state.ACLTokenByPublicID(ws, tk1.AccessorID); err != nil {
+	if _, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if _, err := state.ACLTokenByPublicID(ws, tk2.AccessorID); err != nil {
+	if _, err := state.ACLTokenByAccessorID(ws, tk2.AccessorID); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6022,11 +6022,11 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	out, err := state.ACLTokenByPublicID(ws, tk1.AccessorID)
+	out, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk1, out)
 
-	out, err = state.ACLTokenByPublicID(ws, tk2.AccessorID)
+	out, err = state.ACLTokenByAccessorID(ws, tk2.AccessorID)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk2, out)
 
@@ -6082,7 +6082,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 
 	// Create a watcher
 	ws := memdb.NewWatchSet()
-	if _, err := state.ACLTokenByPublicID(ws, tk1.AccessorID); err != nil {
+	if _, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6099,7 +6099,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 
 	// Ensure we don't get the object back
 	ws = memdb.NewWatchSet()
-	out, err := state.ACLTokenByPublicID(ws, tk1.AccessorID)
+	out, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID)
 	assert.Equal(t, nil, err)
 	if out != nil {
 		t.Fatalf("bad: %#v", out)
@@ -6136,7 +6136,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	}
 }
 
-func TestStateStore_ACLTokenByPublicIDPrefix(t *testing.T) {
+func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	prefixes := []string{
 		"aaaa",
@@ -6158,7 +6158,7 @@ func TestStateStore_ACLTokenByPublicIDPrefix(t *testing.T) {
 	}
 
 	// Scan by prefix
-	iter, err := state.ACLTokenByPublicIDPrefix(nil, "aa")
+	iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -6222,7 +6222,7 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	restore.Commit()
 
 	ws := memdb.NewWatchSet()
-	out, err := state.ACLTokenByPublicID(ws, token.AccessorID)
+	out, err := state.ACLTokenByAccessorID(ws, token.AccessorID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
