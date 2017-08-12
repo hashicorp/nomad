@@ -1590,7 +1590,7 @@ func TestFSM_UpsertACLTokens(t *testing.T) {
 
 	// Verify we are registered
 	ws := memdb.NewWatchSet()
-	out, err := fsm.State().ACLTokenByPublicID(ws, token.AccessorID)
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
 }
@@ -1618,7 +1618,7 @@ func TestFSM_DeleteACLTokens(t *testing.T) {
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
-	out, err := fsm.State().ACLTokenByPublicID(ws, token.AccessorID)
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
 	assert.Nil(t, err)
 	assert.Nil(t, out)
 }
@@ -1995,8 +1995,8 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 	ws := memdb.NewWatchSet()
-	out1, _ := state2.ACLTokenByPublicID(ws, tk1.AccessorID)
-	out2, _ := state2.ACLTokenByPublicID(ws, tk2.AccessorID)
+	out1, _ := state2.ACLTokenByAccessorID(ws, tk1.AccessorID)
+	out2, _ := state2.ACLTokenByAccessorID(ws, tk2.AccessorID)
 	assert.Equal(t, tk1, out1)
 	assert.Equal(t, tk2, out2)
 }

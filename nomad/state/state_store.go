@@ -2892,8 +2892,8 @@ func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
 	return nil
 }
 
-// ACLTokenByPublicID is used to lookup a token by accessor ID
-func (s *StateStore) ACLTokenByPublicID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+// ACLTokenByAccessorID is used to lookup a token by accessor ID
+func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
@@ -2924,8 +2924,8 @@ func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*st
 	return nil, nil
 }
 
-// ACLTokenByPublicIDPrefix is used to lookup tokens by prefix
-func (s *StateStore) ACLTokenByPublicIDPrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+// ACLTokenByAccessorIDPrefix is used to lookup tokens by prefix
+func (s *StateStore) ACLTokenByAccessorIDPrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get("acl_token", "id_prefix", prefix)

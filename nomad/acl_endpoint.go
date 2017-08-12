@@ -218,7 +218,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ACLTokenByPublicIDPrefix(ws, prefix)
+				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix)
 			} else {
 				iter, err = state.ACLTokens(ws)
 			}
@@ -261,7 +261,7 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the token
-			out, err := state.ACLTokenByPublicID(ws, args.AccessorID)
+			out, err := state.ACLTokenByAccessorID(ws, args.AccessorID)
 			if err != nil {
 				return err
 			}

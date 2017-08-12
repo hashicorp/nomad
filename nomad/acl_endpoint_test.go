@@ -551,7 +551,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	assert.NotEqual(t, uint64(0), resp.Index)
 
 	// Check we created the token
-	out, err := s1.fsm.State().ACLTokenByPublicID(nil, p1.AccessorID)
+	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, p1.AccessorID)
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
 }
