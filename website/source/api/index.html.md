@@ -47,7 +47,7 @@ when using the examples.
 
 ## Data Model and Layout
 
-There are four primary nouns in Nomad:
+There are five primary nouns in Nomad:
 
 - jobs
 - nodes
