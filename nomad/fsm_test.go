@@ -1929,6 +1929,25 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 	assert.Equal(t, p2, out2)
 }
 
+func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+	state.UpsertACLTokens(1000, []*structs.ACLToken{tk1, tk2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.ACLTokenByPublicID(ws, tk1.AccessorID)
+	out2, _ := state2.ACLTokenByPublicID(ws, tk2.AccessorID)
+	assert.Equal(t, tk1, out1)
+	assert.Equal(t, tk2, out2)
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	t.Parallel()
 	// Add some state
