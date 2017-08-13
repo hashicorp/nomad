@@ -5481,6 +5481,7 @@ func (a *ACLToken) Validate() error {
 
 // ACLTokenListRequest is used to request a list of tokens
 type ACLTokenListRequest struct {
+	GlobalOnly bool
 	QueryOptions
 }
 

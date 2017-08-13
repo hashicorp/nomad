@@ -473,6 +473,14 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "SecretID",
 				},
 			},
+			"global": &memdb.IndexSchema{
+				Name:         "global",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Global",
+				},
+			},
 		},
 	}
 }

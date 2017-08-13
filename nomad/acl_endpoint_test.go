@@ -416,6 +416,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	// Create the register request
 	p1 := mock.ACLToken()
 	p2 := mock.ACLToken()
+	p2.Global = true
 
 	p1.AccessorID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	p2.AccessorID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
@@ -445,6 +446,20 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	}
 	assert.Equal(t, uint64(1000), resp2.Index)
 	assert.Equal(t, 1, len(resp2.Tokens))
+
+	// Lookup the global tokens
+	get = &structs.ACLTokenListRequest{
+		GlobalOnly: true,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp3 structs.ACLTokenListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.ListTokens", get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp3.Index)
+	assert.Equal(t, 1, len(resp3.Tokens))
 }
 
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
