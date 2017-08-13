@@ -688,3 +688,80 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 	// P2 is un-modified - ignore. P3 modified, P4 new.
 	assert.Equal(t, []string{p3.Name, p4.Name}, update)
 }
+
+func TestLeader_ReplicateACLTokens(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+	})
+	defer s1.Shutdown()
+	s2 := testServer(t, func(c *Config) {
+		c.Region = "region2"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+		c.ReplicationBackoff = 20 * time.Millisecond
+	})
+	defer s2.Shutdown()
+	testJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Write a token to the authoritative region
+	p1 := mock.ACLToken()
+	p1.Global = true
+	if err := s1.State().UpsertACLTokens(100, []*structs.ACLToken{p1}); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Wait for the token to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		state := s2.State()
+		out, err := state.ACLTokenByAccessorID(nil, p1.AccessorID)
+		return out != nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate token")
+	})
+}
+
+func TestLeader_DiffACLTokens(t *testing.T) {
+	t.Parallel()
+
+	state, err := state.NewStateStore(os.Stderr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Populate the local state
+	p0 := mock.ACLToken()
+	p1 := mock.ACLToken()
+	p1.Global = true
+	p2 := mock.ACLToken()
+	p2.Global = true
+	p3 := mock.ACLToken()
+	p3.Global = true
+	err = state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3})
+	assert.Nil(t, err)
+
+	// Simulate a remote list
+	p2Stub := p2.Stub()
+	p2Stub.ModifyIndex = 50 // Ignored, same index
+	p3Stub := p3.Stub()
+	p3Stub.ModifyIndex = 100 // Updated, higher index
+	p4 := mock.ACLToken()
+	p4.Global = true
+	remoteList := []*structs.ACLTokenListStub{
+		p2Stub,
+		p3Stub,
+		p4.Stub(),
+	}
+	delete, update := diffACLTokens(state, 50, remoteList)
+
+	// P0 is local and should be ignored
+	// P1 does not exist on the remote side, should delete
+	assert.Equal(t, []string{p1.AccessorID}, delete)
+
+	// P2 is un-modified - ignore. P3 modified, P4 new.
+	assert.Equal(t, []string{p3.AccessorID, p4.AccessorID}, update)
+}
