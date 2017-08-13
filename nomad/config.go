@@ -231,6 +231,10 @@ type Config struct {
 
 	// ACLEnabled controls if ACL enforcement and management is enabled.
 	ACLEnabled bool
+
+	// ReplicationBackoff is how much we backoff when replication errors.
+	// This is a tunable knob for testing primarily.
+	ReplicationBackoff time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -254,6 +258,7 @@ func DefaultConfig() *Config {
 
 	c := &Config{
 		Region:                           DefaultRegion,
+		AuthoritativeRegion:              DefaultRegion,
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
 		ProtocolVersion:                  ProtocolVersionMax,
@@ -286,6 +291,7 @@ func DefaultConfig() *Config {
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,
 		TLSConfig:                        &config.TLSConfig{},
+		ReplicationBackoff:               30 * time.Second,
 	}
 
 	// Enable all known schedulers by default

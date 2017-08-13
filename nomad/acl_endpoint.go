@@ -108,6 +108,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 			if err != nil {
 				return err
 			}
+			if index == 0 {
+				index = 1
+			}
 			reply.Index = index
 			return nil
 		}}

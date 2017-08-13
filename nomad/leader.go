@@ -8,8 +8,11 @@ import (
 	"net"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -20,6 +23,10 @@ const (
 	// unblocked to re-enter the scheduler. A failed evaluation occurs under
 	// high contention when the schedulers plan does not make progress.
 	failedEvalUnblockInterval = 1 * time.Minute
+
+	// replicationRateLimit is used to rate limit how often data is replicated
+	// between the authoritative region and the local region
+	replicationRateLimit rate.Limit = 10.0
 )
 
 // monitorLeadership is used to monitor if we acquire or lose our role
@@ -189,6 +196,13 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// correct
 	if err := s.reconcileJobSummaries(); err != nil {
 		return fmt.Errorf("unable to reconcile job summaries: %v", err)
+	}
+
+	// Start replication of ACLs and Policies if they are enabled,
+	// and we are not the authoritative region.
+	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
+		go s.replicateACLPolicies(stopCh)
+		go s.replicateACLTokens(stopCh)
 	}
 	return nil
 }
@@ -648,4 +662,150 @@ REMOVE:
 		return err
 	}
 	return nil
+}
+
+// replicateACLPolicies is used to replicate ACL policies from
+// the authoritative region to this region.
+func (s *Server) replicateACLPolicies(stopCh chan struct{}) {
+	req := structs.ACLPolicyListRequest{}
+	req.Region = s.config.AuthoritativeRegion
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Printf("[DEBUG] nomad: starting ACL policy replication from authoritative region '%s'", req.Region)
+
+START:
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+			// Rate limit how often we attempt replication
+			limiter.Wait(context.Background())
+
+			// Fetch the list of policies
+			var resp structs.ACLPolicyListResponse
+			err := s.forwardRegion(s.config.AuthoritativeRegion,
+				"ACL.ListPolicies", &req, &resp)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+				goto ERR_WAIT
+			}
+
+			// Perform a two-way diff
+			delete, update := diffACLPolicies(s.State(), req.MinQueryIndex, resp.Policies)
+
+			// Delete policies that should not exist
+			if len(delete) > 0 {
+				args := &structs.ACLPolicyDeleteRequest{
+					Names: delete,
+				}
+				_, _, err := s.raftApply(structs.ACLPolicyDeleteRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to delete policies: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Fetch any outdated policies
+			var fetched []*structs.ACLPolicy
+			for _, policyName := range update {
+				req := structs.ACLPolicySpecificRequest{
+					Name: policyName,
+				}
+				req.Region = s.config.AuthoritativeRegion
+				var reply structs.SingleACLPolicyResponse
+				err := s.forwardRegion(s.config.AuthoritativeRegion,
+					"ACL.GetPolicy", &req, &reply)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to fetch policy '%s' from authoritative region: %v", policyName, err)
+					goto ERR_WAIT
+				}
+				if reply.Policy != nil {
+					fetched = append(fetched, reply.Policy)
+				}
+			}
+
+			// Update local policies
+			if len(fetched) > 0 {
+				args := &structs.ACLPolicyUpsertRequest{
+					Policies: fetched,
+				}
+				_, _, err := s.raftApply(structs.ACLPolicyUpsertRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to update policies: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Update the minimum query index, blocks until there
+			// is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+
+ERR_WAIT:
+	select {
+	case <-time.After(s.config.ReplicationBackoff):
+		goto START
+	case <-stopCh:
+		return
+	}
+}
+
+// diffACLPolicies is used to perform a two-way diff between the local
+// policies and the remote policies to determine which policies need to
+// be deleted or updated.
+func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLPolicyListStub) (delete []string, update []string) {
+	// Construct a set of the local and remote policies
+	local := make(map[string]struct{})
+	remote := make(map[string]struct{})
+
+	// Add all the local policies
+	iter, err := state.ACLPolicies(nil)
+	if err != nil {
+		panic("failed to iterate local policies")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policy := raw.(*structs.ACLPolicy)
+		local[policy.Name] = struct{}{}
+	}
+
+	// Iterate over the remote policies
+	for _, rp := range remoteList {
+		remote[rp.Name] = struct{}{}
+
+		// Check if the policy is missing locally
+		if _, ok := local[rp.Name]; !ok {
+			update = append(update, rp.Name)
+
+			// Check if policy is newer remotely
+			// TODO: Eventually would be nice to use a policy
+			// hash or something to avoid fetching policies that
+			// are unchanged.
+		} else if rp.ModifyIndex > minIndex {
+			update = append(update, rp.Name)
+		}
+	}
+
+	// Check if policy should be deleted
+	for lp := range local {
+		if _, ok := remote[lp]; !ok {
+			delete = append(delete, lp)
+		}
+	}
+	return
+}
+
+// replicateACLTokens is used to replicate global ACL tokens from
+// the authoritative region to this region.
+func (s *Server) replicateACLTokens(stopCh chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		}
+	}
 }
