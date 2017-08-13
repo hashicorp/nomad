@@ -6087,6 +6087,38 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	assert.Equal(t, policy, out)
 }
 
+func TestStateStore_ACLTokensByGlobal(t *testing.T) {
+	state := testStateStore(t)
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+	tk3 := mock.ACLToken()
+	tk4 := mock.ACLToken()
+	tk3.Global = true
+
+	if err := state.UpsertACLTokens(1000,
+		[]*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter, err := state.ACLTokensByGlobal(nil, true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we see the one global policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	if count != 1 {
+		t.Fatalf("bad: %d", count)
+	}
+}
+
 func TestStateStore_RestoreACLToken(t *testing.T) {
 	state := testStateStore(t)
 	token := mock.ACLToken()
