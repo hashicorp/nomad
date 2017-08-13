@@ -807,10 +807,136 @@ func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*str
 // replicateACLTokens is used to replicate global ACL tokens from
 // the authoritative region to this region.
 func (s *Server) replicateACLTokens(stopCh chan struct{}) {
+	req := structs.ACLTokenListRequest{
+		GlobalOnly: true,
+	}
+	req.Region = s.config.AuthoritativeRegion
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Printf("[DEBUG] nomad: starting ACL token replication from authoritative region '%s'", req.Region)
+
+START:
 	for {
 		select {
 		case <-stopCh:
 			return
+		default:
+			// Rate limit how often we attempt replication
+			limiter.Wait(context.Background())
+
+			// Fetch the list of tokens
+			var resp structs.ACLTokenListResponse
+			err := s.forwardRegion(s.config.AuthoritativeRegion,
+				"ACL.ListTokens", &req, &resp)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to fetch tokens from authoritative region: %v", err)
+				goto ERR_WAIT
+			}
+
+			// Perform a two-way diff
+			delete, update := diffACLTokens(s.State(), req.MinQueryIndex, resp.Tokens)
+
+			// Delete tokens that should not exist
+			if len(delete) > 0 {
+				args := &structs.ACLTokenDeleteRequest{
+					AccessorIDs: delete,
+				}
+				_, _, err := s.raftApply(structs.ACLTokenDeleteRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to delete tokens: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Fetch any outdated policies
+			var fetched []*structs.ACLToken
+			for _, tokenID := range update {
+				req := structs.ACLTokenSpecificRequest{
+					AccessorID: tokenID,
+				}
+				req.Region = s.config.AuthoritativeRegion
+				var reply structs.SingleACLTokenResponse
+				err := s.forwardRegion(s.config.AuthoritativeRegion,
+					"ACL.GetToken", &req, &reply)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to fetch token '%s' from authoritative region: %v", tokenID, err)
+					goto ERR_WAIT
+				}
+				if reply.Token != nil {
+					fetched = append(fetched, reply.Token)
+				}
+			}
+
+			// Update local tokensj
+			if len(fetched) > 0 {
+				args := &structs.ACLTokenUpsertRequest{
+					Tokens: fetched,
+				}
+				_, _, err := s.raftApply(structs.ACLTokenUpsertRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to update tokens: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Update the minimum query index, blocks until there
+			// is a change.
+			req.MinQueryIndex = resp.Index
 		}
 	}
+
+ERR_WAIT:
+	select {
+	case <-time.After(s.config.ReplicationBackoff):
+		goto START
+	case <-stopCh:
+		return
+	}
+}
+
+// diffACLTokens is used to perform a two-way diff between the local
+// tokens and the remote tokens to determine which tokens need to
+// be deleted or updated.
+func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
+	// Construct a set of the local and remote policies
+	local := make(map[string]struct{})
+	remote := make(map[string]struct{})
+
+	// Add all the local global tokens
+	iter, err := state.ACLTokensByGlobal(nil, true)
+	if err != nil {
+		panic("failed to iterate local tokens")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		token := raw.(*structs.ACLToken)
+		local[token.AccessorID] = struct{}{}
+	}
+
+	// Iterate over the remote tokens
+	for _, rp := range remoteList {
+		remote[rp.AccessorID] = struct{}{}
+
+		// Check if the token is missing locally
+		if _, ok := local[rp.AccessorID]; !ok {
+			update = append(update, rp.AccessorID)
+
+			// Check if token is newer remotely
+			// TODO: Eventually would be nice to use an object
+			// hash or something to avoid fetching tokens that
+			// are unchanged.
+		} else if rp.ModifyIndex > minIndex {
+			update = append(update, rp.AccessorID)
+		}
+	}
+
+	// Check if local token should be deleted
+	for lp := range local {
+		if _, ok := remote[lp]; !ok {
+			delete = append(delete, lp)
+		}
+	}
+	return
 }
