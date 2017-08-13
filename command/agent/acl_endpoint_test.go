@@ -178,13 +178,16 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
+		p1.AccessorID = ""
 		p2 := mock.ACLToken()
+		p2.AccessorID = ""
 		p3 := mock.ACLToken()
+		p3.AccessorID = ""
 		args := structs.ACLTokenUpsertRequest{
 			Tokens:       []*structs.ACLToken{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
-		var resp structs.GenericResponse
+		var resp structs.ACLTokenUpsertResponse
 		if err := s.Agent.RPC("ACL.UpsertTokens", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -225,17 +228,19 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
+		p1.AccessorID = ""
 		args := structs.ACLTokenUpsertRequest{
 			Tokens:       []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
-		var resp structs.GenericResponse
+		var resp structs.ACLTokenUpsertResponse
 		if err := s.Agent.RPC("ACL.UpsertTokens", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
+		out := resp.Tokens[0]
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/token/"+p1.AccessorID, nil)
+		req, err := http.NewRequest("GET", "/v1/acl/token/"+out.AccessorID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -260,9 +265,7 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 
 		// Check the output
 		n := obj.(*structs.ACLToken)
-		if n.AccessorID != p1.AccessorID {
-			t.Fatalf("bad: %#v", n)
-		}
+		assert.Equal(t, out, n)
 	})
 }
 
@@ -271,6 +274,7 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		p1 := mock.ACLToken()
+		p1.AccessorID = ""
 		buf := encodeReq(p1)
 		req, err := http.NewRequest("PUT", "/v1/acl/token", buf)
 		if err != nil {
@@ -281,7 +285,8 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 		// Make the request
 		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
 		assert.Nil(t, err)
-		assert.Nil(t, obj)
+		assert.NotNil(t, obj)
+		outTK := obj.(*structs.ACLToken)
 
 		// Check for the index
 		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
@@ -290,13 +295,10 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 
 		// Check token was created
 		state := s.Agent.server.State()
-		out, err := state.ACLTokenByAccessorID(nil, p1.AccessorID)
+		out, err := state.ACLTokenByAccessorID(nil, outTK.AccessorID)
 		assert.Nil(t, err)
 		assert.NotNil(t, out)
-
-		p1.CreateIndex, p1.ModifyIndex = out.CreateIndex, out.ModifyIndex
-		assert.Equal(t, p1.Name, out.Name)
-		assert.Equal(t, p1, out)
+		assert.Equal(t, outTK, out)
 	})
 }
 
@@ -304,17 +306,19 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
+		p1.AccessorID = ""
 		args := structs.ACLTokenUpsertRequest{
 			Tokens:       []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
-		var resp structs.GenericResponse
+		var resp structs.ACLTokenUpsertResponse
 		if err := s.Agent.RPC("ACL.UpsertTokens", &args, &resp); err != nil {
 			t.Fatalf("err: %v", err)
 		}
+		ID := resp.Tokens[0].AccessorID
 
 		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/acl/token/"+p1.AccessorID, nil)
+		req, err := http.NewRequest("DELETE", "/v1/acl/token/"+ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -332,7 +336,7 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 
 		// Check token was created
 		state := s.Agent.server.State()
-		out, err := state.ACLTokenByAccessorID(nil, p1.AccessorID)
+		out, err := state.ACLTokenByAccessorID(nil, ID)
 		assert.Nil(t, err)
 		assert.Nil(t, out)
 	})

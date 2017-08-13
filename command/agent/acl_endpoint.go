@@ -201,11 +201,14 @@ func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 	s.parseRegion(req, &args.Region)
 
-	var out structs.GenericResponse
+	var out structs.ACLTokenUpsertResponse
 	if err := s.agent.RPC("ACL.UpsertTokens", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
+	if len(out.Tokens) > 0 {
+		return out.Tokens[0], nil
+	}
 	return nil, nil
 }
 
