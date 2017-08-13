@@ -106,6 +106,15 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}
+
+	// Set the Authoritative Region if set, otherwise default to
+	// the same as the local region.
+	if agentConfig.Server.AuthoritativeRegion != "" {
+		conf.AuthoritativeRegion = agentConfig.Server.AuthoritativeRegion
+	} else if agentConfig.Region != "" {
+		conf.AuthoritativeRegion = agentConfig.Region
+	}
+
 	if agentConfig.Datacenter != "" {
 		conf.Datacenter = agentConfig.Datacenter
 	}
@@ -133,6 +142,9 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	}
 	if len(agentConfig.Server.EnabledSchedulers) != 0 {
 		conf.EnabledSchedulers = agentConfig.Server.EnabledSchedulers
+	}
+	if agentConfig.ACL.Enabled {
+		conf.ACLEnabled = true
 	}
 
 	// Set up the bind addresses

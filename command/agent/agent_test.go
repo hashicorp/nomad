@@ -57,6 +57,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
 	conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
+	conf.ACL.Enabled = true
 
 	// Parses the advertise addrs correctly
 	if err := conf.normalizeAddrs(); err != nil {
@@ -73,6 +74,12 @@ func TestAgent_ServerConfig(t *testing.T) {
 	serfPort := out.SerfConfig.MemberlistConfig.AdvertisePort
 	if serfPort != 4000 {
 		t.Fatalf("expected 4000, got: %d", serfPort)
+	}
+	if out.AuthoritativeRegion != "global" {
+		t.Fatalf("bad: %#v", out.AuthoritativeRegion)
+	}
+	if !out.ACLEnabled {
+		t.Fatalf("ACL not enabled")
 	}
 
 	// Assert addresses weren't changed

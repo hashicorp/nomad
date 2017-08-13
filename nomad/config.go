@@ -101,6 +101,10 @@ type Config struct {
 	// Region is the region this Nomad server belongs to.
 	Region string
 
+	// AuthoritativeRegion is the region which is treated as the authoritative source
+	// for ACLs and Policies. This provides a single source of truth to resolve conflicts.
+	AuthoritativeRegion string
+
 	// Datacenter is the datacenter this Nomad server belongs to.
 	Datacenter string
 
@@ -224,6 +228,9 @@ type Config struct {
 
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *config.TLSConfig
+
+	// ACLEnabled controls if ACL enforcement and management is enabled.
+	ACLEnabled bool
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
