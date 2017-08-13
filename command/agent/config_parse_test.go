@@ -84,6 +84,7 @@ func TestConfig_Parse(t *testing.T) {
 				},
 				Server: &ServerConfig{
 					Enabled:                true,
+					AuthoritativeRegion:    "foobar",
 					BootstrapExpect:        5,
 					DataDir:                "/tmp/data",
 					ProtocolVersion:        3,
@@ -102,6 +103,11 @@ func TestConfig_Parse(t *testing.T) {
 					RejoinAfterLeave:       true,
 					RetryMaxAttempts:       3,
 					EncryptKey:             "abc",
+				},
+				ACL: &ACLConfig{
+					Enabled:   true,
+					TokenTTL:  "30s",
+					PolicyTTL: "30s",
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",
