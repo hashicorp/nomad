@@ -1938,9 +1938,9 @@ func (c *Client) emitClientMetrics() {
 		switch ar.Alloc().ClientStatus {
 		case structs.AllocClientStatusPending:
 			switch {
-			case ar.Blocked():
+			case ar.IsWaiting():
 				blocked++
-			case ar.Migrating():
+			case ar.IsMigrating():
 				migrating++
 			default:
 				pending++

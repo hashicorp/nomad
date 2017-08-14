@@ -80,14 +80,11 @@ type AllocRunner struct {
 	vaultClient  vaultclient.VaultClient
 	consulClient ConsulServiceAPI
 
+	// prevAlloc allows for Waiting until a previous allocation exits and
+	// the migrates it data. If sticky volumes aren't used and there's no
+	// previous allocation a noop implementation is used so it always safe
+	// to call.
 	prevAlloc prevAllocWatcher
-
-	// blocked and migrating are true when alloc runner is waiting on the
-	// prevAllocWatcher. Writers must acquire the waitingLock and readers
-	// should use the helper methods Blocked and Migrating.
-	blocked     bool
-	migrating   bool
-	waitingLock sync.RWMutex
 
 	ctx    context.Context
 	exitFn context.CancelFunc
@@ -768,10 +765,6 @@ func (r *AllocRunner) Run() {
 	}
 
 	// Wait for a previous alloc - if any - to terminate
-	r.waitingLock.Lock()
-	r.blocked = true
-	r.waitingLock.Unlock()
-
 	if err := r.prevAlloc.Wait(r.ctx); err != nil {
 		if err == context.Canceled {
 			return
@@ -779,11 +772,6 @@ func (r *AllocRunner) Run() {
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error while waiting for previous alloc to terminate: %v", err))
 		return
 	}
-
-	r.waitingLock.Lock()
-	r.blocked = false
-	r.migrating = true
-	r.waitingLock.Unlock()
 
 	// Wait for data to be migrated from a previous alloc if applicable
 	if err := r.prevAlloc.Migrate(r.ctx, r.allocDir); err != nil {
@@ -794,10 +782,6 @@ func (r *AllocRunner) Run() {
 		// Soft-fail on migration errors
 		r.logger.Printf("[WARN] client: alloc %q error while migrating data from previous alloc: %v", r.allocID, err)
 	}
-
-	r.waitingLock.Lock()
-	r.migrating = false
-	r.waitingLock.Unlock()
 
 	// Check if the allocation is in a terminal status. In this case, we don't
 	// start any of the task runners and directly wait for the destroy signal to
@@ -979,22 +963,16 @@ func (r *AllocRunner) handleDestroy() {
 	}
 }
 
-// Blocked returns true if this alloc is waiting on a previous allocation to
+// IsWaiting returns true if this alloc is waiting on a previous allocation to
 // terminate.
-func (r *AllocRunner) Blocked() bool {
-	r.waitingLock.RLock()
-	b := r.blocked
-	r.waitingLock.RUnlock()
-	return b
+func (r *AllocRunner) IsWaiting() bool {
+	return r.prevAlloc.IsWaiting()
 }
 
-// Migrating returns true if this alloc is migrating data from a previous
+// IsMigrating returns true if this alloc is migrating data from a previous
 // allocation.
-func (r *AllocRunner) Migrating() bool {
-	r.waitingLock.RLock()
-	m := r.migrating
-	r.waitingLock.RUnlock()
-	return m
+func (r *AllocRunner) IsMigrating() bool {
+	return r.prevAlloc.IsMigrating()
 }
 
 // Update is used to update the allocation of the context

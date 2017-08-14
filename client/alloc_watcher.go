@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/lib"
@@ -39,6 +40,12 @@ type prevAllocWatcher interface {
 
 	// Migrate data from previous alloc
 	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
+
+	// IsWaiting returns true if a concurrent caller is blocked in Wait
+	IsWaiting() bool
+
+	// IsMigrating returns true if a concurrent caller is in Migrate
+	IsMigrating() bool
 }
 
 // newAllocWatcher creates a prevAllocWatcher appropriate for whether this
@@ -107,11 +114,43 @@ type localPrevAlloc struct {
 	// failsafe against blocking the new alloc forever
 	prevWaitCh <-chan struct{}
 
+	// waiting and migrating are true when alloc runner is waiting on the
+	// prevAllocWatcher. Writers must acquire the waitingLock and readers
+	// should use the helper methods IsWaiting and IsMigrating.
+	waiting     bool
+	migrating   bool
+	waitingLock sync.RWMutex
+
 	logger *log.Logger
+}
+
+// IsWaiting returns true if there's a concurrent call inside Wait
+func (p *localPrevAlloc) IsWaiting() bool {
+	p.waitingLock.RLock()
+	b := p.waiting
+	p.waitingLock.RUnlock()
+	return b
+}
+
+// IsMigrating returns true if there's a concurrent call inside Migrate
+func (p *localPrevAlloc) IsMigrating() bool {
+	p.waitingLock.RLock()
+	b := p.migrating
+	p.waitingLock.RUnlock()
+	return b
 }
 
 // Wait on a local alloc to become terminal, exit, or the context to be done.
 func (p *localPrevAlloc) Wait(ctx context.Context) error {
+	p.waitingLock.Lock()
+	p.waiting = true
+	p.waitingLock.Unlock()
+	defer func() {
+		p.waitingLock.Lock()
+		p.waiting = false
+		p.waitingLock.Unlock()
+	}()
+
 	defer p.prevListener.Close()
 
 	if p.prevStatus.Terminated() {
@@ -141,6 +180,16 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 		// Not a sticky volume, nothing to migrate
 		return nil
 	}
+
+	p.waitingLock.Lock()
+	p.migrating = true
+	p.waitingLock.Unlock()
+	defer func() {
+		p.waitingLock.Lock()
+		p.migrating = false
+		p.waitingLock.Unlock()
+	}()
+
 	p.logger.Printf("[DEBUG] client: alloc %q copying previous alloc %q", p.allocID, p.prevAllocID)
 
 	if err := dest.Move(p.prevAllocDir, p.tasks); err != nil {
@@ -178,11 +227,43 @@ type remotePrevAlloc struct {
 	// Migrate() iff the previous alloc has not already been GC'd.
 	nodeID string
 
+	// waiting and migrating are true when alloc runner is waiting on the
+	// prevAllocWatcher. Writers must acquire the waitingLock and readers
+	// should use the helper methods IsWaiting and IsMigrating.
+	waiting     bool
+	migrating   bool
+	waitingLock sync.RWMutex
+
 	logger *log.Logger
+}
+
+// IsWaiting returns true if there's a concurrent call inside Wait
+func (p *remotePrevAlloc) IsWaiting() bool {
+	p.waitingLock.RLock()
+	b := p.waiting
+	p.waitingLock.RUnlock()
+	return b
+}
+
+// IsMigrating returns true if there's a concurrent call inside Migrate
+func (p *remotePrevAlloc) IsMigrating() bool {
+	p.waitingLock.RLock()
+	b := p.migrating
+	p.waitingLock.RUnlock()
+	return b
 }
 
 // Wait until the remote previousl allocation has terminated.
 func (p *remotePrevAlloc) Wait(ctx context.Context) error {
+	p.waitingLock.Lock()
+	p.waiting = true
+	p.waitingLock.Unlock()
+	defer func() {
+		p.waitingLock.Lock()
+		p.waiting = false
+		p.waitingLock.Unlock()
+	}()
+
 	p.logger.Printf("[DEBUG] client: alloc %q waiting for remote previous alloc %q to terminate", p.allocID, p.prevAllocID)
 	req := structs.AllocSpecificRequest{
 		AllocID: p.prevAllocID,
@@ -244,6 +325,16 @@ func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) 
 		// Volume wasn't configured to be migrated, return early
 		return nil
 	}
+
+	p.waitingLock.Lock()
+	p.migrating = true
+	p.waitingLock.Unlock()
+	defer func() {
+		p.waitingLock.Lock()
+		p.migrating = false
+		p.waitingLock.Unlock()
+	}()
+
 	p.logger.Printf("[DEBUG] client: alloc %q copying from remote previous alloc %q", p.allocID, p.prevAllocID)
 
 	if p.nodeID == "" {
@@ -446,3 +537,6 @@ func (noopPrevAlloc) Wait(context.Context) error { return nil }
 
 // Migrate returns nil immediately.
 func (noopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
+
+func (noopPrevAlloc) IsWaiting() bool   { return false }
+func (noopPrevAlloc) IsMigrating() bool { return false }

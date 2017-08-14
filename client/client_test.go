@@ -880,7 +880,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 		if ar == nil {
 			return false, fmt.Errorf("alloc 2's alloc runner does not exist")
 		}
-		if !ar.Blocked() {
+		if !ar.IsWaiting() {
 			return false, fmt.Errorf("alloc 2 is not blocked")
 		}
 		return true, nil
@@ -898,10 +898,10 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	// Ensure that there are no blocked allocations
 	testutil.WaitForResult(func() (bool, error) {
 		for id, ar := range c1.getAllocRunners() {
-			if ar.Blocked() {
+			if ar.IsWaiting() {
 				return false, fmt.Errorf("%q still blocked", id)
 			}
-			if ar.Migrating() {
+			if ar.IsMigrating() {
 				return false, fmt.Errorf("%q still migrating", id)
 			}
 		}
