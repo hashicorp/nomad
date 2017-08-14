@@ -1,3 +1,6 @@
+// Utils
+@import "./utils/z-indices";
+
 // Start with Bulma variables as a foundation
 @import "bulma/sass/utilities/initial-variables";
 
@@ -9,6 +12,7 @@ $green: #2EB039;
 $blue: $vagrant-blue;
 $purple: $terraform-purple;
 $red: #C84034;
+$grey-blue: #BBC4D1;
 
 $primary: $nomad-green;
 $warning: $orange;
@@ -40,3 +44,6 @@ $text: $black;
 @import "./core/table";
 @import "./core/message";
 @import "./core/level";
+
+// Add unique core extensions
+@import "./core/page-layout";
