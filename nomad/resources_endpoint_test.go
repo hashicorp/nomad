@@ -1,13 +1,14 @@
 package nomad
 
 import (
+	"strconv"
+	"testing"
+
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-	"strconv"
-	"testing"
 )
 
 const jobIndex = 1000

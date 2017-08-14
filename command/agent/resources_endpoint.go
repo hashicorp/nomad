@@ -1,8 +1,9 @@
 package agent
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"net/http"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ResourceListRequest accepts a prefix and context and returns a list of matching
