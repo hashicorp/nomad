@@ -6,10 +6,12 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import timeout from '../utils/timeout';
+import shortUUIDProperty from '../utils/properties/short-uuid';
 
 const { computed, RSVP } = Ember;
 
 export default Model.extend({
+  shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
   node: belongsTo('node'),
   name: attr('string'),
