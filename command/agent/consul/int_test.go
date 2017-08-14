@@ -118,7 +118,7 @@ func TestConsul_Integration(t *testing.T) {
 	}
 
 	logger := testLogger()
-	logUpdate := func(name, state string, event *structs.TaskEvent) {
+	logUpdate := func(name, state string, event *structs.TaskEvent, lazySync bool) {
 		logger.Printf("[TEST] test.updater: name=%q state=%q event=%v", name, state, event)
 	}
 	allocDir := allocdir.NewAllocDir(logger, filepath.Join(conf.AllocDir, alloc.ID))
