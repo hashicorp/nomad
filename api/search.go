@@ -1,7 +1,7 @@
 package api
 
 import (
-	c "github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/api/contexts"
 )
 
 type Search struct {
@@ -15,7 +15,7 @@ func (c *Client) Search() *Search {
 
 // PrefixSearch returns a list of matches for a particular context and prefix. If a
 // context is not specified, matches for all contexts are returned.
-func (s *Search) PrefixSearch(prefix string, context c.Context) (*SearchResponse, error) {
+func (s *Search) PrefixSearch(prefix string, context contexts.Context) (*SearchResponse, error) {
 	var resp SearchResponse
 	req := &SearchRequest{Prefix: prefix, Context: context}
 
@@ -29,11 +29,11 @@ func (s *Search) PrefixSearch(prefix string, context c.Context) (*SearchResponse
 
 type SearchRequest struct {
 	Prefix  string
-	Context c.Context
+	Context contexts.Context
 }
 
 type SearchResponse struct {
-	Matches     map[c.Context][]string
-	Truncations map[c.Context]bool
+	Matches     map[contexts.Context][]string
+	Truncations map[contexts.Context]bool
 	QueryMeta
 }

@@ -89,7 +89,7 @@ const (
 	GetterModeDir  = "dir"
 )
 
-// Context is a type which is searchable via a unique identifier.
+// Context defines the scope in which a search for Nomad object operates
 type Context string
 
 const (

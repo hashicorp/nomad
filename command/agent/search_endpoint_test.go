@@ -7,11 +7,11 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	a "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_SearchWithIllegalMethod(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/search", nil)
@@ -24,7 +24,7 @@ func TestHTTP_SearchWithIllegalMethod(t *testing.T) {
 }
 
 func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	job := mock.Job()
 	job.ID = jobID
@@ -36,7 +36,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 }
 
 func TestHTTP_Search_POST(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
@@ -68,7 +68,7 @@ func TestHTTP_Search_POST(t *testing.T) {
 }
 
 func TestHTTP_Search_PUT(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
@@ -100,7 +100,7 @@ func TestHTTP_Search_PUT(t *testing.T) {
 }
 
 func TestHTTP_Search_MultipleJobs(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	testJobA := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobB := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89707"
@@ -140,7 +140,7 @@ func TestHTTP_Search_MultipleJobs(t *testing.T) {
 }
 
 func TestHTTP_Search_Evaluation(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -176,7 +176,7 @@ func TestHTTP_Search_Evaluation(t *testing.T) {
 }
 
 func TestHTTP_Search_Allocations(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -209,7 +209,7 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 }
 
 func TestHTTP_Search_Nodes(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -242,7 +242,7 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 }
 
 func TestHTTP_Search_NoJob(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -265,7 +265,7 @@ func TestHTTP_Search_NoJob(t *testing.T) {
 }
 
 func TestHTTP_Search_AllContext(t *testing.T) {
-	assert := a.New(t)
+	assert := assert.New(t)
 
 	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
