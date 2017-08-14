@@ -1084,6 +1084,18 @@ func TestTask_Validate_Services(t *testing.T) {
 
 func TestTask_Validate_Service_Check(t *testing.T) {
 
+	invalidCheck := ServiceCheck{
+		Name:     "check-name",
+		Command:  "/bin/true",
+		Type:     ServiceCheckScript,
+		Interval: 10 * time.Second,
+	}
+
+	err := invalidCheck.validate()
+	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
+		t.Fatalf("expected a timeout validation error but received: %q", err)
+	}
+
 	check1 := ServiceCheck{
 		Name:     "check-name",
 		Type:     ServiceCheckTCP,
@@ -1091,8 +1103,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	err := check1.validate()
-	if err != nil {
+	if err := check1.validate(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
