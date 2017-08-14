@@ -47,17 +47,22 @@ test('each allocation should have high-level details for the allocation', functi
     .sortBy('modifyIndex')
     .reverse()[0];
 
-  assert.equal(allocationRow.find('td:eq(0)').text().trim(), allocation.name, 'Allocation name');
+  assert.equal(
+    allocationRow.find('td:eq(0)').text().trim(),
+    allocation.id.split('-')[0],
+    'Allocation short ID'
+  );
+  assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
   assert.ok(
-    allocationRow.find('td:eq(1)').text().includes(server.db.jobs.find(allocation.jobId).name),
+    allocationRow.find('td:eq(2)').text().includes(server.db.jobs.find(allocation.jobId).name),
     'Job name'
   );
   assert.ok(
-    allocationRow.find('td:eq(1) .is-faded').text().includes(allocation.taskGroup),
+    allocationRow.find('td:eq(2) .is-faded').text().includes(allocation.taskGroup),
     'Task group name'
   );
   assert.equal(
-    allocationRow.find('td:eq(2)').text().trim(),
+    allocationRow.find('td:eq(3)').text().trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
   );
@@ -83,7 +88,7 @@ test('each allocation should link to the allocation detail page', function(asser
 test('each allocation should link to the job the allocation belongs to', function(assert) {
   const allocation = server.db.allocations.where({ nodeId: node.id })[0];
   const job = server.db.jobs.find(allocation.jobId);
-  click('.allocations tbody tr:eq(0) td:eq(1) a');
+  click('.allocations tbody tr:eq(0) td:eq(2) a');
 
   andThen(() => {
     assert.equal(

@@ -1,9 +1,10 @@
 import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
+import Searchable from 'nomad-ui/mixins/searchable';
 
 const { Controller, computed } = Ember;
 
-export default Controller.extend(Sortable, {
+export default Controller.extend(Sortable, Searchable, {
   queryParams: {
     currentPage: 'page',
     searchTerm: 'search',
@@ -17,6 +18,9 @@ export default Controller.extend(Sortable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
+  searchProps: computed(() => ['id', 'name']),
+
   listToSort: computed.alias('model.allocations'),
-  sortedAllocations: computed.alias('listSorted'),
+  listToSearch: computed.alias('listSorted'),
+  sortedAllocations: computed.alias('listSearched'),
 });
