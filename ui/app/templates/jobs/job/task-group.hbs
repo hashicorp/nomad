@@ -1,11 +1,9 @@
-<nav class="nav is-secondary">
-  <div class="nav-left breadcrumbs">
-    {{#each breadcrumbs as |breadcrumb|}}
-      <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
-    {{/each}}
-  </div>
-</nav>
-<div class="container">
+{{#global-header class="page-header"}}
+  {{#each breadcrumbs as |breadcrumb|}}
+    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+  {{/each}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
   <section class="section">
     <div class="level">
       <div class="level-item has-text-centered cpu">
@@ -93,4 +91,4 @@
       {{/list-pagination}}
     </div>
   </section>
-</div>
+{{/gutter-menu}}

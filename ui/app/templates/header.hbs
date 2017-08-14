@@ -13,3 +13,10 @@
     <a href="https://nomadproject.io/docs" class="nav-item">Documentation</a>
   </div>
 </nav>
+<nav class="nav is-secondary">
+  <div class="nav-left breadcrumbs">
+    {{#each breadcrumbs as |breadcrumb|}}
+      <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+    {{/each}}
+  </div>
+</nav>

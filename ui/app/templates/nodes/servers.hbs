@@ -1,4 +1,7 @@
-<div class="container">
+{{#global-header class="page-header"}}
+  Nodes
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
   <section class="section">
     {{partial "nodes/actions"}}
     {{#list-pagination
@@ -34,4 +37,4 @@
     {{/list-pagination}}
     {{outlet}}
   </section>
-</div>
+{{/gutter-menu}}

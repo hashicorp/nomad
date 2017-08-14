@@ -1,4 +1,7 @@
-<div class="container">
+{{#global-header class="page-header"}}
+  Nodes
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
   <section class="section">
     {{partial "nodes/actions"}}
     {{search-box searchTerm=(mut searchTerm) placeholder="Search nodes..."}}
@@ -35,4 +38,4 @@
       </nav>
     {{/list-pagination}}
   </section>
-</div>
+{{/gutter-menu}}
