@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import Fuse from 'npm:fuse.js';
 
-const { Mixin, computed } = Ember;
+const { Mixin, computed, get } = Ember;
 
 /**
   Searchable mixin
@@ -32,7 +32,7 @@ export default Mixin.create({
       minMatchCharLength: 1,
       keys: this.get('searchProps') || [],
       getFn(item, key) {
-        return item.get(key);
+        return get(item, key);
       },
     });
   }),
@@ -53,10 +53,10 @@ function regexSearch(term, { list, options: { keys } }) {
   const regexStr = term.slice(1);
   if (regexStr.length) {
     try {
-      const regex = new RegExp(regexStr);
+      const regex = new RegExp(regexStr, 'i');
       // Test the value of each key for each object against the regex
       // All that match are returned.
-      return list.filter(item => keys.some(key => regex.test(item.get(key))));
+      return list.filter(item => keys.some(key => regex.test(get(item, key))));
     } catch (e) {
       // Swallow the error; most likely due to an eager search of an incomplete regex
     }
