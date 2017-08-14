@@ -56,6 +56,18 @@ type Meta struct {
 	insecure   bool
 }
 
+func (m *Meta) Copy(dest *Meta) {
+	dest.Ui = m.Ui
+	dest.flagAddress = m.flagAddress
+	dest.noColor = m.noColor
+	dest.region = m.region
+	dest.caCert = m.caCert
+	dest.caPath = m.caPath
+	dest.clientCert = m.clientCert
+	dest.clientKey = m.clientKey
+	dest.insecure = m.insecure
+}
+
 // FlagSet returns a FlagSet with the common flags that every
 // command implements. The exact behavior of FlagSet can be configured
 // using the flags as the second parameter, for example to disable
@@ -151,6 +163,11 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 		Reset:   true,
 	}
 }
+
+var (
+	// flagOptions is a list of all available flags that can be used via the cli
+	flagOptions = []string{"address", "region", "no-color", "ca-cert", "ca-path", "client-cert", "client-key", "tls-skip-verify"}
+)
 
 // generalOptionsUsage returns the help string for the global options.
 func generalOptionsUsage() string {
