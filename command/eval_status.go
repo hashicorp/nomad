@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type EvalStatusCommand struct {
@@ -216,6 +218,21 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Evals)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Evals]
+	})
 }
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
