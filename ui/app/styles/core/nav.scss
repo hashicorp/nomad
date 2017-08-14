@@ -1,10 +1,13 @@
 .nav {
   &.is-primary {
-    background-color: $primary;
+    background: linear-gradient(
+      to right,
+      $nomad-green-darker,
+      $nomad-green-dark
+    );
     color: $primary-invert;
-    font-weight: $weight-bold;
-    padding-left: 30px;
-    padding-right: 30px;
+    padding-left: 20px;
+    padding-right: 20px;
 
     .nav-item {
       color: rgba($primary-invert, 0.8);
@@ -24,7 +27,7 @@
         &::before {
           width: 1px;
           height: 1em;
-          background: rgba($primary-invert, 0.4);
+          background: rgba($primary-invert, 0.5);
           content: ' ';
           display: block;
           position: absolute;
@@ -40,9 +43,15 @@
 
   &.is-secondary {
     background-color: $nomad-green-dark;
-    padding: 1.25rem 30px;
+    padding: 1.25rem 20px 1.25rem 0;
     height: 4rem;
     font-weight: $weight-bold;
     color: $primary-invert;
+  }
+
+  .nav-item {
+    &.is-gutter {
+      width: 200px;
+    }
   }
 }
