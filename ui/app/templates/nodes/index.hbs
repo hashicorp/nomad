@@ -1,6 +1,7 @@
 <div class="container">
   <section class="section">
     {{partial "nodes/actions"}}
+    {{search-box searchTerm=(mut searchTerm) placeholder="Search nodes..."}}
     {{#list-pagination
       source=sortedNodes
       size=pageSize
