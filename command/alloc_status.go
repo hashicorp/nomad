@@ -12,7 +12,9 @@ import (
 	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client"
+	"github.com/posener/complete"
 )
 
 type AllocStatusCommand struct {
@@ -190,6 +192,21 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {

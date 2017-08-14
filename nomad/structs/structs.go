@@ -89,6 +89,17 @@ const (
 	GetterModeDir  = "dir"
 )
 
+// Context defines the scope in which a search for Nomad object operates
+type Context string
+
+const (
+	Allocs Context = "allocs"
+	Evals  Context = "evals"
+	Jobs   Context = "jobs"
+	Nodes  Context = "nodes"
+	All    Context = ""
+)
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string
@@ -231,31 +242,31 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
-// ResourceListResponse is used to return matches and information about whether
+// SearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of context.
-type ResourceListResponse struct {
-	// Map of context types to resource ids which match a specified prefix
-	Matches map[string][]string
+type SearchResponse struct {
+	// Map of context types to ids which match a specified prefix
+	Matches map[Context][]string
 
 	// Truncations indicates whether the matches for a particular context have
 	// been truncated
-	Truncations map[string]bool
+	Truncations map[Context]bool
 
 	QueryMeta
 }
 
-// ResourceListRequest is used to parameterize a resources request, and returns a
-// subset of information for jobs, allocations, evaluations, and nodes, along
-// with whether or not the information returned is truncated.
-type ResourceListRequest struct {
-	// Prefix is what resources are matched to. I.e, if the given prefix were
+// SearchRequest is used to parameterize a request, and returns a
+// list of matches made up of jobs, allocations, evaluations, and/or nodes,
+// along with whether or not the information returned is truncated.
+type SearchRequest struct {
+	// Prefix is what ids are matched to. I.e, if the given prefix were
 	// "a", potential matches might be "abcd" or "aabb"
 	Prefix string
 
-	// Context is the resource that can be matched. A context can be a job, node,
-	// evaluation, allocation, or empty (indicated every context should be
+	// Context is the type that can be matched against. A context can be a job,
+	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
-	Context string
+	Context Context
 }
 
 // JobRegisterRequest is used for Job.Register endpoint

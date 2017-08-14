@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -25,7 +25,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) s
 	return job.ID
 }
 
-func TestResourcesEndpoint_List(t *testing.T) {
+func TestSearch_PrefixSearch(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -40,23 +40,23 @@ func TestResourcesEndpoint_List(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: structs.Jobs,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID, resp.Matches["jobs"][0])
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
 // truncate should limit results to 20
-func TestResourcesEndpoint_List_Truncate(t *testing.T) {
+func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -73,22 +73,22 @@ func TestResourcesEndpoint_List_Truncate(t *testing.T) {
 		registerAndVerifyJob(s, t, prefix, counter)
 	}
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: structs.Jobs,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(20, len(resp.Matches["jobs"]))
-	assert.Equal(resp.Truncations["jobs"], true)
+	assert.Equal(20, len(resp.Matches[structs.Jobs]))
+	assert.Equal(resp.Truncations[structs.Jobs], true)
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Evals(t *testing.T) {
+func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -104,24 +104,24 @@ func TestResourcesEndpoint_List_Evals(t *testing.T) {
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "evals",
+		Context: structs.Evals,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["evals"]))
-	assert.Equal(eval1.ID, resp.Matches["evals"][0])
-	assert.Equal(resp.Truncations["evals"], false)
+	assert.Equal(1, len(resp.Matches[structs.Evals]))
+	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
+	assert.Equal(resp.Truncations[structs.Evals], false)
 
 	assert.Equal(uint64(2000), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Allocation(t *testing.T) {
+func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -145,24 +145,24 @@ func TestResourcesEndpoint_List_Allocation(t *testing.T) {
 
 	prefix := alloc.ID[:len(alloc.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "allocs",
+		Context: structs.Allocs,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["allocs"]))
-	assert.Equal(alloc.ID, resp.Matches["allocs"][0])
-	assert.Equal(resp.Truncations["allocs"], false)
+	assert.Equal(1, len(resp.Matches[structs.Allocs]))
+	assert.Equal(alloc.ID, resp.Matches[structs.Allocs][0])
+	assert.Equal(resp.Truncations[structs.Allocs], false)
 
 	assert.Equal(uint64(90), resp.Index)
 }
 
-func TestResourcesEndpoint_List_Node(t *testing.T) {
+func TestSearch_PrefixSearch_Node(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -182,48 +182,24 @@ func TestResourcesEndpoint_List_Node(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "nodes",
+		Context: structs.Nodes,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["nodes"]))
-	assert.Equal(node.ID, resp.Matches["nodes"][0])
-	assert.Equal(false, resp.Truncations["nodes"])
+	assert.Equal(1, len(resp.Matches[structs.Nodes]))
+	assert.Equal(node.ID, resp.Matches[structs.Nodes][0])
+	assert.Equal(false, resp.Truncations[structs.Nodes])
 
 	assert.Equal(uint64(100), resp.Index)
 }
 
-func TestResourcesEndpoint_List_InvalidContext(t *testing.T) {
-	assert := assert.New(t)
-
-	t.Parallel()
-	s := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-
-	defer s.Shutdown()
-	codec := rpcClient(t, s)
-	testutil.WaitForLeader(t, s.RPC)
-
-	req := &structs.ResourceListRequest{
-		Prefix:  "anyPrefix",
-		Context: "invalid",
-	}
-
-	var resp structs.ResourceListResponse
-	err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp)
-	assert.Equal(err.Error(), "context must be one of [allocs nodes jobs evals]; got \"invalid\"")
-
-	assert.Equal(uint64(0), resp.Index)
-}
-
-func TestResourcesEndpoint_List_NoContext(t *testing.T) {
+func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -249,27 +225,27 @@ func TestResourcesEndpoint_List_NoContext(t *testing.T) {
 
 	prefix := node.ID[:len(node.ID)-2]
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "",
+		Context: structs.All,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["nodes"]))
-	assert.Equal(1, len(resp.Matches["evals"]))
+	assert.Equal(1, len(resp.Matches[structs.Nodes]))
+	assert.Equal(1, len(resp.Matches[structs.Evals]))
 
-	assert.Equal(node.ID, resp.Matches["nodes"][0])
-	assert.Equal(eval1.ID, resp.Matches["evals"][0])
+	assert.Equal(node.ID, resp.Matches[structs.Nodes][0])
+	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
 
 	assert.Equal(uint64(1000), resp.Index)
 }
 
 // Tests that the top 20 matches are returned when no prefix is set
-func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
+func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -285,24 +261,24 @@ func TestResourcesEndpoint_List_NoPrefix(t *testing.T) {
 
 	jobID := registerAndVerifyJob(s, t, prefix, 0)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  "",
-		Context: "jobs",
+		Context: structs.Jobs,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches["jobs"]))
-	assert.Equal(jobID, resp.Matches["jobs"][0])
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
-//// Tests that the zero matches are returned when a prefix has no matching
-//// results
-func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
+// Tests that the zero matches are returned when a prefix has no matching
+// results
+func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 	assert := assert.New(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
@@ -316,16 +292,50 @@ func TestResourcesEndpoint_List_NoMatches(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	req := &structs.ResourceListRequest{
+	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: "jobs",
+		Context: structs.Jobs,
 	}
 
-	var resp structs.ResourceListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Resources.List", req, &resp); err != nil {
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(0, len(resp.Matches["jobs"]))
+	assert.Equal(0, len(resp.Matches[structs.Jobs]))
 	assert.Equal(uint64(0), resp.Index)
+}
+
+// Prefixes can only be looked up if their length is a power of two. For
+// prefixes which are an odd length, use the length-1 characters.
+func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
+	assert := assert.New(t)
+	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
+	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
+	prefix := "aaafa"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	jobID1 := registerAndVerifyJob(s, t, id1, 0)
+	registerAndVerifyJob(s, t, id2, 50)
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Jobs,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID1, resp.Matches[structs.Jobs][0])
 }
