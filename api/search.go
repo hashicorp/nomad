@@ -13,8 +13,7 @@ func (c *Client) Search() *Search {
 	return &Search{client: c}
 }
 
-// PrefixSearch returns a list of matches for a particular context and prefix. If a
-// context is not specified, matches for all contexts are returned.
+// PrefixSearch returns a list of matches for a particular context and prefix.
 func (s *Search) PrefixSearch(prefix string, context contexts.Context) (*SearchResponse, error) {
 	var resp SearchResponse
 	req := &SearchRequest{Prefix: prefix, Context: context}
