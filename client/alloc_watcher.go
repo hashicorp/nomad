@@ -110,8 +110,8 @@ type localPrevAlloc struct {
 	// terminated (and therefore won't send updates to the listener)
 	prevStatus terminated
 
-	// prevWaitCh is closed when the previous alloc is GC'd which is a
-	// failsafe against blocking the new alloc forever
+	// prevWaitCh is closed when the previous alloc is garbage collected
+	// which is a failsafe against blocking the new alloc forever
 	prevWaitCh <-chan struct{}
 
 	// waiting and migrating are true when alloc runner is waiting on the
@@ -192,13 +192,14 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 
 	p.logger.Printf("[DEBUG] client: alloc %q copying previous alloc %q", p.allocID, p.prevAllocID)
 
-	if err := dest.Move(p.prevAllocDir, p.tasks); err != nil {
-		p.logger.Printf("[ERR] client: failed to move previous alloc dir %q: %v", p.prevAllocDir.AllocDir, err)
-	}
+	moveErr := dest.Move(p.prevAllocDir, p.tasks)
+
+	// Always cleanup previous alloc
 	if err := p.prevAllocDir.Destroy(); err != nil {
 		p.logger.Printf("[ERR] client: error destroying allocdir %v: %v", p.prevAllocDir.AllocDir, err)
 	}
-	return nil
+
+	return moveErr
 }
 
 // remotePrevAlloc is a prevAllcWatcher for previous allocations on remote
