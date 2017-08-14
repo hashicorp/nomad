@@ -192,7 +192,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 // Move other alloc directory's shared path and local dir to this alloc dir.
 func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 	if !d.built {
-		// Enfornce the invariant that Build is called before Move
+		// Enforce the invariant that Build is called before Move
 		return fmt.Errorf("unable to move to %q - alloc dir is not built", d.AllocDir)
 	}
 
