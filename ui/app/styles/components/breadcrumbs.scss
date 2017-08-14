@@ -3,6 +3,11 @@
     color: $white;
     opacity: 0.7;
 
+    &:hover {
+      color: $primary-invert;
+      opacity: 1;
+    }
+
     + .breadcrumb {
       margin-left: 15px;
       &::before {
