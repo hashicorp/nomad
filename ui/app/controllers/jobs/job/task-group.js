@@ -1,9 +1,10 @@
 import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
+import Searchable from 'nomad-ui/mixins/searchable';
 
 const { Controller, computed, inject } = Ember;
 
-export default Controller.extend(Sortable, {
+export default Controller.extend(Sortable, Searchable, {
   jobController: inject.controller('jobs.job'),
 
   queryParams: {
@@ -19,12 +20,15 @@ export default Controller.extend(Sortable, {
   sortProperty: 'name',
   sortDescending: false,
 
+  searchProps: computed(() => ['id', 'name']),
+
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];
   }),
 
   listToSort: computed.alias('allocations'),
-  sortedAllocations: computed.alias('listSorted'),
+  listToSearch: computed.alias('listSorted'),
+  sortedAllocations: computed.alias('listSearched'),
 
   breadcrumbs: computed('jobController.breadcrumbs.[]', 'model.{name}', function() {
     return this.get('jobController.breadcrumbs').concat([

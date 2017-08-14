@@ -38,6 +38,7 @@
       <div class="message-header">
         Allocations
       </div>
+      {{search-box searchTerm=(mut searchTerm) placeholder="Search allocations..."}}
       {{#list-pagination
         source=sortedAllocations
         size=pageSize
@@ -48,12 +49,16 @@
           sortProperty=sortProperty
           sortDescending=sortDescending as |t|}}
           {{#t.head}}
+            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
             {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
             {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
             <th>CPU</th>
           {{/t.head}}
           {{#t.body as |row|}}
             <tr>
+              <td>
+                <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.shortId}}</a>
+              </td>
               <td>
                 <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.name}}</a>
               </td>

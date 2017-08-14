@@ -121,9 +121,14 @@ test('each allocation should show basic information about the allocation', funct
   const allocation = allocations.sortBy('name')[0];
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
-  assert.equal(allocationRow.find('td:eq(0)').text().trim(), allocation.name, 'Allocation name');
   assert.equal(
-    allocationRow.find('td:eq(1)').text().trim(),
+    allocationRow.find('td:eq(0)').text().trim(),
+    allocation.id.split('-')[0],
+    'Allocation short id'
+  );
+  assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
+  assert.equal(
+    allocationRow.find('td:eq(2)').text().trim(),
     server.db.nodes.find(allocation.nodeId).id.split('-')[0],
     'Node name'
   );
@@ -136,7 +141,7 @@ test('each allocation should show stats about the allocation, retrieved directly
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(
-    allocationRow.find('td:eq(2)').text().trim(),
+    allocationRow.find('td:eq(3)').text().trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
   );
