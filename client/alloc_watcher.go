@@ -312,11 +312,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		}
 	}
 
-	if done() {
-		return ctx.Err()
-	}
-
-	return nil
+	return ctx.Err()
 }
 
 // Migrate alloc data from a remote node if the new alloc has migration enabled
@@ -404,7 +400,8 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 	return scheme + resp.Node.HTTPAddr, nil
 }
 
-// migrate a remote alloc dir to local node
+// migrate a remote alloc dir to local node. Caller is responsible for calling
+// Destroy on the returned allocdir if no error occurs.
 func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) (*allocdir.AllocDir, error) {
 	// Create the previous alloc dir
 	prevAllocDir := allocdir.NewAllocDir(p.logger, filepath.Join(p.config.AllocDir, p.prevAllocID))
