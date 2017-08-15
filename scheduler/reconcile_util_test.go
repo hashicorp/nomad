@@ -23,4 +23,9 @@ func TestBitmapFrom(t *testing.T) {
 	if act := b.Size(); act != exp {
 		t.Fatalf("got %d; want %d", act, exp)
 	}
+
+	b = bitmapFrom(input, 8)
+	if act := b.Size(); act != exp {
+		t.Fatalf("got %d; want %d", act, exp)
+	}
 }
