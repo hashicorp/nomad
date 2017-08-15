@@ -61,7 +61,7 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, newMockConsulServiceClient())
+	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, newMockConsulServiceClient(), noopPrevAlloc{})
 	return upd, ar
 }
 
@@ -640,9 +640,10 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
+	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
 	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient,
-		ar.consulClient)
+		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -733,9 +734,11 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	defer ar.allocLock.Unlock()
 
 	// Create a new alloc runner
-	ar2 := NewAllocRunner(ar.logger, ar.config, ar.stateDB, upd.Update,
-		&structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient, ar.consulClient)
-	ar2.logger = prefixedTestLogger("ar2: ")
+	l2 := prefixedTestLogger("ar2: ")
+	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
+	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
+		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -846,8 +849,10 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	}
 
 	// Create a new alloc runner
-	l2 := prefixedTestLogger("----- ar2:  ")
-	ar2 := NewAllocRunner(l2, origConfig, ar.stateDB, upd.Update, &structs.Allocation{ID: ar.alloc.ID}, ar.vaultClient, ar.consulClient)
+	l2 := prefixedTestLogger("ar2: ")
+	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, origConfig, l2)
+	ar2 := NewAllocRunner(l2, origConfig, ar.stateDB, upd.Update, alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1000,7 +1005,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := newMockConsulServiceClient()
-	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, cclient)
+	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, cclient, noopPrevAlloc{})
 	defer ar.Destroy()
 
 	// RestoreState should fail on the task state since we only test the
@@ -1252,6 +1257,9 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_MoveAllocDir asserts that a file written to an alloc's
+// local/ dir will be moved to a replacement alloc's local/ dir if sticky
+// volumes is on.
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	t.Parallel()
 	// Create an alloc runner
@@ -1286,19 +1294,24 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
 
 	// Create another alloc runner
-	alloc1 := mock.Alloc()
-	task = alloc1.Job.TaskGroups[0].Tasks[0]
+	alloc2 := mock.Alloc()
+	alloc2.PreviousAllocation = ar.allocID
+	alloc2.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+	task = alloc2.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"run_for": "1s",
 	}
-	upd1, ar1 := testAllocRunnerFromAlloc(alloc1, false)
-	ar1.SetPreviousAllocDir(ar.allocDir)
-	go ar1.Run()
-	defer ar1.Destroy()
+	upd2, ar2 := testAllocRunnerFromAlloc(alloc2, false)
+
+	// Set prevAlloc like Client does
+	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger)
+
+	go ar2.Run()
+	defer ar2.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd1.Last()
+		_, last := upd2.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1310,14 +1323,14 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Ensure that data from ar1 was moved to ar
-	taskDir = ar1.allocDir.TaskDirs[task.Name]
+	// Ensure that data from ar was moved to ar2
+	taskDir = ar2.allocDir.TaskDirs[task.Name]
 	taskLocalFile = filepath.Join(taskDir.LocalDir, "local_file")
 	if fileInfo, _ := os.Stat(taskLocalFile); fileInfo == nil {
 		t.Fatalf("file %v not found", taskLocalFile)
 	}
 
-	dataFile = filepath.Join(ar1.allocDir.SharedDir, "data", "data_file")
+	dataFile = filepath.Join(ar2.allocDir.SharedDir, "data", "data_file")
 	if fileInfo, _ := os.Stat(dataFile); fileInfo == nil {
 		t.Fatalf("file %v not found", dataFile)
 	}

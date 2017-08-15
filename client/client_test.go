@@ -1,10 +1,7 @@
 package client
 
 import (
-	"archive/tar"
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -879,11 +876,14 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	// Enusre that the chained allocation is being tracked as blocked
 	testutil.WaitForResult(func() (bool, error) {
-		alloc, ok := c1.blockedAllocations[alloc2.PreviousAllocation]
-		if ok && alloc.ID == alloc2.ID {
-			return true, nil
+		ar := c1.getAllocRunners()[alloc2.ID]
+		if ar == nil {
+			return false, fmt.Errorf("alloc 2's alloc runner does not exist")
 		}
-		return false, fmt.Errorf("no blocked allocations")
+		if !ar.IsWaiting() {
+			return false, fmt.Errorf("alloc 2 is not blocked")
+		}
+		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
@@ -897,9 +897,13 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	// Ensure that there are no blocked allocations
 	testutil.WaitForResult(func() (bool, error) {
-		_, ok := c1.blockedAllocations[alloc2.PreviousAllocation]
-		if ok {
-			return false, fmt.Errorf("blocked evals present")
+		for id, ar := range c1.getAllocRunners() {
+			if ar.IsWaiting() {
+				return false, fmt.Errorf("%q still blocked", id)
+			}
+			if ar.IsMigrating() {
+				return false, fmt.Errorf("%q still migrating", id)
+			}
 		}
 		return true, nil
 	}, func(err error) {
@@ -913,132 +917,5 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	for _, ar := range c1.getAllocRunners() {
 		<-ar.WaitCh()
-	}
-}
-
-func TestClient_UnarchiveAllocDir(t *testing.T) {
-	t.Parallel()
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	if err := os.Mkdir(filepath.Join(dir, "foo"), 0777); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	dirInfo, err := os.Stat(filepath.Join(dir, "foo"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	f, err := os.Create(filepath.Join(dir, "foo", "bar"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if _, err := f.WriteString("foo"); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := f.Chmod(0644); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	fInfo, err := f.Stat()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	f.Close()
-	if err := os.Symlink("bar", filepath.Join(dir, "foo", "baz")); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	linkInfo, err := os.Lstat(filepath.Join(dir, "foo", "baz"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-
-	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
-		// Include the path of the file name relative to the alloc dir
-		// so that we can put the files in the right directories
-		link := ""
-		if fileInfo.Mode()&os.ModeSymlink != 0 {
-			target, err := os.Readlink(path)
-			if err != nil {
-				return fmt.Errorf("error reading symlink: %v", err)
-			}
-			link = target
-		}
-		hdr, err := tar.FileInfoHeader(fileInfo, link)
-		if err != nil {
-			return fmt.Errorf("error creating file header: %v", err)
-		}
-		hdr.Name = fileInfo.Name()
-		tw.WriteHeader(hdr)
-
-		// If it's a directory or symlink we just write the header into the tar
-		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
-			return nil
-		}
-
-		// Write the file into the archive
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		if _, err := io.Copy(tw, file); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if err := filepath.Walk(dir, walkFn); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	tw.Close()
-
-	dir1, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir1)
-
-	c1 := testClient(t, func(c *config.Config) {
-		c.RPCHandler = nil
-	})
-	defer c1.Shutdown()
-
-	rc := ioutil.NopCloser(buf)
-
-	c1.migratingAllocs["123"] = newMigrateAllocCtrl(mock.Alloc())
-	if err := c1.unarchiveAllocDir(rc, "123", dir1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure foo is present
-	fi, err := os.Stat(filepath.Join(dir1, "foo"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi.Mode() != dirInfo.Mode() {
-		t.Fatalf("mode: %v", fi.Mode())
-	}
-
-	fi1, err := os.Stat(filepath.Join(dir1, "bar"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi1.Mode() != fInfo.Mode() {
-		t.Fatalf("mode: %v", fi1.Mode())
-	}
-
-	fi2, err := os.Lstat(filepath.Join(dir1, "baz"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi2.Mode() != linkInfo.Mode() {
-		t.Fatalf("mode: %v", fi2.Mode())
 	}
 }

@@ -80,7 +80,11 @@ type AllocRunner struct {
 	vaultClient  vaultclient.VaultClient
 	consulClient ConsulServiceAPI
 
-	otherAllocDir *allocdir.AllocDir
+	// prevAlloc allows for Waiting until a previous allocation exits and
+	// the migrates it data. If sticky volumes aren't used and there's no
+	// previous allocation a noop implementation is used so it always safe
+	// to call.
+	prevAlloc prevAllocWatcher
 
 	ctx    context.Context
 	exitFn context.CancelFunc
@@ -149,8 +153,8 @@ type allocRunnerMutableState struct {
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,
-	alloc *structs.Allocation, vaultClient vaultclient.VaultClient,
-	consulClient ConsulServiceAPI) *AllocRunner {
+	alloc *structs.Allocation, vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI,
+	prevAlloc prevAllocWatcher) *AllocRunner {
 
 	ar := &AllocRunner{
 		config:         config,
@@ -160,6 +164,7 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 		alloc:          alloc,
 		allocID:        alloc.ID,
 		allocBroadcast: cstructs.NewAllocBroadcaster(8),
+		prevAlloc:      prevAlloc,
 		dirtyCh:        make(chan struct{}, 1),
 		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
 		tasks:          make(map[string]*TaskRunner),
@@ -476,6 +481,12 @@ func (r *AllocRunner) GetAllocDir() *allocdir.AllocDir {
 	return r.allocDir
 }
 
+// GetListener returns a listener for updates broadcast by this alloc runner.
+// Callers are responsible for calling Close on their Listener.
+func (r *AllocRunner) GetListener() *cstructs.AllocListener {
+	return r.allocBroadcast.Listen()
+}
+
 // copyTaskStates returns a copy of the passed task states.
 func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.TaskState {
 	copy := make(map[string]*structs.TaskState, len(states))
@@ -742,33 +753,46 @@ func (r *AllocRunner) Run() {
 		return
 	}
 
-	// Create the execution context
-	r.allocDirLock.Lock()
 	// Build allocation directory (idempotent)
-	if err := r.allocDir.Build(); err != nil {
+	r.allocDirLock.Lock()
+	err := r.allocDir.Build()
+	r.allocDirLock.Unlock()
+
+	if err != nil {
 		r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
-		r.allocDirLock.Unlock()
 		return
 	}
 
-	if r.otherAllocDir != nil {
-		if err := r.allocDir.Move(r.otherAllocDir, tg.Tasks); err != nil {
-			r.logger.Printf("[ERR] client: failed to move alloc dir into alloc %q: %v", r.allocID, err)
+	// Wait for a previous alloc - if any - to terminate
+	if err := r.prevAlloc.Wait(r.ctx); err != nil {
+		if err == context.Canceled {
+			return
 		}
-		if err := r.otherAllocDir.Destroy(); err != nil {
-			r.logger.Printf("[ERR] client: error destroying allocdir %v: %v", r.otherAllocDir.AllocDir, err)
-		}
+		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("error while waiting for previous alloc to terminate: %v", err))
+		return
 	}
-	r.allocDirLock.Unlock()
+
+	// Wait for data to be migrated from a previous alloc if applicable
+	if err := r.prevAlloc.Migrate(r.ctx, r.allocDir); err != nil {
+		if err == context.Canceled {
+			return
+		}
+
+		// Soft-fail on migration errors
+		r.logger.Printf("[WARN] client: alloc %q error while migrating data from previous alloc: %v", r.allocID, err)
+	}
 
 	// Check if the allocation is in a terminal status. In this case, we don't
 	// start any of the task runners and directly wait for the destroy signal to
 	// clean up the allocation.
 	if alloc.TerminalStatus() {
 		r.logger.Printf("[DEBUG] client: alloc %q in terminal status, waiting for destroy", r.allocID)
-		// mark this allocation as completed.
-		r.setStatus(structs.AllocClientStatusComplete, "cancelled running tasks for allocation in terminal state")
+		// mark this allocation as completed if it is not already in a
+		// terminal state
+		if !alloc.Terminated() {
+			r.setStatus(structs.AllocClientStatusComplete, "canceled running tasks for allocation in terminal state")
+		}
 		r.handleDestroy()
 		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 		return
@@ -857,12 +881,6 @@ OUTER:
 	r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 }
 
-// SetPreviousAllocDir sets the previous allocation directory of the current
-// allocation
-func (r *AllocRunner) SetPreviousAllocDir(allocDir *allocdir.AllocDir) {
-	r.otherAllocDir = allocDir
-}
-
 // destroyTaskRunners destroys the task runners, waits for them to terminate and
 // then saves state.
 func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
@@ -943,6 +961,18 @@ func (r *AllocRunner) handleDestroy() {
 			r.logger.Printf("[DEBUG] client: dropping update to terminal alloc '%s'", r.allocID)
 		}
 	}
+}
+
+// IsWaiting returns true if this alloc is waiting on a previous allocation to
+// terminate.
+func (r *AllocRunner) IsWaiting() bool {
+	return r.prevAlloc.IsWaiting()
+}
+
+// IsMigrating returns true if this alloc is migrating data from a previous
+// allocation.
+func (r *AllocRunner) IsMigrating() bool {
+	return r.prevAlloc.IsMigrating()
 }
 
 // Update is used to update the allocation of the context

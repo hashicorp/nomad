@@ -65,6 +65,9 @@ type AllocDir struct {
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]*TaskDir
 
+	// built is true if Build has successfully run
+	built bool
+
 	logger *log.Logger
 }
 
@@ -188,6 +191,11 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 
 // Move other alloc directory's shared path and local dir to this alloc dir.
 func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
+	if !d.built {
+		// Enforce the invariant that Build is called before Move
+		return fmt.Errorf("unable to move to %q - alloc dir is not built", d.AllocDir)
+	}
+
 	// Move the data directory
 	otherDataDir := filepath.Join(other.SharedDir, SharedDataDir)
 	dataDir := filepath.Join(d.SharedDir, SharedDataDir)
@@ -296,6 +304,8 @@ func (d *AllocDir) Build() error {
 		}
 	}
 
+	// Mark as built
+	d.built = true
 	return nil
 }
 

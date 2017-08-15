@@ -1,10 +1,8 @@
 package client
 
 import (
-	"archive/tar"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,7 +18,6 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
-	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -130,15 +127,6 @@ type Client struct {
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
-	// blockedAllocations are allocations which are blocked because their
-	// chained allocations haven't finished running
-	blockedAllocations map[string]*structs.Allocation
-	blockedAllocsLock  sync.RWMutex
-
-	// migratingAllocs is the set of allocs whose data migration is in flight
-	migratingAllocs     map[string]*migrateAllocCtrl
-	migratingAllocsLock sync.RWMutex
-
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -162,34 +150,6 @@ type Client struct {
 	// garbageCollector is used to garbage collect terminal allocations present
 	// in the node automatically
 	garbageCollector *AllocGarbageCollector
-}
-
-// migrateAllocCtrl indicates whether migration is complete
-type migrateAllocCtrl struct {
-	alloc  *structs.Allocation
-	ch     chan struct{}
-	closed bool
-	chLock sync.Mutex
-}
-
-func newMigrateAllocCtrl(alloc *structs.Allocation) *migrateAllocCtrl {
-	return &migrateAllocCtrl{
-		ch:    make(chan struct{}),
-		alloc: alloc,
-	}
-}
-
-func (m *migrateAllocCtrl) closeCh() {
-	m.chLock.Lock()
-	defer m.chLock.Unlock()
-
-	if m.closed {
-		return
-	}
-
-	// If channel is not closed then close it
-	m.closed = true
-	close(m.ch)
 }
 
 var (
@@ -220,10 +180,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
-		blockedAllocations:  make(map[string]*structs.Allocation),
 		allocUpdates:        make(chan *structs.Allocation, 64),
 		shutdownCh:          make(chan struct{}),
-		migratingAllocs:     make(map[string]*migrateAllocCtrl),
 		servers:             newServerList(),
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
@@ -657,8 +615,11 @@ func (c *Client) restoreState() error {
 	for _, id := range allocs {
 		alloc := &structs.Allocation{ID: id}
 
+		// don't worry about blocking/migrating when restoring
+		watcher := noopPrevAlloc{}
+
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
+		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
 		c.configLock.RUnlock()
 
 		c.allocLock.Lock()
@@ -735,15 +696,6 @@ func (c *Client) NumAllocs() int {
 	c.allocLock.RLock()
 	n := len(c.allocs)
 	c.allocLock.RUnlock()
-
-	c.blockedAllocsLock.RLock()
-	n += len(c.blockedAllocations)
-	c.blockedAllocsLock.RUnlock()
-
-	c.migratingAllocsLock.RLock()
-	n += len(c.migratingAllocs)
-	c.migratingAllocsLock.RUnlock()
-
 	return n
 }
 
@@ -1251,39 +1203,10 @@ func (c *Client) updateNodeStatus() error {
 
 // updateAllocStatus is used to update the status of an allocation
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
-	// If this alloc was blocking another alloc and transitioned to a
-	// terminal state then start the blocked allocation
 	if alloc.Terminated() {
-		c.blockedAllocsLock.Lock()
-		blockedAlloc, ok := c.blockedAllocations[alloc.ID]
-		if ok {
-			var prevAllocDir *allocdir.AllocDir
-			if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-				tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-				if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky {
-					prevAllocDir = ar.GetAllocDir()
-				}
-			}
-
-			delete(c.blockedAllocations, blockedAlloc.PreviousAllocation)
-			c.blockedAllocsLock.Unlock()
-
-			c.logger.Printf("[DEBUG] client: unblocking alloc %q because alloc %q terminated", blockedAlloc.ID, alloc.ID)
-
-			// Need to call addAlloc without holding the lock
-			if err := c.addAlloc(blockedAlloc, prevAllocDir); err != nil {
-				c.logger.Printf("[ERR] client: failed to add alloc which was previously blocked %q: %v",
-					blockedAlloc.ID, err)
-			}
-		} else {
-			c.blockedAllocsLock.Unlock()
-		}
-
-		// Mark the allocation for GC if it is in terminal state
+		// Terminated, mark for GC
 		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
-			if err := c.garbageCollector.MarkForCollection(ar); err != nil {
-				c.logger.Printf("[DEBUG] client: couldn't add alloc %q for GC: %v", alloc.ID, err)
-			}
+			c.garbageCollector.MarkForCollection(ar)
 		}
 	}
 
@@ -1585,367 +1508,15 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			c.logger.Printf("[ERR] client: failed to update alloc %q: %v",
 				update.exist.ID, err)
 		}
-
-		// See if the updated alloc is getting migrated
-		c.migratingAllocsLock.RLock()
-		ch, ok := c.migratingAllocs[update.updated.ID]
-		c.migratingAllocsLock.RUnlock()
-		if ok {
-			// Stopping the migration if the allocation doesn't need any
-			// migration
-			if !update.updated.ShouldMigrate() {
-				ch.closeCh()
-			}
-		}
 	}
 
 	// Start the new allocations
 	for _, add := range diff.added {
-		// If the allocation is chained and the previous allocation hasn't
-		// terminated yet, then add the alloc to the blocked queue.
-		c.blockedAllocsLock.Lock()
-		ar, ok := c.getAllocRunners()[add.PreviousAllocation]
-		if ok && !ar.Alloc().Terminated() {
-			// Check if the alloc is already present in the blocked allocations
-			// map
-			if _, ok := c.blockedAllocations[add.PreviousAllocation]; !ok {
-				c.logger.Printf("[DEBUG] client: added alloc %q to blocked queue for previous alloc %q",
-					add.ID, add.PreviousAllocation)
-				c.blockedAllocations[add.PreviousAllocation] = add
-			}
-			c.blockedAllocsLock.Unlock()
-			continue
-		}
-		c.blockedAllocsLock.Unlock()
-
-		// This means the allocation has a previous allocation on another node
-		// so we will block for the previous allocation to complete
-		if add.PreviousAllocation != "" && !ok {
-			// Ensure that we are not blocking for the remote allocation if we
-			// have already blocked
-			c.migratingAllocsLock.Lock()
-			if _, ok := c.migratingAllocs[add.ID]; !ok {
-				// Check that we don't have an alloc runner already. This
-				// prevents a race between a finishing blockForRemoteAlloc and
-				// another invocation of runAllocs
-				if _, ok := c.getAllocRunners()[add.PreviousAllocation]; !ok {
-					c.migratingAllocs[add.ID] = newMigrateAllocCtrl(add)
-					go c.blockForRemoteAlloc(add)
-				}
-			}
-			c.migratingAllocsLock.Unlock()
-			continue
-		}
-
-		// Setting the previous allocdir if the allocation had a terminal
-		// previous allocation
-		var prevAllocDir *allocdir.AllocDir
-		tg := add.Job.LookupTaskGroup(add.TaskGroup)
-		if tg != nil && tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky && ar != nil {
-			prevAllocDir = ar.GetAllocDir()
-		}
-
-		if err := c.addAlloc(add, prevAllocDir); err != nil {
+		if err := c.addAlloc(add); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
 		}
 	}
-}
-
-// blockForRemoteAlloc blocks until the previous allocation of an allocation has
-// been terminated and migrates the snapshot data
-func (c *Client) blockForRemoteAlloc(alloc *structs.Allocation) {
-	// Removing the allocation from the set of allocs which are currently
-	// undergoing migration
-	defer func() {
-		c.migratingAllocsLock.Lock()
-		delete(c.migratingAllocs, alloc.ID)
-		c.migratingAllocsLock.Unlock()
-	}()
-
-	// prevAllocDir is the allocation directory of the previous allocation
-	var prevAllocDir *allocdir.AllocDir
-
-	// If the allocation is not sticky then we won't wait for the previous
-	// allocation to be terminal
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		c.logger.Printf("[ERR] client: task group %q not found in job %q", tg.Name, alloc.Job.ID)
-		goto ADDALLOC
-	}
-
-	// Wait for the remote previous alloc to be terminal if the alloc is sticky
-	if tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky && tg.EphemeralDisk.Migrate {
-		c.logger.Printf("[DEBUG] client: blocking alloc %q for previous allocation %q", alloc.ID, alloc.PreviousAllocation)
-		// Block until the previous allocation migrates to terminal state
-		stopCh := c.migratingAllocs[alloc.ID]
-		prevAlloc, err := c.waitForAllocTerminal(alloc.PreviousAllocation, stopCh)
-		if err != nil {
-			c.logger.Printf("[ERR] client: error waiting for allocation %q: %v",
-				alloc.PreviousAllocation, err)
-		}
-
-		// Migrate the data from the remote node
-		prevAllocDir, err = c.migrateRemoteAllocDir(prevAlloc, alloc.ID)
-		if err != nil {
-			c.logger.Printf("[ERR] client: error migrating data from remote alloc %q: %v",
-				alloc.PreviousAllocation, err)
-		}
-	}
-
-ADDALLOC:
-	// Add the allocation
-	if err := c.addAlloc(alloc, prevAllocDir); err != nil {
-		c.logger.Printf("[ERR] client: error adding alloc: %v", err)
-	}
-}
-
-// waitForAllocTerminal waits for an allocation with the given alloc id to
-// transition to terminal state and blocks the caller until then.
-func (c *Client) waitForAllocTerminal(allocID string, stopCh *migrateAllocCtrl) (*structs.Allocation, error) {
-	req := structs.AllocSpecificRequest{
-		AllocID: allocID,
-		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: true,
-		},
-	}
-
-	for {
-		resp := structs.SingleAllocResponse{}
-		err := c.RPC("Alloc.GetAlloc", &req, &resp)
-		if err != nil {
-			c.logger.Printf("[ERR] client: failed to query allocation %q: %v", allocID, err)
-			retry := c.retryIntv(getAllocRetryIntv)
-			select {
-			case <-time.After(retry):
-				continue
-			case <-stopCh.ch:
-				return nil, fmt.Errorf("giving up waiting on alloc %q since migration is not needed", allocID)
-			case <-c.shutdownCh:
-				return nil, fmt.Errorf("aborting because client is shutting down")
-			}
-		}
-		if resp.Alloc == nil {
-			return nil, nil
-		}
-		if resp.Alloc.Terminated() {
-			return resp.Alloc, nil
-		}
-
-		// Update the query index.
-		if resp.Index > req.MinQueryIndex {
-			req.MinQueryIndex = resp.Index
-		}
-
-	}
-}
-
-// migrateRemoteAllocDir migrates the allocation directory from a remote node to
-// the current node
-func (c *Client) migrateRemoteAllocDir(alloc *structs.Allocation, allocID string) (*allocdir.AllocDir, error) {
-	if alloc == nil {
-		return nil, nil
-	}
-
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		return nil, fmt.Errorf("Task Group %q not found in job %q", tg.Name, alloc.Job.ID)
-	}
-
-	// Skip migration of data if the ephemeral disk is not sticky or
-	// migration is turned off.
-	if tg.EphemeralDisk == nil || !tg.EphemeralDisk.Sticky || !tg.EphemeralDisk.Migrate {
-		return nil, nil
-	}
-
-	node, err := c.getNode(alloc.NodeID)
-
-	// If the node is down then skip migrating the data
-	if err != nil {
-		return nil, fmt.Errorf("error retreiving node %v: %v", alloc.NodeID, err)
-	}
-
-	// Check if node is nil
-	if node == nil {
-		return nil, fmt.Errorf("node %q doesn't exist", alloc.NodeID)
-	}
-
-	// skip migration if the remote node is down
-	if node.Status == structs.NodeStatusDown {
-		c.logger.Printf("[INFO] client: not migrating data from alloc %q since node %q is down", alloc.ID, alloc.NodeID)
-		return nil, nil
-	}
-
-	// Create the previous alloc dir
-	pathToAllocDir := filepath.Join(c.config.AllocDir, alloc.ID)
-	if err := os.MkdirAll(pathToAllocDir, 0777); err != nil {
-		c.logger.Printf("[ERR] client: error creating previous allocation dir: %v", err)
-	}
-
-	// Get the snapshot
-	scheme := "http"
-	if node.TLSEnabled {
-		scheme = "https"
-	}
-	// Create an API client
-	apiConfig := nomadapi.DefaultConfig()
-	apiConfig.Address = fmt.Sprintf("%s://%s", scheme, node.HTTPAddr)
-	apiConfig.TLSConfig = &nomadapi.TLSConfig{
-		CACert:     c.config.TLSConfig.CAFile,
-		ClientCert: c.config.TLSConfig.CertFile,
-		ClientKey:  c.config.TLSConfig.KeyFile,
-	}
-	apiClient, err := nomadapi.NewClient(apiConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", alloc.ID)
-	resp, err := apiClient.Raw().Response(url, nil)
-	if err != nil {
-		os.RemoveAll(pathToAllocDir)
-		c.logger.Printf("[ERR] client: error getting snapshot for alloc %q: %v", alloc.ID, err)
-		return nil, fmt.Errorf("error getting snapshot for alloc %q: %v", alloc.ID, err)
-	}
-
-	if err := c.unarchiveAllocDir(resp, allocID, pathToAllocDir); err != nil {
-		return nil, err
-	}
-
-	// If there were no errors then we create the allocdir
-	prevAllocDir := allocdir.NewAllocDir(c.logger, pathToAllocDir)
-	return prevAllocDir, nil
-}
-
-// unarchiveAllocDir reads the stream of a compressed allocation directory and
-// writes them to the disk.
-func (c *Client) unarchiveAllocDir(resp io.ReadCloser, allocID string, pathToAllocDir string) error {
-	tr := tar.NewReader(resp)
-	defer resp.Close()
-
-	buf := make([]byte, 1024)
-
-	stopMigrating, ok := c.migratingAllocs[allocID]
-	if !ok {
-		os.RemoveAll(pathToAllocDir)
-		return fmt.Errorf("Allocation %q is not marked for remote migration", allocID)
-	}
-	for {
-		// See if the alloc still needs migration
-		select {
-		case <-stopMigrating.ch:
-			os.RemoveAll(pathToAllocDir)
-			c.logger.Printf("[INFO] client: stopping migration of allocdir for alloc: %v", allocID)
-			return nil
-		case <-c.shutdownCh:
-			os.RemoveAll(pathToAllocDir)
-			c.logger.Printf("[INFO] client: stopping migration of alloc %q since client is shutting down", allocID)
-			return nil
-		default:
-		}
-
-		// Get the next header
-		hdr, err := tr.Next()
-
-		// Snapshot has ended
-		if err == io.EOF {
-			return nil
-		}
-		// If there is an error then we avoid creating the alloc dir
-		if err != nil {
-			os.RemoveAll(pathToAllocDir)
-			return fmt.Errorf("error creating alloc dir for alloc %q: %v", allocID, err)
-		}
-
-		// If the header is for a directory we create the directory
-		if hdr.Typeflag == tar.TypeDir {
-			os.MkdirAll(filepath.Join(pathToAllocDir, hdr.Name), os.FileMode(hdr.Mode))
-			continue
-		}
-		// If the header is for a symlink we create the symlink
-		if hdr.Typeflag == tar.TypeSymlink {
-			if err = os.Symlink(hdr.Linkname, filepath.Join(pathToAllocDir, hdr.Name)); err != nil {
-				c.logger.Printf("[ERR] client: error creating symlink: %v", err)
-			}
-			continue
-		}
-		// If the header is a file, we write to a file
-		if hdr.Typeflag == tar.TypeReg {
-			f, err := os.Create(filepath.Join(pathToAllocDir, hdr.Name))
-			if err != nil {
-				c.logger.Printf("[ERR] client: error creating file: %v", err)
-				continue
-			}
-
-			// Setting the permissions of the file as the origin.
-			if err := f.Chmod(os.FileMode(hdr.Mode)); err != nil {
-				f.Close()
-				c.logger.Printf("[ERR] client: error chmod-ing file %s: %v", f.Name(), err)
-				return fmt.Errorf("error chmoding file %v", err)
-			}
-			if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
-				f.Close()
-				c.logger.Printf("[ERR] client: error chown-ing file %s: %v", f.Name(), err)
-				return fmt.Errorf("error chowning file %v", err)
-			}
-
-			// We write in chunks of 32 bytes so that we can test if
-			// the client is still alive
-			for {
-				if c.shutdown {
-					f.Close()
-					os.RemoveAll(pathToAllocDir)
-					c.logger.Printf("[INFO] client: stopping migration of alloc %q because client is shutting down", allocID)
-					return nil
-				}
-
-				n, err := tr.Read(buf)
-				if err != nil {
-					f.Close()
-					if err != io.EOF {
-						return fmt.Errorf("error reading snapshot: %v", err)
-					}
-					break
-				}
-				if _, err := f.Write(buf[:n]); err != nil {
-					f.Close()
-					os.RemoveAll(pathToAllocDir)
-					return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
-				}
-			}
-
-		}
-	}
-}
-
-// getNode gets the node from the server with the given Node ID
-func (c *Client) getNode(nodeID string) (*structs.Node, error) {
-	req := structs.NodeSpecificRequest{
-		NodeID: nodeID,
-		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: true,
-		},
-	}
-
-	resp := structs.SingleNodeResponse{}
-	for {
-		err := c.RPC("Node.GetNode", &req, &resp)
-		if err != nil {
-			c.logger.Printf("[ERR] client: failed to query node info %q: %v", nodeID, err)
-			retry := c.retryIntv(getAllocRetryIntv)
-			select {
-			case <-time.After(retry):
-				continue
-			case <-c.shutdownCh:
-				return nil, fmt.Errorf("aborting because client is shutting down")
-			}
-		}
-		break
-	}
-
-	return resp.Node, nil
 }
 
 // removeAlloc is invoked when we should remove an allocation
@@ -1983,7 +1554,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 }
 
 // addAlloc is invoked when we should add an allocation
-func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.AllocDir) error {
+func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	// Check if we already have an alloc runner
 	c.allocLock.Lock()
 	if _, ok := c.allocs[alloc.ID]; ok {
@@ -1992,9 +1563,17 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 		return nil
 	}
 
+	// get the previous alloc runner - if one exists - for the
+	// blocking/migrating watcher
+	var prevAR *AllocRunner
+	if alloc.PreviousAllocation != "" {
+		prevAR = c.allocs[alloc.PreviousAllocation]
+	}
+
 	c.configLock.RLock()
-	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService)
-	ar.SetPreviousAllocDir(prevAllocDir)
+	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger)
+
+	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	c.configLock.RUnlock()
 
 	// Store the alloc runner.
@@ -2020,8 +1599,8 @@ func (c *Client) addAlloc(alloc *structs.Allocation, prevAllocDir *allocdir.Allo
 // with vault.
 func (c *Client) setupVaultClient() error {
 	var err error
-	if c.vaultClient, err =
-		vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken); err != nil {
+	c.vaultClient, err = vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken)
+	if err != nil {
 		return err
 	}
 
@@ -2354,19 +1933,18 @@ func (c *Client) emitClientMetrics() {
 	nodeID := c.Node().ID
 
 	// Emit allocation metrics
-	c.blockedAllocsLock.RLock()
-	blocked := len(c.blockedAllocations)
-	c.blockedAllocsLock.RUnlock()
-
-	c.migratingAllocsLock.RLock()
-	migrating := len(c.migratingAllocs)
-	c.migratingAllocsLock.RUnlock()
-
-	pending, running, terminal := 0, 0, 0
+	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
 		switch ar.Alloc().ClientStatus {
 		case structs.AllocClientStatusPending:
-			pending++
+			switch {
+			case ar.IsWaiting():
+				blocked++
+			case ar.IsMigrating():
+				migrating++
+			default:
+				pending++
+			}
 		case structs.AllocClientStatusRunning:
 			running++
 		case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed:
@@ -2427,22 +2005,12 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Resource
 
 // allAllocs returns all the allocations managed by the client
 func (c *Client) allAllocs() map[string]*structs.Allocation {
-	allocs := make(map[string]*structs.Allocation, 16)
+	ars := c.getAllocRunners()
+	allocs := make(map[string]*structs.Allocation, len(ars))
 	for _, ar := range c.getAllocRunners() {
 		a := ar.Alloc()
 		allocs[a.ID] = a
 	}
-	c.blockedAllocsLock.RLock()
-	for _, alloc := range c.blockedAllocations {
-		allocs[alloc.ID] = alloc
-	}
-	c.blockedAllocsLock.RUnlock()
-
-	c.migratingAllocsLock.RLock()
-	for _, ctrl := range c.migratingAllocs {
-		allocs[ctrl.alloc.ID] = ctrl.alloc
-	}
-	c.migratingAllocsLock.RUnlock()
 	return allocs
 }
 
