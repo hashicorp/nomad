@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -97,6 +98,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 // Test that the watcher will mark the allocation as unhealthy.
 func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -129,12 +131,22 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Assert that we have an event explaining why we are unhealthy.
+	assert.Len(ar.taskStates, 1)
+	state := ar.taskStates[task.Name]
+	assert.NotNil(state)
+	assert.NotEmpty(state.Events)
+	last := state.Events[len(state.Events)-1]
+	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Contains(last.Message, "failed task")
 }
 
 // Test that the watcher will mark the allocation as unhealthy if it hits its
 // deadline.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
 	upd, ar := testAllocRunner(false)
@@ -169,6 +181,15 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Assert that we have an event explaining why we are unhealthy.
+	assert.Len(ar.taskStates, 1)
+	state := ar.taskStates[task.Name]
+	assert.NotNil(state)
+	assert.NotEmpty(state.Events)
+	last := state.Events[len(state.Events)-1]
+	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Contains(last.Message, "not running by deadline")
 }
 
 // Test that the watcher will mark the allocation as healthy.
@@ -263,7 +284,8 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 					task.Name: {
 						Services: map[string]*consul.ServiceRegistration{
 							"123": {
-								Checks: []*api.AgentCheck{checkHealthy},
+								Service: &api.AgentService{Service: "foo"},
+								Checks:  []*api.AgentCheck{checkHealthy},
 							},
 						},
 					},
@@ -275,7 +297,8 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 					task.Name: {
 						Services: map[string]*consul.ServiceRegistration{
 							"123": {
-								Checks: []*api.AgentCheck{checkUnhealthy},
+								Service: &api.AgentService{Service: "foo"},
+								Checks:  []*api.AgentCheck{checkUnhealthy},
 							},
 						},
 					},
@@ -306,6 +329,77 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	if d := time.Now().Sub(start); d < 500*time.Millisecond {
 		t.Fatalf("didn't wait for second task group. Only took %v", d)
 	}
+}
+
+// Test that the watcher will mark the allocation as unhealthy with failing
+// checks
+func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(false)
+
+	// Make the task fail
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
+
+	// Make the alloc be part of a deployment
+	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
+	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	ar.alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+	ar.alloc.Job.TaskGroups[0].Update.HealthyDeadline = 1 * time.Second
+
+	checkUnhealthy := &api.AgentCheck{
+		CheckID: structs.GenerateUUID(),
+		Status:  api.HealthWarning,
+	}
+
+	// Only return the check as healthy after a duration
+	ar.consulClient.(*mockConsulServiceClient).allocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
+		return &consul.AllocRegistration{
+			Tasks: map[string]*consul.TaskRegistration{
+				task.Name: {
+					Services: map[string]*consul.ServiceRegistration{
+						"123": {
+							Service: &api.AgentService{Service: "foo"},
+							Checks:  []*api.AgentCheck{checkUnhealthy},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if *last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Assert that we have an event explaining why we are unhealthy.
+	assert.Len(ar.taskStates, 1)
+	state := ar.taskStates[task.Name]
+	assert.NotNil(state)
+	assert.NotEmpty(state.Events)
+	last := state.Events[len(state.Events)-1]
+	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Contains(last.Message, "Services not healthy by deadline")
 }
 
 // Test that the watcher will mark the allocation as healthy.
