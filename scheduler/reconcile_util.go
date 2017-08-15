@@ -264,7 +264,7 @@ func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocName
 
 // bitmapFrom creates a bitmap from the given allocation set and a minimum size
 // maybe given. The size of the bitmap is as the larger of the passed minimum
-// and t the maximum alloc index of the passed input (byte aligned).
+// and the maximum alloc index of the passed input (byte aligned).
 func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	var max uint
 	for _, a := range input {
@@ -276,9 +276,16 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	if l := uint(len(input)); minSize < l {
 		minSize = l
 	}
+
 	if max < minSize {
 		max = minSize
+	} else if max%8 == 0 {
+		// This may be possible if the job was scaled down. We want to make sure
+		// that the max index is not byte-alligned otherwise we will overflow
+		// the bitmap.
+		max++
 	}
+
 	if max == 0 {
 		max = 8
 	}
