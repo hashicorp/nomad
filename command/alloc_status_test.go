@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
@@ -141,4 +143,44 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected to have 'Created At' but saw: %s", out)
 	}
 	ui.OutputWriter.Reset()
+}
+
+func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	jobID := "job1_sfx"
+	job1 := testJob(jobID)
+	resp, _, err := client.Jobs().Register(job1, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
+	}
+
+	// get an alloc id
+	allocID := ""
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if len(allocs) > 0 {
+			allocID = allocs[0].ID
+		}
+	}
+	if allocID == "" {
+		t.Fatal("unable to find an allocation")
+	}
+
+	prefix := allocID[:len(allocID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(allocID, res[0])
 }

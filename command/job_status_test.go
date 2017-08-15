@@ -6,6 +6,8 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJobStatusCommand_Implements(t *testing.T) {
@@ -186,6 +188,35 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying jobs") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
+}
+
+func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	jobID := "job1_sfx"
+	job1 := testJob(jobID)
+	resp, _, err := client.Jobs().Register(job1, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
+	}
+
+	prefix := jobID[:len(jobID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(jobID, res[0])
 }
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {

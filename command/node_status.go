@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/mitchellh/colorstring"
+	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -434,6 +436,21 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 			c.Ui.Output("")
 		}
 	}
+}
+
+func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Nodes)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
 }
 
 // getRunningAllocs returns a slice of allocation id's running on the node
