@@ -7,12 +7,12 @@ moduleForAcceptance('Acceptance | server detail', {
   beforeEach() {
     server.createList('agent', 3);
     agent = server.db.agents[0];
-    visit(`/nodes/servers/${agent.name}`);
+    visit(`/servers/${agent.name}`);
   },
 });
 
-test('visiting /nodes/servers/:server_name', function(assert) {
-  assert.equal(currentURL(), `/nodes/servers/${agent.name}`);
+test('visiting /servers/:server_name', function(assert) {
+  assert.equal(currentURL(), `/servers/${agent.name}`);
 });
 
 test('the server detail page should list all tags for the server', function(assert) {
@@ -26,7 +26,7 @@ test('the server detail page should list all tags for the server', function(asse
   });
 });
 
-test('the list of servers from /nodes/servers should still be present', function(assert) {
+test('the list of servers from /servers should still be present', function(assert) {
   assert.equal(find('.server-agent-row').length, server.db.agents.length, '# of servers');
 });
 

@@ -15,11 +15,11 @@ export default Component.extend({
   agent: null,
   isActive: computed('agent', 'router.currentURL', function() {
     // TODO Switch back to the router service style when it is no longer feature-flagged
-    // const targetURL = this.get('router').urlFor('nodes.servers.server', this.get('agent'));
+    // const targetURL = this.get('router').urlFor('servers.server', this.get('agent'));
     // const currentURL = `${this.get('router.rootURL').slice(0, -1)}${this.get('router.currentURL')}`;
 
     const router = this.get('router');
-    const targetURL = router.generate('nodes.servers.server', this.get('agent'));
+    const targetURL = router.generate('servers.server', this.get('agent'));
     const currentURL = `${router.get('rootURL').slice(0, -1)}${router
       .get('currentURL')
       .split('?')[0]}`;
@@ -28,6 +28,6 @@ export default Component.extend({
   }),
 
   click() {
-    this.get('router').transitionTo('nodes.servers.server', this.get('agent'));
+    this.get('router').transitionTo('servers.server', this.get('agent'));
   },
 });

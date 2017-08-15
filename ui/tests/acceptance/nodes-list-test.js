@@ -29,22 +29,6 @@ test('/nodes should have high level metrics for node types', function(assert) {
   });
 });
 
-test('/nodes should have a toggle to switch between clients and servers', function(assert) {
-  commonSetup();
-
-  visit('/nodes');
-
-  click('.node-type-switcher a.servers');
-  andThen(() => {
-    assert.equal(currentURL(), '/nodes/servers');
-  });
-
-  click('.node-type-switcher a.clients');
-  andThen(() => {
-    assert.equal(currentURL(), '/nodes');
-  });
-});
-
 test('/nodes should list one page of clients', function(assert) {
   // Make sure to make more nodes than 1 page to assert that pagination is working
   const nodesCount = 10;
@@ -103,7 +87,7 @@ test('each client should link to the client detail page', function(assert) {
   });
 });
 
-test('/nodes/servers should list all servers', function(assert) {
+test('/servers should list all servers', function(assert) {
   const agentsCount = 10;
   const pageSize = 8;
 
@@ -112,7 +96,7 @@ test('/nodes/servers should list all servers', function(assert) {
 
   const leader = findLeader(server.schema);
 
-  visit('/nodes/servers');
+  visit('/servers');
 
   andThen(() => {
     assert.equal(find('.server-agent-row').length, pageSize);
@@ -142,7 +126,7 @@ test('each server should show high-level info of the server', function(assert) {
   minimumSetup();
   const agent = server.db.agents[0];
 
-  visit('/nodes/servers');
+  visit('/servers');
 
   andThen(() => {
     const agentRow = find('.server-agent-row:eq(0)');
@@ -160,10 +144,10 @@ test('each server should link to the server detail page', function(assert) {
   minimumSetup();
   const agent = server.db.agents[0];
 
-  visit('/nodes/servers');
+  visit('/servers');
   click('.server-agent-row:eq(0)');
 
   andThen(() => {
-    assert.equal(currentURL(), `/nodes/servers/${agent.name}`);
+    assert.equal(currentURL(), `/servers/${agent.name}`);
   });
 });
