@@ -94,6 +94,8 @@ type ServiceCheck struct {
 	Timeout       time.Duration
 	InitialStatus string `mapstructure:"initial_status"`
 	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
+	Header        map[string][]string
+	Method        string
 }
 
 // The Service model represents a Consul service definition
