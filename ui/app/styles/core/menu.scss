@@ -1,0 +1,28 @@
+.menu {
+  .menu-list {
+    a {
+      font-weight: $weight-semibold;
+      padding: 0.5rem 1.5rem;
+      border-radius: 0;
+      box-shadow: inset 0 0 0 $grey-blue;
+      transition: box-shadow 0.1s ease-in-out;
+
+      &:hover, &.is-active {
+        background: transparent;
+        box-shadow: inset -3px 0 0 $blue;
+        color: $blue;
+      }
+    }
+  }
+
+  .menu-label {
+    margin: 1rem 0.75rem 0.5rem;
+    padding-top: 0.5rem;
+    color: darken($grey-blue, 20%);
+    letter-spacing: 0;
+
+    &:not(:first-child) {
+      border-top: 1px solid $grey-blue;
+    }
+  }
+}
