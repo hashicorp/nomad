@@ -466,7 +466,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 
 		if err != nil {
-			return fmt.Errorf("error streaming previous alloc %p for new alloc %q: %v",
+			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %v",
 				p.prevAllocID, p.allocID, err)
 		}
 
