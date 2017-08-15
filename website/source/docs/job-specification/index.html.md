@@ -56,7 +56,7 @@ job "docs" {
   # 30 second intervals.
   update {
     stagger      = "30s"
-    max_parallel = 1
+    max_parallel = 2
   }
 
   # A group defines a series of tasks that should be co-located
