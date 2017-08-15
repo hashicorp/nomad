@@ -120,10 +120,14 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 
 			for _, ctx := range contexts {
 				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+
+				// When searching all Contexts, Job ids will cause errors when searched
+				// in the context of allocs, nodes, and/or evals.
 				if err != nil {
-					return err
+					s.srv.logger.Printf("[WARN] nomad.resources: error when searching context %s for id %s", ctx, args.Prefix)
+				} else {
+					iters[ctx] = iter
 				}
-				iters[ctx] = iter
 			}
 
 			// Return matches for the given prefix
