@@ -10,10 +10,14 @@ IMPROVEMENTS:
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]
+ * deployment: Emit task events explaining unhealthy allocations[GH-3025]
+ * deployment: Better description when a deployment should auto-revert but there
+   is no target [GH-3024]
  * driver/docker: Added DNS options [GH-2992]
  * driver/rkt: support read-only volume mounts [GH-2883]
 
 BUG FIXES:
+ * core: Fix panic occuring from improper bitmap size [GH-3023]
  * core: Fix restoration of parameterized, periodic jobs [GH-2959]
  * core: Fix incorrect destructive update with `distinct_property` constraint
    [GH-2939]
