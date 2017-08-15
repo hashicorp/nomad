@@ -65,7 +65,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 			return
 		}
 
-		break
+		// Since the deadline has been reached we are not healthy
 	case <-tracker.AllocStoppedCh():
 		// The allocation was stopped so nothing to do
 		return
@@ -91,6 +91,8 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	r.syncStatus()
 }
 
+// allocHealthTracker tracks the health of an allocation and makes health events
+// watchable via channels.
 type allocHealthTracker struct {
 	// logger is used to log
 	logger *log.Logger
@@ -123,6 +125,9 @@ type allocHealthTracker struct {
 	// not needed
 	allocStopped chan struct{}
 
+	// l is used to lock shared fields listed below
+	l sync.Mutex
+
 	// tasksHealthy marks whether all the tasks have met their health check
 	// (disregards Consul)
 	tasksHealthy bool
@@ -133,12 +138,13 @@ type allocHealthTracker struct {
 	// checksHealthy marks whether all the task's Consul checks are healthy
 	checksHealthy bool
 
+	// taskHealth contains the health state for each task
 	taskHealth map[string]*taskHealthState
-
-	// l is used to lock shared fields
-	l sync.Mutex
 }
 
+// newAllocHealthTracker returns a health tracker for the given allocation. An
+// alloc listener and consul API object are given so that the watcher can detect
+// health changes.
 func newAllocHealthTracker(parentCtx context.Context, logger *log.Logger, alloc *structs.Allocation,
 	allocUpdates *cstructs.AllocListener, consulClient ConsulServiceAPI) *allocHealthTracker {
 
@@ -167,6 +173,7 @@ func newAllocHealthTracker(parentCtx context.Context, logger *log.Logger, alloc 
 	return a
 }
 
+// Start starts the watcher.
 func (a *allocHealthTracker) Start() {
 	go a.watchTaskEvents()
 	if a.tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Checks {
@@ -174,14 +181,21 @@ func (a *allocHealthTracker) Start() {
 	}
 }
 
+// HealthyCh returns a channel that will emit a boolean indicating the health of
+// the allocation.
 func (a *allocHealthTracker) HealthyCh() <-chan bool {
 	return a.healthy
 }
 
+// AllocStoppedCh returns a channel that will be fired if the allocation is
+// stopped. This means that health will not be set.
 func (a *allocHealthTracker) AllocStoppedCh() <-chan struct{} {
 	return a.allocStopped
 }
 
+// TaskEvents returns a map of events by task. This should only be called after
+// health has been determined. Only tasks that have contributed to the
+// allocation being unhealthy will have an event.
 func (a *allocHealthTracker) TaskEvents() map[string]string {
 	a.l.Lock()
 	defer a.l.Unlock()
@@ -204,6 +218,8 @@ func (a *allocHealthTracker) TaskEvents() map[string]string {
 	return events
 }
 
+// setTaskHealth is used to set the tasks health as healthy or unhealthy. If the
+// allocation is terminal, health is immediately broadcasted.
 func (a *allocHealthTracker) setTaskHealth(healthy, terminal bool) {
 	a.l.Lock()
 	defer a.l.Unlock()
@@ -225,6 +241,7 @@ func (a *allocHealthTracker) setTaskHealth(healthy, terminal bool) {
 	a.cancelFn()
 }
 
+// setCheckHealth is used to mark the checks as either healthy or unhealthy.
 func (a *allocHealthTracker) setCheckHealth(healthy bool) {
 	a.l.Lock()
 	defer a.l.Unlock()
@@ -244,11 +261,14 @@ func (a *allocHealthTracker) setCheckHealth(healthy bool) {
 	a.cancelFn()
 }
 
+// markAllocStopped is used to mark the allocation as having stopped.
 func (a *allocHealthTracker) markAllocStopped() {
 	close(a.allocStopped)
 	a.cancelFn()
 }
 
+// watchTaskEvents is a long lived watcher that watches for the health of the
+// allocation's tasks.
 func (a *allocHealthTracker) watchTaskEvents() {
 	alloc := a.alloc
 	allStartedTime := time.Time{}
@@ -335,6 +355,8 @@ func (a *allocHealthTracker) watchTaskEvents() {
 	}
 }
 
+// watchConsulEvents iis a long lived watcher that watches for the health of the
+// allocation's Consul checks.
 func (a *allocHealthTracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
@@ -436,12 +458,18 @@ OUTER:
 	}
 }
 
+// taskHealthState captures all known health information about a task. It is
+// largely used to determine if the task has contributed to the allocation being
+// unhealthy.
 type taskHealthState struct {
 	task              *structs.Task
 	state             *structs.TaskState
 	taskRegistrations *consul.TaskRegistration
 }
 
+// event takes the deadline time for the allocation to be healthy and the update
+// strategy of the group. It returns true if the task has contributed to the
+// allocation being unhealthy and if so, an event description of why.
 func (t *taskHealthState) event(deadline time.Time, update *structs.UpdateStrategy) (string, bool) {
 	requireChecks := false
 	desiredChecks := 0
