@@ -5,6 +5,7 @@
       $nomad-green-darker,
       $nomad-green-dark
     );
+    height: 3.5rem;
     color: $primary-invert;
     padding-left: 20px;
     padding-right: 20px;
@@ -36,7 +37,8 @@
       }
 
       &.is-logo img {
-        height: 1.5rem;
+        height: 26px;
+        max-height: 26px;
       }
     }
   }
@@ -44,14 +46,18 @@
   &.is-secondary {
     background-color: $nomad-green-dark;
     padding: 1.25rem 20px 1.25rem 0;
-    height: 4rem;
+    height: 4.5rem;
     font-weight: $weight-bold;
     color: $primary-invert;
+
+    .nav-item {
+      font-size: $size-4;
+    }
   }
 
   .nav-item {
     &.is-gutter {
-      width: 200px;
+      width: $gutter-width;
     }
   }
 }

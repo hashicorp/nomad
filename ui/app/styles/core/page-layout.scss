@@ -1,3 +1,5 @@
+$header-height: 112px;
+
 html, body, body > .ember-view {
   height: 100%;
   width: 100%;
@@ -15,7 +17,7 @@ html, body, body > .ember-view {
 
     // Defensive styles in case header height goes over 100px, causing
     // the left gutter menu to be on top of the header.
-    height: 100px;
+    height: $header-height;
     overflow: hidden;
   }
 
@@ -24,22 +26,22 @@ html, body, body > .ember-view {
     flex: 1;
     flex-direction: row;
     justify-content: space-between;
-    margin-top: 100px;
+    margin-top: $header-height;
 
     .page-column {
       flex: 1;
 
       &.is-left {
-        min-width: 200px;
-        max-width: 200px;
+        min-width: $gutter-width;
+        max-width: $gutter-width;
         position: fixed;
         bottom: 0;
-        top: 100px;
+        top: $header-height;
         z-index: $z-gutter;
       }
 
       &.is-right {
-        margin-left: 200px;
+        margin-left: $gutter-width;
       }
     }
   }
