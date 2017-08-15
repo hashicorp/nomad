@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEvalStatusCommand_Implements(t *testing.T) {
@@ -55,4 +57,44 @@ func TestEvalStatusCommand_Fails(t *testing.T) {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
 
+}
+
+func TestEvalStatusCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &EvalStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	jobID := "job1_sfx"
+	job1 := testJob(jobID)
+	resp, _, err := client.Jobs().Register(job1, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
+	}
+
+	// get an eval id
+	evalID := ""
+	if evals, _, err := client.Jobs().Evaluations(jobID, nil); err == nil {
+		if len(evals) > 0 {
+			evalID = evals[0].ID
+		}
+	}
+	if evalID == "" {
+		t.Fatal("unable to find an evaluation")
+	}
+
+	prefix := evalID[:len(evalID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(evalID, res[0])
 }
