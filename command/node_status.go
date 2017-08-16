@@ -445,6 +445,10 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
 		resp, err := client.Search().PrefixSearch(a.Last, contexts.Nodes)
 		if err != nil {
 			return []string{}
