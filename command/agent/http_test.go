@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/ugorji/go/codec"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -194,20 +195,26 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	s.Server.wrap(handler)(resp, req)
 
-	var expected []byte
+	var expected bytes.Buffer
+	var err error
 	if prettyFmt {
-		expected, _ = json.MarshalIndent(r, "", "    ")
-		expected = append(expected, "\n"...)
+		enc := codec.NewEncoder(&expected, structs.JsonHandlePretty)
+		err = enc.Encode(r)
+		expected.WriteByte('\n')
 	} else {
-		expected, _ = json.Marshal(r)
+		enc := codec.NewEncoder(&expected, structs.JsonHandle)
+		err = enc.Encode(r)
+	}
+	if err != nil {
+		t.Fatalf("failed to encode: %v", err)
 	}
 	actual, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !bytes.Equal(expected, actual) {
-		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", string(expected), string(actual))
+	if !bytes.Equal(expected.Bytes(), actual) {
+		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", expected.String(), string(actual))
 	}
 }
 
