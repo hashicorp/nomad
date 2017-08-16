@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
@@ -200,7 +200,12 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 
 func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := c.Meta.Client()
+
 	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
 		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
 		if err != nil {
 			return []string{}

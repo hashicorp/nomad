@@ -534,6 +534,10 @@ func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
 		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
 		if err != nil {
 			return []string{}
