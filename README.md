@@ -1,4 +1,4 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.com/hashicorp/nomad-enterprise)
+Nomad [![Build Status](https://travis-ci.com/hashicorp/nomad-enterprise.svg?token=9DiGfqdqXxT3U5oxbdEW&branch=master)](https://travis-ci.com/hashicorp/nomad-enterprise)
 =========
 
 * Website: [www.nomadproject.io](https://www.nomadproject.io)
