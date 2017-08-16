@@ -148,37 +148,40 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
+
+		out[0] = "ID|DC|Name|Class|"
+
+		if c.verbose {
+			out[0] += "Version|"
+		}
+
+		out[0] += "Drain|Status"
+
 		if c.list_allocs {
-			out[0] = "ID|DC|Name|Class|Build|Drain|Status|Running Allocs"
-		} else {
-			out[0] = "ID|DC|Name|Class|Build|Drain|Status"
+			out[0] += "|Running Allocs"
 		}
 
 		for i, node := range nodes {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+				limit(node.ID, c.length),
+				node.Datacenter,
+				node.Name,
+				node.NodeClass)
+			if c.verbose {
+				out[i+1] += fmt.Sprintf("|%s",
+					node.Version)
+			}
+			out[i+1] += fmt.Sprintf("|%v|%s",
+				node.Drain,
+				node.Status)
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s|%v",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Build,
-					node.Drain,
-					node.Status,
+				out[i+1] += fmt.Sprintf("|%v",
 					len(numAllocs))
-			} else {
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Build,
-					node.Drain,
-					node.Status)
 			}
 		}
 
@@ -222,14 +225,13 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Format the nodes list that matches the prefix so that the user
 		// can create a more specific request
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Build|Drain|Status"
+		out[0] = "ID|DC|Name|Class|Drain|Status"
 		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%v|%s",
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
-				node.Build,
 				node.Drain,
 				node.Status)
 		}

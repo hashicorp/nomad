@@ -292,7 +292,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.Name = a.config.NodeName
 	conf.Node.Meta = a.config.Client.Meta
 	conf.Node.NodeClass = a.config.Client.NodeClass
-	conf.Node.Build = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
 
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
