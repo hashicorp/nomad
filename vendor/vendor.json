@@ -681,6 +681,12 @@
 			"revisionTime": "2017-08-10T00:46:41Z"
 		},
 		{
+			"checksumSHA1": "J8TTDc84MvAyXE/FrfgS+xc/b6s=",
+			"path": "github.com/hashicorp/consul/testutil/retry",
+			"revision": "75ca2cace08e38de8af1731ee8614d0533d5a4d4",
+			"revisionTime": "2017-08-10T00:46:41Z"
+		},
+		{
 			"checksumSHA1": "bYK/7DsyTM3YDjvc0RRUH4I+jic=",
 			"path": "github.com/hashicorp/consul/types",
 			"revision": "75ca2cace08e38de8af1731ee8614d0533d5a4d4",
