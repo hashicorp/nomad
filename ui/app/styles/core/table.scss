@@ -82,6 +82,28 @@
         }
       }
 
+      &.is-active {
+        position: relative;
+
+        &::after {
+          content: '';
+          width: 10px;
+          right: 1.5em;
+          top: 0.75em;
+          bottom: 0.75em;
+          position: absolute;
+          display: block;
+        }
+
+        &.asc::after {
+          content: '⬇';
+        }
+
+        &.desc::after {
+          content: '⬆';
+        }
+      }
+
       @for $i from 1 through 11 {
         &.is-#{$i} {
           width: 100% / 12 * $i;
