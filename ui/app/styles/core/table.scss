@@ -1,5 +1,7 @@
 .table {
   color: $text;
+  border-radius: $radius;
+  border: 1px solid $grey-blue;
 
   &.is-fixed {
     table-layout: fixed;
@@ -10,10 +12,37 @@
     }
   }
 
-  thead {
-    td, th {
-      font-weight: $weight-bold;
+  &.with-foot {
+    margin-bottom: 0;
+
+    + .table-foot {
+      margin-bottom: 1.5rem;
+    }
+  }
+
+  th, td {
+    padding: 0.75em 1.5em;
+    border: none;
+
+    a {
       color: $text;
+    }
+  }
+
+  thead {
+    background: $white-ter;
+    border: 1px solid $grey-blue;
+
+    tr {
+      &:hover {
+        background-color: inherit;
+      }
+    }
+
+    td, th {
+      color: $grey-light;
+      font-weight: $weight-normal;
+      vertical-align: bottom;
 
       &.is-three-quarters {
         width: 75%;
@@ -35,10 +64,28 @@
         width: 25%;
       }
 
+      &.is-selectable {
+        padding: 0;
+
+        a {
+          display: block;
+          padding: 0.75em 1.5em;
+          width: 100%;
+
+          &:hover {
+            background-color: darken($white-ter, 5%);
+          }
+        }
+      }
+
       @for $i from 1 through 11 {
         &.is-#{$i} {
           width: 100% / 12 * $i;
         }
+      }
+
+      a {
+        color: $grey;
       }
     }
   }
@@ -47,21 +94,55 @@
     tr {
       &.is-interactive {
         cursor: pointer;
-        border-left: 2px solid transparent;
+        box-sizing: border-box;
       }
 
       &.is-active {
-        background: rgba($primary, 0.1);
-        border-left: 2px solid $primary;
+        background: rgba($blue, 0.1);
+
+        td:first-child {
+          position: relative;
+
+          &::after {
+            position: absolute;
+            content: '';
+            width: 3px;
+            top: 0;
+            bottom: 0;
+            left: -1px;
+            display: block;
+            background: $blue;
+          }
+        }
       }
     }
 
     td.is-subheading {
       font-weight: $weight-bold;
     }
+
+    td {
+      border: 1px solid $grey-blue;
+      border-width: 0 0 1px;
+      padding: 1.25em 1.5em;
+
+      a {
+        font-weight: $weight-bold;
+      }
+    }
   }
 
   .is-faded {
     color: $grey-light;
+  }
+}
+
+.table tfoot, .table-foot {
+  margin-top: -1px;
+  background: $white-ter;
+  border: 1px solid $grey-blue;
+
+  .pagination {
+    padding: 0.75em 1.5em;
   }
 }

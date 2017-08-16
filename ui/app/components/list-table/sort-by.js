@@ -11,6 +11,7 @@ export default Component.extend({
   // The prop this sorter controls
   prop: '',
 
+  classNames: ['is-selectable'],
   classNameBindings: ['isActive:is-active', 'sortDescending:desc:asc'],
 
   isActive: computed('currentProp', 'prop', function() {
