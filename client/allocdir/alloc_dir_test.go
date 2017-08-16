@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	tomb "gopkg.in/tomb.v1"
@@ -379,6 +380,10 @@ func TestAllocDir_SplitPath(t *testing.T) {
 }
 
 func TestAllocDir_CreateDir(t *testing.T) {
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must be root to run test")
+	}
+
 	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		t.Fatalf("err: %v", err)
