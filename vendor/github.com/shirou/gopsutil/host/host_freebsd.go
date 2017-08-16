@@ -174,10 +174,7 @@ func PlatformInformation() (string, string, string, error) {
 }
 
 func Virtualization() (string, string, error) {
-	system := ""
-	role := ""
-
-	return system, role, nil
+	return "", "", common.ErrNotImplementedError
 }
 
 // before 9.0
@@ -221,4 +218,9 @@ func getUsersFromUtmp(utmpfile string) ([]UserStat, error) {
 
 func SensorsTemperatures() ([]TemperatureStat, error) {
 	return []TemperatureStat{}, common.ErrNotImplementedError
+}
+
+func KernelVersion() (string, error) {
+	_, _, version, err := PlatformInformation()
+	return version, err
 }
