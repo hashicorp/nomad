@@ -627,7 +627,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
-		version:        d.config.Version,
+		version:        d.config.Version.VersionNumber(),
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan bool),
