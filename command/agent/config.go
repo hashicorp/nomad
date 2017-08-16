@@ -571,6 +571,7 @@ func DefaultConfig() *Config {
 			collectionInterval: 1 * time.Second,
 		},
 		TLSConfig: &config.TLSConfig{},
+		Version:   version.GetVersion(),
 	}
 }
 

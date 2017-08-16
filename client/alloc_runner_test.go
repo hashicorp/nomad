@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/version"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 
@@ -918,7 +919,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	upd, ar := testAllocRunnerFromAlloc(alloc, false)
 	// Hack in old version to cause an upgrade on RestoreState
 	origConfig := ar.config.Copy()
-	ar.config.Version = "0.5.6"
+	ar.config.Version = &version.VersionInfo{Version: "0.5.6"}
 	go ar.Run()
 	defer ar.Destroy()
 
