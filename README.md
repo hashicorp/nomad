@@ -1,4 +1,4 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.com/hashicorp/nomad-enterprise)
 =========
 
 * Website: [www.nomadproject.io](https://www.nomadproject.io)
