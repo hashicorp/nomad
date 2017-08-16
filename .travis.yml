@@ -22,6 +22,11 @@ before_install:
     - ./scripts/install_vault.sh
 
 install:
+  - export TRAVIS_REPO_SLUG=hashicorp/nomad
+  - cd ../../
+  - git clone --branch=$TRAVIS_BRANCH git@github.com:hashicorp/nomad-enterprise.git $TRAVIS_REPO_SLUG
+  - cd $TRAVIS_REPO_SLUG
+  - git checkout -qf $TRAVIS_COMMIT
   - make bootstrap
 
 script:
