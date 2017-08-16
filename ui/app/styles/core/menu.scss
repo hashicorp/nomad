@@ -21,6 +21,11 @@
     color: darken($grey-blue, 20%);
     letter-spacing: 0;
 
+    &:first-child {
+      margin-top: 0;
+      padding-top: 1rem;
+    }
+
     &:not(:first-child) {
       border-top: 1px solid $grey-blue;
     }

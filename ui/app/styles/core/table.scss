@@ -1,7 +1,10 @@
 .table {
   color: $text;
-  border-radius: $radius;
+  border-top-left-radius: $radius;
+  border-top-right-radius: $radius;
   border: 1px solid $grey-blue;
+  border-collapse: separate;
+  overflow: hidden;
 
   &.is-fixed {
     table-layout: fixed;
@@ -43,6 +46,7 @@
       color: $grey-light;
       font-weight: $weight-normal;
       vertical-align: bottom;
+      border-bottom: 1px solid $grey-blue;
 
       &.is-three-quarters {
         width: 75%;
@@ -141,8 +145,12 @@
   margin-top: -1px;
   background: $white-ter;
   border: 1px solid $grey-blue;
+  border-bottom-right-radius: $radius;
+  border-bottom-left-radius: $radius;
+  overflow: hidden;
 
   .pagination {
-    padding: 0.75em 1.5em;
+    padding: 0;
+    margin: 0;
   }
 }
