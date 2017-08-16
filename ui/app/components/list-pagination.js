@@ -8,6 +8,14 @@ export default Component.extend({
   page: 1,
   spread: 2,
 
+  startsAt: computed('size', 'page', function() {
+    return (this.get('page') - 1) * this.get('size') + 1;
+  }),
+
+  endsAt: computed('source.[]', 'size', 'page', function() {
+    return Math.min(this.get('page') * this.get('size'), this.get('source.length'));
+  }),
+
   lastPage: computed('source.[]', 'size', function() {
     return Math.ceil(this.get('source.length') / this.get('size'));
   }),
