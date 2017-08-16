@@ -1450,6 +1450,18 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
 			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+			check.Method = taskEnv.ReplaceEnv(check.Method)
+			if len(check.Header) > 0 {
+				header := make(map[string][]string, len(check.Header))
+				for k, vs := range check.Header {
+					newVals := make([]string, len(vs))
+					for i, v := range vs {
+						newVals[i] = taskEnv.ReplaceEnv(v)
+					}
+					header[taskEnv.ReplaceEnv(k)] = newVals
+				}
+				check.Header = header
+			}
 		}
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
