@@ -450,9 +450,14 @@ func TestParse(t *testing.T) {
 											{
 												Name:          "check-name",
 												Type:          "http",
+												Path:          "/",
 												Interval:      10 * time.Second,
 												Timeout:       2 * time.Second,
 												InitialStatus: capi.HealthPassing,
+												Method:        "POST",
+												Header: map[string][]string{
+													"Authorization": {"Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
+												},
 											},
 										},
 									},
