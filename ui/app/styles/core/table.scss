@@ -23,6 +23,34 @@
     }
   }
 
+  &.is-compact {
+    th, td {
+      padding: 0.75em;
+    }
+  }
+
+  &.is-darkened {
+    tbody tr:not(.is-selected) {
+      background-color: $white-bis;
+
+      &:hover {
+        background-color: $white-ter;
+      }
+    }
+
+    &.is-striped {
+      tbody tr:not(.is-selected) {
+        &:nth-child(even) {
+          background-color: $white-ter;
+
+          &:hover {
+            background-color: darken($white-ter, 5%);
+          }
+        }
+      }
+    }
+  }
+
   th, td {
     padding: 0.75em 1.5em;
     border: none;
@@ -145,6 +173,7 @@
 
     td.is-subheading {
       font-weight: $weight-bold;
+      background: $white;
     }
 
     td {
