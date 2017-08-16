@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/version"
 )
 
 var (
@@ -129,10 +130,7 @@ type Config struct {
 	Options map[string]string
 
 	// Version is the version of the Nomad client
-	Version string
-
-	// Revision is the commit number of the Nomad client
-	Revision string
+	Version *version.VersionInfo
 
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
@@ -198,6 +196,7 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		Version:                 version.GetVersion(),
 		VaultConfig:             config.DefaultVaultConfig(),
 		ConsulConfig:            config.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,

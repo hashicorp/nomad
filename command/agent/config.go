@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/version"
 )
 
 // Config is the configuration for the Nomad agent.
@@ -114,9 +115,7 @@ type Config struct {
 	DevMode bool `mapstructure:"-"`
 
 	// Version information is set at compilation time
-	Revision          string
-	Version           string
-	VersionPrerelease string
+	Version *version.VersionInfo
 
 	// List of config files that have been loaded (in order)
 	Files []string `mapstructure:"-"`
@@ -572,6 +571,7 @@ func DefaultConfig() *Config {
 			collectionInterval: 1 * time.Second,
 		},
 		TLSConfig: &config.TLSConfig{},
+		Version:   version.GetVersion(),
 	}
 }
 

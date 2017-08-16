@@ -1,12 +1,13 @@
 package command
 
 import (
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
 
 // VersionCommand is a Command implementation prints the version.
 type VersionCommand struct {
-	Version string
+	Version *version.VersionInfo
 	Ui      cli.Ui
 }
 
@@ -15,7 +16,7 @@ func (c *VersionCommand) Help() string {
 }
 
 func (c *VersionCommand) Run(_ []string) int {
-	c.Ui.Output(c.Version)
+	c.Ui.Output(c.Version.FullVersionNumber(true))
 	return 0
 }
 

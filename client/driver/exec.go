@@ -162,7 +162,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
 		logger:          d.logger,
-		version:         d.config.Version,
+		version:         d.config.Version.VersionNumber(),
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
 		taskDir:         ctx.TaskDir,

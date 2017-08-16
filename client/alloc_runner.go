@@ -419,7 +419,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		// Write immutable data iff it hasn't been written yet
 		if !r.immutablePersisted {
 			immutable := &allocRunnerImmutableState{
-				Version: r.config.Version,
+				Version: r.config.Version.VersionNumber(),
 			}
 
 			if err := putObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
