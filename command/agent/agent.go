@@ -102,7 +102,7 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	}
 	conf.LogOutput = logOutput
 	conf.DevMode = agentConfig.DevMode
-	conf.Build = fmt.Sprintf("%s%s", agentConfig.Version, agentConfig.VersionPrerelease)
+	conf.Build = agentConfig.Version.VersionNumber()
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}
@@ -308,8 +308,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	r.IOPS = a.config.Client.Reserved.IOPS
 	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
 
-	conf.Version = fmt.Sprintf("%s%s", a.config.Version, a.config.VersionPrerelease)
-	conf.Revision = a.config.Revision
+	conf.Version = a.config.Version
 
 	if *a.config.Consul.AutoAdvertise && a.config.Consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")

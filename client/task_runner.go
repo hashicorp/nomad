@@ -435,7 +435,7 @@ func (r *TaskRunner) SaveState() error {
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 	snap := taskRunnerState{
-		Version:            r.config.Version,
+		Version:            r.config.Version.VersionNumber(),
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
 		PayloadRendered:    r.payloadRendered,
