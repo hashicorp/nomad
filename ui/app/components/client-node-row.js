@@ -6,7 +6,7 @@ export default Component.extend({
   router: inject.service(),
 
   tagName: 'tr',
-  classNames: ['client-node-row'],
+  classNames: ['client-node-row', 'is-interactive'],
 
   node: null,
 
