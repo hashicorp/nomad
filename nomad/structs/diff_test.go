@@ -1934,12 +1934,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Driver: "docker",
 					},
 					{
-						Name:          "baz",
-						ShutdownDelay: 2 * time.Second,
-					},
-					{
 						Name:   "bam",
 						Driver: "docker",
+					},
+					{
+						Name:          "baz",
+						ShutdownDelay: 2 * time.Second,
 					},
 				},
 			},
@@ -1968,6 +1968,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "false",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ShutdownDelay",
+								Old:  "",
+								New:  "0",
+							},
 						},
 					},
 					{
@@ -1980,9 +1986,9 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
-								Name: "Driver",
-								Old:  "1s",
-								New:  "2s",
+								Name: "ShutdownDelay",
+								Old:  "1000000000",
+								New:  "2000000000",
 							},
 						},
 					},
@@ -2006,6 +2012,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Leader",
 								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ShutdownDelay",
+								Old:  "0",
 								New:  "",
 							},
 						},
