@@ -1378,14 +1378,16 @@ func TestCreateCheckReg(t *testing.T) {
 		ID:        checkID,
 		Name:      "name",
 		ServiceID: serviceID,
+		AgentServiceCheck: api.AgentServiceCheck{
+			Timeout:  "0s",
+			Interval: "0s",
+			HTTP:     fmt.Sprintf("http://%s:%d/path", host, port),
+			Method:   "POST",
+			Header: map[string][]string{
+				"Foo": {"bar"},
+			},
+		},
 	}
-	expected.Timeout = "0s"
-	expected.Interval = "0s"
-	expected.HTTP = fmt.Sprintf("http://%s:%d/path", host, port)
-	expected.Header = map[string][]string{
-		"Foo": {"bar"},
-	}
-	expected.Method = "POST"
 
 	actual, err := createCheckReg(serviceID, checkID, check, host, port)
 	if err != nil {
