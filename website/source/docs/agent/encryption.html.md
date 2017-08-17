@@ -84,8 +84,8 @@ as it is unable to use client certificates.
 
 # Configuring Nomad with TLS
 
-Read the [Configuring TLS Guide][guide] for details on how to configure
+Read the [Securing Nomad with TLS Guide][guide] for details on how to configure
 encryption for Nomad.
 
-[guide]: /guides/tls.html "Configuring TLS"
+[guide]: /guides/securing-nomad.html "Securing Nomad with TLS"
 [tls]: /docs/agent/configuration/tls.html "Nomad TLS Configuration"
