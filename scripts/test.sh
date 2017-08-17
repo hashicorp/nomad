@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-GOTEST_TAGS="nomad_test"
+GOTEST_TAGS="nomad_test $GOTAGS"
 if [[ $(uname) == "Linux" ]]; then
 	if pkg-config --exists lxc; then
 		GOTEST_TAGS="$GOTEST_TAGS lxc"
