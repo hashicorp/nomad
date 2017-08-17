@@ -13,6 +13,20 @@ type StatusCommand struct {
 	Meta
 }
 
+// Check that the last argument provided is not setting a flag
+func lastArgIsFlag(args []string) bool {
+	lastArg := args[len(args)-1]
+
+	for _, flag := range flagOptions {
+		arg := strings.Replace(lastArg, "-", "", 1) // strip leading '-' from flag
+
+		if strings.HasPrefix(arg, flag) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *StatusCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -21,21 +35,13 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	id := ""
+	if len(args) == 0 || lastArgIsFlag(args) {
+		cmd := &JobStatusCommand{Meta: c.Meta}
+		return cmd.Run(args)
+	}
+
 	// Assume the last argument will be the id to search
-	if len(args) > 0 {
-		id = args[len(args)-1]
-	}
-
-	// Check that the last argument provided is not setting a flag
-	for _, flag := range flagOptions {
-		arg := strings.Replace(id, "-", "", 1) // strip leading '-' from flag
-
-		if strings.HasPrefix(arg, flag) {
-			cmd := &JobStatusCommand{Meta: c.Meta}
-			return cmd.Run(args)
-		}
-	}
+	id := args[len(args)-1]
 
 	// Try querying for the context associated with the id
 	res, err := client.Search().PrefixSearch(id, contexts.All)
