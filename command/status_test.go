@@ -2,11 +2,9 @@ package command
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -14,7 +12,9 @@ import (
 )
 
 func TestStatusCommand_Run_JobStatus(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -24,9 +24,8 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	// Register a job
 	job1 := testJob("job1_sfx")
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	assert.Nil(err)
+
 	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
@@ -35,15 +34,15 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "job1_sfx"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
-	out := ui.OutputWriter.String()
 
-	if !strings.Contains(out, "job1_sfx") {
-		t.Fatalf("expected job1_sfx, got: %s", out)
-	}
+	out := ui.OutputWriter.String()
+	assert.Contains(out, "job1_sfx")
+
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_EvalStatus(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
@@ -55,9 +54,8 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	assert.Nil(err)
+
 	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
@@ -69,24 +67,22 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 			evalID = evals[0].ID
 		}
 	}
-	if evalID == "" {
-		t.Fatal("unable to find an evaluation")
-	}
+
+	assert.NotEqual("", evalID)
 
 	// Query to check the eval status
 	if code := cmd.Run([]string{"-address=" + url, evalID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
-	out := ui.OutputWriter.String()
 
-	if !strings.Contains(out, evalID) {
-		t.Fatalf("expected eval id, got: %s", out)
-	}
+	out := ui.OutputWriter.String()
+	assert.Contains(out, evalID)
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_NodeStatus(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
 
 	// Start in dev mode so we get a node registration
@@ -118,36 +114,19 @@ func TestStatusCommand_Run_NodeStatus(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, nodeID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
-	out := ui.OutputWriter.String()
 
-	if !strings.Contains(out, "mynode") {
-		t.Fatalf("expected node id (mynode), got: %s", out)
-	}
+	out := ui.OutputWriter.String()
+	assert.Contains(out, "mynode")
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_AllocStatus(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
-
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -155,9 +134,8 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	assert.Nil(err)
+
 	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
@@ -169,23 +147,22 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 			allocId1 = allocs[0].ID
 		}
 	}
-	if allocId1 == "" {
-		t.Fatal("unable to find an allocation")
-	}
+	assert.NotEqual("", allocId1)
 
 	if code := cmd.Run([]string{"-address=" + url, allocId1}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
+
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output")
-	}
+	assert.Contains(out, allocId1)
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_NoPrefix(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -195,9 +172,8 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	// Register a job
 	job1 := testJob("job1_sfx")
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	assert.Nil(err)
+
 	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}
@@ -206,11 +182,9 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
-	out := ui.OutputWriter.String()
 
-	if !strings.Contains(out, "job1_sfx") {
-		t.Fatalf("expected job1_sfx, got: %s", out)
-	}
+	out := ui.OutputWriter.String()
+	assert.Contains(out, "job1_sfx")
 
 	ui.OutputWriter.Reset()
 }
@@ -228,9 +202,8 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	assert.Nil(err)
+
 	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
 		t.Fatalf("status code non zero saw %d", code)
 	}

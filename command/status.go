@@ -15,12 +15,11 @@ type StatusCommand struct {
 
 // Check that the last argument provided is not setting a flag
 func lastArgIsFlag(args []string) bool {
-	lastArg := args[len(args)-1]
+	// strip leading '-' from  what is potentially a flag
+	lastArg := strings.Replace(args[len(args)-1], "-", "", 1)
 
 	for _, flag := range flagOptions {
-		arg := strings.Replace(lastArg, "-", "", 1) // strip leading '-' from flag
-
-		if strings.HasPrefix(arg, flag) {
+		if strings.HasPrefix(lastArg, flag) {
 			return true
 		}
 	}
@@ -35,15 +34,15 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// If no identifier is provided, default to listing jobs
 	if len(args) == 0 || lastArgIsFlag(args) {
 		cmd := &JobStatusCommand{Meta: c.Meta}
 		return cmd.Run(args)
 	}
 
-	// Assume the last argument will be the id to search
 	id := args[len(args)-1]
 
-	// Try querying for the context associated with the id
+	// Query for the context associated with the id
 	res, err := client.Search().PrefixSearch(id, contexts.All)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying search with id: %s", err))
@@ -63,7 +62,7 @@ func (c *StatusCommand) Run(args []string) int {
 			matchCount++
 		}
 
-		// Only a single match should return, as this is a match against a full id
+		// Only a single result should return, as this is a match against a full id
 		if matchCount > 1 || len(vers) > 1 {
 			c.Ui.Error(fmt.Sprintf("Multiple matches found for id %s", err))
 			return 1
@@ -89,8 +88,7 @@ func (c *StatusCommand) Run(args []string) int {
 }
 
 func (s *StatusCommand) Help() string {
-	helpText := `
-Usage: nomad status <identifier>
+	helpText := `Usage: nomad status <identifier>
 
 	Display information about an existing resource. Job names, node ids,
 	allocation ids, and evaluation ids are all valid identifiers.
