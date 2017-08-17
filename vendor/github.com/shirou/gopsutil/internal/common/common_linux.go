@@ -9,23 +9,12 @@ import (
 )
 
 func DoSysctrl(mib string) ([]string, error) {
-	hostEnv := os.Environ()
-	foundLC := false
-	for i, line := range hostEnv {
-		if strings.HasPrefix(line, "LC_ALL") {
-			hostEnv[i] = "LC_ALL=C"
-			foundLC = true
-		}
-	}
-	if !foundLC {
-		hostEnv = append(hostEnv, "LC_ALL=C")
-	}
 	sysctl, err := exec.LookPath("/sbin/sysctl")
 	if err != nil {
 		return []string{}, err
 	}
 	cmd := exec.Command(sysctl, "-n", mib)
-	cmd.Env = hostEnv
+	cmd.Env = getSysctrlEnv(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
 		return []string{}, err
