@@ -11,7 +11,12 @@ TEST_TOOLS=\
 
 all: test
 
+dev: export GOTAGS=ent
 dev: format generate
+	@scripts/build-dev.sh
+
+prodev: export GOTAGS=pro
+prodev: format generate
 	@scripts/build-dev.sh
 
 bin: generate
@@ -24,7 +29,19 @@ cov:
 	gocov test ./... | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
+test: export GOTAGS=ent
 test: generate
+	GOTAGS="ent"
+	@echo "--> Running go fmt" ;
+	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
+		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
+		exit 1; \
+		fi
+	@sh -c "'$(PWD)/scripts/test.sh'"
+	@$(MAKE) vet
+
+protest: export GOTAGS=pro
+protest: generate
 	@echo "--> Running go fmt" ;
 	@if [ -n "`go fmt ${PACKAGES}`" ]; then \
 		echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
