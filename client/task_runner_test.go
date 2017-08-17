@@ -1626,7 +1626,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	}
 
 	// No shutdown escape hatch for this delay, so don't set it too high
-	task.ShutdownDelay = 5 * time.Second
+	task.ShutdownDelay = 2 * time.Second
 
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 	ctx.tr.MarkReceived()
