@@ -367,6 +367,12 @@ The `Task` object supports the following keys:
 	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
 
+- `ShutdownDelay` - Specifies the duration to wait when killing a task between
+  removing it from Consul and sending it a shutdown signal. Ideally services
+  would fail healthchecks once they receive a shutdown signal. Alternatively
+  `ShutdownDelay` may be set to give in flight requests time to complete before
+  shutting down.
+
 - `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with
   data populated from environment variables, Consul and Vault.

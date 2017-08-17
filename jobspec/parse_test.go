@@ -148,7 +148,8 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								KillTimeout: helper.TimeToPtr(22 * time.Second),
+								KillTimeout:   helper.TimeToPtr(22 * time.Second),
+								ShutdownDelay: 11 * time.Second,
 								LogConfig: &api.LogConfig{
 									MaxFiles:      helper.IntToPtr(14),
 									MaxFileSizeMB: helper.IntToPtr(101),

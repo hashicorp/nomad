@@ -2997,6 +2997,10 @@ type Task struct {
 	// Leader marks the task as the leader within the group. When the leader
 	// task exits, other tasks will be gracefully terminated.
 	Leader bool
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay time.Duration
 }
 
 func (t *Task) Copy() *Task {
@@ -3104,8 +3108,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
-	if t.KillTimeout.Nanoseconds() < 0 {
+	if t.KillTimeout < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
+	if t.ShutdownDelay < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 	}
 
 	// Validate the resources.

@@ -586,6 +586,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"meta",
 			"resources",
 			"service",
+			"shutdown_delay",
 			"template",
 			"user",
 			"vault",
