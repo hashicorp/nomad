@@ -271,6 +271,12 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
 		dconf.Mounts[i].Type = env.ReplaceEnv(m.Type)
+		if dconf.Mounts[i].Type == "" {
+			dconf.Mounts[i].Type = "volume"
+		}
+		if dconf.Mounts[i].Type != "volume" {
+			return nil, fmt.Errorf("mount type %v is not supported")
+		}
 		if m.BindOptions != nil {
 			dconf.Mounts[i].BindOptions.Propagation = env.ReplaceEnv(m.BindOptions.Propagation)
 		}
