@@ -980,7 +980,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 		if headerI, ok := cm["header"]; ok {
 			headerRaw, ok := headerI.([]map[string]interface{})
 			if !ok {
-				return fmt.Errorf("check -> header -> expected a []map[string]interface{} but found %T", headerI)
+				return fmt.Errorf("check -> header -> expected a []map[string][]string but found %T", headerI)
 			}
 			m := map[string][]string{}
 			for _, rawm := range headerRaw {
