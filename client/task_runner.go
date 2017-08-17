@@ -1171,6 +1171,12 @@ func (r *TaskRunner) run() {
 				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
 				r.consul.RemoveTask(r.alloc.ID, interpTask)
 
+				// Delay actually killing the task if configured. See #244
+				if r.task.ShutdownDelay > 0 {
+					r.logger.Printf("[INFO] client: delaying shutdown of alloc %q task %q for %q", r.alloc.ID, r.task.Name, r.task.ShutdownDelay)
+					<-time.After(r.task.ShutdownDelay)
+				}
+
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
 				// doesn't add detail

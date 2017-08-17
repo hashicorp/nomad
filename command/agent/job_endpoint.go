@@ -663,6 +663,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Env = apiTask.Env
 	structsTask.Meta = apiTask.Meta
 	structsTask.KillTimeout = *apiTask.KillTimeout
+	structsTask.ShutdownDelay = apiTask.ShutdownDelay
 
 	if l := len(apiTask.Constraints); l != 0 {
 		structsTask.Constraints = make([]*structs.Constraint, l)

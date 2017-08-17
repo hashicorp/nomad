@@ -292,6 +292,7 @@ type Task struct {
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
 	Leader          bool
+	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
