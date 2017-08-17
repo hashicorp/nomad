@@ -109,7 +109,20 @@ func (s *StatusCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.All]
+
+		final := make([]string, 0)
+
+		for _, matches := range resp.Matches {
+			if len(matches) == 0 {
+				continue
+			}
+
+			for _, id := range matches {
+				final = append(final, id)
+			}
+		}
+
+		return final
 	})
 }
 
