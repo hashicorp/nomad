@@ -470,6 +470,16 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-check-bad-header.hcl",
+			nil,
+			true,
+		},
+		{
+			"service-check-bad-header-2.hcl",
+			nil,
+			true,
+		},
+		{
 			// TODO This should be pushed into the API
 			"vault_inheritance.hcl",
 			&api.Job{
