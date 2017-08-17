@@ -45,8 +45,7 @@
           {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
           {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
           <th>Groups</th>
-          <th>Allocation Status</th>
-          <th># Lost</th>
+          <th class="is-3">Allocation Status</th>
         {{/t.head}}
         {{#t.body key="model.id" as |row|}}
           {{job-row job=row.model}}

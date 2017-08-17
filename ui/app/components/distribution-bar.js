@@ -3,7 +3,7 @@ import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import styleStringProperty from '../utils/properties/style-string';
 
-const { Component, computed, run } = Ember;
+const { Component, computed, run, assign } = Ember;
 const sumAggregate = (total, val) => total + val;
 
 export default Component.extend({
@@ -19,12 +19,13 @@ export default Component.extend({
     const data = this.get('data');
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
-    return data.map(({ label, value, className }, index) => ({
+    return data.map(({ label, value, className, layers }, index) => ({
       label,
       value,
       className,
-      percent: value / sum * 100,
-      offset: data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum * 100,
+      layers,
+      percent: value / sum,
+      offset: data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
     }));
   }),
 
@@ -35,7 +36,7 @@ export default Component.extend({
     chart.on('mouseleave', () => {
       run(() => {
         this.set('isActive', false);
-        chart.selectAll('rect').classed('active', false).classed('inactive', false);
+        chart.selectAll('g').classed('active', false).classed('inactive', false);
       });
     });
 
@@ -46,15 +47,20 @@ export default Component.extend({
     this.renderChart();
   },
 
+  // prettier-ignore
+  /* eslint-disable */
   renderChart() {
-    const { chart, _data } = this.getProperties('chart', '_data');
+    const { chart, _data, isNarrow } = this.getProperties('chart', '_data', 'isNarrow');
+    const width = this.$().width();
+    const filteredData = _data.filter(d => d.value > 0);
 
-    let slices = chart.select('.bars').selectAll('rect').data(_data);
-    let slicesEnter = slices
-      .enter()
-      .append('rect')
-      .attr('width', d => `${d.percent + 1}%`)
-      .attr('x', d => `${d.offset}%`)
+    let slices = chart.select('.bars').selectAll('g').data(filteredData);
+    let sliceCount = filteredData.length;
+
+    slices.exit().remove();
+
+    let slicesEnter = slices.enter()
+      .append('g')
       .on('mouseenter', d => {
         run(() => {
           const slice = slices.filter(datum => datum === d);
@@ -73,12 +79,48 @@ export default Component.extend({
         });
       });
 
-    slices = slicesEnter.merge(slices);
-    slices
-      .attr('class', d => d.className || `slice-${_data.indexOf(d)}`)
+    slices = slices.merge(slicesEnter);
+    slices.attr('class', d => d.className || `slice-${filteredData.indexOf(d)}`);
+
+    const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
+    const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
+
+    let hoverTargets = slices.selectAll('.target').data(d => [d]);
+    hoverTargets.enter()
+        .append('rect')
+        .attr('class', 'target')
+        .attr('width', setWidth)
+        .attr('height', '100%')
+        .attr('x', setOffset)
+      .merge(hoverTargets)
       .transition()
-      .duration(200)
-      .attr('width', d => `${d.percent}%`)
-      .attr('x', d => `${d.offset}%`);
+        .duration(200)
+        .attr('width', setWidth)
+        .attr('x', setOffset)
+
+
+    let layers = slices.selectAll('.bar').data((d, i) => {
+      return new Array(d.layers || 1).fill(assign({ index: i }, d));
+    });
+    layers.enter()
+        .append('rect')
+        .attr('width', setWidth)
+        .attr('x', setOffset)
+        .attr('y', '50%')
+        .attr('clip-path', 'url(#corners)')
+        .attr('height', () => isNarrow ? '6px' : '100%')
+      .merge(layers)
+        .attr('class', (d, i) => `bar layer-${i}`)
+      .transition()
+        .duration(200)
+        .attr('width', setWidth)
+        .attr('x', setOffset)
+
+      if (isNarrow) {
+        d3.select('.mask')
+          .attr('height', '6px')
+          .attr('y', '50%');
+      }
   },
+  /* eslint-enable */
 });

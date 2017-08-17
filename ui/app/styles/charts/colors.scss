@@ -1,15 +1,22 @@
 $queued: $grey-lighter;
-$starting: desaturate(lighten($primary, 25%), 20%);
+$starting: $grey-lighter;
 $running: $primary;
-$complete: saturate(lighten($packer-blue, 10%), 10%);
-$failed: desaturate(lighten($danger, 15%), 10%);
+$complete: $nomad-green-dark;
+$failed: $danger;
+$lost: #234;
 
 .chart {
   .queued {
     fill: $queued;
   }
   .starting {
-    fill: $starting;
+    .layer-0 {
+      fill: $starting;
+    }
+    .layer-1 {
+      fill: url(#diagonal-stripe-3);
+      fill-opacity: 0.2;
+    }
   }
   .running {
     fill: $running;
@@ -19,6 +26,9 @@ $failed: desaturate(lighten($danger, 15%), 10%);
   }
   .failed {
     fill: $failed;
+  }
+  .list {
+    fill: $lost;
   }
 
   .color-swatch {

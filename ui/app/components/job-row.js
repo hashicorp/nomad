@@ -16,7 +16,8 @@ export default Component.extend({
         'completeAllocs',
         'failedAllocs',
         'runningAllocs',
-        'startingAllocs'
+        'startingAllocs',
+        'lostAllocs'
       );
       return [
         { label: 'Queued', value: allocs.queuedAllocs, className: 'queued' },
@@ -24,6 +25,7 @@ export default Component.extend({
           label: 'Starting',
           value: allocs.startingAllocs,
           className: 'starting',
+          layers: 2,
         },
         { label: 'Running', value: allocs.runningAllocs, className: 'running' },
         {
@@ -32,6 +34,7 @@ export default Component.extend({
           className: 'complete',
         },
         { label: 'Failed', value: allocs.failedAllocs, className: 'failed' },
+        { label: 'Lost', value: allocs.lostAllocs, className: 'lost' },
       ];
     }
   ),

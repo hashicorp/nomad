@@ -7,13 +7,22 @@
     height: 100%;
     width: 100%;
 
-    .bars rect {
-      height: 100%;
-      transition: opacity 0.3s ease-in-out;
-      opacity: 1;
+    .bars {
+      rect {
+        transition: opacity 0.3s ease-in-out;
+        opacity: 1;
+      }
 
-      &.inactive {
+      .bar {
+        transform: translateY(-50%);
+      }
+
+      .inactive {
         opacity: 0.2;
+      }
+
+      .target {
+        opacity: 0;
       }
 
       $color-sequence: $orange,
@@ -23,19 +32,12 @@
         $blue,
         $purple,
         $red;
+
       @for $i from 1 through length($color-sequence) {
-        &.slice-#{$i - 1} {
+        .slice-#{$i - 1} {
           fill: nth($color-sequence, $i);
         }
       }
-    }
-
-    .border {
-      stroke: $grey-dark;
-      stroke-width: 2px;
-      stroke-opacity: 0.3;
-      fill: transparent;
-      pointer-events: none;
     }
   }
 }

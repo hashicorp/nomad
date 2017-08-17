@@ -69,6 +69,10 @@
           font-weight: $weight-bold;
           color: rgba($black, 0.6);
           margin: 0;
+
+          &.is-empty {
+            color: rgba($grey, 0.6);
+          }
         }
 
         &.active {
