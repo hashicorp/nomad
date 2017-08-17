@@ -15,6 +15,8 @@ IMPROVEMENTS:
    is no target [GH-3024]
  * driver/docker: Added DNS options [GH-2992]
  * driver/rkt: support read-only volume mounts [GH-2883]
+ * jobspec: Add `shutdown_delay` so tasks can delay shutdown after
+   deregistering from Consul [GH-3043]
 
 BUG FIXES:
  * core: Fix race creating EvalFuture [GH-3051]
