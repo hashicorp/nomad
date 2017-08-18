@@ -1,14 +1,6 @@
 <td><a href="{{href-to "jobs.job" job.id}}">{{job.name}}</a></td>
 <td>
-  {{#if (eq job.status "pending")}}
-    <span class="tag is-pending">{{job.status}}</span>
-  {{else if (eq job.status "running")}}
-    <span class="tag is-primary">{{job.status}}</span>
-  {{else if (eq job.status "dead")}}
-    <span class="tag is-light">{{job.status}}</span>
-  {{else}}
-    <span class="tag is-dark">{{job.status}}</span>
-  {{/if}}
+  <span class="tag {{statusClass}}">{{job.status}}</span>
 </td>
 <td>{{job.type}}</td>
 <td>{{job.priority}}</td>

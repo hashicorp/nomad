@@ -8,6 +8,16 @@ export default Component.extend({
 
   job: null,
 
+  statusClass: computed('job.status', function() {
+    const classMap = {
+      pending: 'is-pending',
+      running: 'is-primary',
+      dead: 'is-light',
+    };
+
+    return classMap[this.get('job.status')] || 'is-dark';
+  }),
+
   allocDistribution: computed(
     'job.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs}',
     function() {
