@@ -50,7 +50,13 @@ $lost: #234;
       background: $queued;
     }
     &.starting {
-      background: $starting;
+      background: repeating-linear-gradient(
+        -45deg,
+        $starting,
+        $starting 3px,
+        darken($starting, 25%) 3px,
+        darken($starting, 25%) 6px
+      );
     }
     &.running {
       background: $running;
@@ -60,6 +66,9 @@ $lost: #234;
     }
     &.failed {
       background: $failed;
+    }
+    &.lost {
+      background: $lost;
     }
   }
 }
