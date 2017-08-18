@@ -102,6 +102,13 @@ func (s *StatusCommand) AutocompleteFlags() complete.Flags {
 func (s *StatusCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := s.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+
+		for _, arg := range a.Completed {
+			if arg == a.Last {
+				return nil
+			}
+		}
+
 		resp, err := client.Search().PrefixSearch(a.Last, contexts.All)
 		if err != nil {
 			return []string{}
