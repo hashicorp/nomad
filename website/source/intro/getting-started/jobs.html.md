@@ -250,13 +250,10 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-Here we can see the `plan` reports it will ignore two allocations and do one
-create/destroy update which stops the old allocation and starts the new
-allocation because we have changed the version of redis to run.
-
-The reason the plan only reports a single change to occur is because the job
-file has an `update` stanza that tells Nomad to perform rolling updates when the
-job changes at a rate of `max_parallel`, which is set to 1 in the example file.
+The plan output shows us that one allocation will be updated and that the other 
+two will be ignored. This is due to the `max_parallel` setting in the `update` 
+stanza, which is set to 1 to instruct Nomad to perform only a single change at 
+a time.
 
 Once ready, use `run` to push the updated specification:
 

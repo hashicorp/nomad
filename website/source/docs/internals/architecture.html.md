@@ -61,11 +61,12 @@ clarify what is being discussed:
   availability. Servers federate across regions to make Nomad globally aware.
 
 * **Regions and Datacenters** - Nomad models infrastructure as regions and datacenters.
-  Regions may contain multiple datacenters. Servers are assigned to regions and manage
-  all state for the region and make scheduling decisions within that region. Requests that
-  are made between regions are forwarded to the appropriate servers. As an example, you may
-  have a `US` region with the `us-east-1` and `us-west-1` datacenters, connected to the
-  `EU` region with the `eu-fr-1` and `eu-uk-1` datacenters.
+  Regions may contain multiple datacenters. For example, you may have a `US` region with the 
+  `us-east-1` and `us-west-1` datacenters, connected to the `EU` region with the `eu-fr-1` and 
+  `eu-uk-1` datacenters. Servers are assigned to regions and manage all state for the region and 
+  make scheduling decisions within that region. When multiple regions are federated together, 
+  requests that are made between them are forwarded to the appropriate servers. Data is _not_ 
+  replicated between regions.
 
 * **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
   maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"

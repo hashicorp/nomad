@@ -27,7 +27,8 @@ To use the Vault integration, Nomad servers must be provided a Vault token. This
 token can either be a root token or a periodic token with permissions to create
 from a token role. The root token is the easiest way to get started, but we
 recommend a token role based token for production installations. Nomad servers
-will renew the token automatically.
+will renew the token automatically. Note that the Nomad clients do not need to 
+be provided with a Vault token.
 
 ### Root Token Integration
 
