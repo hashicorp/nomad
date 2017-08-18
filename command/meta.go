@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	isatty "github.com/mattn/go-isatty"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 )
@@ -126,7 +127,7 @@ func (m *Meta) Client() (*api.Client, error) {
 func (m *Meta) Colorize() *colorstring.Colorize {
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: m.noColor,
+		Disable: m.noColor || !isatty.IsTerminal(os.Stdout.Fd()),
 		Reset:   true,
 	}
 }
