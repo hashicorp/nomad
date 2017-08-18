@@ -3,32 +3,6 @@
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
-    <div class="level">
-      <div class="level-item has-text-centered">
-        <div>
-          <h3 class="title is-1">{{model.length}}</h3>
-          <p class="heading">Total Jobs</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered">
-        <div>
-          <h3 class="title is-1">{{pendingJobs.length}}</h3>
-          <p class="heading">Pending</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered">
-        <div>
-          <h3 class="title is-1">{{runningJobs.length}}</h3>
-          <p class="heading">Running</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered">
-        <div>
-          <h3 class="title is-1">{{deadJobs.length}}</h3>
-          <p class="heading">Dead</p>
-        </div>
-      </div>
-    </div>
     <div class="content">
       {{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
     </div>

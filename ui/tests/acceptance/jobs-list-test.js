@@ -61,29 +61,3 @@ test('each job row should link to the corresponding job', function(assert) {
     assert.equal(currentURL(), `/jobs/${job.id}`);
   });
 });
-
-test('the high-level metrics include counts based on job status', function(assert) {
-  server.createList('job', 10);
-  const jobs = server.db.jobs;
-
-  visit('/jobs');
-
-  andThen(() => {
-    assert.equal(find('.level-item:eq(0) .title').text(), jobs.length, 'Total');
-    assert.equal(
-      find('.level-item:eq(1) .title').text(),
-      jobs.where({ status: 'pending' }).length,
-      'Pending'
-    );
-    assert.equal(
-      find('.level-item:eq(2) .title').text(),
-      jobs.where({ status: 'running' }).length,
-      'Running'
-    );
-    assert.equal(
-      find('.level-item:eq(3) .title').text(),
-      jobs.where({ status: 'dead' }).length,
-      'Dead'
-    );
-  });
-});
