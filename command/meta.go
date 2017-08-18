@@ -152,11 +152,6 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	}
 }
 
-var (
-	// flagOptions is a list of all available flags that can be used via the cli
-	flagOptions = []string{"address", "region", "no-color", "ca-cert", "ca-path", "client-cert", "client-key", "tls-skip-verify"}
-)
-
 // generalOptionsUsage returns the help string for the global options.
 func generalOptionsUsage() string {
 	helpText := `

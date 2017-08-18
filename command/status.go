@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/mitchellh/cli"
@@ -13,19 +12,6 @@ type StatusCommand struct {
 	Meta
 }
 
-// Check that the last argument provided is not setting a flag
-func lastArgIsFlag(args []string) bool {
-	// strip leading '-' from  what is potentially a flag
-	lastArg := strings.Replace(args[len(args)-1], "-", "", 1)
-
-	for _, flag := range flagOptions {
-		if strings.HasPrefix(lastArg, flag) {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *StatusCommand) Run(args []string) int {
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -34,10 +20,23 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Parsing args is not idempotent
+	argsCopy := args
+
+	flags := c.Meta.FlagSet("status", FlagSetClient)
+
+	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %s", err))
+		return 1
+	}
+
+	// Check that we got exactly one evaluation ID
+	args = flags.Args()
+
 	// If no identifier is provided, default to listing jobs
-	if len(args) == 0 || lastArgIsFlag(args) {
+	if len(args) == 0 {
 		cmd := &JobStatusCommand{Meta: c.Meta}
-		return cmd.Run(args)
+		return cmd.Run(argsCopy)
 	}
 
 	id := args[len(args)-1]
@@ -84,7 +83,7 @@ func (c *StatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	return cmd.Run(args)
+	return cmd.Run(argsCopy)
 }
 
 func (s *StatusCommand) Help() string {
