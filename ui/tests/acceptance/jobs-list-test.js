@@ -34,7 +34,6 @@ test('/jobs should list the first page of jobs sorted by modify index', function
 test('each job row should contain information about the job', function(assert) {
   server.createList('job', 2);
   const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
-  const summary = server.db.jobSummaries.findBy({ jobId: job.id });
   const taskGroups = server.db.taskGroups.where({ jobId: job.id });
 
   visit('/jobs');
@@ -44,18 +43,10 @@ test('each job row should contain information about the job', function(assert) {
 
     assert.equal(jobRow.find('td:eq(0)').text(), job.name, 'Name');
     assert.equal(jobRow.find('td:eq(0) a').attr('href'), `/ui/jobs/${job.id}`, 'Detail Link');
-    assert.equal(jobRow.find('td:eq(1)').text(), job.type, 'Type');
-    assert.equal(jobRow.find('td:eq(2)').text(), job.priority, 'Priority');
-    assert.equal(jobRow.find('td:eq(3)').text(), job.status, 'Status');
+    assert.equal(jobRow.find('td:eq(1)').text().trim(), job.status, 'Status');
+    assert.equal(jobRow.find('td:eq(2)').text(), job.type, 'Type');
+    assert.equal(jobRow.find('td:eq(3)').text(), job.priority, 'Priority');
     assert.equal(jobRow.find('td:eq(4)').text(), taskGroups.length, '# Groups');
-    assert.equal(
-      jobRow.find('td:eq(6)').text(),
-      Object.keys(summary.Summary).reduce(
-        (count, groupKey) => summary.Summary[groupKey].Lost + count,
-        0
-      ),
-      '# Lost'
-    );
   });
 });
 

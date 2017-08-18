@@ -1,0 +1,9 @@
+.tag {
+  text-transform: uppercase;
+  border-radius: 200px;
+
+  &.is-pending {
+    background: $grey-blue;
+    color: findColorInvert(darken($grey-blue, 10%));
+  }
+}
