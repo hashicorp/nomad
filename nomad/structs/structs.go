@@ -23,7 +23,7 @@ import (
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -89,15 +89,17 @@ const (
 	GetterModeDir  = "dir"
 )
 
-// Context defines the scope in which a search for Nomad object operates
+// Context defines the scope in which a search for Nomad object operates, and
+// is also used to query the matching index value for this context
 type Context string
 
 const (
-	Allocs Context = "allocs"
-	Evals  Context = "evals"
-	Jobs   Context = "jobs"
-	Nodes  Context = "nodes"
-	All    Context = ""
+	Allocs      Context = "allocs"
+	Deployments Context = "deployment"
+	Evals       Context = "evals"
+	Jobs        Context = "jobs"
+	Nodes       Context = "nodes"
+	All         Context = ""
 )
 
 // RPCInfo is used to describe common information about query
