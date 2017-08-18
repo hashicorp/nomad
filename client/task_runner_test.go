@@ -1699,7 +1699,6 @@ func TestTaskRunner_interpolateServices(t *testing.T) {
 	}
 }
 
-
 func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	t.Parallel()
 
