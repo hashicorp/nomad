@@ -29,7 +29,9 @@
         </div>
       </div>
     </div>
-    {{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
+    <div class="content">
+      {{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
+    </div>
     {{#list-pagination
       source=sortedJobs
       size=pageSize
