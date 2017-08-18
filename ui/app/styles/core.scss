@@ -22,9 +22,12 @@ $danger: $red;
 $radius: 2px;
 
 $body-size: 14px;
+$title-size: 1.75rem;
 $size-5: 1.15rem;
 $size-4: 1.3rem;
+$size-7: 0.85rem;
 
+$title-weight: $weight-semibold;
 $gutter-width: 250px;
 
 $family-sans-serif: -apple-system,
@@ -56,3 +59,4 @@ $text: $black;
 
 // Add unique core extensions
 @import "./core/page-layout";
+@import "./core/bumper";

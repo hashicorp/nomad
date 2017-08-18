@@ -5,38 +5,59 @@
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
-    <div class="message job-stats">
-      <div class="message-body">
-        <span>{{model.type}} | </span>
-        <span>{{model.status}} | </span>
-        <span>Priority: {{model.priority}}</span>
+    <h1 class="title">
+      {{model.name}}
+      <span class="bumper-left tag {{model.statusClass}}">{{model.status}}</span>
+      {{#if model.periodic}}
+        <span class="tag is-hollow">periodic</span>
+      {{else if model.parameterized}}
+        <span class="tag is-hollow">parameterized</span>
+      {{/if}}
+    </h1>
+
+    <div class="boxed-section job-stats">
+      <div class="boxed-section-body">
+        <span><strong>Type:</strong> {{model.type}} | </span>
+        <span><strong>Priority:</strong> {{model.priority}}</span>
       </div>
     </div>
-    <div class="message">
-      <div class="message-header">
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Allocation Status <span class="badge is-white">{{taskGroups.length}}</span>
+      </div>
+      <div class="boxed-section-body">
+        A giant chart goes here, I guess
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
         Task Groups
       </div>
-      {{#list-pagination
-        source=sortedTaskGroups
-        sortProperty=sortProperty
-        sortDescending=sortDescending as |p|}}
-        {{#list-table
-          source=p.list
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-pagination
+          source=sortedTaskGroups
           sortProperty=sortProperty
-          sortDescending=sortDescending as |t|}}
-          {{#t.head}}
-            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-            {{#t.sort-by prop="count"}}Count{{/t.sort-by}}
-            {{#t.sort-by prop="queuedOrStartingAllocs" class="is-3"}}Allocation Status{{/t.sort-by}}
-            {{#t.sort-by prop="reservedCPU"}}Reserved CPU{{/t.sort-by}}
-            {{#t.sort-by prop="reservedMemory"}}Reserved Memory{{/t.sort-by}}
-            {{#t.sort-by prop="reservedDisk"}}Reserved Disk{{/t.sort-by}}
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{task-group-row taskGroup=row.model}}
-          {{/t.body}}
-        {{/list-table}}
-      {{/list-pagination}}
+          sortDescending=sortDescending as |p|}}
+          {{#list-table
+            source=p.list
+            sortProperty=sortProperty
+            sortDescending=sortDescending as |t|}}
+            {{#t.head}}
+              {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+              {{#t.sort-by prop="count"}}Count{{/t.sort-by}}
+              {{#t.sort-by prop="queuedOrStartingAllocs" class="is-3"}}Allocation Status{{/t.sort-by}}
+              {{#t.sort-by prop="reservedCPU"}}Reserved CPU{{/t.sort-by}}
+              {{#t.sort-by prop="reservedMemory"}}Reserved Memory{{/t.sort-by}}
+              {{#t.sort-by prop="reservedDisk"}}Reserved Disk{{/t.sort-by}}
+            {{/t.head}}
+            {{#t.body as |row|}}
+              {{task-group-row taskGroup=row.model}}
+            {{/t.body}}
+          {{/list-table}}
+        {{/list-pagination}}
+      </div>
     </div>
   </section>
 {{/gutter-menu}}

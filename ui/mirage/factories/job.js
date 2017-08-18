@@ -22,6 +22,11 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
+  periodic: () => Math.random() > 0.5,
+  parameterized() {
+    return !this.periodic;
+  },
+
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 

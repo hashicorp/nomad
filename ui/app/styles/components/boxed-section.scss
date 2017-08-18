@@ -1,0 +1,32 @@
+.boxed-section {
+  margin-bottom: 1.5em;
+
+  .boxed-section-head {
+    border-top-left-radius: $radius;
+    border-top-right-radius: $radius;
+    padding: 0.75em 1.5em;
+    border: 1px solid $grey-blue;
+    background: $white-ter;
+  }
+
+  .boxed-section-body {
+    padding: 0.75em 1.5em;
+    background: $white;
+    border: 1px solid $grey-blue;
+    margin-top: -1px;
+    border-bottom-left-radius: $radius;
+    border-bottom-right-radius: $radius;
+
+    &.is-full-bleed {
+      padding: 0;
+      border: none;
+
+      // Often components will have a DOM presence but no layout.
+      // In that case, pass through.
+      > *:first-child, > .ember-view:first-child > *:first-child {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+      }
+    }
+  }
+}
