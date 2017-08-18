@@ -737,7 +737,7 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_version", "id", job.ID, job.Version); err != nil {
+		if _, err = txn.DeleteAll("job_version", "id", j.ID, j.Version); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
