@@ -46,7 +46,12 @@ func (c *NodeDrainCommand) Synopsis() string {
 }
 
 func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-disable": complete.PredictNothing,
+		"-enable":  complete.PredictNothing,
+		"-self":    complete.PredictNothing,
+		"-yes":     complete.PredictNothing,
+	}
 }
 
 func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {

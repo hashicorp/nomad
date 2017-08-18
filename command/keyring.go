@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 )
 
 // KeyringCommand is a Command implementation that handles querying, installing,
@@ -154,4 +155,16 @@ Keyring Options:
 
 func (c *KeyringCommand) Synopsis() string {
 	return "Manages gossip layer encryption keys"
+}
+
+func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"-install": complete.PredictNothing,
+		"-list":    complete.PredictNothing,
+		"-remove":  complete.PredictNothing,
+		"-use":     complete.PredictNothing,
+	}
+}
+func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }

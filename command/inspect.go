@@ -42,7 +42,11 @@ func (c *InspectCommand) Synopsis() string {
 }
 
 func (c *InspectCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-version": complete.PredictNothing,
+		"-json":    complete.PredictNothing,
+		"-t":       complete.PredictNothing,
+	}
 }
 
 func (c *InspectCommand) AutocompleteArgs() complete.Predictor {

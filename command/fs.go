@@ -79,8 +79,17 @@ func (f *FSCommand) Synopsis() string {
 	return "Inspect the contents of an allocation directory"
 }
 
-func (f *FSCommand) AutocompleteFlags() complete.Flags {
-	return nil
+func (c *FSCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"-H":       complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+		"-job":     complete.PredictNothing,
+		"-stat":    complete.PredictNothing,
+		"-f":       complete.PredictNothing,
+		"-tail":    complete.PredictNothing,
+		"-n":       complete.PredictNothing,
+		"-c":       complete.PredictNothing,
+	}
 }
 
 func (f *FSCommand) AutocompleteArgs() complete.Predictor {

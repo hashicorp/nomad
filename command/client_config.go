@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type ClientConfigCommand struct {
@@ -107,4 +109,15 @@ func (c *ClientConfigCommand) Run(args []string) int {
 
 	// Should not make it this far
 	return 1
+}
+
+func (c *ClientConfigCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"-servers":        complete.PredictNothing,
+		"-update-servers": complete.PredictNothing,
+	}
+}
+
+func (c *ClientConfigCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }

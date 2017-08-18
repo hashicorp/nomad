@@ -98,7 +98,13 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-check-index": complete.PredictNothing,
+		"-detach":      complete.PredictNothing,
+		"-verbose":     complete.PredictNothing,
+		"-vault-token": complete.PredictNothing,
+		"-output":      complete.PredictNothing,
+	}
 }
 
 func (c *RunCommand) AutocompleteArgs() complete.Predictor {

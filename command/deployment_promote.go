@@ -48,11 +48,15 @@ Promote Options:
 }
 
 func (c *DeploymentPromoteCommand) Synopsis() string {
-	return "Promote canaries in a deployment"
+	return "Promote canaries in a deployment."
 }
 
 func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-group":   complete.PredictNothing,
+		"-detach":  complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+	}
 }
 
 func (c *DeploymentPromoteCommand) AutocompleteArgs() complete.Predictor {

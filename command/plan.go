@@ -79,7 +79,10 @@ func (c *PlanCommand) Synopsis() string {
 }
 
 func (c *PlanCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-diff":    complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+	}
 }
 
 func (c *PlanCommand) AutocompleteArgs() complete.Predictor {

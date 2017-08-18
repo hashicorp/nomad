@@ -57,7 +57,11 @@ func (c *JobDispatchCommand) Synopsis() string {
 }
 
 func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-meta":    complete.PredictNothing,
+		"-detach":  complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+	}
 }
 
 func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {

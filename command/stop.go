@@ -52,7 +52,12 @@ func (c *StopCommand) Synopsis() string {
 }
 
 func (c *StopCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-detach":  complete.PredictNothing,
+		"-purge":   complete.PredictNothing,
+		"-yes":     complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+	}
 }
 
 func (c *StopCommand) AutocompleteArgs() complete.Predictor {

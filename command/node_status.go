@@ -86,7 +86,15 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-allocs":  complete.PredictNothing,
+		"-json":    complete.PredictNothing,
+		"-self":    complete.PredictNothing,
+		"-short":   complete.PredictNothing,
+		"-stats":   complete.PredictNothing,
+		"-t":       complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+	}
 }
 
 func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {

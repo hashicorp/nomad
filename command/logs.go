@@ -61,8 +61,16 @@ func (l *LogsCommand) Synopsis() string {
 	return "Streams the logs of a task."
 }
 
-func (l *LogsCommand) AutocompleteFlags() complete.Flags {
-	return nil
+func (c *LogsCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{
+		"-stderr":  complete.PredictNothing,
+		"-verbose": complete.PredictNothing,
+		"-job":     complete.PredictNothing,
+		"-f":       complete.PredictNothing,
+		"-tail":    complete.PredictNothing,
+		"-n":       complete.PredictNothing,
+		"-c":       complete.PredictNothing,
+	}
 }
 
 func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
