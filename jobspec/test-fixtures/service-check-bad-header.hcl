@@ -1,11 +1,11 @@
-job "check_initial_status" {
+job "check_bad_header" {
     type = "service"
     group "group" {
         count = 1
 
         task "task" {
           service {
-            tags = ["foo", "bar"]
+            tags = ["bar"]
             port = "http"
 
             check {
@@ -18,7 +18,7 @@ job "check_initial_status" {
               initial_status = "passing"
 
               header {
-                Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+                Authorization = "Should be a []string!"
               }
             }
           }

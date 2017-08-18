@@ -13,6 +13,7 @@ IMPROVEMENTS:
  * deployment: Emit task events explaining unhealthy allocations[GH-3025]
  * deployment: Better description when a deployment should auto-revert but there
    is no target [GH-3024]
+ * discovery: Add HTTP header and method support to checks [GH-3031]
  * driver/docker: Added DNS options [GH-2992]
  * driver/rkt: support read-only volume mounts [GH-2883]
  * jobspec: Add `shutdown_delay` so tasks can delay shutdown after

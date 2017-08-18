@@ -130,6 +130,9 @@ scripts.
   that Consul will perform. This is specified using a label suffix like "30s"
   or "1h". This must be greater than or equal to "1s"
 
+- `method` `(string: "GET")` - Specifies the HTTP method to use for HTTP
+  checks.
+
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
   check.
 
@@ -158,6 +161,27 @@ scripts.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
   checks. Requires Consul >= 0.7.2.
+
+#### `header` Stanza
+
+HTTP checks may include a `header` stanza to set HTTP headers. The `header`
+stanza parameters have lists of strings as values. Multiple values will cause
+the header to be set multiple times, once for each value.
+
+```hcl
+service {
+  check {
+    type     = "http"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
+  }
+}
+```
 
 
 ## `service` Examples
@@ -232,8 +256,8 @@ argument provided as a value to the `args` array.
 
 This example shows a service with an HTTP health check. This will query the
 service on the IP and port registered with Nomad at `/_healthz` every 5 seconds,
-giving the service a maximum of 2 seconds to return a response. Any non-2xx code
-is considered a failure.
+giving the service a maximum of 2 seconds to return a response, and include an
+Authorization header. Any non-2xx code is considered a failure.
 
 ```hcl
 service {
@@ -243,6 +267,9 @@ service {
     path     = "/_healthz"
     interval = "5s"
     timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
   }
 }
 ```
@@ -269,6 +296,7 @@ service {
     path     = "/_healthz"
     interval = "5s"
     timeout  = "2s"
+    method   = "POST"
   }
 
   check {

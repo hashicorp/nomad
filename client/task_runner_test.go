@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,11 +18,13 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 func testLogger() *log.Logger {
@@ -1613,6 +1616,87 @@ func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
 	t.Run(run("0.5.6", "exec", "tcp", false))
 	t.Run(run("0.5.6", "java", "tcp", false))
 	t.Run(run("0.5.6", "mock_driver", "tcp", false))
+}
+
+func TestTaskRunner_interpolateServices(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "${name}",
+				PortLabel: "${portlabel}",
+				Tags:      []string{"${tags}"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "${checkname}",
+						Type:          "${checktype}",
+						Command:       "${checkcmd}",
+						Args:          []string{"${checkarg}"},
+						Path:          "${checkstr}",
+						Protocol:      "${checkproto}",
+						PortLabel:     "${checklabel}",
+						InitialStatus: "${checkstatus}",
+						Method:        "${checkmethod}",
+						Header: map[string][]string{
+							"${checkheaderk}": {"${checkheaderv}"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	env := &env.TaskEnv{
+		EnvMap: map[string]string{
+			"name":         "name",
+			"portlabel":    "portlabel",
+			"tags":         "tags",
+			"checkname":    "checkname",
+			"checktype":    "checktype",
+			"checkcmd":     "checkcmd",
+			"checkarg":     "checkarg",
+			"checkstr":     "checkstr",
+			"checkpath":    "checkpath",
+			"checkproto":   "checkproto",
+			"checklabel":   "checklabel",
+			"checkstatus":  "checkstatus",
+			"checkmethod":  "checkmethod",
+			"checkheaderk": "checkheaderk",
+			"checkheaderv": "checkheaderv",
+		},
+	}
+
+	interpTask := interpolateServices(env, task)
+
+	exp := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "name",
+				PortLabel: "portlabel",
+				Tags:      []string{"tags"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "checkname",
+						Type:          "checktype",
+						Command:       "checkcmd",
+						Args:          []string{"checkarg"},
+						Path:          "checkstr",
+						Protocol:      "checkproto",
+						PortLabel:     "checklabel",
+						InitialStatus: "checkstatus",
+						Method:        "checkmethod",
+						Header: map[string][]string{
+							"checkheaderk": {"checkheaderv"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if diff := pretty.Diff(interpTask, exp); len(diff) > 0 {
+		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
+	}
 }
 
 func TestTaskRunner_ShutdownDelay(t *testing.T) {
