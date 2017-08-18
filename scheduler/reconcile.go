@@ -551,21 +551,22 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 		return 0
 	}
 
-	// If we have been promoted or there are no canaries, the limit is the
-	// configured MaxParallel minus any outstanding non-healthy alloc for the
-	// deployment
-	limit := group.Update.MaxParallel
 	if a.deployment != nil {
 		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
 		for _, alloc := range partOf {
-			// An unhealthy allocation means nothing else should be happen.
+			// An unhealthy allocation in this deployment means nothing else should be happen.
 			if alloc.DeploymentStatus.IsUnhealthy() {
 				return 0
 			}
+		}
+	}
 
-			if !alloc.DeploymentStatus.IsHealthy() {
-				limit--
-			}
+	// If we have been promoted or there are no canaries, the limit is the
+	// configured MaxParallel minus the difference between the desired and the healthy allocations
+	limit := group.Update.MaxParallel - group.Count
+	for _, alloc := range untainted {
+		if alloc.DeploymentStatus.IsHealthy() {
+			limit++
 		}
 	}
 
