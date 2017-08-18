@@ -61,4 +61,14 @@ export default Model.extend({
     });
     return promise;
   },
+
+  statusClass: computed('status', function() {
+    const classMap = {
+      pending: 'is-pending',
+      running: 'is-primary',
+      dead: 'is-light',
+    };
+
+    return classMap[this.get('status')] || 'is-dark';
+  }),
 });

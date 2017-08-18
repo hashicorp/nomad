@@ -26,7 +26,7 @@ export default Component.extend({
         { label: 'Running', value: allocs.runningAllocs, className: 'running' },
         { label: 'Complete', value: allocs.completeAllocs, className: 'complete' },
         { label: 'Failed', value: allocs.failedAllocs, className: 'failed' },
-        { label: 'Failed', value: allocs.lostAllocs, className: 'lost' },
+        { label: 'Lost', value: allocs.lostAllocs, className: 'lost' },
       ];
     }
   ),

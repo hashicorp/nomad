@@ -1,7 +1,7 @@
 <td><a href="{{href-to "jobs.job.task-group" taskGroup.job taskGroup}}">{{taskGroup.name}}</a></td>
 <td>{{taskGroup.count}}</td>
 <td>
-  <div class="inline-chart">{{distribution-bar data=allocDistribution class="is-narrow"}}</div>
+  <div class="inline-chart">{{distribution-bar data=allocDistribution isNarrow=true}}</div>
 </td>
 <td>{{taskGroup.reservedCPU}} MHz</td>
 <td>{{taskGroup.reservedMemory}} MiB</td>
