@@ -204,3 +204,8 @@ func (a *ACL) AllowOperatorWrite() bool {
 		return false
 	}
 }
+
+// IsManagement checks if this represents a management token
+func (a *ACL) IsManagement() bool {
+	return a.management
+}
