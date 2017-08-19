@@ -5758,7 +5758,7 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
 
@@ -5849,7 +5849,7 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 	for _, name := range names {
 		p := mock.ACLPolicy()
 		p.Name = name
-		if err := state.UpsertACLPolicy(baseIndex, p); err != nil {
+		if err := state.UpsertACLPolicies(baseIndex, []*structs.ACLPolicy{p}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		baseIndex++
@@ -5881,6 +5881,189 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 	assert.Equal(t, expect, out)
 }
 
+func TestStateStore_UpsertACLTokens(t *testing.T) {
+	state := testStateStore(t)
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+
+	ws := memdb.NewWatchSet()
+	if _, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if _, err := state.ACLTokenByAccessorID(ws, tk2.AccessorID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.UpsertACLTokens(1000,
+		[]*structs.ACLToken{tk1, tk2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	ws = memdb.NewWatchSet()
+	out, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, tk1, out)
+
+	out, err = state.ACLTokenByAccessorID(ws, tk2.AccessorID)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, tk2, out)
+
+	out, err = state.ACLTokenBySecretID(ws, tk1.SecretID)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, tk1, out)
+
+	out, err = state.ACLTokenBySecretID(ws, tk2.SecretID)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, tk2, out)
+
+	iter, err := state.ACLTokens(ws)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we see both policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	if count != 2 {
+		t.Fatalf("bad: %d", count)
+	}
+
+	index, err := state.Index("acl_token")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_DeleteACLTokens(t *testing.T) {
+	state := testStateStore(t)
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+
+	// Create the tokens
+	if err := state.UpsertACLTokens(1000,
+		[]*structs.ACLToken{tk1, tk2}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a watcher
+	ws := memdb.NewWatchSet()
+	if _, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Delete the token
+	if err := state.DeleteACLTokens(1001,
+		[]string{tk1.AccessorID, tk2.AccessorID}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure watching triggered
+	if !watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	// Ensure we don't get the object back
+	ws = memdb.NewWatchSet()
+	out, err := state.ACLTokenByAccessorID(ws, tk1.AccessorID)
+	assert.Equal(t, nil, err)
+	if out != nil {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	iter, err := state.ACLTokens(ws)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we see both policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	if count != 0 {
+		t.Fatalf("bad: %d", count)
+	}
+
+	index, err := state.Index("acl_token")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+}
+
+func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
+	state := testStateStore(t)
+	prefixes := []string{
+		"aaaa",
+		"aabb",
+		"bbbb",
+		"bbcc",
+		"ffff",
+	}
+
+	// Create the tokens
+	var baseIndex uint64 = 1000
+	for _, prefix := range prefixes {
+		tk := mock.ACLToken()
+		tk.AccessorID = prefix + tk.AccessorID[4:]
+		if err := state.UpsertACLTokens(baseIndex, []*structs.ACLToken{tk}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		baseIndex++
+	}
+
+	// Scan by prefix
+	iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we see both tokens
+	count := 0
+	out := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		out = append(out, raw.(*structs.ACLToken).AccessorID[:4])
+	}
+	if count != 2 {
+		t.Fatalf("bad: %d %v", count, out)
+	}
+	sort.Strings(out)
+
+	expect := []string{"aaaa", "aabb"}
+	assert.Equal(t, expect, out)
+}
+
 func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	state := testStateStore(t)
 	policy := mock.ACLPolicy()
@@ -5902,6 +6085,29 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, policy, out)
+}
+
+func TestStateStore_RestoreACLToken(t *testing.T) {
+	state := testStateStore(t)
+	token := mock.ACLToken()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.ACLTokenRestore(token)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ACLTokenByAccessorID(ws, token.AccessorID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, token, out)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

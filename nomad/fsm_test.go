@@ -1570,6 +1570,59 @@ func TestFSM_DeleteACLPolicies(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+func TestFSM_UpsertACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	req := structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{token},
+	}
+	buf, err := structs.Encode(structs.ACLTokenUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	err := fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	req := structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{token.AccessorID},
+	}
+	buf, err := structs.Encode(structs.ACLTokenDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
@@ -1927,6 +1980,25 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 	out2, _ := state2.ACLPolicyByName(ws, p2.Name)
 	assert.Equal(t, p1, out1)
 	assert.Equal(t, p2, out2)
+}
+
+func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+	state.UpsertACLTokens(1000, []*structs.ACLToken{tk1, tk2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.ACLTokenByAccessorID(ws, tk1.AccessorID)
+	out2, _ := state2.ACLTokenByAccessorID(ws, tk2.AccessorID)
+	assert.Equal(t, tk1, out1)
+	assert.Equal(t, tk2, out2)
 }
 
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {

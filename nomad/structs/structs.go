@@ -65,6 +65,8 @@ const (
 	JobStabilityRequestType
 	ACLPolicyUpsertRequestType
 	ACLPolicyDeleteRequestType
+	ACLTokenUpsertRequestType
+	ACLTokenDeleteRequestType
 )
 
 const (
@@ -96,6 +98,13 @@ const (
 
 	// maxPolicyDescriptionLength limits a policy description length
 	maxPolicyDescriptionLength = 256
+
+	// maxTokenNameLength limits a ACL token name length
+	maxTokenNameLength = 64
+
+	// ACLClientToken and ACLManagementToken are the only types of tokens
+	ACLClientToken     = "client"
+	ACLManagementToken = "management"
 )
 
 // RPCInfo is used to describe common information about query
@@ -5319,4 +5328,103 @@ type ACLPolicyDeleteRequest struct {
 type ACLPolicyUpsertRequest struct {
 	Policies []*ACLPolicy
 	WriteRequest
+}
+
+// ACLToken represents a client token which is used to Authenticate
+type ACLToken struct {
+	AccessorID  string    // Public Accessor ID (UUID)
+	SecretID    string    // Secret ID, private (UUID)
+	Name        string    // Human friendly name
+	Type        string    // Client or Management
+	Policies    []string  // Policies this token ties to
+	Global      bool      // Global or Region local
+	CreateTime  time.Time // Time of creation
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+type ACLTokenListStub struct {
+	AccessorID  string
+	Name        string
+	Type        string
+	Policies    []string
+	Global      bool
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (a *ACLToken) Stub() *ACLTokenListStub {
+	return &ACLTokenListStub{
+		AccessorID:  a.AccessorID,
+		Name:        a.Name,
+		Type:        a.Type,
+		Policies:    a.Policies,
+		Global:      a.Global,
+		CreateTime:  a.CreateTime,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// Validate is used to sanity check a token
+func (a *ACLToken) Validate() error {
+	var mErr multierror.Error
+	if len(a.Name) > maxTokenNameLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token name too long"))
+	}
+	switch a.Type {
+	case ACLClientToken:
+		if len(a.Policies) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("client token missing policies"))
+		}
+	case ACLManagementToken:
+		if len(a.Policies) != 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("management token cannot be associated with policies"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLTokenListRequest is used to request a list of tokens
+type ACLTokenListRequest struct {
+	QueryOptions
+}
+
+// ACLTokenSpecificRequest is used to query a specific token
+type ACLTokenSpecificRequest struct {
+	AccessorID string
+	QueryOptions
+}
+
+// ACLTokenListResponse is used for a list request
+type ACLTokenListResponse struct {
+	Tokens []*ACLTokenListStub
+	QueryMeta
+}
+
+// SingleACLTokenResponse is used to return a single token
+type SingleACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenDeleteRequest is used to delete a set of tokens
+type ACLTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenUpsertRequest is used to upsert a set of tokens
+type ACLTokenUpsertRequest struct {
+	Tokens []*ACLToken
+	WriteRequest
+}
+
+// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
+type ACLTokenUpsertResponse struct {
+	Tokens []*ACLToken
+	WriteMeta
 }

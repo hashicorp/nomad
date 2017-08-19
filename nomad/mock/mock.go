@@ -357,3 +357,17 @@ func ACLPolicy() *structs.ACLPolicy {
 		ModifyIndex: 20,
 	}
 }
+
+func ACLToken() *structs.ACLToken {
+	return &structs.ACLToken{
+		AccessorID:  structs.GenerateUUID(),
+		SecretID:    structs.GenerateUUID(),
+		Name:        "my cool token " + structs.GenerateUUID(),
+		Type:        "client",
+		Policies:    []string{"foo", "bar"},
+		Global:      false,
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+}

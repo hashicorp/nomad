@@ -42,6 +42,7 @@ const (
 	JobVersionSnapshot
 	DeploymentSnapshot
 	ACLPolicySnapshot
+	ACLTokenSnapshot
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -172,6 +173,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLPolicyUpsert(buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
 		return n.applyACLPolicyDelete(buf[1:], log.Index)
+	case structs.ACLTokenUpsertRequestType:
+		return n.applyACLTokenUpsert(buf[1:], log.Index)
+	case structs.ACLTokenDeleteRequestType:
+		return n.applyACLTokenDelete(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -704,6 +709,36 @@ func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+// applyACLTokenUpsert is used to upsert a set of policies
+func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_upsert"}, time.Now())
+	var req structs.ACLTokenUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLTokens(index, req.Tokens); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertACLTokens failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// applyACLTokenDelete is used to delete a set of policies
+func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_delete"}, time.Now())
+	var req structs.ACLTokenDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteACLTokens failed: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -867,6 +902,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.ACLPolicyRestore(policy); err != nil {
+				return err
+			}
+
+		case ACLTokenSnapshot:
+			token := new(structs.ACLToken)
+			if err := dec.Decode(token); err != nil {
+				return err
+			}
+			if err := restore.ACLTokenRestore(token); err != nil {
 				return err
 			}
 
@@ -1077,6 +1121,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLPolicies(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLTokens(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1378,6 +1426,34 @@ func (s *nomadSnapshot) persistACLPolicies(sink raft.SnapshotSink,
 		// Write out a policy registration
 		sink.Write([]byte{byte(ACLPolicySnapshot)})
 		if err := encoder.Encode(policy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the policies
+	ws := memdb.NewWatchSet()
+	tokens, err := s.snap.ACLTokens(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := tokens.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		token := raw.(*structs.ACLToken)
+
+		// Write out a token registration
+		sink.Write([]byte{byte(ACLTokenSnapshot)})
+		if err := encoder.Encode(token); err != nil {
 			return err
 		}
 	}
