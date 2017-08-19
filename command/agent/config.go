@@ -240,15 +240,13 @@ type ACLConfig struct {
 	// how stale they can be when we are enforcing policies. Defaults
 	// to "30s". Reducing this impacts performance by forcing more
 	// frequent resolution.
-	TokenTTL string        `mapstructure:"token_ttl"`
-	tokenTTL time.Duration `mapstructure:"-"`
+	TokenTTL time.Duration `mapstructure:"token_ttl"`
 
 	// PolicyTTL controls how long we cache ACL policies. This controls
 	// how stale they can be when we are enforcing policies. Defaults
 	// to "30s". Reducing this impacts performance by forcing more
 	// frequent resolution.
-	PolicyTTL string        `mapstructure:"policy_ttl"`
-	policyTTL time.Duration `mapstructure:"-"`
+	PolicyTTL time.Duration `mapstructure:"policy_ttl"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -594,8 +592,8 @@ func DefaultConfig() *Config {
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
-			TokenTTL:  "30s",
-			PolicyTTL: "30s",
+			TokenTTL:  30 * time.Second,
+			PolicyTTL: 30 * time.Second,
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
@@ -949,10 +947,10 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.Enabled {
 		result.Enabled = true
 	}
-	if b.TokenTTL != "" {
+	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL
 	}
-	if b.PolicyTTL != "" {
+	if b.PolicyTTL != 0 {
 		result.PolicyTTL = b.PolicyTTL
 	}
 	return &result

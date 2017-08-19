@@ -85,8 +85,8 @@ server {
 }
 acl {
     enabled = true
-    token_ttl = "30s"
-    policy_ttl = "30s"
+    token_ttl = "60s"
+    policy_ttl = "60s"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"
