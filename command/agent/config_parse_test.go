@@ -106,8 +106,8 @@ func TestConfig_Parse(t *testing.T) {
 				},
 				ACL: &ACLConfig{
 					Enabled:   true,
-					TokenTTL:  "30s",
-					PolicyTTL: "30s",
+					TokenTTL:  60 * time.Second,
+					PolicyTTL: 60 * time.Second,
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",

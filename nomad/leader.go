@@ -667,10 +667,13 @@ REMOVE:
 // replicateACLPolicies is used to replicate ACL policies from
 // the authoritative region to this region.
 func (s *Server) replicateACLPolicies(stopCh chan struct{}) {
-	req := structs.ACLPolicyListRequest{}
-	req.Region = s.config.AuthoritativeRegion
+	req := structs.ACLPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s.config.AuthoritativeRegion,
+		},
+	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting ACL policy replication from authoritative region '%s'", req.Region)
+	s.logger.Printf("[DEBUG] nomad: starting ACL policy replication from authoritative region %q", req.Region)
 
 START:
 	for {
@@ -706,6 +709,7 @@ START:
 			}
 
 			// Fetch any outdated policies
+			// TODO: Optimize this fetching to batch all the requests.
 			var fetched []*structs.ACLPolicy
 			for _, policyName := range update {
 				req := structs.ACLPolicySpecificRequest{
@@ -716,7 +720,7 @@ START:
 				err := s.forwardRegion(s.config.AuthoritativeRegion,
 					"ACL.GetPolicy", &req, &reply)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch policy '%s' from authoritative region: %v", policyName, err)
+					s.logger.Printf("[ERR] nomad: failed to fetch policy %q from authoritative region: %v", policyName, err)
 					goto ERR_WAIT
 				}
 				if reply.Policy != nil {
@@ -804,10 +808,12 @@ func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*str
 func (s *Server) replicateACLTokens(stopCh chan struct{}) {
 	req := structs.ACLTokenListRequest{
 		GlobalOnly: true,
+		QueryOptions: structs.QueryOptions{
+			Region: s.config.AuthoritativeRegion,
+		},
 	}
-	req.Region = s.config.AuthoritativeRegion
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting ACL token replication from authoritative region '%s'", req.Region)
+	s.logger.Printf("[DEBUG] nomad: starting ACL token replication from authoritative region %q", req.Region)
 
 START:
 	for {
@@ -842,7 +848,8 @@ START:
 				}
 			}
 
-			// Fetch any outdated policies
+			// Fetch any outdated policies.
+			// TODO: Optimize this fetching to batch all the requests.
 			var fetched []*structs.ACLToken
 			for _, tokenID := range update {
 				req := structs.ACLTokenSpecificRequest{
@@ -853,7 +860,7 @@ START:
 				err := s.forwardRegion(s.config.AuthoritativeRegion,
 					"ACL.GetToken", &req, &reply)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch token '%s' from authoritative region: %v", tokenID, err)
+					s.logger.Printf("[ERR] nomad: failed to fetch token %q from authoritative region: %v", tokenID, err)
 					goto ERR_WAIT
 				}
 				if reply.Token != nil {
@@ -861,7 +868,7 @@ START:
 				}
 			}
 
-			// Update local tokensj
+			// Update local tokens
 			if len(fetched) > 0 {
 				args := &structs.ACLTokenUpsertRequest{
 					Tokens: fetched,
