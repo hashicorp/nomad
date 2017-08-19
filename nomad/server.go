@@ -20,6 +20,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -72,6 +73,10 @@ const (
 	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
 	// new servers if there is no leader and the last Consul query failed.
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
+
+	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
+	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
+	aclCacheSize = 512
 )
 
 // Server is Nomad server which manages the job queues,
@@ -158,6 +163,9 @@ type Server struct {
 	// Worker used for processing
 	workers []*Worker
 
+	// aclCache is used to maintain the parsed ACL objects
+	aclCache *lru.TwoQueueCache
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -225,6 +233,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		incomingTLS = itls
 	}
 
+	// Create the ACL object cache
+	aclCache, err := lru.New2Q(aclCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the server
 	s := &Server{
 		config:        config,
@@ -240,6 +254,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		blockedEvals:  blockedEvals,
 		planQueue:     planQueue,
 		rpcTLS:        incomingTLS,
+		aclCache:      aclCache,
 		shutdownCh:    make(chan struct{}),
 	}
 
