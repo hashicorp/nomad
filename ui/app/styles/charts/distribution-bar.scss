@@ -13,10 +13,6 @@
         opacity: 1;
       }
 
-      .bar {
-        transform: translateY(-50%);
-      }
-
       .inactive {
         opacity: 0.2;
       }
@@ -39,5 +35,62 @@
         }
       }
     }
+  }
+
+  &.split-view {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    svg {
+      width: 50%;
+      height: 30px;
+    }
+
+    .legend {
+      list-style: none;
+      width: 50%;
+      padding: 1.5em;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+
+      li {
+        display: block;
+        background-color: transparent;
+        transition: background-color 0.1s ease-in-out;
+        border: 1px solid $grey-blue;
+        padding: 0.25em 0.75em;
+        margin: 0.25em;
+        border-radius: $radius;
+
+        // Ensure two columns, but don't use the full width
+        width: 35%;
+
+        .label, .value {
+          display: inline;
+          font-weight: $weight-normal;
+        }
+
+        &.is-active {
+          background-color: rgba($info, 0.1);
+        }
+
+        &.is-empty {
+          color: darken($grey-blue, 20%);
+          border: none;
+
+          .label {
+            color: darken($grey-blue, 20%);
+          }
+        }
+      }
+    }
+  }
+
+  &.is-narrow .bar {
+    transform: translateY(-50%);
   }
 }

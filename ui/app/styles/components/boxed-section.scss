@@ -7,6 +7,10 @@
     padding: 0.75em 1.5em;
     border: 1px solid $grey-blue;
     background: $white-ter;
+
+    & + .boxed-section-body {
+      padding: 1.5em;
+    }
   }
 
   .boxed-section-body {

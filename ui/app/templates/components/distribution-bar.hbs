@@ -6,16 +6,23 @@
   </defs>
   <g class="bars"></g>
 </svg>
-<div class="tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
-  <ol>
-    {{#each _data as |datum index|}}
-      <li class="{{if (eq datum activeDatum) "active"}}">
-        <span class="label {{if (eq datum.value 0) "is-empty"}}">
-          <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
-          {{datum.label}}
-        </span>
-        <span class="value">{{datum.value}}</span>
-      </li>
-    {{/each}}
-  </ol>
-</div>
+{{#if hasBlock}}
+  {{yield (hash
+    data=_data
+    activeDatum=activeDatum
+  )}}
+{{else}}
+  <div class="tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+    <ol>
+      {{#each _data as |datum index|}}
+        <li class="{{if (eq datum activeDatum) "active"}}">
+          <span class="label {{if (eq datum.value 0) "is-empty"}}">
+            <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+            {{datum.label}}
+          </span>
+          <span class="value">{{datum.value}}</span>
+        </li>
+      {{/each}}
+    </ol>
+  </div>
+{{/if}}

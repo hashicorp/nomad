@@ -8,10 +8,12 @@ const sumAggregate = (total, val) => total + val;
 
 export default Component.extend({
   classNames: ['chart', 'distribution-bar'],
+  classNameBindings: ['isNarrow:is-narrow'],
 
   chart: null,
   data: null,
   activeDatum: null,
+  isNarrow: false,
 
   tooltipStyle: styleStringProperty('tooltipPosition'),
   maskId: null,
@@ -40,6 +42,7 @@ export default Component.extend({
     chart.on('mouseleave', () => {
       run(() => {
         this.set('isActive', false);
+        this.set('activeDatum', null);
         chart.selectAll('g').classed('active', false).classed('inactive', false);
       });
     });
@@ -55,7 +58,7 @@ export default Component.extend({
   /* eslint-disable */
   renderChart() {
     const { chart, _data, isNarrow } = this.getProperties('chart', '_data', 'isNarrow');
-    const width = this.$().width();
+    const width = this.$('svg').width();
     const filteredData = _data.filter(d => d.value > 0);
 
     let slices = chart.select('.bars').selectAll('g').data(filteredData);
