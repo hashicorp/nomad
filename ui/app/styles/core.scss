@@ -28,7 +28,6 @@ $size-4: 1.3rem;
 $size-7: 0.85rem;
 
 $title-weight: $weight-semibold;
-$gutter-width: 250px;
 
 $family-sans-serif: -apple-system,
   BlinkMacSystemFont,
@@ -41,6 +40,9 @@ $family-sans-serif: -apple-system,
   sans-serif;
 
 $text: $black;
+
+$header-height: 112px;
+$gutter-width: 250px;
 
 // Bring in the rest of Bulma
 @import "bulma/bulma";
@@ -55,6 +57,7 @@ $text: $black;
 @import "./core/pagination";
 @import "./core/section";
 @import "./core/table";
+@import "./core/tabs";
 @import "./core/tag";
 
 // Add unique core extensions
