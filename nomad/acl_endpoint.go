@@ -186,10 +186,6 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 				return fmt.Errorf("cannot find token %s", token.AccessorID)
 			}
 
-			// Do not allow the secret ID or create time to be changed
-			token.SecretID = out.SecretID
-			token.CreateTime = out.CreateTime
-
 			// Cannot toggle the "Global" mode
 			if token.Global != out.Global {
 				return fmt.Errorf("cannot toggle global mode of %s", token.AccessorID)

@@ -2853,8 +2853,14 @@ func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) e
 
 		// Update all the indexes
 		if existing != nil {
-			token.CreateIndex = existing.(*structs.ACLToken).CreateIndex
+			existTK := existing.(*structs.ACLToken)
+			token.CreateIndex = existTK.CreateIndex
 			token.ModifyIndex = index
+
+			// Do not allow SecretID or create time to change
+			token.SecretID = existTK.SecretID
+			token.CreateTime = existTK.CreateTime
+
 		} else {
 			token.CreateIndex = index
 			token.ModifyIndex = index
