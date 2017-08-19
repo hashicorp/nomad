@@ -63,7 +63,7 @@ client {
 }
 server {
 	enabled = true
-    authoritative_region = "foobar"
+	authoritative_region = "foobar"
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3
