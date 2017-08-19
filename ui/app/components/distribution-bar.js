@@ -3,7 +3,7 @@ import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import styleStringProperty from '../utils/properties/style-string';
 
-const { Component, computed, run, assign } = Ember;
+const { Component, computed, run, assign, guidFor } = Ember;
 const sumAggregate = (total, val) => total + val;
 
 export default Component.extend({
@@ -14,6 +14,7 @@ export default Component.extend({
   activeDatum: null,
 
   tooltipStyle: styleStringProperty('tooltipPosition'),
+  maskId: null,
 
   _data: computed('data', function() {
     const data = this.get('data');
@@ -31,7 +32,10 @@ export default Component.extend({
 
   didInsertElement() {
     const chart = d3.select(this.$('svg')[0]);
-    this.set('chart', chart);
+    const maskId = `dist-mask-${guidFor(this)}`;
+    this.setProperties({ chart, maskId });
+
+    this.$('svg clipPath').attr('id', maskId);
 
     chart.on('mouseleave', () => {
       run(() => {
@@ -106,8 +110,8 @@ export default Component.extend({
         .append('rect')
         .attr('width', setWidth)
         .attr('x', setOffset)
-        .attr('y', '50%')
-        .attr('clip-path', 'url(#corners)')
+        .attr('y', () => isNarrow ? '50%' : 0)
+        .attr('clip-path', `url(#${this.get('maskId')})`)
         .attr('height', () => isNarrow ? '6px' : '100%')
       .merge(layers)
         .attr('class', (d, i) => `bar layer-${i}`)
@@ -117,7 +121,7 @@ export default Component.extend({
         .attr('x', setOffset)
 
       if (isNarrow) {
-        d3.select('.mask')
+        d3.select(this.get('element')).select('.mask')
           .attr('height', '6px')
           .attr('y', '50%');
       }
