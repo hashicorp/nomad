@@ -5397,6 +5397,12 @@ type ACLPolicySpecificRequest struct {
 	QueryOptions
 }
 
+// ACLPolicySetRequest is used to query a set of policies
+type ACLPolicySetRequest struct {
+	Names []string
+	QueryOptions
+}
+
 // ACLPolicyListResponse is used for a list request
 type ACLPolicyListResponse struct {
 	Policies []*ACLPolicyListStub
@@ -5406,6 +5412,12 @@ type ACLPolicyListResponse struct {
 // SingleACLPolicyResponse is used to return a single policy
 type SingleACLPolicyResponse struct {
 	Policy *ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicySetResponse is used to return a set of policies
+type ACLPolicySetResponse struct {
+	Policies map[string]*ACLPolicy
 	QueryMeta
 }
 
@@ -5506,6 +5518,12 @@ type ACLTokenSpecificRequest struct {
 	QueryOptions
 }
 
+// ACLTokenSetRequest is used to query a set of tokens
+type ACLTokenSetRequest struct {
+	AccessorIDS []string
+	QueryOptions
+}
+
 // ACLTokenListResponse is used for a list request
 type ACLTokenListResponse struct {
 	Tokens []*ACLTokenListStub
@@ -5515,6 +5533,12 @@ type ACLTokenListResponse struct {
 // SingleACLTokenResponse is used to return a single token
 type SingleACLTokenResponse struct {
 	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenSetResponse is used to return a set of token
+type ACLTokenSetResponse struct {
+	Tokens map[string]*ACLToken // Keyed by Accessor ID
 	QueryMeta
 }
 
