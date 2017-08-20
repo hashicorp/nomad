@@ -709,22 +709,22 @@ START:
 			}
 
 			// Fetch any outdated policies
-			// TODO: Optimize this fetching to batch all the requests.
 			var fetched []*structs.ACLPolicy
-			for _, policyName := range update {
-				req := structs.ACLPolicySpecificRequest{
-					Name: policyName,
+			if len(update) > 0 {
+				req := structs.ACLPolicySetRequest{
+					Names: update,
+					QueryOptions: structs.QueryOptions{
+						Region: s.config.AuthoritativeRegion,
+					},
 				}
-				req.Region = s.config.AuthoritativeRegion
-				var reply structs.SingleACLPolicyResponse
-				err := s.forwardRegion(s.config.AuthoritativeRegion,
-					"ACL.GetPolicy", &req, &reply)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch policy %q from authoritative region: %v", policyName, err)
+				var reply structs.ACLPolicySetResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion,
+					"ACL.GetPolicies", &req, &reply); err != nil {
+					s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
 					goto ERR_WAIT
 				}
-				if reply.Policy != nil {
-					fetched = append(fetched, reply.Policy)
+				for _, policy := range reply.Policies {
+					fetched = append(fetched, policy)
 				}
 			}
 
@@ -849,22 +849,22 @@ START:
 			}
 
 			// Fetch any outdated policies.
-			// TODO: Optimize this fetching to batch all the requests.
 			var fetched []*structs.ACLToken
-			for _, tokenID := range update {
-				req := structs.ACLTokenSpecificRequest{
-					AccessorID: tokenID,
+			if len(update) > 0 {
+				req := structs.ACLTokenSetRequest{
+					AccessorIDS: update,
+					QueryOptions: structs.QueryOptions{
+						Region: s.config.AuthoritativeRegion,
+					},
 				}
-				req.Region = s.config.AuthoritativeRegion
-				var reply structs.SingleACLTokenResponse
-				err := s.forwardRegion(s.config.AuthoritativeRegion,
-					"ACL.GetToken", &req, &reply)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch token %q from authoritative region: %v", tokenID, err)
+				var reply structs.ACLTokenSetResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion,
+					"ACL.GetTokens", &req, &reply); err != nil {
+					s.logger.Printf("[ERR] nomad: failed to fetch tokens from authoritative region: %v", err)
 					goto ERR_WAIT
 				}
-				if reply.Token != nil {
-					fetched = append(fetched, reply.Token)
+				for _, token := range reply.Tokens {
+					fetched = append(fetched, token)
 				}
 			}
 
