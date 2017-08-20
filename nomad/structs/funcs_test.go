@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRemoveAllocs(t *testing.T) {
@@ -268,4 +270,50 @@ func TestGenerateUUID(t *testing.T) {
 			t.Fatalf("expected match %s %v %s", id, matched, err)
 		}
 	}
+}
+
+func TestACLPolicyListHash(t *testing.T) {
+	h1 := ACLPolicyListHash(nil)
+	assert.NotEqual(t, "", h1)
+
+	p1 := &ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+
+	h2 := ACLPolicyListHash([]*ACLPolicy{p1})
+	assert.NotEqual(t, "", h2)
+	assert.NotEqual(t, h1, h2)
+
+	// Create P2 as copy of P1 with new name
+	p2 := &ACLPolicy{}
+	*p2 = *p1
+	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+
+	h3 := ACLPolicyListHash([]*ACLPolicy{p1, p2})
+	assert.NotEqual(t, "", h3)
+	assert.NotEqual(t, h2, h3)
+
+	h4 := ACLPolicyListHash([]*ACLPolicy{p2})
+	assert.NotEqual(t, "", h4)
+	assert.NotEqual(t, h3, h4)
+
+	// ModifyIndex should change the hash
+	p2.ModifyIndex++
+	h5 := ACLPolicyListHash([]*ACLPolicy{p2})
+	assert.NotEqual(t, "", h5)
+	assert.NotEqual(t, h4, h5)
 }

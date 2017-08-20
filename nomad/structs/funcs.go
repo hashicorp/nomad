@@ -2,6 +2,8 @@ package structs
 
 import (
 	crand "crypto/rand"
+	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"strings"
@@ -254,4 +256,15 @@ func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
 // AllocName returns the name of the allocation given the input.
 func AllocName(job, group string, idx uint) string {
 	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
+}
+
+// ACLPolicyListHash returns a consistent hash for a set of policies.
+func ACLPolicyListHash(policies []*ACLPolicy) string {
+	cacheKeyHash := sha1.New()
+	for _, policy := range policies {
+		cacheKeyHash.Write([]byte(policy.Name))
+		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
+	}
+	cacheKey := string(cacheKeyHash.Sum(nil))
+	return cacheKey
 }
