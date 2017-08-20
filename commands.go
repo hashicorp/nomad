@@ -88,6 +88,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"driver_plugin": func() (cli.Command, error) {
+			return &command.DriverPluginCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval-status": func() (cli.Command, error) {
 			return &command.EvalStatusCommand{
 				Meta: meta,
