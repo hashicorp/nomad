@@ -2,20 +2,35 @@ package state
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// stateStoreSchema is used to return the schema for the state store
-func stateStoreSchema() *memdb.DBSchema {
-	// Create the root DB schema
-	db := &memdb.DBSchema{
-		Tables: make(map[string]*memdb.TableSchema),
-	}
+var (
+	schemaFactories SchemaFactories
+	factoriesLock   sync.Mutex
+)
 
-	// Collect all the schemas that are needed
-	schemas := []func() *memdb.TableSchema{
+// SchemaFactory is the factory method for returning a TableSchema
+type SchemaFactory func() *memdb.TableSchema
+type SchemaFactories []SchemaFactory
+
+// RegisterSchemaFactories is used to register a table schema.
+func RegisterSchemaFactories(factories ...SchemaFactory) {
+	factoriesLock.Lock()
+	defer factoriesLock.Unlock()
+	schemaFactories = append(schemaFactories, factories...)
+}
+
+func GetFactories() SchemaFactories {
+	return schemaFactories
+}
+
+func init() {
+	// Register all schemas
+	RegisterSchemaFactories([]SchemaFactory{
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
@@ -26,10 +41,18 @@ func stateStoreSchema() *memdb.DBSchema {
 		evalTableSchema,
 		allocTableSchema,
 		vaultAccessorTableSchema,
+	}...)
+}
+
+// stateStoreSchema is used to return the schema for the state store
+func stateStoreSchema() *memdb.DBSchema {
+	// Create the root DB schema
+	db := &memdb.DBSchema{
+		Tables: make(map[string]*memdb.TableSchema),
 	}
 
 	// Add each of the tables
-	for _, schemaFn := range schemas {
+	for _, schemaFn := range GetFactories() {
 		schema := schemaFn()
 		if _, ok := db.Tables[schema.Name]; ok {
 			panic(fmt.Sprintf("duplicate table name: %s", schema.Name))
