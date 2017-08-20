@@ -620,3 +620,35 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 		t.Fatalf("bad: %s", err)
 	}
 }
+
+func TestACLEndpoint_ResolveToken(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	token := mock.ACLToken()
+	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+
+	// Lookup the token
+	get := &structs.ResolveACLTokenRequest{
+		SecretID:     token.SecretID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.ResolveACLTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, token, resp.Token)
+
+	// Lookup non-existing token
+	get.SecretID = structs.GenerateUUID()
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Nil(t, resp.Token)
+}

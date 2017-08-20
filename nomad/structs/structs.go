@@ -5427,6 +5427,18 @@ type SingleACLTokenResponse struct {
 	QueryMeta
 }
 
+// ResolveACLTokenRequest is used to resolve a specific token
+type ResolveACLTokenRequest struct {
+	SecretID string
+	QueryOptions
+}
+
+// ResolveACLTokenResponse is used to resolve a single token
+type ResolveACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
 // ACLTokenDeleteRequest is used to delete a set of tokens
 type ACLTokenDeleteRequest struct {
 	AccessorIDs []string
