@@ -349,6 +349,11 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		conf.NoHostUUID = true
 	}
 
+	// Setup the ACLs
+	conf.ACLEnabled = a.config.ACL.Enabled
+	conf.ACLTokenTTL = a.config.ACL.TokenTTL
+	conf.ACLPolicyTTL = a.config.ACL.PolicyTTL
+
 	return conf, nil
 }
 
