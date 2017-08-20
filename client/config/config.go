@@ -181,6 +181,15 @@ type Config struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
+
+	// ACLEnabled controls if ACL enforcement and management is enabled.
+	ACLEnabled bool
+
+	// ACLTokenTTL is how long we cache token values for
+	ACLTokenTTL time.Duration
+
+	// ACLPolicyTTL is how long we cache policy values for
+	ACLPolicyTTL time.Duration
 }
 
 func (c *Config) Copy() *Config {
