@@ -1,8 +1,21 @@
 package acl
 
 import (
+	"fmt"
+
 	iradix "github.com/hashicorp/go-immutable-radix"
 )
+
+// ManagementACL is a singleton used for management tokens
+var ManagementACL *ACL
+
+func init() {
+	var err error
+	ManagementACL, err = NewACL(true, nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to setup management ACL: %v", err))
+	}
+}
 
 // capabilitySet is a type wrapper to help managing a set of capabilities
 type capabilitySet map[string]struct{}
