@@ -80,12 +80,16 @@ const (
 	allocSyncRetryIntv = 5 * time.Second
 
 	// policyCacheSize is the number of ACL policies to keep cached. Policies have a fetching cost
-	// cost, so we keep the hot policies cached to reduce the ACL token resolution time.
+	// so we keep the hot policies cached to reduce the ACL token resolution time.
 	policyCacheSize = 64
 
 	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
 	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
 	aclCacheSize = 64
+
+	// tokenCacheSize is the number of ACL tokens to keep cached. Tokens have a fetching cost,
+	// so we keep the hot tokens cached to reduce the lookups.
+	tokenCacheSize = 64
 )
 
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
@@ -165,6 +169,9 @@ type Client struct {
 
 	// policyCache is used to maintain the fetched policy objects
 	policyCache *lru.TwoQueueCache
+
+	// tokenCache is used to maintain the fetched token objects
+	tokenCache *lru.TwoQueueCache
 }
 
 var (
@@ -194,6 +201,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	if err != nil {
 		return nil, err
 	}
+	tokenCache, err := lru.New2Q(tokenCacheSize)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the client
 	c := &Client{
@@ -211,6 +222,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		serversDiscoveredCh: make(chan struct{}),
 		aclCache:            aclCache,
 		policyCache:         policyCache,
+		tokenCache:          tokenCache,
 	}
 
 	// Initialize the client
