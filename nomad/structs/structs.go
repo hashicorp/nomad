@@ -5421,6 +5421,9 @@ type ACLPolicyUpsertRequest struct {
 	WriteRequest
 }
 
+// TokenNotFound indicates the Token was not found
+var TokenNotFound = errors.New("ACL token not found")
+
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
 	AccessorID  string    // Public Accessor ID (UUID)
@@ -5433,6 +5436,18 @@ type ACLToken struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 }
+
+var (
+	// AnonymousACLToken is used no SecretID is provided, and the
+	// request is made anonymously.
+	AnonymousACLToken = &ACLToken{
+		AccessorID: "anonymous",
+		Name:       "Anonymous Token",
+		Type:       ACLClientToken,
+		Policies:   []string{"anonymous"},
+		Global:     false,
+	}
+)
 
 type ACLTokenListStub struct {
 	AccessorID  string

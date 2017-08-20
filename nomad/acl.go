@@ -3,7 +3,6 @@ package nomad
 import (
 	"crypto/sha1"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,23 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-var (
-	// tokenNotFound indicates the Token was not found
-	tokenNotFound = errors.New("ACL token not found")
-
-	// managementACL is used for all management tokens
-	managementACL *acl.ACL
-)
-
-func init() {
-	// managementACL has management flag enabled
-	var err error
-	managementACL, err = acl.NewACL(true, nil)
-	if err != nil {
-		panic(fmt.Errorf("failed to setup management ACL: %v", err))
-	}
-}
 
 // resolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
@@ -60,12 +42,12 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 		return nil, err
 	}
 	if token == nil {
-		return nil, tokenNotFound
+		return nil, structs.TokenNotFound
 	}
 
 	// Check if this is a management token
 	if token.Type == structs.ACLManagementToken {
-		return managementACL, nil
+		return acl.ManagementACL, nil
 	}
 
 	// Get all associated policies
