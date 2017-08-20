@@ -35,9 +35,14 @@ func TestResolveACLToken(t *testing.T) {
 	snap, err := state.Snapshot()
 	assert.Nil(t, err)
 
+	// Attempt resolution of blank token. Should return anonymous policy
+	aclObj, err := resolveTokenFromSnapshotCache(snap, cache, "")
+	assert.Nil(t, err)
+	assert.NotNil(t, aclObj)
+
 	// Attempt resolution of unknown token. Should fail.
 	randID := structs.GenerateUUID()
-	aclObj, err := resolveTokenFromSnapshotCache(snap, cache, randID)
+	aclObj, err = resolveTokenFromSnapshotCache(snap, cache, randID)
 	assert.Equal(t, structs.TokenNotFound, err)
 	assert.Nil(t, aclObj)
 
