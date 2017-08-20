@@ -20,6 +20,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -80,6 +81,14 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// policyCacheSize is the number of ACL policies to keep cached. Policies have a fetching cost
+	// cost, so we keep the hot policies cached to reduce the ACL token resolution time.
+	policyCacheSize = 64
+
+	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
+	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
+	aclCacheSize = 64
 )
 
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
@@ -162,6 +171,12 @@ type Client struct {
 	// garbageCollector is used to garbage collect terminal allocations present
 	// in the node automatically
 	garbageCollector *AllocGarbageCollector
+
+	// aclCache is used to maintain the parsed ACL objects
+	aclCache *lru.TwoQueueCache
+
+	// policyCache is used to maintain the fetched policy objects
+	policyCache *lru.TwoQueueCache
 }
 
 // migrateAllocCtrl indicates whether migration is complete
@@ -210,6 +225,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		}
 		tlsWrap = tw
 	}
+	// Create the ACL object cache
+	aclCache, err := lru.New2Q(aclCacheSize)
+	if err != nil {
+		return nil, err
+	}
+	policyCache, err := lru.New2Q(policyCacheSize)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the client
 	c := &Client{
@@ -227,6 +251,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		servers:             newServerList(),
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
+		aclCache:            aclCache,
+		policyCache:         policyCache,
 	}
 
 	// Initialize the client
