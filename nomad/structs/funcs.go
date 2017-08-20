@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
 )
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
@@ -267,4 +269,34 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 	}
 	cacheKey := string(cacheKeyHash.Sum(nil))
 	return cacheKey
+}
+
+// CompileACLObject compiles a set of ACL policies into an ACL object with a cache
+func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL, error) {
+	// Determine the cache key
+	cacheKey := ACLPolicyListHash(policies)
+	aclRaw, ok := cache.Get(cacheKey)
+	if ok {
+		return aclRaw.(*acl.ACL), nil
+	}
+
+	// Parse the policies
+	parsed := make([]*acl.Policy, 0, len(policies))
+	for _, policy := range policies {
+		p, err := acl.Parse(policy.Rules)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %q: %v", policy.Name, err)
+		}
+		parsed = append(parsed, p)
+	}
+
+	// Create the ACL object
+	aclObj, err := acl.NewACL(false, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct ACL: %v", err)
+	}
+
+	// Update the cache
+	cache.Add(cacheKey, aclObj)
+	return aclObj, nil
 }
