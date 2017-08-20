@@ -1,9 +1,6 @@
 package nomad
 
 import (
-	"crypto/sha1"
-	"encoding/binary"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -37,12 +34,20 @@ func (s *Server) resolveToken(secretID string) (*acl.ACL, error) {
 // to simplify testing.
 func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID string) (*acl.ACL, error) {
 	// Lookup the ACL Token
-	token, err := snap.ACLTokenBySecretID(nil, secretID)
-	if err != nil {
-		return nil, err
-	}
-	if token == nil {
-		return nil, structs.TokenNotFound
+	var token *structs.ACLToken
+	var err error
+
+	// Handle anonymous requests
+	if secretID == "" {
+		token = structs.AnonymousACLToken
+	} else {
+		token, err = snap.ACLTokenBySecretID(nil, secretID)
+		if err != nil {
+			return nil, err
+		}
+		if token == nil {
+			return nil, structs.TokenNotFound
+		}
 	}
 
 	// Check if this is a management token
@@ -52,7 +57,6 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 
 	// Get all associated policies
 	policies := make([]*structs.ACLPolicy, 0, len(token.Policies))
-	cacheKeyHash := sha1.New()
 	for _, policyName := range token.Policies {
 		policy, err := snap.ACLPolicyByName(nil, policyName)
 		if err != nil {
@@ -65,39 +69,12 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 
 		// Save the policy and update the cache key
 		policies = append(policies, policy)
-
-		// Update the cache key using (policy name, modify index).
-		// This ensures any updates to the policy cause the cache to be busted.
-		cacheKeyHash.Write([]byte(policyName))
-		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
 	}
 
-	// Finalize the cache key and check for a match
-	cacheKey := string(cacheKeyHash.Sum(nil))
-	aclRaw, ok := cache.Get(cacheKey)
-	if ok {
-		return aclRaw.(*acl.ACL), nil
-	}
-
-	// Parse the policies
-	parsed := make([]*acl.Policy, 0, len(policies))
-	for _, policy := range policies {
-		p, err := acl.Parse(policy.Rules)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse %q: %v", policy.Name, err)
-		}
-		parsed = append(parsed, p)
-	}
-
-	// Create the ACL object
-	aclObj, err := acl.NewACL(false, parsed)
+	// Compile and cache the ACL object
+	aclObj, err := structs.CompileACLObject(cache, policies)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct ACL: %v", err)
+		return nil, err
 	}
-
-	// Update the cache
-	cache.Add(cacheKey, aclObj)
-
-	// Return the ACL object
 	return aclObj, nil
 }
