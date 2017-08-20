@@ -155,6 +155,43 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	return a.srv.blockingRPC(&opts)
 }
 
+// GetPolicies is used to get a set of policies
+func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLPolicySetResponse) error {
+	if done, err := a.srv.forward("ACL.GetPolicies", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Setup the output
+			reply.Policies = make(map[string]*structs.ACLPolicy, len(args.Names))
+
+			// Look for the policy
+			for _, policyName := range args.Names {
+				out, err := state.ACLPolicyByName(ws, policyName)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.Policies[policyName] = out
+				}
+			}
+
+			// Use the last index that affected the policy table
+			index, err := state.Index("acl_policy")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
+
 // UpsertTokens is used to create or update a set of tokens
 func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.ACLTokenUpsertResponse) error {
 	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {
@@ -328,6 +365,43 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 				}
 				reply.Index = index
 			}
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
+
+// GetTokens is used to get a set of token
+func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLTokenSetResponse) error {
+	if done, err := a.srv.forward("ACL.GetTokens", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Setup the output
+			reply.Tokens = make(map[string]*structs.ACLToken, len(args.AccessorIDS))
+
+			// Look for the token
+			for _, accessor := range args.AccessorIDS {
+				out, err := state.ACLTokenByAccessorID(ws, accessor)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.Tokens[out.AccessorID] = out
+				}
+			}
+
+			// Use the last index that affected the token table
+			index, err := state.Index("acl_token")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
 			return nil
 		}}
 	return a.srv.blockingRPC(&opts)

@@ -122,6 +122,120 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 	}
 }
 
+func TestACLEndpoint_GetPolicies(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	policy := mock.ACLPolicy()
+	policy2 := mock.ACLPolicy()
+	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy, policy2})
+
+	// Lookup the policy
+	get := &structs.ACLPolicySetRequest{
+		Names:        []string{policy.Name, policy2.Name},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.ACLPolicySetResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, 2, len(resp.Policies))
+	assert.Equal(t, policy, resp.Policies[policy.Name])
+	assert.Equal(t, policy2, resp.Policies[policy2.Name])
+
+	// Lookup non-existing policy
+	get.Names = []string{structs.GenerateUUID()}
+	resp = structs.ACLPolicySetResponse{}
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, 0, len(resp.Policies))
+}
+
+func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the policies
+	p1 := mock.ACLPolicy()
+	p2 := mock.ACLPolicy()
+
+	// First create an unrelated policy
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert the policy we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		err := state.UpsertACLPolicies(200, []*structs.ACLPolicy{p2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the policy
+	req := &structs.ACLPolicySetRequest{
+		Names: []string{p2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.ACLPolicySetResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Policies) == 0 || resp.Policies[p2.Name] == nil {
+		t.Fatalf("bad: %#v", resp.Policies)
+	}
+
+	// Eval delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.DeleteACLPolicies(300, []string{p2.Name})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.ACLPolicySetResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if len(resp2.Policies) != 0 {
+		t.Fatalf("bad: %#v", resp2.Policies)
+	}
+}
+
 func TestACLEndpoint_ListPolicies(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -403,6 +517,119 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 	}
 	if resp2.Token != nil {
 		t.Fatalf("bad: %#v", resp2.Token)
+	}
+}
+
+func TestACLEndpoint_GetTokens(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	token := mock.ACLToken()
+	token2 := mock.ACLToken()
+	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token, token2})
+
+	// Lookup the token
+	get := &structs.ACLTokenSetRequest{
+		AccessorIDS:  []string{token.AccessorID, token2.AccessorID},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.ACLTokenSetResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, 2, len(resp.Tokens))
+	assert.Equal(t, token, resp.Tokens[token.AccessorID])
+
+	// Lookup non-existing token
+	get.AccessorIDS = []string{structs.GenerateUUID()}
+	resp = structs.ACLTokenSetResponse{}
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, 0, len(resp.Tokens))
+}
+
+func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the tokens
+	p1 := mock.ACLToken()
+	p2 := mock.ACLToken()
+
+	// First create an unrelated token
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.UpsertACLTokens(100, []*structs.ACLToken{p1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert the token we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		err := state.UpsertACLTokens(200, []*structs.ACLToken{p2})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Lookup the token
+	req := &structs.ACLTokenSetRequest{
+		AccessorIDS: []string{p2.AccessorID},
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.ACLTokenSetResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Tokens) == 0 || resp.Tokens[p2.AccessorID] == nil {
+		t.Fatalf("bad: %#v", resp.Tokens)
+	}
+
+	// Eval delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		err := state.DeleteACLTokens(300, []string{p2.AccessorID})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.ACLTokenSetResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if len(resp2.Tokens) != 0 {
+		t.Fatalf("bad: %#v", resp2.Tokens)
 	}
 }
 
