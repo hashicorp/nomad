@@ -366,4 +366,12 @@ func TestCompileACLObject(t *testing.T) {
 	if aclObj == aclObj3 {
 		t.Fatalf("unexpected same object")
 	}
+
+	// Should be order independent
+	aclObj4, err := CompileACLObject(cache, []*ACLPolicy{p2, p1})
+	assert.Nil(t, err)
+	assert.NotNil(t, aclObj4)
+	if aclObj3 != aclObj4 {
+		t.Fatalf("expected same object")
+	}
 }
