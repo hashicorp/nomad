@@ -5886,6 +5886,10 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	tk1 := mock.ACLToken()
 	tk2 := mock.ACLToken()
 
+	ok, err := state.CanBootstrapACLToken()
+	assert.Nil(t, err)
+	assert.Equal(t, true, ok)
+
 	if err := state.BootstrapACLTokens(1000, tk1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5893,6 +5897,10 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	out, err := state.ACLTokenByAccessorID(nil, tk1.AccessorID)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk1, out)
+
+	ok, err = state.CanBootstrapACLToken()
+	assert.Nil(t, err)
+	assert.Equal(t, false, ok)
 
 	if err := state.BootstrapACLTokens(1001, tk2); err == nil {
 		t.Fatalf("expected error")
