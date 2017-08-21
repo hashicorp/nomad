@@ -41,6 +41,9 @@ type QueryOptions struct {
 
 	// Set HTTP parameters on the query.
 	Params map[string]string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // WriteOptions are used to parameterize a write
@@ -48,6 +51,9 @@ type WriteOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config
 	Region string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // QueryMeta is used to return meta data about a query

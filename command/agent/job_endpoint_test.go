@@ -171,6 +171,36 @@ func TestHTTP_JobsRegister(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsRegister_ACL(t *testing.T) {
+	t.Parallel()
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
+			Job: job,
+			WriteRequest: api.WriteRequest{
+				Region: "global",
+			},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+		setToken(req, s.Token)
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		assert.NotNil(t, obj)
+	})
+}
+
 func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

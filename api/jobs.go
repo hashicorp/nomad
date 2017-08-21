@@ -729,6 +729,9 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // JobValidateRequest is used to validate a job
