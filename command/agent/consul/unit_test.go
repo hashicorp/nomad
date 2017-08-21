@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 const (
@@ -1350,5 +1352,49 @@ func TestIsNomadService(t *testing.T) {
 				t.Errorf("%q should be %t but found %t", test.id, test.result, actual)
 			}
 		})
+	}
+}
+
+// TestCreateCheckReg asserts Nomad ServiceCheck structs are properly converted
+// to Consul API AgentCheckRegistrations.
+func TestCreateCheckReg(t *testing.T) {
+	check := &structs.ServiceCheck{
+		Name:      "name",
+		Type:      "http",
+		Path:      "/path",
+		PortLabel: "label",
+		Method:    "POST",
+		Header: map[string][]string{
+			"Foo": {"bar"},
+		},
+	}
+
+	serviceID := "testService"
+	checkID := check.Hash(serviceID)
+	host := "localhost"
+	port := 41111
+
+	expected := &api.AgentCheckRegistration{
+		ID:        checkID,
+		Name:      "name",
+		ServiceID: serviceID,
+		AgentServiceCheck: api.AgentServiceCheck{
+			Timeout:  "0s",
+			Interval: "0s",
+			HTTP:     fmt.Sprintf("http://%s:%d/path", host, port),
+			Method:   "POST",
+			Header: map[string][]string{
+				"Foo": {"bar"},
+			},
+		},
+	}
+
+	actual, err := createCheckReg(serviceID, checkID, check, host, port)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if diff := pretty.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
 	}
 }

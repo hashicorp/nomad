@@ -36,6 +36,24 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 	}
 }
 
+func TestCopyMapStringSliceString(t *testing.T) {
+	m := map[string][]string{
+		"x": []string{"a", "b", "c"},
+		"y": []string{"1", "2", "3"},
+		"z": nil,
+	}
+
+	c := CopyMapStringSliceString(m)
+	if !reflect.DeepEqual(c, m) {
+		t.Fatalf("%#v != %#v", m, c)
+	}
+
+	c["x"][1] = "---"
+	if reflect.DeepEqual(c, m) {
+		t.Fatalf("Shared slices: %#v == %#v", m["x"], c["x"])
+	}
+}
+
 func TestClearEnvVar(t *testing.T) {
 	type testCase struct {
 		input    string

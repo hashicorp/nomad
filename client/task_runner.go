@@ -1171,6 +1171,13 @@ func (r *TaskRunner) run() {
 				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
 				r.consul.RemoveTask(r.alloc.ID, interpTask)
 
+				// Delay actually killing the task if configured. See #244
+				if r.task.ShutdownDelay > 0 {
+					r.logger.Printf("[DEBUG] client: delaying shutdown of alloc %q task %q for %q",
+						r.alloc.ID, r.task.Name, r.task.ShutdownDelay)
+					<-time.After(r.task.ShutdownDelay)
+				}
+
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
 				// doesn't add detail
@@ -1443,6 +1450,18 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
 			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+			check.Method = taskEnv.ReplaceEnv(check.Method)
+			if len(check.Header) > 0 {
+				header := make(map[string][]string, len(check.Header))
+				for k, vs := range check.Header {
+					newVals := make([]string, len(vs))
+					for i, v := range vs {
+						newVals[i] = taskEnv.ReplaceEnv(v)
+					}
+					header[taskEnv.ReplaceEnv(k)] = newVals
+				}
+				check.Header = header
+			}
 		}
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)

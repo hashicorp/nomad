@@ -374,6 +374,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)
 		}
+
+		min := helper.IntMin(len(place), limit)
+		limit -= min
 	} else if !deploymentPlaceReady && len(lost) != 0 {
 		// We are in a situation where we shouldn't be placing more than we need
 		// to but we have lost allocations. It is a very weird user experience

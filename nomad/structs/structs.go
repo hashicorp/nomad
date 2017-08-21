@@ -23,7 +23,7 @@ import (
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -89,15 +89,17 @@ const (
 	GetterModeDir  = "dir"
 )
 
-// Context defines the scope in which a search for Nomad object operates
+// Context defines the scope in which a search for Nomad object operates, and
+// is also used to query the matching index value for this context
 type Context string
 
 const (
-	Allocs Context = "allocs"
-	Evals  Context = "evals"
-	Jobs   Context = "jobs"
-	Nodes  Context = "nodes"
-	All    Context = ""
+	Allocs      Context = "allocs"
+	Deployments Context = "deployment"
+	Evals       Context = "evals"
+	Jobs        Context = "jobs"
+	Nodes       Context = "nodes"
+	All         Context = ""
 )
 
 // RPCInfo is used to describe common information about query
@@ -2669,17 +2671,19 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name          string        // Name of the check, defaults to id
-	Type          string        // Type of the check - tcp, http, docker and script
-	Command       string        // Command is the command to run for script checks
-	Args          []string      // Args is a list of argumes for script checks
-	Path          string        // path of the health check url for http type check
-	Protocol      string        // Protocol to use if check is http, defaults to http
-	PortLabel     string        // The port to use for tcp/http checks
-	Interval      time.Duration // Interval of the check
-	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus string        // Initial status of the check
-	TLSSkipVerify bool          // Skip TLS verification when Protocol=https
+	Name          string              // Name of the check, defaults to id
+	Type          string              // Type of the check - tcp, http, docker and script
+	Command       string              // Command is the command to run for script checks
+	Args          []string            // Args is a list of argumes for script checks
+	Path          string              // path of the health check url for http type check
+	Protocol      string              // Protocol to use if check is http, defaults to http
+	PortLabel     string              // The port to use for tcp/http checks
+	Interval      time.Duration       // Interval of the check
+	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus string              // Initial status of the check
+	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
+	Method        string              // HTTP Method to use (GET by default)
+	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2688,14 +2692,26 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
+	nsc.Args = helper.CopySliceString(sc.Args)
+	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
 	return nsc
 }
 
 func (sc *ServiceCheck) Canonicalize(serviceName string) {
-	// Ensure empty slices are treated as null to avoid scheduling issues when
-	// using DeepEquals.
+	// Ensure empty maps/slices are treated as null to avoid scheduling
+	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
 		sc.Args = nil
+	}
+
+	if len(sc.Header) == 0 {
+		sc.Header = nil
+	} else {
+		for k, v := range sc.Header {
+			if len(v) == 0 {
+				sc.Header[k] = nil
+			}
+		}
 	}
 
 	if sc.Name == "" {
@@ -2772,10 +2788,23 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
+	io.WriteString(h, sc.Method)
 	// Only include TLSSkipVerify if set to maintain ID stability with Nomad <0.6
 	if sc.TLSSkipVerify {
 		io.WriteString(h, "true")
 	}
+
+	// Since map iteration order isn't stable we need to write k/v pairs to
+	// a slice and sort it before hashing.
+	if len(sc.Header) > 0 {
+		headers := make([]string, 0, len(sc.Header))
+		for k, v := range sc.Header {
+			headers = append(headers, k+strings.Join(v, ""))
+		}
+		sort.Strings(headers)
+		io.WriteString(h, strings.Join(headers, ""))
+	}
+
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -2997,6 +3026,10 @@ type Task struct {
 	// Leader marks the task as the leader within the group. When the leader
 	// task exits, other tasks will be gracefully terminated.
 	Leader bool
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay time.Duration
 }
 
 func (t *Task) Copy() *Task {
@@ -3104,8 +3137,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
-	if t.KillTimeout.Nanoseconds() < 0 {
+	if t.KillTimeout < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
+	if t.ShutdownDelay < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 	}
 
 	// Validate the resources.
