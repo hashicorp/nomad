@@ -1,5 +1,7 @@
 #!/bin/sh
 
+remote="$1"
+
 if [ "$remote" == "enterprise" ]; then
     exit 0
 fi
