@@ -174,6 +174,34 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 	})
 }
 
+func TestHTTP_ACLTokenBootstrap(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/acl/bootstrap", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.ACLTokenBootstrap(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check the output
+		n := obj.(*structs.ACLToken)
+		assert.NotNil(t, n)
+		assert.Equal(t, "Bootstrap Token", n.Name)
+	})
+}
+
 func TestHTTP_ACLTokenList(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

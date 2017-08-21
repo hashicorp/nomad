@@ -132,6 +132,27 @@ func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Reques
 	return out.Tokens, nil
 }
 
+func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Ensure this is a PUT or POST
+	if !(req.Method == "PUT" || req.Method == "POST") {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// Format the request
+	args := structs.ACLTokenBootstrapRequest{}
+	s.parseRegion(req, &args.Region)
+
+	var out structs.ACLTokenUpsertResponse
+	if err := s.agent.RPC("ACL.Bootstrap", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	if len(out.Tokens) > 0 {
+		return out.Tokens[0], nil
+	}
+	return nil, nil
+}
+
 func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	accessor := strings.TrimPrefix(req.URL.Path, "/v1/acl/token")
 
