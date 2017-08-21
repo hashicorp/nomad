@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -70,6 +71,13 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+
+	// Check job submission permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNamespaceOperation(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Lookup the job
 	snap, err := j.srv.fsm.State().Snapshot()
