@@ -573,6 +573,7 @@ func parseACL(result **ACLConfig, list *ast.ObjectList) error {
 		"enabled",
 		"token_ttl",
 		"policy_ttl",
+		"replication_token",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err

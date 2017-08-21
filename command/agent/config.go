@@ -247,6 +247,11 @@ type ACLConfig struct {
 	// to "30s". Reducing this impacts performance by forcing more
 	// frequent resolution.
 	PolicyTTL time.Duration `mapstructure:"policy_ttl"`
+
+	// ReplicationToken is used by servers to replicate tokens and policies
+	// from the authoritative region. This must be a valid management token
+	// within the authoritative region.
+	ReplicationToken string `mapstructure:"replication_token"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -952,6 +957,9 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	}
 	if b.PolicyTTL != 0 {
 		result.PolicyTTL = b.PolicyTTL
+	}
+	if b.ReplicationToken != "" {
+		result.ReplicationToken = b.ReplicationToken
 	}
 	return &result
 }
