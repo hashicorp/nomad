@@ -4,6 +4,10 @@ package state
 
 import memdb "github.com/hashicorp/go-memdb"
 
+const (
+	TableNamespaces = "namespaces"
+)
+
 func init() {
 	// Register pro schemas
 	RegisterSchemaFactories([]SchemaFactory{
@@ -14,7 +18,7 @@ func init() {
 // namespaceTableSchema returns the MemDB schema for the namespace table.
 func namespaceTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "namespaces",
+		Name: TableNamespaces,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": &memdb.IndexSchema{
 				Name:         "id",
