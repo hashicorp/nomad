@@ -1571,6 +1571,30 @@ func TestFSM_DeleteACLPolicies(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+func TestFSM_BootstrapACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	req := structs.ACLTokenBootstrapRequest{
+		Token: token,
+	}
+	buf, err := structs.Encode(structs.ACLTokenBootstrapRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().ACLTokenByAccessorID(nil, token.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
 func TestFSM_UpsertACLTokens(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

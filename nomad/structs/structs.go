@@ -67,6 +67,7 @@ const (
 	ACLPolicyDeleteRequestType
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
+	ACLTokenBootstrapRequestType
 )
 
 const (
@@ -5557,6 +5558,12 @@ type ResolveACLTokenResponse struct {
 // ACLTokenDeleteRequest is used to delete a set of tokens
 type ACLTokenDeleteRequest struct {
 	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenBootstrapRequest is used to bootstrap ACLs
+type ACLTokenBootstrapRequest struct {
+	Token *ACLToken // Not client specifiable
 	WriteRequest
 }
 

@@ -771,6 +771,39 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	assert.NotEqual(t, uint64(0), resp.Index)
 }
 
+func TestACLEndpoint_Bootstrap(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Lookup the tokens
+	req := &structs.ACLTokenBootstrapRequest{
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.ACLTokenUpsertResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+	assert.NotNil(t, resp.Tokens[0])
+
+	// Get the token out from the response
+	created := resp.Tokens[0]
+	assert.NotEqual(t, "", created.AccessorID)
+	assert.NotEqual(t, "", created.SecretID)
+	assert.NotEqual(t, time.Time{}, created.CreateTime)
+	assert.Equal(t, structs.ACLManagementToken, created.Type)
+	assert.Equal(t, "Bootstrap Token", created.Name)
+	assert.Equal(t, true, created.Global)
+
+	// Check we created the token
+	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+	assert.Nil(t, err)
+	assert.Equal(t, created, out)
+}
+
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)

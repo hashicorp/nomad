@@ -177,6 +177,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenUpsert(buf[1:], log.Index)
 	case structs.ACLTokenDeleteRequestType:
 		return n.applyACLTokenDelete(buf[1:], log.Index)
+	case structs.ACLTokenBootstrapRequestType:
+		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -734,6 +736,21 @@ func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: DeleteACLTokens failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// applyACLTokenBootstrap is used to bootstrap an ACL token
+func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_bootstrap"}, time.Now())
+	var req structs.ACLTokenBootstrapRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.BootstrapACLTokens(index, req.Token); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: BootstrapACLToken failed: %v", err)
 		return err
 	}
 	return nil
