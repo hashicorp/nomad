@@ -519,6 +519,10 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	f(s)
 }
 
+func setToken(req *http.Request, token *structs.ACLToken) {
+	req.Header.Set("X-Nomad-Token", token.SecretID)
+}
+
 func encodeReq(obj interface{}) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
