@@ -338,6 +338,24 @@ func TestParseRegion(t *testing.T) {
 	}
 }
 
+func TestParseToken(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	req, err := http.NewRequest("GET", "/v1/jobs", nil)
+	req.Header.Add("X-Nomad-Token", "foobar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var token string
+	s.Server.parseToken(req, &token)
+	if token != "foobar" {
+		t.Fatalf("bad %s", token)
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {

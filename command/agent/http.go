@@ -358,9 +358,18 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 	}
 }
 
+// parseToken is used to parse the X-Nomad-Token param
+func (s *HTTPServer) parseToken(req *http.Request, token *string) {
+	if other := req.Header.Get("X-Nomad-Token"); other != "" {
+		*token = other
+		return
+	}
+}
+
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
+	s.parseToken(req, &b.SecretID)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	return parseWait(resp, req, b)
