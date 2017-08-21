@@ -146,6 +146,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -164,6 +167,9 @@ func (q QueryOptions) AllowStaleRead() bool {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (w WriteRequest) RequestRegion() string {
