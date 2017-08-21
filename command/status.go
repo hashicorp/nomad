@@ -65,7 +65,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Only a single result should return, as this is a match against a full id
 		if matchCount > 1 || len(vers) > 1 {
-			c.Ui.Error(fmt.Sprintf("Multiple matches found for id %s", id))
+			c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
 			return 1
 		}
 	}
@@ -81,7 +81,7 @@ func (c *StatusCommand) Run(args []string) int {
 	case contexts.Jobs:
 		cmd = &JobStatusCommand{Meta: c.Meta}
 	default:
-		c.Ui.Error(fmt.Sprintf("Expected a specific context for id : %s", id))
+		c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 		return 1
 	}
 
@@ -89,10 +89,17 @@ func (c *StatusCommand) Run(args []string) int {
 }
 
 func (s *StatusCommand) Help() string {
-	helpText := `Usage: nomad status <identifier>
+	helpText := `
+Usage: nomad status [options] <identifier>
 
-	Display the status output for any given resource. The command will detect the type of resource being queried and display the appropriate status output.
-	`
+  Display the status output for any given resource. The command will
+  detect the type of resource being queried and display the appropriate
+  status output.
+
+General Options:
+
+  ` + generalOptionsUsage()
+
 	return strings.TrimSpace(helpText)
 }
 
