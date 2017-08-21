@@ -3013,6 +3013,15 @@ func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool) (memdb
 	return iter, nil
 }
 
+// CanBootstrapACLToken checks if bootstrapping is possible
+func (s *StateStore) CanBootstrapACLToken() (bool, error) {
+	txn := s.db.Txn(false)
+
+	// Lookup the bootstrap sentinel
+	out, err := txn.First("index", "id", "acl_token_bootstrap")
+	return out == nil, err
+}
+
 // BootstrapACLToken is used to create an initial ACL token
 func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) error {
 	txn := s.db.Txn(true)
