@@ -46,7 +46,7 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 			return nil, err
 		}
 		if token == nil {
-			return nil, structs.TokenNotFound
+			return nil, structs.ErrTokenNotFound
 		}
 	}
 
