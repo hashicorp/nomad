@@ -496,6 +496,18 @@ func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	f(s)
 }
 
+func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.Agent.RPC)
+	f(s)
+}
+
 func encodeReq(obj interface{}) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)

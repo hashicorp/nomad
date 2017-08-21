@@ -12,7 +12,7 @@ import (
 
 func TestHTTP_ACLPolicyList(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		p2 := mock.ACLPolicy()
 		p3 := mock.ACLPolicy()
@@ -59,7 +59,7 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 
 func TestHTTP_ACLPolicyQuery(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		args := structs.ACLPolicyUpsertRequest{
 			Policies:     []*structs.ACLPolicy{p1},
@@ -104,7 +104,7 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 
 func TestHTTP_ACLPolicyCreate(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		p1 := mock.ACLPolicy()
 		buf := encodeReq(p1)
@@ -138,7 +138,7 @@ func TestHTTP_ACLPolicyCreate(t *testing.T) {
 
 func TestHTTP_ACLPolicyDelete(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		args := structs.ACLPolicyUpsertRequest{
 			Policies:     []*structs.ACLPolicy{p1},
@@ -176,7 +176,11 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 
 func TestHTTP_ACLTokenBootstrap(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	conf := func(c *Config) {
+		c.ACL.Enabled = true
+		c.ACL.PolicyTTL = 0 // Special flag to disable auto-bootstrap
+	}
+	httpTest(t, conf, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/acl/bootstrap", nil)
 		if err != nil {
@@ -204,7 +208,7 @@ func TestHTTP_ACLTokenBootstrap(t *testing.T) {
 
 func TestHTTP_ACLTokenList(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
 		p2 := mock.ACLToken()
@@ -244,9 +248,9 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the output
+		// Check the output (includes boostrap token)
 		n := obj.([]*structs.ACLTokenListStub)
-		if len(n) != 3 {
+		if len(n) != 4 {
 			t.Fatalf("bad: %#v", n)
 		}
 	})
@@ -254,7 +258,7 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 
 func TestHTTP_ACLTokenQuery(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
 		args := structs.ACLTokenUpsertRequest{
@@ -299,7 +303,7 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 
 func TestHTTP_ACLTokenCreate(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
@@ -332,7 +336,7 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 
 func TestHTTP_ACLTokenDelete(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
 		args := structs.ACLTokenUpsertRequest{

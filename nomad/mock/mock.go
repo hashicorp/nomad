@@ -371,3 +371,16 @@ func ACLToken() *structs.ACLToken {
 		ModifyIndex: 20,
 	}
 }
+
+func ACLManagementToken() *structs.ACLToken {
+	return &structs.ACLToken{
+		AccessorID:  structs.GenerateUUID(),
+		SecretID:    structs.GenerateUUID(),
+		Name:        "management " + structs.GenerateUUID(),
+		Type:        "management",
+		Global:      true,
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+}

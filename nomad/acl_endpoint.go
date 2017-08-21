@@ -10,6 +10,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	// aclDisabled is returned when an ACL endpoint is hit but ACLs are not enabled
+	aclDisabled = fmt.Errorf("ACL support disabled")
+)
+
 // ACL endpoint is used for manipulating ACL tokens and policies
 type ACL struct {
 	srv *Server
@@ -17,6 +22,12 @@ type ACL struct {
 
 // UpsertPolicies is used to create or update a set of policies
 func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.UpsertPolicies", args, args, reply); done {
 		return err
 	}
@@ -47,6 +58,12 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 
 // DeletePolicies is used to delete policies
 func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.DeletePolicies", args, args, reply); done {
 		return err
 	}
@@ -70,6 +87,9 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 
 // ListPolicies is used to list the policies
 func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.ACLPolicyListResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
 	}
@@ -122,6 +142,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 
 // GetPolicy is used to get a specific policy
 func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.SingleACLPolicyResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
 	}
@@ -157,6 +180,9 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 
 // GetPolicies is used to get a set of policies
 func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLPolicySetResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetPolicies", args, args, reply); done {
 		return err
 	}
@@ -194,6 +220,12 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 
 // Bootstrap is used to bootstrap the initial token
 func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.ACLTokenUpsertResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
 	}
@@ -250,6 +282,12 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 // UpsertTokens is used to create or update a set of tokens
 func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.ACLTokenUpsertResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {
 		return err
 	}
@@ -322,6 +360,12 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 // DeleteTokens is used to delete tokens
 func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
 		return err
 	}
@@ -345,6 +389,9 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 
 // ListTokens is used to list the tokens
 func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTokenListResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ListTokens", args, args, reply); done {
 		return err
 	}
@@ -393,6 +440,9 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 
 // GetToken is used to get a specific token
 func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.SingleACLTokenResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetToken", args, args, reply); done {
 		return err
 	}
@@ -428,6 +478,9 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 
 // GetTokens is used to get a set of token
 func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLTokenSetResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetTokens", args, args, reply); done {
 		return err
 	}
@@ -465,6 +518,9 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 
 // ResolveToken is used to lookup a specific token by a secret ID. This is used for enforcing ACLs by clients.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
 	}
