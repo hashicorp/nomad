@@ -321,7 +321,33 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-	args.Region = a.srv.config.AuthoritativeRegion
+
+	// Validate non-zero set of tokens
+	if len(args.Tokens) == 0 {
+		return fmt.Errorf("must specify as least one token")
+	}
+
+	// Force the request to the authoritative region if we are creating global tokens
+	hasGlobal := false
+	allGlobal := true
+	for _, token := range args.Tokens {
+		if token.Global {
+			hasGlobal = true
+		} else {
+			allGlobal = false
+		}
+	}
+
+	// Disallow mixed requests with global and non-global tokens since we forward
+	// the entire request as a single batch.
+	if hasGlobal {
+		if !allGlobal {
+			return fmt.Errorf("cannot upsert mixed global and non-global tokens")
+		}
+
+		// Force the request to the authoritative region if it has global
+		args.Region = a.srv.config.AuthoritativeRegion
+	}
 
 	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {
 		return err
@@ -333,11 +359,6 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
-	}
-
-	// Validate non-zero set of tokens
-	if len(args.Tokens) == 0 {
-		return fmt.Errorf("must specify as least one token")
 	}
 
 	// Snapshot the state
