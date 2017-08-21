@@ -199,6 +199,39 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	assert.Equal(uint64(100), resp.Index)
 }
 
+func TestSearch_PrefixSearch_Deployment(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	deployment := mock.Deployment()
+	s.fsm.State().UpsertDeployment(2000, deployment)
+
+	prefix := deployment.ID[:len(deployment.ID)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Deployments,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Deployments]))
+	assert.Equal(deployment.ID, resp.Matches[structs.Deployments][0])
+	assert.Equal(resp.Truncations[structs.Deployments], false)
+
+	assert.Equal(uint64(2000), resp.Index)
+}
+
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
