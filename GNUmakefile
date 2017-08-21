@@ -147,8 +147,7 @@ check: ## Lint the source code
 		./...
 
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-generate: ## Update generated code for the current OS/arch
-	@echo "==> Generating code for $(GOOS)..."
+generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: dev
