@@ -69,6 +69,7 @@ Update stanza Tests:
 √  Finished deployment gets marked as complete
 √  The stagger is correctly calculated when it is applied across multiple task groups.
 √  Change job change while scaling up
+√  Update the job when all allocations from the previous job haven't been placed yet.
 */
 
 var (
@@ -2468,9 +2469,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		PlacedAllocs: 7,
 	}
 
-	// Create 3 allocations from the old job
+	// Create 2 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 7; i < 10; i++ {
+	for i := 8; i < 10; i++ {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2482,7 +2483,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 	// Create the healthy replacements
 	handled := make(map[string]allocUpdateType)
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 8; i++ {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
@@ -2501,7 +2502,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	tainted := make(map[string]*structs.Node, 3)
 	for i := 0; i < 3; i++ {
 		n := mock.Node()
-		n.ID = allocs[3+i].NodeID
+		n.ID = allocs[2+i].NodeID
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
@@ -2519,7 +2520,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             2,
-		destructive:       3,
+		destructive:       2,
 		stop:              2,
 		followupEvalWait:  31 * time.Second,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
@@ -2527,13 +2528,13 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 				Place:             1, // Place the lost
 				Stop:              1, // Stop the lost
 				Migrate:           1, // Migrate the tainted
-				DestructiveUpdate: 3,
-				Ignore:            5,
+				DestructiveUpdate: 2,
+				Ignore:            6,
 			},
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(7, 9), destructiveResultsToNames(r.destructiveUpdate))
+	assertNamesHaveIndexes(t, intRange(8, 9), destructiveResultsToNames(r.destructiveUpdate))
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
@@ -3011,4 +3012,49 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 			},
 		},
 	})
+}
+
+// Tests the reconciler doesn't stop allocations when doing a rolling upgrade
+// where the count of the old job allocs is < desired count.
+func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 7 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 7; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  d,
+		deploymentUpdates: nil,
+		place:             3,
+		destructive:       1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:             3,
+				DestructiveUpdate: 1,
+				Ignore:            6,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(7, 9), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 0), destructiveResultsToNames(r.destructiveUpdate))
 }
