@@ -82,7 +82,7 @@ func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 		return nil, err
 	}
 	if token == nil {
-		return nil, structs.TokenNotFound
+		return nil, structs.ErrTokenNotFound
 	}
 
 	// Check if this is a management token

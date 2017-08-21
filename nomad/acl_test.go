@@ -43,7 +43,7 @@ func TestResolveACLToken(t *testing.T) {
 	// Attempt resolution of unknown token. Should fail.
 	randID := structs.GenerateUUID()
 	aclObj, err = resolveTokenFromSnapshotCache(snap, cache, randID)
-	assert.Equal(t, structs.TokenNotFound, err)
+	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, aclObj)
 
 	// Attempt resolution of management token. Should get singleton.
