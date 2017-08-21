@@ -427,7 +427,11 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-	args.Region = a.srv.config.AuthoritativeRegion
+
+	// Validate non-zero set of tokens
+	if len(args.AccessorIDs) == 0 {
+		return fmt.Errorf("must specify as least one token")
+	}
 
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
 		return err
@@ -441,9 +445,43 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 		return structs.ErrPermissionDenied
 	}
 
-	// Validate non-zero set of tokens
-	if len(args.AccessorIDs) == 0 {
-		return fmt.Errorf("must specify as least one token")
+	// Snapshot the state
+	state, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Determine if we are deleting local or global tokens
+	hasGlobal := false
+	allGlobal := true
+	for _, accessor := range args.AccessorIDs {
+		token, err := state.ACLTokenByAccessorID(nil, accessor)
+		if err != nil {
+			return fmt.Errorf("token lookup failed: %v", err)
+		}
+		if token == nil {
+			continue
+		}
+		if token.Global {
+			hasGlobal = true
+		} else {
+			allGlobal = false
+		}
+	}
+
+	// Disallow mixed requests with global and non-global tokens since we forward
+	// the entire request as a single batch.
+	if hasGlobal {
+		if !allGlobal {
+			return fmt.Errorf("cannot delete mixed global and non-global tokens")
+		}
+
+		// Force the request to the authoritative region if it has global
+		if a.srv.config.Region != a.srv.config.AuthoritativeRegion {
+			args.Region = a.srv.config.AuthoritativeRegion
+			_, err := a.srv.forward("ACL.DeleteTokens", args, args, reply)
+			return err
+		}
 	}
 
 	// Update via Raft
