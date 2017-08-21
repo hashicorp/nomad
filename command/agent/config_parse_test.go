@@ -105,9 +105,10 @@ func TestConfig_Parse(t *testing.T) {
 					EncryptKey:             "abc",
 				},
 				ACL: &ACLConfig{
-					Enabled:   true,
-					TokenTTL:  60 * time.Second,
-					PolicyTTL: 60 * time.Second,
+					Enabled:          true,
+					TokenTTL:         60 * time.Second,
+					PolicyTTL:        60 * time.Second,
+					ReplicationToken: "foobar",
 				},
 				Telemetry: &Telemetry{
 					StatsiteAddr:             "127.0.0.1:1234",

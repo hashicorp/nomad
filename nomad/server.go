@@ -1152,6 +1152,12 @@ func (s *Server) GetConfig() *Config {
 	return s.config
 }
 
+// ReplicationToken returns the token used for replication. We use a method to support
+// dynamic reloading of this value later.
+func (s *Server) ReplicationToken() string {
+	return s.config.ReplicationToken
+}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.
