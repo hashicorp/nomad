@@ -15,6 +15,7 @@ IMPROVEMENTS:
    is no target [GH-3024]
  * discovery: Add HTTP header and method support to checks [GH-3031]
  * driver/docker: Added DNS options [GH-2992]
+ * driver/docker: Add mount options for volumes [GH-3021]
  * driver/rkt: support read-only volume mounts [GH-2883]
  * jobspec: Add `shutdown_delay` so tasks can delay shutdown after
    deregistering from Consul [GH-3043]
