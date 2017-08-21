@@ -27,6 +27,7 @@ BUG FIXES:
    [GH-2939]
  * cli: Fix autocmpleting global flags [GH-2928]
  * cli: Fix panic when using 0.6.0 cli with an older cluster [GH-2929]
+ * client: Fix `LC_ALL=C` being set on subprocesses [GH-3041]
  * deployment: Fix alloc health with services/checks using interpolation
    [GH-2984]
  * discovery: Fix timeout validation for script checks [GH-3022]
