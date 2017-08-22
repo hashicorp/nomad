@@ -165,6 +165,46 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 	assert.Equal(t, 0, len(resp.Policies))
 }
 
+func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	policy := mock.ACLPolicy()
+	policy2 := mock.ACLPolicy()
+	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy, policy2})
+
+	token := mock.ACLToken()
+	token.Policies = []string{policy.Name}
+	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+
+	// Lookup the policy which is a subset of our tokens
+	get := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:   "global",
+			SecretID: token.SecretID,
+		},
+	}
+	var resp structs.ACLPolicySetResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, 1, len(resp.Policies))
+	assert.Equal(t, policy, resp.Policies[policy.Name])
+
+	// Lookup non-associated policy
+	get.Names = []string{policy2.Name}
+	resp = structs.ACLPolicySetResponse{}
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err == nil {
+		t.Fatalf("expected error")
+	}
+}
+
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 	t.Parallel()
 	s1, root := testACLServer(t, nil)

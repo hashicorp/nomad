@@ -216,10 +216,17 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	// For client typed tokens, allow them to query any policies associated with that token.
+	// This is used by clients which are resolving the policies to enforce. Any associated
+	// policies need to be fetched so that the client can determine what to allow.
+	token, err := a.srv.State().ACLTokenBySecretID(nil, args.SecretID)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken && !token.PolicySubset(args.Names) {
 		return structs.ErrPermissionDenied
 	}
 
