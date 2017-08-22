@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
@@ -194,33 +195,27 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	// Create a fake job
+	state := srv.Agent.Server().State()
+	j := mock.Job()
+	assert.Nil(state.UpsertJob(1000, j))
 
-	prefix := jobID[:len(jobID)-5]
+	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
-	assert.Equal(jobID, res[0])
+	assert.Equal(j.ID, res[0])
 
 	// Autocomplete should only complete once
 	args = complete.Args{Last: prefix, Completed: []string{prefix, "a", "b"}}
-	prefix = jobID[:len(jobID)-5]
 	predictor = cmd.AutocompleteArgs()
 
 	res = predictor.Predict(args)

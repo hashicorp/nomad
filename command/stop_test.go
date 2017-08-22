@@ -60,6 +60,7 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &StopCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
+	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
 	assert.Nil(state.UpsertJob(1000, j))
