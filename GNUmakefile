@@ -18,7 +18,12 @@ endif
 
 # On Linux we build for Linux, Windows, and potentially Linux+LXC
 ifeq (Linux,$(THIS_OS))
-HAS_LXC = $(shell pkg-config --exists lxc)
+
+# Detect if we have LXC on the path
+ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
+HAS_LXC="true"
+endif
+
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
 	linux_arm \
@@ -26,7 +31,7 @@ ALL_TARGETS += linux_386 \
 	windows_386 \
 	windows_amd64
 
-ifeq (,$(HAS_LAX))
+ifeq (,$(HAS_LXC))
 ALL_TARGETS += linux_amd64-lxc
 endif
 endif
