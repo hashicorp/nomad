@@ -138,11 +138,8 @@ type DockerLoggingOpts struct {
 type Mount struct {
 	Target        string         `mapstructure:"target"`
 	Source        string         `mapstructure:"source"`
-	Type          string         `mapstructure:"type"`
 	ReadOnly      bool           `mapstructure:"readonly"`
-	BindOptions   *BindOptions   `mapstructure:"bind_options"`
 	VolumeOptions *VolumeOptions `mapstructure:"volume_options"`
-	TempfsOptions *TempfsOptions `mapstructure:"tempfs_options"`
 }
 
 type BindOptions struct {
@@ -272,16 +269,6 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	for i, m := range dconf.Mounts {
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
-		dconf.Mounts[i].Type = env.ReplaceEnv(m.Type)
-		if dconf.Mounts[i].Type == "" {
-			dconf.Mounts[i].Type = "volume"
-		}
-		if dconf.Mounts[i].Type != "volume" {
-			return nil, fmt.Errorf("mount type %v is not supported")
-		}
-		if m.BindOptions != nil {
-			dconf.Mounts[i].BindOptions.Propagation = env.ReplaceEnv(m.BindOptions.Propagation)
-		}
 		if m.VolumeOptions != nil {
 			if m.VolumeOptions.Labels != nil {
 				for k, v := range m.VolumeOptions.Labels {
@@ -1015,13 +1002,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		hm := docker.HostMount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     m.Type,
+			Type:     "volume", // Only type supported
 			ReadOnly: m.ReadOnly,
-		}
-		if m.BindOptions != nil {
-			hm.BindOptions = &docker.BindOptions{
-				Propagation: m.BindOptions.Propagation,
-			}
 		}
 		if m.VolumeOptions != nil {
 			hm.VolumeOptions = &docker.VolumeOptions{
@@ -1031,12 +1013,6 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,
 				},
-			}
-		}
-		if m.TempfsOptions != nil {
-			hm.TempfsOptions = &docker.TempfsOptions{
-				SizeBytes: m.TempfsOptions.SizeBytes,
-				Mode:      m.TempfsOptions.Mode,
 			}
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
