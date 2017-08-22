@@ -67,7 +67,7 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &InspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	state := srv.Agent.Server().State()
 	j := mock.Job()
