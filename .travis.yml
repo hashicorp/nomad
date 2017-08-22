@@ -21,7 +21,6 @@ branches:
 matrix:
   include:
     - env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
-    - env:
 
 cache:
   directories:
