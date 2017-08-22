@@ -1070,6 +1070,7 @@ func (n *Node) Stub() *NodeListStub {
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
 		NodeClass:         n.NodeClass,
+		Version:           n.Attributes["nomad.version"],
 		Drain:             n.Drain,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
@@ -1085,6 +1086,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Version           string
 	Drain             bool
 	Status            string
 	StatusDescription string
