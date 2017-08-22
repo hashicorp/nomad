@@ -26,7 +26,7 @@ ALL_TARGETS += linux_386 \
 	windows_386 \
 	windows_amd64
 
-ifeq (,$(HAS_LAX))
+ifeq (,$(HAS_LXC))
 ALL_TARGETS += linux_amd64-lxc
 endif
 endif
