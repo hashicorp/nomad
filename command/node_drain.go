@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type NodeDrainCommand struct {
@@ -40,6 +43,25 @@ Node Drain Options:
 
 func (c *NodeDrainCommand) Synopsis() string {
 	return "Toggle drain mode on a given node"
+}
+
+func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Nodes)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {

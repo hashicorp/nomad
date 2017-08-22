@@ -60,6 +60,26 @@ func (c *AllocStatusCommand) Synopsis() string {
 	return "Display allocation status information and metadata"
 }
 
+func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
+}
+
 func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
@@ -192,26 +212,6 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	return 0
-}
-
-func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
-	return nil
-}
-
-func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
-
-	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Allocs]
-	})
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {

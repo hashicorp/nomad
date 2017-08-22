@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -149,40 +150,24 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	// Create a fake alloc
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
 
-	// get an alloc id
-	allocID := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
-		if len(allocs) > 0 {
-			allocID = allocs[0].ID
-		}
-	}
-	if allocID == "" {
-		t.Fatal("unable to find an allocation")
-	}
-
-	prefix := allocID[:len(allocID)-5]
+	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
-	assert.Equal(allocID, res[0])
+	assert.Equal(a.ID, res[0])
 
 	// Autocomplete should only complete once
 	args = complete.Args{Last: prefix, Completed: []string{prefix, "1", "2"}}

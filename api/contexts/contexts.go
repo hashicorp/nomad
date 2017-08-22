@@ -4,9 +4,10 @@ package contexts
 type Context string
 
 const (
-	Allocs Context = "allocs"
-	Evals  Context = "evals"
-	Jobs   Context = "jobs"
-	Nodes  Context = "nodes"
-	All    Context = ""
+	Allocs      Context = "allocs"
+	Deployments Context = "deployment"
+	Evals       Context = "evals"
+	Jobs        Context = "jobs"
+	Nodes       Context = "nodes"
+	All         Context = ""
 )
