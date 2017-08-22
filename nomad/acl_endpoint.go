@@ -108,6 +108,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 			if err != nil {
 				return err
 			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
 			if index == 0 {
 				index = 1
 			}
