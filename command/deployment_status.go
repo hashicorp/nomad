@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentStatusCommand struct {
@@ -38,6 +40,25 @@ Status Options:
 
 func (c *DeploymentStatusCommand) Synopsis() string {
 	return "Display the status of a deployment"
+}
+
+func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Deployments)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {

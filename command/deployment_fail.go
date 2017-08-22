@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentFailCommand struct {
@@ -37,6 +40,25 @@ Fail Options:
 
 func (c *DeploymentFailCommand) Synopsis() string {
 	return "Manually fail a deployment"
+}
+
+func (c *DeploymentFailCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *DeploymentFailCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Deployments)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentFailCommand) Run(args []string) int {
