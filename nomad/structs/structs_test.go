@@ -2307,3 +2307,28 @@ func TestACLTokenValidate(t *testing.T) {
 	err = tk.Validate()
 	assert.Nil(t, err)
 }
+
+func TestACLTokenPolicySubset(t *testing.T) {
+	tk := &ACLToken{
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar", "baz"},
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"new"}))
+
+	tk = &ACLToken{
+		Type: ACLManagementToken,
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
+}
