@@ -5421,6 +5421,24 @@ func (a *ACLToken) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// PolicySubset checks if a given set of policies is a subset of the token
+func (a *ACLToken) PolicySubset(policies []string) bool {
+	// Hot-path the management tokens, superset of all policies.
+	if a.Type == ACLManagementToken {
+		return true
+	}
+	associatedPolicies := make(map[string]struct{}, len(a.Policies))
+	for _, policy := range a.Policies {
+		associatedPolicies[policy] = struct{}{}
+	}
+	for _, policy := range policies {
+		if _, ok := associatedPolicies[policy]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // ACLTokenListRequest is used to request a list of tokens
 type ACLTokenListRequest struct {
 	GlobalOnly bool
