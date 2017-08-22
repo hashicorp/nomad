@@ -2,12 +2,13 @@ package structs
 
 import (
 	crand "crypto/rand"
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"sort"
 	"strings"
+
+	"golang.org/x/crypto/blake2b"
 
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
@@ -263,7 +264,10 @@ func AllocName(job, group string, idx uint) string {
 
 // ACLPolicyListHash returns a consistent hash for a set of policies.
 func ACLPolicyListHash(policies []*ACLPolicy) string {
-	cacheKeyHash := sha1.New()
+	cacheKeyHash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
 	for _, policy := range policies {
 		cacheKeyHash.Write([]byte(policy.Name))
 		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
