@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type LogsCommand struct {
@@ -57,6 +59,26 @@ Logs Specific Options:
 
 func (l *LogsCommand) Synopsis() string {
 	return "Streams the logs of a task."
+}
+
+func (l *LogsCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := l.Meta.Client()
+
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
 
 func (l *LogsCommand) Run(args []string) int {
