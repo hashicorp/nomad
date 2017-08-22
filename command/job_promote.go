@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/posener/complete"
 )
 
 type JobPromoteCommand struct {
@@ -48,6 +50,25 @@ Promote Options:
 
 func (c *JobPromoteCommand) Synopsis() string {
 	return "Promote a job's canaries"
+}
+
+func (c *JobPromoteCommand) AutocompleteFlags() complete.Flags {
+	return nil
+}
+
+func (c *JobPromoteCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobPromoteCommand) Run(args []string) int {
