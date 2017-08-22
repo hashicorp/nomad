@@ -29,9 +29,9 @@ test('breadcrumbs includes job name and link back to the jobs list', function(as
 });
 
 test('the job detail page should contain basic information about the job', function(assert) {
+  assert.ok(find('.title .tag:eq(0)').text().includes(job.status), 'Status');
   assert.ok(find('.job-stats span:eq(0)').text().includes(job.type), 'Type');
-  assert.ok(find('.job-stats span:eq(1)').text().includes(job.status), 'Status');
-  assert.ok(find('.job-stats span:eq(2)').text().includes(job.priority), 'Priority');
+  assert.ok(find('.job-stats span:eq(1)').text().includes(job.priority), 'Priority');
 });
 
 test('the job detail page should list all task groups', function(assert) {
@@ -65,5 +65,59 @@ test('each row in the task group table should show basic information about the t
     taskGroupRow.find('td:eq(5)').text(),
     `${sum(tasks, 'Resources.DiskMB')} MiB`,
     'Reserved Disk'
+  );
+});
+
+test('the allocations diagram lists all allocation status figures', function(assert) {
+  const legend = find('.distribution-bar .legend');
+  const jobSummary = server.db.jobSummaries.findBy({ jobId: job.id });
+  const statusCounts = Object.keys(jobSummary.Summary).reduce(
+    (counts, key) => {
+      const group = jobSummary.Summary[key];
+      counts.queued += group.Queued;
+      counts.starting += group.Starting;
+      counts.running += group.Running;
+      counts.complete += group.Complete;
+      counts.failed += group.Failed;
+      counts.lost += group.Lost;
+      return counts;
+    },
+    { queued: 0, starting: 0, running: 0, complete: 0, failed: 0, lost: 0 }
+  );
+
+  assert.equal(
+    legend.find('li.queued .value').text(),
+    statusCounts.queued,
+    `${statusCounts.queued} are queued`
+  );
+
+  assert.equal(
+    legend.find('li.starting .value').text(),
+    statusCounts.starting,
+    `${statusCounts.starting} are starting`
+  );
+
+  assert.equal(
+    legend.find('li.running .value').text(),
+    statusCounts.running,
+    `${statusCounts.running} are running`
+  );
+
+  assert.equal(
+    legend.find('li.complete .value').text(),
+    statusCounts.complete,
+    `${statusCounts.complete} are complete`
+  );
+
+  assert.equal(
+    legend.find('li.failed .value').text(),
+    statusCounts.failed,
+    `${statusCounts.failed} are failed`
+  );
+
+  assert.equal(
+    legend.find('li.lost .value').text(),
+    statusCounts.lost,
+    `${statusCounts.lost} are lost`
   );
 });
