@@ -23,4 +23,15 @@
   &::placeholder {
     color: $grey-blue;
   }
+
+  &.is-compact {
+    padding: 0.25em 0.75em;
+    margin: -0.25em -0.25em -0.25em 0;
+  }
+}
+
+.field {
+  &.is-inline {
+    display: inline-block;
+  }
 }

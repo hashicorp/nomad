@@ -12,6 +12,8 @@ export default Component.extend({
   // Used to throttle sets to searchTerm
   debounce: 150,
 
+  classNames: ['field', 'has-addons'],
+
   actions: {
     setSearchTerm(e) {
       this.set('_searchTerm', e.target.value);

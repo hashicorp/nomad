@@ -4,91 +4,111 @@
   {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
+  <div class="tabs is-subnav">
+    <ul>
+      <li>{{#link-to "jobs.job.task-group" model.job model activeClass="is-active"}}Overview{{/link-to}}</li>
+    </ul>
+  </div>
   <section class="section">
-    <div class="level">
-      <div class="level-item has-text-centered cpu">
-        <div>
-          <h3 class="title is-1">{{model.reservedCPU}} MHz</h3>
-          <p class="heading">Reserved CPU</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered memory">
-        <div>
-          <h3 class="title is-1">{{model.reservedMemory}} MiB</h3>
-          <p class="heading">Reserved Memory</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered disk">
-        <div>
-          <h3 class="title is-1">{{model.reservedDisk}} MiB</h3>
-          <p class="heading">Reserved Disk</p>
-        </div>
-      </div>
-      <div class="level-item has-text-centered tasks">
-        <div>
-          <h3 class="title is-1">{{model.tasks.length}}</h3>
-          <p class="heading">{{pluralize "Task" model.tasks.length}}</p>
-        </div>
+    <h1 class="title">
+      {{model.name}}
+    </h1>
+
+    <div class="boxed-section is-small">
+      <div class="boxed-section-body inline-definitions">
+        <span class="label">Task Group Details</span>
+
+        <span class="pair"><span class="term"># Tasks</span> {{model.tasks.length}}</span>
+        <span class="pair"><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
+        <span class="pair"><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
+        <span class="pair"><span class="term">Reserved Disk</span> {{model.reservedDisk}} MiB</span>
       </div>
     </div>
 
-    <div class="message">
-      <div class="message-header">
-        Allocations
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        <div>Allocation Status <span class="badge is-white">{{allocations.length}}</span></div>
       </div>
-      {{search-box searchTerm=(mut searchTerm) placeholder="Search allocations..."}}
-      {{#list-pagination
-        source=sortedAllocations
-        size=pageSize
-        page=currentPage
-        class="allocations" as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending as |t|}}
-          {{#t.head}}
-            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
-            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-            {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
-            <th>CPU</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            <tr>
-              <td>
-                <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.shortId}}</a>
-              </td>
-              <td>
-                <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.name}}</a>
-              </td>
-              <td>
-                <a href="{{href-to "nodes.node" row.model.node}}">{{row.model.node.shortId}}</a>
-              </td>
-              <td>
-                {{#if row.model.stats.isPending}}
-                  ...
-                {{else if row.model.stats.isRejected}}
-                  !!!
-                {{else}}
-                  {{row.model.stats.ResourceUsage.CpuStats.Percent}}
-                {{/if}}
-              </td>
-            </tr>
-          {{/t.body}}
-        {{/list-table}}
-        <nav class="pagination is-centered">
-          <ul class="pagination-list">
-            {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
-            {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
-            {{#each p.pageLinks as |link|}}
-              {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
-                {{link.pageNumber}}
-              {{/link-to}}
+      <div class="boxed-section-body">
+        {{#allocation-status-bar allocationContainer=model.summary class="split-view" as |chart|}}
+          <ol class="legend">
+            {{#each chart.data as |datum index|}}
+              <li class="{{datum.className}} {{if (eq datum chart.activeDatum) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+                <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+                <span class="value">{{datum.value}}</span>
+                <span class="label">
+                  {{datum.label}}
+                </span>
+              </li>
             {{/each}}
-            {{#p.next class="pagination-link"}} &gt; {{/p.next}}
-            {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
-          </ul>
-        </nav>
-      {{/list-pagination}}
+          </ol>
+        {{/allocation-status-bar}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Allocations
+        {{search-box
+          searchTerm=(mut searchTerm)
+          placeholder="Search allocations..."
+          class="is-inline pull-right"
+          inputClass="is-compact"}}
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-pagination
+          source=sortedAllocations
+          size=pageSize
+          page=currentPage
+          class="allocations" as |p|}}
+          {{#list-table
+            source=p.list
+            sortProperty=sortProperty
+            sortDescending=sortDescending as |t|}}
+            {{#t.head}}
+              {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+              {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
+              <th>CPU</th>
+            {{/t.head}}
+            {{#t.body as |row|}}
+              <tr>
+                <td>
+                  <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.shortId}}</a>
+                </td>
+                <td>
+                  <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.name}}</a>
+                </td>
+                <td>
+                  <a href="{{href-to "nodes.node" row.model.node}}">{{row.model.node.shortId}}</a>
+                </td>
+                <td>
+                  {{#if row.model.stats.isPending}}
+                    ...
+                  {{else if row.model.stats.isRejected}}
+                    !!!
+                  {{else}}
+                    {{row.model.stats.ResourceUsage.CpuStats.Percent}}
+                  {{/if}}
+                </td>
+              </tr>
+            {{/t.body}}
+          {{/list-table}}
+          <nav class="pagination is-centered">
+            <ul class="pagination-list">
+              {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
+              {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
+              {{#each p.pageLinks as |link|}}
+                {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
+                  {{link.pageNumber}}
+                {{/link-to}}
+              {{/each}}
+              {{#p.next class="pagination-link"}} &gt; {{/p.next}}
+              {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
+            </ul>
+          </nav>
+        {{/list-pagination}}
+      </div>
     </div>
   </section>
 {{/gutter-menu}}

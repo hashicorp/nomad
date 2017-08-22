@@ -4,7 +4,7 @@
 {{#gutter-menu class="page-body"}}
   <section class="section">
     <div class="content">
-      {{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
+      <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
     </div>
     {{#list-pagination
       source=sortedJobs
