@@ -1236,6 +1236,12 @@
 			"revisionTime": "2017-06-05T21:53:11Z"
 		},
 		{
+			"checksumSHA1": "pE9lQ5mMiW10+m6CS9XQDhSACNU=",
+			"path": "golang.org/x/crypto/blake2b",
+			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
+			"revisionTime": "2017-08-07T10:11:13Z"
+		},
+		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
 			"path": "golang.org/x/net/context",
 			"revision": "30db96677b74e24b967e23f911eb3364fc61a011",
