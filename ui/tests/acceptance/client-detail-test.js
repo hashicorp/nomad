@@ -31,6 +31,34 @@ test('/nodes/:id should have a breadrcumb trail linking back to nodes', function
   });
 });
 
+test('/nodes/:id should list immediate details for the node in the title', function(assert) {
+  assert.ok(find('.title').text().includes(node.name), 'Title includes name');
+  assert.ok(find('.title').text().includes(node.id), 'Title includes id');
+  assert.ok(find(`.title .node-status-light.${node.status}`).length, 'Title includes status light');
+});
+
+test('/nodes/:id should list additional detail for the node below the title', function(assert) {
+  assert.equal(
+    find('.inline-definitions .pair:eq(0)').text(),
+    `Status ${node.status}`,
+    'Status is in additional details'
+  );
+  assert.ok(
+    find('.inline-definitions .pair:eq(0) .status-text').hasClass(`node-${node.status}`),
+    'Status is decorated with a status class'
+  );
+  assert.equal(
+    find('.inline-definitions .pair:eq(1)').text(),
+    `Address ${node.httpAddr}`,
+    'Address is in additional detals'
+  );
+  assert.equal(
+    find('.inline-definitions .pair:eq(2)').text(),
+    `Datacenter ${node.datacenter}`,
+    'Datacenter is in additional details'
+  );
+});
+
 test('/nodes/:id should list all allocations on the node', function(assert) {
   const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
   assert.equal(
@@ -53,18 +81,28 @@ test('each allocation should have high-level details for the allocation', functi
     'Allocation short ID'
   );
   assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
+  assert.equal(
+    allocationRow.find('td:eq(2)').text().trim(),
+    allocation.clientStatus,
+    'Client status'
+  );
   assert.ok(
-    allocationRow.find('td:eq(2)').text().includes(server.db.jobs.find(allocation.jobId).name),
+    allocationRow.find('td:eq(3)').text().includes(server.db.jobs.find(allocation.jobId).name),
     'Job name'
   );
   assert.ok(
-    allocationRow.find('td:eq(2) .is-faded').text().includes(allocation.taskGroup),
+    allocationRow.find('td:eq(3) .is-faded').text().includes(allocation.taskGroup),
     'Task group name'
   );
   assert.equal(
-    allocationRow.find('td:eq(3)').text().trim(),
+    allocationRow.find('td:eq(4)').text().trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
+  );
+  assert.equal(
+    allocationRow.find('td:eq(5)').text().trim(),
+    server.db.clientAllocationStats.find(allocation.id).resourceUsage.MemoryStats.Cache,
+    'Memory used'
   );
 });
 
@@ -88,7 +126,7 @@ test('each allocation should link to the allocation detail page', function(asser
 test('each allocation should link to the job the allocation belongs to', function(assert) {
   const allocation = server.db.allocations.where({ nodeId: node.id })[0];
   const job = server.db.jobs.find(allocation.jobId);
-  click('.allocations tbody tr:eq(0) td:eq(2) a');
+  click('.allocations tbody tr:eq(0) td:eq(3) a');
 
   andThen(() => {
     assert.equal(

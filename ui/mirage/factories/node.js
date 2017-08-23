@@ -17,7 +17,7 @@ export default Factory.extend({
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
-  http_addr() {
+  httpAddr() {
     return this.name.split('@')[1];
   },
 

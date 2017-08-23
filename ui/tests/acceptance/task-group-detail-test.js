@@ -158,8 +158,14 @@ test('each allocation should show stats about the allocation, retrieved directly
     'CPU %'
   );
 
+  assert.equal(
+    allocationRow.find('td:eq(5)').text().trim(),
+    server.db.clientAllocationStats.find(allocation.id).resourceUsage.MemoryStats.Cache,
+    'Memory used'
+  );
+
   const node = server.db.nodes.find(allocation.nodeId);
-  const nodeStatsUrl = `//${node.http_addr}/v1/client/allocation/${allocation.id}/stats`;
+  const nodeStatsUrl = `//${node.httpAddr}/v1/client/allocation/${allocation.id}/stats`;
 
   assert.ok(
     server.pretender.handledRequests.some(req => req.url === nodeStatsUrl),

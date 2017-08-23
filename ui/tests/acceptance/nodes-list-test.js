@@ -48,8 +48,8 @@ test('each client record should show high-level info of the client', function(as
     assert.equal(nodeRow.find('td:eq(0)').text(), node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.find('td:eq(1)').text(), node.name, 'Name');
     assert.equal(nodeRow.find('td:eq(2)').text(), node.status, 'Status');
-    assert.equal(nodeRow.find('td:eq(3)').text(), node.http_addr.split(':')[0], 'Address');
-    assert.equal(nodeRow.find('td:eq(4)').text(), node.http_addr.split(':')[1], 'Port');
+    assert.equal(nodeRow.find('td:eq(3)').text(), node.httpAddr.split(':')[0], 'Address');
+    assert.equal(nodeRow.find('td:eq(4)').text(), node.httpAddr.split(':')[1], 'Port');
     assert.equal(nodeRow.find('td:eq(5)').text(), node.datacenter, 'Datacenter');
     assert.equal(nodeRow.find('td:eq(6)').text(), allocations.length, '# Allocations');
   });
