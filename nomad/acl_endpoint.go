@@ -108,6 +108,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 			if err != nil {
 				return err
 			}
+			if index == 0 {
+				index = 1
+			}
 			reply.Index = index
 			return nil
 		}}
@@ -255,6 +258,8 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix)
+			} else if args.GlobalOnly {
+				iter, err = state.ACLTokensByGlobal(ws, true)
 			} else {
 				iter, err = state.ACLTokens(ws)
 			}
