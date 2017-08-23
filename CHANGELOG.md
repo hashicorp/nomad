@@ -24,6 +24,7 @@ IMPROVEMENTS:
    deregistering from Consul [GH-3043]
 
 BUG FIXES:
+ * core: Fix purging of job versions [GH-3056]
  * core: Fix race creating EvalFuture [GH-3051]
  * core: Fix panic occuring from improper bitmap size [GH-3023]
  * core: Fix restoration of parameterized, periodic jobs [GH-2959]
