@@ -135,31 +135,21 @@ type DockerLoggingOpts struct {
 	Config    map[string]string   `mapstructure:"-"`
 }
 
-type Mount struct {
-	Target        string         `mapstructure:"target"`
-	Source        string         `mapstructure:"source"`
-	ReadOnly      bool           `mapstructure:"readonly"`
-	VolumeOptions *VolumeOptions `mapstructure:"volume_options"`
+type DockerMount struct {
+	Target        string               `mapstructure:"target"`
+	Source        string               `mapstructure:"source"`
+	ReadOnly      bool                 `mapstructure:"readonly"`
+	VolumeOptions *DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
-type BindOptions struct {
-	Propagation string `mapstructure:"propagation"`
-}
-
-type VolumeOptions struct {
-	NoCopy       bool               `mapstructure:"no_copy"`
-	Labels       map[string]string  `mapstructure:"labels"`
-	DriverConfig VolumeDriverConfig `mapstructure:"driver_config"`
-}
-
-// TempfsOptions contains optional configuration for the tempfs type
-type TempfsOptions struct {
-	SizeBytes int64 `mapstructure:"size_bytes"`
-	Mode      int   `mapstructure:"mode"`
+type DockerVolumeOptions struct {
+	NoCopy       bool                     `mapstructure:"no_copy"`
+	Labels       map[string]string        `mapstructure:"labels"`
+	DriverConfig DockerVolumeDriverConfig `mapstructure:"driver_config"`
 }
 
 // VolumeDriverConfig holds a map of volume driver specific options
-type VolumeDriverConfig struct {
+type DockerVolumeDriverConfig struct {
 	Name    string            `mapstructure:"name"`
 	Options map[string]string `mapstructure:"options"`
 }
@@ -195,7 +185,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
-	Mounts           []Mount             `mapstructure:"mounts"`             // Docker volumes to mount
+	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
