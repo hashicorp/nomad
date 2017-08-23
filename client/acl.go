@@ -4,9 +4,56 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+const (
+	// policyCacheSize is the number of ACL policies to keep cached. Policies have a fetching cost
+	// so we keep the hot policies cached to reduce the ACL token resolution time.
+	policyCacheSize = 64
+
+	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
+	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
+	aclCacheSize = 64
+
+	// tokenCacheSize is the number of ACL tokens to keep cached. Tokens have a fetching cost,
+	// so we keep the hot tokens cached to reduce the lookups.
+	tokenCacheSize = 64
+)
+
+// clientACLResolver holds the state required for client resolution
+// of ACLs
+type clientACLResolver struct {
+	// aclCache is used to maintain the parsed ACL objects
+	aclCache *lru.TwoQueueCache
+
+	// policyCache is used to maintain the fetched policy objects
+	policyCache *lru.TwoQueueCache
+
+	// tokenCache is used to maintain the fetched token objects
+	tokenCache *lru.TwoQueueCache
+}
+
+// init is used to setup the client resolver state
+func (c *clientACLResolver) init() error {
+	// Create the ACL object cache
+	var err error
+	c.aclCache, err = lru.New2Q(aclCacheSize)
+	if err != nil {
+		return err
+	}
+	c.policyCache, err = lru.New2Q(policyCacheSize)
+	if err != nil {
+		return err
+	}
+	c.tokenCache, err = lru.New2Q(tokenCacheSize)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // cachedACLValue is used to manage ACL Token or Policy TTLs
 type cachedACLValue struct {
@@ -17,17 +64,17 @@ type cachedACLValue struct {
 
 // Age is the time since the token was cached
 func (c *cachedACLValue) Age() time.Duration {
-	return time.Now().Sub(c.CacheTime)
+	return time.Since(c.CacheTime)
 }
 
-// resolveToken is used to translate an ACL Token Secret ID into
+// ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
-func (c *Client) resolveToken(secretID string) (*acl.ACL, error) {
+func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 	// Fast-path if ACLs are disabled
 	if !c.config.ACLEnabled {
 		return nil, nil
 	}
-	defer metrics.MeasureSince([]string{"client", "acl", "resolveToken"}, time.Now())
+	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 
 	// Resolve the token value
 	token, err := c.resolveTokenValue(secretID)

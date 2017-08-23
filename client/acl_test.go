@@ -98,7 +98,7 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	}
 }
 
-func TestClient_ACL_resolveToken_Disabled(t *testing.T) {
+func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -109,12 +109,12 @@ func TestClient_ACL_resolveToken_Disabled(t *testing.T) {
 	defer c1.Shutdown()
 
 	// Should always get nil when disabled
-	aclObj, err := c1.resolveToken("blah")
+	aclObj, err := c1.ResolveToken("blah")
 	assert.Nil(t, err)
 	assert.Nil(t, aclObj)
 }
 
-func TestClient_ACL_resolveToken(t *testing.T) {
+func TestClient_ACL_ResolveToken(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -139,26 +139,26 @@ func TestClient_ACL_resolveToken(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test the client resolution
-	out, err := c1.resolveToken(token.SecretID)
+	out, err := c1.ResolveToken(token.SecretID)
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
 
 	// Test caching
-	out2, err := c1.resolveToken(token.SecretID)
+	out2, err := c1.ResolveToken(token.SecretID)
 	assert.Nil(t, err)
 	if out != out2 {
 		t.Fatalf("should be cached")
 	}
 
 	// Test management token
-	out3, err := c1.resolveToken(token2.SecretID)
+	out3, err := c1.ResolveToken(token2.SecretID)
 	assert.Nil(t, err)
 	if acl.ManagementACL != out3 {
 		t.Fatalf("should be management")
 	}
 
 	// Test bad token
-	out4, err := c1.resolveToken(structs.GenerateUUID())
+	out4, err := c1.ResolveToken(structs.GenerateUUID())
 	assert.Equal(t, structs.TokenNotFound, err)
 	assert.Nil(t, out4)
 }

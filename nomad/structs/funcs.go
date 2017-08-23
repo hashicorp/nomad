@@ -279,7 +279,9 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 // CompileACLObject compiles a set of ACL policies into an ACL object with a cache
 func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL, error) {
 	// Sort the policies to ensure consistent ordering
-	sort.Sort(ACLPolicyList(policies))
+	sort.Slice(policies, func(i, j int) bool {
+		return policies[i].Name < policies[j].Name
+	})
 
 	// Determine the cache key
 	cacheKey := ACLPolicyListHash(policies)
@@ -307,19 +309,4 @@ func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL
 	// Update the cache
 	cache.Add(cacheKey, aclObj)
 	return aclObj, nil
-}
-
-// ACLPolicyList is used to sort a set of policies by name
-type ACLPolicyList []*ACLPolicy
-
-func (l ACLPolicyList) Len() int {
-	return len(l)
-}
-
-func (l ACLPolicyList) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
-func (l ACLPolicyList) Less(i, j int) bool {
-	return l[i].Name < l[j].Name
 }
