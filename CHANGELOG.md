@@ -1,7 +1,7 @@
 ## 0.6.1 (Unreleased)
 
 IMPROVEMENTS:
- * core: Add autocomplete functionality for flags for all cli commands
+ * cli: Add autocomplete functionality for flags for all CLI command [GH 3087]
  * core: Add autocomplete functionality for resources: allocations,
    evaluations, jobs, and nodes [GH-2964]
  * core: `distinct_property` constraint can set the number of allocations that
