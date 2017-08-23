@@ -12,7 +12,7 @@ export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {
     // Transform the map-based TaskStates object into an array-based
     // TaskState fragment list
-    hash.TaskStates = Object.keys(get(hash, 'TaskStates')).map(key => {
+    hash.TaskStates = Object.keys(get(hash, 'TaskStates') || {}).map(key => {
       const state = get(hash, `TaskStates.${key}`);
       const summary = { Name: key };
       Object.keys(state).forEach(stateKey => (summary[stateKey] = state[stateKey]));
