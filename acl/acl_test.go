@@ -72,6 +72,7 @@ func TestACLManagement(t *testing.T) {
 	assert.Equal(t, true, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
+	assert.Equal(t, true, acl.IsManagement())
 	assert.Equal(t, true, acl.AllowAgentRead())
 	assert.Equal(t, true, acl.AllowAgentWrite())
 	assert.Equal(t, true, acl.AllowNodeRead())
@@ -97,6 +98,7 @@ func TestACLMerge(t *testing.T) {
 	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
+	assert.Equal(t, false, acl.IsManagement())
 	assert.Equal(t, true, acl.AllowAgentRead())
 	assert.Equal(t, true, acl.AllowAgentWrite())
 	assert.Equal(t, true, acl.AllowNodeRead())
@@ -118,6 +120,7 @@ func TestACLMerge(t *testing.T) {
 	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
+	assert.Equal(t, false, acl.IsManagement())
 	assert.Equal(t, true, acl.AllowAgentRead())
 	assert.Equal(t, false, acl.AllowAgentWrite())
 	assert.Equal(t, true, acl.AllowNodeRead())
@@ -139,6 +142,7 @@ func TestACLMerge(t *testing.T) {
 	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
+	assert.Equal(t, false, acl.IsManagement())
 	assert.Equal(t, false, acl.AllowAgentRead())
 	assert.Equal(t, false, acl.AllowAgentWrite())
 	assert.Equal(t, false, acl.AllowNodeRead())

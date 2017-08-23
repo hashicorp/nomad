@@ -940,7 +940,7 @@ func isTooManyColons(err error) bool {
 	return err != nil && strings.Contains(err.Error(), tooManyColons)
 }
 
-// Merge is used to merge two ACL configs together
+// Merge is used to merge two ACL configs together. The settings from the input always take precedence.
 func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	result := *a
 
