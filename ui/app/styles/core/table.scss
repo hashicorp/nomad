@@ -56,7 +56,15 @@
     border: none;
 
     a {
-      color: $text;
+      color: $blue;
+      text-decoration: underline;
+      font-weight: $weight-normal;
+
+      &.is-primary {
+        color: $text;
+        text-decoration: none;
+        font-weight: $weight-semibold;
+      }
     }
   }
 
@@ -180,10 +188,6 @@
       border: 1px solid $grey-blue;
       border-width: 0 0 1px;
       padding: 1.25em 1.5em;
-
-      a {
-        font-weight: $weight-bold;
-      }
     }
   }
 
