@@ -107,11 +107,11 @@ $ bin/nomad
 ...
 ```
 
-To cross-compile Nomad, run `make bin`. This will compile Nomad for multiple
+To cross-compile Nomad, run `make release`. This will compile Nomad for multiple
 platforms and place the resulting binaries into the `./pkg` directory:
 
 ```sh
-$ make bin
+$ make release
 ...
 $ ls ./pkg
 ...
