@@ -10,6 +10,7 @@ IMPROVEMENTS:
    rolling update could remove an unnecessary amount of allocations [GH-3070]
  * api: Redact Vault.Token from AgentSelf response [GH-2988]
  * cli: node-status displays node version [GH-3002]
+ * cli: Disable color output when STDOUT is not a TTY [GH-3057]
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]

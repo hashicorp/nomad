@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -126,7 +127,7 @@ func (m *Meta) Client() (*api.Client, error) {
 func (m *Meta) Colorize() *colorstring.Colorize {
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: m.noColor,
+		Disable: m.noColor || !terminal.IsTerminal(int(os.Stdout.Fd())),
 		Reset:   true,
 	}
 }

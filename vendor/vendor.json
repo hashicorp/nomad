@@ -980,10 +980,6 @@
 			"revisionTime": "2016-05-04T02:26:26Z"
 		},
 		{
-			"path": "github.com/mattn/go-isatty",
-			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639"
-		},
-		{
 			"checksumSHA1": "ajImwVZHzsI+aNwsgzCSFSbmJqs=",
 			"path": "github.com/mattn/go-shellwords",
 			"revision": "f4e566c536cf69158e808ec28ef4182a37fdc981",
@@ -1252,6 +1248,12 @@
 			"path": "github.com/ulikunitz/xz/lzma",
 			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
 			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
+			"revisionTime": "2017-08-07T10:11:13Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
