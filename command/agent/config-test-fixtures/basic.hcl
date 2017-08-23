@@ -87,6 +87,7 @@ acl {
     enabled = true
     token_ttl = "60s"
     policy_ttl = "60s"
+    replication_token = "foobar"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"

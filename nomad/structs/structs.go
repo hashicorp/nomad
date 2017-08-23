@@ -34,8 +34,10 @@ import (
 )
 
 var (
-	ErrNoLeader     = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath = fmt.Errorf("No path to region")
+	ErrNoLeader         = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath     = fmt.Errorf("No path to region")
+	ErrTokenNotFound    = errors.New("ACL token not found")
+	ErrPermissionDenied = errors.New("Permission denied")
 
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
@@ -133,6 +135,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -151,6 +156,9 @@ func (q QueryOptions) AllowStaleRead() bool {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (w WriteRequest) RequestRegion() string {
@@ -5343,9 +5351,6 @@ type ACLPolicyUpsertRequest struct {
 	WriteRequest
 }
 
-// TokenNotFound indicates the Token was not found
-var TokenNotFound = errors.New("ACL token not found")
-
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
 	AccessorID  string    // Public Accessor ID (UUID)
@@ -5414,6 +5419,24 @@ func (a *ACLToken) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
 	}
 	return mErr.ErrorOrNil()
+}
+
+// PolicySubset checks if a given set of policies is a subset of the token
+func (a *ACLToken) PolicySubset(policies []string) bool {
+	// Hot-path the management tokens, superset of all policies.
+	if a.Type == ACLManagementToken {
+		return true
+	}
+	associatedPolicies := make(map[string]struct{}, len(a.Policies))
+	for _, policy := range a.Policies {
+		associatedPolicies[policy] = struct{}{}
+	}
+	for _, policy := range policies {
+		if _, ok := associatedPolicies[policy]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // ACLTokenListRequest is used to request a list of tokens

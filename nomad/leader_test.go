@@ -621,17 +621,18 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1, root := testACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2, _ := testACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
 	testJoin(t, s1, s2)
@@ -691,17 +692,18 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1, root := testACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2, _ := testACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
 	testJoin(t, s1, s2)

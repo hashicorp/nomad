@@ -10,6 +10,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	// aclDisabled is returned when an ACL endpoint is hit but ACLs are not enabled
+	aclDisabled = fmt.Errorf("ACL support disabled")
+)
+
 // ACL endpoint is used for manipulating ACL tokens and policies
 type ACL struct {
 	srv *Server
@@ -17,10 +22,23 @@ type ACL struct {
 
 // UpsertPolicies is used to create or update a set of policies
 func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.UpsertPolicies", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate non-zero set of policies
 	if len(args.Policies) == 0 {
@@ -47,10 +65,23 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 
 // DeletePolicies is used to delete policies
 func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.DeletePolicies", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate non-zero set of policies
 	if len(args.Names) == 0 {
@@ -70,10 +101,20 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 
 // ListPolicies is used to list the policies
 func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.ACLPolicyListResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_policies"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -122,10 +163,20 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 
 // GetPolicy is used to get a specific policy
 func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.SingleACLPolicyResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policy"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -157,10 +208,27 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 
 // GetPolicies is used to get a set of policies
 func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLPolicySetResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetPolicies", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
+
+	// For client typed tokens, allow them to query any policies associated with that token.
+	// This is used by clients which are resolving the policies to enforce. Any associated
+	// policies need to be fetched so that the client can determine what to allow.
+	token, err := a.srv.State().ACLTokenBySecretID(nil, args.SecretID)
+	if err != nil {
+		return err
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken && !token.PolicySubset(args.Names) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -194,6 +262,12 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 
 // Bootstrap is used to bootstrap the initial token
 func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.ACLTokenUpsertResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
 	}
@@ -250,14 +324,48 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 // UpsertTokens is used to create or update a set of tokens
 func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.ACLTokenUpsertResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// Validate non-zero set of tokens
+	if len(args.Tokens) == 0 {
+		return fmt.Errorf("must specify as least one token")
+	}
+
+	// Force the request to the authoritative region if we are creating global tokens
+	hasGlobal := false
+	allGlobal := true
+	for _, token := range args.Tokens {
+		if token.Global {
+			hasGlobal = true
+		} else {
+			allGlobal = false
+		}
+	}
+
+	// Disallow mixed requests with global and non-global tokens since we forward
+	// the entire request as a single batch.
+	if hasGlobal {
+		if !allGlobal {
+			return fmt.Errorf("cannot upsert mixed global and non-global tokens")
+		}
+
+		// Force the request to the authoritative region if it has global
+		args.Region = a.srv.config.AuthoritativeRegion
+	}
+
 	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
 
-	// Validate non-zero set of tokens
-	if len(args.Tokens) == 0 {
-		return fmt.Errorf("must specify as least one token")
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	// Snapshot the state
@@ -322,14 +430,65 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 // DeleteTokens is used to delete tokens
 func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// Validate non-zero set of tokens
+	if len(args.AccessorIDs) == 0 {
+		return fmt.Errorf("must specify as least one token")
+	}
+
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_tokens"}, time.Now())
 
-	// Validate non-zero set of tokens
-	if len(args.AccessorIDs) == 0 {
-		return fmt.Errorf("must specify as least one token")
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Snapshot the state
+	state, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Determine if we are deleting local or global tokens
+	hasGlobal := false
+	allGlobal := true
+	for _, accessor := range args.AccessorIDs {
+		token, err := state.ACLTokenByAccessorID(nil, accessor)
+		if err != nil {
+			return fmt.Errorf("token lookup failed: %v", err)
+		}
+		if token == nil {
+			continue
+		}
+		if token.Global {
+			hasGlobal = true
+		} else {
+			allGlobal = false
+		}
+	}
+
+	// Disallow mixed requests with global and non-global tokens since we forward
+	// the entire request as a single batch.
+	if hasGlobal {
+		if !allGlobal {
+			return fmt.Errorf("cannot delete mixed global and non-global tokens")
+		}
+
+		// Force the request to the authoritative region if it has global
+		if a.srv.config.Region != a.srv.config.AuthoritativeRegion {
+			args.Region = a.srv.config.AuthoritativeRegion
+			_, err := a.srv.forward("ACL.DeleteTokens", args, args, reply)
+			return err
+		}
 	}
 
 	// Update via Raft
@@ -345,10 +504,20 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 
 // ListTokens is used to list the tokens
 func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTokenListResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ListTokens", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_tokens"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -393,10 +562,20 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 
 // GetToken is used to get a specific token
 func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.SingleACLTokenResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetToken", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_token"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -428,10 +607,20 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 
 // GetTokens is used to get a set of token
 func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLTokenSetResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.GetTokens", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -465,6 +654,9 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 
 // ResolveToken is used to lookup a specific token by a secret ID. This is used for enforcing ACLs by clients.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
 	}

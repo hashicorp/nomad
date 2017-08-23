@@ -82,7 +82,7 @@ func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 		return nil, err
 	}
 	if token == nil {
-		return nil, structs.TokenNotFound
+		return nil, structs.ErrTokenNotFound
 	}
 
 	// Check if this is a management token
@@ -91,7 +91,7 @@ func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 	}
 
 	// Resolve the policies
-	policies, err := c.resolvePolicies(token.Policies)
+	policies, err := c.resolvePolicies(token.SecretID, token.Policies)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 // We cache the policies locally, and fault them from a server as necessary. Policies
 // are cached for a TTL, and then refreshed. If a server cannot be reached, the cache TTL
 // will be ignored to gracefully handle outages.
-func (c *Client) resolvePolicies(policies []string) ([]*structs.ACLPolicy, error) {
+func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs.ACLPolicy, error) {
 	var out []*structs.ACLPolicy
 	var expired []*structs.ACLPolicy
 	var missing []string
@@ -184,8 +184,11 @@ func (c *Client) resolvePolicies(policies []string) ([]*structs.ACLPolicy, error
 		fetch = append(fetch, p.Name)
 	}
 	req := structs.ACLPolicySetRequest{
-		Names:        fetch,
-		QueryOptions: structs.QueryOptions{Region: c.Region()},
+		Names: fetch,
+		QueryOptions: structs.QueryOptions{
+			Region:   c.Region(),
+			SecretID: secretID,
+		},
 	}
 	var resp structs.ACLPolicySetResponse
 	if err := c.RPC("ACL.GetPolicies", &req, &resp); err != nil {

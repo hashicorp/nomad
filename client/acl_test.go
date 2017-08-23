@@ -12,12 +12,13 @@ import (
 )
 
 func TestClient_ACL_resolveTokenValue(t *testing.T) {
-	s1, _ := testServer(t, nil)
+	s1, _, _ := testACLServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
+		c.ACLEnabled = true
 	})
 	defer c1.Shutdown()
 
@@ -60,12 +61,13 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 }
 
 func TestClient_ACL_resolvePolicies(t *testing.T) {
-	s1, _ := testServer(t, nil)
+	s1, _, root := testACLServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
+		c.ACLEnabled = true
 	})
 	defer c1.Shutdown()
 
@@ -83,12 +85,12 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test the client resolution
-	out, err := c1.resolvePolicies([]string{policy.Name, policy2.Name})
+	out, err := c1.resolvePolicies(root.SecretID, []string{policy.Name, policy2.Name})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(out))
 
 	// Test caching
-	out2, err := c1.resolvePolicies([]string{policy.Name, policy2.Name})
+	out2, err := c1.resolvePolicies(root.SecretID, []string{policy.Name, policy2.Name})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(out2))
 
@@ -115,7 +117,7 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 }
 
 func TestClient_ACL_ResolveToken(t *testing.T) {
-	s1, _ := testServer(t, nil)
+	s1, _, _ := testACLServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -159,6 +161,6 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 
 	// Test bad token
 	out4, err := c1.ResolveToken(structs.GenerateUUID())
-	assert.Equal(t, structs.TokenNotFound, err)
+	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, out4)
 }

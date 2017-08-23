@@ -235,6 +235,10 @@ type Config struct {
 	// ReplicationBackoff is how much we backoff when replication errors.
 	// This is a tunable knob for testing primarily.
 	ReplicationBackoff time.Duration
+
+	// ReplicationToken is the ACL Token Secret ID used to fetch from
+	// the Authoritative Region.
+	ReplicationToken string
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
