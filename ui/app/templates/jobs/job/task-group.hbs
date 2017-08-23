@@ -74,38 +74,7 @@
               <th>Memory</th>
             {{/t.head}}
             {{#t.body as |row|}}
-              <tr>
-                <td>
-                  <a href="{{href-to "allocations.allocation" row.model}}" class="is-primary">{{row.model.shortId}}</a>
-                </td>
-                <td>
-                  <a href="{{href-to "allocations.allocation" row.model}}">{{row.model.name}}</a>
-                </td>
-                <td>
-                  <span class="color-swatch {{row.model.clientStatus}}" /> {{row.model.clientStatus}}
-                </td>
-                <td>
-                  <a href="{{href-to "nodes.node" row.model.node}}">{{row.model.node.shortId}}</a>
-                </td>
-                <td>
-                  {{#if row.model.stats.isPending}}
-                    ...
-                  {{else if row.model.stats.isRejected}}
-                    !!!
-                  {{else}}
-                    {{row.model.stats.ResourceUsage.CpuStats.Percent}}
-                  {{/if}}
-                </td>
-                <td>
-                  {{#if row.model.stats.isPending}}
-                    ...
-                  {{else if row.model.stats.isRejected}}
-                    !!!
-                  {{else}}
-                    {{row.model.stats.ResourceUsage.MemoryStats.Cache}}
-                  {{/if}}
-                </td>
-              </tr>
+              {{allocation-row allocation=row.model context="job"}}
             {{/t.body}}
           {{/list-table}}
           <nav class="pagination is-centered">
