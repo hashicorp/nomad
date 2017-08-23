@@ -1393,7 +1393,7 @@ func TestConstraint_Validate(t *testing.T) {
 
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
-		MaxParallel:     -1,
+		MaxParallel:     0,
 		HealthCheck:     "foo",
 		MinHealthyTime:  -10,
 		HealthyDeadline: -15,
@@ -1406,7 +1406,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than one") {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
