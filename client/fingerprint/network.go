@@ -130,6 +130,7 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 
 		// If the ip is link-local then we ignore it
 		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	                f.logger.Printf("[DEBUG] fingerprint.network: ignoring link-local address %v on interface %v", ip.String(), intf.Name)
 			continue
 		}
 		newNetwork.IP = ip.String()
