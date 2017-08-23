@@ -1,7 +1,12 @@
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-moduleForAcceptance('Acceptance | jobs list');
+moduleForAcceptance('Acceptance | jobs list', {
+  beforeEach() {
+    // Required for placing allocations (a result of creating jobs)
+    server.create('node');
+  },
+});
 
 test('visiting /jobs', function(assert) {
   visit('/jobs');
@@ -14,7 +19,7 @@ test('visiting /jobs', function(assert) {
 test('/jobs should list the first page of jobs sorted by modify index', function(assert) {
   const jobsCount = 11;
   const pageSize = 10;
-  server.createList('job', jobsCount);
+  server.createList('job', jobsCount, { createAllocations: false });
 
   visit('/jobs');
 

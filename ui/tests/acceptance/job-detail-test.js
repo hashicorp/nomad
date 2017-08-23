@@ -8,6 +8,7 @@ let job;
 
 moduleForAcceptance('Acceptance | job detail', {
   beforeEach() {
+    server.create('node');
     server.create('job');
     job = server.db.jobs[0];
     visit(`/jobs/${job.id}`);

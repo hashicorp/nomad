@@ -10,7 +10,7 @@ moduleForAcceptance('Acceptance | client detail', {
 
     // Related models
     server.create('agent');
-    server.create('job');
+    server.create('job', { createAllocations: false });
     server.createList('allocation', 3, { nodeId: node.id });
 
     visit(`/nodes/${node.id}`);

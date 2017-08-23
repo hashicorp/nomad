@@ -10,7 +10,7 @@ export default Factory.extend({
   id: i => `job-${i}`,
   name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun()}-${i}`,
 
-  groupsCount: () => faker.random.number({ min: 1, max: 10 }),
+  groupsCount: () => faker.random.number({ min: 1, max: 5 }),
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
@@ -30,9 +30,14 @@ export default Factory.extend({
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
+  // Directive used to control whether or not allocations are automatically
+  // created.
+  createAllocations: true,
+
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
       job,
+      createAllocations: job.createAllocations,
     });
 
     job.update({

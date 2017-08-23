@@ -5,6 +5,7 @@ moduleFor('adapter:job', 'Unit | Adapter | Job', {
   unit: true,
   beforeEach() {
     this.server = startMirage();
+    this.server.create('node');
     this.server.create('job', { id: 'job-1' });
   },
   afterEach() {

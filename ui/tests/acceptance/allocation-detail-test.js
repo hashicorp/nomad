@@ -8,11 +8,11 @@ let allocation;
 
 moduleForAcceptance('Acceptance | allocation detail', {
   beforeEach() {
-    job = server.create('job');
-    node = server.create('node');
-    allocation = server.create('allocation', 'withTaskWithPorts');
-
     server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { groupCount: 0 });
+    allocation = server.create('allocation', 'withTaskWithPorts');
 
     visit(`/allocations/${allocation.id}`);
   },

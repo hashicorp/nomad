@@ -3,9 +3,14 @@ import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
+const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
+const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 
 export default Factory.extend({
-  id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
+  id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
+
+  clientStatus: faker.list.random(...CLIENT_STATUSES),
+  desiredStatus: faker.list.random(...DESIRED_STATUSES),
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
@@ -35,8 +40,10 @@ export default Factory.extend({
       server.db.nodes.length
     );
 
-    const job = allocation.job || pickOne(server.db.jobs);
-    const node = allocation.node || pickOne(server.db.nodes);
+    const job = allocation.jobId ? server.db.jobs.find(allocation.jobId) : pickOne(server.db.jobs);
+    const node = allocation.nodeId
+      ? server.db.nodes.find(allocation.nodeId)
+      : pickOne(server.db.nodes);
     const taskGroup = allocation.taskGroup
       ? server.db.taskGroups.findBy({ name: allocation.taskGroup })
       : pickOne(server.db.taskGroups.where({ jobId: job.id }));
@@ -62,7 +69,7 @@ export default Factory.extend({
       task_state_ids: states.mapBy('id'),
       taskResourcesIds: resources.mapBy('id'),
       taskGroup: taskGroup.name,
-      name: `${taskGroup.name}.[${faker.random.number(10)}]`,
+      name: allocation.name || `${taskGroup.name}.[${faker.random.number(10)}]`,
     });
 
     // Each allocation has a corresponding allocation stats running on some client.
