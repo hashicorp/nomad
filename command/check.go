@@ -131,10 +131,11 @@ func (c *AgentCheckCommand) checkClientHealth(clientStats map[string]string, min
 }
 
 func (c *AgentCheckCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-min-peers":   complete.PredictAnything,
-		"-min-servers": complete.PredictAnything,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-min-peers":   complete.PredictAnything,
+			"-min-servers": complete.PredictAnything,
+		})
 }
 
 func (c *AgentCheckCommand) AutocompleteArgs() complete.Predictor {

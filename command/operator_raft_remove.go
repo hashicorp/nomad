@@ -38,9 +38,10 @@ Remove Peer Options:
 }
 
 func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-peer-address": complete.PredictAnything,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-peer-address": complete.PredictAnything,
+		})
 }
 
 func (c *OperatorRaftRemoveCommand) AutocompleteArgs() complete.Predictor {

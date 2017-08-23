@@ -34,9 +34,10 @@ List Peers Options:
 }
 
 func (c *OperatorRaftListCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-stale": complete.PredictAnything,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-stale": complete.PredictAnything,
+		})
 }
 
 func (c *OperatorRaftListCommand) AutocompleteArgs() complete.Predictor {

@@ -86,15 +86,16 @@ func (c *NodeStatusCommand) Synopsis() string {
 }
 
 func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-allocs":  complete.PredictNothing,
-		"-json":    complete.PredictNothing,
-		"-self":    complete.PredictNothing,
-		"-short":   complete.PredictNothing,
-		"-stats":   complete.PredictNothing,
-		"-t":       complete.PredictAnything,
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-allocs":  complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-self":    complete.PredictNothing,
+			"-short":   complete.PredictNothing,
+			"-stats":   complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {

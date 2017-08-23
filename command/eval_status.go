@@ -49,12 +49,13 @@ func (c *EvalStatusCommand) Synopsis() string {
 }
 
 func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-json":    complete.PredictNothing,
-		"-monitor": complete.PredictNothing,
-		"-t":       complete.PredictAnything,
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-monitor": complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {

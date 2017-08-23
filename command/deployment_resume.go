@@ -41,10 +41,11 @@ func (c *DeploymentResumeCommand) Synopsis() string {
 }
 
 func (c *DeploymentResumeCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-detach":  complete.PredictNothing,
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *DeploymentResumeCommand) AutocompleteArgs() complete.Predictor {

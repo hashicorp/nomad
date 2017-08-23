@@ -37,11 +37,12 @@ List Options:
 }
 
 func (c *DeploymentListCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictAnything,
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *DeploymentListCommand) AutocompleteArgs() complete.Predictor {

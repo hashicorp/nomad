@@ -36,9 +36,10 @@ func (c *DeploymentPauseCommand) Synopsis() string {
 }
 
 func (c *DeploymentPauseCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *DeploymentPauseCommand) AutocompleteArgs() complete.Predictor {

@@ -52,11 +52,12 @@ func (c *DeploymentPromoteCommand) Synopsis() string {
 }
 
 func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-group":   complete.PredictAnything,
-		"-detach":  complete.PredictNothing,
-		"-verbose": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-group":   complete.PredictAnything,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *DeploymentPromoteCommand) AutocompleteArgs() complete.Predictor {

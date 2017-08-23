@@ -37,9 +37,10 @@ Server Members Options:
 }
 
 func (c *ServerMembersCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-detailed": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detailed": complete.PredictNothing,
+		})
 }
 
 func (c *ServerMembersCommand) AutocompleteArgs() complete.Predictor {

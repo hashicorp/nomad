@@ -55,13 +55,14 @@ func (c *JobHistoryCommand) Synopsis() string {
 }
 
 func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
-	return complete.Flags{
-		"-p":       complete.PredictNothing,
-		"-full":    complete.PredictNothing,
-		"-version": complete.PredictAnything,
-		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictAnything,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-p":       complete.PredictNothing,
+			"-full":    complete.PredictNothing,
+			"-version": complete.PredictAnything,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
 }
 
 func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {

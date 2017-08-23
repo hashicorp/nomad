@@ -112,10 +112,11 @@ func (c *ClientConfigCommand) Run(args []string) int {
 }
 
 func (c *ClientConfigCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-servers":        complete.PredictNothing,
-		"-update-servers": complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-servers":        complete.PredictNothing,
+			"-update-servers": complete.PredictNothing,
+		})
 }
 
 func (c *ClientConfigCommand) AutocompleteArgs() complete.Predictor {

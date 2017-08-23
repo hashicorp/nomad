@@ -98,13 +98,14 @@ func (c *RunCommand) Synopsis() string {
 }
 
 func (c *RunCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-check-index": complete.PredictNothing,
-		"-detach":      complete.PredictNothing,
-		"-verbose":     complete.PredictNothing,
-		"-vault-token": complete.PredictAnything,
-		"-output":      complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-check-index": complete.PredictNothing,
+			"-detach":      complete.PredictNothing,
+			"-verbose":     complete.PredictNothing,
+			"-vault-token": complete.PredictAnything,
+			"-output":      complete.PredictNothing,
+		})
 }
 
 func (c *RunCommand) AutocompleteArgs() complete.Predictor {
