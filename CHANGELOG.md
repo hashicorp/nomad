@@ -1,7 +1,6 @@
 ## 0.6.1 (Unreleased)
 
 IMPROVEMENTS:
- * cli: Add autocomplete functionality for flags for all CLI command [GH 3087]
  * core: Add autocomplete functionality for resources: allocations,
    evaluations, jobs, and nodes [GH-2964]
  * core: `distinct_property` constraint can set the number of allocations that
@@ -12,6 +11,7 @@ IMPROVEMENTS:
  * api: Redact Vault.Token from AgentSelf response [GH-2988]
  * cli: node-status displays node version [GH-3002]
  * cli: Disable color output when STDOUT is not a TTY [GH-3057]
+ * cli: Add autocomplete functionality for flags for all CLI command [GH 3087]
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]

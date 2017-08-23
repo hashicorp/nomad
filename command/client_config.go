@@ -115,7 +115,7 @@ func (c *ClientConfigCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-servers":        complete.PredictNothing,
-			"-update-servers": complete.PredictNothing,
+			"-update-servers": complete.PredictAnything,
 		})
 }
 

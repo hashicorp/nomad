@@ -48,7 +48,7 @@ Promote Options:
 }
 
 func (c *DeploymentPromoteCommand) Synopsis() string {
-	return "Promote canaries in a deployment."
+	return "Promote canaries in a deployment"
 }
 
 func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {

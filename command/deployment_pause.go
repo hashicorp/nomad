@@ -32,7 +32,7 @@ Pause Options:
 }
 
 func (c *DeploymentPauseCommand) Synopsis() string {
-	return "Pause a deployment."
+	return "Pause a deployment"
 }
 
 func (c *DeploymentPauseCommand) AutocompleteFlags() complete.Flags {
