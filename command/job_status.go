@@ -61,12 +61,13 @@ func (c *JobStatusCommand) Synopsis() string {
 }
 
 func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-all-allocs": complete.PredictNothing,
-		"-evals":      complete.PredictNothing,
-		"-short":      complete.PredictNothing,
-		"-verbose":    complete.PredictNothing,
-	}
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-all-allocs": complete.PredictNothing,
+			"-evals":      complete.PredictNothing,
+			"-short":      complete.PredictNothing,
+			"-verbose":    complete.PredictNothing,
+		})
 }
 
 func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
