@@ -19,6 +19,9 @@ export default Model.extend({
   resources: fragment('resources'),
   modifyIndex: attr('number'),
 
+  clientStatus: attr('string'),
+  desiredStatus: attr('string'),
+
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     return this.get('job.taskGroups').findBy('name', this.get('taskGroupName'));
   }),
