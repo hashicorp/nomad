@@ -980,6 +980,12 @@
 			"revisionTime": "2016-05-04T02:26:26Z"
 		},
 		{
+			"checksumSHA1": "trzmsZQDCc13zk/6qANox7Z/KCg=",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "fc9e8d8ef48496124e79ae0df75490096eccf6fe",
+			"revisionTime": "2017-03-22T23:44:13Z"
+		},
+		{
 			"checksumSHA1": "ajImwVZHzsI+aNwsgzCSFSbmJqs=",
 			"path": "github.com/mattn/go-shellwords",
 			"revision": "f4e566c536cf69158e808ec28ef4182a37fdc981",
