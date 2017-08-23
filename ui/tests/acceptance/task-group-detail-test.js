@@ -10,8 +10,11 @@ const sum = (total, n) => total + n;
 
 moduleForAcceptance('Acceptance | task group detail', {
   beforeEach() {
+    server.create('node');
+
     job = server.create('job', {
       groupsCount: 2,
+      createAllocations: false,
     });
 
     const taskGroups = server.db.taskGroups.where({ jobId: job.id });
@@ -43,21 +46,25 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
   const totalDisk = tasks.mapBy('Resources.DiskMB').reduce(sum, 0);
 
   assert.equal(
-    find('.level-item.cpu h3').text(),
-    `${totalCPU} MHz`,
+    find('.inline-definitions .pair:eq(0)').text(),
+    `# Tasks ${tasks.length}`,
+    '# Tasks'
+  );
+  assert.equal(
+    find('.inline-definitions .pair:eq(1)').text(),
+    `Reserved CPU ${totalCPU} MHz`,
     'Aggregated CPU reservation for all tasks'
   );
   assert.equal(
-    find('.level-item.memory h3').text(),
-    `${totalMemory} MiB`,
+    find('.inline-definitions .pair:eq(2)').text(),
+    `Reserved Memory ${totalMemory} MiB`,
     'Aggregated Memory reservation for all tasks'
   );
   assert.equal(
-    find('.level-item.disk h3').text(),
-    `${totalDisk} MiB`,
+    find('.inline-definitions .pair:eq(3)').text(),
+    `Reserved Disk ${totalDisk} MiB`,
     'Aggregated Disk reservation for all tasks'
   );
-  assert.equal(find('.level-item.tasks h3').text(), tasks.length, '# Tasks');
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
@@ -129,6 +136,11 @@ test('each allocation should show basic information about the allocation', funct
   assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
   assert.equal(
     allocationRow.find('td:eq(2)').text().trim(),
+    allocation.clientStatus,
+    'Client status'
+  );
+  assert.equal(
+    allocationRow.find('td:eq(3)').text().trim(),
     server.db.nodes.find(allocation.nodeId).id.split('-')[0],
     'Node name'
   );
@@ -141,7 +153,7 @@ test('each allocation should show stats about the allocation, retrieved directly
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(
-    allocationRow.find('td:eq(3)').text().trim(),
+    allocationRow.find('td:eq(4)').text().trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
   );
