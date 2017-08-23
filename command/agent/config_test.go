@@ -104,8 +104,8 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		ACL: &ACLConfig{
 			Enabled:   true,
-			TokenTTL:  "60s",
-			PolicyTTL: "60s",
+			TokenTTL:  60 * time.Second,
+			PolicyTTL: 60 * time.Second,
 		},
 		Ports: &Ports{
 			HTTP: 4646,
@@ -248,8 +248,8 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		ACL: &ACLConfig{
 			Enabled:   true,
-			TokenTTL:  "20s",
-			PolicyTTL: "20s",
+			TokenTTL:  20 * time.Second,
+			PolicyTTL: 20 * time.Second,
 		},
 		Ports: &Ports{
 			HTTP: 20000,

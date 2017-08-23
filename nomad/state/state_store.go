@@ -2968,6 +2968,49 @@ func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool) (memdb
 	return iter, nil
 }
 
+// CanBootstrapACLToken checks if bootstrapping is possible
+func (s *StateStore) CanBootstrapACLToken() (bool, error) {
+	txn := s.db.Txn(false)
+
+	// Lookup the bootstrap sentinel
+	out, err := txn.First("index", "id", "acl_token_bootstrap")
+	return out == nil, err
+}
+
+// BootstrapACLToken is used to create an initial ACL token
+func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Check if we have already done a bootstrap
+	existing, err := txn.First("index", "id", "acl_token_bootstrap")
+	if err != nil {
+		return fmt.Errorf("bootstrap check failed: %v", err)
+	}
+	if existing != nil {
+		return fmt.Errorf("ACL bootstrap already done")
+	}
+
+	// Update the Create/Modify time
+	token.CreateIndex = index
+	token.ModifyIndex = index
+
+	// Insert the token
+	if err := txn.Insert("acl_token", token); err != nil {
+		return fmt.Errorf("upserting token failed: %v", err)
+	}
+
+	// Update the indexes table, prevents future bootstrap
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_token_bootstrap", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore

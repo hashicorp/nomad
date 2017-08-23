@@ -192,6 +192,62 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	return a.srv.blockingRPC(&opts)
 }
 
+// Bootstrap is used to bootstrap the initial token
+func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.ACLTokenUpsertResponse) error {
+	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
+
+	// Snapshot the state
+	state, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Verify bootstrap is possible. The state store method re-verifies this,
+	// but we do an early check to avoid raft transactions when possible.
+	ok, err := state.CanBootstrapACLToken()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("ACL bootstrap already done")
+	}
+
+	// Create a new global management token, override any parameter
+	args.Token = &structs.ACLToken{
+		AccessorID: structs.GenerateUUID(),
+		SecretID:   structs.GenerateUUID(),
+		Name:       "Bootstrap Token",
+		Type:       structs.ACLManagementToken,
+		Global:     true,
+		CreateTime: time.Now().UTC(),
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.ACLTokenBootstrapRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Populate the response. We do a lookup against the state to
+	// pickup the proper create / modify times.
+	state, err = a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	out, err := state.ACLTokenByAccessorID(nil, args.Token.AccessorID)
+	if err != nil {
+		return fmt.Errorf("token lookup failed: %v", err)
+	}
+	reply.Tokens = append(reply.Tokens, out)
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
 // UpsertTokens is used to create or update a set of tokens
 func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.ACLTokenUpsertResponse) error {
 	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {

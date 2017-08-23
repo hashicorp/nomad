@@ -5881,6 +5881,65 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 	assert.Equal(t, expect, out)
 }
 
+func TestStateStore_BootstrapACLTokens(t *testing.T) {
+	state := testStateStore(t)
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+
+	ok, err := state.CanBootstrapACLToken()
+	assert.Nil(t, err)
+	assert.Equal(t, true, ok)
+
+	if err := state.BootstrapACLTokens(1000, tk1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	out, err := state.ACLTokenByAccessorID(nil, tk1.AccessorID)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, tk1, out)
+
+	ok, err = state.CanBootstrapACLToken()
+	assert.Nil(t, err)
+	assert.Equal(t, false, ok)
+
+	if err := state.BootstrapACLTokens(1001, tk2); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	iter, err := state.ACLTokens(nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we see both policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	if count != 1 {
+		t.Fatalf("bad: %d", count)
+	}
+
+	index, err := state.Index("acl_token")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+	index, err = state.Index("acl_token_bootstrap")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+}
+
 func TestStateStore_UpsertACLTokens(t *testing.T) {
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
