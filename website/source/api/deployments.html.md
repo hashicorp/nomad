@@ -323,7 +323,7 @@ The table below shows this endpoint's support for
 
 - `:deployment_id` `(string: <required>)`- Specifies the UUID of the deployment.
   This must be the full UUID, not the short 8-character one. This is specified
-  as part of the path.
+  as part of the path and in the JSON payload.
 
 - `Pause` `(bool: false)` - Specifies whether to pause or resume the deployment.
 
@@ -331,6 +331,7 @@ The table below shows this endpoint's support for
 
 ```javascript
 {
+  "DeploymentID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
   "Pause": true
 }
 ```      
@@ -376,7 +377,7 @@ The table below shows this endpoint's support for
 
 - `:deployment_id` `(string: <required>)`- Specifies the UUID of the deployment.
   This must be the full UUID, not the short 8-character one. This is specified
-  as part of the path.
+  as part of the path and JSON payload.
 
 - `All` `(bool: false)` - Specifies whether all task groups should be promoted.
 
@@ -387,12 +388,14 @@ The table below shows this endpoint's support for
 
 ```javascript
 {
+  "DeploymentID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
   "All": true
 }
 ```      
 
 ```javascript
 {
+  "DeploymentID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
   "Groups": ["web", "api-server"]
 }
 ```      
@@ -442,7 +445,7 @@ The table below shows this endpoint's support for
 
 - `:deployment_id` `(string: <required>)`- Specifies the UUID of the deployment.
   This must be the full UUID, not the short 8-character one. This is specified
-  as part of the path.
+  as part of the path and the JSON payload.
 
 - `HealthyAllocationIDs` `(array<string>: nil)` - Specifies the set of
   allocation that should be marked as healthy.
@@ -454,6 +457,7 @@ The table below shows this endpoint's support for
 
 ```javascript
 {
+  "DeploymentID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
   "HealthyAllocationIDs": [
     "eb13bc8a-7300-56f3-14c0-d4ad115ec3f5",
     "6584dad8-7ae3-360f-3069-0b4309711cc1"
