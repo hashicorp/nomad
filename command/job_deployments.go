@@ -44,7 +44,13 @@ func (c *JobDeploymentsCommand) Synopsis() string {
 }
 
 func (c *JobDeploymentsCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-latest":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *JobDeploymentsCommand) AutocompleteArgs() complete.Predictor {

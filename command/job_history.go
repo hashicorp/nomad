@@ -34,7 +34,7 @@ History Options:
 
   -p
     Display the difference between each job and its predecessor.
-    
+
   -full
     Display the full job definition for each version.
 
@@ -54,8 +54,15 @@ func (c *JobHistoryCommand) Synopsis() string {
 	return "Display all tracked versions of a job"
 }
 
-func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
-	return nil
+func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-p":       complete.PredictNothing,
+			"-full":    complete.PredictNothing,
+			"-version": complete.PredictAnything,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
 }
 
 func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {

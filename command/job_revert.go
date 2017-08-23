@@ -41,7 +41,11 @@ func (c *JobRevertCommand) Synopsis() string {
 }
 
 func (c *JobRevertCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *JobRevertCommand) AutocompleteArgs() complete.Predictor {

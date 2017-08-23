@@ -53,7 +53,12 @@ func (c *JobPromoteCommand) Synopsis() string {
 }
 
 func (c *JobPromoteCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-group":   complete.PredictAnything,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *JobPromoteCommand) AutocompleteArgs() complete.Predictor {
