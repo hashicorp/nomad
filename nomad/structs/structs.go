@@ -108,6 +108,9 @@ const (
 	// ACLClientToken and ACLManagementToken are the only types of tokens
 	ACLClientToken     = "client"
 	ACLManagementToken = "management"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 // RPCInfo is used to describe common information about query
