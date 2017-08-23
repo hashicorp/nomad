@@ -13,6 +13,12 @@ const (
 	// defaultNetworkSpeed is the speed set if the network link speed could not
 	// be detected.
 	defaultNetworkSpeed = 1000
+
+	// networkDisallowLinkLocalOption/Default are used to allow the operator to
+	// decide how the fingerprinter handles an interface that only contains link
+	// local addresses.
+	networkDisallowLinkLocalOption  = "fingerprint.network.disallow_link_local"
+	networkDisallowLinkLocalDefault = false
 )
 
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
@@ -84,7 +90,8 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	}
 
 	// Create the network resources from the interface
-	nwResources, err := f.createNetworkResources(mbits, intf)
+	disallowLinkLocal := cfg.ReadBoolDefault(networkDisallowLinkLocalOption, networkDisallowLinkLocalDefault)
+	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal)
 	if err != nil {
 		return false, err
 	}
@@ -105,13 +112,16 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 }
 
 // createNetworkResources creates network resources for every IP
-func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface) ([]*structs.NetworkResource, error) {
+func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool) ([]*structs.NetworkResource, error) {
 	// Find the interface with the name
 	addrs, err := f.interfaceDetector.Addrs(intf)
 	if err != nil {
 		return nil, err
 	}
+
 	nwResources := make([]*structs.NetworkResource, 0)
+	linkLocals := make([]*structs.NetworkResource, 0)
+
 	for _, addr := range addrs {
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
@@ -128,10 +138,6 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 			ip = v.IP
 		}
 
-		// If the ip is link-local then we ignore it
-		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-			continue
-		}
 		newNetwork.IP = ip.String()
 		if ip.To4() != nil {
 			newNetwork.CIDR = newNetwork.IP + "/32"
@@ -139,8 +145,25 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 			newNetwork.CIDR = newNetwork.IP + "/128"
 		}
 
+		// If the ip is link-local then we ignore it unless the user allows it
+		// and we detect nothing else
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			linkLocals = append(linkLocals, newNetwork)
+			continue
+		}
+
 		nwResources = append(nwResources, newNetwork)
 	}
+
+	if len(nwResources) == 0 && len(linkLocals) != 0 {
+		if disallowLinkLocal {
+			f.logger.Printf("[DEBUG] fingerprint.network: ignoring detected link-local address on interface %v", intf.Name)
+			return nwResources, nil
+		}
+
+		return linkLocals, nil
+	}
+
 	return nwResources, nil
 }
 
