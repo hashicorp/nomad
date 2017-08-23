@@ -53,7 +53,7 @@ func (c *DeploymentPromoteCommand) Synopsis() string {
 
 func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-group":   complete.PredictNothing,
+		"-group":   complete.PredictAnything,
 		"-detach":  complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
 	}

@@ -52,7 +52,7 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-json":    complete.PredictNothing,
 		"-monitor": complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 		"-verbose": complete.PredictNothing,
 	}
 }

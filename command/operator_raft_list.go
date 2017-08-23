@@ -35,7 +35,7 @@ List Peers Options:
 
 func (c *OperatorRaftListCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-stale": complete.PredictNothing,
+		"-stale": complete.PredictAnything,
 	}
 }
 

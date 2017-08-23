@@ -39,7 +39,7 @@ List Options:
 func (c *DeploymentListCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 		"-verbose": complete.PredictNothing,
 	}
 }

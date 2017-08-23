@@ -46,7 +46,7 @@ func (c *JobDeploymentsCommand) Synopsis() string {
 func (c *JobDeploymentsCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 		"-latest":  complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
 	}

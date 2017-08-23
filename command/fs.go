@@ -83,12 +83,12 @@ func (c *FSCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-H":       complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
-		"-job":     complete.PredictNothing,
+		"-job":     complete.PredictAnything,
 		"-stat":    complete.PredictNothing,
 		"-f":       complete.PredictNothing,
 		"-tail":    complete.PredictNothing,
-		"-n":       complete.PredictNothing,
-		"-c":       complete.PredictNothing,
+		"-n":       complete.PredictAnything,
+		"-c":       complete.PredictAnything,
 	}
 }
 

@@ -159,10 +159,10 @@ func (c *KeyringCommand) Synopsis() string {
 
 func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-install": complete.PredictNothing,
+		"-install": complete.PredictAnything,
 		"-list":    complete.PredictNothing,
-		"-remove":  complete.PredictNothing,
-		"-use":     complete.PredictNothing,
+		"-remove":  complete.PredictAnything,
+		"-use":     complete.PredictAnything,
 	}
 }
 func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {

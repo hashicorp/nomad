@@ -65,11 +65,11 @@ func (c *LogsCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-stderr":  complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
-		"-job":     complete.PredictNothing,
+		"-job":     complete.PredictAnything,
 		"-f":       complete.PredictNothing,
-		"-tail":    complete.PredictNothing,
-		"-n":       complete.PredictNothing,
-		"-c":       complete.PredictNothing,
+		"-tail":    complete.PredictAnything,
+		"-n":       complete.PredictAnything,
+		"-c":       complete.PredictAnything,
 	}
 }
 

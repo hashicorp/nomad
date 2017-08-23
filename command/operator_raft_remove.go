@@ -39,7 +39,7 @@ Remove Peer Options:
 
 func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-peer-address": complete.PredictNothing,
+		"-peer-address": complete.PredictAnything,
 	}
 }
 

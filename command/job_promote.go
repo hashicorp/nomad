@@ -54,7 +54,7 @@ func (c *JobPromoteCommand) Synopsis() string {
 
 func (c *JobPromoteCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-group":   complete.PredictNothing,
+		"-group":   complete.PredictAnything,
 		"-detach":  complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
 	}

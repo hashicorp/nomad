@@ -46,7 +46,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-verbose": complete.PredictNothing,
 		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 	}
 }
 

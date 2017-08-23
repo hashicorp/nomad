@@ -102,7 +102,7 @@ func (c *RunCommand) AutocompleteFlags() complete.Flags {
 		"-check-index": complete.PredictNothing,
 		"-detach":      complete.PredictNothing,
 		"-verbose":     complete.PredictNothing,
-		"-vault-token": complete.PredictNothing,
+		"-vault-token": complete.PredictAnything,
 		"-output":      complete.PredictNothing,
 	}
 }

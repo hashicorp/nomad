@@ -43,9 +43,9 @@ func (c *InspectCommand) Synopsis() string {
 
 func (c *InspectCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-version": complete.PredictNothing,
+		"-version": complete.PredictAnything,
 		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 	}
 }
 

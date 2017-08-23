@@ -58,7 +58,7 @@ func (c *JobDispatchCommand) Synopsis() string {
 
 func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-meta":    complete.PredictNothing,
+		"-meta":    complete.PredictAnything,
 		"-detach":  complete.PredictNothing,
 		"-verbose": complete.PredictNothing,
 	}

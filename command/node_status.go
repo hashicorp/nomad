@@ -92,7 +92,7 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 		"-self":    complete.PredictNothing,
 		"-short":   complete.PredictNothing,
 		"-stats":   complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 		"-verbose": complete.PredictNothing,
 	}
 }

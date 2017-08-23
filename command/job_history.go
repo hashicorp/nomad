@@ -58,9 +58,9 @@ func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
 	return complete.Flags{
 		"-p":       complete.PredictNothing,
 		"-full":    complete.PredictNothing,
-		"-version": complete.PredictNothing,
+		"-version": complete.PredictAnything,
 		"-json":    complete.PredictNothing,
-		"-t":       complete.PredictNothing,
+		"-t":       complete.PredictAnything,
 	}
 }
 
