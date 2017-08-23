@@ -255,11 +255,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
     ```
 
 * `work_dir` - (Optional) The working directory inside the container.
-*
+
 * `mounts` - (Optional) A list of
   [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
-  to be mounted into the container. Only volume type mounts are supported at this
-  time.
+  to be mounted into the container. Only volume type mounts are supported.
 
     ```hcl
     config {
@@ -267,7 +266,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
         {
           target = "/path/in/container"
           source = "name-of-volume"
-          type = "volume"
           readonly = false
           volume_options {
             no_copy = false

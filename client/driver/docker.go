@@ -135,34 +135,21 @@ type DockerLoggingOpts struct {
 	Config    map[string]string   `mapstructure:"-"`
 }
 
-type Mount struct {
-	Target        string         `mapstructure:"target"`
-	Source        string         `mapstructure:"source"`
-	Type          string         `mapstructure:"type"`
-	ReadOnly      bool           `mapstructure:"readonly"`
-	BindOptions   *BindOptions   `mapstructure:"bind_options"`
-	VolumeOptions *VolumeOptions `mapstructure:"volume_options"`
-	TempfsOptions *TempfsOptions `mapstructure:"tempfs_options"`
+type DockerMount struct {
+	Target        string               `mapstructure:"target"`
+	Source        string               `mapstructure:"source"`
+	ReadOnly      bool                 `mapstructure:"readonly"`
+	VolumeOptions *DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
-type BindOptions struct {
-	Propagation string `mapstructure:"propagation"`
-}
-
-type VolumeOptions struct {
-	NoCopy       bool               `mapstructure:"no_copy"`
-	Labels       map[string]string  `mapstructure:"labels"`
-	DriverConfig VolumeDriverConfig `mapstructure:"driver_config"`
-}
-
-// TempfsOptions contains optional configuration for the tempfs type
-type TempfsOptions struct {
-	SizeBytes int64 `mapstructure:"size_bytes"`
-	Mode      int   `mapstructure:"mode"`
+type DockerVolumeOptions struct {
+	NoCopy       bool                     `mapstructure:"no_copy"`
+	Labels       map[string]string        `mapstructure:"labels"`
+	DriverConfig DockerVolumeDriverConfig `mapstructure:"driver_config"`
 }
 
 // VolumeDriverConfig holds a map of volume driver specific options
-type VolumeDriverConfig struct {
+type DockerVolumeDriverConfig struct {
 	Name    string            `mapstructure:"name"`
 	Options map[string]string `mapstructure:"options"`
 }
@@ -198,7 +185,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
-	Mounts           []Mount             `mapstructure:"mounts"`             // Docker volumes to mount
+	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
@@ -272,16 +259,6 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	for i, m := range dconf.Mounts {
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
-		dconf.Mounts[i].Type = env.ReplaceEnv(m.Type)
-		if dconf.Mounts[i].Type == "" {
-			dconf.Mounts[i].Type = "volume"
-		}
-		if dconf.Mounts[i].Type != "volume" {
-			return nil, fmt.Errorf("mount type %v is not supported")
-		}
-		if m.BindOptions != nil {
-			dconf.Mounts[i].BindOptions.Propagation = env.ReplaceEnv(m.BindOptions.Propagation)
-		}
 		if m.VolumeOptions != nil {
 			if m.VolumeOptions.Labels != nil {
 				for k, v := range m.VolumeOptions.Labels {
@@ -1015,13 +992,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		hm := docker.HostMount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     m.Type,
+			Type:     "volume", // Only type supported
 			ReadOnly: m.ReadOnly,
-		}
-		if m.BindOptions != nil {
-			hm.BindOptions = &docker.BindOptions{
-				Propagation: m.BindOptions.Propagation,
-			}
 		}
 		if m.VolumeOptions != nil {
 			hm.VolumeOptions = &docker.VolumeOptions{
@@ -1031,12 +1003,6 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,
 				},
-			}
-		}
-		if m.TempfsOptions != nil {
-			hm.TempfsOptions = &docker.TempfsOptions{
-				SizeBytes: m.TempfsOptions.SizeBytes,
-				Mode:      m.TempfsOptions.Mode,
 			}
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
