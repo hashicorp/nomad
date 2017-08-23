@@ -3,8 +3,9 @@
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
-    {{partial "nodes/actions"}}
-    {{search-box searchTerm=(mut searchTerm) placeholder="Search nodes..."}}
+    <div class="content">
+      <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search nodes..."}}</div>
+    </div>
     {{#list-pagination
       source=sortedNodes
       size=pageSize

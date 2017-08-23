@@ -2,32 +2,12 @@ import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
 
-function commonSetup() {
-  const nodesCount = 5;
-  const agentsCount = 3;
-  server.createList('node', nodesCount);
-  server.createList('agent', agentsCount);
-
-  return { nodesCount, agentsCount };
-}
-
 function minimumSetup() {
   server.createList('node', 1);
   server.createList('agent', 1);
 }
 
 moduleForAcceptance('Acceptance | nodes list');
-
-test('/nodes should have high level metrics for node types', function(assert) {
-  const { nodesCount, agentsCount } = commonSetup();
-
-  visit('/nodes');
-
-  andThen(() => {
-    assert.equal(find('.client-metric .title').text(), nodesCount);
-    assert.equal(find('.server-metric .title').text(), agentsCount);
-  });
-});
 
 test('/nodes should list one page of clients', function(assert) {
   // Make sure to make more nodes than 1 page to assert that pagination is working
