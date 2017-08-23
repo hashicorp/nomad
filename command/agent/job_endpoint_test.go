@@ -171,6 +171,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 	})
 }
 
+// Test that ACL token is properly threaded through to the RPC endpoint
 func TestHTTP_JobsRegister_ACL(t *testing.T) {
 	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
