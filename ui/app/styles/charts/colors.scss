@@ -3,7 +3,7 @@ $starting: $grey-lighter;
 $running: $primary;
 $complete: $nomad-green-dark;
 $failed: $danger;
-$lost: #234;
+$lost: $dark;
 
 .chart {
   .queued {
