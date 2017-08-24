@@ -21,6 +21,8 @@ IMPROVEMENTS:
  * discovery: Add HTTP header and method support to checks [GH-3031]
  * driver/docker: Added DNS options [GH-2992]
  * driver/docker: Add mount options for volumes [GH-3021]
+ * driver/docker: Allow retry of 500 API errors to be handled by restart
+   policies when starting a container [GH-3073]
  * driver/rkt: support read-only volume mounts [GH-2883]
  * jobspec: Add `shutdown_delay` so tasks can delay shutdown after
    deregistering from Consul [GH-3043]
