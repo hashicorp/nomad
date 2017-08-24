@@ -4,6 +4,10 @@ const { Route } = Ember;
 
 export default Route.extend({
   model({ name }) {
-    return this.modelFor('jobs.job').get('taskGroups').findBy('name', name);
+    // If the job is a partial (from the list request) it won't have task
+    // groups. Reload the job to ensure task groups are present.
+    return this.modelFor('jobs.job').reload().then(job => {
+      return job.get('taskGroups').findBy('name', name);
+    });
   },
 });
