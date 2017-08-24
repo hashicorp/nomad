@@ -11,11 +11,11 @@ description: |-
 
 # ACL System
 
-Nomad provides an optional Access Control List (ACL) system which can be used to control access to data and APIs. The ACL is [Capability-based](https://en.wikipedia.org/wiki/Capability-based_security), relying on tokens which are associated with policies to determine which fine grained rules can be applied. It is very similar to [AWS IAM](https://aws.amazon.com/iam/) in many ways.
+Nomad provides an optional Access Control List (ACL) system which can be used to control access to data and APIs. The ACL is [Capability-based](https://en.wikipedia.org/wiki/Capability-based_security), relying on tokens which are associated with policies to determine which fine grained rules can be applied. Nomad's capability based ACL system is very similar to the design of [AWS IAM](https://aws.amazon.com/iam/).
 
 # ACL System Overview
 
-The ACL system is designed to be easy to use, fast to enforce, and flexible to new policies, all while providing administrative insight. At the highest level, there are three major components to the ACL system:
+The ACL system is designed to be easy to use and fast to enforce while providing administrative insight. At the highest level, there are three major components to the ACL system:
 
 ![ACL Overview](/assets/images/acl.jpg)
 
@@ -31,7 +31,7 @@ An ACL policy is a named set of rules. Each policy must have a unique name, an o
 A client ACL token can be associated with multiple policies, and a request is allowed if _any_ of the associated policies grant the capability.
 Management tokens cannot be associated with policies because they are granted all capabilities.
 
-The special `anonymous` policy can be defined to grant capabilities to requests which are made anonymously. If a request is made to Nomad without the `X-Nomad-Token` header specified, then it is an anonymous request. This can be used to allow anonymous users to list jobs and view their status, while requiring authenticated requests to submit new jobs or modify existing jobs. By default, there is no `anonymous` policy set meaning all anonymous requests are denied.
+The special `anonymous` policy can be defined to grant capabilities to requests which are made anonymously. An anonymous request is a request made to Nomad without the `X-Nomad-Token` header specified. This can be used to allow anonymous users to list jobs and view their status, while requiring authenticated requests to submit new jobs or modify existing jobs. By default, there is no `anonymous` policy set meaning all anonymous requests are denied.
 
 ### ACL Tokens
 
@@ -56,7 +56,7 @@ Constructing rules from these policies is covered in detail in the Rule Specific
 
 Nomad supports multi-datacenter and multi-region configurations. A single region is able to service multiple datacenters, and all servers in a region replicate their state between each other. In a multi-region configuration, there is a set of servers per region. Each region operates independently and is loosely coupled to allow jobs to be scheduled in any region and requests to flow transparently to the correct region.
 
-When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the `server` stanza of agents, and all regions must share a single a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
 
 Global ACL tokens are used to allow cross region requests. Standard ACL tokens are created in a single target region and not replicated. This means if a request takes place between regions, global tokens must be used so that both regions will have the token registered.
 
@@ -74,9 +74,9 @@ Bootstrapping ACLs on a new cluster requires a few steps, outlined below:
 
 The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritiative region should be enabled first. For each server:
 
-1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html).
-1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html).
-1. For servers outside the authoritative region, set `replication_token` in the [`acl` stanza](/docs/agent/configuration/acl.html).
+1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html#enabled).
+1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html#authoritative_region).
+1. For servers outside the authoritative region, set `replication_token` in the [`acl` stanza](/docs/agent/configuration/acl.html#replication_token). Replication tokens should be `management` type tokens which are either created in the authoritative region, or created as Global tokens.
 1. Restarting the Nomad server to pick the new configuration.
 
 Please take care to restart the servers one at a time, and ensure each server has joined and is operating correctly before restarting another.
@@ -89,7 +89,8 @@ Once the ACL system is enabled, we need to generate our initial token. This firs
 $ curl \
     --request POST \
     https://nomad.rocks/v1/acl/bootstrap?pretty=true
-
+```
+```json
 {
     "AccessorID":"b780e702-98ce-521f-2e5f-c6b87de05b24",
     "SecretID":"3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
@@ -217,6 +218,7 @@ The `namespace` policy controls access to a namespace, including the [Jobs API](
 namespace "default" {
     policy = "write"
 }
+
 namespace "sensitive" {
     policy = "read"
 }
@@ -237,7 +239,7 @@ The coarse grained policy dispositions are shorthand for the fine grained capabi
 * `read` policy - ["list-jobs", "read-jobs"]
 * `write` policy - ["list-jobs", "read-jobs", "submit-job", "read-logs", "read-fs"]
 
-The policy short hand and capabilities can be used together:
+When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 
 ```
 # Allow reading jobs and submitting jobs, without allowing access
@@ -250,7 +252,7 @@ namespace "default" {
 
 ### Node Rules
 
-The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a ndoe drain.
+The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a node drain.
 Node rules are specified for all nodes using the `node` key:
 
 ```
