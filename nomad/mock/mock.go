@@ -64,6 +64,7 @@ func Job() *structs.Job {
 		Region:      "global",
 		ID:          structs.GenerateUUID(),
 		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
 		Priority:    50,
 		AllAtOnce:   false,

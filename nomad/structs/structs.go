@@ -87,6 +87,9 @@ const (
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 // Context defines the scope in which a search for Nomad object operates
@@ -1396,6 +1399,9 @@ type Job struct {
 	// Region is the Nomad region that handles scheduling this job
 	Region string
 
+	// Namespace is the namespace the job is submitted into.
+	Namespace string
+
 	// ID is a unique identifier for the job per region. It can be
 	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
@@ -1489,6 +1495,11 @@ func (j *Job) Canonicalize() (warnings error) {
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
 		j.Meta = nil
+	}
+
+	// Ensure the job is in a namespace.
+	if j.Namespace == "" {
+		j.Namespace = DefaultNamespace
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -1624,6 +1635,9 @@ func (j *Job) Validate() error {
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	}
+	if j.Namespace == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}
 	switch j.Type {
 	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem:
@@ -1931,7 +1945,11 @@ type JobListStub struct {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
+	// JobID is the ID of the job the summary is for
 	JobID string
+
+	// Namespace is the namespace of the job and its summary
+	Namespace string
 
 	// Summmary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
@@ -2241,8 +2259,9 @@ const (
 
 // PeriodicLaunch tracks the last launch time of a periodic job.
 type PeriodicLaunch struct {
-	ID     string    // ID of the periodic job.
-	Launch time.Time // The last launch time.
+	ID        string    // ID of the periodic job.
+	Namespace string    // Namespace of the periodic job
+	Launch    time.Time // The last launch time.
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -4133,6 +4152,9 @@ type Deployment struct {
 	// ID is a generated UUID for the deployment
 	ID string
 
+	// Namespace is the namespace the deployment is created in
+	Namespace string
+
 	// JobID is the job the deployment is created for
 	JobID string
 
@@ -4326,6 +4348,9 @@ const (
 type Allocation struct {
 	// ID of the allocation (UUID)
 	ID string
+
+	// Namespace is the namespace the allocation is created in
+	Namespace string
 
 	// ID of the evaluation that generated this allocation
 	EvalID string
@@ -4776,6 +4801,9 @@ type Evaluation struct {
 	// ID is a randonly generated UUID used for this evaluation. This
 	// is assigned upon the creation of the evaluation.
 	ID string
+
+	// Namespace is the namespace the evaluation is created in
+	Namespace string
 
 	// Priority is used to control scheduling importance and if this job
 	// can preempt other jobs.

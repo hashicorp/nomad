@@ -21,6 +21,9 @@ const (
 
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 const (
@@ -463,6 +466,7 @@ type ParameterizedJobConfig struct {
 type Job struct {
 	Stop              *bool
 	Region            *string
+	Namespace         *string
 	ID                *string
 	ParentID          *string
 	Name              *string
@@ -507,6 +511,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.ParentID == nil {
 		j.ParentID = helper.StringToPtr("")
+	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr(DefaultNamespace)
 	}
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
@@ -561,9 +568,10 @@ func (j *Job) Canonicalize() {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
-	JobID    string
-	Summary  map[string]TaskGroupSummary
-	Children *JobChildrenSummary
+	JobID     string
+	Namespace string
+	Summary   map[string]TaskGroupSummary
+	Children  *JobChildrenSummary
 
 	// Raft Indexes
 	CreateIndex uint64
