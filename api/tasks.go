@@ -82,20 +82,23 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id            string
-	Name          string
-	Type          string
-	Command       string
-	Args          []string
-	Path          string
-	Protocol      string
-	PortLabel     string `mapstructure:"port"`
-	Interval      time.Duration
-	Timeout       time.Duration
-	InitialStatus string `mapstructure:"initial_status"`
-	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
-	Header        map[string][]string
-	Method        string
+	Id             string
+	Name           string
+	Type           string
+	Command        string
+	Args           []string
+	Path           string
+	Protocol       string
+	PortLabel      string `mapstructure:"port"`
+	Interval       time.Duration
+	Timeout        time.Duration
+	InitialStatus  string `mapstructure:"initial_status"`
+	TLSSkipVerify  bool   `mapstructure:"tls_skip_verify"`
+	Header         map[string][]string
+	Method         string
+	RestartAfter   int
+	RestartGrace   time.Duration
+	RestartWarning bool
 }
 
 // The Service model represents a Consul service definition

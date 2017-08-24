@@ -690,19 +690,22 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:          check.Name,
-						Type:          check.Type,
-						Command:       check.Command,
-						Args:          check.Args,
-						Path:          check.Path,
-						Protocol:      check.Protocol,
-						PortLabel:     check.PortLabel,
-						Interval:      check.Interval,
-						Timeout:       check.Timeout,
-						InitialStatus: check.InitialStatus,
-						TLSSkipVerify: check.TLSSkipVerify,
-						Header:        check.Header,
-						Method:        check.Method,
+						Name:           check.Name,
+						Type:           check.Type,
+						Command:        check.Command,
+						Args:           check.Args,
+						Path:           check.Path,
+						Protocol:       check.Protocol,
+						PortLabel:      check.PortLabel,
+						Interval:       check.Interval,
+						Timeout:        check.Timeout,
+						InitialStatus:  check.InitialStatus,
+						TLSSkipVerify:  check.TLSSkipVerify,
+						Header:         check.Header,
+						Method:         check.Method,
+						RestartAfter:   check.RestartAfter,
+						RestartGrace:   check.RestartGrace,
+						RestartWarning: check.RestartWarning,
 					}
 				}
 			}

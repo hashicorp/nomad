@@ -965,6 +965,9 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"tls_skip_verify",
 			"header",
 			"method",
+			"restart_grace_period",
+			"restart_on_warning",
+			"restart_after_unhealthy",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

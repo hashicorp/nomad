@@ -2775,19 +2775,22 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name          string              // Name of the check, defaults to id
-	Type          string              // Type of the check - tcp, http, docker and script
-	Command       string              // Command is the command to run for script checks
-	Args          []string            // Args is a list of argumes for script checks
-	Path          string              // path of the health check url for http type check
-	Protocol      string              // Protocol to use if check is http, defaults to http
-	PortLabel     string              // The port to use for tcp/http checks
-	Interval      time.Duration       // Interval of the check
-	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
-	InitialStatus string              // Initial status of the check
-	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
-	Method        string              // HTTP Method to use (GET by default)
-	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	Name           string              // Name of the check, defaults to id
+	Type           string              // Type of the check - tcp, http, docker and script
+	Command        string              // Command is the command to run for script checks
+	Args           []string            // Args is a list of argumes for script checks
+	Path           string              // path of the health check url for http type check
+	Protocol       string              // Protocol to use if check is http, defaults to http
+	PortLabel      string              // The port to use for tcp/http checks
+	Interval       time.Duration       // Interval of the check
+	Timeout        time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus  string              // Initial status of the check
+	TLSSkipVerify  bool                // Skip TLS verification when Protocol=https
+	Method         string              // HTTP Method to use (GET by default)
+	Header         map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	RestartAfter   int                 // Restart task after this many unhealthy intervals
+	RestartGrace   time.Duration       // Grace time to give tasks after starting to get healthy
+	RestartWarning bool                // If true treat checks in `warning` as unhealthy
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
