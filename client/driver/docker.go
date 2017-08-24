@@ -643,7 +643,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		if err := d.startContainer(container); err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
 			pluginClient.Kill()
-			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+			return nil, structs.NewRecoverableError(fmt.Errorf("Failed to start container %s: %s", container.ID, err), structs.IsRecoverable(err))
 		}
 
 		// InspectContainer to get all of the container metadata as
@@ -1350,6 +1350,7 @@ START:
 			time.Sleep(1 * time.Second)
 			goto START
 		}
+		return structs.NewRecoverableError(startErr, true)
 	}
 
 	return recoverableErrTimeouts(startErr)
