@@ -24,4 +24,9 @@ export default ApplicationAdapter.extend({
       });
     });
   },
+
+  fetchRawDefinition(job) {
+    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
+    return this.ajax(url, 'GET');
+  },
 });

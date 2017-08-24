@@ -62,6 +62,10 @@ export default Model.extend({
     return promise;
   },
 
+  fetchRawDefinition() {
+    return this.store.adapterFor('job').fetchRawDefinition(this);
+  },
+
   statusClass: computed('status', function() {
     const classMap = {
       pending: 'is-pending',
