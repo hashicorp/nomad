@@ -9,6 +9,7 @@ description: |-
 # ACL Tokens HTTP API
 
 The `/acl/bootstrap`, `/acl/tokens`, and `/acl/token/` endpoints are used to manage ACL tokens.
+For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
 
 ## Bootstrap Token
 
