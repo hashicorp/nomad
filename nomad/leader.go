@@ -716,9 +716,10 @@ START:
 				req := structs.ACLPolicySetRequest{
 					Names: update,
 					QueryOptions: structs.QueryOptions{
-						Region:     s.config.AuthoritativeRegion,
-						SecretID:   s.ReplicationToken(),
-						AllowStale: true,
+						Region:        s.config.AuthoritativeRegion,
+						SecretID:      s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
 					},
 				}
 				var reply structs.ACLPolicySetResponse
@@ -860,9 +861,10 @@ START:
 				req := structs.ACLTokenSetRequest{
 					AccessorIDS: update,
 					QueryOptions: structs.QueryOptions{
-						Region:     s.config.AuthoritativeRegion,
-						SecretID:   s.ReplicationToken(),
-						AllowStale: true,
+						Region:        s.config.AuthoritativeRegion,
+						SecretID:      s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
 					},
 				}
 				var reply structs.ACLTokenSetResponse
