@@ -8,6 +8,8 @@ const { Component, computed, run } = Ember;
 const { default: JSONFormatter } = JSONFormatterPkg;
 
 export default Component.extend({
+  classNames: ['json-viewer'],
+
   json: null,
   expandDepth: 2,
 
