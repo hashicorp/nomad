@@ -124,8 +124,11 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 
 	// Lookup the token
 	req := structs.ResolveACLTokenRequest{
-		SecretID:     secretID,
-		QueryOptions: structs.QueryOptions{Region: c.Region()},
+		SecretID: secretID,
+		QueryOptions: structs.QueryOptions{
+			Region:     c.Region(),
+			AllowStale: true,
+		},
 	}
 	var resp structs.ResolveACLTokenResponse
 	if err := c.RPC("ACL.ResolveToken", &req, &resp); err != nil {
@@ -186,8 +189,9 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 	req := structs.ACLPolicySetRequest{
 		Names: fetch,
 		QueryOptions: structs.QueryOptions{
-			Region:   c.Region(),
-			SecretID: secretID,
+			Region:     c.Region(),
+			SecretID:   secretID,
+			AllowStale: true,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
