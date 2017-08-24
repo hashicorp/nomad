@@ -45,10 +45,10 @@ The following table summarizes the ACL Rules that are available for constructing
 
 | Policy     | Scope                                        |
 | ---------- | -------------------------------------------- |
-| namespace  | Job related operations by namespace          |
-| agent      | Utility operations in the Agent API          |
-| node       | Node-level catalog operations                |
-| operator   | Cluster-level operations in the Operator API |
+| [namespace](#namespace-rules) | Job related operations by namespace          |
+| [agent](#agent-rules) | Utility operations in the Agent API          |
+| [node](#node-rules) | Node-level catalog operations                |
+| [operator](#operator-rules) | Cluster-level operations in the Operator API |
 
 Constructing rules from these policies is covered in detail in the Rule Specification section below.
 
@@ -62,9 +62,248 @@ Global ACL tokens are used to allow cross region requests. Standard ACL tokens a
 
 # Configuring ACLs
 
+ACLs are not enabled by default, and must be enabled. Clients and Servers need to set `enabled` in the [`acl` stanza](/docs/agent/configuration/acl.html). This enables the [ACL Policy](/api/acl-policies.html) and [ACL Token](/api/acl-tokens.html) APIs, as well as endpoint enforcement.
+
+For multi-region configurations, all servers must be configured to use a single [authoritative region](/docs/agent/configuration/server.html#authoritative_region). The authoritative region is responsible for managing ACL policies and global tokens. Servers in other regions will replicate policies and global tokens to act as a mirror, and must have their [`replication_token`](/docs/agent/configuration/acl.html#replication_token) configured.
+
 # Bootstrapping ACLs
+
+Bootstrapping ACLs on a new cluster requires a few steps, outlined below:
+
+### Enable ACLs on Nomad Servers
+
+The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritiative region should be enabled first. For each server:
+
+1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html).
+1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html).
+1. For servers outside the authoritative region, set `replication_token` in the [`acl` stanza](/docs/agent/configuration/acl.html).
+1. Restarting the Nomad server to pick the new configuration.
+
+Please take care to restart the servers one at a time, and ensure each server has joined and is operating correctly before restarting another.
+
+### Generate the initial token
+
+Once the ACL system is enabled, we need to generate our initial token. This first token is used to bootstrap the system and care should be taken not to lose it. Once the ACL system is enabled, we use the [Bootstrap API](/api/acl-tokens.html#bootstrap-token):
+
+```text
+$ curl \
+    --request POST \
+    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+
+{
+    "AccessorID":"b780e702-98ce-521f-2e5f-c6b87de05b24",
+    "SecretID":"3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
+    "Name":"Bootstrap Token",
+    "Type":"management",
+    "Policies":null,
+    "Global":true,
+    "CreateTime":"2017-08-23T22:47:14.695408057Z",
+    "CreateIndex":7,
+    "ModifyIndex":7
+}
+```
+
+Once the initial bootstrap is performed, it _cannot be performed again_. Make sure to save this AccessorID and SecretID.
+The bootstrap token is a `management` type token, meaning it can perform any operation. It should be used to setup the ACL policies and create additional ACL tokens. The bootstrap token can be deleted and is like any other token, so care should be taken to not revoke all management tokens.
+
+### Enable ACLs on Nomad Clients
+
+To enforce client endpoints, we need to enable ACLs on clients as well. This is simpler than servers, and we just need to set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html). Once configured, we need to restart the client for the change.
+
+
+### Set an Anonymous Policy (Optional)
+
+The ACL system uses a whitelist or default-deny model. This means by default no permissions are granted.
+For clients making requests without ACL tokens, we may want to grant some basic level of access. This is done by setting rules
+on the special "anonymous" policy. This policy is applied to any requests made without a token.
+
+To permit anonymous users to read, we can setup the following policy:
+
+```text
+# Store our token secret ID
+$ export NOMAD_TOKEN="BOOTSTRAP_SECRET_ID"
+
+# Write out the payload
+$ cat > payload.json <<EOF
+{
+    "Name": "anonymous",
+    "Description": "Allow read-only access for anonymous requests",
+    "Rules": "
+        namespace \"default\" {
+            policy = \"read\"
+        }
+        agent {
+            policy = \"read\"
+        }
+        node {
+            policy = \"read\"
+        }
+    "
+}
+EOF
+
+# Install the policy
+$ curl --request POST \
+    --data @payload.json \
+    -H "X-Nomad-Token: $NOMAD_TOKEN" \
+    https://nomad.rocks/v1/acl/policy/anonymous
+
+# Verify anonymous request works
+$ curl https://nomad.rocks/v1/jobs
+```
 
 # Rule Specification
 
+A core part of the ACL system is the rule language which is used to describe the policy that must be enforced.
+We make use of the [HashiCorp Configuration Language (HCL)](https://github.com/hashicorp/hcl/) to specify rules.
+This language is human readable and interoperable with JSON making it easy to machine-generate. Policies can contain any number of rules.
+
+Policies typically have several dispositions:
+
+* `read`: allow the resource to be read but not modified
+* `write`: allow the resource to be read and modified
+* `deny`: do not allow the resource to be read or modified. Deny takes precedence when multiple policies are associated with a token.
+
+Specification in the HCL format looks like:
+
+```text
+# Allow read only access to the default namespace
+namespace "default" {
+    policy = "read"
+}
+
+# Allow writing to the `foo` namespace
+namespace "foo" {
+    policy = "write"
+}
+
+agent {
+    policy = "read"
+}
+node {
+    policy = "read"
+}
+```
+
+This is equivalent to the following JSON input:
+
+```json
+{
+    "namespace": {
+        "default": {
+            "policy": "read"
+        },
+        "foo": {
+            "policy": "write"
+        }
+    },
+    "agent": {
+        "policy": "read"
+    },
+    "node": {
+        "policy": "read"
+    }
+}
+```
+
+The [ACL Policy](/api/acl-policies.html) API allows either HCL or JSON to be used to define the content of the rules section.
+
+### Namespace Rules
+
+The `namespace` policy controls access to a namespace, including the [Jobs API](/api/jobs.html), [Deployments API](/api/deployments.html), [Allocations API](/api/allocations.html), and [Evaluations API](/api/evaluations.html).
+
+```
+namespace "default" {
+    policy = "write"
+}
+namespace "sensitive" {
+    policy = "read"
+}
+```
+
+Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants writeaccess to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
+
+* `deny` - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.
+* `list-jobs` - Allows listing the jobs and seeing coarse grain status.
+* `read-job` - Allows inspecting a job and seeing fine grain status.
+* `submit-job` - Allows jobs to be submitted or modified.
+* `read-logs` - Allows the logs associated with a job to be viewed.
+* `read-fs` - Allows the filesystem of allocations associated to be viewed.
+
+The coarse grained policy dispositions are shorthand for the fine grained capabilities:
+
+* `deny` policy - ["deny"]
+* `read` policy - ["list-jobs", "read-jobs"]
+* `write` policy - ["list-jobs", "read-jobs", "submit-job", "read-logs", "read-fs"]
+
+The policy short hand and capabilities can be used together:
+
+```
+# Allow reading jobs and submitting jobs, without allowing access
+# to view log output or inspect the filesystem
+namespace "default" {
+    policy = "read"
+    capabilities = ["submit-job"]
+}
+```
+
+### Node Rules
+
+The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a ndoe drain.
+Node rules are specified for all nodes using the `node` key:
+
+```
+node {
+    policy = "read"
+}
+```
+
+There's only one node policy allowed per rule set, and its value is set to one of the policy dispositions.
+
+### Agent Rules
+
+The `agent` policy controls access to the utility operations in the [Agent API](/api/agent.html), such as join and leave.
+Agent rules are specified for all agents using the `agent` key:
+
+```
+agent {
+    policy = "write"
+}
+```
+
+There's only one agent policy allowed per rule set, and its value is set to one of the policy dispositions.
+
+
+### Operator Rules
+
+The `operator` policy controls access to the [Operator API](/api/operator.html). Operator rules look like:
+
+```
+operator {
+    policy = "read"
+}
+```
+
+There's only one operator policy allowed per rule set, and its value is set to one of the policy dispositions. In the example above, the token could be used to query the operator endpoints for diagnostic purposes but not make any changes.
+
 # Advanced Topics
+
+### Outages and Mulit-Region Replication
+
+The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited
+cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
+
+When the region servers are unavailable, the clients will automatically ignore the cache TTL,
+and extend the cache until the outage has recovered. For any policies or tokens that are not cached,
+they will be treated as missing and denied access until the outage has been resolved.
+
+Nomad servers have all the policies and tokens locally and can continue serving requests even if
+quorum is lost. The tokens and policies may become stale during this period as data is not actively
+replicating, but will be automatically fixed when the outage has been resolved.
+
+In a multi-region setup, there is a single authoritative region which is the source of truth for
+ACL policies and global ACL tokens. All other regions asychronously replicate from the authoritative
+region. When replication is interrupted, the existing data is used for request processing and may
+become stale. When the authoritative region is reachable, replication will resume and repair any
+inconsistency.
 
