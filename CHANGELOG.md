@@ -10,6 +10,7 @@ IMPROVEMENTS:
    rolling update could remove an unnecessary amount of allocations [GH-3070]
  * api: Redact Vault.Token from AgentSelf response [GH-2988]
  * cli: node-status displays node version [GH-3002]
+ * cli: Add status command with autocomplete [GH-3047]
  * cli: Disable color output when STDOUT is not a TTY [GH-3057]
  * cli: Add autocomplete functionality for flags for all CLI command [GH 3087]
  * client: Unmount task directories when alloc is terminal [GH-3006]
@@ -157,7 +158,7 @@ __BACKWARDS INCOMPATIBILITIES:__
     prior to this release. A single image is expected by the driver so this
     behavior has been changed to take a single path as a string. Jobs using the
     `load` command should update the syntax to a single string.  [GH-2361]
-    
+
 IMPROVEMENTS:
   * core: Handle Serf Reap event [GH-2310]
   * core: Update Serf and Memberlist for more reliable gossip [GH-2255]
@@ -203,7 +204,7 @@ BUG FIXES:
   * client: Fix remounting alloc dirs after reboots [GH-2391] [GH-2394]
   * client: Replace `-` with `_` in environment variable names [GH-2406]
   * client: Fix panic and deadlock during client restore state when prestart
-    fails [GH-2376] 
+    fails [GH-2376]
   * config: Fix Consul Config Merging/Copying [GH-2278]
   * config: Fix Client reserved resource merging panic [GH-2281]
   * server: Fix panic when forwarding Vault derivation requests from non-leader
@@ -218,7 +219,7 @@ IMPROVEMENTS:
 BUG FIXES:
   * client: Fix panic when upgrading to 0.5.3 [GH-2256]
 
-## 0.5.3 (January 30, 2017) 
+## 0.5.3 (January 30, 2017)
 
 IMPROVEMENTS:
   * core: Introduce parameterized jobs and dispatch command/API [GH-2128]
@@ -319,7 +320,7 @@ IMPROVEMENTS:
   * core: Scheduler version enforcement disallows different scheduler version
     from making decisions simultaneously [GH-1872]
   * core: Introduce node SecretID which can be used to minimize the available
-    surface area of RPCs to malicious Nomad Clients [GH-1597] 
+    surface area of RPCs to malicious Nomad Clients [GH-1597]
   * core: Add `sticky` volumes which inform the scheduler to prefer placing
     updated allocations on the same node and to reuse the `local/` and
     `alloc/data` directory from previous allocation allowing semi-persistent
@@ -383,7 +384,7 @@ BUG FIXES:
     logger [GH-1886]
   * client/fingerprint: Fix inconsistent CPU MHz fingerprinting [GH-1366]
   * env/aws: Fix an issue with reserved ports causing placement failures
-    [GH-1617] 
+    [GH-1617]
   * discovery: Interpolate all service and check fields [GH-1966]
   * discovery: Fix old services not getting removed from Consul on update
     [GH-1668]
