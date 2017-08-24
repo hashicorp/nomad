@@ -73,11 +73,21 @@ administration.
 
 ## ACLs
 
-The Nomad API does not support ACLs at this time.
+Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.
+
+For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
 
 ## Authentication
 
-The Nomad API does not support authentication at this time.
+When ACLs are enabled, a Nomad token should be provided to API requests using the `X-Nomad-Token` header. When using authentication, clients should communicate via TLS.
+
+Here is an example using curl:
+
+```text
+$ curl \
+    --header "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
+    https://nomad.rocks/v1/jobs
+```
 
 ## Blocking Queries
 
