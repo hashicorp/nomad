@@ -669,7 +669,8 @@ REMOVE:
 func (s *Server) replicateACLPolicies(stopCh chan struct{}) {
 	req := structs.ACLPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: s.config.AuthoritativeRegion,
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
@@ -715,8 +716,10 @@ START:
 				req := structs.ACLPolicySetRequest{
 					Names: update,
 					QueryOptions: structs.QueryOptions{
-						Region:   s.config.AuthoritativeRegion,
-						SecretID: s.ReplicationToken(),
+						Region:        s.config.AuthoritativeRegion,
+						SecretID:      s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
 					},
 				}
 				var reply structs.ACLPolicySetResponse
@@ -811,7 +814,8 @@ func (s *Server) replicateACLTokens(stopCh chan struct{}) {
 	req := structs.ACLTokenListRequest{
 		GlobalOnly: true,
 		QueryOptions: structs.QueryOptions{
-			Region: s.config.AuthoritativeRegion,
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
@@ -857,8 +861,10 @@ START:
 				req := structs.ACLTokenSetRequest{
 					AccessorIDS: update,
 					QueryOptions: structs.QueryOptions{
-						Region:   s.config.AuthoritativeRegion,
-						SecretID: s.ReplicationToken(),
+						Region:        s.config.AuthoritativeRegion,
+						SecretID:      s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
 					},
 				}
 				var reply structs.ACLTokenSetResponse
