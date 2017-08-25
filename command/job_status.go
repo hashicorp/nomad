@@ -138,6 +138,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Try querying the job
 	jobID := args[0]
+
 	jobs, _, err := client.Jobs().PrefixList(jobID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
