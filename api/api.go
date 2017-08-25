@@ -100,6 +100,9 @@ type Config struct {
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
+	// SecretID to use. This can be overwritten per request.
+	SecretID string
+
 	// HttpClient is the client to use. Default will be
 	// used if not provided.
 	HttpClient *http.Client
@@ -125,6 +128,7 @@ func (c *Config) CopyConfig(address string, tlsEnabled bool) *Config {
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     c.Region,
+		SecretID:   c.SecretID,
 		HttpClient: c.HttpClient,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
@@ -209,7 +213,9 @@ func DefaultConfig() *Config {
 			config.TLSConfig.Insecure = insecure
 		}
 	}
-
+	if v := os.Getenv("NOMAD_TOKEN"); v != "" {
+		config.SecretID = v
+	}
 	return config
 }
 
@@ -291,12 +297,18 @@ func (c *Client) SetRegion(region string) {
 	c.config.Region = region
 }
 
+// SetSecretID sets the ACL token secret for API requests.
+func (c *Client) SetSecretID(secretID string) {
+	c.config.SecretID = secretID
+}
+
 // request is used to help build up a request
 type request struct {
 	config *Config
 	method string
 	url    *url.URL
 	params url.Values
+	token  string
 	body   io.Reader
 	obj    interface{}
 }
@@ -309,6 +321,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.SecretID != "" {
+		r.token = q.SecretID
 	}
 	if q.AllowStale {
 		r.params.Set("stale", "")
@@ -340,6 +355,9 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.SecretID != "" {
+		r.token = q.SecretID
 	}
 }
 
@@ -373,6 +391,10 @@ func (r *request) toHTTP() (*http.Request, error) {
 	}
 
 	req.Header.Add("Accept-Encoding", "gzip")
+	if r.token != "" {
+		req.Header.Set("X-Nomad-Token", r.token)
+	}
+
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
 	req.Host = r.url.Host
@@ -402,6 +424,9 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 	}
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
+	}
+	if c.config.SecretID != "" {
+		r.token = r.config.SecretID
 	}
 
 	// Add in the query parameters, if any
