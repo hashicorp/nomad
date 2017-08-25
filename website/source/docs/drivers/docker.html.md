@@ -65,7 +65,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `auth` - (Optional) Provide authentication for a private registry (see below).
 
 * `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
-  Attempt to continue without auth.
+  Attempt to continue without auth. This option is deprecated in Nomad's
+  0.6.1 release and will be removed in the 0.8 release.
 
 * `command` - (Optional) The command to run when starting the container.
 
@@ -296,7 +297,7 @@ This is not configurable.
 ### Authentication
 
 If you want to pull from a private repo (for example on dockerhub or quay.io),
-you will need to specify credentials in your job via:
+you will need to specify credentials for your job via:
 
  * the `auth` option in the task config.
 
@@ -305,6 +306,11 @@ you will need to specify credentials in your job via:
    value on the client.
 
  * by specifying a [docker.auth.helper](#auth_helper) on the client
+
+Upon failing to authenticate to a private repo, the job will fail entirely.
+However, upon failing to resolve an internal Docker registry, Nomad will follow
+a "soft failure" path and will attempy to pull the image from a public
+repository.
 
 The `auth` object supports the following keys:
 
