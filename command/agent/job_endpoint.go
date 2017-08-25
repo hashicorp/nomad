@@ -685,27 +685,38 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Tags:        service.Tags,
 				AddressMode: service.AddressMode,
 			}
+			if service.CheckRestart != nil {
+				structsTask.Services[i].CheckRestart = &structs.CheckRestart{
+					Limit:     service.CheckRestart.Limit,
+					Grace:     service.CheckRestart.Grace,
+					OnWarning: service.CheckRestart.OnWarning,
+				}
+			}
 
 			if l := len(service.Checks); l != 0 {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:           check.Name,
-						Type:           check.Type,
-						Command:        check.Command,
-						Args:           check.Args,
-						Path:           check.Path,
-						Protocol:       check.Protocol,
-						PortLabel:      check.PortLabel,
-						Interval:       check.Interval,
-						Timeout:        check.Timeout,
-						InitialStatus:  check.InitialStatus,
-						TLSSkipVerify:  check.TLSSkipVerify,
-						Header:         check.Header,
-						Method:         check.Method,
-						RestartAfter:   check.RestartAfter,
-						RestartGrace:   check.RestartGrace,
-						RestartWarning: check.RestartWarning,
+						Name:          check.Name,
+						Type:          check.Type,
+						Command:       check.Command,
+						Args:          check.Args,
+						Path:          check.Path,
+						Protocol:      check.Protocol,
+						PortLabel:     check.PortLabel,
+						Interval:      check.Interval,
+						Timeout:       check.Timeout,
+						InitialStatus: check.InitialStatus,
+						TLSSkipVerify: check.TLSSkipVerify,
+						Header:        check.Header,
+						Method:        check.Method,
+					}
+					if check.CheckRestart != nil {
+						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
+							Limit:     check.CheckRestart.Limit,
+							Grace:     check.CheckRestart.Grace,
+							OnWarning: check.CheckRestart.OnWarning,
+						}
 					}
 				}
 			}

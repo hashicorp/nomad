@@ -2757,6 +2757,70 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+// CheckRestart describes if and when a task should be restarted based on
+// failing health checks.
+type CheckRestart struct {
+	Limit     int           // Restart task after this many unhealthy intervals
+	Grace     time.Duration // Grace time to give tasks after starting to get healthy
+	OnWarning bool          // If true treat checks in `warning` as unhealthy
+}
+
+func (c *CheckRestart) Copy() *CheckRestart {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CheckRestart)
+	*nc = *c
+	return nc
+}
+
+// Merge non-zero values from other CheckRestart into a copy of this
+// CheckRestart. Returns nil iff both are nil.
+func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
+	if c == nil {
+		// Just return other
+		return o
+	}
+
+	nc := c.Copy()
+
+	if o == nil {
+		// Nothing to merge
+		return nc.Copy()
+	}
+
+	if nc.Limit == 0 {
+		nc.Limit = o.Limit
+	}
+
+	if nc.Grace == 0 {
+		nc.Grace = o.Grace
+	}
+
+	if !nc.OnWarning {
+		nc.OnWarning = o.OnWarning
+	}
+
+	return nc
+}
+
+func (c *CheckRestart) Validate() error {
+	if c == nil {
+		return nil
+	}
+
+	if c.Limit < 0 {
+		return fmt.Errorf("limit must be greater than or equal to 0 but found %d", c.Limit)
+	}
+
+	if c.Grace < 0 {
+		return fmt.Errorf("grace period must be greater than or equal to 0 but found %d", c.Grace)
+	}
+
+	return nil
+}
+
 const (
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
@@ -2775,22 +2839,20 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name           string              // Name of the check, defaults to id
-	Type           string              // Type of the check - tcp, http, docker and script
-	Command        string              // Command is the command to run for script checks
-	Args           []string            // Args is a list of argumes for script checks
-	Path           string              // path of the health check url for http type check
-	Protocol       string              // Protocol to use if check is http, defaults to http
-	PortLabel      string              // The port to use for tcp/http checks
-	Interval       time.Duration       // Interval of the check
-	Timeout        time.Duration       // Timeout of the response from the check before consul fails the check
-	InitialStatus  string              // Initial status of the check
-	TLSSkipVerify  bool                // Skip TLS verification when Protocol=https
-	Method         string              // HTTP Method to use (GET by default)
-	Header         map[string][]string // HTTP Headers for Consul to set when making HTTP checks
-	RestartAfter   int                 // Restart task after this many unhealthy intervals
-	RestartGrace   time.Duration       // Grace time to give tasks after starting to get healthy
-	RestartWarning bool                // If true treat checks in `warning` as unhealthy
+	Name          string              // Name of the check, defaults to id
+	Type          string              // Type of the check - tcp, http, docker and script
+	Command       string              // Command is the command to run for script checks
+	Args          []string            // Args is a list of argumes for script checks
+	Path          string              // path of the health check url for http type check
+	Protocol      string              // Protocol to use if check is http, defaults to http
+	PortLabel     string              // The port to use for tcp/http checks
+	Interval      time.Duration       // Interval of the check
+	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus string              // Initial status of the check
+	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
+	Method        string              // HTTP Method to use (GET by default)
+	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2801,6 +2863,7 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	*nsc = *sc
 	nsc.Args = helper.CopySliceString(sc.Args)
 	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
+	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
 }
 
@@ -2866,7 +2929,7 @@ func (sc *ServiceCheck) validate() error {
 
 	}
 
-	return nil
+	return sc.CheckRestart.Validate()
 }
 
 // RequiresPort returns whether the service check requires the task has a port.
@@ -2939,6 +3002,9 @@ type Service struct {
 
 	Tags   []string        // List of tags for the service
 	Checks []*ServiceCheck // List of checks associated with the service
+
+	// CheckRestart will be propagated to Checks if set.
+	CheckRestart *CheckRestart
 }
 
 func (s *Service) Copy() *Service {
@@ -2948,6 +3014,7 @@ func (s *Service) Copy() *Service {
 	ns := new(Service)
 	*ns = *s
 	ns.Tags = helper.CopySliceString(ns.Tags)
+	ns.CheckRestart = s.CheckRestart.Copy()
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -2983,6 +3050,14 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
 	}
+
+	// If CheckRestart is set propagate it to checks
+	if s.CheckRestart != nil {
+		for _, check := range s.Checks {
+			// Merge Service CheckRestart into Check's so Check's takes precedence
+			check.CheckRestart = check.CheckRestart.Merge(s.CheckRestart)
+		}
+	}
 }
 
 // Validate checks if the Check definition is valid
@@ -3016,6 +3091,11 @@ func (s *Service) Validate() error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
 		}
 	}
+
+	if s.CheckRestart != nil && len(s.Checks) == 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("check_restart specified but no checks"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 

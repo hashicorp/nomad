@@ -79,36 +79,43 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	}
 }
 
+// CheckRestart describes if and when a task should be restarted based on
+// failing health checks.
+type CheckRestart struct {
+	Limit     int           `mapstructure:"limit"`
+	Grace     time.Duration `mapstructure:"grace_period"`
+	OnWarning bool          `mapstructure:"on_warning"`
+}
+
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Id             string
-	Name           string
-	Type           string
-	Command        string
-	Args           []string
-	Path           string
-	Protocol       string
-	PortLabel      string `mapstructure:"port"`
-	Interval       time.Duration
-	Timeout        time.Duration
-	InitialStatus  string `mapstructure:"initial_status"`
-	TLSSkipVerify  bool   `mapstructure:"tls_skip_verify"`
-	Header         map[string][]string
-	Method         string
-	RestartAfter   int
-	RestartGrace   time.Duration
-	RestartWarning bool
+	Id            string
+	Name          string
+	Type          string
+	Command       string
+	Args          []string
+	Path          string
+	Protocol      string
+	PortLabel     string `mapstructure:"port"`
+	Interval      time.Duration
+	Timeout       time.Duration
+	InitialStatus string `mapstructure:"initial_status"`
+	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
+	Header        map[string][]string
+	Method        string
+	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
 }
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id          string
-	Name        string
-	Tags        []string
-	PortLabel   string `mapstructure:"port"`
-	AddressMode string `mapstructure:"address_mode"`
-	Checks      []ServiceCheck
+	Id           string
+	Name         string
+	Tags         []string
+	PortLabel    string `mapstructure:"port"`
+	AddressMode  string `mapstructure:"address_mode"`
+	Checks       []ServiceCheck
+	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
