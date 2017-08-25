@@ -109,14 +109,24 @@ func jobTableSchema() *memdb.TableSchema {
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is used for job management
 			// and simple direct lookup. ID is required to be
-			// unique.
+			// unique within a namespace.
 			"id": &memdb.IndexSchema{
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (ID, Namespace) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.UUIDFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 			"type": &memdb.IndexSchema{
@@ -157,9 +167,19 @@ func jobSummarySchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (JobID, Namespace) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.UUIDFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 		},
@@ -182,11 +202,14 @@ func jobVersionSchema() *memdb.TableSchema {
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
 							Field:     "ID",
 							Lowercase: true,
 						},
 
-						// Will need to create a new indexer
 						&memdb.UintFieldIndex{
 							Field: "Version",
 						},
@@ -261,14 +284,33 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
+			"namespace": &memdb.IndexSchema{
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
+				},
+			},
+
 			// Job index is used to lookup deployments by job
 			"job": &memdb.IndexSchema{
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (JobID, Namespace) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.UUIDFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 		},
@@ -288,9 +330,19 @@ func periodicLaunchTableSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (Job.ID, Namespace) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.UUIDFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 		},
@@ -314,6 +366,15 @@ func evalTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			"namespace": &memdb.IndexSchema{
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
+				},
+			},
+
 			// Job index is used to lookup allocations by job
 			"job": &memdb.IndexSchema{
 				Name:         "job",
@@ -322,9 +383,14 @@ func evalTableSchema() *memdb.TableSchema {
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
 							Field:     "JobID",
 							Lowercase: true,
 						},
+
 						&memdb.StringFieldIndex{
 							Field:     "Status",
 							Lowercase: true,
@@ -350,6 +416,15 @@ func allocTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "ID",
+				},
+			},
+
+			"namespace": &memdb.IndexSchema{
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
 				},
 			},
 
@@ -387,9 +462,17 @@ func allocTableSchema() *memdb.TableSchema {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.UUIDFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 
