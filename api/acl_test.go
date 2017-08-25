@@ -127,3 +127,81 @@ func TestACLTokens_List(t *testing.T) {
 		t.Fatalf("expected 1 token, got: %d", n)
 	}
 }
+
+func TestACLTokens_CreateUpdate(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Update the token
+	out.Name = "other"
+	out2, wm, err := at.Update(out, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out2)
+
+	// Verify the change took hold
+	assert.Equal(t, out.Name, out2.Name)
+}
+
+func TestACLTokens_Info(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Query the token
+	out2, qm, err := at.Info(out.AccessorID, nil)
+	assert.Nil(t, err)
+	assertQueryMeta(t, qm)
+	assert.Equal(t, out, out2)
+}
+
+func TestACLTokens_Delete(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Delete the token
+	wm, err = at.Delete(out.AccessorID, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+}
