@@ -3,7 +3,7 @@ layout: api
 page_title: Search - HTTP API
 sidebar_current: api-search
 description: |-
-  The /search endpoint returns matches for a given prefix and context
+  The /search endpoint is used to search for Nomad objects
 ---
 
 # Search HTTP API
@@ -14,7 +14,7 @@ Additionally, a prefix can be searched for within every context.
 
 | Method  | Path                         | Produces                   |
 | ------- | ---------------------------- | -------------------------- |
-| `POST`  | `/v1/search                 | `application/json`         |
+| `POST`  | `/v1/search                  | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -31,8 +31,8 @@ The table below shows this endpoint's support for
   matches might be "abcd", or "aabb".
 - `Context` `(string: <required>)` - Defines the scope in which a search for a
   prefix operates. Contexts can be: "jobs", "evals", "allocs", "nodes",
-  "deployment" or "all", meaning every context will be searched for that
-  identifier.
+  "deployment" or an empty string, in which every context will be searched for
+  the identifier.
 
 ### Sample Payload (for a specific context)
 
@@ -71,7 +71,7 @@ $ curl \
 ```javascript
 {
   "Prefix": "abc",
-  "Context": "all"
+  "Context": ""
 }
 ```
 
