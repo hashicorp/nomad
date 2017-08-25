@@ -159,6 +159,7 @@ func Job() *structs.Job {
 func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
+		Namespace:   structs.DefaultNamespace,
 		ID:          structs.GenerateUUID(),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
@@ -231,18 +232,20 @@ func PeriodicJob() *structs.Job {
 
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
-		ID:       structs.GenerateUUID(),
-		Priority: 50,
-		Type:     structs.JobTypeService,
-		JobID:    structs.GenerateUUID(),
-		Status:   structs.EvalStatusPending,
+		ID:        structs.GenerateUUID(),
+		Priority:  50,
+		Type:      structs.JobTypeService,
+		JobID:     structs.GenerateUUID(),
+		Namespace: structs.DefaultNamespace,
+		Status:    structs.EvalStatusPending,
 	}
 	return eval
 }
 
 func JobSummary(jobID string) *structs.JobSummary {
 	js := &structs.JobSummary{
-		JobID: jobID,
+		JobID:     jobID,
+		Namespace: structs.DefaultNamespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {
 				Queued:   0,
@@ -258,6 +261,7 @@ func Alloc() *structs.Allocation {
 		ID:        structs.GenerateUUID(),
 		EvalID:    structs.GenerateUUID(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
 		Resources: &structs.Resources{
 			CPU:      500,
@@ -313,6 +317,7 @@ func Deployment() *structs.Deployment {
 	return &structs.Deployment{
 		ID:             structs.GenerateUUID(),
 		JobID:          structs.GenerateUUID(),
+		Namespace:      structs.DefaultNamespace,
 		JobVersion:     2,
 		JobModifyIndex: 20,
 		JobCreateIndex: 18,
