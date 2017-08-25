@@ -49,6 +49,19 @@ func (a *ACLPolicies) Delete(policyName string, q *WriteOptions) (*WriteMeta, er
 	return wm, nil
 }
 
+// Info is used to query a specific policy
+func (a *ACLPolicies) Info(policyName string, q *QueryOptions) (*ACLPolicy, *QueryMeta, error) {
+	if policyName == "" {
+		return nil, nil, fmt.Errorf("missing policy name")
+	}
+	var resp ACLPolicy
+	wm, err := a.client.query("/v1/acl/policy/"+policyName, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // ACLTokens is used to query the ACL token endpoints.
 type ACLTokens struct {
 	client *Client

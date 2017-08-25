@@ -82,3 +82,29 @@ func TestACLPolicies_Delete(t *testing.T) {
 		t.Fatalf("unexpected policy, got: %#v", result)
 	}
 }
+
+func TestACLPolicies_Info(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	ap := c.ACLPolicies()
+
+	// Register a policy
+	policy := &ACLPolicy{
+		Name:        "test",
+		Description: "test",
+		Rules: `namespace "default" {
+			policy = "read"
+		}
+		`,
+	}
+	wm, err := ap.Upsert(policy, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+
+	// Query the policy
+	out, qm, err := ap.Info(policy.Name, nil)
+	assert.Nil(t, err)
+	assertQueryMeta(t, qm)
+	assert.Equal(t, policy.Name, out.Name)
+}
