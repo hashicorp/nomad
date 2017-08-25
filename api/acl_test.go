@@ -108,3 +108,22 @@ func TestACLPolicies_Info(t *testing.T) {
 	assertQueryMeta(t, qm)
 	assert.Equal(t, policy.Name, out.Name)
 }
+
+func TestACLTokens_List(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	// Expect out bootstrap token
+	result, qm, err := at.List(nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex == 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(result); n != 1 {
+		t.Fatalf("expected 1 token, got: %d", n)
+	}
+}

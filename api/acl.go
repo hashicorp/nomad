@@ -82,6 +82,16 @@ func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	return &resp, wm, nil
 }
 
+// List is used to dump all of the tokens.
+func (a *ACLTokens) List(q *QueryOptions) ([]*ACLTokenListStub, *QueryMeta, error) {
+	var resp []*ACLTokenListStub
+	qm, err := a.client.query("/v1/acl/tokens", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // ACLPolicyListStub is used to for listing ACL policies
 type ACLPolicyListStub struct {
 	Name        string
@@ -103,6 +113,17 @@ type ACLPolicy struct {
 type ACLToken struct {
 	AccessorID  string
 	SecretID    string
+	Name        string
+	Type        string
+	Policies    []string
+	Global      bool
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+type ACLTokenListStub struct {
+	AccessorID  string
 	Name        string
 	Type        string
 	Policies    []string
