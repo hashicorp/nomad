@@ -92,6 +92,58 @@ func (a *ACLTokens) List(q *QueryOptions) ([]*ACLTokenListStub, *QueryMeta, erro
 	return resp, qm, nil
 }
 
+// Create is used to create a token
+func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if token.AccessorID != "" {
+		return nil, nil, fmt.Errorf("cannot specify Accessor ID")
+	}
+	var resp ACLToken
+	wm, err := a.client.write("/v1/acl/token", token, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Update is used to update an existing token
+func (a *ACLTokens) Update(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if token.AccessorID == "" {
+		return nil, nil, fmt.Errorf("missing accessor ID")
+	}
+	var resp ACLToken
+	wm, err := a.client.write("/v1/acl/token/"+token.AccessorID,
+		token, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Delete is used to delete a token
+func (a *ACLTokens) Delete(accessorID string, q *WriteOptions) (*WriteMeta, error) {
+	if accessorID == "" {
+		return nil, fmt.Errorf("missing accessor ID")
+	}
+	wm, err := a.client.delete("/v1/acl/token/"+accessorID, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// Info is used to query a token
+func (a *ACLTokens) Info(accessorID string, q *QueryOptions) (*ACLToken, *QueryMeta, error) {
+	if accessorID == "" {
+		return nil, nil, fmt.Errorf("missing accessor ID")
+	}
+	var resp ACLToken
+	wm, err := a.client.query("/v1/acl/token/"+accessorID, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // ACLPolicyListStub is used to for listing ACL policies
 type ACLPolicyListStub struct {
 	Name        string
