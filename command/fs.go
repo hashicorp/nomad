@@ -97,7 +97,7 @@ func (f *FSCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := f.Meta.Client()
 
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		if !shouldAutocomplete(a.Last, a.Completed) {
 			return nil
 		}
 
