@@ -129,6 +129,8 @@ func (c *StatusCommand) Run(args []string) int {
 		cmd = &AllocStatusCommand{Meta: c.Meta}
 	case contexts.Jobs:
 		cmd = &JobStatusCommand{Meta: c.Meta}
+	case contexts.Deployments:
+		cmd = &DeploymentStatusCommand{Meta: c.Meta}
 	default:
 		c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 		return 1

@@ -130,6 +130,32 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	ui.OutputWriter.Reset()
 }
 
+func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a fake deployment
+	state := srv.Agent.Server().State()
+	deployment := mock.Deployment()
+	assert.Nil(state.UpsertDeployment(1000, deployment))
+
+	// Query to check the deployment status
+	if code := cmd.Run([]string{"-address=" + url, deployment.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+
+	out := ui.OutputWriter.String()
+	assert.Contains(out, deployment.ID[:shortId])
+
+	ui.OutputWriter.Reset()
+}
+
 func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
