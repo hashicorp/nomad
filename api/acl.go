@@ -37,6 +37,18 @@ func (a *ACLPolicies) Upsert(policy *ACLPolicy, q *WriteOptions) (*WriteMeta, er
 	return wm, nil
 }
 
+// Delete is used to delete a policy
+func (a *ACLPolicies) Delete(policyName string, q *WriteOptions) (*WriteMeta, error) {
+	if policyName == "" {
+		return nil, fmt.Errorf("missing policy name")
+	}
+	wm, err := a.client.delete("/v1/acl/policy/"+policyName, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
 // ACLTokens is used to query the ACL token endpoints.
 type ACLTokens struct {
 	client *Client
