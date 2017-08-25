@@ -21,6 +21,24 @@ func init() {
 	seen = make(map[*testing.T]struct{})
 }
 
+func makeACLClient(t *testing.T, cb1 configCallback,
+	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer, *ACLToken) {
+	client, server := makeClient(t, cb1, func(c *testutil.TestServerConfig) {
+		c.ACL.Enabled = true
+		if cb2 != nil {
+			cb2(c)
+		}
+	})
+
+	// Get the root token
+	root, _, err := client.ACLTokens().Bootstrap(nil)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACLs: %v", err)
+	}
+	client.SetSecretID(root.SecretID)
+	return client, server, root
+}
+
 func makeClient(t *testing.T, cb1 configCallback,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
 	// Make client config
@@ -94,12 +112,16 @@ func TestDefaultConfig_env(t *testing.T) {
 	t.Parallel()
 	url := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
+	token := "foobar"
 
 	os.Setenv("NOMAD_ADDR", url)
 	defer os.Setenv("NOMAD_ADDR", "")
 
 	os.Setenv("NOMAD_HTTP_AUTH", strings.Join(auth, ":"))
 	defer os.Setenv("NOMAD_HTTP_AUTH", "")
+
+	os.Setenv("NOMAD_TOKEN", token)
+	defer os.Setenv("NOMAD_TOKEN", "")
 
 	config := DefaultConfig()
 
@@ -114,6 +136,10 @@ func TestDefaultConfig_env(t *testing.T) {
 	if config.HttpAuth.Password != auth[1] {
 		t.Errorf("expected %q to be %q", config.HttpAuth.Password, auth[1])
 	}
+
+	if config.SecretID != token {
+		t.Errorf("Expected %q to be %q", config.SecretID, token)
+	}
 }
 
 func TestSetQueryOptions(t *testing.T) {
@@ -127,6 +153,7 @@ func TestSetQueryOptions(t *testing.T) {
 		AllowStale: true,
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
+		SecretID:   "foobar",
 	}
 	r.setQueryOptions(q)
 
@@ -142,6 +169,9 @@ func TestSetQueryOptions(t *testing.T) {
 	if r.params.Get("wait") != "100000ms" {
 		t.Fatalf("bad: %v", r.params)
 	}
+	if r.token != "foobar" {
+		t.Fatalf("bad: %v", r.token)
+	}
 }
 
 func TestSetWriteOptions(t *testing.T) {
@@ -151,12 +181,16 @@ func TestSetWriteOptions(t *testing.T) {
 
 	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &WriteOptions{
-		Region: "foo",
+		Region:   "foo",
+		SecretID: "foobar",
 	}
 	r.setWriteOptions(q)
 
 	if r.params.Get("region") != "foo" {
 		t.Fatalf("bad: %v", r.params)
+	}
+	if r.token != "foobar" {
+		t.Fatalf("bad: %v", r.token)
 	}
 }
 
@@ -167,7 +201,8 @@ func TestRequestToHTTP(t *testing.T) {
 
 	r, _ := c.newRequest("DELETE", "/v1/jobs/foo")
 	q := &QueryOptions{
-		Region: "foo",
+		Region:   "foo",
+		SecretID: "foobar",
 	}
 	r.setQueryOptions(q)
 	req, err := r.toHTTP()
@@ -179,6 +214,9 @@ func TestRequestToHTTP(t *testing.T) {
 		t.Fatalf("bad: %v", req)
 	}
 	if req.URL.RequestURI() != "/v1/jobs/foo?region=foo" {
+		t.Fatalf("bad: %v", req)
+	}
+	if req.Header.Get("X-Nomad-Token") != "foobar" {
 		t.Fatalf("bad: %v", req)
 	}
 }
