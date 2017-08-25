@@ -619,6 +619,10 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `all` `(bool: false)` - Specifies whether the list of allocations should
+  include allocations from a previously registered job with the same ID. This is
+  possible if the job is deregistered and reregistered.
+
 ### Sample Request
 
 ```text
