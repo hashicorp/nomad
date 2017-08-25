@@ -13,6 +13,21 @@ type StatusCommand struct {
 	Meta
 }
 
+func (s *StatusCommand) Help() string {
+	helpText := `
+Usage: nomad status [options] <identifier>
+
+  Display the status output for any given resource. The command will
+  detect the type of resource being queried and display the appropriate
+  status output.
+
+General Options:
+
+  ` + generalOptionsUsage()
+
+	return strings.TrimSpace(helpText)
+}
+
 func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -86,21 +101,6 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	return cmd.Run(argsCopy)
-}
-
-func (s *StatusCommand) Help() string {
-	helpText := `
-Usage: nomad status [options] <identifier>
-
-  Display the status output for any given resource. The command will
-  detect the type of resource being queried and display the appropriate
-  status output.
-
-General Options:
-
-  ` + generalOptionsUsage()
-
-	return strings.TrimSpace(helpText)
 }
 
 func (s *StatusCommand) AutocompleteFlags() complete.Flags {

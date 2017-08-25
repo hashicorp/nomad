@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -15,28 +17,24 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	// Register a job
-	job1 := testJob("job1_sfx")
-	resp, _, err := client.Jobs().Register(job1, nil)
-	assert.Nil(err)
-
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	// Create a fake job
+	state := srv.Agent.Server().State()
+	j := mock.Job()
+	assert.Nil(state.UpsertJob(1000, j))
 
 	// Query to check the job status
-	if code := cmd.Run([]string{"-address=" + url, "job1_sfx"}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, "job1_sfx")
+	assert.Contains(out, j.ID)
 
 	ui.OutputWriter.Reset()
 }
@@ -45,38 +43,24 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	assert.Nil(err)
-
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
-
-	// get an eval id
-	evalID := ""
-	if evals, _, err := client.Jobs().Evaluations(jobID, nil); err == nil {
-		if len(evals) > 0 {
-			evalID = evals[0].ID
-		}
-	}
-
-	assert.NotEqual("", evalID)
+	// Create a fake eval
+	state := srv.Agent.Server().State()
+	eval := mock.Eval()
+	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{eval}))
 
 	// Query to check the eval status
-	if code := cmd.Run([]string{"-address=" + url, evalID}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, eval.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, evalID)
+	assert.Contains(out, eval.ID[:shortId])
 
 	ui.OutputWriter.Reset()
 }
@@ -125,36 +109,23 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	assert.Nil(err)
+	// Create a fake alloc
+	state := srv.Agent.Server().State()
+	alloc := mock.Alloc()
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
 
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
-
-	// get an alloc id
-	allocId1 := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
-		if len(allocs) > 0 {
-			allocId1 = allocs[0].ID
-		}
-	}
-	assert.NotEqual("", allocId1)
-
-	if code := cmd.Run([]string{"-address=" + url, allocId1}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, allocId1)
+	assert.Contains(out, alloc.ID[:shortId])
 
 	ui.OutputWriter.Reset()
 }
@@ -163,20 +134,16 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	// Register a job
-	job1 := testJob("job1_sfx")
-	resp, _, err := client.Jobs().Register(job1, nil)
-	assert.Nil(err)
-
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	// Create a fake job
+	state := srv.Agent.Server().State()
+	job := mock.Job()
+	assert.Nil(state.UpsertJob(1000, job))
 
 	// Query to check status
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
@@ -184,7 +151,7 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, "job1_sfx")
+	assert.Contains(out, job.ID)
 
 	ui.OutputWriter.Reset()
 }
@@ -193,27 +160,23 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	assert.Nil(err)
+	// Create a fake job
+	state := srv.Agent.Server().State()
+	job := mock.Job()
+	assert.Nil(state.UpsertJob(1000, job))
 
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
-
-	prefix := jobID[:len(jobID)-5]
+	prefix := job.ID[:len(job.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Contains(res, jobID)
+	assert.Contains(res, job.ID)
 
 	args = complete.Args{Last: prefix, Completed: []string{prefix, "1", "2"}}
 	predictor = cmd.AutocompleteArgs()
