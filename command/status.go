@@ -28,6 +28,40 @@ General Options:
 	return strings.TrimSpace(helpText)
 }
 
+func (c *StatusCommand) Synopsis() string {
+	return "Display the status output for a resource"
+}
+
+func (c *StatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient), nil)
+}
+
+func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.All)
+		if err != nil {
+			return []string{}
+		}
+
+		final := make([]string, 0)
+
+		for _, matches := range resp.Matches {
+			if len(matches) == 0 {
+				continue
+			}
+
+			final = append(final, matches...)
+		}
+
+		return final
+	})
+}
+
 func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -101,38 +135,4 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	return cmd.Run(argsCopy)
-}
-
-func (s *StatusCommand) AutocompleteFlags() complete.Flags {
-	return nil
-}
-
-func (s *StatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := s.Meta.Client()
-	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.All)
-		if err != nil {
-			return []string{}
-		}
-
-		final := make([]string, 0)
-
-		for _, matches := range resp.Matches {
-			if len(matches) == 0 {
-				continue
-			}
-
-			final = append(final, matches...)
-		}
-
-		return final
-	})
-}
-
-func (c *StatusCommand) Synopsis() string {
-	return "Display the status output for a resource"
 }
