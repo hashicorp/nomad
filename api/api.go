@@ -24,6 +24,9 @@ type QueryOptions struct {
 	// by the Config
 	Region string
 
+	// Namespace is the target namespace for the query.
+	Namespace string
+
 	// AllowStale allows any Nomad server (non-leader) to service
 	// a read. This allows for lower latency and higher throughput
 	AllowStale bool
@@ -48,6 +51,9 @@ type WriteOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config
 	Region string
+
+	// Namespace is the target namespace for the write.
+	Namespace string
 }
 
 // QueryMeta is used to return meta data about a query

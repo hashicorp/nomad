@@ -115,6 +115,9 @@ type QueryOptions struct {
 	// The target region for this query
 	Region string
 
+	// Namespace is the target namespace for the query.
+	Namespace string
+
 	// If set, wait until query exceeds given index. Must be provided
 	// with MaxQueryTime.
 	MinQueryIndex uint64
@@ -146,6 +149,9 @@ func (q QueryOptions) AllowStaleRead() bool {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// Namespace is the target namespace for the write.
+	Namespace string
 }
 
 func (w WriteRequest) RequestRegion() string {
