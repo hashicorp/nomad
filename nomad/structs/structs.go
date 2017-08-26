@@ -115,6 +115,18 @@ const (
 	DefaultNamespace = "default"
 )
 
+// Restrict the possible Sentinel policy types
+const (
+	SentinelTypeAdvisory      = "advisory"
+	SentinelTypeSoftMandatory = "soft-mandatory"
+	SentinelTypeHardMandatory = "hard-mandatory"
+)
+
+// Restrict the possible Sentinel scopes
+const (
+	SentinelScopeSubmitJob = "submit-job"
+)
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string
@@ -5569,4 +5581,58 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// SentinelPolicy is used to represent a Sentinel policy
+type SentinelPolicy struct {
+	Name        string // Unique name
+	Description string // Human readable
+	Scope       string // Where should this policy be executed
+	Type        string // Enforcement Level
+	Policy      string
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+type SentinelPolicyListStub struct {
+	Name        string
+	Description string
+	Scope       string
+	Type        string
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (s *SentinelPolicy) Stub() *SentinelPolicyListStub {
+	return &SentinelPolicyListStub{
+		Name:        s.Name,
+		Description: s.Description,
+		Scope:       s.Scope,
+		Type:        s.Type,
+		CreateIndex: s.CreateIndex,
+		ModifyIndex: s.ModifyIndex,
+	}
+}
+
+func (s *SentinelPolicy) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(s.Name) {
+		err := fmt.Errorf("invalid name %q", s.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(s.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if s.Scope != SentinelScopeSubmitJob {
+		err := fmt.Errorf("invalid scope %q", s.Scope)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	switch s.Type {
+	case SentinelTypeAdvisory, SentinelTypeSoftMandatory, SentinelTypeHardMandatory:
+	default:
+		err := fmt.Errorf("invalid type %q", s.Type)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	// TODO Validate policy
+	return mErr.ErrorOrNil()
 }

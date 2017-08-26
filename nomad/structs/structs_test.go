@@ -2364,3 +2364,35 @@ func TestACLPolicySetHash(t *testing.T) {
 	assert.Equal(t, out2, ap.Hash)
 	assert.NotEqual(t, out1, out2)
 }
+
+func TestSentinelPolicy_Validate(t *testing.T) {
+	sp := &SentinelPolicy{
+		Name:        "test",
+		Description: "Great policy",
+		Scope:       SentinelScopeSubmitJob,
+		Type:        SentinelTypeAdvisory,
+		Policy:      "main = rule { true }",
+	}
+
+	// Test a good policy
+	assert.Nil(t, sp.Validate())
+
+	// Try an invalid name
+	sp.Name = "hi@there"
+	assert.NotNil(t, sp.Validate())
+
+	// Try an invalid description
+	sp.Name = "test"
+	sp.Description = string(make([]byte, 1000))
+	assert.NotNil(t, sp.Validate())
+
+	// Try an invalid scope
+	sp.Description = ""
+	sp.Scope = "random"
+	assert.NotNil(t, sp.Validate())
+
+	// Try an invalid type
+	sp.Scope = SentinelScopeSubmitJob
+	sp.Type = "yolo"
+	assert.NotNil(t, sp.Validate())
+}
