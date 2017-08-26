@@ -332,13 +332,16 @@ func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
 	return merged
 }
 
+// should autocomplete should always return true for any flag, return true for
+// an unseen identifier, and return false for an identifier that has not been
+// already autocompleted.
 func shouldAutocomplete(last string, completed []string) bool {
 	if len(last) == 0 {
 		return false
 	}
 
 	// flags should be repeatable
-	if strings.Contains(last, "-") {
+	if last[0] == '-' {
 		return true
 	}
 
@@ -347,5 +350,6 @@ func shouldAutocomplete(last string, completed []string) bool {
 			return false
 		}
 	}
+
 	return true
 }
