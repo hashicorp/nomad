@@ -388,3 +388,15 @@ func ACLManagementToken() *structs.ACLToken {
 		ModifyIndex: 20,
 	}
 }
+
+func SentinelPolicy() *structs.SentinelPolicy {
+	return &structs.SentinelPolicy{
+		Name:        fmt.Sprintf("sent-policy-%s", structs.GenerateUUID()),
+		Description: "Super cool policy!",
+		Type:        "advisory",
+		Scope:       "submit-job",
+		Policy:      "main = rule { true }",
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+}

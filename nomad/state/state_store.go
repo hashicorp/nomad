@@ -3023,6 +3023,115 @@ func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) e
 	return nil
 }
 
+// UpsertSentinelPolicies is used to create or update a set of Sentinel policies
+func (s *StateStore) UpsertSentinelPolicies(index uint64, policies []*structs.SentinelPolicy) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, policy := range policies {
+		// Check if the policy already exists
+		existing, err := txn.First("sentinel_policy", "id", policy.Name)
+		if err != nil {
+			return fmt.Errorf("policy lookup failed: %v", err)
+		}
+
+		// Update all the indexes
+		if existing != nil {
+			policy.CreateIndex = existing.(*structs.SentinelPolicy).CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
+		}
+
+		// Update the policy
+		if err := txn.Insert("sentinel_policy", policy); err != nil {
+			return fmt.Errorf("upserting policy failed: %v", err)
+		}
+	}
+
+	// Update the indexes tabl
+	if err := txn.Insert("index", &IndexEntry{"sentinel_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteSentinelPolicies deletes the policies with the given names
+func (s *StateStore) DeleteSentinelPolicies(index uint64, names []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the policy
+	for _, name := range names {
+		if _, err := txn.DeleteAll("sentinel_policy", "id", name); err != nil {
+			return fmt.Errorf("deleting sentinel policy failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"sentinel_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// SentinelPolicyByName is used to lookup a policy by name
+func (s *StateStore) SentinelPolicyByName(ws memdb.WatchSet, name string) (*structs.SentinelPolicy, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("sentinel_policy", "id", name)
+	if err != nil {
+		return nil, fmt.Errorf("sentinel policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.SentinelPolicy), nil
+	}
+	return nil, nil
+}
+
+// SentinelPolicyByNamePrefix is used to lookup policies by prefix
+func (s *StateStore) SentinelPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("sentinel_policy", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("sentinel policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// SentinelPolicies returns an iterator over all the sentinel policies
+func (s *StateStore) SentinelPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("sentinel_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// SentinelPoliciesByScope returns an iterator over all the sentinel policies by scope
+func (s *StateStore) SentinelPoliciesByScope(ws memdb.WatchSet, scope string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("sentinel_policy", "scope", scope)
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -3154,6 +3263,14 @@ func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	if err := r.txn.Insert("acl_token", token); err != nil {
 		return fmt.Errorf("inserting acl token failed: %v", err)
+	}
+	return nil
+}
+
+// SentinelPolicyRestore is used to restore an Sentinel policy
+func (r *StateRestore) SentinelPolicyRestore(policy *structs.SentinelPolicy) error {
+	if err := r.txn.Insert("sentinel_policy", policy); err != nil {
+		return fmt.Errorf("inserting sentinel policy failed: %v", err)
 	}
 	return nil
 }
