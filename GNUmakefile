@@ -155,27 +155,6 @@ generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
-#test: export GOTAGS=ent
-#test: generate
-	#GOTAGS="ent"
-	#@echo "--> Running go fmt" ;
-	#@if [ -n "`go fmt ${PACKAGES}`" ]; then \
-		#echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
-		#exit 1; \
-		#fi
-	#@sh -c "'$(PWD)/scripts/test.sh'"
-	#@$(MAKE) vet
-
-#protest: export GOTAGS=pro
-#protest: generate
-	#@echo "--> Running go fmt" ;
-	#@if [ -n "`go fmt ${PACKAGES}`" ]; then \
-		#echo "[ERR] go fmt updated formatting. Please commit formatted code first."; \
-		#exit 1; \
-		#fi
-	#@sh -c "'$(PWD)/scripts/test.sh'"
-	#@$(MAKE) vet
-
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
