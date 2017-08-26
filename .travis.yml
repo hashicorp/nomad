@@ -12,6 +12,7 @@ go:
 branches:
   only:
     - master
+    - f-acl
 
 before_install:
     - sudo apt-get update
@@ -30,4 +31,4 @@ install:
   - make bootstrap
 
 script:
-  - make travis
+  - sudo -E "PATH=$PATH" make travis

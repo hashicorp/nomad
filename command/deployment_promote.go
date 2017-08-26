@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/posener/complete"
 )
 
 type DeploymentPromoteCommand struct {
@@ -47,6 +49,30 @@ Promote Options:
 
 func (c *DeploymentPromoteCommand) Synopsis() string {
 	return "Promote canaries in a deployment"
+}
+
+func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-group":   complete.PredictAnything,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *DeploymentPromoteCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Deployments)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentPromoteCommand) Run(args []string) int {

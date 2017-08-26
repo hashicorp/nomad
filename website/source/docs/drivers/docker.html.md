@@ -256,6 +256,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `work_dir` - (Optional) The working directory inside the container.
 
+* `mounts` - (Optional) A list of
+  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
+  to be mounted into the container. Only volume type mounts are supported.
+
+    ```hcl
+    config {
+      mounts = [
+        {
+          target = "/path/in/container"
+          source = "name-of-volume"
+          readonly = false
+          volume_options {
+            no_copy = false
+            labels {
+              foo = "bar"
+            }
+            driver_config {
+              name = "flocker"
+              options = {
+                foo = "bar"
+              }
+            }
+          }
+        }
+      ]
+    }
+    ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named

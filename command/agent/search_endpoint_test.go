@@ -241,6 +241,37 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 	})
 }
 
+func TestHTTP_Search_Deployments(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		deployment := mock.Deployment()
+		assert.Nil(state.UpsertDeployment(999, deployment), "UpsertDeployment")
+
+		prefix := deployment.ID[:len(deployment.ID)-2]
+		data := structs.SearchRequest{Prefix: prefix, Context: structs.Deployments}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		assert.Nil(err)
+
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.SearchRequest(respW, req)
+		assert.Nil(err)
+
+		res := resp.(structs.SearchResponse)
+
+		assert.Equal(1, len(res.Matches))
+
+		n := res.Matches[structs.Deployments]
+		assert.Equal(1, len(n))
+		assert.Contains(n, deployment.ID)
+
+		assert.Equal("999", respW.HeaderMap.Get("X-Nomad-Index"))
+	})
+}
+
 func TestHTTP_Search_NoJob(t *testing.T) {
 	assert := assert.New(t)
 

@@ -25,7 +25,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) s
 	return job.ID
 }
 
-func TestSearch_PrefixSearch(t *testing.T) {
+func TestSearch_PrefixSearch_Job(t *testing.T) {
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -86,6 +86,42 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	assert.Equal(20, len(resp.Matches[structs.Jobs]))
 	assert.Equal(resp.Truncations[structs.Jobs], true)
 	assert.Equal(uint64(jobIndex), resp.Index)
+}
+
+func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
+	assert := assert.New(t)
+	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
+
+	eval1 := mock.Eval()
+	eval1.ID = jobID
+	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.All,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+
+	assert.Equal(1, len(resp.Matches[structs.Evals]))
+	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
 }
 
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
@@ -197,6 +233,39 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	assert.Equal(false, resp.Truncations[structs.Nodes])
 
 	assert.Equal(uint64(100), resp.Index)
+}
+
+func TestSearch_PrefixSearch_Deployment(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	deployment := mock.Deployment()
+	s.fsm.State().UpsertDeployment(2000, deployment)
+
+	prefix := deployment.ID[:len(deployment.ID)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Deployments,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Deployments]))
+	assert.Equal(deployment.ID, resp.Matches[structs.Deployments][0])
+	assert.Equal(resp.Truncations[structs.Deployments], false)
+
+	assert.Equal(uint64(2000), resp.Index)
 }
 
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {

@@ -18,7 +18,8 @@ const (
 var (
 	// allContexts are the available contexts which are searched to find matches
 	// for a given prefix
-	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes, structs.Evals}
+	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
+		structs.Evals, structs.Deployments}
 )
 
 // Search endpoint is used to look up matches for a given prefix and context
@@ -47,6 +48,8 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 			id = raw.(*structs.Allocation).ID
 		case *structs.Node:
 			id = raw.(*structs.Node).ID
+		case *structs.Deployment:
+			id = raw.(*structs.Deployment).ID
 		default:
 			s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
 			continue
@@ -74,6 +77,8 @@ func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, 
 		return state.AllocsByIDPrefix(ws, prefix)
 	case structs.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
+	case structs.Deployments:
+		return state.DeploymentsByIDPrefix(ws, prefix)
 	default:
 		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
 	}
@@ -115,10 +120,16 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 
 			for _, ctx := range contexts {
 				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+
 				if err != nil {
-					return err
+					// Searching other contexts with job names raises an error, which in
+					// this case we want to ignore.
+					if !strings.Contains(err.Error(), "Invalid UUID: encoding/hex") {
+						return err
+					}
+				} else {
+					iters[ctx] = iter
 				}
-				iters[ctx] = iter
 			}
 
 			// Return matches for the given prefix

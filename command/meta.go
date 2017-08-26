@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/posener/complete"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -92,6 +94,25 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	return f
 }
 
+// AutocompleteFlags returns a set of flag completions for the given flag set.
+func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
+	if fs&FlagSetClient == 0 {
+		return nil
+	}
+
+	return complete.Flags{
+		"-address":         complete.PredictAnything,
+		"-region":          complete.PredictAnything,
+		"-no-color":        complete.PredictNothing,
+		"-ca-cert":         complete.PredictFiles("*"),
+		"-ca-path":         complete.PredictDirs("*"),
+		"-client-cert":     complete.PredictFiles("*"),
+		"-client-key":      complete.PredictFiles("*"),
+		"-insecure":        complete.PredictNothing,
+		"-tls-skip-verify": complete.PredictNothing,
+	}
+}
+
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
 func (m *Meta) Client() (*api.Client, error) {
@@ -126,7 +147,7 @@ func (m *Meta) Client() (*api.Client, error) {
 func (m *Meta) Colorize() *colorstring.Colorize {
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: m.noColor,
+		Disable: m.noColor || !terminal.IsTerminal(int(os.Stdout.Fd())),
 		Reset:   true,
 	}
 }
@@ -143,32 +164,32 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
-  
+
   -no-color
     Disables colored command output.
 
-  -ca-cert=<path>           
-    Path to a PEM encoded CA cert file to use to verify the 
-    Nomad server SSL certificate.  Overrides the NOMAD_CACERT 
+  -ca-cert=<path>
+    Path to a PEM encoded CA cert file to use to verify the
+    Nomad server SSL certificate.  Overrides the NOMAD_CACERT
     environment variable if set.
 
-  -ca-path=<path>           
-    Path to a directory of PEM encoded CA cert files to verify 
-    the Nomad server SSL certificate. If both -ca-cert and 
-    -ca-path are specified, -ca-cert is used. Overrides the 
+  -ca-path=<path>
+    Path to a directory of PEM encoded CA cert files to verify
+    the Nomad server SSL certificate. If both -ca-cert and
+    -ca-path are specified, -ca-cert is used. Overrides the
     NOMAD_CAPATH environment variable if set.
 
-  -client-cert=<path>       
-    Path to a PEM encoded client certificate for TLS authentication 
-    to the Nomad server. Must also specify -client-key. Overrides 
+  -client-cert=<path>
+    Path to a PEM encoded client certificate for TLS authentication
+    to the Nomad server. Must also specify -client-key. Overrides
     the NOMAD_CLIENT_CERT environment variable if set.
 
-  -client-key=<path>        
-    Path to an unencrypted PEM encoded private key matching the 
-    client certificate from -client-cert. Overrides the 
+  -client-key=<path>
+    Path to an unencrypted PEM encoded private key matching the
+    client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
 
-  -tls-skip-verify        
+  -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
 `

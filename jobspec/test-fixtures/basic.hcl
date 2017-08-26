@@ -129,6 +129,8 @@ job "binstore-storagelocker" {
 
       kill_timeout = "22s"
 
+      shutdown_delay = "11s"
+
       artifact {
         source = "http://foo.com/artifact"
 

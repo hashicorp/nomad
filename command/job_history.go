@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
 
@@ -32,7 +34,7 @@ History Options:
 
   -p
     Display the difference between each job and its predecessor.
-    
+
   -full
     Display the full job definition for each version.
 
@@ -50,6 +52,32 @@ History Options:
 
 func (c *JobHistoryCommand) Synopsis() string {
 	return "Display all tracked versions of a job"
+}
+
+func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-p":       complete.PredictNothing,
+			"-full":    complete.PredictNothing,
+			"-version": complete.PredictAnything,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
+}
+
+func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobHistoryCommand) Run(args []string) int {

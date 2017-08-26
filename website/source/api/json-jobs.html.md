@@ -58,6 +58,8 @@ Below is the JSON representation of the job outputed by `$ nomad init`:
                         "Type": "tcp",
                         "Command": "",
                         "Args": null,
+                        "Header": {},
+                        "Method": "",
                         "Path": "",
                         "Protocol": "",
                         "PortLabel": "",
@@ -344,11 +346,17 @@ The `Task` object supports the following keys:
 
          - `Name`: The name of the health check.
 
+	 - `Header`: Headers for HTTP checks. Should be an object where the
+	   values are an array of values. Headers will be written once for each
+           value.
+
          - `Interval`: This indicates the frequency of the health checks that
            Consul will perform.
 
          - `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
+
+         - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
 
          - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
@@ -366,6 +374,12 @@ The `Task` object supports the following keys:
 
 	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+
+- `ShutdownDelay` - Specifies the duration to wait when killing a task between
+  removing it from Consul and sending it a shutdown signal. Ideally services
+  would fail healthchecks once they receive a shutdown signal. Alternatively
+  `ShutdownDelay` may be set to give in flight requests time to complete before
+  shutting down.
 
 - `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with

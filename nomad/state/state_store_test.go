@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -1305,6 +1306,61 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
+	state := testStateStore(t)
+	assert := assert.New(t)
+
+	// Create a job and mark it as stable
+	job := mock.Job()
+	job.Stable = true
+	job.Priority = 0
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.JobVersionsByID(ws, job.ID)
+	assert.Nil(err)
+	assert.Nil(state.UpsertJob(1000, job))
+	assert.True(watchFired(ws))
+
+	var finalJob *structs.Job
+	for i := 1; i < 20; i++ {
+		finalJob = mock.Job()
+		finalJob.ID = job.ID
+		finalJob.Priority = i
+		assert.Nil(state.UpsertJob(uint64(1000+i), finalJob))
+	}
+
+	assert.Nil(state.DeleteJob(1001, job.ID))
+	assert.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.ID)
+	assert.Nil(err)
+	assert.Nil(out)
+
+	index, err := state.Index("jobs")
+	assert.Nil(err)
+	assert.EqualValues(1001, index)
+
+	summary, err := state.JobSummaryByID(ws, job.ID)
+	assert.Nil(err)
+	assert.Nil(summary)
+
+	index, err = state.Index("job_summary")
+	assert.Nil(err)
+	assert.EqualValues(1001, index)
+
+	versions, err := state.JobVersionsByID(ws, job.ID)
+	assert.Nil(err)
+	assert.Len(versions, 0)
+
+	index, err = state.Index("job_summary")
+	assert.Nil(err)
+	assert.EqualValues(1001, index)
+
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
