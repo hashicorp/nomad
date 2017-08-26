@@ -4188,6 +4188,7 @@ type Deployment struct {
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
 		ID:                GenerateUUID(),
+		Namespace:         job.Namespace,
 		JobID:             job.ID,
 		JobVersion:        job.Version,
 		JobModifyIndex:    job.ModifyIndex,

@@ -123,7 +123,7 @@ func jobTableSchema() *memdb.TableSchema {
 							Field: "Namespace",
 						},
 
-						&memdb.UUIDFieldIndex{
+						&memdb.StringFieldIndex{
 							Field: "ID",
 						},
 					},
@@ -176,7 +176,7 @@ func jobSummarySchema() *memdb.TableSchema {
 							Field: "Namespace",
 						},
 
-						&memdb.UUIDFieldIndex{
+						&memdb.StringFieldIndex{
 							Field: "JobID",
 						},
 					},
@@ -307,7 +307,7 @@ func deploymentSchema() *memdb.TableSchema {
 							Field: "Namespace",
 						},
 
-						&memdb.UUIDFieldIndex{
+						&memdb.StringFieldIndex{
 							Field: "JobID",
 						},
 					},
@@ -339,7 +339,7 @@ func periodicLaunchTableSchema() *memdb.TableSchema {
 							Field: "Namespace",
 						},
 
-						&memdb.UUIDFieldIndex{
+						&memdb.StringFieldIndex{
 							Field: "ID",
 						},
 					},
@@ -469,7 +469,7 @@ func allocTableSchema() *memdb.TableSchema {
 							Field: "Namespace",
 						},
 
-						&memdb.UUIDFieldIndex{
+						&memdb.StringFieldIndex{
 							Field: "JobID",
 						},
 					},
