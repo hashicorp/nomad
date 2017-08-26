@@ -269,6 +269,8 @@ type SearchRequest struct {
 	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
 	Context Context
+
+	QueryOptions
 }
 
 // JobRegisterRequest is used for Job.Register endpoint
