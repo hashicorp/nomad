@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -223,6 +224,9 @@ type ServiceClient struct {
 	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
 	// atomics.
 	seen int32
+
+	// checkWatcher restarts checks that are unhealthy.
+	checkWatcher *checkWatcher
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
@@ -245,6 +249,7 @@ func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log
 		allocRegistrations: make(map[string]*AllocRegistration),
 		agentServices:      make(map[string]struct{}),
 		agentChecks:        make(map[string]struct{}),
+		checkWatcher:       newCheckWatcher(logger, consulClient),
 	}
 }
 
@@ -267,6 +272,12 @@ func (c *ServiceClient) hasSeen() bool {
 // be called exactly once.
 func (c *ServiceClient) Run() {
 	defer close(c.exitCh)
+
+	// start checkWatcher
+	ctx, cancelWatcher := context.WithCancel(context.Background())
+	defer cancelWatcher()
+	go c.checkWatcher.Run(ctx)
+
 	retryTimer := time.NewTimer(0)
 	<-retryTimer.C // disabled by default
 	failures := 0
@@ -274,6 +285,7 @@ func (c *ServiceClient) Run() {
 		select {
 		case <-retryTimer.C:
 		case <-c.shutdownCh:
+			cancelWatcher()
 		case ops := <-c.opCh:
 			c.merge(ops)
 		}
@@ -656,7 +668,7 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 // Checks will always use the IP from the Task struct (host's IP).
 //
 // Actual communication with Consul is done asynchrously (see Run).
-func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	// Fast path
 	numServices := len(task.Services)
 	if numServices == 0 {
@@ -679,6 +691,18 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec dr
 	c.addTaskRegistration(allocID, task.Name, t)
 
 	c.commit(ops)
+
+	// Start watching checks. Done after service registrations are built
+	// since an error building them could leak watches.
+	for _, service := range task.Services {
+		serviceID := makeTaskServiceID(allocID, task.Name, service)
+		for _, check := range service.Checks {
+			if check.Watched() {
+				checkID := makeCheckID(serviceID, check)
+				c.checkWatcher.Watch(allocID, task.Name, checkID, check, restarter)
+			}
+		}
+	}
 	return nil
 }
 
@@ -686,7 +710,7 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec dr
 // changed.
 //
 // DriverNetwork must not change between invocations for the same allocation.
-func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	ops := &operations{}
 
 	t := new(TaskRegistration)
@@ -709,7 +733,13 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			// Existing service entry removed
 			ops.deregServices = append(ops.deregServices, existingID)
 			for _, check := range existingSvc.Checks {
-				ops.deregChecks = append(ops.deregChecks, makeCheckID(existingID, check))
+				cid := makeCheckID(existingID, check)
+				ops.deregChecks = append(ops.deregChecks, cid)
+
+				// Unwatch watched checks
+				if check.Watched() {
+					c.checkWatcher.Unwatch(cid)
+				}
 			}
 			continue
 		}
@@ -730,9 +760,9 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		}
 
 		// Check to see what checks were updated
-		existingChecks := make(map[string]struct{}, len(existingSvc.Checks))
+		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
-			existingChecks[makeCheckID(existingID, check)] = struct{}{}
+			existingChecks[makeCheckID(existingID, check)] = check
 		}
 
 		// Register new checks
@@ -748,15 +778,28 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 				if err != nil {
 					return err
 				}
+
 				for _, checkID := range newCheckIDs {
 					sreg.checkIDs[checkID] = struct{}{}
+
 				}
+
+			}
+
+			// Update all watched checks as CheckRestart fields aren't part of ID
+			if check.Watched() {
+				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
 			}
 		}
 
 		// Remove existing checks not in updated service
-		for cid := range existingChecks {
+		for cid, check := range existingChecks {
 			ops.deregChecks = append(ops.deregChecks, cid)
+
+			// Unwatch checks
+			if check.Watched() {
+				c.checkWatcher.Unwatch(cid)
+			}
 		}
 	}
 
@@ -774,6 +817,18 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 	c.addTaskRegistration(allocID, newTask.Name, t)
 
 	c.commit(ops)
+
+	// Start watching checks. Done after service registrations are built
+	// since an error building them could leak watches.
+	for _, service := range newIDs {
+		serviceID := makeTaskServiceID(allocID, newTask.Name, service)
+		for _, check := range service.Checks {
+			if check.Watched() {
+				checkID := makeCheckID(serviceID, check)
+				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
+			}
+		}
+	}
 	return nil
 }
 
@@ -788,7 +843,12 @@ func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
-			ops.deregChecks = append(ops.deregChecks, makeCheckID(id, check))
+			cid := makeCheckID(id, check)
+			ops.deregChecks = append(ops.deregChecks, cid)
+
+			if check.Watched() {
+				c.checkWatcher.Unwatch(cid)
+			}
 		}
 	}
 

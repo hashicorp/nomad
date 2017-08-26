@@ -141,6 +141,10 @@ type TaskRunner struct {
 	// restartCh is used to restart a task
 	restartCh chan *structs.TaskEvent
 
+	// lastStart tracks the last time this task was started or restarted
+	lastStart   time.Time
+	lastStartMu sync.Mutex
+
 	// signalCh is used to send a signal to a task
 	signalCh chan SignalEvent
 
@@ -1362,6 +1366,11 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 
 // startTask creates the driver, task dir, and starts the task.
 func (r *TaskRunner) startTask() error {
+	// Update lastStart
+	r.lastStartMu.Lock()
+	r.lastStart = time.Now()
+	r.lastStartMu.Unlock()
+
 	// Create a driver
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1439,7 +1448,7 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		exec = h
 	}
 	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, exec, n)
+	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, r, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1641,7 +1650,7 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, r, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
@@ -1671,6 +1680,16 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 
 // Restart will restart the task
 func (r *TaskRunner) Restart(source, reason string) {
+	r.lastStartMu.Lock()
+	defer r.lastStartMu.Unlock()
+
+	r.restart(source, reason)
+}
+
+// restart is the internal task restart method. Callers must hold lastStartMu.
+func (r *TaskRunner) restart(source, reason string) {
+	r.lastStart = time.Now()
+
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
 
@@ -1678,6 +1697,25 @@ func (r *TaskRunner) Restart(source, reason string) {
 	case r.restartCh <- event:
 	case <-r.waitCh:
 	}
+}
+
+// RestartBy deadline. Restarts a task iff the last time it was started was
+// before the deadline.  Returns true if restart occurs; false if skipped.
+func (r *TaskRunner) RestartBy(deadline time.Time, source, reason string) {
+	r.lastStartMu.Lock()
+	defer r.lastStartMu.Unlock()
+
+	if r.lastStart.Before(deadline) {
+		r.restart(source, reason)
+	}
+}
+
+// LastStart returns the last time this task was started (including restarts).
+func (r *TaskRunner) LastStart() time.Time {
+	r.lastStartMu.Lock()
+	ls := r.lastStart
+	r.lastStartMu.Unlock()
+	return ls
 }
 
 // Signal will send a signal to the task

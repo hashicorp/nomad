@@ -2942,6 +2942,12 @@ func (sc *ServiceCheck) RequiresPort() bool {
 	}
 }
 
+// Watched returns true if this check should be watched and trigger a restart
+// on failure.
+func (sc *ServiceCheck) Watched() bool {
+	return sc.CheckRestart != nil && sc.CheckRestart.Limit > 0
+}
+
 // Hash all ServiceCheck fields and the check's corresponding service ID to
 // create an identifier. The identifier is not guaranteed to be unique as if
 // the PortLabel is blank, the Service's PortLabel will be used after Hash is

@@ -922,6 +922,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		}
 
 		delete(m, "check")
+		delete(m, "check_restart")
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
@@ -938,6 +939,18 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		if co := checkList.Filter("check"); len(co.Items) > 0 {
 			if err := parseChecks(&service, co); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
+			}
+		}
+
+		// Filter check_restart
+		if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
+			if len(cro.Items) > 1 {
+				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
+			}
+			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
+			} else {
+				service.CheckRestart = cr
 			}
 		}
 
@@ -965,9 +978,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"tls_skip_verify",
 			"header",
 			"method",
-			"restart_grace_period",
-			"restart_on_warning",
-			"restart_after_unhealthy",
+			"check_restart",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -1009,6 +1020,8 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			delete(cm, "header")
 		}
 
+		delete(cm, "check_restart")
+
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 			WeaklyTypedInput: true,
@@ -1021,10 +1034,61 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			return err
 		}
 
+		// Filter check_restart
+		var checkRestartList *ast.ObjectList
+		if ot, ok := co.Val.(*ast.ObjectType); ok {
+			checkRestartList = ot.List
+		} else {
+			return fmt.Errorf("check_restart '%s': should be an object", check.Name)
+		}
+
+		if cro := checkRestartList.Filter("check_restart"); len(cro.Items) > 0 {
+			if len(cro.Items) > 1 {
+				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", check.Name)
+			}
+			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("check: '%s',", check.Name))
+			} else {
+				check.CheckRestart = cr
+			}
+		}
+
 		service.Checks[idx] = check
 	}
 
 	return nil
+}
+
+func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
+	valid := []string{
+		"limit",
+		"grace_period",
+		"on_warning",
+	}
+
+	if err := checkHCLKeys(cro.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "check_restart ->")
+	}
+
+	var checkRestart api.CheckRestart
+	var crm map[string]interface{}
+	if err := hcl.DecodeObject(&crm, cro.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &checkRestart,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(crm); err != nil {
+		return nil, err
+	}
+
+	return &checkRestart, nil
 }
 
 func parseResources(result *api.Resources, list *ast.ObjectList) error {
