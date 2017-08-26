@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/posener/complete"
 )
 
 const (
@@ -126,4 +128,16 @@ func (c *AgentCheckCommand) checkClientHealth(clientStats map[string]string, min
 	}
 
 	return HealthPass
+}
+
+func (c *AgentCheckCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-min-peers":   complete.PredictAnything,
+			"-min-servers": complete.PredictAnything,
+		})
+}
+
+func (c *AgentCheckCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }

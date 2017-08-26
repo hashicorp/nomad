@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentResumeCommand struct {
@@ -35,6 +38,29 @@ Resume Options:
 
 func (c *DeploymentResumeCommand) Synopsis() string {
 	return "Resume a paused deployment"
+}
+
+func (c *DeploymentResumeCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *DeploymentResumeCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Deployments)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentResumeCommand) Run(args []string) int {

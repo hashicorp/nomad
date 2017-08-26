@@ -31,4 +31,4 @@ install:
   - make bootstrap
 
 script:
-  - make travis
+  - sudo -E "PATH=$PATH" make travis

@@ -37,7 +37,7 @@ else
     cd /tmp
     wget -q https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${ARCH}.tar.gz
     tar -xf go${GO_VERSION}.linux-${ARCH}.tar.gz
-    sudo rm -rf $SRCROOT/go
+    sudo rm -rf $SRCROOT
     sudo mv go $SRCROOT
     sudo chmod 775 $SRCROOT
     sudo chown vagrant:vagrant $SRCROOT

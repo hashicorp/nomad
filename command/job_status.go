@@ -60,6 +60,31 @@ func (c *JobStatusCommand) Synopsis() string {
 	return "Display status information about jobs"
 }
 
+func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-all-allocs": complete.PredictNothing,
+			"-evals":      complete.PredictNothing,
+			"-short":      complete.PredictNothing,
+			"-verbose":    complete.PredictNothing,
+		})
+}
+
+func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
+}
+
 func (c *JobStatusCommand) Run(args []string) int {
 	var short bool
 
@@ -113,6 +138,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Try querying the job
 	jobID := args[0]
+
 	jobs, _, err := client.Jobs().PrefixList(jobID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
@@ -525,25 +551,6 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
-}
-
-func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
-	return nil
-}
-
-func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
-	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
 }
 
 // list general information about a list of jobs

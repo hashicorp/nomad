@@ -980,8 +980,10 @@
 			"revisionTime": "2016-05-04T02:26:26Z"
 		},
 		{
+			"checksumSHA1": "trzmsZQDCc13zk/6qANox7Z/KCg=",
 			"path": "github.com/mattn/go-isatty",
-			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+			"revision": "fc9e8d8ef48496124e79ae0df75490096eccf6fe",
+			"revisionTime": "2017-03-22T23:44:13Z"
 		},
 		{
 			"checksumSHA1": "ajImwVZHzsI+aNwsgzCSFSbmJqs=",
@@ -994,10 +996,10 @@
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
-			"checksumSHA1": "cwT95naFga0RFGUZsCT1NeX5ncI=",
+			"checksumSHA1": "gPuHq0UytpuYPb2YWmFVb22Twcc=",
 			"path": "github.com/mitchellh/cli",
-			"revision": "921cc83dadc195c0cd67f9df3a6ec822400a1df5",
-			"revisionTime": "2017-07-25T23:05:51Z"
+			"revision": "0ce7cd515f64496ee660ab19f6bbf373945d3af0",
+			"revisionTime": "2017-08-24T19:02:09Z"
 		},
 		{
 			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",
@@ -1109,10 +1111,10 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
-			"checksumSHA1": "6OEUkwOM0qgI6YxR+BDEn6YMvpU=",
+			"checksumSHA1": "rTNABfFJ9wtLQRH8uYNkEZGQOrY=",
 			"path": "github.com/posener/complete",
-			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
-			"revisionTime": "2017-05-27T17:24:47Z"
+			"revision": "2100d1b06c06462a8a47bfc41a7f24a5d60a1420",
+			"revisionTime": "2017-08-25T06:44:15Z"
 		},
 		{
 			"checksumSHA1": "NB7uVS0/BJDmNu68vPAlbrq4TME=",
@@ -1252,6 +1254,12 @@
 			"path": "github.com/ulikunitz/xz/lzma",
 			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
 			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
+			"revisionTime": "2017-08-07T10:11:13Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",

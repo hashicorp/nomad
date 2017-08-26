@@ -48,6 +48,31 @@ func (c *EvalStatusCommand) Synopsis() string {
 	return "Display evaluation status and placement failure reasons"
 }
 
+func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-monitor": complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := c.Meta.Client()
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Evals)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Evals]
+	})
+}
+
 func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var tmpl string
@@ -218,25 +243,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	return 0
-}
-
-func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
-	return nil
-}
-
-func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
-	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Evals)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Evals]
-	})
 }
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {

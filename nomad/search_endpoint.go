@@ -120,10 +120,16 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 
 			for _, ctx := range contexts {
 				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+
 				if err != nil {
-					return err
+					// Searching other contexts with job names raises an error, which in
+					// this case we want to ignore.
+					if !strings.Contains(err.Error(), "Invalid UUID: encoding/hex") {
+						return err
+					}
+				} else {
+					iters[ctx] = iter
 				}
-				iters[ctx] = iter
 			}
 
 			// Return matches for the given prefix

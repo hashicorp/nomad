@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type DeploymentListCommand struct {
@@ -33,6 +34,19 @@ List Options:
     Display full information.
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *DeploymentListCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *DeploymentListCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *DeploymentListCommand) Synopsis() string {

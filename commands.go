@@ -224,6 +224,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"status": func() (cli.Command, error) {
+			return &command.StatusCommand{
+				Meta: meta,
+			}, nil
+		},
 		"stop": func() (cli.Command, error) {
 			return &command.StopCommand{
 				Meta: meta,

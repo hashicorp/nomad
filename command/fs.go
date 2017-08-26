@@ -12,6 +12,8 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 const (
@@ -75,6 +77,36 @@ FS Specific Options:
 
 func (f *FSCommand) Synopsis() string {
 	return "Inspect the contents of an allocation directory"
+}
+
+func (c *FSCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-H":       complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+			"-job":     complete.PredictAnything,
+			"-stat":    complete.PredictNothing,
+			"-f":       complete.PredictNothing,
+			"-tail":    complete.PredictNothing,
+			"-n":       complete.PredictAnything,
+			"-c":       complete.PredictAnything,
+		})
+}
+
+func (f *FSCommand) AutocompleteArgs() complete.Predictor {
+	client, _ := f.Meta.Client()
+
+	return complete.PredictFunc(func(a complete.Args) []string {
+		if len(a.Completed) > 1 {
+			return nil
+		}
+
+		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
 
 func (f *FSCommand) Run(args []string) int {

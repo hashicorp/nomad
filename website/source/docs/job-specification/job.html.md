@@ -148,8 +148,8 @@ job "docs" {
 
 ### Batch Job
 
-This example job executes the `uptime` command across all Nomad clients in the
-fleet, as long as those machines are running Linux.
+This example job executes the `uptime` command on 10 Nomad clients in the fleet,
+restricting the eligble nodes to Linux machines.
 
 ```hcl
 job "docs" {
@@ -163,14 +163,11 @@ job "docs" {
   }
 
   group "example" {
+    count = 10
     task "uptime" {
       driver = "exec"
       config {
         command = "uptime"
-      }
-
-      resources {
-        cpu = 20
       }
     }
   }
@@ -203,10 +200,6 @@ job "docs" {
 
       vault {
         policies = ["secret-readonly"]
-      }
-
-      resources {
-        cpu = 20
       }
     }
   }
