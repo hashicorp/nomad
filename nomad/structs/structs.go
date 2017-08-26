@@ -99,7 +99,7 @@ const (
 	Evals       Context = "evals"
 	Jobs        Context = "jobs"
 	Nodes       Context = "nodes"
-	All         Context = ""
+	All         Context = "all"
 )
 
 // RPCInfo is used to describe common information about query

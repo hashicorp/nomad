@@ -31,8 +31,7 @@ The table below shows this endpoint's support for
   matches might be "abcd", or "aabb".
 - `Context` `(string: <required>)` - Defines the scope in which a search for a
   prefix operates. Contexts can be: "jobs", "evals", "allocs", "nodes",
-  "deployment" or an empty string, in which every context will be searched for
-  the identifier.
+  "deployment" or "all", where "all" means every context will be searched.
 
 ### Sample Payload (for a specific context)
 
