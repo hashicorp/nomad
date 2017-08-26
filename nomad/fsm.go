@@ -45,6 +45,12 @@ const (
 	ACLTokenSnapshot
 )
 
+// Offset all the Enterprise-specific values so that we don't overlap
+// the OSS/Enterprise values.
+const (
+	SentinelPolicySnapshot SnapshotType = iota + 127
+)
+
 // nomadFSM implements a finite state machine that is used
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
@@ -931,6 +937,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case SentinelPolicySnapshot:
+			policy := new(structs.SentinelPolicy)
+			if err := dec.Decode(policy); err != nil {
+				return err
+			}
+			if err := restore.SentinelPolicyRestore(policy); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
 		}
@@ -1142,6 +1157,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLTokens(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSentinelPolicies(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1471,6 +1490,34 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		// Write out a token registration
 		sink.Write([]byte{byte(ACLTokenSnapshot)})
 		if err := encoder.Encode(token); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistSentinelPolicies(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all the policies
+	ws := memdb.NewWatchSet()
+	policies, err := s.snap.SentinelPolicies(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := policies.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		policy := raw.(*structs.SentinelPolicy)
+
+		// Write out a policy registration
+		sink.Write([]byte{byte(SentinelPolicySnapshot)})
+		if err := encoder.Encode(policy); err != nil {
 			return err
 		}
 	}
