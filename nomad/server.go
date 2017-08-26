@@ -186,6 +186,7 @@ type endpoints struct {
 	System     *System
 	Operator   *Operator
 	ACL        *ACL
+	Sentinel   *Sentinel
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -740,6 +741,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.Plan = &Plan{s}
 	s.endpoints.Region = &Region{s}
+	s.endpoints.Sentinel = &Sentinel{s}
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
 
@@ -754,6 +756,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.Plan)
 	s.rpcServer.Register(s.endpoints.Region)
+	s.rpcServer.Register(s.endpoints.Sentinel)
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
 
