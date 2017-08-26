@@ -48,7 +48,7 @@ const (
 // Offset all the Enterprise-specific values so that we don't overlap
 // the OSS/Enterprise values.
 const (
-	SentinelPolicySnapshot SnapshotType = iota + 127
+	SentinelPolicySnapshot SnapshotType = (64 + iota)
 )
 
 // nomadFSM implements a finite state machine that is used
@@ -185,6 +185,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenDelete(buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+	case structs.SentinelPolicyUpsertRequestType:
+		return n.applySentinelPolicyUpsert(buf[1:], log.Index)
+	case structs.SentinelPolicyDeleteRequestType:
+		return n.applySentinelPolicyDelete(buf[1:], log.Index)
 	default:
 		if ignoreUnknown {
 			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
@@ -757,6 +761,36 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 
 	if err := n.state.BootstrapACLTokens(index, req.Token); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: BootstrapACLToken failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// applySentinelPolicyUpsert is used to upsert a set of policies
+func (n *nomadFSM) applySentinelPolicyUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_sentinel_policy_upsert"}, time.Now())
+	var req structs.SentinelPolicyUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertSentinelPolicies(index, req.Policies); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertSentinelPolicies failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// applySentinelPolicyDelete is used to delete a set of policies
+func (n *nomadFSM) applySentinelPolicyDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_sentinel_policy_delete"}, time.Now())
+	var req structs.SentinelPolicyDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteSentinelPolicies(index, req.Names); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteSentinelPolicies failed: %v", err)
 		return err
 	}
 	return nil

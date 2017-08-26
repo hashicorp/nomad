@@ -74,6 +74,13 @@ const (
 	ACLTokenBootstrapRequestType
 )
 
+// Offset all the Enterprise-specific values so that we don't overlap
+// the OSS/Enterprise values.
+const (
+	SentinelPolicyUpsertRequestType MessageType = (64 + iota)
+	SentinelPolicyDeleteRequestType
+)
+
 const (
 	// IgnoreUnknownTypeFlag is set along with a MessageType
 	// to indicate that the message type can be safely ignored
@@ -5635,4 +5642,51 @@ func (s *SentinelPolicy) Validate() error {
 	}
 	// TODO Validate policy
 	return mErr.ErrorOrNil()
+}
+
+// SentinelPolicyListRequest is used to request a list of policies
+type SentinelPolicyListRequest struct {
+	QueryOptions
+}
+
+// SentinelPolicySpecificRequest is used to query a specific policy
+type SentinelPolicySpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// SentinelPolicySetRequest is used to query a set of policies
+type SentinelPolicySetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// SentinelPolicyListResponse is used for a list request
+type SentinelPolicyListResponse struct {
+	Policies []*SentinelPolicyListStub
+	QueryMeta
+}
+
+// SingleSentinelPolicyResponse is used to return a single policy
+type SingleSentinelPolicyResponse struct {
+	Policy *SentinelPolicy
+	QueryMeta
+}
+
+// SentinelPolicySetResponse is used to return a set of policies
+type SentinelPolicySetResponse struct {
+	Policies map[string]*SentinelPolicy
+	QueryMeta
+}
+
+// SentinelPolicyDeleteRequest is used to delete a set of policies
+type SentinelPolicyDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// SentinelPolicyUpsertRequest is used to upsert a set of policies
+type SentinelPolicyUpsertRequest struct {
+	Policies []*SentinelPolicy
+	WriteRequest
 }

@@ -1647,6 +1647,59 @@ func TestFSM_DeleteACLTokens(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+func TestFSM_UpsertSentinelPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.SentinelPolicy()
+	req := structs.SentinelPolicyUpsertRequest{
+		Policies: []*structs.SentinelPolicy{policy},
+	}
+	buf, err := structs.Encode(structs.SentinelPolicyUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().SentinelPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteSentinelPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.SentinelPolicy()
+	err := fsm.State().UpsertSentinelPolicies(1000, []*structs.SentinelPolicy{policy})
+	assert.Nil(t, err)
+
+	req := structs.SentinelPolicyDeleteRequest{
+		Names: []string{policy.Name},
+	}
+	buf, err := structs.Encode(structs.SentinelPolicyDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().SentinelPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
 	snap, err := fsm.Snapshot()
