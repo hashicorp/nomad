@@ -8,6 +8,50 @@ import (
 	"github.com/hashicorp/sentinel/sentinel"
 )
 
+// sentinelDataCallback materializes the Sentinel data
+type sentinelDataCallback func() map[string]interface{}
+
+// enforceScope is to enforce any Sentinel policies for a given scope.
+// Returns either a set of warnings or errors.
+func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCallback) (error, error) {
+	// Gather the applicable policies
+	registered, err := s.sentinelPoliciesByScope(scope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hot-path when we have no policies
+	if len(registered) == 0 {
+		return nil, nil
+	}
+
+	// Prepare the policies for execution
+	prepared, err := prepareSentinelPolicies(s.sentinel, registered)
+	if err != nil {
+		return nil, err
+	}
+
+	// Materialize the data if we have a callback
+	var data map[string]interface{}
+	if dataCB != nil {
+		data = dataCB()
+	}
+
+	// Evaluate the policy
+	result := s.sentinel.Eval(prepared, &sentinel.EvalOpts{
+		Data:     data,
+		Override: override,
+	})
+
+	// Unlock all the policies
+	for _, p := range prepared {
+		p.Unlock()
+	}
+
+	// Convert the result into warnings or errors
+	return sentinelResultToWarnErr(result)
+}
+
 // sentinelPoliciesByScope returns all the applicable policies by scope
 func (s *Server) sentinelPoliciesByScope(scope string) ([]*structs.SentinelPolicy, error) {
 	// Snapshot the current state

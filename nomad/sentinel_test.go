@@ -11,6 +11,46 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestServer_Sentinel_EnforceScope(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a fake policy
+	policy1 := mock.SentinelPolicy()
+	policy2 := mock.SentinelPolicy()
+	s1.State().UpsertSentinelPolicies(1000,
+		[]*structs.SentinelPolicy{policy1, policy2})
+
+	// Check that everything passes
+	warn, err := s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	assert.Nil(t, err)
+	assert.Nil(t, warn)
+
+	// Add a failing policy
+	policy3 := mock.SentinelPolicy()
+	policy3.Type = structs.SentinelTypeHardMandatory
+	policy3.Policy = "main = rule { false }"
+	s1.State().UpsertSentinelPolicies(1001, []*structs.SentinelPolicy{policy3})
+
+	// Check that we get an error
+	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	assert.NotNil(t, err)
+	assert.Nil(t, warn)
+
+	// Update policy3 to be advisory
+	p3update := new(structs.SentinelPolicy)
+	*p3update = *policy3
+	p3update.Type = structs.SentinelTypeAdvisory
+	s1.State().UpsertSentinelPolicies(1002, []*structs.SentinelPolicy{p3update})
+
+	// Check that we get a warning
+	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	assert.Nil(t, err)
+	assert.NotNil(t, warn)
+}
+
 func TestServer_SentinelPoliciesByScope(t *testing.T) {
 	t.Parallel()
 	s1, _ := testACLServer(t, nil)
