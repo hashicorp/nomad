@@ -67,10 +67,10 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context structs.Context, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
-		return state.JobsByIDPrefix(ws, prefix)
+		return state.JobsByIDPrefix(ws, namespace, prefix)
 	case structs.Evals:
 		return state.EvalsByIDPrefix(ws, prefix)
 	case structs.Allocs:
@@ -119,7 +119,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			}
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+				iter, err := getResourceIter(ctx, args.Namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
 					// Searching other contexts with job names raises an error, which in

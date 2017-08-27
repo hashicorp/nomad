@@ -417,7 +417,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
-	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -468,7 +468,7 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
-	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -532,7 +532,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 		}
 
 		// See if there is a followup
-		evals, err := state.EvalsByJob(ws, eval.JobID)
+		evals, err := state.EvalsByJob(ws, eval.Namespace, eval.JobID)
 		if err != nil {
 			return false, err
 		}

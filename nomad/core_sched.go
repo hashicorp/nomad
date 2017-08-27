@@ -107,7 +107,7 @@ OUTER:
 		}
 
 		ws := memdb.NewWatchSet()
-		evals, err := c.snap.EvalsByJob(ws, job.ID)
+		evals, err := c.snap.EvalsByJob(ws, job.Namespace, job.ID)
 		if err != nil {
 			c.srv.logger.Printf("[ERR] sched.core: failed to get evals for job %s: %v", job.ID, err)
 			continue
@@ -244,7 +244,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
-		job, err := c.snap.JobByID(ws, eval.JobID)
+		job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
 		if err != nil {
 			return false, nil, err
 		}

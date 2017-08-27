@@ -737,12 +737,12 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_version", "id", job.Namespace, job.ID, job.Version); err != nil {
+		if _, err = txn.DeleteAll("job_version", "id", j.Namespace, j.ID, j.Version); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{"job_version", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 

@@ -90,7 +90,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
 	ws := memdb.NewWatchSet()
-	s.job, err = s.state.JobByID(ws, s.eval.JobID)
+	s.job, err = s.state.JobByID(ws, s.eval.Namespace, s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
@@ -182,7 +182,7 @@ func (s *SystemScheduler) process() (bool, error) {
 func (s *SystemScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
-	allocs, err := s.state.AllocsByJob(ws, s.eval.JobID, true)
+	allocs, err := s.state.AllocsByJob(ws, s.eval.Namespace, s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)

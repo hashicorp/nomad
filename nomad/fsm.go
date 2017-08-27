@@ -292,7 +292,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// job was not launched. In this case, we use the insertion time to
 	// determine if a launch was missed.
 	if req.Job.IsPeriodic() {
-		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Job.ID)
+		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
 			return err
@@ -312,7 +312,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// Check if the parent job is periodic and mark the launch time.
 	parentID := req.Job.ParentID
 	if parentID != "" {
-		parent, err := n.state.JobByID(ws, parentID)
+		parent, err := n.state.JobByID(ws, req.Namespace, parentID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID(%v) lookup for parent failed: %v", parentID, err)
 			return err
@@ -353,7 +353,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	}
 
 	if req.Purge {
-		if err := n.state.DeleteJob(index, req.JobID); err != nil {
+		if err := n.state.DeleteJob(index, req.Namespace, req.JobID); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 			return err
 		}
@@ -361,18 +361,18 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-perioidic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, req.JobID)
+		n.state.DeletePeriodicLaunch(index, req.Namespace, req.JobID)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, req.JobID)
+		current, err := n.state.JobByID(ws, req.Namespace, req.JobID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
 			return err
 		}
 
 		if current == nil {
-			return fmt.Errorf("job %q doesn't exist to be deregistered", req.JobID)
+			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", req.JobID, req.Namespace)
 		}
 
 		stopped := current.Copy()
@@ -661,7 +661,7 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateJobStability(index, req.JobID, req.JobVersion, req.Stable); err != nil {
+	if err := n.state.UpdateJobStability(index, req.Namespace, req.JobID, req.JobVersion, req.Stable); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateJobStability failed: %v", err)
 		return err
 	}
@@ -921,7 +921,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 
 		// Get the job summary from the fsm state store
-		originalSummary, err := n.state.JobSummaryByID(ws, job.ID)
+		originalSummary, err := n.state.JobSummaryByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return err
 		}

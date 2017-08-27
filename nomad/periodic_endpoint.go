@@ -33,7 +33,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.JobID)
+	job, err := snap.JobByID(ws, args.Namespace, args.JobID)
 	if err != nil {
 		return err
 	}

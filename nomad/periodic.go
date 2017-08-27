@@ -89,7 +89,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 
 	ws := memdb.NewWatchSet()
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
-	iter, err := state.JobsByIDPrefix(ws, prefix)
+	iter, err := state.JobsByIDPrefix(ws, job.Namespace, prefix)
 	if err != nil {
 		return false, err
 	}
@@ -104,7 +104,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		}
 
 		// Get the childs evaluations.
-		evals, err := state.EvalsByJob(ws, child.ID)
+		evals, err := state.EvalsByJob(ws, child.Namespace, child.ID)
 		if err != nil {
 			return false, err
 		}

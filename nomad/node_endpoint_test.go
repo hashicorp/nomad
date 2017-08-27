@@ -705,11 +705,11 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	// Wait for the scheduler to create an allocation
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		allocs, err := s1.fsm.state.AllocsByJob(ws, job.ID, true)
+		allocs, err := s1.fsm.state.AllocsByJob(ws, job.Namespace, job.ID, true)
 		if err != nil {
 			return false, err
 		}
-		allocs1, err := s1.fsm.state.AllocsByJob(ws, job1.ID, true)
+		allocs1, err := s1.fsm.state.AllocsByJob(ws, job1.Namespace, job1.ID, true)
 		if err != nil {
 			return false, err
 		}
@@ -742,12 +742,13 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	// Ensure that the allocation has transitioned to lost
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		summary, err := s1.fsm.state.JobSummaryByID(ws, job.ID)
+		summary, err := s1.fsm.state.JobSummaryByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return false, err
 		}
 		expectedSummary := &structs.JobSummary{
-			JobID: job.ID,
+			JobID:     job.ID,
+			Namespace: job.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
 				"web": structs.TaskGroupSummary{
 					Queued: 1,
@@ -762,12 +763,13 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary, summary)
 		}
 
-		summary1, err := s1.fsm.state.JobSummaryByID(ws, job1.ID)
+		summary1, err := s1.fsm.state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 		if err != nil {
 			return false, err
 		}
 		expectedSummary1 := &structs.JobSummary{
-			JobID: job1.ID,
+			JobID:     job1.ID,
+			Namespace: job1.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
 				"web": structs.TaskGroupSummary{
 					Lost: 1,

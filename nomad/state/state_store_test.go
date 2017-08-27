@@ -1319,7 +1319,7 @@ func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	_, err := state.JobVersionsByID(ws, job.ID)
+	_, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
 	assert.Nil(state.UpsertJob(1000, job))
 	assert.True(watchFired(ws))
@@ -1332,33 +1332,33 @@ func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 		assert.Nil(state.UpsertJob(uint64(1000+i), finalJob))
 	}
 
-	assert.Nil(state.DeleteJob(1001, job.ID))
+	assert.Nil(state.DeleteJob(1020, job.Namespace, job.ID))
 	assert.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
 	assert.Nil(out)
 
 	index, err := state.Index("jobs")
 	assert.Nil(err)
-	assert.EqualValues(1001, index)
+	assert.EqualValues(1020, index)
 
-	summary, err := state.JobSummaryByID(ws, job.ID)
+	summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
 	assert.Nil(summary)
 
-	index, err = state.Index("job_summary")
+	index, err = state.Index("job_version")
 	assert.Nil(err)
-	assert.EqualValues(1001, index)
+	assert.EqualValues(1020, index)
 
-	versions, err := state.JobVersionsByID(ws, job.ID)
+	versions, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
 	assert.Len(versions, 0)
 
 	index, err = state.Index("job_summary")
 	assert.Nil(err)
-	assert.EqualValues(1001, index)
+	assert.EqualValues(1020, index)
 
 	assert.False(watchFired(ws))
 }

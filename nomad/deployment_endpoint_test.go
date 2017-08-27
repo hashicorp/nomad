@@ -207,7 +207,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
 
 	// Lookup the job
-	jout, err := state.JobByID(ws, j.ID)
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
 	assert.Nil(err, "JobByID")
 	assert.NotNil(jout, "job")
 	assert.EqualValues(2, jout.Version, "reverted job version")
@@ -467,7 +467,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	assert.False(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
 
 	// Lookup the job
-	jout, err := state.JobByID(ws, j.ID)
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
 	assert.Nil(err, "JobByID")
 	assert.NotNil(jout, "job")
 	assert.EqualValues(2, jout.Version, "reverted job version")
