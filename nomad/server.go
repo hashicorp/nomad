@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
+	"github.com/hashicorp/sentinel/sentinel"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -166,6 +167,9 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
 
+	// sentinel is a shared instance of the policy engine
+	sentinel *sentinel.Sentinel
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -240,6 +244,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, err
 	}
 
+	// Sentinel instance. You only need one of these per process.
+	sent := sentinel.New(nil)
+
 	// Create the server
 	s := &Server{
 		config:        config,
@@ -256,6 +263,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		planQueue:     planQueue,
 		rpcTLS:        incomingTLS,
 		aclCache:      aclCache,
+		sentinel:      sent,
 		shutdownCh:    make(chan struct{}),
 	}
 
