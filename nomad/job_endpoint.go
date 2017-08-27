@@ -75,8 +75,15 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Check job submission permissions
 	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNamespaceOperation(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
+	} else if aclObj != nil {
+		if !aclObj.AllowNSOP(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+		// Check if override is set and we do not have permissions
+		if args.Override && !aclObj.AllowNSOP(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+			j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Lookup the job

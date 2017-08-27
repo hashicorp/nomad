@@ -122,6 +122,11 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	return acl, nil
 }
 
+// AllowNSOP is shorthand for AllowNamespaceOperation
+func (a *ACL) AllowNSOP(ns string, op string) bool {
+	return a.AllowNamespaceOperation(ns, op)
+}
+
 // AllowNamespaceOperation checks if a given operation is allowed for a namespace
 func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 	// Hot path management tokens

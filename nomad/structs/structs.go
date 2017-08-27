@@ -293,6 +293,9 @@ type JobRegisterRequest struct {
 	EnforceIndex   bool
 	JobModifyIndex uint64
 
+	// Override is set when the user is attempting to override any policies
+	Override bool
+
 	WriteRequest
 }
 
