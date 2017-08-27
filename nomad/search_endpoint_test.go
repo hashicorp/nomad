@@ -13,7 +13,7 @@ import (
 
 const jobIndex = 1000
 
-func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) string {
+func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *structs.Job {
 	job := mock.Job()
 
 	job.ID = prefix + strconv.Itoa(counter)
@@ -22,7 +22,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) s
 		t.Fatalf("err: %v", err)
 	}
 
-	return job.ID
+	return job
 }
 
 func TestSearch_PrefixSearch_Job(t *testing.T) {
@@ -38,11 +38,15 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	job := registerAndVerifyJob(s, t, prefix, 0)
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -51,7 +55,7 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
@@ -69,13 +73,18 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
+	var job *structs.Job
 	for counter := 0; counter < 25; counter++ {
-		registerAndVerifyJob(s, t, prefix, counter)
+		job = registerAndVerifyJob(s, t, prefix, counter)
 	}
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -101,15 +110,19 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	job := registerAndVerifyJob(s, t, prefix, 0)
 
 	eval1 := mock.Eval()
-	eval1.ID = jobID
+	eval1.ID = job.ID
 	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.All,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -118,7 +131,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 
 	assert.Equal(1, len(resp.Matches[structs.Evals]))
 	assert.Equal(eval1.ID, resp.Matches[structs.Evals][0])
@@ -143,6 +156,10 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Evals,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -184,6 +201,10 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Allocs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: alloc.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -221,6 +242,10 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Nodes,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -254,6 +279,10 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Deployments,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: deployment.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -297,6 +326,10 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.All,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -328,11 +361,15 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	job := registerAndVerifyJob(s, t, prefix, 0)
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
 		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -341,7 +378,7 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
 }
 
@@ -364,6 +401,10 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -392,12 +433,16 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	jobID1 := registerAndVerifyJob(s, t, id1, 0)
+	job := registerAndVerifyJob(s, t, id1, 0)
 	registerAndVerifyJob(s, t, id2, 50)
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -406,5 +451,5 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID1, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 }

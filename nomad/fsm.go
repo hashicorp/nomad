@@ -301,7 +301,11 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		// Record the insertion time as a launch. We overload the launch table
 		// such that the first entry is the insertion time.
 		if prevLaunch == nil {
-			launch := &structs.PeriodicLaunch{ID: req.Job.ID, Launch: time.Now()}
+			launch := &structs.PeriodicLaunch{
+				ID:        req.Job.ID,
+				Namespace: req.Namespace,
+				Launch:    time.Now(),
+			}
 			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
 				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
 				return err
@@ -328,7 +332,11 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 				return err
 			}
 
-			launch := &structs.PeriodicLaunch{ID: parentID, Launch: t}
+			launch := &structs.PeriodicLaunch{
+				ID:        parentID,
+				Namespace: req.Namespace,
+				Launch:    t,
+			}
 			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
 				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
 				return err
@@ -901,6 +909,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		// Create an eval and mark it as requiring annotations and insert that as well
 		eval := &structs.Evaluation{
 			ID:             structs.GenerateUUID(),
+			Namespace:      job.Namespace,
 			Priority:       job.Priority,
 			Type:           job.Type,
 			TriggeredBy:    structs.EvalTriggerJobRegister,

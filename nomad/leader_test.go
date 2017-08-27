@@ -336,6 +336,9 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 	for _, job := range []*structs.Job{nonPeriodic, periodic, parameterizedPeriodic} {
 		req := structs.JobRegisterRequest{
 			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Namespace: job.Namespace,
+			},
 		}
 		_, _, err := leader.raftApply(structs.JobRegisterRequestType, req)
 		if err != nil {
@@ -390,6 +393,9 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	job := testPeriodicJob(launch)
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -442,6 +448,9 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	job := testPeriodicJob(past, now, future)
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {

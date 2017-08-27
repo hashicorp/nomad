@@ -126,6 +126,7 @@ func NewDeploymentsWatcher(logger *log.Logger, watchers DeploymentStateWatchers,
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader.
 func (w *Watcher) SetEnabled(enabled bool) error {
+	return nil
 	w.l.Lock()
 	defer w.l.Unlock()
 

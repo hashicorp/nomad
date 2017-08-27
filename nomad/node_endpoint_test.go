@@ -682,8 +682,11 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
 	jobReq := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -695,8 +698,11 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	job1.TaskGroups[0].Count = 1
 	job1.Type = structs.JobTypeSystem
 	jobReq1 := &structs.JobRegisterRequest{
-		Job:          job1,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job1,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job1.Namespace,
+		},
 	}
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq1, &jobResp1); err != nil {
 		t.Fatalf("err: %v", err)

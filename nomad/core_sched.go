@@ -95,7 +95,8 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	}
 
 	// Collect the allocations, evaluations and jobs to GC
-	var gcAlloc, gcEval, gcJob []string
+	var gcAlloc, gcEval []string
+	var gcJob []*structs.Job
 
 OUTER:
 	for i := iter.Next(); i != nil; i = iter.Next() {
@@ -132,7 +133,7 @@ OUTER:
 
 		// Job is eligible for garbage collection
 		if allEvalsGC {
-			gcJob = append(gcJob, job.ID)
+			gcJob = append(gcJob, job)
 			gcAlloc = append(gcAlloc, jobAlloc...)
 			gcEval = append(gcEval, jobEval...)
 		}
@@ -153,10 +154,11 @@ OUTER:
 	// Call to the leader to deregister the jobs.
 	for _, job := range gcJob {
 		req := structs.JobDeregisterRequest{
-			JobID: job,
+			JobID: job.ID,
 			Purge: true,
 			WriteRequest: structs.WriteRequest{
-				Region: c.srv.config.Region,
+				Region:    c.srv.config.Region,
+				Namespace: job.Namespace,
 			},
 		}
 		var resp structs.JobDeregisterResponse

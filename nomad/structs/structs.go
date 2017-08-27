@@ -5034,6 +5034,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerRollingUpdate,
@@ -5051,6 +5052,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
 		ID:                   GenerateUUID(),
+		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
 		TriggeredBy:          e.TriggeredBy,
@@ -5069,6 +5071,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerFailedFollowUp,

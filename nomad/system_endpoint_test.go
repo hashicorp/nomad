@@ -105,7 +105,8 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 		// setting the modifyindex and createindex of the expected summary to
 		// the output so that we can do deep equal
 		expectedSummary := structs.JobSummary{
-			JobID: job.ID,
+			JobID:     job.ID,
+			Namespace: job.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
 				"web": structs.TaskGroupSummary{
 					Queued: 10,

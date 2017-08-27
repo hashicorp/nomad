@@ -279,6 +279,9 @@ func TestFSM_RegisterJob(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -328,6 +331,9 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -342,6 +348,9 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -385,6 +394,9 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -399,6 +411,9 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: false,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -1248,6 +1263,9 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 		JobID:      job.ID,
 		JobVersion: job.Version,
 		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobStabilityRequestType, req)
 	if err != nil {
@@ -1890,7 +1908,8 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, _ := state2.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected := structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Starting: 1,
@@ -1943,7 +1962,8 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 	expected := structs.JobSummary{
-		JobID: job1.ID,
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Queued: 10,
@@ -1961,7 +1981,8 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// codepath
 	out2, _ := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected = structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Queued:   9,

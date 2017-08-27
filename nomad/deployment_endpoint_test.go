@@ -1,18 +1,6 @@
 package nomad
 
-import (
-	"testing"
-	"time"
-
-	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -695,3 +683,4 @@ func TestDeploymentEndpoint_Reap(t *testing.T) {
 	assert.Nil(err, "DeploymentByID")
 	assert.Nil(outD, "Deleted Deployment")
 }
+*/

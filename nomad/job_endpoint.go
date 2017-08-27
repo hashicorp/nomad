@@ -928,6 +928,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
+		Namespace:      args.Namespace,
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -1157,6 +1158,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		// Create a new evaluation
 		eval := &structs.Evaluation{
 			ID:             structs.GenerateUUID(),
+			Namespace:      args.Namespace,
 			Priority:       dispatchJob.Priority,
 			Type:           dispatchJob.Type,
 			TriggeredBy:    structs.EvalTriggerJobRegister,

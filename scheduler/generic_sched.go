@@ -517,6 +517,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:            structs.GenerateUUID(),
+					Namespace:     s.job.Namespace,
 					EvalID:        s.eval.ID,
 					Name:          missing.Name(),
 					JobID:         s.job.ID,

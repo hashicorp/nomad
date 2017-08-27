@@ -29,8 +29,11 @@ func TestJobEndpoint_Register(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -107,8 +110,11 @@ func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Config["foo"] = 1
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -137,8 +143,11 @@ func TestJobEndpoint_Register_Payload(t *testing.T) {
 	job := mock.Job()
 	job.Payload = []byte{0x1}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -165,8 +174,11 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -278,8 +290,11 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	// Create the register request for a periodic job.
 	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -329,8 +344,11 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	job.Type = structs.JobTypeBatch
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -375,7 +393,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 100, // Not registered yet so not possible
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -390,7 +411,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 0,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -422,7 +446,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 0,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -436,7 +463,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: curIndex - 1,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -451,7 +481,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: curIndex,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -492,8 +525,11 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -528,8 +564,11 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -579,8 +618,11 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -638,8 +680,11 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -701,8 +746,11 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req = &structs.JobRegisterRequest{
-		Job:          job2,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -739,8 +787,11 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	job := mock.Job()
 	job.Priority = 100
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -756,8 +807,11 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	job2 := job.Copy()
 	job2.Priority = 1
 	req = &structs.JobRegisterRequest{
-		Job:          job2,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -773,7 +827,10 @@ func TestJobEndpoint_Revert(t *testing.T) {
 		JobID:               job.ID,
 		JobVersion:          0,
 		EnforcePriorVersion: helper.Uint64ToPtr(10),
-		WriteRequest:        structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -784,9 +841,12 @@ func TestJobEndpoint_Revert(t *testing.T) {
 
 	// Create revert request and enforcing it be at the current version
 	revertReq = &structs.JobRevertRequest{
-		JobID:        job.ID,
-		JobVersion:   1,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID:      job.ID,
+		JobVersion: 1,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -800,7 +860,10 @@ func TestJobEndpoint_Revert(t *testing.T) {
 		JobID:               job.ID,
 		JobVersion:          0,
 		EnforcePriorVersion: helper.Uint64ToPtr(1),
-		WriteRequest:        structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -820,9 +883,12 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	// Create revert request and don't enforce. We are at version 2 but it is
 	// the same as version 0
 	revertReq = &structs.JobRevertRequest{
-		JobID:        job.ID,
-		JobVersion:   0,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -889,8 +955,11 @@ func TestJobEndpoint_Stable(t *testing.T) {
 	// Create the initial register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -904,10 +973,13 @@ func TestJobEndpoint_Stable(t *testing.T) {
 
 	// Create stability request
 	stableReq := &structs.JobStabilityRequest{
-		JobID:        job.ID,
-		JobVersion:   0,
-		Stable:       true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID:      job.ID,
+		JobVersion: 0,
+		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -946,8 +1018,11 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -961,8 +1036,11 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1019,8 +1097,11 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	// Create the register request
 	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1034,8 +1115,11 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1058,8 +1142,11 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	job.Type = structs.JobTypeBatch
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1073,8 +1160,11 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1095,8 +1185,11 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1107,9 +1200,12 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 
 	// Deregister but don't purge
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		Purge:        false,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1166,9 +1262,12 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 
 	// Deregister and purge
 	dereg2 := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		Purge:        true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp3 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp3); err != nil {
@@ -1231,8 +1330,11 @@ func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 	// Deregister
 	jobID := "foo"
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        jobID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: jobID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1288,8 +1390,11 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	// Create the register request
 	job := mock.PeriodicJob()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1300,9 +1405,12 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		Purge:        true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1342,8 +1450,11 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	job.Type = structs.JobTypeBatch
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1354,9 +1465,12 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		Purge:        true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1392,8 +1506,11 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1407,8 +1524,11 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 
 	// Lookup the job
 	get := &structs.JobSpecificRequest{
-		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.SingleJobResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp2); err != nil {
@@ -1483,6 +1603,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job2.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -1539,8 +1660,11 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 	job := mock.Job()
 	job.Priority = 88
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1557,8 +1681,11 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 
 	// Lookup the job
 	get := &structs.JobVersionsRequest{
-		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var versionsResp structs.JobVersionsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
@@ -1605,8 +1732,11 @@ func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 	job := mock.Job()
 	job.Priority = 88
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1629,9 +1759,12 @@ func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 
 	// Lookup the job
 	get := &structs.JobVersionsRequest{
-		JobID:        job.ID,
-		Diffs:        true,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: job.ID,
+		Diffs: true,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var versionsResp structs.JobVersionsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
@@ -1717,6 +1850,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job2.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -1747,6 +1881,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 		JobID: job3.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job3.Namespace,
 			MinQueryIndex: 250,
 		},
 	}
@@ -1780,8 +1915,11 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1795,8 +1933,11 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 
 	// Lookup the job summary
 	get := &structs.JobSummaryRequest{
-		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobSummaryResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
@@ -1807,7 +1948,8 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	}
 
 	expectedJobSummary := structs.JobSummary{
-		JobID: job.ID,
+		JobID:     job.ID,
+		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{},
 		},
@@ -1842,6 +1984,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 		JobID: job1.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job1.Namespace,
 			MinQueryIndex: 50,
 		},
 	}
@@ -1867,6 +2010,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 		JobID: job1.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job1.Namespace,
 			MinQueryIndex: 199,
 		},
 	}
@@ -1930,7 +2074,10 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
@@ -1949,7 +2096,11 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: resp2.Jobs[0].ID[:4]},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    resp2.Jobs[0].ID[:4],
+		},
 	}
 	var resp3 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3); err != nil {
@@ -1988,6 +2139,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	req := &structs.JobListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job.Namespace,
 			MinQueryIndex: 50,
 		},
 	}
@@ -2054,8 +2206,11 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        alloc1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: alloc1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: alloc1.Job.Namespace,
+		},
 	}
 	var resp2 structs.JobAllocationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
@@ -2106,6 +2261,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     alloc1.Job.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -2146,8 +2302,11 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        eval1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: eval1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
 	}
 	var resp2 structs.JobEvaluationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp2); err != nil {
@@ -2196,6 +2355,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     eval1.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -2237,8 +2397,11 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        j.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
 	}
 	var resp structs.DeploymentListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
@@ -2277,6 +2440,7 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 		JobID: d2.JobID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     d2.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -2314,8 +2478,11 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        j.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
 	}
 	var resp structs.SingleDeploymentResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp), "RPC")
@@ -2355,6 +2522,7 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 		JobID: d2.JobID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     d2.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -2381,8 +2549,11 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2396,9 +2567,12 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 
 	// Create a plan request
 	planReq := &structs.JobPlanRequest{
-		Job:          job,
-		Diff:         true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job:  job,
+		Diff: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2434,8 +2608,11 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2449,9 +2626,12 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 
 	// Create a plan request
 	planReq := &structs.JobPlanRequest{
-		Job:          job,
-		Diff:         false,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job:  job,
+		Diff: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2506,8 +2686,11 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2563,8 +2746,11 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		},
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -2858,8 +3044,11 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Create the register request
 			regReq := &structs.JobRegisterRequest{
-				Job:          tc.parameterizedJob,
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				Job: tc.parameterizedJob,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: tc.parameterizedJob.Namespace,
+				},
 			}
 
 			// Fetch the response
@@ -2870,7 +3059,10 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
-			tc.dispatchReq.WriteRequest = structs.WriteRequest{Region: "global"}
+			tc.dispatchReq.WriteRequest = structs.WriteRequest{
+				Region:    "global",
+				Namespace: tc.parameterizedJob.Namespace,
+			}
 
 			var dispatchResp structs.JobDispatchResponse
 			dispatchErr := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &dispatchResp)

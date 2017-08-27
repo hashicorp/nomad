@@ -434,6 +434,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	return &structs.Evaluation{
 		ID:           structs.GenerateUUID(),
+		Namespace:    w.j.Namespace,
 		Priority:     w.j.Priority,
 		Type:         w.j.Type,
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,

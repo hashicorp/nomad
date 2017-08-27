@@ -46,7 +46,12 @@ type JobEvalDispatcher interface {
 func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	// Commit this update via Raft
 	job.SetSubmitTime()
-	req := structs.JobRegisterRequest{Job: job}
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
 	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
 		return nil, err
@@ -55,6 +60,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	// Create a new evaluation
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
+		Namespace:      job.Namespace,
 		Priority:       job.Priority,
 		Type:           job.Type,
 		TriggeredBy:    structs.EvalTriggerPeriodicJob,
@@ -386,7 +392,8 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 
 	eval, err := p.dispatcher.DispatchJob(derived)
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to dispatch job %q: %v", periodicJob.ID, err)
+		p.logger.Printf("[ERR] nomad.periodic: failed to dispatch job %q for namespace %q: %v",
+			periodicJob.ID, periodicJob.Namespace, err)
 		return nil, err
 	}
 
