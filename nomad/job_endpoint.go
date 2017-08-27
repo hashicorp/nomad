@@ -87,7 +87,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Lookup the job
-	snap, err := j.srv.fsm.State().Snapshot()
+	snap, err := j.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -154,6 +154,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				}
 			}
 		}
+	}
+
+	// Enforce Sentinel policies
+	policyWarnings, err := j.enforceSubmitJob(args.Override, args.Job)
+	if err != nil {
+		return err
+	}
+	if policyWarnings != nil {
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
+			canonicalizeWarnings, policyWarnings)
 	}
 
 	// Clear the Vault token
@@ -1260,4 +1270,13 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 	}
 
 	return nil
+}
+
+// enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
+func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
+	dataCB := func() map[string]interface{} {
+		// TODO
+		return nil
+	}
+	return j.srv.enforceScope(override, structs.SentinelScopeSubmitJob, dataCB)
 }

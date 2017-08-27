@@ -136,6 +136,61 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Sentinel(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a passing policy
+	policy1 := mock.SentinelPolicy()
+	policy1.Type = structs.SentinelTypeHardMandatory
+	s1.State().UpsertSentinelPolicies(1000,
+		[]*structs.SentinelPolicy{policy1})
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:   "global",
+			SecretID: root.SecretID,
+		},
+	}
+
+	// Should work
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a failing policy
+	policy2 := mock.SentinelPolicy()
+	policy2.Type = structs.SentinelTypeSoftMandatory
+	policy2.Policy = "main = rule { false }"
+	s1.State().UpsertSentinelPolicies(1001,
+		[]*structs.SentinelPolicy{policy2})
+
+	// Should fail
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	// Do the same request with an override set
+	req.Override = true
+
+	// Should work, with a warning
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !strings.Contains(resp.Warnings, policy2.Name) {
+		t.Fatalf("bad: %s", resp.Warnings)
+	}
+}
+
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {

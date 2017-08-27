@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"errors"
+	"fmt"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -126,7 +127,8 @@ func sentinelResultToWarnErr(result *sentinel.EvalResult) (error, error) {
 	var mErr multierror.Error
 	for _, policyResult := range result.Policies {
 		if !policyResult.Result {
-			msg := errors.New(policyResult.String())
+			msg := fmt.Errorf("%s : %s", policyResult.Policy.Name(),
+				policyResult.String())
 			if policyResult.AllowedFailure {
 				mWarn.Errors = append(mWarn.Errors, msg)
 			} else {
