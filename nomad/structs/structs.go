@@ -24,11 +24,16 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/sentinel/lang/ast"
+	"github.com/hashicorp/sentinel/lang/parser"
+	"github.com/hashicorp/sentinel/lang/semantic"
+	"github.com/hashicorp/sentinel/lang/token"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
 
@@ -5603,6 +5608,7 @@ type SentinelPolicy struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 }
+
 type SentinelPolicyListStub struct {
 	Name        string
 	Description string
@@ -5643,8 +5649,36 @@ func (s *SentinelPolicy) Validate() error {
 		err := fmt.Errorf("invalid type %q", s.Type)
 		mErr.Errors = append(mErr.Errors, err)
 	}
-	// TODO Validate policy
+
+	// Validate that policy compiles
+	if _, _, err := s.Compile(); err != nil {
+		err = errwrap.Wrapf("policy compile error: {{err}}", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
 	return mErr.ErrorOrNil()
+}
+
+// CacheKey returns a key that gets invalidated on changes
+func (s *SentinelPolicy) CacheKey() string {
+	return fmt.Sprintf("%s:%d", s.Name, s.ModifyIndex)
+}
+
+// Compile is used to compile the Sentinel policy for policy.SetPolicy
+func (s *SentinelPolicy) Compile() (*ast.File, *token.FileSet, error) {
+	// Parse
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, s.Name, s.Policy, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Perform semantic checks
+	if err := semantic.Check(f, fset); err != nil {
+		return nil, nil, err
+	}
+
+	// Return the reuslt
+	return f, fset, nil
 }
 
 // SentinelPolicyListRequest is used to request a list of policies

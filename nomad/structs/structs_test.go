@@ -2395,4 +2395,32 @@ func TestSentinelPolicy_Validate(t *testing.T) {
 	sp.Scope = SentinelScopeSubmitJob
 	sp.Type = "yolo"
 	assert.NotNil(t, sp.Validate())
+
+	// Try an invalid policy
+	sp.Type = SentinelTypeAdvisory
+	sp.Policy = "blah 123"
+	assert.NotNil(t, sp.Validate())
+}
+
+func TestSentinelPolicy_CacheKey(t *testing.T) {
+	sp := &SentinelPolicy{
+		Name:        "test",
+		ModifyIndex: 10,
+	}
+	assert.Equal(t, "test:10", sp.CacheKey())
+}
+
+func TestSentinelPolicy_Compile(t *testing.T) {
+	sp := &SentinelPolicy{
+		Name:        "test",
+		Description: "Great policy",
+		Scope:       SentinelScopeSubmitJob,
+		Type:        SentinelTypeAdvisory,
+		Policy:      "main = rule { true }",
+	}
+
+	f, fset, err := sp.Compile()
+	assert.Nil(t, err)
+	assert.NotNil(t, fset)
+	assert.NotNil(t, f)
 }
