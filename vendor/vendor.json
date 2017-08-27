@@ -893,6 +893,120 @@
 			"revisionTime": "2016-06-01T22:40:23Z"
 		},
 		{
+			"checksumSHA1": "gOQnu/SNRt4gI/h23ZyAm43AcGU=",
+			"path": "github.com/hashicorp/sentinel/cmd/format",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "EtSyezfnJDsHwkNKasa7mjmC6PI=",
+			"path": "github.com/hashicorp/sentinel/imports/framework",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "zv+2DZJfqkGpk0ymH5ZiiECWioc=",
+			"path": "github.com/hashicorp/sentinel/imports/static",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "AMV6X05KcwaGr65Ro0eY+ks2reI=",
+			"path": "github.com/hashicorp/sentinel/lang/ast",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "JPtH/5Jd3zwF132ncLPML+csTFc=",
+			"path": "github.com/hashicorp/sentinel/lang/object",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "5T2XpP7hz5oaEhf2qwJ+WFGNVBE=",
+			"path": "github.com/hashicorp/sentinel/lang/parser",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "NVnKQb0IbxPfLlI7k8c1MBVxVOY=",
+			"path": "github.com/hashicorp/sentinel/lang/printer",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "0KkAnfSyte4ELfQOHgp72XLd11k=",
+			"path": "github.com/hashicorp/sentinel/lang/scanner",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "0kNa2qIHMZvyEfircmV2TGRpLa4=",
+			"path": "github.com/hashicorp/sentinel/lang/semantic",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "saQ00o+hZnR9s7a+ZdPyoG6ZWKI=",
+			"path": "github.com/hashicorp/sentinel/lang/token",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "QnHs6gYM4MuWrLLGeBRSfB0Xhlk=",
+			"path": "github.com/hashicorp/sentinel/proto/go",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "8ES7ujcgdQ4uVh9V/osd/YfrRTE=",
+			"path": "github.com/hashicorp/sentinel/runtime/encoding",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "vGBh3I9ICEoJDWfqniMRCTYPNYc=",
+			"path": "github.com/hashicorp/sentinel/runtime/eval",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "DnjwJMQYfTBN/WiERrWKYTsiKUQ=",
+			"path": "github.com/hashicorp/sentinel/runtime/gobridge",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "xa7UBInn+4aYcCYdS4bJZutY6Uw=",
+			"path": "github.com/hashicorp/sentinel/runtime/importer",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "ZkWwKzSBvDuCb4YMt41qg4hTYk8=",
+			"path": "github.com/hashicorp/sentinel/runtime/plugin",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "phA5mw/x+gMdZWpk1kpf7QfhI+o=",
+			"path": "github.com/hashicorp/sentinel/runtime/plugin/rpc",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "Va2UCiC3pz5j7xULGHrPMkZpKpA=",
+			"path": "github.com/hashicorp/sentinel/runtime/trace",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
+			"checksumSHA1": "33qOqdZ2f5TNzbD4NAf67Ox+GUE=",
+			"path": "github.com/hashicorp/sentinel/sentinel",
+			"revision": "bd0638ec2cf41f28244fa4717775f4b391dbe434",
+			"revisionTime": "2017-08-26T18:51:46Z"
+		},
+		{
 			"checksumSHA1": "/oss17GO4hXGM7QnUdI3VzcAHzA=",
 			"path": "github.com/hashicorp/serf/coordinate",
 			"revision": "bbeddf0b3ab3072a60525afbd6b6f47d33839eee",
