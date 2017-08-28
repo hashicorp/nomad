@@ -48,7 +48,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 }
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceU
 }
 
 func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return err
 	}

@@ -111,19 +111,20 @@ type Config struct {
 }
 
 // CopyConfig copies the configuration with a new address
-func (c *Config) CopyConfig(address string, tlsEnabled bool) *Config {
+func (c *Config) CopyConfig(region, address string, tlsEnabled bool) *Config {
 	scheme := "http"
 	if tlsEnabled {
 		scheme = "https"
 	}
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
-		Region:     c.Region,
+		Region:     region,
 		HttpClient: c.HttpClient,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
-		TLSConfig:  c.TLSConfig,
+		TLSConfig:  c.TLSConfig.Copy(),
 	}
+	config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", c.Region)
 
 	return config
 }
@@ -151,6 +152,16 @@ type TLSConfig struct {
 
 	// Insecure enables or disables SSL verification
 	Insecure bool
+}
+
+func (t *TLSConfig) Copy() *TLSConfig {
+	if t == nil {
+		return nil
+	}
+
+	nt := new(TLSConfig)
+	*nt = *t
+	return nt
 }
 
 // DefaultConfig returns a default configuration for the client
@@ -286,10 +297,28 @@ func (c *Client) SetRegion(region string) {
 }
 
 // GetNodeClient returns a new Client that will dial the specified node. If the
-// QueryOptions is set, the function will ensure that it is initialized and
-// that the Params field is valid.
-func (c *Client) GetNodeClient(nodeID string, q **QueryOptions) (*Client, error) {
-	node, _, err := c.Nodes().Info(nodeID, &QueryOptions{})
+// QueryOptions is set, its region will be used.
+func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+
+	// If region is unset, set from config or agent if available
+	if q.Region == "" {
+		if c.config.Region != "" {
+			// Use the region from the client
+			q.Region = c.config.Region
+		} else {
+			// Use the region from the agent
+			agentRegion, err := c.Agent().Region()
+			if err != nil {
+				return nil, err
+			}
+			q.Region = agentRegion
+		}
+	}
+
+	node, _, err := c.Nodes().Info(nodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -300,41 +329,9 @@ func (c *Client) GetNodeClient(nodeID string, q **QueryOptions) (*Client, error)
 		return nil, fmt.Errorf("http addr of node %q (%s) is not advertised", node.Name, nodeID)
 	}
 
-	region := ""
-	if q != nil && *q != nil && (*q).Region != "" {
-		region = (*q).Region
-	} else if c.config.Region != "" {
-		// Use the region from the client
-		region = c.config.Region
-	} else {
-		// Use the region from the agent
-		agentRegion, err := c.Agent().Region()
-		if err != nil {
-			return nil, err
-		}
-		region = agentRegion
-	}
-
 	// Get an API client for the node
-	conf := c.config.CopyConfig(node.HTTPAddr, node.TLSEnabled)
-	conf.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
-	nodeClient, err := NewClient(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set the query params
-	if q == nil {
-		return nodeClient, nil
-	}
-
-	if *q == nil {
-		*q = &QueryOptions{}
-	}
-	if actQ := *q; actQ.Params == nil {
-		actQ.Params = make(map[string]string)
-	}
-	return nodeClient, nil
+	conf := c.config.CopyConfig(q.Region, node.HTTPAddr, node.TLSEnabled)
+	return NewClient(conf)
 }
 
 // request is used to help build up a request

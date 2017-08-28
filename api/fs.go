@@ -51,7 +51,7 @@ func (c *Client) AllocFS() *AllocFS {
 
 // List is used to list the files at a given path of an allocation directory
 func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*AllocFileInfo, *QueryMeta, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,7 +68,7 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*Allo
 
 // Stat is used to stat a file at a given path of an allocation directory
 func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocFileInfo, *QueryMeta, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,7 +85,7 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 // ReadAt is used to read bytes at a given offset until limit at the given path
 // in an allocation directory. If limit is <= 0, there is no limit.
 func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.ReadCloser, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 // Cat is used to read contents of a file at the given path in an allocation
 // directory
 func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadCloser, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadC
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, error) {
 
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +191,12 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin string,
 	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, error) {
 
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, &q)
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
 		return nil, err
+	}
+	if q == nil {
+		q = &QueryOptions{}
 	}
 	q.Params["follow"] = strconv.FormatBool(follow)
 	q.Params["task"] = task
