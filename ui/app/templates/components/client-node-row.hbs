@@ -5,9 +5,9 @@
 <td>{{node.port}}</td>
 <td>{{node.datacenter}}</td>
 <td>
-  {{#if node.allocationsIsLoaded}}
-    {{node.allocations.length}}
-  {{else}}
+  {{#if node.allocations.isPending}}
     ...
+  {{else}}
+    {{node.allocations.length}}
   {{/if}}
 </td>

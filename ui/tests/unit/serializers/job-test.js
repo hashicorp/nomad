@@ -53,43 +53,36 @@ test('The JobSummary object is transformed from a map to a list', function(asser
 
   const normalized = this.subject().normalize(JobModel, original);
 
-  assert.deepEqual(normalized, {
-    data: {
-      type: 'job',
-      id: 'example',
-      attributes: {
-        name: 'example',
-        type: 'service',
-        priority: 50,
-        periodic: false,
-        parameterized: false,
-        status: 'running',
-        statusDescription: '',
-        taskGroupSummaries: [
-          {
-            name: 'cache',
-            queuedAllocs: 0,
-            completeAllocs: 0,
-            failedAllocs: 0,
-            runningAllocs: 1,
-            startingAllocs: 0,
-            lostAllocs: 0,
-          },
-          {
-            name: 'something_else',
-            queuedAllocs: 0,
-            completeAllocs: 0,
-            failedAllocs: 0,
-            runningAllocs: 2,
-            startingAllocs: 0,
-            lostAllocs: 0,
-          },
-        ],
-        createIndex: 7,
-        modifyIndex: 9,
+  assert.deepEqual(normalized.data.attributes, {
+    name: 'example',
+    type: 'service',
+    priority: 50,
+    periodic: false,
+    parameterized: false,
+    status: 'running',
+    statusDescription: '',
+    taskGroupSummaries: [
+      {
+        name: 'cache',
+        queuedAllocs: 0,
+        completeAllocs: 0,
+        failedAllocs: 0,
+        runningAllocs: 1,
+        startingAllocs: 0,
+        lostAllocs: 0,
       },
-      relationships: {},
-    },
+      {
+        name: 'something_else',
+        queuedAllocs: 0,
+        completeAllocs: 0,
+        failedAllocs: 0,
+        runningAllocs: 2,
+        startingAllocs: 0,
+        lostAllocs: 0,
+      },
+    ],
+    createIndex: 7,
+    modifyIndex: 9,
   });
 });
 
@@ -121,26 +114,19 @@ test('The children stats are lifted out of the JobSummary object', function(asse
 
   const normalized = this.subject().normalize(JobModel, original);
 
-  assert.deepEqual(normalized, {
-    data: {
-      type: 'job',
-      id: 'example',
-      attributes: {
-        name: 'example',
-        type: 'service',
-        priority: 50,
-        periodic: false,
-        parameterized: false,
-        status: 'running',
-        statusDescription: '',
-        taskGroupSummaries: [],
-        pendingChildren: 1,
-        runningChildren: 2,
-        deadChildren: 3,
-        createIndex: 7,
-        modifyIndex: 9,
-      },
-      relationships: {},
-    },
+  assert.deepEqual(normalized.data.attributes, {
+    name: 'example',
+    type: 'service',
+    priority: 50,
+    periodic: false,
+    parameterized: false,
+    status: 'running',
+    statusDescription: '',
+    taskGroupSummaries: [],
+    pendingChildren: 1,
+    runningChildren: 2,
+    deadChildren: 3,
+    createIndex: 7,
+    modifyIndex: 9,
   });
 });

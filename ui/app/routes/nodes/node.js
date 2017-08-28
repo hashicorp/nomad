@@ -7,8 +7,8 @@ export default Route.extend({
 
   afterModel(model) {
     if (model.get('isPartial')) {
-      return model.reload().then(model => model.findAllocations());
+      return model.reload().then(node => node.get('allocations'));
     }
-    return model.findAllocations();
+    return model.get('allocations');
   },
 });

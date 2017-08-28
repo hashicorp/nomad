@@ -32,4 +32,24 @@ export default ApplicationSerializer.extend({
 
     return this._super(typeHash, hash);
   },
+
+  extractRelationships(modelClass, hash) {
+    const { modelName } = modelClass;
+    const jobURL = this.store
+      .adapterFor(modelName)
+      .buildURL(modelName, this.extractId(modelClass, hash), hash, 'findRecord');
+
+    return {
+      allocations: {
+        links: {
+          related: `${jobURL}/allocations`,
+        },
+      },
+      versions: {
+        links: {
+          related: `${jobURL}/versions?diffs=true`,
+        },
+      },
+    };
+  },
 });

@@ -49,18 +49,8 @@ export default Model.extend({
   runningChildren: attr('number'),
   deadChildren: attr('number'),
 
+  versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
-
-  // Since allocations are fetched manually, tracking the status of fetching
-  // the allocations must also be done manually
-  allocationsIsLoaded: false,
-
-  findAllocations() {
-    const promise = this.store.adapterFor('job').findAllocations(this).then(() => {
-      this.set('allocationsIsLoaded', true);
-    });
-    return promise;
-  },
 
   fetchRawDefinition() {
     return this.store.adapterFor('job').fetchRawDefinition(this);

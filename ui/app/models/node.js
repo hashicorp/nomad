@@ -39,15 +39,4 @@ export default Model.extend({
   }),
 
   allocations: hasMany('allocations'),
-
-  // Since allocations are fetched manually, tracking the status of fetching
-  // the allocations must also be done manually
-  allocationsIsLoaded: false,
-
-  findAllocations() {
-    const promise = this.store.adapterFor('node').findAllocations(this).then(() => {
-      this.set('allocationsIsLoaded', true);
-    });
-    return promise;
-  },
 });
