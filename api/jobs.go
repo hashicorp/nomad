@@ -524,6 +524,9 @@ func (j *Job) Canonicalize() {
 	if j.Region == nil {
 		j.Region = helper.StringToPtr("global")
 	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr("default")
+	}
 	if j.Type == nil {
 		j.Type = helper.StringToPtr("service")
 	}
@@ -700,6 +703,9 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// Namespace is the target namespace for this write
+	Namespace string
 }
 
 // JobValidateRequest is used to validate a job

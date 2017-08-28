@@ -92,7 +92,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	args := structs.JobEvaluateRequest{
 		JobID: jobName,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Evaluate", &args, &out); err != nil {
@@ -121,7 +121,6 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
 	}
-	s.parseRegion(req, &args.Region)
 
 	sJob := ApiJobToStructJob(args.Job)
 	planReq := structs.JobPlanRequest{
@@ -131,6 +130,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 			Region: args.WriteRequest.Region,
 		},
 	}
+	s.parseWriteRequest(req, &planReq.WriteRequest)
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
 		return nil, err
@@ -160,7 +160,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 			Region: validateRequest.Region,
 		},
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobValidateResponse
 	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
@@ -179,7 +179,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 	args := structs.PeriodicForceRequest{
 		JobID: jobName,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.PeriodicForceResponse
 	if err := s.agent.RPC("Periodic.Force", &args, &out); err != nil {
@@ -348,7 +348,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
-	s.parseRegion(req, &args.Region)
 
 	sJob := ApiJobToStructJob(args.Job)
 
@@ -360,6 +359,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 			Region: args.WriteRequest.Region,
 		},
 	}
+	s.parseWriteRequest(req, &regReq.WriteRequest)
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
 		return nil, err
@@ -385,7 +385,7 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 		JobID: jobName,
 		Purge: purgeBool,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDeregisterResponse
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
@@ -447,7 +447,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	s.parseRegion(req, &revertRequest.Region)
+	s.parseWriteRequest(req, &revertRequest.WriteRequest)
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Revert", &revertRequest, &out); err != nil {
@@ -476,7 +476,7 @@ func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	s.parseRegion(req, &stableRequest.Region)
+	s.parseWriteRequest(req, &stableRequest.WriteRequest)
 
 	var out structs.JobStabilityResponse
 	if err := s.agent.RPC("Job.Stable", &stableRequest, &out); err != nil {
@@ -523,7 +523,7 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 		args.JobID = name
 	}
 
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDispatchResponse
 	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
@@ -539,6 +539,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	j := &structs.Job{
 		Stop:        *job.Stop,
 		Region:      *job.Region,
+		Namespace:   *job.Namespace,
 		ID:          *job.ID,
 		ParentID:    *job.ParentID,
 		Name:        *job.Name,

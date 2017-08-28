@@ -352,11 +352,11 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 }
 
 // parseNamespace is used to parse the ?namespace parameter
-func parseNamespace(req *http.Request, b *structs.QueryOptions) {
+func parseNamespace(req *http.Request, n *string) {
 	if other := req.URL.Query().Get("namespace"); other != "" {
-		b.Namespace = other
-	} else if b.Namespace == "" {
-		b.Namespace = structs.DefaultNamespace
+		*n = other
+	} else if *n == "" {
+		*n = structs.DefaultNamespace
 	}
 }
 
@@ -365,6 +365,13 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	s.parseRegion(req, r)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
-	parseNamespace(req, b)
+	parseNamespace(req, &b.Namespace)
 	return parseWait(resp, req, b)
+}
+
+// parseWriteRequest is a convience method for endpoints that need to parse a
+// write request.
+func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
+	parseNamespace(req, &w.Namespace)
+	s.parseRegion(req, &w.Region)
 }
