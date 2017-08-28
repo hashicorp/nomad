@@ -6,11 +6,11 @@ __BACKWARDS INCOMPATIBILITIES:__
    remove the stanza as a zero parallelism update is not valid.
 
 IMPROVEMENTS:
- * core: Add autocomplete functionality for resources: allocations,
-   evaluations, jobs, and nodes [GH-2964]
+ * core: Lost allocations replaced even if part of failed deployment [GH-2961]
+ * core: Add autocomplete functionality for resources: allocations, evaluations,
+   jobs, deployments and nodes [GH-2964]
  * core: `distinct_property` constraint can set the number of allocations that
    are allowed to share a property value [GH-2942]
- * core: Lost allocations replaced even if part of failed deployment [GH-2961]
  * core: Placing allocation counts towards placement limit fixing issue where
    rolling update could remove an unnecessary amount of allocations [GH-3070]
  * api: Redact Vault.Token from AgentSelf response [GH-2988]
@@ -23,7 +23,7 @@ IMPROVEMENTS:
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]
  * deployment: Disallow max_parallel of zero [GH-3081]
- * deployment: Emit task events explaining unhealthy allocations[GH-3025]
+ * deployment: Emit task events explaining unhealthy allocations [GH-3025]
  * deployment: Better description when a deployment should auto-revert but there
    is no target [GH-3024]
  * discovery: Add HTTP header and method support to checks [GH-3031]
@@ -32,8 +32,8 @@ IMPROVEMENTS:
  * driver/docker: Allow retry of 500 API errors to be handled by restart
    policies when starting a container [GH-3073]
  * driver/rkt: support read-only volume mounts [GH-2883]
- * jobspec: Add `shutdown_delay` so tasks can delay shutdown after
-   deregistering from Consul [GH-3043]
+ * jobspec: Add `shutdown_delay` so tasks can delay shutdown after deregistering
+   from Consul [GH-3043]
 
 BUG FIXES:
  * core: Fix purging of job versions [GH-3056]
