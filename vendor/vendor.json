@@ -1322,10 +1322,10 @@
 			"revisionTime": "2017-02-23T22:36:15Z"
 		},
 		{
-			"checksumSHA1": "kQB2wRB3twjUp615F6zEwGHjNe0=",
+			"checksumSHA1": "gVfCD++7aVcdKF2spv6XkEM/wYw=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "e4594059fe4cde2daf423055a596c2cd1e6c9adf",
-			"revisionTime": "2017-02-23T22:36:15Z"
+			"revision": "2d6f6f883a06fc0d5f4b14a81e4c28705ea64c15",
+			"revisionTime": "2017-08-25T18:47:02Z"
 		},
 		{
 			"checksumSHA1": "ZQdHbB9VYCXwQ+9/CmZPhJv0+SM=",
