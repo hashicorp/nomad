@@ -63,7 +63,7 @@ func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
 func (c *DeploymentPromoteCommand) AutocompleteArgs() complete.Predictor {
 	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		if !shouldAutocomplete(a.Last, a.Completed) {
 			return nil
 		}
 

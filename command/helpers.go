@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	gg "github.com/hashicorp/go-getter"
@@ -329,4 +330,26 @@ func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
 		}
 	}
 	return merged
+}
+
+// should autocomplete should return true for any flag, return true for
+// an unseen identifier, and return false for an identifier that has already
+// been autocompleted.
+func shouldAutocomplete(last string, completed []string) bool {
+	if len(last) == 0 {
+		return false
+	}
+
+	// flags should be repeatable
+	if last[0] == '-' {
+		return true
+	}
+
+	for _, arg := range completed {
+		if strings.HasPrefix(arg, last) {
+			return false
+		}
+	}
+
+	return true
 }

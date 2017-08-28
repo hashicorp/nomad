@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
@@ -293,4 +294,44 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 		}
 		t.Fatalf("Unexpected file")
 	}
+}
+
+func Test_shouldAutocomplete_IsTrueForFlags(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	last := "-help"
+	completed := []string{"-help", "-help"}
+
+	assert.True(shouldAutocomplete(last, completed))
+}
+
+func Test_shouldAutocomplete_IsTrueForOneIdentifier(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	last := "job_name"
+	completed := []string{"-help", "-help"}
+
+	assert.True(shouldAutocomplete(last, completed))
+}
+
+func Test_shouldAutocomplete_IsFalseForMoreThanOneIdentifier(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	last := "job_name"
+	completed := []string{"-help", "-help", "job_name"}
+
+	assert.False(shouldAutocomplete(last, completed))
+}
+
+func Test_shouldAutocomplete_IsFalseForMoreThanOneIdentifierWithHypens(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	last := "1234-1234"
+	completed := []string{"-help", "-help", "1234-1234"}
+
+	assert.False(shouldAutocomplete(last, completed))
 }
