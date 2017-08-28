@@ -372,11 +372,11 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 }
 
 func (u *UpdateStrategy) Canonicalize() {
-	if u.MaxParallel == nil {
-		u.MaxParallel = helper.IntToPtr(0)
-	}
-
 	d := structs.DefaultUpdateStrategy
+
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(d.MaxParallel)
+	}
 
 	if u.Stagger == nil {
 		u.Stagger = helper.TimeToPtr(d.Stagger)

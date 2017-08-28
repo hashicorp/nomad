@@ -2012,7 +2012,7 @@ var (
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
 		Stagger:         30 * time.Second,
-		MaxParallel:     0,
+		MaxParallel:     1,
 		HealthCheck:     UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 5 * time.Minute,
@@ -2076,8 +2076,8 @@ func (u *UpdateStrategy) Validate() error {
 		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
-	if u.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+	if u.MaxParallel < 1 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than one: %d < 1", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
