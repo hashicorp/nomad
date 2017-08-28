@@ -53,10 +53,6 @@ func (c *InspectCommand) AutocompleteFlags() complete.Flags {
 func (c *InspectCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, _ := c.Meta.Client()
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
 		if err != nil {
 			return []string{}

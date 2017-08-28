@@ -58,10 +58,6 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, _ := c.Meta.Client()
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
 		if err != nil {
 			return []string{}

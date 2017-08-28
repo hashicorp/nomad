@@ -73,11 +73,6 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, _ := c.Meta.Client()
-
-		if len(a.Completed) > 1 {
-			return nil
-		}
-
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
 		if err != nil {
 			return []string{}
