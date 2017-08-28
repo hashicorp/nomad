@@ -27,8 +27,13 @@ export default Component.extend({
       value,
       className,
       layers,
+      index,
       percent: value / sum,
-      offset: data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
+      offset:
+        data
+          .slice(0, index)
+          .mapBy('value')
+          .reduce(sumAggregate, 0) / sum,
     }));
   }),
 
@@ -43,7 +48,10 @@ export default Component.extend({
       run(() => {
         this.set('isActive', false);
         this.set('activeDatum', null);
-        chart.selectAll('g').classed('active', false).classed('inactive', false);
+        chart
+          .selectAll('g')
+          .classed('active', false)
+          .classed('inactive', false);
       });
     });
 
