@@ -99,8 +99,8 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+		client, _ := c.Meta.Client()
 		if len(a.Completed) > 1 {
 			return nil
 		}

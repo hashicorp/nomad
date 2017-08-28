@@ -59,8 +59,8 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+		client, _ := c.Meta.Client()
 		if len(a.Completed) > 1 {
 			return nil
 		}

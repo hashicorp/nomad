@@ -66,8 +66,8 @@ func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
 }
 
 func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
+		client, _ := c.Meta.Client()
 		if len(a.Completed) > 1 {
 			return nil
 		}

@@ -94,9 +94,8 @@ func (c *FSCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (f *FSCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := f.Meta.Client()
-
 	return complete.PredictFunc(func(a complete.Args) []string {
+		client, _ := f.Meta.Client()
 		if len(a.Completed) > 1 {
 			return nil
 		}

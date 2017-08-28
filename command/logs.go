@@ -75,9 +75,8 @@ func (c *LogsCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := l.Meta.Client()
-
 	return complete.PredictFunc(func(a complete.Args) []string {
+		client, _ := l.Meta.Client()
 		if len(a.Completed) > 1 {
 			return nil
 		}
