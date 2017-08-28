@@ -94,9 +94,17 @@ func TestDefaultConfig_env(t *testing.T) {
 	t.Parallel()
 	url := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
+	region := "test"
+	namespace := "dev"
 
 	os.Setenv("NOMAD_ADDR", url)
 	defer os.Setenv("NOMAD_ADDR", "")
+
+	os.Setenv("NOMAD_REGION", region)
+	defer os.Setenv("NOMAD_REGION", "")
+
+	os.Setenv("NOMAD_NAMESPACE", namespace)
+	defer os.Setenv("NOMAD_NAMESPACE", "")
 
 	os.Setenv("NOMAD_HTTP_AUTH", strings.Join(auth, ":"))
 	defer os.Setenv("NOMAD_HTTP_AUTH", "")
@@ -105,6 +113,14 @@ func TestDefaultConfig_env(t *testing.T) {
 
 	if config.Address != url {
 		t.Errorf("expected %q to be %q", config.Address, url)
+	}
+
+	if config.Region != region {
+		t.Errorf("expected %q to be %q", config.Region, region)
+	}
+
+	if config.Namespace != namespace {
+		t.Errorf("expected %q to be %q", config.Namespace, namespace)
 	}
 
 	if config.HttpAuth.Username != auth[0] {
@@ -124,6 +140,7 @@ func TestSetQueryOptions(t *testing.T) {
 	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &QueryOptions{
 		Region:     "foo",
+		Namespace:  "bar",
 		AllowStale: true,
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
@@ -131,6 +148,9 @@ func TestSetQueryOptions(t *testing.T) {
 	r.setQueryOptions(q)
 
 	if r.params.Get("region") != "foo" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("namespace") != "bar" {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if _, ok := r.params["stale"]; !ok {
@@ -151,11 +171,15 @@ func TestSetWriteOptions(t *testing.T) {
 
 	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &WriteOptions{
-		Region: "foo",
+		Region:    "foo",
+		Namespace: "bar",
 	}
 	r.setWriteOptions(q)
 
 	if r.params.Get("region") != "foo" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("namespace") != "bar" {
 		t.Fatalf("bad: %v", r.params)
 	}
 }
@@ -167,7 +191,8 @@ func TestRequestToHTTP(t *testing.T) {
 
 	r, _ := c.newRequest("DELETE", "/v1/jobs/foo")
 	q := &QueryOptions{
-		Region: "foo",
+		Region:    "foo",
+		Namespace: "bar",
 	}
 	r.setQueryOptions(q)
 	req, err := r.toHTTP()
@@ -178,7 +203,7 @@ func TestRequestToHTTP(t *testing.T) {
 	if req.Method != "DELETE" {
 		t.Fatalf("bad: %v", req)
 	}
-	if req.URL.RequestURI() != "/v1/jobs/foo?region=foo" {
+	if req.URL.RequestURI() != "/v1/jobs/foo?namespace=bar&region=foo" {
 		t.Fatalf("bad: %v", req)
 	}
 }
@@ -231,7 +256,10 @@ func TestQueryString(t *testing.T) {
 	defer s.Stop()
 
 	r, _ := c.newRequest("PUT", "/v1/abc?foo=bar&baz=zip")
-	q := &WriteOptions{Region: "foo"}
+	q := &WriteOptions{
+		Region:    "foo",
+		Namespace: "bar",
+	}
 	r.setWriteOptions(q)
 
 	req, err := r.toHTTP()
@@ -239,7 +267,7 @@ func TestQueryString(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	if uri := req.URL.RequestURI(); uri != "/v1/abc?baz=zip&foo=bar&region=foo" {
+	if uri := req.URL.RequestURI(); uri != "/v1/abc?baz=zip&foo=bar&namespace=bar&region=foo" {
 		t.Fatalf("bad uri: %q", uri)
 	}
 }

@@ -351,10 +351,20 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 	}
 }
 
+// parseNamespace is used to parse the ?namespace parameter
+func parseNamespace(req *http.Request, b *structs.QueryOptions) {
+	if other := req.URL.Query().Get("namespace"); other != "" {
+		b.Namespace = other
+	} else if b.Namespace == "" {
+		b.Namespace = structs.DefaultNamespace
+	}
+}
+
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
+	parseNamespace(req, b)
 	return parseWait(resp, req, b)
 }
