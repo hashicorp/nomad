@@ -9,7 +9,6 @@ import (
 
 type SentinelListCommand struct {
 	Meta
-	formatter DataFormatter
 }
 
 func (c *SentinelListCommand) Help() string {
