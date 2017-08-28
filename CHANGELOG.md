@@ -1,5 +1,10 @@
 ## 0.6.1 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * deployment: Specifying an update stanza with a max_parallel of zero is now
+   a validation error. Please update the stanza to be greater than zero or
+   remove the stanza as a zero parallelism update is not valid.
+
 IMPROVEMENTS:
  * core: Add autocomplete functionality for resources: allocations,
    evaluations, jobs, and nodes [GH-2964]
@@ -17,6 +22,7 @@ IMPROVEMENTS:
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]
+ * deployment: Disallow max_parallel of zero [GH-3081]
  * deployment: Emit task events explaining unhealthy allocations[GH-3025]
  * deployment: Better description when a deployment should auto-revert but there
    is no target [GH-3024]
