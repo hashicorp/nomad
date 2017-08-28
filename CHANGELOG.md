@@ -1,4 +1,4 @@
-## 0.6.1 (Unreleased)
+## 0.6.1 (August 28, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * deployment: Specifying an update stanza with a max_parallel of zero is now
