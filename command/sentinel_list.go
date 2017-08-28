@@ -52,6 +52,7 @@ func (c *SentinelListCommand) Run(args []string) int {
 
 	if len(policies) == 0 {
 		c.Ui.Output("No policies found")
+		return 0
 	}
 
 	out := []string{}

@@ -59,16 +59,16 @@ func (c *SentinelWriteCommand) Run(args []string) int {
 
 	// Check that we got exactly two arguments
 	args = flags.Args()
-	if l := len(args); l != 3 {
+	if l := len(args); l != 2 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
 
 	// Get the name and file
-	policyName := args[1]
+	policyName := args[0]
 
 	// Read the file contents
-	file := args[2]
+	file := args[1]
 	var rawPolicy []byte
 	if file == "-" {
 		rawPolicy, err = ioutil.ReadAll(os.Stdin)

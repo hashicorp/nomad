@@ -34,15 +34,15 @@ func (c *SentinelDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got exactly two arguments
+	// Check that we got exactly one arguments
 	args = flags.Args()
-	if l := len(args); l != 2 {
+	if l := len(args); l != 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
 
 	// Get the name and file
-	policyName := args[1]
+	policyName := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
