@@ -285,6 +285,58 @@ func (c *Client) SetRegion(region string) {
 	c.config.Region = region
 }
 
+// GetNodeClient returns a new Client that will dial the specified node. If the
+// QueryOptions is set, the function will ensure that it is initialized and
+// that the Params field is valid.
+func (c *Client) GetNodeClient(nodeID string, q **QueryOptions) (*Client, error) {
+	node, _, err := c.Nodes().Info(nodeID, &QueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if node.Status == "down" {
+		return nil, NodeDownErr
+	}
+	if node.HTTPAddr == "" {
+		return nil, fmt.Errorf("http addr of node %q (%s) is not advertised", node.Name, nodeID)
+	}
+
+	region := ""
+	if q != nil && *q != nil && (*q).Region != "" {
+		region = (*q).Region
+	} else if c.config.Region != "" {
+		// Use the region from the client
+		region = c.config.Region
+	} else {
+		// Use the region from the agent
+		agentRegion, err := c.Agent().Region()
+		if err != nil {
+			return nil, err
+		}
+		region = agentRegion
+	}
+
+	// Get an API client for the node
+	conf := c.config.CopyConfig(node.HTTPAddr, node.TLSEnabled)
+	conf.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
+	nodeClient, err := NewClient(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the query params
+	if q == nil {
+		return nodeClient, nil
+	}
+
+	if *q == nil {
+		*q = &QueryOptions{}
+	}
+	if actQ := *q; actQ.Params == nil {
+		actQ.Params = make(map[string]string)
+	}
+	return nodeClient, nil
+}
+
 // request is used to help build up a request
 type request struct {
 	config *Config
