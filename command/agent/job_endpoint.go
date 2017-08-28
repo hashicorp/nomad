@@ -79,6 +79,12 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/increase"):
+		jobName := strings.TrimSuffix(path, "/increase")
+		return s.jobIncrease(resp, req, jobName)
+	case strings.HasSuffix(path, "/decrease"):
+		jobName := strings.TrimSuffix(path, "/decrease")
+		return s.jobDecrease(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -366,6 +372,67 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+func (s *HTTPServer) jobIncrease(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	var args api.JobUpdateValues
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	return s.updateJobValues(resp, req, &args, jobName)
+}
+
+func (s *HTTPServer) jobDecrease(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	var args api.JobUpdateValues
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	args.Count = args.Count * -1
+	return s.updateJobValues(resp, req, &args, jobName)
+}
+
+func (s *HTTPServer) updateJobValues(resp http.ResponseWriter, req *http.Request,
+	args *api.JobUpdateValues, jobName string) (interface{}, error) {
+	jobResp, err := s.jobQuery(resp, req, jobName)
+	if err != nil {
+		return nil, err
+	}
+	var job *structs.Job = jobResp.(*structs.Job)
+	if len(job.TaskGroups) > 1 && args.TaskGroupID == "" {
+		return nil, CodedError(400, "Multiple task groups found within the job and no group ID specified")
+	}
+	var ignoreGroupID, change bool
+	if len(job.TaskGroups) == 1 {
+		ignoreGroupID = true
+	}
+	for _, taskGroup := range job.TaskGroups {
+		if taskGroup.Name == args.TaskGroupID || ignoreGroupID {
+			newCount := args.Count + taskGroup.Count
+			if newCount < 0 {
+				outErr := fmt.Sprintf("Task group count may not be less than 0: 0 > %d",
+					newCount)
+				return nil, CodedError(400, outErr)
+			}
+			taskGroup.Count = newCount
+			change = true
+		}
+	}
+	if !change {
+		return nil, CodedError(400, fmt.Sprintf("No task group with id %s found", args.TaskGroupID))
+	}
+	regReq := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region: job.Region,
+		},
+	}
+	var out structs.JobRegisterResponse
+	if err = s.agent.RPC("Job.Register", &regReq, &out); err != nil {
+		return nil, err
+	}
+	return job, nil
 }
 
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,

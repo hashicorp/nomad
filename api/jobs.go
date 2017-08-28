@@ -616,6 +616,13 @@ type JobListStub struct {
 	SubmitTime        int64
 }
 
+// JobUpdateValues is used to update a running jobs values
+type JobUpdateValues struct {
+	TaskGroupID string
+	Count       int
+	// May specify CPU/Mem/Disk etc..
+}
+
 // JobIDSort is used to sort jobs by their job ID's.
 type JobIDSort []*JobListStub
 
