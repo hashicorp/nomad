@@ -225,6 +225,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"sentinel read": func() (cli.Command, error) {
+			return &command.SentinelReadCommand{
+				Meta: meta,
+			}, nil
+		},
 		"server-force-leave": func() (cli.Command, error) {
 			return &command.ServerForceLeaveCommand{
 				Meta: meta,

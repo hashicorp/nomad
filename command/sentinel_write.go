@@ -48,7 +48,7 @@ func (c *SentinelWriteCommand) Synopsis() string {
 func (c *SentinelWriteCommand) Run(args []string) int {
 	var description, scope, enfType string
 	var err error
-	flags := c.Meta.FlagSet("sentinel list", FlagSetClient)
+	flags := c.Meta.FlagSet("sentinel write", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 	flags.StringVar(&scope, "scope", "submit-job", "")

@@ -28,7 +28,7 @@ func (c *SentinelDeleteCommand) Synopsis() string {
 }
 
 func (c *SentinelDeleteCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("sentinel list", FlagSetClient)
+	flags := c.Meta.FlagSet("sentinel delete", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
