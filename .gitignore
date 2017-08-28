@@ -51,8 +51,7 @@ example.nomad
 nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
-*.generated.go
-
+codecgen-*.generated.go
 
 .terraform
 *.tfstate*
