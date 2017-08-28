@@ -14,6 +14,7 @@ install:
 - ps: Expand-Archive C:\gopath\bin\vault.zip -DestinationPath C:\gopath\bin
 - ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
 - ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
-- cmd: go install -tags nomad_test
+#- cmd: go install -tags nomad_test
 build_script:
-- cmd: go test -tags nomad_test ./...
+#- cmd: go test -tags nomad_test ./...
+- cmd: go install -tags nomad_test
