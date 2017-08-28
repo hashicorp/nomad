@@ -30,8 +30,8 @@ func (c *JobStatusCommand) Help() string {
 	helpText := `
 Usage: nomad status [options] <job>
 
-  Display status information about jobs. If no job ID is given,
-  a list of all known jobs will be dumped.
+  Display status information about a job. If no job ID is given, a list of all
+  known jobs will be displayed.
 
 General Options:
 
@@ -57,7 +57,7 @@ Status Options:
 }
 
 func (c *JobStatusCommand) Synopsis() string {
-	return "Display status information about jobs"
+	return "Display status information about a job"
 }
 
 func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
