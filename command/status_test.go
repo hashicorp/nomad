@@ -203,9 +203,4 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 
 	res := predictor.Predict(args)
 	assert.Contains(res, job.ID)
-
-	args = complete.Args{Last: prefix, Completed: []string{prefix, "1", "2"}}
-	predictor = cmd.AutocompleteArgs()
-	res = predictor.Predict(args)
-	assert.Nil(res)
 }

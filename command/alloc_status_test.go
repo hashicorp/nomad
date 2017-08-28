@@ -168,11 +168,4 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(a.ID, res[0])
-
-	// Autocomplete should only complete once
-	args = complete.Args{Last: prefix, Completed: []string{prefix, "1", "2"}}
-	predictor = cmd.AutocompleteArgs()
-
-	res = predictor.Predict(args)
-	assert.Nil(res)
 }
