@@ -44,6 +44,7 @@ BUG FIXES:
    [GH-2939]
  * cli: Fix autocmpleting global flags [GH-2928]
  * cli: Fix panic when using 0.6.0 cli with an older cluster [GH-2929]
+ * cli: Fix TLS handling for alloc stats API calls [GH-3108]
  * client: Fix `LC_ALL=C` being set on subprocesses [GH-3041]
  * client/networking: Handle interfaces that only have link-local addresses
    while prefering globally routable addresses [GH-3089]
