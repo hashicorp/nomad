@@ -49,7 +49,7 @@ func (c *DeploymentPauseCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Deployments)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Deployments, nil)
 		if err != nil {
 			return []string{}
 		}

@@ -20,9 +20,10 @@ func TestSearch_List(t *testing.T) {
 
 	id := *job.ID
 	prefix := id[:len(id)-2]
-	resp, err := c.Search().PrefixSearch(prefix, contexts.Jobs)
+	resp, qm, err := c.Search().PrefixSearch(prefix, contexts.Jobs, nil)
 
 	assert.Nil(err)
+	assert.NotNil(qm)
 
 	jobMatches := resp.Matches[contexts.Jobs]
 	assert.Equal(1, len(jobMatches))

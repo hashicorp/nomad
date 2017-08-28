@@ -43,7 +43,7 @@ func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.All)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.All, nil)
 		if err != nil {
 			return []string{}
 		}
@@ -93,7 +93,7 @@ func (c *StatusCommand) Run(args []string) int {
 	id := args[len(args)-1]
 
 	// Query for the context associated with the id
-	res, err := client.Search().PrefixSearch(id, contexts.All)
+	res, _, err := client.Search().PrefixSearch(id, contexts.All, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying search with id: %q", err))
 		return 1

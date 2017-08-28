@@ -14,21 +14,22 @@ func (c *Client) Search() *Search {
 }
 
 // PrefixSearch returns a list of matches for a particular context and prefix.
-func (s *Search) PrefixSearch(prefix string, context contexts.Context) (*SearchResponse, error) {
+func (s *Search) PrefixSearch(prefix string, context contexts.Context, q *QueryOptions) (*SearchResponse, *QueryMeta, error) {
 	var resp SearchResponse
 	req := &SearchRequest{Prefix: prefix, Context: context}
 
-	_, err := s.client.write("/v1/search", req, &resp, nil)
+	qm, err := s.client.putQuery("/v1/search", req, &resp, q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &resp, nil
+	return &resp, qm, nil
 }
 
 type SearchRequest struct {
 	Prefix  string
 	Context contexts.Context
+	QueryOptions
 }
 
 type SearchResponse struct {

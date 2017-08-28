@@ -65,7 +65,7 @@ func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Evals)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Evals, nil)
 		if err != nil {
 			return []string{}
 		}
