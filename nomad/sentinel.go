@@ -42,6 +42,7 @@ func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCa
 	result := s.sentinel.Eval(prepared, &sentinel.EvalOpts{
 		Data:     data,
 		Override: override,
+		Trace:    true,
 	})
 
 	// Unlock all the policies

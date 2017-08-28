@@ -1275,8 +1275,9 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 // enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 	dataCB := func() map[string]interface{} {
-		// TODO
-		return nil
+		return map[string]interface{}{
+			"job": job,
+		}
 	}
 	return j.srv.enforceScope(override, structs.SentinelScopeSubmitJob, dataCB)
 }

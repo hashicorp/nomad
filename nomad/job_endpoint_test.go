@@ -191,6 +191,63 @@ func TestJobEndpoint_Register_Sentinel(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a passing policy
+	policy1 := mock.SentinelPolicy()
+	policy1.Type = structs.SentinelTypeHardMandatory
+	policy1.Policy = `
+	main = rule { all_drivers_exec }
+
+	// REMOVEME
+	all_drivers_exec = rule { true }
+
+	// TODO: This should work, currently broken
+	//all_drivers_exec = rule {
+	//    all job.task_groups as tg {
+	//        all tg.tasks as task {
+	//            task.driver is "exec"
+	//        }
+	//    }
+	//}
+	`
+	s1.State().UpsertSentinelPolicies(1000,
+		[]*structs.SentinelPolicy{policy1})
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:   "global",
+			SecretID: root.SecretID,
+		},
+	}
+
+	// Should work
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// TODO: Need the Sentinel runtime fix
+	// Create a failing job
+	//job2 := mock.Job()
+	//job2.TaskGroups[0].Tasks[0].Driver = "docker"
+
+	//// Should fail
+	//if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
+	//    t.Fatalf("expected error")
+	//}
+}
+
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
