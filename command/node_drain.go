@@ -62,7 +62,7 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Nodes)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
 		if err != nil {
 			return []string{}
 		}

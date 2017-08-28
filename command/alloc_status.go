@@ -78,7 +78,7 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Allocs)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
 		if err != nil {
 			return []string{}
 		}

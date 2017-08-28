@@ -504,7 +504,7 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 	return resp.Body, nil
 }
 
-// Query is used to do a GET request against an endpoint
+// query is used to do a GET request against an endpoint
 // and deserialize the response into an interface using
 // standard Nomad conventions.
 func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
@@ -513,6 +513,32 @@ func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*Quer
 		return nil, err
 	}
 	r.setQueryOptions(q)
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	if err := decodeBody(resp, out); err != nil {
+		return nil, err
+	}
+	return qm, nil
+}
+
+// putQuery is used to do a PUT request when doing a read against an endpoint
+// and deserialize the response into an interface using standard Nomad
+// conventions.
+func (c *Client) putQuery(endpoint string, in, out interface{}, q *QueryOptions) (*QueryMeta, error) {
+	r, err := c.newRequest("PUT", endpoint)
+	if err != nil {
+		return nil, err
+	}
+	r.setQueryOptions(q)
+	r.obj = in
 	rtt, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
 		return nil, err

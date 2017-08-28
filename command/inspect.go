@@ -57,7 +57,7 @@ func (c *InspectCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, err := client.Search().PrefixSearch(a.Last, contexts.Jobs)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
 		if err != nil {
 			return []string{}
 		}
