@@ -89,6 +89,9 @@ Run Options:
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
+
+  -override
+	Sets the flag to force override any soft mandatory Sentinel policies.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -106,7 +109,7 @@ func (c *RunCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *RunCommand) Run(args []string) int {
-	var detach, verbose, output bool
+	var detach, verbose, output, override bool
 	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
@@ -114,6 +117,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
+	flags.BoolVar(&override, "override", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
@@ -193,13 +197,18 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Submit the job
-	var resp *api.JobRegisterResponse
+	// Set the registero ptions
+	opts := &api.RegisterOptions{}
 	if enforce {
-		resp, _, err = client.Jobs().EnforceRegister(job, checkIndex, nil)
-	} else {
-		resp, _, err = client.Jobs().Register(job, nil)
+		opts.EnforceIndex = true
+		opts.ModifyIndex = checkIndex
 	}
+	if override {
+		opts.Override = true
+	}
+
+	// Submit the job
+	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
 			// Format the error specially if the error is due to index
