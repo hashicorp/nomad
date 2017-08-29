@@ -5,6 +5,8 @@ BUG FIXES:
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
+ * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
+   contacting nodes that are using TLS [GH-3127]
 
 ## 0.6.2 (August 28, 2017)
 
