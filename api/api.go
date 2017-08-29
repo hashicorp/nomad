@@ -94,9 +94,8 @@ type Config struct {
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
-	// HttpClient is the client to use. Default will be
-	// used if not provided.
-	HttpClient *http.Client
+	// httpClient is the client to use. Default will be used if not provided.
+	httpClient *http.Client
 
 	// HttpAuth is the auth info to use for http access.
 	HttpAuth *HttpBasicAuth
@@ -117,10 +116,11 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	if tlsEnabled {
 		scheme = "https"
 	}
+	defaultConfig := DefaultConfig()
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     region,
-		HttpClient: c.HttpClient,
+		httpClient: defaultConfig.httpClient,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
@@ -171,10 +171,10 @@ func (t *TLSConfig) Copy() *TLSConfig {
 func DefaultConfig() *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
-		HttpClient: cleanhttp.DefaultClient(),
+		httpClient: cleanhttp.DefaultClient(),
 		TLSConfig:  &TLSConfig{},
 	}
-	transport := config.HttpClient.Transport.(*http.Transport)
+	transport := config.httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
@@ -226,7 +226,7 @@ func (c *Config) ConfigureTLS() error {
 	if c.TLSConfig == nil {
 		return nil
 	}
-	if c.HttpClient == nil {
+	if c.httpClient == nil {
 		return fmt.Errorf("config HTTP Client must be set")
 	}
 
@@ -245,7 +245,7 @@ func (c *Config) ConfigureTLS() error {
 		}
 	}
 
-	clientTLSConfig := c.HttpClient.Transport.(*http.Transport).TLSClientConfig
+	clientTLSConfig := c.httpClient.Transport.(*http.Transport).TLSClientConfig
 	rootConfig := &rootcerts.Config{
 		CAFile: c.TLSConfig.CACert,
 		CAPath: c.TLSConfig.CAPath,
@@ -282,8 +282,8 @@ func NewClient(config *Config) (*Client, error) {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
-	if config.HttpClient == nil {
-		config.HttpClient = defConfig.HttpClient
+	if config.httpClient == nil {
+		config.httpClient = defConfig.httpClient
 	}
 
 	// Configure the TLS cofigurations
@@ -490,7 +490,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 		return 0, nil, err
 	}
 	start := time.Now()
-	resp, err := c.config.HttpClient.Do(req)
+	resp, err := c.config.httpClient.Do(req)
 	diff := time.Now().Sub(start)
 
 	// If the response is compressed, we swap the body's reader.
