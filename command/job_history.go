@@ -67,7 +67,11 @@ func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
 
 func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
-		client, _ := c.Meta.Client()
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
 		if err != nil {
 			return []string{}

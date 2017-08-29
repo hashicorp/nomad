@@ -95,7 +95,11 @@ func (c *FSCommand) AutocompleteFlags() complete.Flags {
 
 func (f *FSCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
-		client, _ := f.Meta.Client()
+		client, err := f.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
 		if err != nil {
 			return []string{}

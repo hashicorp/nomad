@@ -50,7 +50,11 @@ func (c *DeploymentResumeCommand) AutocompleteFlags() complete.Flags {
 
 func (c *DeploymentResumeCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
-		client, _ := c.Meta.Client()
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Deployments, nil)
 		if err != nil {
 			return []string{}
