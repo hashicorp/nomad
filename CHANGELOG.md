@@ -1,3 +1,11 @@
+## 0.6.3 (Unreleased)
+
+BUG FIXES:
+ * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
+ * cli: Status command honors exact job match even when it is the prefix of
+   another job [GH-3120]
+ * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
+
 ## 0.6.2 (August 28, 2017)
 
 BUG FIXES:
