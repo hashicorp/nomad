@@ -231,12 +231,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if hyphens := strings.Count(nodeID, "-"); (len(nodeID)-hyphens)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		nodeID = nodeID[:len(nodeID)-1]
-	}
 
+	nodeID = sanatizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
