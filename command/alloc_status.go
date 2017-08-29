@@ -142,7 +142,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(allocID)%2 == 1 {
+	if hyphens := strings.Count(allocID, "-"); (len(allocID)-hyphens)%2 == 1 {
 		// Identifiers must be of even length, so we strip off the last byte
 		// to provide a consistent user experience.
 		allocID = allocID[:len(allocID)-1]
