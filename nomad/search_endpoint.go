@@ -80,7 +80,7 @@ func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, 
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, prefix)
 	default:
-		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
+		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 	}
 }
 
