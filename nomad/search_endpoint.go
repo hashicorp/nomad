@@ -91,7 +91,10 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 		return prefix
 	}
 
-	l := len(prefix)
+	// We ignore the count of hyphens when calculating if the prefix is even:
+	// E.g "e3671fa4-21"
+	numHyphens := strings.Count(prefix, "-")
+	l := len(prefix) - numHyphens
 	if l%2 == 0 {
 		return prefix
 	}
