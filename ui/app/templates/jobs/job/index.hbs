@@ -4,12 +4,7 @@
   {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
-  <div class="tabs is-subnav">
-    <ul>
-      <li>{{#link-to "jobs.job.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
-      <li>{{#link-to "jobs.job.definition" model activeClass="is-active"}}Definition{{/link-to}}</li>
-    </ul>
-  </div>
+  {{partial "jobs/job/subnav"}}
   <section class="section">
     <h1 class="title">
       {{model.name}}

@@ -20,6 +20,7 @@ export default Controller.extend(Sortable, {
   sortDescending: false,
 
   breadcrumbs: computed.alias('jobController.breadcrumbs'),
+  job: computed.alias('model'),
 
   taskGroups: computed('model.taskGroups.[]', function() {
     return this.get('model.taskGroups') || [];
