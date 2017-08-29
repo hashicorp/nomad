@@ -114,7 +114,7 @@ func (c *StatusCommand) Run(args []string) int {
 
 		// Only a single result should return, as this is a match against a full id
 		if matchCount > 1 || len(vers) > 1 {
-			c.outputMultipleMatches(id, res.Matches)
+			c.logMultiMatchError(id, res.Matches)
 			return 1
 		}
 	}
@@ -139,7 +139,9 @@ func (c *StatusCommand) Run(args []string) int {
 	return cmd.Run(argsCopy)
 }
 
-func (c *StatusCommand) outputMultipleMatches(id string, matches map[contexts.Context][]string) {
+// logMultiMatchError is used to log an error message when multiple matches are
+// found. The error message logged displays the matched IDs per context.
+func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Context][]string) {
 	c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
 	for ctx, vers := range matches {
 		if len(vers) == 0 {
