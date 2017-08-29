@@ -125,7 +125,9 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
 	}
-	config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", c.Region)
+	if tlsEnabled && config.TLSConfig != nil {
+		config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
+	}
 
 	return config
 }
@@ -221,6 +223,9 @@ func DefaultConfig() *Config {
 
 // ConfigureTLS applies a set of TLS configurations to the the HTTP client.
 func (c *Config) ConfigureTLS() error {
+	if c.TLSConfig == nil {
+		return nil
+	}
 	if c.HttpClient == nil {
 		return fmt.Errorf("config HTTP Client must be set")
 	}
@@ -300,7 +305,17 @@ func (c *Client) SetRegion(region string) {
 // GetNodeClient returns a new Client that will dial the specified node. If the
 // QueryOptions is set, its region will be used.
 func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) {
-	node, _, err := c.Nodes().Info(nodeID, q)
+	return c.getNodeClientImpl(nodeID, q, c.Nodes().Info)
+}
+
+// nodeLookup is used to lookup a node
+type nodeLookup func(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error)
+
+// getNodeClientImpl is the implementation of creating a API client for
+// contacting a node. It is takes a function to lookup the node such that it can
+// be mocked during tests.
+func (c *Client) getNodeClientImpl(nodeID string, q *QueryOptions, lookup nodeLookup) (*Client, error) {
+	node, _, err := lookup(nodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +329,10 @@ func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) 
 	region := c.config.Region
 	if q != nil && q.Region != "" {
 		region = q.Region
+	}
+
+	if region == "" {
+		region = "global"
 	}
 
 	// Get an API client for the node
