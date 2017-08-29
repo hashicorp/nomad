@@ -55,6 +55,14 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*Allo
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["path"] = path
 
 	var resp []*AllocFileInfo
@@ -72,6 +80,14 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["path"] = path
 
 	var resp AllocFileInfo
@@ -89,6 +105,14 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 	if err != nil {
 		return nil, err
 	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["path"] = path
 	q.Params["offset"] = strconv.FormatInt(offset, 10)
 	q.Params["limit"] = strconv.FormatInt(limit, 10)
@@ -107,6 +131,14 @@ func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadC
 	if err != nil {
 		return nil, err
 	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["path"] = path
 
 	r, err := nodeClient.rawQuery(fmt.Sprintf("/v1/client/fs/cat/%s", alloc.ID), q)
@@ -131,6 +163,14 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	if err != nil {
 		return nil, err
 	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["path"] = path
 	q.Params["offset"] = strconv.FormatInt(offset, 10)
 	q.Params["origin"] = origin
@@ -195,9 +235,14 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 	if err != nil {
 		return nil, err
 	}
+
 	if q == nil {
 		q = &QueryOptions{}
 	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
 	q.Params["follow"] = strconv.FormatBool(follow)
 	q.Params["task"] = task
 	q.Params["type"] = logType
