@@ -144,6 +144,25 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected to have 'Created At' but saw: %s", out)
 	}
 	ui.OutputWriter.Reset()
+
+	// Try the query with an even prefix that includes the hyphen
+	if code := cmd.Run([]string{"-address=" + url, allocId1[:13]}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "Created At") {
+		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, allocId1) {
+		t.Fatal("expected to find alloc id in output")
+	}
+	ui.OutputWriter.Reset()
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
