@@ -308,12 +308,13 @@ func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) 
 	return c.getNodeClientImpl(nodeID, q, c.Nodes().Info)
 }
 
-// nodeLookup is used to lookup a node
+// nodeLookup is the definition of a function used to lookup a node. This is
+// largely used to mock the lookup in tests.
 type nodeLookup func(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error)
 
 // getNodeClientImpl is the implementation of creating a API client for
-// contacting a node. It is takes a function to lookup the node such that it can
-// be mocked during tests.
+// contacting a node. It takes a function to lookup the node such that it can be
+// mocked during tests.
 func (c *Client) getNodeClientImpl(nodeID string, q *QueryOptions, lookup nodeLookup) (*Client, error) {
 	node, _, err := lookup(nodeID, q)
 	if err != nil {
@@ -326,12 +327,16 @@ func (c *Client) getNodeClientImpl(nodeID string, q *QueryOptions, lookup nodeLo
 		return nil, fmt.Errorf("http addr of node %q (%s) is not advertised", node.Name, nodeID)
 	}
 
-	region := c.config.Region
-	if q != nil && q.Region != "" {
+	var region string
+	switch {
+	case q != nil && q.Region != "":
+		// Prefer the region set in the query parameter
 		region = q.Region
-	}
-
-	if region == "" {
+	case c.config.Region != "":
+		// If the client is configured for a particular region use that
+		region = c.config.Region
+	default:
+		// No region information is given so use the default.
 		region = "global"
 	}
 
