@@ -103,14 +103,18 @@ func (c *StatusCommand) Run(args []string) int {
 	var match contexts.Context
 	matchCount := 0
 	for ctx, vers := range res.Matches {
-		if len(vers) == 1 {
+		if l := len(vers); l == 1 {
 			match = ctx
 			matchCount++
+		} else if l > 0 && vers[0] == id {
+			// Exact match
+			match = ctx
+			break
 		}
 
 		// Only a single result should return, as this is a match against a full id
 		if matchCount > 1 || len(vers) > 1 {
-			c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
+			c.outputMultipleMatches(id, res.Matches)
 			return 1
 		}
 	}
@@ -133,4 +137,16 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	return cmd.Run(argsCopy)
+}
+
+func (c *StatusCommand) outputMultipleMatches(id string, matches map[contexts.Context][]string) {
+	c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
+	for ctx, vers := range matches {
+		if len(vers) == 0 {
+			continue
+		}
+
+		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
+		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+	}
 }
