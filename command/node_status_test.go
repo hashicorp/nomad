@@ -127,8 +127,8 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 		t.Fatalf("should not dump allocations")
 	}
 
-	// Query a single node based on prefix
-	if code := cmd.Run([]string{"-address=" + url, nodeID[:4]}); code != 0 {
+	// Query a single node based on a prefix that is even without the hyphen
+	if code := cmd.Run([]string{"-address=" + url, nodeID[:13]}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
