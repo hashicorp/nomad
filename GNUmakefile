@@ -115,7 +115,7 @@ define makePackageTarget
 
 pkg/$(1).zip: pkg/$(1)/nomad
 	@echo "==> Packaging for $(1)..."
-	@zip pkg/$(1).zip pkg/$(1)/*
+	@zip -j pkg/$(1).zip pkg/$(1)/*
 
 endef
 
