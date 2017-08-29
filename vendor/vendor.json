@@ -19,10 +19,10 @@
 			"revisionTime": "2016-06-22T17:32:16Z"
 		},
 		{
-			"checksumSHA1": "CMcHvqld6XBCDYA+9jCy6gT1O0Q=",
+			"checksumSHA1": "WvApwvvSe3i/3KO8300dyeFmkbI=",
 			"path": "github.com/DataDog/datadog-go/statsd",
-			"revision": "909c02b65dd8a52e8fa6072db9752a112227cf21",
-			"revisionTime": "2016-08-22T16:14:30Z"
+			"revision": "b10af4b12965a1ad08d164f57d14195b4140d8de",
+			"revisionTime": "2017-08-09T10:47:06Z"
 		},
 		{
 			"checksumSHA1": "AzjRkOQtVBTwIw4RJLTygFhJs3s=",
@@ -64,20 +64,27 @@
 			"revision": "bbbad097214e2918d8543d5201d12bfd7bca254d"
 		},
 		{
+			"checksumSHA1": "0et4hA6AYqZCgYiY+c6Z17t3k3k=",
 			"path": "github.com/armon/go-metrics",
-			"revision": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
+			"revision": "023a4bbe4bb9bfb23ee7e1afc8d0abad217641f3",
+			"revisionTime": "2017-08-09T01:16:44Z"
 		},
 		{
-			"checksumSHA1": "OmqT9Y1mAHvlAKeJh0jBHC9SH78=",
+			"origin": "github.com/armon",
+			"path": "github.com/armon/go-metrics/..",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "xCsGGM9TKBogZDfSN536KtQdLko=",
 			"path": "github.com/armon/go-metrics/circonus",
-			"revision": "3df31a1ada83e310c2e24b267c8e8b68836547b4",
-			"revisionTime": "2016-07-17T04:34:58Z"
+			"revision": "023a4bbe4bb9bfb23ee7e1afc8d0abad217641f3",
+			"revisionTime": "2017-08-09T01:16:44Z"
 		},
 		{
-			"checksumSHA1": "mAzNU3zeZGEwqjDT4ZkspFvx3TI=",
+			"checksumSHA1": "Dt0n1sSivvvdZQdzc4Hu/yOG+T0=",
 			"path": "github.com/armon/go-metrics/datadog",
-			"revision": "3df31a1ada83e310c2e24b267c8e8b68836547b4",
-			"revisionTime": "2016-07-17T04:34:58Z"
+			"revision": "023a4bbe4bb9bfb23ee7e1afc8d0abad217641f3",
+			"revisionTime": "2017-08-09T01:16:44Z"
 		},
 		{
 			"checksumSHA1": "gNO0JNpLzYOdInGeq7HqMZUzx9M=",
@@ -366,26 +373,26 @@
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
+			"revisionTime": "2016-05-28T10:48:36Z"
 		},
 		{
 			"checksumSHA1": "iP5slJJPRZUm0rfdII8OiATAACA=",
 			"path": "github.com/docker/docker/pkg/idtools",
-			"revision": "02caa73df411debed164f520a6a1304778f8b88c",
-			"revisionTime": "2016-05-28T10:48:36Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
+		},
+		{
+			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
+			"path": "github.com/docker/docker/pkg/ioutils",
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
 			"path": "github.com/docker/docker/pkg/ioutils",
 			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
 			"revisionTime": "2016-05-28T08:11:04Z"
-		},
-		{
-			"checksumSHA1": "tdhmIGUaoOMEDymMC23qTS7bt0g=",
-			"path": "github.com/docker/docker/pkg/ioutils",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "BlFSSK7zUjPzPuxkLmM/0wpvku8=",
