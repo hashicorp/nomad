@@ -1,3 +1,8 @@
+## 0.6.2 (August 28, 2017)
+
+BUG FIXES:
+ * api/cli: Fix logs and fs api and command [GH-3116]
+
 ## 0.6.1 (August 28, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
