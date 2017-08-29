@@ -94,9 +94,8 @@ type Config struct {
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
-	// HttpClient is the client to use. Default will be
-	// used if not provided.
-	HttpClient *http.Client
+	// httpClient is the client to use. Default will be used if not provided.
+	httpClient *http.Client
 
 	// HttpAuth is the auth info to use for http access.
 	HttpAuth *HttpBasicAuth
@@ -117,15 +116,18 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	if tlsEnabled {
 		scheme = "https"
 	}
+	defaultConfig := DefaultConfig()
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     region,
-		HttpClient: c.HttpClient,
+		httpClient: defaultConfig.httpClient,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
 	}
-	config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", c.Region)
+	if tlsEnabled && config.TLSConfig != nil {
+		config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
+	}
 
 	return config
 }
@@ -169,10 +171,10 @@ func (t *TLSConfig) Copy() *TLSConfig {
 func DefaultConfig() *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
-		HttpClient: cleanhttp.DefaultClient(),
+		httpClient: cleanhttp.DefaultClient(),
 		TLSConfig:  &TLSConfig{},
 	}
-	transport := config.HttpClient.Transport.(*http.Transport)
+	transport := config.httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
@@ -221,7 +223,10 @@ func DefaultConfig() *Config {
 
 // ConfigureTLS applies a set of TLS configurations to the the HTTP client.
 func (c *Config) ConfigureTLS() error {
-	if c.HttpClient == nil {
+	if c.TLSConfig == nil {
+		return nil
+	}
+	if c.httpClient == nil {
 		return fmt.Errorf("config HTTP Client must be set")
 	}
 
@@ -240,7 +245,7 @@ func (c *Config) ConfigureTLS() error {
 		}
 	}
 
-	clientTLSConfig := c.HttpClient.Transport.(*http.Transport).TLSClientConfig
+	clientTLSConfig := c.httpClient.Transport.(*http.Transport).TLSClientConfig
 	rootConfig := &rootcerts.Config{
 		CAFile: c.TLSConfig.CACert,
 		CAPath: c.TLSConfig.CAPath,
@@ -277,8 +282,8 @@ func NewClient(config *Config) (*Client, error) {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
-	if config.HttpClient == nil {
-		config.HttpClient = defConfig.HttpClient
+	if config.httpClient == nil {
+		config.httpClient = defConfig.httpClient
 	}
 
 	// Configure the TLS cofigurations
@@ -300,7 +305,18 @@ func (c *Client) SetRegion(region string) {
 // GetNodeClient returns a new Client that will dial the specified node. If the
 // QueryOptions is set, its region will be used.
 func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) {
-	node, _, err := c.Nodes().Info(nodeID, q)
+	return c.getNodeClientImpl(nodeID, q, c.Nodes().Info)
+}
+
+// nodeLookup is the definition of a function used to lookup a node. This is
+// largely used to mock the lookup in tests.
+type nodeLookup func(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error)
+
+// getNodeClientImpl is the implementation of creating a API client for
+// contacting a node. It takes a function to lookup the node such that it can be
+// mocked during tests.
+func (c *Client) getNodeClientImpl(nodeID string, q *QueryOptions, lookup nodeLookup) (*Client, error) {
+	node, _, err := lookup(nodeID, q)
 	if err != nil {
 		return nil, err
 	}
@@ -311,9 +327,17 @@ func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) 
 		return nil, fmt.Errorf("http addr of node %q (%s) is not advertised", node.Name, nodeID)
 	}
 
-	region := c.config.Region
-	if q != nil && q.Region != "" {
+	var region string
+	switch {
+	case q != nil && q.Region != "":
+		// Prefer the region set in the query parameter
 		region = q.Region
+	case c.config.Region != "":
+		// If the client is configured for a particular region use that
+		region = c.config.Region
+	default:
+		// No region information is given so use the default.
+		region = "global"
 	}
 
 	// Get an API client for the node
@@ -471,7 +495,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 		return 0, nil, err
 	}
 	start := time.Now()
-	resp, err := c.config.HttpClient.Do(req)
+	resp, err := c.config.httpClient.Do(req)
 	diff := time.Now().Sub(start)
 
 	// If the response is compressed, we swap the body's reader.

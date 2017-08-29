@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 type configCallback func(c *Config)
@@ -241,5 +244,128 @@ func TestQueryString(t *testing.T) {
 
 	if uri := req.URL.RequestURI(); uri != "/v1/abc?baz=zip&foo=bar&region=foo" {
 		t.Fatalf("bad uri: %q", uri)
+	}
+}
+
+func TestClient_NodeClient(t *testing.T) {
+	http := "testdomain:4646"
+	tlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
+		return &Node{
+			ID:         structs.GenerateUUID(),
+			Status:     "ready",
+			HTTPAddr:   http,
+			TLSEnabled: true,
+		}, nil, nil
+	}
+	noTlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
+		return &Node{
+			ID:         structs.GenerateUUID(),
+			Status:     "ready",
+			HTTPAddr:   http,
+			TLSEnabled: false,
+		}, nil, nil
+	}
+
+	optionNoRegion := &QueryOptions{}
+	optionRegion := &QueryOptions{
+		Region: "foo",
+	}
+
+	clientNoRegion, err := NewClient(DefaultConfig())
+	assert.Nil(t, err)
+
+	regionConfig := DefaultConfig()
+	regionConfig.Region = "bar"
+	clientRegion, err := NewClient(regionConfig)
+	assert.Nil(t, err)
+
+	expectedTLSAddr := fmt.Sprintf("https://%s", http)
+	expectedNoTLSAddr := fmt.Sprintf("http://%s", http)
+
+	cases := []struct {
+		Node                  nodeLookup
+		QueryOptions          *QueryOptions
+		Client                *Client
+		ExpectedAddr          string
+		ExpectedRegion        string
+		ExpectedTLSServerName string
+	}{
+		{
+			Node:                  tlsNode,
+			QueryOptions:          optionNoRegion,
+			Client:                clientNoRegion,
+			ExpectedAddr:          expectedTLSAddr,
+			ExpectedRegion:        "global",
+			ExpectedTLSServerName: "client.global.nomad",
+		},
+		{
+			Node:                  tlsNode,
+			QueryOptions:          optionRegion,
+			Client:                clientNoRegion,
+			ExpectedAddr:          expectedTLSAddr,
+			ExpectedRegion:        "foo",
+			ExpectedTLSServerName: "client.foo.nomad",
+		},
+		{
+			Node:                  tlsNode,
+			QueryOptions:          optionRegion,
+			Client:                clientRegion,
+			ExpectedAddr:          expectedTLSAddr,
+			ExpectedRegion:        "foo",
+			ExpectedTLSServerName: "client.foo.nomad",
+		},
+		{
+			Node:                  tlsNode,
+			QueryOptions:          optionNoRegion,
+			Client:                clientRegion,
+			ExpectedAddr:          expectedTLSAddr,
+			ExpectedRegion:        "bar",
+			ExpectedTLSServerName: "client.bar.nomad",
+		},
+		{
+			Node:                  noTlsNode,
+			QueryOptions:          optionNoRegion,
+			Client:                clientNoRegion,
+			ExpectedAddr:          expectedNoTLSAddr,
+			ExpectedRegion:        "global",
+			ExpectedTLSServerName: "",
+		},
+		{
+			Node:                  noTlsNode,
+			QueryOptions:          optionRegion,
+			Client:                clientNoRegion,
+			ExpectedAddr:          expectedNoTLSAddr,
+			ExpectedRegion:        "foo",
+			ExpectedTLSServerName: "",
+		},
+		{
+			Node:                  noTlsNode,
+			QueryOptions:          optionRegion,
+			Client:                clientRegion,
+			ExpectedAddr:          expectedNoTLSAddr,
+			ExpectedRegion:        "foo",
+			ExpectedTLSServerName: "",
+		},
+		{
+			Node:                  noTlsNode,
+			QueryOptions:          optionNoRegion,
+			Client:                clientRegion,
+			ExpectedAddr:          expectedNoTLSAddr,
+			ExpectedRegion:        "bar",
+			ExpectedTLSServerName: "",
+		},
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("%s__%s__%s", c.ExpectedAddr, c.ExpectedRegion, c.ExpectedTLSServerName)
+		t.Run(name, func(t *testing.T) {
+			assert := assert.New(t)
+			nodeClient, err := c.Client.getNodeClientImpl("testID", c.QueryOptions, c.Node)
+			assert.Nil(err)
+			assert.Equal(c.ExpectedRegion, nodeClient.config.Region)
+			assert.Equal(c.ExpectedAddr, nodeClient.config.Address)
+			assert.NotNil(nodeClient.config.TLSConfig)
+			assert.Equal(c.ExpectedTLSServerName, nodeClient.config.TLSConfig.TLSServerName)
+		})
 	}
 }

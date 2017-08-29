@@ -10,5 +10,8 @@ files. At a high-level the use case for each package is as follows:
   spin up Nomad clients in Docker containers. This provides a simple mechanism
   to create a Nomad cluster locally.
 
+* `tls_cluster`: This package provides Nomad client configs and certificates to
+  run a TLS enabled cluster.
+
 * `vault`: This package provides basic Vault configuration files for use in
   configuring a Vault server when testing Nomad and Vault integrations.
