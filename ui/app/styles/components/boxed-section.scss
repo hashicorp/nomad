@@ -10,6 +10,10 @@
     display: flex;
     flex-direction: row;
 
+    &.is-light {
+      background: $white;
+    }
+
     & + .boxed-section-body {
       padding: 1.5em;
       border-top-left-radius: 0;
@@ -34,7 +38,8 @@
 
       // Often components will have a DOM presence but no layout.
       // In that case, pass through.
-      > *:first-child, > .ember-view:first-child > *:first-child {
+      > *:first-child,
+      > .ember-view:first-child > *:first-child {
         border-top-left-radius: 0;
         border-top-right-radius: 0;
       }

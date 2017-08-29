@@ -4,6 +4,10 @@ import ApplicationSerializer from './application';
 const { assign } = Ember;
 
 export default ApplicationSerializer.extend({
+  attrs: {
+    number: 'Version',
+  },
+
   normalizeFindHasManyResponse(store, modelClass, hash, id, requestType) {
     const zippedVersions = hash.Versions.map((version, index) =>
       assign({}, version, {

@@ -6,5 +6,6 @@ export default Model.extend({
   job: belongsTo('job'),
   stable: attr('boolean'),
   submitTime: attr('date'),
+  number: attr('number'),
   diff: attr(),
 });

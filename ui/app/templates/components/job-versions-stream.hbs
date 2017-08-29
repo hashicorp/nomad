@@ -1,0 +1,21 @@
+{{#each annotatedVersions as |record|}}
+  {{#if record.meta.showDate}}
+    <li class="timeline-note">
+      {{moment-format record.version.submitTime "MMMM D, YYYY"}}
+    </li>
+  {{/if}}
+  <li class="timeline-object">
+    <div class="boxed-section">
+      <div class="boxed-section-head is-light inline-definitions">
+        Version #{{record.version.number}}
+        <span class="bumper-left pair">
+          <span class="term">Stable</span>
+          <span class="tag is-light">
+            <code>{{record.version.stable}}</code>
+          </span>
+          <span>| {{moment-format record.version.submitTime "DD/MM/YY HH:mm:ss [UTC]"}}</span>
+        </span>
+      </div>
+    </div>
+  </li>
+{{/each}}
