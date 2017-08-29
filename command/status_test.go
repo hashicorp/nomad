@@ -39,6 +39,35 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	ui.OutputWriter.Reset()
 }
 
+func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create two fake jobs sharing a prefix
+	state := srv.Agent.Server().State()
+	j := mock.Job()
+	j2 := mock.Job()
+	j2.ID = fmt.Sprintf("%s-more", j.ID)
+	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(1001, j2))
+
+	// Query to check the job status
+	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+
+	out := ui.OutputWriter.String()
+	assert.Contains(out, j.ID)
+
+	ui.OutputWriter.Reset()
+}
+
 func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
