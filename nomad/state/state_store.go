@@ -2749,6 +2749,12 @@ func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPoli
 	defer txn.Abort()
 
 	for _, policy := range policies {
+		// Ensure the policy hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(policy.Hash) == 0 {
+			policy.SetHash()
+		}
+
 		// Check if the policy already exists
 		existing, err := txn.First("acl_policy", "id", policy.Name)
 		if err != nil {
@@ -2845,6 +2851,12 @@ func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) e
 	defer txn.Abort()
 
 	for _, token := range tokens {
+		// Ensure the policy hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(token.Hash) == 0 {
+			token.SetHash()
+		}
+
 		// Check if the token already exists
 		existing, err := txn.First("acl_token", "id", token.AccessorID)
 		if err != nil {

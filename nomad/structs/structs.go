@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
@@ -5269,14 +5271,37 @@ type ACLPolicy struct {
 	Name        string // Unique name
 	Description string // Human readable
 	Rules       string // HCL or JSON format
+	Hash        []byte
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL policy
+func (c *ACLPolicy) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(c.Name))
+	hash.Write([]byte(c.Description))
+	hash.Write([]byte(c.Rules))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	c.Hash = hashVal
+	return hashVal
 }
 
 func (a *ACLPolicy) Stub() *ACLPolicyListStub {
 	return &ACLPolicyListStub{
 		Name:        a.Name,
 		Description: a.Description,
+		Hash:        a.Hash,
 		CreateIndex: a.CreateIndex,
 		ModifyIndex: a.ModifyIndex,
 	}
@@ -5303,6 +5328,7 @@ func (a *ACLPolicy) Validate() error {
 type ACLPolicyListStub struct {
 	Name        string
 	Description string
+	Hash        []byte
 	CreateIndex uint64
 	ModifyIndex uint64
 }
@@ -5356,12 +5382,13 @@ type ACLPolicyUpsertRequest struct {
 
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
-	AccessorID  string    // Public Accessor ID (UUID)
-	SecretID    string    // Secret ID, private (UUID)
-	Name        string    // Human friendly name
-	Type        string    // Client or Management
-	Policies    []string  // Policies this token ties to
-	Global      bool      // Global or Region local
+	AccessorID  string   // Public Accessor ID (UUID)
+	SecretID    string   // Secret ID, private (UUID)
+	Name        string   // Human friendly name
+	Type        string   // Client or Management
+	Policies    []string // Policies this token ties to
+	Global      bool     // Global or Region local
+	Hash        []byte
 	CreateTime  time.Time // Time of creation
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -5385,9 +5412,38 @@ type ACLTokenListStub struct {
 	Type        string
 	Policies    []string
 	Global      bool
+	Hash        []byte
 	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL token
+func (a *ACLToken) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(a.Name))
+	hash.Write([]byte(a.Type))
+	for _, policyName := range a.Policies {
+		hash.Write([]byte(policyName))
+	}
+	if a.Global {
+		hash.Write([]byte("global"))
+	} else {
+		hash.Write([]byte("local"))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	a.Hash = hashVal
+	return hashVal
 }
 
 func (a *ACLToken) Stub() *ACLTokenListStub {
@@ -5397,6 +5453,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 		Type:        a.Type,
 		Policies:    a.Policies,
 		Global:      a.Global,
+		Hash:        a.Hash,
 		CreateTime:  a.CreateTime,
 		CreateIndex: a.CreateIndex,
 		ModifyIndex: a.ModifyIndex,

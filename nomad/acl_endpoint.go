@@ -45,11 +45,12 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 		return fmt.Errorf("must specify as least one policy")
 	}
 
-	// Validate each policy
+	// Validate each policy, compute hash
 	for idx, policy := range args.Policies {
 		if err := policy.Validate(); err != nil {
 			return fmt.Errorf("policy %d invalid: %v", idx, err)
 		}
+		policy.SetHash()
 	}
 
 	// Update via Raft
@@ -298,6 +299,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		Global:     true,
 		CreateTime: time.Now().UTC(),
 	}
+	args.Token.SetHash()
 
 	// Update via Raft
 	_, index, err := a.srv.raftApply(structs.ACLTokenBootstrapRequestType, args)
@@ -401,6 +403,9 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 				return fmt.Errorf("cannot toggle global mode of %s", token.AccessorID)
 			}
 		}
+
+		// Compute the token hash
+		token.SetHash()
 	}
 
 	// Update via Raft
