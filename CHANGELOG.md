@@ -1,6 +1,7 @@
 ## 0.6.3 (Unreleased)
 
 BUG FIXES:
+ * api: Search handles prefix longer than allowed UUIDs [GH-3138]
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
