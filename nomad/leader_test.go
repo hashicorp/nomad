@@ -825,6 +825,7 @@ func TestLeader_DiffSentinelPolicies(t *testing.T) {
 	p2Stub.ModifyIndex = 50 // Ignored, same index
 	p3Stub := p3.Stub()
 	p3Stub.ModifyIndex = 100 // Updated, higher index
+	p3Stub.Hash = []byte{0, 1, 2, 3}
 	p4 := mock.SentinelPolicy()
 	remoteList := []*structs.SentinelPolicyListStub{
 		p2Stub,

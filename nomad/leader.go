@@ -1050,7 +1050,7 @@ ERR_WAIT:
 // be deleted or updated.
 func diffSentinelPolicies(state *state.StateStore, minIndex uint64, remoteList []*structs.SentinelPolicyListStub) (delete []string, update []string) {
 	// Construct a set of the local and remote policies
-	local := make(map[string]struct{})
+	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
 
 	// Add all the local policies
@@ -1064,7 +1064,7 @@ func diffSentinelPolicies(state *state.StateStore, minIndex uint64, remoteList [
 			break
 		}
 		policy := raw.(*structs.SentinelPolicy)
-		local[policy.Name] = struct{}{}
+		local[policy.Name] = policy.Hash
 	}
 
 	// Iterate over the remote policies
@@ -1072,14 +1072,11 @@ func diffSentinelPolicies(state *state.StateStore, minIndex uint64, remoteList [
 		remote[rp.Name] = struct{}{}
 
 		// Check if the policy is missing locally
-		if _, ok := local[rp.Name]; !ok {
+		if localHash, ok := local[rp.Name]; !ok {
 			update = append(update, rp.Name)
 
-			// Check if policy is newer remotely
-			// TODO: Eventually would be nice to use a policy
-			// hash or something to avoid fetching policies that
-			// are unchanged.
-		} else if rp.ModifyIndex > minIndex {
+			// Check if policy is newer remotely and there is a hash mis-match.
+		} else if rp.ModifyIndex > minIndex && !bytes.Equal(localHash, rp.Hash) {
 			update = append(update, rp.Name)
 		}
 	}

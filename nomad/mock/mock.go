@@ -390,7 +390,7 @@ func ACLManagementToken() *structs.ACLToken {
 }
 
 func SentinelPolicy() *structs.SentinelPolicy {
-	return &structs.SentinelPolicy{
+	sp := &structs.SentinelPolicy{
 		Name:             fmt.Sprintf("sent-policy-%s", structs.GenerateUUID()),
 		Description:      "Super cool policy!",
 		EnforcementLevel: "advisory",
@@ -399,4 +399,6 @@ func SentinelPolicy() *structs.SentinelPolicy {
 		CreateIndex:      10,
 		ModifyIndex:      20,
 	}
+	sp.SetHash()
+	return sp
 }
