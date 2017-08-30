@@ -2,6 +2,7 @@
 
 BUG FIXES:
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
+ * cli: Sort task groups when displaying a deployment [GH-3137]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
  * cli: Status command honors exact job match even when it is the prefix of
