@@ -339,7 +339,7 @@ func PlanResult() *structs.PlanResult {
 }
 
 func ACLPolicy() *structs.ACLPolicy {
-	return &structs.ACLPolicy{
+	ap := &structs.ACLPolicy{
 		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
 		Description: "Super cool policy!",
 		Rules: `
@@ -356,10 +356,12 @@ func ACLPolicy() *structs.ACLPolicy {
 		CreateIndex: 10,
 		ModifyIndex: 20,
 	}
+	ap.SetHash()
+	return ap
 }
 
 func ACLToken() *structs.ACLToken {
-	return &structs.ACLToken{
+	tk := &structs.ACLToken{
 		AccessorID:  structs.GenerateUUID(),
 		SecretID:    structs.GenerateUUID(),
 		Name:        "my cool token " + structs.GenerateUUID(),
@@ -370,6 +372,8 @@ func ACLToken() *structs.ACLToken {
 		CreateIndex: 10,
 		ModifyIndex: 20,
 	}
+	tk.SetHash()
+	return tk
 }
 
 func ACLManagementToken() *structs.ACLToken {

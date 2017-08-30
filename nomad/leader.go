@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -765,7 +766,7 @@ ERR_WAIT:
 // be deleted or updated.
 func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLPolicyListStub) (delete []string, update []string) {
 	// Construct a set of the local and remote policies
-	local := make(map[string]struct{})
+	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
 
 	// Add all the local policies
@@ -779,7 +780,7 @@ func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*str
 			break
 		}
 		policy := raw.(*structs.ACLPolicy)
-		local[policy.Name] = struct{}{}
+		local[policy.Name] = policy.Hash
 	}
 
 	// Iterate over the remote policies
@@ -787,14 +788,11 @@ func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*str
 		remote[rp.Name] = struct{}{}
 
 		// Check if the policy is missing locally
-		if _, ok := local[rp.Name]; !ok {
+		if localHash, ok := local[rp.Name]; !ok {
 			update = append(update, rp.Name)
 
-			// Check if policy is newer remotely
-			// TODO: Eventually would be nice to use a policy
-			// hash or something to avoid fetching policies that
-			// are unchanged.
-		} else if rp.ModifyIndex > minIndex {
+			// Check if policy is newer remotely and there is a hash mis-match.
+		} else if rp.ModifyIndex > minIndex && !bytes.Equal(localHash, rp.Hash) {
 			update = append(update, rp.Name)
 		}
 	}
@@ -910,7 +908,7 @@ ERR_WAIT:
 // be deleted or updated.
 func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
 	// Construct a set of the local and remote policies
-	local := make(map[string]struct{})
+	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
 
 	// Add all the local global tokens
@@ -924,7 +922,7 @@ func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*struc
 			break
 		}
 		token := raw.(*structs.ACLToken)
-		local[token.AccessorID] = struct{}{}
+		local[token.AccessorID] = token.Hash
 	}
 
 	// Iterate over the remote tokens
@@ -932,14 +930,11 @@ func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*struc
 		remote[rp.AccessorID] = struct{}{}
 
 		// Check if the token is missing locally
-		if _, ok := local[rp.AccessorID]; !ok {
+		if localHash, ok := local[rp.AccessorID]; !ok {
 			update = append(update, rp.AccessorID)
 
-			// Check if token is newer remotely
-			// TODO: Eventually would be nice to use an object
-			// hash or something to avoid fetching tokens that
-			// are unchanged.
-		} else if rp.ModifyIndex > minIndex {
+			// Check if policy is newer remotely and there is a hash mis-match.
+		} else if rp.ModifyIndex > minIndex && !bytes.Equal(localHash, rp.Hash) {
 			update = append(update, rp.AccessorID)
 		}
 	}
