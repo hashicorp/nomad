@@ -3973,12 +3973,6 @@ func (c *Constraint) Validate() error {
 	switch c.Operand {
 	case ConstraintDistinctHosts:
 		requireLtarget = false
-		if c.RTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow RTarget. Got %q", c.RTarget))
-		}
-		if c.LTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow LTarget. Got %q", c.LTarget))
-		}
 	case ConstraintSetContains:
 		if c.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
