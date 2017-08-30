@@ -40,11 +40,12 @@ func (s *Sentinel) UpsertPolicies(args *structs.SentinelPolicyUpsertRequest, rep
 		return fmt.Errorf("must specify as least one policy")
 	}
 
-	// Validate each policy
+	// Validate each policy, compute hash
 	for idx, policy := range args.Policies {
 		if err := policy.Validate(); err != nil {
 			return fmt.Errorf("policy %d invalid: %v", idx, err)
 		}
+		policy.SetHash()
 	}
 
 	// Update via Raft

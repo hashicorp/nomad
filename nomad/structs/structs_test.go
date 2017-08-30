@@ -2365,6 +2365,28 @@ func TestACLPolicySetHash(t *testing.T) {
 	assert.NotEqual(t, out1, out2)
 }
 
+func TestSentinelPolicySetHash(t *testing.T) {
+	sp := &SentinelPolicy{
+		Name:             "test",
+		Description:      "Great policy",
+		Scope:            SentinelScopeSubmitJob,
+		EnforcementLevel: SentinelEnforcementLevelAdvisory,
+		Policy:           "main = rule { true }",
+	}
+
+	out1 := sp.SetHash()
+	assert.NotNil(t, out1)
+	assert.NotNil(t, sp.Hash)
+	assert.Equal(t, out1, sp.Hash)
+
+	sp.Policy = "main = rule { false }"
+	out2 := sp.SetHash()
+	assert.NotNil(t, out2)
+	assert.NotNil(t, sp.Hash)
+	assert.Equal(t, out2, sp.Hash)
+	assert.NotEqual(t, out1, out2)
+}
+
 func TestSentinelPolicy_Validate(t *testing.T) {
 	sp := &SentinelPolicy{
 		Name:             "test",

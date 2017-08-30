@@ -3029,6 +3029,12 @@ func (s *StateStore) UpsertSentinelPolicies(index uint64, policies []*structs.Se
 	defer txn.Abort()
 
 	for _, policy := range policies {
+		// Ensure the policy hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(policy.Hash) == 0 {
+			policy.SetHash()
+		}
+
 		// Check if the policy already exists
 		existing, err := txn.First("sentinel_policy", "id", policy.Name)
 		if err != nil {

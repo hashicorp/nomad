@@ -5605,6 +5605,7 @@ type SentinelPolicy struct {
 	Scope            string // Where should this policy be executed
 	EnforcementLevel string // Enforcement Level
 	Policy           string
+	Hash             []byte
 	CreateIndex      uint64
 	ModifyIndex      uint64
 }
@@ -5614,6 +5615,7 @@ type SentinelPolicyListStub struct {
 	Description      string
 	Scope            string
 	EnforcementLevel string
+	Hash             []byte
 	CreateIndex      uint64
 	ModifyIndex      uint64
 }
@@ -5624,9 +5626,33 @@ func (s *SentinelPolicy) Stub() *SentinelPolicyListStub {
 		Description:      s.Description,
 		Scope:            s.Scope,
 		EnforcementLevel: s.EnforcementLevel,
+		Hash:             s.Hash,
 		CreateIndex:      s.CreateIndex,
 		ModifyIndex:      s.ModifyIndex,
 	}
+}
+
+// SetHash is used to compute and set the hash of the ACL policy
+func (s *SentinelPolicy) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(s.Name))
+	hash.Write([]byte(s.Description))
+	hash.Write([]byte(s.Scope))
+	hash.Write([]byte(s.EnforcementLevel))
+	hash.Write([]byte(s.Policy))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	s.Hash = hashVal
+	return hashVal
 }
 
 func (s *SentinelPolicy) Validate() error {
