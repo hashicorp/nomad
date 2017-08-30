@@ -924,7 +924,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
-	if len(driverConfig.Logging) == 0 {
+	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
 		if runtime.GOOS != "darwin" {
 			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 			driverConfig.Logging = []DockerLoggingOpts{
