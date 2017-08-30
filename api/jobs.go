@@ -403,6 +403,43 @@ func (u *UpdateStrategy) Canonicalize() {
 	}
 }
 
+// Empty returns whether the UpdateStrategy is empty or has user defined values.
+func (u *UpdateStrategy) Empty() bool {
+	if u == nil {
+		return true
+	}
+
+	if u.Stagger != nil && *u.Stagger != 0 {
+		return false
+	}
+
+	if u.MaxParallel != nil && *u.MaxParallel != 0 {
+		return false
+	}
+
+	if u.HealthCheck != nil && *u.HealthCheck != "" {
+		return false
+	}
+
+	if u.MinHealthyTime != nil && *u.MinHealthyTime != 0 {
+		return false
+	}
+
+	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.Canary != nil && *u.Canary != 0 {
+		return false
+	}
+
+	return true
+}
+
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
 	Enabled         *bool

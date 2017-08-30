@@ -188,8 +188,8 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jc := job.Update.Copy()
 		jc.Merge(g.Update)
 		g.Update = jc
-	} else if ju {
-		// Inherit the jobs
+	} else if ju && !job.Update.Empty() {
+		// Inherit the jobs as long as it is non-empty.
 		jc := job.Update.Copy()
 		g.Update = jc
 	}
