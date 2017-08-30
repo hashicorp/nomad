@@ -3,7 +3,9 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	metrics "github.com/armon/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/sentinel/sentinel"
@@ -15,6 +17,11 @@ type sentinelDataCallback func() map[string]interface{}
 // enforceScope is to enforce any Sentinel policies for a given scope.
 // Returns either a set of warnings or errors.
 func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCallback) (error, error) {
+	// Fast-path if ACLs are disabled
+	if !s.config.ACLEnabled {
+		return nil, nil
+	}
+
 	// Gather the applicable policies
 	registered, err := s.sentinelPoliciesByScope(scope)
 	if err != nil {
@@ -25,6 +32,7 @@ func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCa
 	if len(registered) == 0 {
 		return nil, nil
 	}
+	defer metrics.MeasureSince([]string{"nomad", "sentinel", "enforce_scope", scope}, time.Now())
 
 	// Prepare the policies for execution
 	prepared, err := prepareSentinelPolicies(s.sentinel, registered)
