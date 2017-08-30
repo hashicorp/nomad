@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -189,7 +190,9 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	// Detect if we need to add these columns
 	canaries, autorevert := false, false
-	for _, state := range d.TaskGroups {
+	tgNames := make([]string, 0, len(d.TaskGroups))
+	for name, state := range d.TaskGroups {
+		tgNames = append(tgNames, name)
 		if state.AutoRevert {
 			autorevert = true
 		}
@@ -197,6 +200,9 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 			canaries = true
 		}
 	}
+
+	// Sort the task group names to get a reliable ordering
+	sort.Strings(tgNames)
 
 	// Build the row string
 	rowString := "Task Group|"
@@ -215,7 +221,8 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	rows := make([]string, len(d.TaskGroups)+1)
 	rows[0] = rowString
 	i := 1
-	for tg, state := range d.TaskGroups {
+	for _, tg := range tgNames {
+		state := d.TaskGroups[tg]
 		row := fmt.Sprintf("%s|", tg)
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)
