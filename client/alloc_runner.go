@@ -675,9 +675,9 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 	case structs.TaskStateDead:
 		// Capture the finished time. If it has never started there is no finish
 		// time
+		metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "dead"}, 1)
 		if !taskState.StartedAt.IsZero() {
 			taskState.FinishedAt = time.Now().UTC()
-			metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "dead"}, 1)
 		}
 
 		// Find all tasks that are not the one that is dead and check if the one
@@ -694,6 +694,12 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			}
 		}
 
+		// Emitting metrics to indicate task complete and failures
+		if taskState.Failed {
+			metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
+		} else {
+			metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "complete"}, 1)
+		}
 		// If the task failed, we should kill all the other tasks in the task group.
 		if taskState.Failed {
 			for _, tr := range otherTaskRunners {
@@ -744,7 +750,7 @@ func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
 	go r.dirtySyncState()
 
-	// Incr alloc runner start counter
+	// Increment alloc runner start counter. Incr'd even when restoring existing tasks so 1 start != 1 task execution
 	metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, "start"}, 1)
 
 	// Find the task group to run in the allocation
@@ -929,7 +935,7 @@ func (r *AllocRunner) handleDestroy() {
 	// state as we wait for a destroy.
 	alloc := r.Alloc()
 
-	// Incr the alloc destroy counter
+	// Increment the destroy count for this alloc runner since this allocation is being removed from this client.
 	metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, "destroy"}, 1)
 
 	//TODO(schmichael) updater can cause a GC which can block on this alloc
