@@ -33,7 +33,7 @@ Write Options:
   -scope (default: submit-job)
     Sets the scope of the policy and when it should be enforced.
 
-  -type (default: advisory)
+  -level (default: advisory)
     Sets the enforcment level of the policy. Must be one of advisory,
 	soft-mandatory, hard-mandatory.
 
@@ -46,13 +46,13 @@ func (c *SentinelWriteCommand) Synopsis() string {
 }
 
 func (c *SentinelWriteCommand) Run(args []string) int {
-	var description, scope, enfType string
+	var description, scope, enfLevel string
 	var err error
 	flags := c.Meta.FlagSet("sentinel write", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 	flags.StringVar(&scope, "scope", "submit-job", "")
-	flags.StringVar(&enfType, "type", "advisory", "")
+	flags.StringVar(&enfLevel, "level", "advisory", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -86,11 +86,11 @@ func (c *SentinelWriteCommand) Run(args []string) int {
 
 	// Construct the policy
 	sp := &api.SentinelPolicy{
-		Name:        policyName,
-		Description: description,
-		Scope:       scope,
-		Type:        enfType,
-		Policy:      string(rawPolicy),
+		Name:             policyName,
+		Description:      description,
+		Scope:            scope,
+		EnforcementLevel: enfLevel,
+		Policy:           string(rawPolicy),
 	}
 
 	// Get the HTTP client

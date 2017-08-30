@@ -30,7 +30,7 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 
 	// Add a failing policy
 	policy3 := mock.SentinelPolicy()
-	policy3.Type = structs.SentinelTypeHardMandatory
+	policy3.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
 	policy3.Policy = "main = rule { false }"
 	s1.State().UpsertSentinelPolicies(1001, []*structs.SentinelPolicy{policy3})
 
@@ -42,7 +42,7 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 	// Update policy3 to be advisory
 	p3update := new(structs.SentinelPolicy)
 	*p3update = *policy3
-	p3update.Type = structs.SentinelTypeAdvisory
+	p3update.EnforcementLevel = structs.SentinelEnforcementLevelAdvisory
 	s1.State().UpsertSentinelPolicies(1002, []*structs.SentinelPolicy{p3update})
 
 	// Check that we get a warning
@@ -94,15 +94,15 @@ func TestSentinelResultToWarnErr(t *testing.T) {
 	// p2: Fails, Soft-mandatory + Override (warn)
 	// p3: Fails, Advisory (warn)
 	p1 := mock.SentinelPolicy()
-	p1.Type = structs.SentinelTypeHardMandatory
+	p1.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
 	p1.Policy = "main = rule { false }"
 
 	p2 := mock.SentinelPolicy()
-	p2.Type = structs.SentinelTypeSoftMandatory
+	p2.EnforcementLevel = structs.SentinelEnforcementLevelSoftMandatory
 	p2.Policy = "main = rule { false }"
 
 	p3 := mock.SentinelPolicy()
-	p3.Type = structs.SentinelTypeAdvisory
+	p3.EnforcementLevel = structs.SentinelEnforcementLevelAdvisory
 	p3.Policy = "main = rule { false }"
 
 	// Prepare the policies

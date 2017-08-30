@@ -129,9 +129,9 @@ const (
 
 // Restrict the possible Sentinel policy types
 const (
-	SentinelTypeAdvisory      = "advisory"
-	SentinelTypeSoftMandatory = "soft-mandatory"
-	SentinelTypeHardMandatory = "hard-mandatory"
+	SentinelEnforcementLevelAdvisory      = "advisory"
+	SentinelEnforcementLevelSoftMandatory = "soft-mandatory"
+	SentinelEnforcementLevelHardMandatory = "hard-mandatory"
 )
 
 // Restrict the possible Sentinel scopes
@@ -5600,32 +5600,32 @@ type ACLTokenUpsertResponse struct {
 
 // SentinelPolicy is used to represent a Sentinel policy
 type SentinelPolicy struct {
-	Name        string // Unique name
-	Description string // Human readable
-	Scope       string // Where should this policy be executed
-	Type        string // Enforcement Level
-	Policy      string
-	CreateIndex uint64
-	ModifyIndex uint64
+	Name             string // Unique name
+	Description      string // Human readable
+	Scope            string // Where should this policy be executed
+	EnforcementLevel string // Enforcement Level
+	Policy           string
+	CreateIndex      uint64
+	ModifyIndex      uint64
 }
 
 type SentinelPolicyListStub struct {
-	Name        string
-	Description string
-	Scope       string
-	Type        string
-	CreateIndex uint64
-	ModifyIndex uint64
+	Name             string
+	Description      string
+	Scope            string
+	EnforcementLevel string
+	CreateIndex      uint64
+	ModifyIndex      uint64
 }
 
 func (s *SentinelPolicy) Stub() *SentinelPolicyListStub {
 	return &SentinelPolicyListStub{
-		Name:        s.Name,
-		Description: s.Description,
-		Scope:       s.Scope,
-		Type:        s.Type,
-		CreateIndex: s.CreateIndex,
-		ModifyIndex: s.ModifyIndex,
+		Name:             s.Name,
+		Description:      s.Description,
+		Scope:            s.Scope,
+		EnforcementLevel: s.EnforcementLevel,
+		CreateIndex:      s.CreateIndex,
+		ModifyIndex:      s.ModifyIndex,
 	}
 }
 
@@ -5643,10 +5643,11 @@ func (s *SentinelPolicy) Validate() error {
 		err := fmt.Errorf("invalid scope %q", s.Scope)
 		mErr.Errors = append(mErr.Errors, err)
 	}
-	switch s.Type {
-	case SentinelTypeAdvisory, SentinelTypeSoftMandatory, SentinelTypeHardMandatory:
+	switch s.EnforcementLevel {
+	case SentinelEnforcementLevelAdvisory, SentinelEnforcementLevelSoftMandatory, SentinelEnforcementLevelHardMandatory:
 	default:
-		err := fmt.Errorf("invalid type %q", s.Type)
+		err := fmt.Errorf("invalid enforcement level %q",
+			s.EnforcementLevel)
 		mErr.Errors = append(mErr.Errors, err)
 	}
 

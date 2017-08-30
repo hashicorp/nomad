@@ -116,7 +116,7 @@ func prepareSentinelPolicies(sent *sentinel.Sentinel, policies []*structs.Sentin
 
 		// Set the policy and declare it is ready
 		p.SetName(inp.Name)
-		p.SetLevel(sentinel.EnforcementLevel(inp.Type))
+		p.SetLevel(sentinel.EnforcementLevel(inp.EnforcementLevel))
 		p.SetPolicy(f, fset)
 		p.SetReady()
 	}

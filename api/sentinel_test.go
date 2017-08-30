@@ -26,11 +26,11 @@ func TestSentinelPolicies_ListUpsert(t *testing.T) {
 
 	// Register a policy
 	policy := &SentinelPolicy{
-		Name:        "test",
-		Description: "test",
-		Type:        "advisory",
-		Scope:       "submit-job",
-		Policy:      "main = rule { true }",
+		Name:             "test",
+		Description:      "test",
+		EnforcementLevel: "advisory",
+		Scope:            "submit-job",
+		Policy:           "main = rule { true }",
 	}
 	wm, err := ap.Upsert(policy, nil)
 	assert.Nil(t, err)
@@ -55,11 +55,11 @@ func TestSentinelPolicies_Delete(t *testing.T) {
 
 	// Register a policy
 	policy := &SentinelPolicy{
-		Name:        "test",
-		Description: "test",
-		Type:        "advisory",
-		Scope:       "submit-job",
-		Policy:      "main = rule { true } ",
+		Name:             "test",
+		Description:      "test",
+		EnforcementLevel: "advisory",
+		Scope:            "submit-job",
+		Policy:           "main = rule { true } ",
 	}
 	wm, err := ap.Upsert(policy, nil)
 	assert.Nil(t, err)
@@ -89,11 +89,11 @@ func TestSentinelPolicies_Info(t *testing.T) {
 
 	// Register a policy
 	policy := &SentinelPolicy{
-		Name:        "test",
-		Description: "test",
-		Type:        "advisory",
-		Scope:       "submit-job",
-		Policy:      "main = rule { true }",
+		Name:             "test",
+		Description:      "test",
+		EnforcementLevel: "advisory",
+		Scope:            "submit-job",
+		Policy:           "main = rule { true }",
 	}
 	wm, err := ap.Upsert(policy, nil)
 	assert.Nil(t, err)

@@ -2367,11 +2367,11 @@ func TestACLPolicySetHash(t *testing.T) {
 
 func TestSentinelPolicy_Validate(t *testing.T) {
 	sp := &SentinelPolicy{
-		Name:        "test",
-		Description: "Great policy",
-		Scope:       SentinelScopeSubmitJob,
-		Type:        SentinelTypeAdvisory,
-		Policy:      "main = rule { true }",
+		Name:             "test",
+		Description:      "Great policy",
+		Scope:            SentinelScopeSubmitJob,
+		EnforcementLevel: SentinelEnforcementLevelAdvisory,
+		Policy:           "main = rule { true }",
 	}
 
 	// Test a good policy
@@ -2393,11 +2393,11 @@ func TestSentinelPolicy_Validate(t *testing.T) {
 
 	// Try an invalid type
 	sp.Scope = SentinelScopeSubmitJob
-	sp.Type = "yolo"
+	sp.EnforcementLevel = "yolo"
 	assert.NotNil(t, sp.Validate())
 
 	// Try an invalid policy
-	sp.Type = SentinelTypeAdvisory
+	sp.EnforcementLevel = SentinelEnforcementLevelAdvisory
 	sp.Policy = "blah 123"
 	assert.NotNil(t, sp.Validate())
 }
@@ -2412,11 +2412,11 @@ func TestSentinelPolicy_CacheKey(t *testing.T) {
 
 func TestSentinelPolicy_Compile(t *testing.T) {
 	sp := &SentinelPolicy{
-		Name:        "test",
-		Description: "Great policy",
-		Scope:       SentinelScopeSubmitJob,
-		Type:        SentinelTypeAdvisory,
-		Policy:      "main = rule { true }",
+		Name:             "test",
+		Description:      "Great policy",
+		Scope:            SentinelScopeSubmitJob,
+		EnforcementLevel: SentinelEnforcementLevelAdvisory,
+		Policy:           "main = rule { true }",
 	}
 
 	f, fset, err := sp.Compile()

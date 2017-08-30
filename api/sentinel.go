@@ -60,20 +60,20 @@ func (a *SentinelPolicies) Info(policyName string, q *QueryOptions) (*SentinelPo
 }
 
 type SentinelPolicy struct {
-	Name        string
-	Description string
-	Scope       string
-	Type        string
-	Policy      string
-	CreateIndex uint64
-	ModifyIndex uint64
+	Name             string
+	Description      string
+	Scope            string
+	EnforcementLevel string
+	Policy           string
+	CreateIndex      uint64
+	ModifyIndex      uint64
 }
 
 type SentinelPolicyListStub struct {
-	Name        string
-	Description string
-	Scope       string
-	Type        string
-	CreateIndex uint64
-	ModifyIndex uint64
+	Name             string
+	Description      string
+	Scope            string
+	EnforcementLevel string
+	CreateIndex      uint64
+	ModifyIndex      uint64
 }

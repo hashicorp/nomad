@@ -147,7 +147,7 @@ func TestJobEndpoint_Register_Sentinel(t *testing.T) {
 
 	// Create a passing policy
 	policy1 := mock.SentinelPolicy()
-	policy1.Type = structs.SentinelTypeHardMandatory
+	policy1.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
 	s1.State().UpsertSentinelPolicies(1000,
 		[]*structs.SentinelPolicy{policy1})
 
@@ -169,7 +169,7 @@ func TestJobEndpoint_Register_Sentinel(t *testing.T) {
 
 	// Create a failing policy
 	policy2 := mock.SentinelPolicy()
-	policy2.Type = structs.SentinelTypeSoftMandatory
+	policy2.EnforcementLevel = structs.SentinelEnforcementLevelSoftMandatory
 	policy2.Policy = "main = rule { false }"
 	s1.State().UpsertSentinelPolicies(1001,
 		[]*structs.SentinelPolicy{policy2})
@@ -202,7 +202,7 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 
 	// Create a passing policy
 	policy1 := mock.SentinelPolicy()
-	policy1.Type = structs.SentinelTypeHardMandatory
+	policy1.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
 	policy1.Policy = `
 	main = rule { all_drivers_exec }
 

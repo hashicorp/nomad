@@ -414,7 +414,7 @@ func TestSentinelEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 
 	// Create the register request
 	p1 := mock.SentinelPolicy()
-	p1.Type = "foobar"
+	p1.EnforcementLevel = "foobar"
 
 	// Lookup the policies
 	req := &structs.SentinelPolicyUpsertRequest{
@@ -427,7 +427,7 @@ func TestSentinelEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "Sentinel.UpsertPolicies", req, &resp)
 	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "invalid type") {
+	if !strings.Contains(err.Error(), "invalid enforcement level") {
 		t.Fatalf("bad: %s", err)
 	}
 }

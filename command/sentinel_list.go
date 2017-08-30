@@ -56,9 +56,9 @@ func (c *SentinelListCommand) Run(args []string) int {
 	}
 
 	out := []string{}
-	out = append(out, "Name|Scope|Type|Description")
+	out = append(out, "Name|Scope|Enforcement Level|Description")
 	for _, p := range policies {
-		line := fmt.Sprintf("%s|%s|%s|%s", p.Name, p.Scope, p.Type, p.Description)
+		line := fmt.Sprintf("%s|%s|%s|%s", p.Name, p.Scope, p.EnforcementLevel, p.Description)
 		out = append(out, line)
 	}
 	c.Ui.Output(columnize.SimpleFormat(out))

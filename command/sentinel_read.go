@@ -75,7 +75,7 @@ func (c *SentinelReadCommand) Run(args []string) int {
 	info := []string{
 		fmt.Sprintf("Name|%s", policy.Name),
 		fmt.Sprintf("Scope|%s", policy.Scope),
-		fmt.Sprintf("Type|%s", policy.Type),
+		fmt.Sprintf("Enforcement Level|%s", policy.EnforcementLevel),
 		fmt.Sprintf("Description|%s", policy.Description),
 	}
 	c.Ui.Output(formatKV(info))
