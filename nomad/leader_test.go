@@ -683,6 +683,7 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 	p2Stub.ModifyIndex = 50 // Ignored, same index
 	p3Stub := p3.Stub()
 	p3Stub.ModifyIndex = 100 // Updated, higher index
+	p3Stub.Hash = []byte{0, 1, 2, 3}
 	p4 := mock.ACLPolicy()
 	remoteList := []*structs.ACLPolicyListStub{
 		p2Stub,
@@ -759,6 +760,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	p2Stub.ModifyIndex = 50 // Ignored, same index
 	p3Stub := p3.Stub()
 	p3Stub.ModifyIndex = 100 // Updated, higher index
+	p3Stub.Hash = []byte{0, 1, 2, 3}
 	p4 := mock.ACLToken()
 	p4.Global = true
 	remoteList := []*structs.ACLTokenListStub{
