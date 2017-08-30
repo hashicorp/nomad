@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
@@ -242,4 +243,26 @@ func TestTask_Artifact(t *testing.T) {
 	if *a.RelativeDest != "local/foo.txt" {
 		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
 	}
+}
+
+// Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
+func TestTaskGroup_Canonicalize_Update(t *testing.T) {
+	job := &Job{
+		ID: helper.StringToPtr("test"),
+		Update: &UpdateStrategy{
+			AutoRevert:      helper.BoolToPtr(false),
+			Canary:          helper.IntToPtr(0),
+			HealthCheck:     helper.StringToPtr(""),
+			HealthyDeadline: helper.TimeToPtr(0),
+			MaxParallel:     helper.IntToPtr(0),
+			MinHealthyTime:  helper.TimeToPtr(0),
+			Stagger:         helper.TimeToPtr(0),
+		},
+	}
+	job.Canonicalize()
+	tg := &TaskGroup{
+		Name: helper.StringToPtr("foo"),
+	}
+	tg.Canonicalize(job)
+	assert.Nil(t, tg.Update)
 }

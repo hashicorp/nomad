@@ -1,14 +1,17 @@
 ## 0.6.3 (Unreleased)
 
 BUG FIXES:
+ * api: Search handles prefix longer than allowed UUIDs [GH-3138]
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
  * cli: Sort task groups when displaying a deployment [GH-3137]
+ * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
    contacting nodes that are using TLS [GH-3127]
+ * jobspec: Allow distinct_host constraint to have L/RTarget set [GH-3136]
 
 ## 0.6.2 (August 28, 2017)
 
