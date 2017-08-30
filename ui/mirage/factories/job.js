@@ -54,5 +54,14 @@ export default Factory.extend({
       jobSummaryId: jobSummary.id,
       job_summary_id: jobSummary.id,
     });
+
+    Array(faker.random.number({ min: 1, max: 10 }))
+      .fill(null)
+      .map((_, index) => {
+        return server.create('job-version', {
+          job,
+          version: index,
+        });
+      });
   },
 });

@@ -28,6 +28,10 @@ export default function() {
     return this.serialize(allocations.where({ jobId: params.id }));
   });
 
+  this.get('/job/:id/versions', function({ jobVersions }, { params }) {
+    return this.serialize(jobVersions.where({ jobId: params.id }));
+  });
+
   this.get('/nodes', function({ nodes }) {
     const json = this.serialize(nodes.all());
     return json;
