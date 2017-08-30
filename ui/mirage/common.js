@@ -16,10 +16,10 @@ export const DATACENTERS = provide(
   (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`
 );
 
-export const HOSTS = provide(
-  100,
-  () => `${faker.internet.ip()}:${faker.random.number({ min: 4000, max: 4999 })}`
-);
+export const HOSTS = provide(100, () => {
+  const ip = Math.random() > 0.5 ? faker.internet.ip() : `[${ipv6()}]`;
+  return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
+});
 
 export function generateResources(options = {}) {
   return {
@@ -32,21 +32,37 @@ export function generateResources(options = {}) {
 }
 
 export function generateNetworks(options = {}) {
-  return Array(faker.random.number({ min: 1, max: 3 })).fill(null).map(() => ({
-    Device: `eth${faker.random.number({ max: 5 })}`,
-    CIDR: '',
-    IP: faker.internet.ip(),
-    MBits: 10,
-    ReservedPorts: Array(
-      faker.random.number({
-        min: options.minPorts || 0,
-        max: options.maxPorts || 3,
-      })
-    )
-      .fill(null)
-      .map(() => ({
-        Label: faker.hacker.noun(),
-        Value: faker.random.number({ min: 5000, max: 60000 }),
-      })),
-  }));
+  return Array(faker.random.number({ min: 1, max: 3 }))
+    .fill(null)
+    .map(() => ({
+      Device: `eth${faker.random.number({ max: 5 })}`,
+      CIDR: '',
+      IP: faker.internet.ip(),
+      MBits: 10,
+      ReservedPorts: Array(
+        faker.random.number({
+          min: options.minPorts || 0,
+          max: options.maxPorts || 3,
+        })
+      )
+        .fill(null)
+        .map(() => ({
+          Label: faker.hacker.noun(),
+          Value: faker.random.number({ min: 5000, max: 60000 }),
+        })),
+    }));
+}
+
+// Faker v4.0 has a built-in ipv6 function. Once Mirage upgrades,
+// this code can be removed.
+function ipv6() {
+  const subnets = [];
+  for (var i = 0; i < 8; i++) {
+    var subnet = [];
+    for (var char = 0; char < 4; char++) {
+      subnet.push(faker.random.number(16).toString(16));
+    }
+    subnets.push(subnet.join(''));
+  }
+  return subnets.join(':');
 }

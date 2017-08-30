@@ -1,6 +1,7 @@
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
+import ipParts from 'nomad-ui/utils/ip-parts';
 
 function minimumSetup() {
   server.createList('node', 1);
@@ -44,12 +45,13 @@ test('each client record should show high-level info of the client', function(as
   andThen(() => {
     const nodeRow = find('.client-node-row:eq(0)');
     const allocations = server.db.allocations.where({ nodeId: node.id });
+    const { address, port } = ipParts(node.httpAddr);
 
     assert.equal(nodeRow.find('td:eq(0)').text(), node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.find('td:eq(1)').text(), node.name, 'Name');
     assert.equal(nodeRow.find('td:eq(2)').text(), node.status, 'Status');
-    assert.equal(nodeRow.find('td:eq(3)').text(), node.httpAddr.split(':')[0], 'Address');
-    assert.equal(nodeRow.find('td:eq(4)').text(), node.httpAddr.split(':')[1], 'Port');
+    assert.equal(nodeRow.find('td:eq(3)').text(), address, 'Address');
+    assert.equal(nodeRow.find('td:eq(4)').text(), port, 'Port');
     assert.equal(nodeRow.find('td:eq(5)').text(), node.datacenter, 'Datacenter');
     assert.equal(nodeRow.find('td:eq(6)').text(), allocations.length, '# Allocations');
   });

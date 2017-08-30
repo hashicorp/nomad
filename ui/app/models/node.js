@@ -4,6 +4,7 @@ import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
 import { fragment } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
+import ipParts from '../utils/ip-parts';
 
 const { computed } = Ember;
 
@@ -25,13 +26,11 @@ export default Model.extend({
   reserved: fragment('resources'),
 
   address: computed('httpAddr', function() {
-    const addr = this.get('httpAddr');
-    return addr && addr.split(':')[0];
+    return ipParts(this.get('httpAddr')).address;
   }),
 
   port: computed('httpAddr', function() {
-    const addr = this.get('httpAddr');
-    return addr && addr.split(':')[1];
+    return ipParts(this.get('httpAddr')).port;
   }),
 
   isPartial: computed('httpAddr', function() {
