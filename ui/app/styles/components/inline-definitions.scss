@@ -15,5 +15,9 @@
       font-weight: $weight-semibold;
       margin-right: 0.5em;
     }
+
+    &.is-faded {
+      color: darken($grey-blue, 20%);
+    }
   }
 }

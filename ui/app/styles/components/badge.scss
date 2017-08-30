@@ -11,6 +11,14 @@
     &.is-#{$name} {
       background-color: $color;
       color: $color-invert;
+
+      &.is-faded {
+        color: rgba($color-invert, 0.8);
+      }
     }
+  }
+
+  &.is-faded {
+    color: rgba($text, 0.8);
   }
 }

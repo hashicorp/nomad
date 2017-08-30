@@ -8,12 +8,13 @@
     <div class="boxed-section">
       <div class="boxed-section-head is-light inline-definitions">
         Version #{{record.version.number}}
-        <span class="bumper-left pair">
+        <span class="bumper-left pair is-faded version-stability">
           <span class="term">Stable</span>
-          <span class="tag is-light">
-            <code>{{record.version.stable}}</code>
-          </span>
-          <span>| {{moment-format record.version.submitTime "DD/MM/YY HH:mm:ss [UTC]"}}</span>
+          <span class="badge is-light is-faded"><code>{{record.version.stable}}</code></span>
+        </span>
+        <span class="pair is-faded version-submit-date">
+          <span class="term">Submitted</span>
+          <span class="submit-date">{{moment-format record.version.submitTime "DD/MM/YY HH:mm:ss [UTC]"}}</span>
         </span>
       </div>
     </div>

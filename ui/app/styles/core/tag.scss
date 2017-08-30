@@ -16,4 +16,8 @@
     color: darken($grey-blue, 20%);
     background: transparent;
   }
+
+  &.no-text-transform {
+    text-transform: none;
+  }
 }

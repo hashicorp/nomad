@@ -7,12 +7,12 @@
 // Override variables where appropriate
 @import "./utils/product-colors";
 
-$orange: #FA8E23;
-$green: #2EB039;
+$orange: #fa8e23;
+$green: #2eb039;
 $blue: $vagrant-blue;
 $purple: $terraform-purple;
-$red: #C84034;
-$grey-blue: #BBC4D1;
+$red: #c84034;
+$grey-blue: #bbc4d1;
 
 $primary: $nomad-green;
 $warning: $orange;
@@ -30,15 +30,8 @@ $size-7: 0.85rem;
 
 $title-weight: $weight-semibold;
 
-$family-sans-serif: -apple-system,
-  BlinkMacSystemFont,
-  "Segoe UI",
-  Roboto,
-  Oxygen-Sans,
-  Ubuntu,
-  Cantarell,
-  "Helvetica Neue",
-  sans-serif;
+$family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 
 $text: $black;
 
@@ -60,6 +53,7 @@ $gutter-width: 250px;
 @import "./core/table";
 @import "./core/tabs";
 @import "./core/tag";
+@import "./core/typography";
 
 // Add unique core extensions
 @import "./core/page-layout";
