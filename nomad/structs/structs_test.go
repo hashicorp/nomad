@@ -2332,3 +2332,42 @@ func TestACLTokenPolicySubset(t *testing.T) {
 	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
 	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
 }
+
+func TestACLTokenSetHash(t *testing.T) {
+	tk := &ACLToken{
+		Name:     "foo",
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar"},
+		Global:   false,
+	}
+	out1 := tk.SetHash()
+	assert.NotNil(t, out1)
+	assert.NotNil(t, tk.Hash)
+	assert.Equal(t, out1, tk.Hash)
+
+	tk.Policies = []string{"foo"}
+	out2 := tk.SetHash()
+	assert.NotNil(t, out2)
+	assert.NotNil(t, tk.Hash)
+	assert.Equal(t, out2, tk.Hash)
+	assert.NotEqual(t, out1, out2)
+}
+
+func TestACLPolicySetHash(t *testing.T) {
+	ap := &ACLPolicy{
+		Name:        "foo",
+		Description: "great policy",
+		Rules:       "node { policy = \"read\" }",
+	}
+	out1 := ap.SetHash()
+	assert.NotNil(t, out1)
+	assert.NotNil(t, ap.Hash)
+	assert.Equal(t, out1, ap.Hash)
+
+	ap.Rules = "node { policy = \"write\" }"
+	out2 := ap.SetHash()
+	assert.NotNil(t, out2)
+	assert.NotNil(t, ap.Hash)
+	assert.Equal(t, out2, ap.Hash)
+	assert.NotEqual(t, out1, out2)
+}
