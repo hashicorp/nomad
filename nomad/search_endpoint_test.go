@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -84,6 +85,48 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  "example-",
+		Context: structs.All,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.EqualValues(jobIndex, resp.Index)
+}
+
+func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
+	assert := assert.New(t)
+	prefix := strings.Repeat("a", 100)
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Register a job and an allocation
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	alloc := mock.Alloc()
+	alloc.JobID = jobID
+	summary := mock.JobSummary(alloc.JobID)
+	state := s.fsm.State()
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
 		Context: structs.All,
 	}
 

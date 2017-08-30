@@ -125,9 +125,13 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
+					e := err.Error()
+					switch {
 					// Searching other contexts with job names raises an error, which in
 					// this case we want to ignore.
-					if !strings.Contains(err.Error(), "Invalid UUID: encoding/hex") {
+					case strings.Contains(e, "Invalid UUID: encoding/hex"):
+					case strings.Contains(e, "UUID have 36 characters"):
+					default:
 						return err
 					}
 				} else {
