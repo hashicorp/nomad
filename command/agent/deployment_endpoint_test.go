@@ -1,7 +1,15 @@
 package agent
 
-/*
-TODO(alex): re-enable after deployment watcher is fixed.
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
+)
+
 func TestHTTP_DeploymentList(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -291,4 +299,3 @@ func TestHTTP_DeploymentFail(t *testing.T) {
 		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
 	})
 }
-*/

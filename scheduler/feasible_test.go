@@ -452,6 +452,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 
 	job := &structs.Job{
 		ID:          "foo",
+		Namespace:   structs.DefaultNamespace,
 		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2},
 	}
@@ -461,6 +462,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -469,6 +471,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -477,6 +480,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 	}
 	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -485,6 +489,7 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -521,6 +526,7 @@ func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 
 	job := &structs.Job{
 		ID:          "foo",
+		Namespace:   structs.DefaultNamespace,
 		Constraints: []*structs.Constraint{{Operand: structs.ConstraintDistinctHosts}},
 		TaskGroups:  []*structs.TaskGroup{tg1, tg2, tg3},
 	}
@@ -530,6 +536,7 @@ func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			ID:        structs.GenerateUUID(),
@@ -537,6 +544,7 @@ func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	}
 	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			ID:        structs.GenerateUUID(),
@@ -575,6 +583,7 @@ func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "foo",
 		},
@@ -584,6 +593,7 @@ func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
 	// different job.
 	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "bar",
 		},
@@ -591,7 +601,10 @@ func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
 
 	proposed := NewDistinctHostsIterator(ctx, static)
 	proposed.SetTaskGroup(tg1)
-	proposed.SetJob(&structs.Job{ID: "foo"})
+	proposed.SetJob(&structs.Job{
+		ID:        "foo",
+		Namespace: structs.DefaultNamespace,
+	})
 
 	out := collectFeasible(proposed)
 	if len(out) != 1 {
@@ -643,7 +656,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
-		ID: "foo",
+		ID:        "foo",
+		Namespace: structs.DefaultNamespace,
 		Constraints: []*structs.Constraint{
 			{
 				Operand: structs.ConstraintDistinctProperty,
@@ -660,6 +674,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	alloc1ID := structs.GenerateUUID()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -669,6 +684,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -678,6 +694,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	}
 	plan.NodeAllocation[nodes[2].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -687,6 +704,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -699,6 +717,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	stoppingAllocID := structs.GenerateUUID()
 	plan.NodeUpdate[nodes[4].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -711,6 +730,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		// Have one of the allocations exist in both the plan and the state
 		// store. This resembles an allocation update
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -720,6 +740,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -730,6 +751,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -738,6 +760,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -748,6 +771,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -756,6 +780,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[3].ID,
 		},
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -809,7 +834,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
-		ID: "foo",
+		ID:        "foo",
+		Namespace: structs.DefaultNamespace,
 		Constraints: []*structs.Constraint{
 			{
 				Operand: structs.ConstraintDistinctProperty,
@@ -827,6 +853,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 	alloc1ID := structs.GenerateUUID()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -835,6 +862,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -844,6 +872,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -853,6 +882,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 	}
 	plan.NodeAllocation[nodes[1].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -861,6 +891,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -870,6 +901,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -879,6 +911,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 	}
 	plan.NodeAllocation[nodes[2].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -888,6 +921,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -900,6 +934,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 	stoppingAllocID := structs.GenerateUUID()
 	plan.NodeUpdate[nodes[2].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -912,6 +947,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		// Have one of the allocations exist in both the plan and the state
 		// store. This resembles an allocation update
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -921,6 +957,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -930,6 +967,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -940,6 +978,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -948,6 +987,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -995,7 +1035,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	// Create a job with a distinct_property constraint and a task groups.
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	job := &structs.Job{
-		ID: "foo",
+		Namespace: structs.DefaultNamespace,
+		ID:        "foo",
 		Constraints: []*structs.Constraint{
 			{
 				Operand: structs.ConstraintDistinctProperty,
@@ -1008,6 +1049,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1019,6 +1061,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	stoppingAllocID := structs.GenerateUUID()
 	plan.NodeUpdate[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1029,6 +1072,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 
 	upserting := []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1079,7 +1123,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
 	job := &structs.Job{
-		ID: "foo",
+		Namespace: structs.DefaultNamespace,
+		ID:        "foo",
 		Constraints: []*structs.Constraint{
 			{
 				Operand: structs.ConstraintDistinctProperty,
@@ -1094,6 +1139,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1103,6 +1149,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 	}
 	upserting := []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1153,7 +1200,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
 	job := &structs.Job{
-		ID: "foo",
+		Namespace: structs.DefaultNamespace,
+		ID:        "foo",
 		Constraints: []*structs.Constraint{
 			{
 				Operand: structs.ConstraintDistinctProperty,
@@ -1169,6 +1217,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1176,6 +1225,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 			NodeID:    nodes[0].ID,
 		},
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1185,6 +1235,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 	}
 	upserting := []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1193,6 +1244,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 			NodeID:    nodes[1].ID,
 		},
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg2.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1251,6 +1303,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
 	job := &structs.Job{
+		Namespace:  structs.DefaultNamespace,
 		ID:         "foo",
 		TaskGroups: []*structs.TaskGroup{tg1, tg2},
 	}
@@ -1261,6 +1314,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1273,6 +1327,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 	stoppingAllocID := structs.GenerateUUID()
 	plan.NodeUpdate[nodes[2].ID] = []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1283,6 +1338,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 
 	upserting := []*structs.Allocation{
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,
@@ -1293,6 +1349,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 
 		// Should be ignored as it is a different job.
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
 			Job:       job,
@@ -1302,6 +1359,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		},
 
 		&structs.Allocation{
+			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     job.ID,
 			Job:       job,

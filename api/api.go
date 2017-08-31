@@ -128,7 +128,7 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	defaultConfig := DefaultConfig()
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
-		Region:     c.Region,
+		Region:     region,
 		Namespace:  c.Namespace,
 		httpClient: defaultConfig.httpClient,
 		HttpAuth:   c.HttpAuth,
