@@ -1,8 +1,9 @@
-//go:generate sh -c "go run watch-gen/main.go >watch_few.go"
 package memdb
 
+//go:generate sh -c "go run watch-gen/main.go >watch_few.go"
+
 import(
-	"time"
+	"context"
 )
 
 // aFew gives how many watchers this function is wired to support. You must
@@ -11,7 +12,7 @@ const aFew = 32
 
 // watchFew is used if there are only a few watchers as a performance
 // optimization.
-func watchFew(ch []<-chan struct{}, timeoutCh <-chan time.Time) bool {
+func watchFew(ctx context.Context, ch []<-chan struct{}) bool {
 	select {
 
 	case <-ch[0]:
@@ -110,7 +111,7 @@ func watchFew(ch []<-chan struct{}, timeoutCh <-chan time.Time) bool {
 	case <-ch[31]:
 		return false
 
-	case <-timeoutCh:
+	case <-ctx.Done():
 		return true
 	}
 }

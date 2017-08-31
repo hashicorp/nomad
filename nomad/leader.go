@@ -131,7 +131,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.blockedEvals.SetEnabled(true)
 
 	// Enable the deployment watcher, since we are now the leader
-	if err := s.deploymentWatcher.SetEnabled(true); err != nil {
+	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
 		return err
 	}
 
@@ -494,7 +494,7 @@ func (s *Server) revokeLeadership() error {
 	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
-	if err := s.deploymentWatcher.SetEnabled(false); err != nil {
+	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
 		return err
 	}
 

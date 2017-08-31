@@ -13,8 +13,8 @@ import (
 // on values. The database makes use of immutable radix trees to provide
 // transactions and MVCC.
 type MemDB struct {
-	schema *DBSchema
-	root   unsafe.Pointer // *iradix.Tree underneath
+	schema  *DBSchema
+	root    unsafe.Pointer // *iradix.Tree underneath
 	primary bool
 
 	// There can only be a single writter at once
@@ -30,8 +30,8 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 
 	// Create the MemDB
 	db := &MemDB{
-		schema: schema,
-		root:   unsafe.Pointer(iradix.New()),
+		schema:  schema,
+		root:    unsafe.Pointer(iradix.New()),
 		primary: true,
 	}
 	if err := db.initialize(); err != nil {
@@ -65,8 +65,8 @@ func (db *MemDB) Txn(write bool) *Txn {
 // operations to the existing DB.
 func (db *MemDB) Snapshot() *MemDB {
 	clone := &MemDB{
-		schema: db.schema,
-		root:   unsafe.Pointer(db.getRoot()),
+		schema:  db.schema,
+		root:    unsafe.Pointer(db.getRoot()),
 		primary: false,
 	}
 	return clone
@@ -76,7 +76,7 @@ func (db *MemDB) Snapshot() *MemDB {
 func (db *MemDB) initialize() error {
 	root := db.getRoot()
 	for tName, tableSchema := range db.schema.Tables {
-		for iName, _ := range tableSchema.Indexes {
+		for iName := range tableSchema.Indexes {
 			index := iradix.New()
 			path := indexPath(tName, iName)
 			root, _, _ = root.Insert(path, index)

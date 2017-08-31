@@ -8,7 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	mocker "github.com/stretchr/testify/mock"
@@ -254,116 +253,5 @@ func matchDeploymentAllocHealthRequest(c *matchDeploymentAllocHealthRequestConfi
 		}
 
 		return true
-	}
-}
-
-func (m *mockBackend) Evaluations(args *structs.JobSpecificRequest, reply *structs.JobEvaluationsResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) evaluationsFromState(in mocker.Arguments) {
-	args, reply := in.Get(0).(*structs.JobSpecificRequest), in.Get(1).(*structs.JobEvaluationsResponse)
-	ws := memdb.NewWatchSet()
-	evals, _ := m.state.EvalsByJob(ws, args.JobID)
-	reply.Evaluations = evals
-	reply.Index, _ = m.state.Index("evals")
-}
-
-func (m *mockBackend) Allocations(args *structs.DeploymentSpecificRequest, reply *structs.AllocListResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) allocationsFromState(in mocker.Arguments) {
-	args, reply := in.Get(0).(*structs.DeploymentSpecificRequest), in.Get(1).(*structs.AllocListResponse)
-	ws := memdb.NewWatchSet()
-	allocs, _ := m.state.AllocsByDeployment(ws, args.DeploymentID)
-
-	var stubs []*structs.AllocListStub
-	for _, a := range allocs {
-		stubs = append(stubs, a.Stub())
-	}
-
-	reply.Allocations = stubs
-	reply.Index, _ = m.state.Index("allocs")
-}
-
-func (m *mockBackend) List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) listFromState(in mocker.Arguments) {
-	reply := in.Get(1).(*structs.DeploymentListResponse)
-	ws := memdb.NewWatchSet()
-	iter, _ := m.state.Deployments(ws)
-
-	var deploys []*structs.Deployment
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		deploys = append(deploys, raw.(*structs.Deployment))
-	}
-
-	reply.Deployments = deploys
-	reply.Index, _ = m.state.Index("deployment")
-}
-
-func (m *mockBackend) GetDeployment(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) GetJobVersions(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) getJobVersionsFromState(in mocker.Arguments) {
-	args, reply := in.Get(0).(*structs.JobVersionsRequest), in.Get(1).(*structs.JobVersionsResponse)
-	ws := memdb.NewWatchSet()
-	versions, _ := m.state.JobVersionsByID(ws, args.JobID)
-	reply.Versions = versions
-	reply.Index, _ = m.state.Index("jobs")
-}
-
-func (m *mockBackend) GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error {
-	rargs := m.Called(args, reply)
-	return rargs.Error(0)
-}
-
-func (m *mockBackend) getJobFromState(in mocker.Arguments) {
-	args, reply := in.Get(0).(*structs.JobSpecificRequest), in.Get(1).(*structs.SingleJobResponse)
-	ws := memdb.NewWatchSet()
-	job, _ := m.state.JobByID(ws, args.JobID)
-	reply.Job = job
-	reply.Index, _ = m.state.Index("jobs")
-}
-
-// matchDeploymentSpecificRequest is used to match that a deployment specific
-// request is for the passed deployment id
-func matchDeploymentSpecificRequest(dID string) func(args *structs.DeploymentSpecificRequest) bool {
-	return func(args *structs.DeploymentSpecificRequest) bool {
-		return args.DeploymentID == dID
-	}
-}
-
-// matchJobSpecificRequest is used to match that a job specific
-// request is for the passed job id
-func matchJobSpecificRequest(jID string) func(args *structs.JobSpecificRequest) bool {
-	return func(args *structs.JobSpecificRequest) bool {
-		return args.JobID == jID
-	}
-}
-
-// matchJobVersionsRequest is used to match that a job version
-// request is for the passed job id
-func matchJobVersionsRequest(jID string) func(args *structs.JobVersionsRequest) bool {
-	return func(args *structs.JobVersionsRequest) bool {
-		return args.JobID == jID
 	}
 }
