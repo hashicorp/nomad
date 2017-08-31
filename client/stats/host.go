@@ -70,6 +70,10 @@ type HostStatsCollector struct {
 	hostStats       *HostStats
 	hostStatsLock   sync.RWMutex
 	allocDir        string
+
+	// badParts is a set of partitions whose usage cannot be read; used to
+	// squelch logspam.
+	badParts map[string]struct{}
 }
 
 // NewHostStatsCollector returns a HostStatsCollector. The allocDir is passed in
@@ -83,6 +87,7 @@ func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollec
 		numCores:        numCores,
 		logger:          logger,
 		allocDir:        allocDir,
+		badParts:        make(map[string]struct{}),
 	}
 	return collector
 }
@@ -134,9 +139,17 @@ func (h *HostStatsCollector) Collect() error {
 	for _, partition := range partitions {
 		usage, err := disk.Usage(partition.Mountpoint)
 		if err != nil {
+			if _, ok := h.badParts[partition.Mountpoint]; ok {
+				// already known bad, don't log again
+				continue
+			}
+
+			h.badParts[partition.Mountpoint] = struct{}{}
 			h.logger.Printf("[WARN] client: error fetching host disk usage stats for %v: %v", partition.Mountpoint, err)
 			continue
 		}
+		delete(h.badParts, partition.Mountpoint)
+
 		ds := h.toDiskStats(usage, &partition)
 		diskStats = append(diskStats, ds)
 	}

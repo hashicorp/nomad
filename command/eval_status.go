@@ -59,9 +59,13 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		if err != nil {
 			return nil
 		}
 
@@ -134,12 +138,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(evalID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		evalID = evalID[:len(evalID)-1]
-	}
 
+	evalID = sanatizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %v", err))

@@ -75,10 +75,9 @@ func (c *LogsCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := l.Meta.Client()
-
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := l.Meta.Client()
+		if err != nil {
 			return nil
 		}
 
@@ -149,12 +148,8 @@ func (l *LogsCommand) Run(args []string) int {
 		l.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
 		return 1
 	}
-	if len(allocID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		allocID = allocID[:len(allocID)-1]
-	}
 
+	allocID = sanatizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))

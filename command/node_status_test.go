@@ -127,8 +127,8 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 		t.Fatalf("should not dump allocations")
 	}
 
-	// Query a single node based on prefix
-	if code := cmd.Run([]string{"-address=" + url, nodeID[:4]}); code != 0 {
+	// Query a single node based on a prefix that is even without the hyphen
+	if code := cmd.Run([]string{"-address=" + url, nodeID[:13]}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
@@ -249,11 +249,4 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(nodeID, res[0])
-
-	// Autocomplete should only complete once
-	args = complete.Args{Last: prefix, Completed: []string{prefix, "1", "2"}}
-	predictor = cmd.AutocompleteArgs()
-
-	res = predictor.Predict(args)
-	assert.Nil(res)
 }

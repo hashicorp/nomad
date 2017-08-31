@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -85,6 +86,48 @@ func (s *StateStore) AbandonCh() <-chan struct{} {
 // Calling this more than one time will panic.
 func (s *StateStore) Abandon() {
 	close(s.abandonCh)
+}
+
+// QueryFn is the definition of a function that can be used to implement a basic
+// blocking query against the state store.
+type QueryFn func(memdb.WatchSet, *StateStore) (resp interface{}, index uint64, err error)
+
+// BlockingQuery takes a query function and runs the function until the minimum
+// query index is met or until the passed context is cancelled.
+func (s *StateStore) BlockingQuery(query QueryFn, minIndex uint64, ctx context.Context) (
+	resp interface{}, index uint64, err error) {
+
+RUN_QUERY:
+	// We capture the state store and its abandon channel but pass a snapshot to
+	// the blocking query function. We operate on the snapshot to allow separate
+	// calls to the state store not all wrapped within the same transaction.
+	abandonCh := s.AbandonCh()
+	snap, _ := s.Snapshot()
+	stateSnap := &snap.StateStore
+
+	// We can skip all watch tracking if this isn't a blocking query.
+	var ws memdb.WatchSet
+	if minIndex > 0 {
+		ws = memdb.NewWatchSet()
+
+		// This channel will be closed if a snapshot is restored and the
+		// whole state store is abandoned.
+		ws.Add(abandonCh)
+	}
+
+	resp, index, err = query(ws, stateSnap)
+	if err != nil {
+		return nil, index, err
+	}
+
+	// We haven't reached the min-index yet.
+	if minIndex > 0 && index <= minIndex {
+		if expired := ws.WatchCtx(ctx); !expired {
+			goto RUN_QUERY
+		}
+	}
+
+	return resp, index, nil
 }
 
 // UpsertPlanResults is used to upsert the results of a plan.

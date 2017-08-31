@@ -9,6 +9,8 @@ import (
 
 	"golang.org/x/time/rate"
 
+	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,30 +51,6 @@ type DeploymentRaftEndpoints interface {
 	UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error)
 }
 
-// DeploymentStateWatchers are the set of functions required to watch objects on
-// behalf of a deployment
-type DeploymentStateWatchers interface {
-	// Evaluations returns the set of evaluations for the given job
-	Evaluations(args *structs.JobSpecificRequest, reply *structs.JobEvaluationsResponse) error
-
-	// Allocations returns the set of allocations that are part of the
-	// deployment.
-	Allocations(args *structs.DeploymentSpecificRequest, reply *structs.AllocListResponse) error
-
-	// List is used to list all the deployments in the system
-	List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error
-
-	// GetDeployment is used to lookup a particular deployment.
-	GetDeployment(args *structs.DeploymentSpecificRequest, reply *structs.SingleDeploymentResponse) error
-
-	// GetJobVersions is used to lookup the versions of a job. This is used when
-	// rolling back to find the latest stable job
-	GetJobVersions(args *structs.JobVersionsRequest, reply *structs.JobVersionsResponse) error
-
-	// GetJob is used to lookup a particular job.
-	GetJob(args *structs.JobSpecificRequest, reply *structs.SingleJobResponse) error
-}
-
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
 // transistions.
@@ -91,9 +69,8 @@ type Watcher struct {
 	// deployments watcher
 	raft DeploymentRaftEndpoints
 
-	// stateWatchers is the set of functions required to watch a deployment for
-	// state changes
-	stateWatchers DeploymentStateWatchers
+	// state is the state that is watched for state changes.
+	state *state.StateStore
 
 	// watchers is the set of active watchers, one per deployment
 	watchers map[string]*deploymentWatcher
@@ -110,12 +87,11 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(logger *log.Logger, watchers DeploymentStateWatchers,
+func NewDeploymentsWatcher(logger *log.Logger,
 	raft DeploymentRaftEndpoints, stateQueriesPerSecond float64,
 	evalBatchDuration time.Duration) *Watcher {
 
 	return &Watcher{
-		stateWatchers:     watchers,
 		raft:              raft,
 		queryLimiter:      rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
 		evalBatchDuration: evalBatchDuration,
@@ -124,14 +100,19 @@ func NewDeploymentsWatcher(logger *log.Logger, watchers DeploymentStateWatchers,
 }
 
 // SetEnabled is used to control if the watcher is enabled. The watcher
-// should only be enabled on the active leader.
-func (w *Watcher) SetEnabled(enabled bool) error {
+// should only be enabled on the active leader. When being enabled the state is
+// passsed in as it is no longer valid once a leader election has taken place.
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
 	return nil
 	w.l.Lock()
 	defer w.l.Unlock()
 
 	wasEnabled := w.enabled
 	w.enabled = enabled
+
+	if state != nil {
+		w.state = state
+	}
 
 	// Flush the state to create the necessary objects
 	w.flush()
@@ -167,7 +148,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 	dindex := uint64(1)
 	for {
 		// Block getting all deployments using the last deployment index.
-		resp, err := w.getDeploys(ctx, dindex)
+		deployments, idx, err := w.getDeploys(ctx, dindex)
 		if err != nil {
 			if err == context.Canceled || ctx.Err() == context.Canceled {
 				return
@@ -176,14 +157,12 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
 		}
 
-		// Guard against npe
-		if resp == nil {
-			continue
-		}
+		// Update the latest index
+		dindex = idx
 
 		// Ensure we are tracking the things we should and not tracking what we
 		// shouldn't be
-		for _, d := range resp.Deployments {
+		for _, d := range deployments {
 			if d.Active() {
 				if err := w.add(d); err != nil {
 					w.logger.Printf("[ERR] nomad.deployments_watcher: failed to track deployment %q: %v", d.ID, err)
@@ -192,33 +171,47 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				w.remove(d)
 			}
 		}
-
-		// Update the latest index
-		dindex = resp.Index
 	}
 }
 
 // getDeploys retrieves all deployments blocking at the given index.
-func (w *Watcher) getDeploys(ctx context.Context, index uint64) (*structs.DeploymentListResponse, error) {
-	// Build the request
-	args := &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{
-			MinQueryIndex: index,
-		},
+func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.Deployment, uint64, error) {
+	resp, index, err := w.state.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
+	if err != nil {
+		return nil, 0, err
 	}
-	var resp structs.DeploymentListResponse
-
-	for resp.Index <= index {
-		if err := w.queryLimiter.Wait(ctx); err != nil {
-			return nil, err
-		}
-
-		if err := w.stateWatchers.List(args, &resp); err != nil {
-			return nil, err
-		}
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
 	}
 
-	return &resp, nil
+	return resp.([]*structs.Deployment), index, nil
+}
+
+// getDeploysImpl retrieves all deployments from the passed state store.
+func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+
+	iter, err := state.Deployments(ws)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var deploys []*structs.Deployment
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		deploy := raw.(*structs.Deployment)
+		deploys = append(deploys, deploy)
+	}
+
+	// Use the last index that affected the deployment table
+	index, err := state.Index("deployment")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return deploys, index, nil
 }
 
 // add adds a deployment to the watch list
@@ -247,18 +240,20 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 	}
 
 	// Get the job the deployment is referencing
-	args := &structs.JobSpecificRequest{
-		JobID: d.JobID,
-	}
-	var resp structs.SingleJobResponse
-	if err := w.stateWatchers.GetJob(args, &resp); err != nil {
+	snap, err := w.state.Snapshot()
+	if err != nil {
 		return nil, err
 	}
-	if resp.Job == nil {
+
+	job, err := snap.JobByID(nil, d.JobID)
+	if err != nil {
+		return nil, err
+	}
+	if job == nil {
 		return nil, fmt.Errorf("deployment %q references unknown job %q", d.ID, d.JobID)
 	}
 
-	watcher := newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.stateWatchers, d, resp.Job, w)
+	watcher := newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.state, d, job, w)
 	w.watchers[d.ID] = watcher
 	return watcher, nil
 }
@@ -284,18 +279,21 @@ func (w *Watcher) remove(d *structs.Deployment) {
 // a watcher. If the deployment does not exist or is terminal an error is
 // returned.
 func (w *Watcher) forceAdd(dID string) (*deploymentWatcher, error) {
-	// Build the request
-	args := &structs.DeploymentSpecificRequest{DeploymentID: dID}
-	var resp structs.SingleDeploymentResponse
-	if err := w.stateWatchers.GetDeployment(args, &resp); err != nil {
+	snap, err := w.state.Snapshot()
+	if err != nil {
 		return nil, err
 	}
 
-	if resp.Deployment == nil {
+	deployment, err := snap.DeploymentByID(nil, dID)
+	if err != nil {
+		return nil, err
+	}
+
+	if deployment == nil {
 		return nil, fmt.Errorf("unknown deployment %q", dID)
 	}
 
-	return w.addLocked(resp.Deployment)
+	return w.addLocked(deployment)
 }
 
 // getOrCreateWatcher returns the deployment watcher for the given deployment ID.

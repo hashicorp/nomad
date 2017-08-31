@@ -37,9 +37,9 @@ func (c *StatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := c.Meta.Client()
+		if err != nil {
 			return nil
 		}
 
@@ -107,14 +107,18 @@ func (c *StatusCommand) Run(args []string) int {
 	var match contexts.Context
 	matchCount := 0
 	for ctx, vers := range res.Matches {
-		if len(vers) == 1 {
+		if l := len(vers); l == 1 {
 			match = ctx
 			matchCount++
+		} else if l > 0 && vers[0] == id {
+			// Exact match
+			match = ctx
+			break
 		}
 
 		// Only a single result should return, as this is a match against a full id
 		if matchCount > 1 || len(vers) > 1 {
-			c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
+			c.logMultiMatchError(id, res.Matches)
 			return 1
 		}
 	}
@@ -137,4 +141,18 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	return cmd.Run(argsCopy)
+}
+
+// logMultiMatchError is used to log an error message when multiple matches are
+// found. The error message logged displays the matched IDs per context.
+func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Context][]string) {
+	c.Ui.Error(fmt.Sprintf("Multiple matches found for id %q", id))
+	for ctx, vers := range matches {
+		if len(vers) == 0 {
+			continue
+		}
+
+		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
+		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+	}
 }

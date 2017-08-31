@@ -1370,14 +1370,10 @@ func TestConstraint_Validate(t *testing.T) {
 
 	// Perform distinct_hosts validation
 	c.Operand = ConstraintDistinctHosts
-	c.RTarget = "foo"
-	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "doesn't allow RTarget") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "doesn't allow LTarget") {
-		t.Fatalf("err: %s", err)
+	c.LTarget = ""
+	c.RTarget = ""
+	if err := c.Validate(); err != nil {
+		t.Fatalf("expected valid constraint: %v", err)
 	}
 
 	// Perform set_contains validation
@@ -1410,7 +1406,7 @@ func TestConstraint_Validate(t *testing.T) {
 
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
-		MaxParallel:     -1,
+		MaxParallel:     0,
 		HealthCheck:     "foo",
 		MinHealthyTime:  -10,
 		HealthyDeadline: -15,
@@ -1423,7 +1419,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than one") {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {

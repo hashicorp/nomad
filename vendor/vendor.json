@@ -611,44 +611,44 @@
 		{
 			"checksumSHA1": "Nu2j1GusM7ZH0uYrGzqr1K7yH7I=",
 			"path": "github.com/hashicorp/consul-template/child",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
 			"checksumSHA1": "lemUzh6uQDMxuvTT/BREYdGcS0U=",
 			"path": "github.com/hashicorp/consul-template/config",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
 			"checksumSHA1": "WVZ+pqn/HLLXjj+Tj5ZZvD7w6r0=",
 			"path": "github.com/hashicorp/consul-template/dependency",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
-			"checksumSHA1": "tkMwyjIrH+reCJWIg45lvcmkhVQ=",
+			"checksumSHA1": "ZuqKmrZAWgHbWGGt1e9RAMZ4wvs=",
 			"path": "github.com/hashicorp/consul-template/manager",
-			"revision": "252f61dede55b1009323aae8b0ffcd2e2e933173",
-			"revisionTime": "2017-08-09T17:59:55Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
-			"checksumSHA1": "oskgb0WteBKOItG8NNDduM7E/D0=",
+			"checksumSHA1": "YSEUV/9/k85XciRKu0cngxdjZLE=",
 			"path": "github.com/hashicorp/consul-template/signals",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
 			"checksumSHA1": "zSvJlNfZS3fCRlFaZ7r9Q+N17T8=",
 			"path": "github.com/hashicorp/consul-template/template",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
 			"checksumSHA1": "b4+Y+02pY2Y5620F9ALzKg8Zmdw=",
 			"path": "github.com/hashicorp/consul-template/watch",
-			"revision": "7b3f45039cf3ad1a758683fd3eebb1cc72affa06",
-			"revisionTime": "2017-08-01T00:58:49Z"
+			"revision": "a6369e8e105f2f5534671e2609dc19e20b55da96",
+			"revisionTime": "2017-08-25T23:40:39Z"
 		},
 		{
 			"checksumSHA1": "jfELEMRhiTcppZmRH+ZwtkVS5Uw=",
@@ -731,16 +731,16 @@
 			"revisionTime": "2017-07-16T17:45:23Z"
 		},
 		{
-			"checksumSHA1": "zvmksNyW6g+Fd/bywd4vcn8rp+M=",
+			"checksumSHA1": "Cas2nprG6pWzf05A2F/OlnjUu2Y=",
 			"path": "github.com/hashicorp/go-immutable-radix",
-			"revision": "30664b879c9a771d8d50b137ab80ee0748cb2fcc",
-			"revisionTime": "2017-02-14T02:52:36Z"
+			"revision": "8aac2701530899b64bdea735a1de8da899815220",
+			"revisionTime": "2017-07-25T22:12:15Z"
 		},
 		{
-			"checksumSHA1": "KeH4FuTKuv3tqFOr3NpLQtL1jPs=",
+			"checksumSHA1": "FMAvwDar2bQyYAW4XMFhAt0J5xA=",
 			"path": "github.com/hashicorp/go-memdb",
-			"revision": "ed59a4bb9146689d4b00d060b70b9e9648b523af",
-			"revisionTime": "2017-04-11T17:33:47Z"
+			"revision": "20ff6434c1cc49b80963d45bf5c6aa89c78d8d57",
+			"revisionTime": "2017-08-31T20:15:40Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-msgpack/codec",
@@ -1113,26 +1113,26 @@
 		{
 			"checksumSHA1": "rTNABfFJ9wtLQRH8uYNkEZGQOrY=",
 			"path": "github.com/posener/complete",
-			"revision": "2100d1b06c06462a8a47bfc41a7f24a5d60a1420",
-			"revisionTime": "2017-08-25T06:44:15Z"
+			"revision": "9f41f7636a724791a3b8b1d35e84caa1124f0d3c",
+			"revisionTime": "2017-08-29T17:11:12Z"
 		},
 		{
 			"checksumSHA1": "NB7uVS0/BJDmNu68vPAlbrq4TME=",
 			"path": "github.com/posener/complete/cmd",
-			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
-			"revisionTime": "2017-05-27T17:24:47Z"
+			"revision": "9f41f7636a724791a3b8b1d35e84caa1124f0d3c",
+			"revisionTime": "2017-08-29T17:11:12Z"
 		},
 		{
-			"checksumSHA1": "kuS9vs+TMQzTGzXteL6EZ5HuKrU=",
+			"checksumSHA1": "gSX86Xl0w9hvtntdT8h23DZtSag=",
 			"path": "github.com/posener/complete/cmd/install",
-			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
-			"revisionTime": "2017-05-27T17:24:47Z"
+			"revision": "9f41f7636a724791a3b8b1d35e84caa1124f0d3c",
+			"revisionTime": "2017-08-29T17:11:12Z"
 		},
 		{
 			"checksumSHA1": "DMo94FwJAm9ZCYCiYdJU2+bh4no=",
 			"path": "github.com/posener/complete/match",
-			"revision": "e8d6fef54b6283f8bd3fbcb4a7de8884eb540293",
-			"revisionTime": "2017-05-27T17:24:47Z"
+			"revision": "9f41f7636a724791a3b8b1d35e84caa1124f0d3c",
+			"revisionTime": "2017-08-29T17:11:12Z"
 		},
 		{
 			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",
@@ -1322,10 +1322,10 @@
 			"revisionTime": "2017-02-23T22:36:15Z"
 		},
 		{
-			"checksumSHA1": "kQB2wRB3twjUp615F6zEwGHjNe0=",
+			"checksumSHA1": "gVfCD++7aVcdKF2spv6XkEM/wYw=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "e4594059fe4cde2daf423055a596c2cd1e6c9adf",
-			"revisionTime": "2017-02-23T22:36:15Z"
+			"revision": "2d6f6f883a06fc0d5f4b14a81e4c28705ea64c15",
+			"revisionTime": "2017-08-25T18:47:02Z"
 		},
 		{
 			"checksumSHA1": "ZQdHbB9VYCXwQ+9/CmZPhJv0+SM=",

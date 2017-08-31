@@ -51,9 +51,9 @@ func (c *DeploymentFailCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *DeploymentFailCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := c.Meta.Client()
+		if err != nil {
 			return nil
 		}
 

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -25,6 +26,69 @@ func testStateStore(t *testing.T) *StateStore {
 		t.Fatalf("missing state")
 	}
 	return state
+}
+
+func TestStateStore_Blocking_Error(t *testing.T) {
+	expected := fmt.Errorf("test error")
+	errFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
+		return nil, 0, expected
+	}
+
+	state := testStateStore(t)
+	_, idx, err := state.BlockingQuery(errFn, 10, context.Background())
+	assert.EqualError(t, err, expected.Error())
+	assert.Zero(t, idx)
+}
+
+func TestStateStore_Blocking_Timeout(t *testing.T) {
+	noopFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
+		return nil, 5, nil
+	}
+
+	state := testStateStore(t)
+	timeout := time.Now().Add(10 * time.Millisecond)
+	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
+	defer cancel()
+
+	_, idx, err := state.BlockingQuery(noopFn, 10, deadlineCtx)
+	assert.Nil(t, err)
+	assert.EqualValues(t, 5, idx)
+	assert.WithinDuration(t, timeout, time.Now(), 5*time.Millisecond)
+}
+
+func TestStateStore_Blocking_MinQuery(t *testing.T) {
+	job := mock.Job()
+	count := 0
+	queryFn := func(ws memdb.WatchSet, s *StateStore) (interface{}, uint64, error) {
+		_, err := s.JobByID(ws, job.ID)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		count++
+		if count == 1 {
+			return false, 5, nil
+		} else if count > 2 {
+			return false, 20, fmt.Errorf("called too many times")
+		}
+
+		return true, 11, nil
+	}
+
+	state := testStateStore(t)
+	timeout := time.Now().Add(10 * time.Millisecond)
+	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
+	defer cancel()
+
+	time.AfterFunc(5*time.Millisecond, func() {
+		state.UpsertJob(11, job)
+	})
+
+	resp, idx, err := state.BlockingQuery(queryFn, 10, deadlineCtx)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, count)
+	assert.EqualValues(t, 11, idx)
+	assert.True(t, resp.(bool))
 }
 
 // This test checks that:

@@ -74,6 +74,9 @@ do
 	sudo install /tmp/${bin} /usr/local/bin/${bin}
 done
 
+echo "Installing autocomplete..."
+nomad -autocomplete-install
+
 SCRIPT
 
 Vagrant.configure(2) do |config|
