@@ -122,9 +122,11 @@ RUN_QUERY:
 
 	// We haven't reached the min-index yet.
 	if minIndex > 0 && index <= minIndex {
-		if expired := ws.WatchCtx(ctx); !expired {
-			goto RUN_QUERY
+		if err := ws.WatchCtx(ctx); err != nil {
+			return nil, index, err
 		}
+
+		goto RUN_QUERY
 	}
 
 	return resp, index, nil
