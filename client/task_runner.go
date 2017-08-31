@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
@@ -1786,10 +1786,27 @@ func (r *TaskRunner) setCreatedResources(cr *driver.CreatedResources) {
 	r.createdResourcesLock.Unlock()
 }
 
-// emitStats emits resource usage stats of tasks to remote metrics collector
-// sinks
-func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
-	if ru.ResourceUsage.MemoryStats != nil && r.config.PublishAllocationMetrics {
+func (r *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
+	if !r.config.DisableTaggedMetrics {
+		labels := []metrics.Label{{"job", r.alloc.Job.Name}, {"task_group", r.alloc.TaskGroup}, {"alloc_id", r.alloc.ID}, {"task", r.task.Name}}
+
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
+			float32(ru.ResourceUsage.MemoryStats.Cache), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
+			float32(ru.ResourceUsage.MemoryStats.Swap), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.MaxUsage), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelUsage), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), labels)
+	}
+
+	if r.config.BackwardsCompatibleMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
@@ -1797,13 +1814,44 @@ func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
 	}
+}
 
-	if ru.ResourceUsage.CpuStats != nil && r.config.PublishAllocationMetrics {
+func (r *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
+	if !r.config.DisableTaggedMetrics {
+		labels := []metrics.Label{{"job", r.alloc.Job.Name}, {"task_group", r.alloc.TaskGroup}, {"alloc_id", r.alloc.ID}, {"task", r.task.Name}}
+
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
+			float32(ru.ResourceUsage.CpuStats.Percent), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
+			float32(ru.ResourceUsage.CpuStats.SystemMode), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
+			float32(ru.ResourceUsage.CpuStats.UserMode), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledTime), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
+			float32(ru.ResourceUsage.CpuStats.TotalTicks), labels)
+	}
+
+	if r.config.BackwardsCompatibleMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+	}
+}
+
+// emitStats emits resource usage stats of tasks to remote metrics collector
+// sinks
+func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
+	if ru.ResourceUsage.MemoryStats != nil && r.config.PublishAllocationMetrics {
+		r.setGaugeForMemory(ru)
+	}
+
+	if ru.ResourceUsage.CpuStats != nil && r.config.PublishAllocationMetrics {
+		r.setGaugeForCPU(ru)
 	}
 }
