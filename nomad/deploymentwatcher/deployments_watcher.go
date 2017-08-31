@@ -110,9 +110,6 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
 	w.enabled = enabled
 
 	if state != nil {
-		if wasEnabled && w.state != nil {
-			panic("we may have a blocking")
-		}
 		w.state = state
 	}
 
