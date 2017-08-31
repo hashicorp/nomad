@@ -194,12 +194,8 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				m.ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 				return 1
 			}
-			if len(evalID)%2 == 1 {
-				// Identifiers must be of even length, so we strip off the last byte
-				// to provide a consistent user experience.
-				evalID = evalID[:len(evalID)-1]
-			}
 
+			evalID = sanatizeUUIDPrefix(evalID)
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))

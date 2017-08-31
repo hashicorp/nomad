@@ -80,7 +80,7 @@ func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, 
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, prefix)
 	default:
-		return nil, fmt.Errorf("context must be one of %v; got %q", allContexts, context)
+		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 	}
 }
 
@@ -91,7 +91,10 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 		return prefix
 	}
 
-	l := len(prefix)
+	// We ignore the count of hyphens when calculating if the prefix is even:
+	// E.g "e3671fa4-21"
+	numHyphens := strings.Count(prefix, "-")
+	l := len(prefix) - numHyphens
 	if l%2 == 0 {
 		return prefix
 	}
@@ -122,9 +125,13 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
+					e := err.Error()
+					switch {
 					// Searching other contexts with job names raises an error, which in
 					// this case we want to ignore.
-					if !strings.Contains(err.Error(), "Invalid UUID: encoding/hex") {
+					case strings.Contains(e, "Invalid UUID: encoding/hex"):
+					case strings.Contains(e, "UUID have 36 characters"):
+					default:
 						return err
 					}
 				} else {

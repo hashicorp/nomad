@@ -679,23 +679,15 @@ func (s *Server) setupConsulSyncer() error {
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 
-	// Create the shims
-	stateShim := &deploymentWatcherStateShim{
-		region:         s.Region(),
-		evaluations:    s.endpoints.Job.Evaluations,
-		allocations:    s.endpoints.Deployment.Allocations,
-		list:           s.endpoints.Deployment.List,
-		getDeployment:  s.endpoints.Deployment.GetDeployment,
-		getJobVersions: s.endpoints.Job.GetJobVersions,
-		getJob:         s.endpoints.Job.GetJob,
-	}
+	// Create the raft shim type to restrict the set of raft methods that can be
+	// made
 	raftShim := &deploymentWatcherRaftShim{
 		apply: s.raftApply,
 	}
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, stateShim, raftShim,
+		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
 		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
@@ -1143,7 +1135,7 @@ func (s *Server) GetConfig() *Config {
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. It should be formatted as a JSON array containing the address
-and port of each Consul server in the cluster, like this:
+and port (RPC) of each Nomad server in the cluster, like this:
 
 ["10.1.0.1:4647","10.1.0.2:4647","10.1.0.3:4647"]
 

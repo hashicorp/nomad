@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -53,6 +54,90 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
+}
+
+func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
+	assert := assert.New(t)
+	prefix := "example-test"
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Register a job and an allocation
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	alloc := mock.Alloc()
+	alloc.JobID = jobID
+	summary := mock.JobSummary(alloc.JobID)
+	state := s.fsm.State()
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	req := &structs.SearchRequest{
+		Prefix:  "example-",
+		Context: structs.All,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.EqualValues(jobIndex, resp.Index)
+}
+
+func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
+	assert := assert.New(t)
+	prefix := strings.Repeat("a", 100)
+
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Register a job and an allocation
+	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	alloc := mock.Alloc()
+	alloc.JobID = jobID
+	summary := mock.JobSummary(alloc.JobID)
+	state := s.fsm.State()
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.All,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.EqualValues(jobIndex, resp.Index)
 }
 
 // truncate should limit results to 20
@@ -196,6 +281,59 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	assert.Equal(resp.Truncations[structs.Allocs], false)
 
 	assert.Equal(uint64(90), resp.Index)
+}
+
+func TestSearch_PrefixSearch_All_UUID_EvenPrefix(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	alloc := mock.Alloc()
+	summary := mock.JobSummary(alloc.JobID)
+	state := s.fsm.State()
+
+	if err := state.UpsertJobSummary(999, summary); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	node := mock.Node()
+	if err := state.UpsertNode(1001, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval1 := mock.Eval()
+	eval1.ID = node.ID
+	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	prefix := alloc.ID[:13]
+	t.Log(prefix)
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.All,
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Allocs]))
+	assert.Equal(alloc.ID, resp.Matches[structs.Allocs][0])
+	assert.Equal(resp.Truncations[structs.Allocs], false)
+
+	assert.EqualValues(1002, resp.Index)
 }
 
 func TestSearch_PrefixSearch_Node(t *testing.T) {

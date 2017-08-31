@@ -66,9 +66,9 @@ func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := c.Meta.Client()
+		if err != nil {
 			return nil
 		}
 

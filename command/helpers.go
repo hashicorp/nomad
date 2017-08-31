@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	gg "github.com/hashicorp/go-getter"
@@ -329,4 +330,14 @@ func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
 		}
 	}
 	return merged
+}
+
+// sanatizeUUIDPrefix is used to sanatize a UUID prefix. The returned result
+// will be a truncated version of the prefix if the prefix would not be
+// queriable.
+func sanatizeUUIDPrefix(prefix string) string {
+	hyphens := strings.Count(prefix, "-")
+	length := len(prefix) - hyphens
+	remainder := length % 2
+	return prefix[:len(prefix)-remainder]
 }

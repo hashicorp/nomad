@@ -1,11 +1,38 @@
-## 0.6.1 (Unreleased)
+## 0.6.3 (Unreleased)
+
+BUG FIXES:
+ * api: Search handles prefix longer than allowed UUIDs [GH-3138]
+ * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
+ * cli: Sort task groups when displaying a deployment [GH-3137]
+ * api: Don't merge empty update stanza from job into task groups [GH-3139]
+ * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
+ * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
+ * cli: Status command honors exact job match even when it is the prefix of
+   another job [GH-3120]
+ * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
+   contacting nodes that are using TLS [GH-3127]
+ * driver/docker: Fix issue where potentially incorrect syslog server address is
+   used [GH-3135]
+ * jobspec: Allow distinct_host constraint to have L/RTarget set [GH-3136]
+
+## 0.6.2 (August 28, 2017)
+
+BUG FIXES:
+ * api/cli: Fix logs and fs api and command [GH-3116]
+
+## 0.6.1 (August 28, 2017)
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * deployment: Specifying an update stanza with a max_parallel of zero is now
+   a validation error. Please update the stanza to be greater than zero or
+   remove the stanza as a zero parallelism update is not valid.
 
 IMPROVEMENTS:
- * core: Add autocomplete functionality for resources: allocations,
-   evaluations, jobs, and nodes [GH-2964]
+ * core: Lost allocations replaced even if part of failed deployment [GH-2961]
+ * core: Add autocomplete functionality for resources: allocations, evaluations,
+   jobs, deployments and nodes [GH-2964]
  * core: `distinct_property` constraint can set the number of allocations that
    are allowed to share a property value [GH-2942]
- * core: Lost allocations replaced even if part of failed deployment [GH-2961]
  * core: Placing allocation counts towards placement limit fixing issue where
    rolling update could remove an unnecessary amount of allocations [GH-3070]
  * api: Redact Vault.Token from AgentSelf response [GH-2988]
@@ -17,7 +44,8 @@ IMPROVEMENTS:
  * client: Unmount task directories when alloc is terminal [GH-3006]
  * client/template: Allow template to set Vault grace [GH-2947]
  * client/template: Template emits events explaining why it is blocked [GH-3001]
- * deployment: Emit task events explaining unhealthy allocations[GH-3025]
+ * deployment: Disallow max_parallel of zero [GH-3081]
+ * deployment: Emit task events explaining unhealthy allocations [GH-3025]
  * deployment: Better description when a deployment should auto-revert but there
    is no target [GH-3024]
  * discovery: Add HTTP header and method support to checks [GH-3031]
@@ -26,8 +54,8 @@ IMPROVEMENTS:
  * driver/docker: Allow retry of 500 API errors to be handled by restart
    policies when starting a container [GH-3073]
  * driver/rkt: support read-only volume mounts [GH-2883]
- * jobspec: Add `shutdown_delay` so tasks can delay shutdown after
-   deregistering from Consul [GH-3043]
+ * jobspec: Add `shutdown_delay` so tasks can delay shutdown after deregistering
+   from Consul [GH-3043]
 
 BUG FIXES:
  * core: Fix purging of job versions [GH-3056]
@@ -38,6 +66,7 @@ BUG FIXES:
    [GH-2939]
  * cli: Fix autocmpleting global flags [GH-2928]
  * cli: Fix panic when using 0.6.0 cli with an older cluster [GH-2929]
+ * cli: Fix TLS handling for alloc stats API calls [GH-3108]
  * client: Fix `LC_ALL=C` being set on subprocesses [GH-3041]
  * client/networking: Handle interfaces that only have link-local addresses
    while prefering globally routable addresses [GH-3089]

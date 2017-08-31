@@ -249,11 +249,15 @@ func (r *Runner) Start() {
 		}
 
 		if r.allTemplatesRendered() {
+			log.Printf("[DEBUG] (runner) all templates rendered")
+
 			// If an exec command was given and a command is not currently running,
 			// spawn the child process for supervision.
 			if config.StringPresent(r.config.Exec.Command) {
 				// Lock the child because we are about to check if it exists.
 				r.childLock.Lock()
+
+				log.Printf("[TRACE] (runner) acquired child lock for command, spawning")
 
 				if r.child == nil {
 					env := r.config.Exec.Env.Copy()
@@ -946,7 +950,8 @@ func (r *Runner) allTemplatesRendered() bool {
 	defer r.renderEventsLock.RUnlock()
 
 	for _, tmpl := range r.templates {
-		if _, rendered := r.renderEvents[tmpl.ID()]; !rendered {
+		event, rendered := r.renderEvents[tmpl.ID()]
+		if !rendered || !event.DidRender {
 			return false
 		}
 	}

@@ -130,9 +130,11 @@ their default values if any for each type of object.
 
 The `Job` object supports the following keys:
 
-- `AllAtOnce` - Controls if the entire set of tasks in the job must
-  be placed atomically or if they can be scheduled incrementally.
-  This should only be used for special circumstances. Defaults to `false`.
+- `AllAtOnce` - Controls whether the scheduler can make partial placements if
+  optimistic scheduling resulted in an oversubscribed node. This does not
+  control whether all allocations for the job, where all would be the desired
+  count for each task group, must be placed atomically. This should only be
+  used for special circumstances. Defaults to `false`.
 
 - `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.

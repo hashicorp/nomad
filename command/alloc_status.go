@@ -71,10 +71,9 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
-	client, _ := c.Meta.Client()
-
 	return complete.PredictFunc(func(a complete.Args) []string {
-		if len(a.Completed) > 1 {
+		client, err := c.Meta.Client()
+		if err != nil {
 			return nil
 		}
 
@@ -147,12 +146,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(allocID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		allocID = allocID[:len(allocID)-1]
-	}
 
+	allocID = sanatizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))

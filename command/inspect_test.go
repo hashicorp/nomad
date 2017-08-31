@@ -80,11 +80,4 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(j.ID, res[0])
-
-	// Autocomplete should only complete once
-	args = complete.Args{Last: prefix, Completed: []string{prefix, "a", "b"}}
-	predictor = cmd.AutocompleteArgs()
-
-	res = predictor.Predict(args)
-	assert.Nil(res)
 }
