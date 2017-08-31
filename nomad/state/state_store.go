@@ -267,6 +267,20 @@ func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error
 	return iter, nil
 }
 
+func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("deployment", "namespace", namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// TODO requires filter func
 func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
@@ -977,6 +991,21 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
+// JobsByNamespace returns an iterator over all the jobs for the given namespace
+func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire jobs table
+	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // JobsByPeriodic returns an iterator over all the periodic or non-periodic jobs.
 func (s *StateStore) JobsByPeriodic(ws memdb.WatchSet, periodic bool) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1368,6 +1397,7 @@ func (s *StateStore) EvalByID(ws memdb.WatchSet, id string) (*structs.Evaluation
 	return nil, nil
 }
 
+// TODO requires filter func
 // EvalsByIDPrefix is used to lookup evaluations by prefix
 func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1422,6 +1452,22 @@ func (s *StateStore) Evals(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 	// Walk the entire table
 	iter, err := txn.Get("evals", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// EvalsByNamespace returns an iterator over all the evaluations in the given
+// namespace
+func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("evals", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1638,8 +1684,9 @@ func (s *StateStore) AllocByID(ws memdb.WatchSet, id string) (*structs.Allocatio
 	return nil, nil
 }
 
+// TODO requires filter func
 // AllocsByIDPrefix is used to lookup allocs by prefix
-func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get("allocs", "id_prefix", id)
@@ -1795,6 +1842,22 @@ func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 	// Walk the entire table
 	iter, err := txn.Get("allocs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// AllocsByNamespace returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) AllocsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("allocs", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}

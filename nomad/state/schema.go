@@ -287,7 +287,7 @@ func deploymentSchema() *memdb.TableSchema {
 			"namespace": &memdb.IndexSchema{
 				Name:         "namespace",
 				AllowMissing: false,
-				Unique:       true,
+				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Namespace",
 				},
@@ -369,7 +369,7 @@ func evalTableSchema() *memdb.TableSchema {
 			"namespace": &memdb.IndexSchema{
 				Name:         "namespace",
 				AllowMissing: false,
-				Unique:       true,
+				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Namespace",
 				},
@@ -422,7 +422,7 @@ func allocTableSchema() *memdb.TableSchema {
 			"namespace": &memdb.IndexSchema{
 				Name:         "namespace",
 				AllowMissing: false,
-				Unique:       true,
+				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Namespace",
 				},

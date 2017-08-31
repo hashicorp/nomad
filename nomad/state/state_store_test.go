@@ -397,6 +397,75 @@ func TestStateStore_Deployments(t *testing.T) {
 	}
 }
 
+func TestStateStore_Deployments_Namespace(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := "namespaced"
+	deploy1 := mock.Deployment()
+	deploy2 := mock.Deployment()
+	deploy1.Namespace = ns1
+	deploy2.Namespace = ns1
+
+	ns2 := "new-namespace"
+	deploy3 := mock.Deployment()
+	deploy4 := mock.Deployment()
+	deploy3.Namespace = ns2
+	deploy4.Namespace = ns2
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.DeploymentsByNamespace(watches[0], ns1)
+	assert.Nil(err)
+	_, err = state.DeploymentsByNamespace(watches[1], ns2)
+	assert.Nil(err)
+
+	assert.Nil(state.UpsertDeployment(1001, deploy1))
+	assert.Nil(state.UpsertDeployment(1002, deploy2))
+	assert.Nil(state.UpsertDeployment(1003, deploy3))
+	assert.Nil(state.UpsertDeployment(1004, deploy4))
+	assert.True(watchFired(watches[0]))
+	assert.True(watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.DeploymentsByNamespace(ws, ns1)
+	assert.Nil(err)
+	iter2, err := state.DeploymentsByNamespace(ws, ns2)
+	assert.Nil(err)
+
+	var out1 []*structs.Deployment
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Deployment))
+	}
+
+	var out2 []*structs.Deployment
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Deployment))
+	}
+
+	assert.Len(out1, 2)
+	assert.Len(out2, 2)
+
+	for _, deploy := range out1 {
+		assert.Equal(ns1, deploy.Namespace)
+	}
+	for _, deploy := range out2 {
+		assert.Equal(ns2, deploy.Namespace)
+	}
+
+	index, err := state.Index("deployment")
+	assert.Nil(err)
+	assert.EqualValues(1004, index)
+	assert.False(watchFired(ws))
+}
+
 func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	deploy := mock.Deployment()
@@ -1454,6 +1523,75 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByNamespace(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := "new"
+	job1 := mock.Job()
+	job2 := mock.Job()
+	job1.Namespace = ns1
+	job2.Namespace = ns1
+
+	ns2 := "new-namespace"
+	job3 := mock.Job()
+	job4 := mock.Job()
+	job3.Namespace = ns2
+	job4.Namespace = ns2
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.JobsByNamespace(watches[0], ns1)
+	assert.Nil(err)
+	_, err = state.JobsByNamespace(watches[1], ns2)
+	assert.Nil(err)
+
+	assert.Nil(state.UpsertJob(1001, job1))
+	assert.Nil(state.UpsertJob(1002, job2))
+	assert.Nil(state.UpsertJob(1003, job3))
+	assert.Nil(state.UpsertJob(1004, job4))
+	assert.True(watchFired(watches[0]))
+	assert.True(watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.JobsByNamespace(ws, ns1)
+	assert.Nil(err)
+	iter2, err := state.JobsByNamespace(ws, ns2)
+	assert.Nil(err)
+
+	var out1 []*structs.Job
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Job))
+	}
+
+	var out2 []*structs.Job
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Job))
+	}
+
+	assert.Len(out1, 2)
+	assert.Len(out2, 2)
+
+	for _, job := range out1 {
+		assert.Equal(ns1, job.Namespace)
+	}
+	for _, job := range out2 {
+		assert.Equal(ns2, job.Namespace)
+	}
+
+	index, err := state.Index("jobs")
+	assert.Nil(err)
+	assert.EqualValues(1004, index)
+	assert.False(watchFired(ws))
+}
+
 func TestStateStore_JobVersions(t *testing.T) {
 	state := testStateStore(t)
 	var jobs []*structs.Job
@@ -1574,6 +1712,83 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	job1 := mock.Job()
+	job2 := mock.Job()
+
+	jobID := "redis"
+	ns1, ns2 := "namespace1", "namespace2"
+	job1.ID = jobID
+	job2.ID = jobID
+	job1.Namespace = ns1
+	job2.Namespace = ns2
+
+	assert.Nil(state.UpsertJob(1000, job1))
+	assert.Nil(state.UpsertJob(1001, job2))
+
+	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
+		var jobs []*structs.Job
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			jobs = append(jobs, raw.(*structs.Job))
+		}
+		return jobs
+	}
+
+	// Try full match
+	ws := memdb.NewWatchSet()
+	iter1, err := state.JobsByIDPrefix(ws, ns1, jobID)
+	assert.Nil(err)
+	iter2, err := state.JobsByIDPrefix(ws, ns2, jobID)
+	assert.Nil(err)
+
+	jobsNs1 := gatherJobs(iter1)
+	assert.Len(jobsNs1, 1)
+
+	jobsNs2 := gatherJobs(iter2)
+	assert.Len(jobsNs2, 1)
+
+	// Try prefix
+	iter1, err = state.JobsByIDPrefix(ws, ns1, "re")
+	assert.Nil(err)
+	iter2, err = state.JobsByIDPrefix(ws, ns2, "re")
+	assert.Nil(err)
+
+	jobsNs1 = gatherJobs(iter1)
+	jobsNs2 = gatherJobs(iter2)
+	assert.Len(jobsNs1, 1)
+	assert.Len(jobsNs2, 1)
+
+	job3 := mock.Job()
+	job3.ID = "riak"
+	job3.Namespace = ns1
+	assert.Nil(state.UpsertJob(1003, job3))
+	assert.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	iter1, err = state.JobsByIDPrefix(ws, ns1, "r")
+	assert.Nil(err)
+	iter2, err = state.JobsByIDPrefix(ws, ns2, "r")
+	assert.Nil(err)
+
+	jobsNs1 = gatherJobs(iter1)
+	jobsNs2 = gatherJobs(iter2)
+	assert.Len(jobsNs1, 2)
+	assert.Len(jobsNs2, 1)
+
+	iter1, err = state.JobsByIDPrefix(ws, ns1, "ri")
+	assert.Nil(err)
+
+	jobsNs1 = gatherJobs(iter1)
+	assert.Len(jobsNs1, 1)
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_JobsByPeriodic(t *testing.T) {
@@ -2333,6 +2548,72 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_UpsertEvals_Namespace(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := "namespaced"
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval1.Namespace = ns1
+	eval2.Namespace = ns1
+
+	ns2 := "new-namespace"
+	eval3 := mock.Eval()
+	eval4 := mock.Eval()
+	eval3.Namespace = ns2
+	eval4.Namespace = ns2
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.EvalsByNamespace(watches[0], ns1)
+	assert.Nil(err)
+	_, err = state.EvalsByNamespace(watches[1], ns2)
+	assert.Nil(err)
+
+	assert.Nil(state.UpsertEvals(1001, []*structs.Evaluation{eval1, eval2, eval3, eval4}))
+	assert.True(watchFired(watches[0]))
+	assert.True(watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.EvalsByNamespace(ws, ns1)
+	assert.Nil(err)
+	iter2, err := state.EvalsByNamespace(ws, ns2)
+	assert.Nil(err)
+
+	var out1 []*structs.Evaluation
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Evaluation))
+	}
+
+	var out2 []*structs.Evaluation
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Evaluation))
+	}
+
+	assert.Len(out1, 2)
+	assert.Len(out2, 2)
+
+	for _, eval := range out1 {
+		assert.Equal(ns1, eval.Namespace)
+	}
+	for _, eval := range out2 {
+		assert.Equal(ns2, eval.Namespace)
+	}
+
+	index, err := state.Index("evals")
+	assert.Nil(err)
+	assert.EqualValues(1001, index)
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
@@ -3303,6 +3584,79 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertAlloc_AllocsByNamespace(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := "namespaced"
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc1.Namespace = ns1
+	alloc1.Job.Namespace = ns1
+	alloc2.Namespace = ns1
+	alloc2.Job.Namespace = ns1
+
+	ns2 := "new-namespace"
+	alloc3 := mock.Alloc()
+	alloc4 := mock.Alloc()
+	alloc3.Namespace = ns2
+	alloc3.Job.Namespace = ns2
+	alloc4.Namespace = ns2
+	alloc4.Job.Namespace = ns2
+
+	assert.Nil(state.UpsertJob(999, alloc1.Job))
+	assert.Nil(state.UpsertJob(1000, alloc3.Job))
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.AllocsByNamespace(watches[0], ns1)
+	assert.Nil(err)
+	_, err = state.AllocsByNamespace(watches[1], ns2)
+	assert.Nil(err)
+
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
+	assert.True(watchFired(watches[0]))
+	assert.True(watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.AllocsByNamespace(ws, ns1)
+	assert.Nil(err)
+	iter2, err := state.AllocsByNamespace(ws, ns2)
+	assert.Nil(err)
+
+	var out1 []*structs.Allocation
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Allocation))
+	}
+
+	var out2 []*structs.Allocation
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Allocation))
+	}
+
+	assert.Len(out1, 2)
+	assert.Len(out2, 2)
+
+	for _, alloc := range out1 {
+		assert.Equal(ns1, alloc.Namespace)
+	}
+	for _, alloc := range out2 {
+		assert.Equal(ns2, alloc.Namespace)
+	}
+
+	index, err := state.Index("allocs")
+	assert.Nil(err)
+	assert.EqualValues(1001, index)
+	assert.False(watchFired(ws))
+}
+
 func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	state := testStateStore(t)
 	deployment := mock.Deployment()
@@ -4150,7 +4504,7 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.AllocsByIDPrefix(ws, "aaaa")
+	iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4180,7 +4534,7 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 		}
 	}
 
-	iter, err = state.AllocsByIDPrefix(ws, "b-a7bfb")
+	iter, err = state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
