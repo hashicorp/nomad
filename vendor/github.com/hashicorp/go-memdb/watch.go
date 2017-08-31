@@ -61,16 +61,15 @@ func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 		}
 	}()
 
-	return w.WatchCtx(ctx)
+	return w.WatchCtx(ctx) == context.Canceled
 }
 
 // WatchCtx is used to wait for either the watch set to trigger or for the
-// context to be cancelled. Returns true if the context is cancelled. Watch with
-// a timeout channel can be mimicked by creating a context with a deadline.
-// WatchCtx should be preferred over Watch.
-func (w WatchSet) WatchCtx(ctx context.Context) bool {
+// context to be cancelled. Watch with a timeout channel can be mimicked by
+// creating a context with a deadline. WatchCtx should be preferred over Watch.
+func (w WatchSet) WatchCtx(ctx context.Context) error {
 	if w == nil {
-		return false
+		return nil
 	}
 
 	if n := len(w); n <= aFew {
@@ -87,11 +86,11 @@ func (w WatchSet) WatchCtx(ctx context.Context) bool {
 }
 
 // watchMany is used if there are many watchers.
-func (w WatchSet) watchMany(ctx context.Context) bool {
+func (w WatchSet) watchMany(ctx context.Context) error {
 	// Set up a goroutine for each watcher.
 	triggerCh := make(chan struct{}, 1)
 	watcher := func(chunk []<-chan struct{}) {
-		if timeout := watchFew(ctx, chunk); !timeout {
+		if err := watchFew(ctx, chunk); err == nil {
 			select {
 			case triggerCh <- struct{}{}:
 			default:
@@ -123,8 +122,8 @@ func (w WatchSet) watchMany(ctx context.Context) bool {
 	// Wait for a channel to trigger or timeout.
 	select {
 	case <-triggerCh:
-		return false
+		return nil
 	case <-ctx.Done():
-		return true
+		return ctx.Err()
 	}
 }

@@ -737,10 +737,10 @@
 			"revisionTime": "2017-07-25T22:12:15Z"
 		},
 		{
-			"checksumSHA1": "Q7MLoOLgXyvHBVmT/rvSeOhJo6c=",
+			"checksumSHA1": "FMAvwDar2bQyYAW4XMFhAt0J5xA=",
 			"path": "github.com/hashicorp/go-memdb",
-			"revision": "f2dec88c7441ddf375eabd561b0a1584b67b8ce4",
-			"revisionTime": "2017-08-30T23:01:53Z"
+			"revision": "20ff6434c1cc49b80963d45bf5c6aa89c78d8d57",
+			"revisionTime": "2017-08-31T20:15:40Z"
 		},
 		{
 			"path": "github.com/hashicorp/go-msgpack/codec",
