@@ -47,7 +47,7 @@ ALL_TARGETS += freebsd_amd64
 endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -63,7 +63,7 @@ pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
 		-o "$@"
 
 pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -71,7 +71,7 @@ pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
 		-o "$@"
 
 pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -79,7 +79,7 @@ pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
 		-o "$@"
 
 pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -87,7 +87,7 @@ pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
 		-o "$@"
 
 pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -100,7 +100,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 #	CC=i686-w64-mingw32-gcc
 #	CXX=i686-w64-mingw32-g++
 pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -108,7 +108,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 		-o "$@.exe"
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -116,7 +116,7 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-o "$@.exe"
 
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -158,7 +158,7 @@ check: ## Lint the source code
 	@gometalinter \
 		--deadline 10m \
 		--vendor \
-		--exclude '.*\.generated\.go:\d+:' \
+		--exclude '(.*\.generated\.go:\d+:|bindata_assetfs)' \
 		--disable-all \
 		--sort severity \
 		$(CHECKS) \
@@ -185,7 +185,7 @@ dev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="$(GO_TAGS) nomad_test ent"
+		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -203,15 +203,15 @@ prodev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="$(GO_TAGS) nomad_test pro"
+		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: release
-release: GO_TAGS="$(GO_TAGS) ui"
-release: clean check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+release: clean ember-dist static-assets check
+	@$(foreach t,$(ALL_TARGETS),make GO_TAGS="ui" pkg/$(t).zip;) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
@@ -292,8 +292,8 @@ ember-dist: ## Build the static UI assets from source
 	@cd ui && npm run build
 
 .PHONY: dev-ui
-dev-ui: GO_TAGS="$(GO_TAGS) ui"
-dev-ui: ember-dist static-assets dev ## Build a dev binary with the UI baked in
+dev-ui: ember-dist static-assets
+	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help
