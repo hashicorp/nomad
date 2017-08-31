@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,7 +16,6 @@ const bytesPerMegabyte = 1024 * 1024
 // StorageFingerprint is used to measure the amount of storage free for
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
-	StaticFingerprinter
 	logger *log.Logger
 }
 
@@ -56,4 +56,8 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	node.Resources.DiskMB = int(free / bytesPerMegabyte)
 
 	return true, nil
+}
+
+func (f *StorageFingerprint) Periodic() (bool, time.Duration) {
+	return true, 15 * time.Second
 }
