@@ -153,6 +153,10 @@ type Client struct {
 
 	// clientACLResolver holds the ACL resolution state
 	clientACLResolver
+
+	// baseLabels are used when emitting tagged metrics. All client metrics will
+	// have these tags, and optionally more.
+	baseLabels []metrics.Label
 }
 
 var (
@@ -189,6 +193,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
 	}
+
+	c.baseLabels = []metrics.Label{{"node_id", c.Node().ID}, {"datacenter", c.Node().Datacenter}}
 
 	// Initialize the client
 	if err := c.init(); err != nil {
@@ -1874,12 +1880,10 @@ func (c *Client) setGaugeForMemoryStats() {
 	hStats := c.hostStatsCollector.Stats()
 
 	if !c.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"node_id", nodeID}, {"datacenter", c.Node().Datacenter}}
-
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), c.baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -1896,7 +1900,7 @@ func (c *Client) setGaugeForCPUStats() {
 
 	for _, cpu := range hStats.CPU {
 		if !c.config.DisableTaggedMetrics {
-			labels := []metrics.Label{{"node_id", nodeID}, {"cpu", cpu.CPU}}
+			labels := append(c.baseLabels, metrics.Label{"cpu", cpu.CPU})
 
 			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "total"}, float32(cpu.Total), labels)
 			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "user"}, float32(cpu.User), labels)
@@ -1919,7 +1923,7 @@ func (c *Client) setGaugeForDiskStats() {
 
 	for _, disk := range hStats.DiskStats {
 		if !c.config.DisableTaggedMetrics {
-			labels := []metrics.Label{{"node_id", nodeID}, {"disk", disk.Device}}
+			labels := append(c.baseLabels, metrics.Label{"disk", disk.Device})
 
 			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "size"}, float32(disk.Size), labels)
 			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used"}, float32(disk.Used), labels)
@@ -1949,12 +1953,10 @@ func (c *Client) setGaugeForAllocationStats() {
 
 	// Emit allocated
 	if !c.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"node_id", nodeID}}
-
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.MemoryMB), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.DiskMB), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.CPU), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "iops"}, float32(allocated.IOPS), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.MemoryMB), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.DiskMB), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.CPU), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "iops"}, float32(allocated.IOPS), c.baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -1966,7 +1968,7 @@ func (c *Client) setGaugeForAllocationStats() {
 
 	for _, n := range allocated.Networks {
 		if !c.config.DisableTaggedMetrics {
-			labels := []metrics.Label{{"device", n.Device}, {"node_id", nodeID}}
+			labels := append(c.baseLabels, metrics.Label{"device", n.Device})
 			metrics.SetGaugeWithLabels([]string{"client", "allocated", "network"}, float32(n.MBits), labels)
 		}
 
@@ -1982,11 +1984,10 @@ func (c *Client) setGaugeForAllocationStats() {
 	unallocatedIops := total.IOPS - res.IOPS - allocated.IOPS
 
 	if !c.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"node_id", nodeID}}
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "iops"}, float32(unallocatedIops), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "iops"}, float32(unallocatedIops), c.baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -2008,7 +2009,7 @@ func (c *Client) setGaugeForAllocationStats() {
 		unallocatedMbits := totalMbits - n.MBits
 
 		if !c.config.DisableTaggedMetrics {
-			labels := []metrics.Label{{"device", n.Device}, {"node_id", nodeID}}
+			labels := append(c.baseLabels, metrics.Label{"device", n.Device})
 			metrics.SetGaugeWithLabels([]string{"client", "unallocated", "network"}, float32(unallocatedMbits), labels)
 		}
 
@@ -2021,7 +2022,13 @@ func (c *Client) setGaugeForAllocationStats() {
 // No lables are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime() {
 	hStats := c.hostStatsCollector.Stats()
-	metrics.SetGauge([]string{"uptime"}, float32(hStats.Uptime))
+	if !c.config.DisableTaggedMetrics {
+		labels := []metrics.Label{{"datacenter", c.Node().Datacenter}}
+		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), labels)
+	}
+	if c.config.BackwardsCompatibleMetrics {
+		metrics.SetGauge([]string{"uptime"}, float32(hStats.Uptime))
+	}
 }
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
@@ -2058,12 +2065,11 @@ func (c *Client) emitClientMetrics() {
 	}
 
 	if !c.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"node_id", nodeID}}
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), labels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), c.baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {

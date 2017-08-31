@@ -161,6 +161,10 @@ type TaskRunner struct {
 	// persistedHash is the hash of the last persisted snapshot. It is used to
 	// detect if a new snapshot has to be written to disk.
 	persistedHash []byte
+
+	// baseLabels are used when emitting tagged metrics. All task runner metrics
+	// will have these tags, and optionally more.
+	baseLabels []metrics.Label
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
@@ -246,6 +250,8 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		restartCh:        make(chan *structs.TaskEvent),
 		signalCh:         make(chan SignalEvent),
 	}
+
+	tc.baseLabels = []metrics.Label{{"job", tc.alloc.Job.Name}, {"task_group", tc.alloc.TaskGroup}, {"alloc_id", tc.alloc.ID}, {"task", tc.task.Name}}
 
 	return tc
 }
@@ -1788,22 +1794,20 @@ func (r *TaskRunner) setCreatedResources(cr *driver.CreatedResources) {
 
 func (r *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	if !r.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"job", r.alloc.Job.Name}, {"task_group", r.alloc.TaskGroup}, {"alloc_id", r.alloc.ID}, {"task", r.task.Name}}
-
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), labels)
+			float32(ru.ResourceUsage.MemoryStats.RSS), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), labels)
+			float32(ru.ResourceUsage.MemoryStats.RSS), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-			float32(ru.ResourceUsage.MemoryStats.Cache), labels)
+			float32(ru.ResourceUsage.MemoryStats.Cache), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-			float32(ru.ResourceUsage.MemoryStats.Swap), labels)
+			float32(ru.ResourceUsage.MemoryStats.Swap), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.MaxUsage), labels)
+			float32(ru.ResourceUsage.MemoryStats.MaxUsage), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelUsage), labels)
+			float32(ru.ResourceUsage.MemoryStats.KernelUsage), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), labels)
+			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), r.baseLabels)
 	}
 
 	if r.config.BackwardsCompatibleMetrics {
@@ -1818,20 +1822,18 @@ func (r *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 
 func (r *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	if !r.config.DisableTaggedMetrics {
-		labels := []metrics.Label{{"job", r.alloc.Job.Name}, {"task_group", r.alloc.TaskGroup}, {"alloc_id", r.alloc.ID}, {"task", r.task.Name}}
-
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
-			float32(ru.ResourceUsage.CpuStats.Percent), labels)
+			float32(ru.ResourceUsage.CpuStats.Percent), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
-			float32(ru.ResourceUsage.CpuStats.SystemMode), labels)
+			float32(ru.ResourceUsage.CpuStats.SystemMode), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
-			float32(ru.ResourceUsage.CpuStats.UserMode), labels)
+			float32(ru.ResourceUsage.CpuStats.UserMode), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledTime), labels)
+			float32(ru.ResourceUsage.CpuStats.ThrottledTime), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), labels)
+			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), r.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
-			float32(ru.ResourceUsage.CpuStats.TotalTicks), labels)
+			float32(ru.ResourceUsage.CpuStats.TotalTicks), r.baseLabels)
 	}
 
 	if r.config.BackwardsCompatibleMetrics {
