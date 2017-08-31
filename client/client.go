@@ -1875,10 +1875,7 @@ func (c *Client) emitStats() {
 	}
 }
 
-func (c *Client) setGaugeForMemoryStats() {
-	nodeID := c.Node().ID
-	hStats := c.hostStatsCollector.Stats()
-
+func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), c.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), c.baseLabels)
@@ -1894,10 +1891,7 @@ func (c *Client) setGaugeForMemoryStats() {
 	}
 }
 
-func (c *Client) setGaugeForCPUStats() {
-	nodeID := c.Node().ID
-	hStats := c.hostStatsCollector.Stats()
-
+func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats) {
 	for _, cpu := range hStats.CPU {
 		if !c.config.DisableTaggedMetrics {
 			labels := append(c.baseLabels, metrics.Label{"cpu", cpu.CPU})
@@ -1917,10 +1911,7 @@ func (c *Client) setGaugeForCPUStats() {
 	}
 }
 
-func (c *Client) setGaugeForDiskStats() {
-	nodeID := c.Node().ID
-	hStats := c.hostStatsCollector.Stats()
-
+func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats) {
 	for _, disk := range hStats.DiskStats {
 		if !c.config.DisableTaggedMetrics {
 			labels := append(c.baseLabels, metrics.Label{"disk", disk.Device})
@@ -1942,9 +1933,7 @@ func (c *Client) setGaugeForDiskStats() {
 	}
 }
 
-func (c *Client) setGaugeForAllocationStats() {
-	nodeID := c.Node().ID
-
+func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	node := c.configCopy.Node
 	c.configLock.RUnlock()
 	total := node.Resources
@@ -2020,8 +2009,7 @@ func (c *Client) setGaugeForAllocationStats() {
 }
 
 // No lables are required so we emit with only a key/value syntax
-func (c *Client) setGaugeForUptime() {
-	hStats := c.hostStatsCollector.Stats()
+func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
 		labels := []metrics.Label{{"datacenter", c.Node().Datacenter}}
 		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), labels)
@@ -2033,11 +2021,14 @@ func (c *Client) setGaugeForUptime() {
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitHostStats() {
-	c.setGaugeForMemoryStats()
-	c.setGaugeForUptime()
-	c.setGaugeForCPUStats()
-	c.setGaugeForDiskStats()
-	c.setGaugeForAllocationStats()
+	nodeID := c.Node().ID
+	hStats := c.hostStatsCollector.Stats()
+
+	c.setGaugeForMemoryStats(nodeID, hStats)
+	c.setGaugeForUptime(hStats)
+	c.setGaugeForCPUStats(nodeID, hStats)
+	c.setGaugeForDiskStats(nodeID, hStats)
+	c.setGaugeForAllocationStats(nodeID)
 }
 
 // emitClientMetrics emits lower volume client metrics
