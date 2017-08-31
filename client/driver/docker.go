@@ -1305,10 +1305,11 @@ CREATE:
 		containerName := "/" + config.Name
 		d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
 		for _, shimContainer := range containers {
-			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", container)
+			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", shimContainer.Names)
 			found := false
 			for _, name := range shimContainer.Names {
 				if name == containerName {
+					d.logger.Printf("[DEBUG] driver.docker: Found container %v: %v", containerName, shimContainer.ID)
 					found = true
 					break
 				}
@@ -1330,7 +1331,7 @@ CREATE:
 				// See #2802
 				return nil, structs.NewRecoverableError(err, true)
 			}
-			if container != nil && (container.State.Running || container.State.FinishedAt.IsZero()) {
+			if container != nil && container.State.Running {
 				return container, nil
 			}
 
