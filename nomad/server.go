@@ -1143,7 +1143,7 @@ func (s *Server) GetConfig() *Config {
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. It should be formatted as a JSON array containing the address
-and port of each Consul server in the cluster, like this:
+and port (RPC) of each Nomad server in the cluster, like this:
 
 ["10.1.0.1:4647","10.1.0.2:4647","10.1.0.3:4647"]
 
