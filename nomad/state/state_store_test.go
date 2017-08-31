@@ -51,7 +51,7 @@ func TestStateStore_Blocking_Timeout(t *testing.T) {
 	defer cancel()
 
 	_, idx, err := state.BlockingQuery(noopFn, 10, deadlineCtx)
-	assert.Nil(t, err)
+	assert.EqualError(t, err, context.DeadlineExceeded.Error())
 	assert.EqualValues(t, 5, idx)
 	assert.WithinDuration(t, timeout, time.Now(), 5*time.Millisecond)
 }
