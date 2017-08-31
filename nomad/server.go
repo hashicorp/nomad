@@ -679,23 +679,15 @@ func (s *Server) setupConsulSyncer() error {
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 
-	// Create the shims
-	stateShim := &deploymentWatcherStateShim{
-		region:         s.Region(),
-		evaluations:    s.endpoints.Job.Evaluations,
-		allocations:    s.endpoints.Deployment.Allocations,
-		list:           s.endpoints.Deployment.List,
-		getDeployment:  s.endpoints.Deployment.GetDeployment,
-		getJobVersions: s.endpoints.Job.GetJobVersions,
-		getJob:         s.endpoints.Job.GetJob,
-	}
+	// Create the raft shim type to restrict the set of raft methods that can be
+	// made
 	raftShim := &deploymentWatcherRaftShim{
 		apply: s.raftApply,
 	}
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, stateShim, raftShim,
+		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
 		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
