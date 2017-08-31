@@ -72,13 +72,13 @@ func getResourceIter(context structs.Context, namespace, prefix string, ws memdb
 	case structs.Jobs:
 		return state.JobsByIDPrefix(ws, namespace, prefix)
 	case structs.Evals:
-		return state.EvalsByIDPrefix(ws, prefix)
+		return state.EvalsByIDPrefix(ws, namespace, prefix)
 	case structs.Allocs:
-		return state.AllocsByIDPrefix(ws, prefix)
+		return state.AllocsByIDPrefix(ws, namespace, prefix)
 	case structs.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
-		return state.DeploymentsByIDPrefix(ws, prefix)
+		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	default:
 		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 	}

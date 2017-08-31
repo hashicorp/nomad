@@ -284,9 +284,9 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.EvalsByIDPrefix(ws, prefix)
+				iter, err = state.EvalsByIDPrefix(ws, args.Namespace, prefix)
 			} else {
-				iter, err = state.Evals(ws)
+				iter, err = state.EvalsByNamespace(ws, args.Namespace)
 			}
 			if err != nil {
 				return err

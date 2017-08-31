@@ -325,8 +325,7 @@ func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string)
 	return iter, nil
 }
 
-// TODO requires filter func
-func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID string) (memdb.ResultIterator, error) {
+func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	// Walk the entire deployments table
@@ -336,7 +335,23 @@ func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID strin
 	}
 
 	ws.Add(iter.WatchCh())
-	return iter, nil
+
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, deploymentNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// deploymentNamespaceFilter returns a filter function that filters all
+// deployment not in the given namespace.
+func deploymentNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		d, ok := raw.(*structs.Deployment)
+		if !ok {
+			return true
+		}
+
+		return d.Namespace != namespace
+	}
 }
 
 func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*structs.Deployment, error) {
@@ -1442,11 +1457,12 @@ func (s *StateStore) EvalByID(ws memdb.WatchSet, id string) (*structs.Evaluation
 	return nil, nil
 }
 
-// TODO requires filter func
-// EvalsByIDPrefix is used to lookup evaluations by prefix
-func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+// EvalsByIDPrefix is used to lookup evaluations by prefix in a particular
+// namespace
+func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
+	// Get an iterator over all evals by the id prefix
 	iter, err := txn.Get("evals", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
@@ -1454,7 +1470,22 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, id string) (memdb.Result
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, evalNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// evalNamespaceFilter returns a filter function that filters all evaluations
+// not in the given namespace.
+func evalNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		eval, ok := raw.(*structs.Evaluation)
+		if !ok {
+			return true
+		}
+
+		return eval.Namespace != namespace
+	}
 }
 
 // EvalsByJob returns all the evaluations by job id
@@ -1729,7 +1760,6 @@ func (s *StateStore) AllocByID(ws memdb.WatchSet, id string) (*structs.Allocatio
 	return nil, nil
 }
 
-// TODO requires filter func
 // AllocsByIDPrefix is used to lookup allocs by prefix
 func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1741,7 +1771,22 @@ func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string) (
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, allocNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// allocNamespaceFilter returns a filter function that filters all allocations
+// not in the given namespace.
+func allocNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		alloc, ok := raw.(*structs.Allocation)
+		if !ok {
+			return true
+		}
+
+		return alloc.Namespace != namespace
+	}
 }
 
 // AllocsByNode returns all the allocations by node

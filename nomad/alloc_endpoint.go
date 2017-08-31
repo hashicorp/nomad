@@ -30,9 +30,9 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.AllocsByIDPrefix(ws, prefix)
+				iter, err = state.AllocsByIDPrefix(ws, args.Namespace, prefix)
 			} else {
-				iter, err = state.Allocs(ws)
+				iter, err = state.AllocsByNamespace(ws, args.Namespace)
 			}
 			if err != nil {
 				return err

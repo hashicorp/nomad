@@ -396,7 +396,7 @@ func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 		return nil, err
 	}
 
-	versions, err := snap.JobVersionsByID(nil, w.d.JobID)
+	versions, err := snap.JobVersionsByID(nil, w.d.Namespace, w.d.JobID)
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +515,7 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 		return 0, err
 	}
 
-	evals, err := snap.EvalsByJob(nil, w.d.JobID)
+	evals, err := snap.EvalsByJob(nil, w.d.Namespace, w.d.JobID)
 	if err != nil {
 		return 0, err
 	}

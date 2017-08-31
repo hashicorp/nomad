@@ -46,21 +46,21 @@ func TestStateStore_Blocking_Timeout(t *testing.T) {
 	}
 
 	state := testStateStore(t)
-	timeout := time.Now().Add(10 * time.Millisecond)
+	timeout := time.Now().Add(50 * time.Millisecond)
 	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
 	defer cancel()
 
 	_, idx, err := state.BlockingQuery(noopFn, 10, deadlineCtx)
-	assert.Nil(t, err)
+	assert.EqualError(t, err, context.DeadlineExceeded.Error())
 	assert.EqualValues(t, 5, idx)
-	assert.WithinDuration(t, timeout, time.Now(), 5*time.Millisecond)
+	assert.WithinDuration(t, timeout, time.Now(), 25*time.Millisecond)
 }
 
 func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	job := mock.Job()
 	count := 0
 	queryFn := func(ws memdb.WatchSet, s *StateStore) (interface{}, uint64, error) {
-		_, err := s.JobByID(ws, job.ID)
+		_, err := s.JobByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -542,7 +542,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 
 	// Create a watchset so we can test that getters don't cause it to fire
 	ws := memdb.NewWatchSet()
-	iter, err := state.DeploymentsByIDPrefix(ws, deploy.ID)
+	iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, deploy.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -569,7 +569,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 		t.Fatalf("bad")
 	}
 
-	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.DeploymentsByIDPrefix(ws, "11")
+	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -601,7 +601,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.DeploymentsByIDPrefix(ws, "1111")
+	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "1111")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -614,6 +614,54 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_DeploymentsByIDPrefix_Namespaces(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	deploy1 := mock.Deployment()
+	deploy1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	deploy2 := mock.Deployment()
+	deploy2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1, ns2 := "namespace1", "namespace2"
+	deploy1.Namespace = ns1
+	deploy2.Namespace = ns2
+
+	assert.Nil(state.UpsertDeployment(1000, deploy1))
+	assert.Nil(state.UpsertDeployment(1001, deploy2))
+
+	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
+		var deploys []*structs.Deployment
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			deploy := raw.(*structs.Deployment)
+			deploys = append(deploys, deploy)
+		}
+		return deploys
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.DeploymentsByIDPrefix(ws, ns1, sharedPrefix)
+	assert.Nil(err)
+	iter2, err := state.DeploymentsByIDPrefix(ws, ns2, sharedPrefix)
+	assert.Nil(err)
+
+	deploysNs1 := gatherDeploys(iter1)
+	deploysNs2 := gatherDeploys(iter2)
+	assert.Len(deploysNs1, 1)
+	assert.Len(deploysNs2, 1)
+
+	iter1, err = state.DeploymentsByIDPrefix(ws, ns1, deploy1.ID[:8])
+	assert.Nil(err)
+
+	deploysNs1 = gatherDeploys(iter1)
+	assert.Len(deploysNs1, 1)
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
@@ -3214,7 +3262,7 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.EvalsByIDPrefix(ws, "aaaa")
+	iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3244,7 +3292,7 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 		}
 	}
 
-	iter, err = state.EvalsByIDPrefix(ws, "b-a7bfb")
+	iter, err = state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3257,6 +3305,52 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_EvalsByIDPrefix_Namespaces(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	eval1 := mock.Eval()
+	eval1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	eval2 := mock.Eval()
+	eval2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1, ns2 := "namespace1", "namespace2"
+	eval1.Namespace = ns1
+	eval2.Namespace = ns2
+
+	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}))
+
+	gatherEvals := func(iter memdb.ResultIterator) []*structs.Evaluation {
+		var evals []*structs.Evaluation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			evals = append(evals, raw.(*structs.Evaluation))
+		}
+		return evals
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.EvalsByIDPrefix(ws, ns1, sharedPrefix)
+	assert.Nil(err)
+	iter2, err := state.EvalsByIDPrefix(ws, ns2, sharedPrefix)
+	assert.Nil(err)
+
+	evalsNs1 := gatherEvals(iter1)
+	evalsNs2 := gatherEvals(iter2)
+	assert.Len(evalsNs1, 1)
+	assert.Len(evalsNs2, 1)
+
+	iter1, err = state.EvalsByIDPrefix(ws, ns1, eval1.ID[:8])
+	assert.Nil(err)
+
+	evalsNs1 = gatherEvals(iter1)
+	assert.Len(evalsNs1, 1)
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_RestoreEval(t *testing.T) {
@@ -4611,6 +4705,53 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_AllocsByIDPrefix_Namespaces(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	alloc1 := mock.Alloc()
+	alloc1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	alloc2 := mock.Alloc()
+	alloc2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1, ns2 := "namespace1", "namespace2"
+	alloc1.Namespace = ns1
+	alloc2.Namespace = ns2
+
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
+
+	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
+		var allocs []*structs.Allocation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			alloc := raw.(*structs.Allocation)
+			allocs = append(allocs, alloc)
+		}
+		return allocs
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.AllocsByIDPrefix(ws, ns1, sharedPrefix)
+	assert.Nil(err)
+	iter2, err := state.AllocsByIDPrefix(ws, ns2, sharedPrefix)
+	assert.Nil(err)
+
+	allocsNs1 := gatherAllocs(iter1)
+	allocsNs2 := gatherAllocs(iter2)
+	assert.Len(allocsNs1, 1)
+	assert.Len(allocsNs2, 1)
+
+	iter1, err = state.AllocsByIDPrefix(ws, ns1, alloc1.ID[:8])
+	assert.Nil(err)
+
+	allocsNs1 = gatherAllocs(iter1)
+	assert.Len(allocsNs1, 1)
+	assert.False(watchFired(ws))
 }
 
 func TestStateStore_Allocs(t *testing.T) {

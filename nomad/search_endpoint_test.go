@@ -16,7 +16,6 @@ const jobIndex = 1000
 
 func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *structs.Job {
 	job := mock.Job()
-
 	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
 	if err := state.UpsertJob(jobIndex, job); err != nil {
@@ -74,9 +73,10 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Register a job and an allocation
-	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	job := registerAndVerifyJob(s, t, prefix, 0)
 	alloc := mock.Alloc()
-	alloc.JobID = jobID
+	alloc.JobID = job.ID
+	alloc.Namespace = job.Namespace
 	summary := mock.JobSummary(alloc.JobID)
 	state := s.fsm.State()
 
@@ -90,6 +90,10 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  "example-",
 		Context: structs.All,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -98,7 +102,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.EqualValues(jobIndex, resp.Index)
 }
 
@@ -116,9 +120,9 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Register a job and an allocation
-	jobID := registerAndVerifyJob(s, t, prefix, 0)
+	job := registerAndVerifyJob(s, t, prefix, 0)
 	alloc := mock.Alloc()
-	alloc.JobID = jobID
+	alloc.JobID = job.ID
 	summary := mock.JobSummary(alloc.JobID)
 	state := s.fsm.State()
 
@@ -132,6 +136,10 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.All,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse
@@ -140,7 +148,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	}
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(jobID, resp.Matches[structs.Jobs][0])
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.EqualValues(jobIndex, resp.Index)
 }
 
@@ -343,6 +351,10 @@ func TestSearch_PrefixSearch_All_UUID_EvenPrefix(t *testing.T) {
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
 		Context: structs.All,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
 	}
 
 	var resp structs.SearchResponse

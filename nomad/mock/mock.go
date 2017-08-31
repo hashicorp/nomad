@@ -233,10 +233,10 @@ func PeriodicJob() *structs.Job {
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
 		ID:        structs.GenerateUUID(),
+		Namespace: structs.DefaultNamespace,
 		Priority:  50,
 		Type:      structs.JobTypeService,
 		JobID:     structs.GenerateUUID(),
-		Namespace: structs.DefaultNamespace,
 		Status:    structs.EvalStatusPending,
 	}
 	return eval
