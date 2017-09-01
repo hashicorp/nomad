@@ -105,6 +105,12 @@ const (
 	All         Context = "all"
 )
 
+// NamespacedID is a tuple of an ID and a namespace
+type NamespacedID struct {
+	ID        string
+	Namespace string
+}
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string

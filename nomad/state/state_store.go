@@ -1271,14 +1271,14 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	defer txn.Abort()
 
 	// Do a nested upsert
-	jobs := make(map[namespacedJobID]string, len(evals))
+	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 
-		tuple := namespacedJobID{
-			JobID:     eval.JobID,
+		tuple := structs.NamespacedID{
+			ID:        eval.JobID,
 			Namespace: eval.Namespace,
 		}
 		jobs[tuple] = ""
@@ -1389,7 +1389,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	jobs := make(map[namespacedJobID]string, len(evals))
+	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
 		if err != nil {
@@ -1403,8 +1403,8 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		}
 		eval := existing.(*structs.Evaluation)
 
-		tuple := namespacedJobID{
-			JobID:     eval.JobID,
+		tuple := structs.NamespacedID{
+			ID:        eval.JobID,
 			Namespace: eval.Namespace,
 		}
 		jobs[tuple] = ""
@@ -1623,11 +1623,11 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 		forceStatus = structs.JobStatusRunning
 	}
 
-	tuple := namespacedJobID{
-		JobID:     exist.JobID,
+	tuple := structs.NamespacedID{
+		ID:        exist.JobID,
 		Namespace: exist.Namespace,
 	}
-	jobs := map[namespacedJobID]string{tuple: forceStatus}
+	jobs := map[structs.NamespacedID]string{tuple: forceStatus}
 
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
@@ -1651,7 +1651,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 // used with an existing transaction.
 func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation, txn *memdb.Txn) error {
 	// Handle the allocations
-	jobs := make(map[namespacedJobID]string, 1)
+	jobs := make(map[structs.NamespacedID]string, 1)
 	for _, alloc := range allocs {
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
@@ -1723,8 +1723,8 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			forceStatus = structs.JobStatusRunning
 		}
 
-		tuple := namespacedJobID{
-			JobID:     alloc.JobID,
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
 			Namespace: alloc.Namespace,
 		}
 		jobs[tuple] = forceStatus
@@ -2545,23 +2545,16 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	return nil
 }
 
-// namespacedJobID is used as a tuple of JobID and Namespace where both
-// identifiers are required.
-type namespacedJobID struct {
-	JobID     string
-	Namespace string
-}
-
 // setJobStatuses is a helper for calling setJobStatus on multiple jobs by ID.
 // It takes a map of job IDs to an optional forceStatus string. It returns an
 // error if the job doesn't exist or setJobStatus fails.
 func (s *StateStore) setJobStatuses(index uint64, txn *memdb.Txn,
-	jobs map[namespacedJobID]string, evalDelete bool) error {
+	jobs map[structs.NamespacedID]string, evalDelete bool) error {
 	for tuple, forceStatus := range jobs {
 		if tuple.Namespace == "" {
 			panic("empty namespace")
 		}
-		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.JobID)
+		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
