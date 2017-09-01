@@ -307,7 +307,11 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify it was added to the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; !ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; !ok {
 		t.Fatal("job not added to periodic runner")
 	}
 
@@ -373,7 +377,11 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 
@@ -439,7 +447,11 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 

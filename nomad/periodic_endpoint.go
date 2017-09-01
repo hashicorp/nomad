@@ -46,7 +46,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	// Force run the job.
-	eval, err := p.srv.periodicDispatcher.ForceRun(job.ID)
+	eval, err := p.srv.periodicDispatcher.ForceRun(args.Namespace, job.ID)
 	if err != nil {
 		return fmt.Errorf("force launch for job %q failed: %v", job.ID, err)
 	}

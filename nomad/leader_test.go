@@ -364,15 +364,28 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 		t.Fatalf("should have leader")
 	})
 
+	tuplePeriodic := structs.NamespacedID{
+		ID:        periodic.ID,
+		Namespace: periodic.Namespace,
+	}
+	tupleNonPeriodic := structs.NamespacedID{
+		ID:        nonPeriodic.ID,
+		Namespace: nonPeriodic.Namespace,
+	}
+	tupleParameterized := structs.NamespacedID{
+		ID:        parameterizedPeriodic.ID,
+		Namespace: parameterizedPeriodic.Namespace,
+	}
+
 	// Check that the new leader is tracking the periodic job only
 	testutil.WaitForResult(func() (bool, error) {
-		if _, tracked := leader.periodicDispatcher.tracked[periodic.ID]; !tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tuplePeriodic]; !tracked {
 			return false, fmt.Errorf("periodic job not tracked")
 		}
-		if _, tracked := leader.periodicDispatcher.tracked[nonPeriodic.ID]; tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tupleNonPeriodic]; tracked {
 			return false, fmt.Errorf("non periodic job tracked")
 		}
-		if _, tracked := leader.periodicDispatcher.tracked[parameterizedPeriodic.ID]; tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tupleParameterized]; tracked {
 			return false, fmt.Errorf("parameterized periodic job tracked")
 		}
 		return true, nil
@@ -417,7 +430,11 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
-	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, tracked := s1.periodicDispatcher.tracked[tuple]; !tracked {
 		t.Fatalf("periodic job not restored")
 	}
 
@@ -471,7 +488,11 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
-	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, tracked := s1.periodicDispatcher.tracked[tuple]; !tracked {
 		t.Fatalf("periodic job not restored")
 	}
 

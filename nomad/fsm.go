@@ -355,7 +355,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	}
 
 	// If it is periodic remove it from the dispatcher
-	if err := n.periodicDispatcher.Remove(req.JobID); err != nil {
+	if err := n.periodicDispatcher.Remove(req.Namespace, req.JobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 		return err
 	}
