@@ -52,6 +52,7 @@ nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
 codecgen-*.generated.go
+*.generated.go
 
 .terraform
 *.tfstate*
