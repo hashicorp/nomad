@@ -230,12 +230,12 @@ type ClientConfig struct {
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
 
-	// DisableTaggedMetrics disables a new version of generating metrics and
-	// uses only the old method of displaying metrics
+	// DisableTaggedMetrics disables a new version of generating metrics which
+	// uses tags
 	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
 
-	// BackwardsCompatibleMetrics allows for generating metrics as done in older
-	// versions of Nomad
+	// BackwardsCompatibleMetrics allows for generating metrics in a simple
+	// key/value structure as done in older versions of Nomad
 	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 }
 
