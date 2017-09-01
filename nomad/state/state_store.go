@@ -1054,7 +1054,11 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 // JobsByNamespace returns an iterator over all the jobs for the given namespace
 func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
+	return s.jobsByNamespaceImpl(ws, namespace, txn)
+}
 
+// jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
+func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *memdb.Txn) (memdb.ResultIterator, error) {
 	// Walk the entire jobs table
 	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
 	if err != nil {

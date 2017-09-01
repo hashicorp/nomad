@@ -56,9 +56,24 @@ func (s *StateStore) DeleteNamespace(index uint64, name string) error {
 		return fmt.Errorf("namespace not found")
 	}
 
-	// TODO(alex): Validate that the namespace does  not have any non-terminal
-	// job/allocation/eval/deployment. Skipping for now since the objects don't
-	// reference a namespace yet.
+	// Ensure that the namespace doesn't have any non-terminal jobs
+	iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		job := raw.(*structs.Job)
+
+		if job.Status != structs.JobStatusDead {
+			return fmt.Errorf("namespace %q contains at least one non-terminal job %q. "+
+				"All jobs must be terminal in namespace before it can be deleted", name, job.ID)
+		}
+	}
 
 	// Delete the namespace
 	if err := txn.Delete(TableNamespaces, existing); err != nil {

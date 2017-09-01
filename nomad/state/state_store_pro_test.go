@@ -36,7 +36,6 @@ func TestStateStore_UpsertNamespace(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
-// TODO test deleting when there are jobs/etc
 func TestStateStore_DeleteNamespace(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
@@ -60,6 +59,38 @@ func TestStateStore_DeleteNamespace(t *testing.T) {
 	index, err := state.Index(TableNamespaces)
 	assert.Nil(err)
 	assert.EqualValues(1001, index)
+	assert.False(watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespace_NonTerminalJobs(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	assert.Nil(state.UpsertNamespace(1000, ns))
+
+	job := mock.Job()
+	job.Namespace = ns.Name
+	assert.Nil(state.UpsertJob(1001, job))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	assert.Nil(err)
+
+	err = state.DeleteNamespace(1002, ns.Name)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "one non-terminal")
+	assert.False(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	assert.Nil(err)
+	assert.NotNil(out)
+
+	index, err := state.Index(TableNamespaces)
+	assert.Nil(err)
+	assert.EqualValues(1000, index)
 	assert.False(watchFired(ws))
 }
 
