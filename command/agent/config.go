@@ -229,6 +229,14 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// DisableTaggedMetrics disables a new version of generating metrics and
+	// uses only the old method of displaying metrics
+	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
+
+	// BackwardsCompatibleMetrics allows for generating metrics as done in older
+	// versions of Nomad
+	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -576,17 +584,19 @@ func DefaultConfig() *Config {
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
-			Enabled:               false,
-			MaxKillTimeout:        "30s",
-			ClientMinPort:         14000,
-			ClientMaxPort:         14512,
-			Reserved:              &Resources{},
-			GCInterval:            1 * time.Minute,
-			GCParallelDestroys:    2,
-			GCDiskUsageThreshold:  80,
-			GCInodeUsageThreshold: 70,
-			GCMaxAllocs:           50,
-			NoHostUUID:            helper.BoolToPtr(true),
+			Enabled:                    false,
+			MaxKillTimeout:             "30s",
+			ClientMinPort:              14000,
+			ClientMaxPort:              14512,
+			Reserved:                   &Resources{},
+			GCInterval:                 1 * time.Minute,
+			GCParallelDestroys:         2,
+			GCDiskUsageThreshold:       80,
+			GCInodeUsageThreshold:      70,
+			GCMaxAllocs:                50,
+			NoHostUUID:                 helper.BoolToPtr(true),
+			DisableTaggedMetrics:       false,
+			BackwardsCompatibleMetrics: false,
 		},
 		Server: &ServerConfig{
 			Enabled:          false,
@@ -1095,6 +1105,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
+	}
+
+	if b.DisableTaggedMetrics {
+		result.DisableTaggedMetrics = b.DisableTaggedMetrics
+	}
+
+	if b.BackwardsCompatibleMetrics {
+		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
 	// Add the servers
