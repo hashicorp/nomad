@@ -2,7 +2,6 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -126,7 +125,6 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
-	fmt.Println(conf.Addresses.RPC)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
