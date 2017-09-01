@@ -397,7 +397,7 @@ RUN_QUERY:
 
 	// Check for minimum query time
 	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
-		if expired := ws.WatchCtx(ctx); !expired {
+		if err := ws.WatchCtx(ctx); err == nil {
 			goto RUN_QUERY
 		}
 	}
