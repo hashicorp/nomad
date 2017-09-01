@@ -85,16 +85,12 @@ func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 		} else {
 			// The secret isn't renewable, probably the generic secret backend.
 			dur := vaultRenewDuration(d.secret)
-			if dur < opts.VaultGrace {
-				log.Printf("[TRACE] %s: remaining lease %s is less than grace, skipping sleep", d, dur)
-			} else {
-				log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
-				select {
-				case <-time.After(dur):
-					// The lease is almost expired, it's time to request a new one.
-				case <-d.stopCh:
-					return nil, nil, ErrStopped
-				}
+			log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
+			select {
+			case <-time.After(dur):
+				// The lease is almost expired, it's time to request a new one.
+			case <-d.stopCh:
+				return nil, nil, ErrStopped
 			}
 		}
 	}
