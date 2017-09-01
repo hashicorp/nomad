@@ -145,6 +145,13 @@ func (q QueryOptions) RequestRegion() string {
 	return q.Region
 }
 
+func (q QueryOptions) RequestNamespace() string {
+	if q.Namespace == "" {
+		return DefaultNamespace
+	}
+	return q.Namespace
+}
+
 // QueryOption only applies to reads, so always true
 func (q QueryOptions) IsRead() bool {
 	return true
@@ -165,6 +172,13 @@ type WriteRequest struct {
 func (w WriteRequest) RequestRegion() string {
 	// The target region for this request
 	return w.Region
+}
+
+func (w WriteRequest) RequestNamespace() string {
+	if w.Namespace == "" {
+		return DefaultNamespace
+	}
+	return w.Namespace
 }
 
 // WriteRequest only applies to writes, always false

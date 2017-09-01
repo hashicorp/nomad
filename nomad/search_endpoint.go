@@ -122,7 +122,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			}
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, args.Namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
 					e := err.Error()

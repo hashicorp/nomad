@@ -77,7 +77,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	existingJob, err := snap.JobByID(ws, args.Namespace, args.Job.ID)
+	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Create a new evaluation
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
-		Namespace:      args.Namespace,
+		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -283,7 +283,7 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for job summary
-			out, err := state.JobSummaryByID(ws, args.Namespace, args.JobID)
+			out, err := state.JobSummaryByID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -357,7 +357,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 
 	ws := memdb.NewWatchSet()
-	cur, err := snap.JobByID(ws, args.Namespace, args.JobID)
+	cur, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -368,12 +368,12 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 		return fmt.Errorf("can't revert to current version")
 	}
 
-	jobV, err := snap.JobByIDAndVersion(ws, args.Namespace, args.JobID, args.JobVersion)
+	jobV, err := snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.JobID, args.JobVersion)
 	if err != nil {
 		return err
 	}
 	if jobV == nil {
-		return fmt.Errorf("job %q in namespace %q at version %d not found", args.JobID, args.Namespace, args.JobVersion)
+		return fmt.Errorf("job %q in namespace %q at version %d not found", args.JobID, args.RequestNamespace(), args.JobVersion)
 	}
 
 	// Build the register request
@@ -415,12 +415,12 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	}
 
 	ws := memdb.NewWatchSet()
-	jobV, err := snap.JobByIDAndVersion(ws, args.Namespace, args.JobID, args.JobVersion)
+	jobV, err := snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.JobID, args.JobVersion)
 	if err != nil {
 		return err
 	}
 	if jobV == nil {
-		return fmt.Errorf("job %q in namespace %q at version %d not found", args.JobID, args.Namespace, args.JobVersion)
+		return fmt.Errorf("job %q in namespace %q at version %d not found", args.JobID, args.RequestNamespace(), args.JobVersion)
 	}
 
 	// Commit this stability request via Raft
@@ -453,7 +453,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.Namespace, args.JobID)
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	// Create a new evaluation
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
-		Namespace:      args.Namespace,
+		Namespace:      args.RequestNamespace(),
 		Priority:       job.Priority,
 		Type:           job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -516,7 +516,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.Namespace, args.JobID)
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// since all should be able to handle deregistration in the same way.
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
-		Namespace:      args.Namespace,
+		Namespace:      args.RequestNamespace(),
 		Priority:       structs.JobDefaultPriority,
 		Type:           structs.JobTypeService,
 		TriggeredBy:    structs.EvalTriggerJobDeregister,
@@ -583,7 +583,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the job
-			out, err := state.JobByID(ws, args.Namespace, args.JobID)
+			out, err := state.JobByID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -622,7 +622,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the job
-			out, err := state.JobVersionsByID(ws, args.Namespace, args.JobID)
+			out, err := state.JobVersionsByID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -676,7 +676,7 @@ func (j *Job) List(args *structs.JobListRequest,
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.JobsByIDPrefix(ws, args.Namespace, prefix)
+				iter, err = state.JobsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				// TODO(alex): Need an all jobs in namespace
 				iter, err = state.Jobs(ws)
@@ -692,7 +692,7 @@ func (j *Job) List(args *structs.JobListRequest,
 					break
 				}
 				job := raw.(*structs.Job)
-				summary, err := state.JobSummaryByID(ws, args.Namespace, job.ID)
+				summary, err := state.JobSummaryByID(ws, args.RequestNamespace(), job.ID)
 				if err != nil {
 					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 				}
@@ -728,7 +728,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the allocations
-			allocs, err := state.AllocsByJob(ws, args.Namespace, args.JobID, args.AllAllocs)
+			allocs, err := state.AllocsByJob(ws, args.RequestNamespace(), args.JobID, args.AllAllocs)
 			if err != nil {
 				return err
 			}
@@ -771,7 +771,7 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the evals
 			var err error
-			reply.Evaluations, err = state.EvalsByJob(ws, args.Namespace, args.JobID)
+			reply.Evaluations, err = state.EvalsByJob(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -805,7 +805,7 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the deployments
-			deploys, err := state.DeploymentsByJobID(ws, args.Namespace, args.JobID)
+			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -840,7 +840,7 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the deployments
-			deploys, err := state.DeploymentsByJobID(ws, args.Namespace, args.JobID)
+			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -902,7 +902,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Get the original job
 	ws := memdb.NewWatchSet()
-	oldJob, err := snap.JobByID(ws, args.Namespace, args.Job.ID)
+	oldJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
 	}
@@ -928,7 +928,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
 		ID:             structs.GenerateUUID(),
-		Namespace:      args.Namespace,
+		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
 		TriggeredBy:    structs.EvalTriggerJobRegister,
@@ -1097,7 +1097,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	parameterizedJob, err := snap.JobByID(ws, args.Namespace, args.JobID)
+	parameterizedJob, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -1158,7 +1158,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		// Create a new evaluation
 		eval := &structs.Evaluation{
 			ID:             structs.GenerateUUID(),
-			Namespace:      args.Namespace,
+			Namespace:      args.RequestNamespace(),
 			Priority:       dispatchJob.Priority,
 			Type:           dispatchJob.Type,
 			TriggeredBy:    structs.EvalTriggerJobRegister,
