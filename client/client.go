@@ -194,8 +194,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		serversDiscoveredCh: make(chan struct{}),
 	}
 
-	c.baseLabels = []metrics.Label{{"node_id", c.Node().ID}, {"datacenter", c.Node().Datacenter}}
-
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
@@ -297,6 +295,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Start collecting stats
 	go c.emitStats()
+
+	// Assign labels at the latest possible moment so the information expected
+	// is ready
+	c.baseLabels = []metrics.Label{{Name: "node_id", Value: c.Node().ID}, {Name: "datacenter", Value: c.Node().Datacenter}}
 
 	c.logger.Printf("[INFO] client: Node ID %q", c.Node().ID)
 	return c, nil
