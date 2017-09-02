@@ -678,8 +678,7 @@ func (j *Job) List(args *structs.JobListRequest,
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.JobsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				// TODO(alex): Need an all jobs in namespace
-				iter, err = state.Jobs(ws)
+				iter, err = state.JobsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
