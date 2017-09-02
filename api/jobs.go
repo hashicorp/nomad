@@ -80,8 +80,8 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 			req.EnforceIndex = true
 			req.JobModifyIndex = opts.ModifyIndex
 		}
-		if opts.Override {
-			req.Override = true
+		if opts.PolicyOverride {
+			req.PolicyOverride = true
 		}
 	}
 
@@ -765,7 +765,7 @@ type RegisterJobRequest struct {
 	Job            *Job
 	EnforceIndex   bool   `json:",omitempty"`
 	JobModifyIndex uint64 `json:",omitempty"`
-	Override       bool   `json:",omitempty"`
+	PolicyOverride bool   `json:",omitempty"`
 }
 
 // JobRegisterResponse is used to respond to a job registration
