@@ -7,6 +7,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/sentinel/sentinel"
 )
@@ -146,4 +147,65 @@ func sentinelResultToWarnErr(result *sentinel.EvalResult) (error, error) {
 		}
 	}
 	return mWarn.ErrorOrNil(), mErr.ErrorOrNil()
+}
+
+// gcSentinelPolicies is a long running routine which garbage collects unused
+// policies that are cached.
+func (s *Server) gcSentinelPolicies(stopCh chan struct{}) {
+	ticker := time.NewTicker(s.config.SentinelGCInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+			// Snapshot the current state
+			snap, err := s.State().Snapshot()
+			if err != nil {
+				s.logger.Printf("[ERR] sentinel.gc: failed to snapshot state: %v", err)
+				continue
+			}
+
+			// Invalidate the unused policies
+			if err := invalidateUnusedPolicies(s.sentinel, snap); err != nil {
+				s.logger.Printf("[ERR] sentinel.gc: failed to GC sentinel policies: %v", err)
+			}
+		}
+	}
+}
+
+// invalidateUnusedPolicies is used to invalidate any policies that are cached but no longer needed
+func invalidateUnusedPolicies(sentinel *sentinel.Sentinel, snap *state.StateSnapshot) error {
+	// Get all the cached policies
+	cachedPolicies := sentinel.Policies()
+
+	// Hot path if nothing is cached
+	if len(cachedPolicies) == 0 {
+		return nil
+	}
+
+	// Iterate over all registered policies
+	iter, err := snap.SentinelPolicies(nil)
+	if err != nil {
+		return err
+	}
+
+	// Collect all the live policies by cache key
+	livePolicies := make(map[string]struct{})
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policy := raw.(*structs.SentinelPolicy)
+		livePolicies[policy.CacheKey()] = struct{}{}
+	}
+
+	// Invalidate any policies that are no longer live
+	for _, cached := range cachedPolicies {
+		if _, ok := livePolicies[cached]; !ok {
+			sentinel.InvalidatePolicy(cached)
+		}
+	}
+	return nil
 }

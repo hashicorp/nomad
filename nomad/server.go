@@ -340,6 +340,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Emit metrics
 	go s.heartbeatStats()
 
+	// GC Sentinel policies if enabled
+	if s.config.ACLEnabled {
+		go s.gcSentinelPolicies(s.shutdownCh)
+	}
+
 	// Done
 	return s, nil
 }
