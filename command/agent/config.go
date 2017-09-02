@@ -131,6 +131,9 @@ type Config struct {
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
+
+	// Sentinel holds sentinel related settings
+	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
 }
 
 // AtlasConfig is used to enable an parameterize the Atlas integration
@@ -607,6 +610,7 @@ func DefaultConfig() *Config {
 			collectionInterval: 1 * time.Second,
 		},
 		TLSConfig: &config.TLSConfig{},
+		Sentinel:  &config.SentinelConfig{},
 	}
 }
 
@@ -764,6 +768,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Vault = &vaultConfig
 	} else if b.Vault != nil {
 		result.Vault = result.Vault.Merge(b.Vault)
+	}
+
+	// Apply the sentinel config
+	if result.Sentinel == nil && b.Sentinel != nil {
+		server := *b.Sentinel
+		result.Sentinel = &server
+	} else if b.Sentinel != nil {
+		result.Sentinel = result.Sentinel.Merge(b.Sentinel)
 	}
 
 	// Merge config files lists

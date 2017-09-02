@@ -151,3 +151,13 @@ tls {
     key_file = "pipe"
     verify_https_client = true
 }
+sentinel {
+    import "foo" {
+        path = "foo"
+        args = ["a", "b", "c"]
+    }
+    import "bar" {
+        path = "bar"
+        args = ["x", "y", "z"]
+    }
+}
