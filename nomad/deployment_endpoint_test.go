@@ -1,6 +1,18 @@
 package nomad
 
-/*
+import (
+	"testing"
+	"time"
+
+	memdb "github.com/hashicorp/go-memdb"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
+)
+
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -21,7 +33,10 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	// Lookup the deployments
 	get := &structs.DeploymentSpecificRequest{
 		DeploymentID: d.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.SingleDeploymentResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
@@ -64,6 +79,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 		DeploymentID: d2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -480,7 +496,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 	// Lookup the deployments
 	get := &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.DeploymentListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
@@ -490,7 +509,11 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 	// Lookup the deploys by prefix
 	get = &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: d.ID[:4]},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+			Prefix:    d.ID[:4],
+		},
 	}
 
 	var resp2 structs.DeploymentListResponse
@@ -524,6 +547,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	req := &structs.DeploymentListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}
@@ -581,7 +605,10 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	// Lookup the allocations
 	get := &structs.DeploymentSpecificRequest{
 		DeploymentID: d.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.AllocListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
@@ -620,6 +647,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 		DeploymentID: d.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}
@@ -683,4 +711,3 @@ func TestDeploymentEndpoint_Reap(t *testing.T) {
 	assert.Nil(err, "DeploymentByID")
 	assert.Nil(outD, "Deleted Deployment")
 }
-*/

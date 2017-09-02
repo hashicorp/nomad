@@ -156,6 +156,9 @@ func (w *deploymentWatcher) SetAllocHealth(
 		u = w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
 	}
 
+	// Canonicalize the job in case it doesn't have namespace set
+	j.Canonicalize()
+
 	// Create the request
 	areq := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: *req,

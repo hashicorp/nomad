@@ -1522,6 +1522,10 @@ type Job struct {
 // when registering a Job. A set of warnings are returned if the job was changed
 // in anyway that the user should be made aware of.
 func (j *Job) Canonicalize() (warnings error) {
+	if j == nil {
+		return nil
+	}
+
 	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
