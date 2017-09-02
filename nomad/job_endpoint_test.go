@@ -206,17 +206,13 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 	policy1.Policy = `
 	main = rule { all_drivers_exec }
 
-	// REMOVEME
-	all_drivers_exec = rule { true }
-
-	// TODO: This should work, currently broken
-	//all_drivers_exec = rule {
-	//    all job.task_groups as tg {
-	//        all tg.tasks as task {
-	//            task.driver is "exec"
-	//        }
-	//    }
-	//}
+	all_drivers_exec = rule {
+		all job.task_groups as tg {
+			all tg.tasks as task {
+				task.driver is "exec"
+			}
+		}
+	}
 	`
 	s1.State().UpsertSentinelPolicies(1000,
 		[]*structs.SentinelPolicy{policy1})
@@ -237,15 +233,15 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// TODO: Need the Sentinel runtime fix
 	// Create a failing job
-	//job2 := mock.Job()
-	//job2.TaskGroups[0].Tasks[0].Driver = "docker"
+	job2 := mock.Job()
+	job2.TaskGroups[0].Tasks[0].Driver = "docker"
+	req.Job = job2
 
-	//// Should fail
-	//if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
-	//    t.Fatalf("expected error")
-	//}
+	// Should fail
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
+		t.Fatalf("expected error")
+	}
 }
 
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
