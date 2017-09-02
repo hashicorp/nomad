@@ -2,7 +2,7 @@ package rpc
 
 import (
 	goplugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/sentinel/runtime/plugin"
+	"github.com/hashicorp/sentinel-sdk"
 )
 
 // The constants below are the names of the plugins that can be dispensed
@@ -30,7 +30,7 @@ var PluginMap = map[string]goplugin.Plugin{
 	ImportPluginName: &ImportPlugin{},
 }
 
-type ImportFunc func() plugin.Import
+type ImportFunc func() sdk.Import
 
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {

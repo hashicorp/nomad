@@ -19,26 +19,3 @@
 //     * ExternalObj, External may not yet be returned. We plan to allow this.
 //
 package rpc
-
-import (
-	"encoding/gob"
-
-	"github.com/hashicorp/sentinel/lang/object"
-)
-
-func init() {
-	// We have to register various implementations of Object so that
-	// they can be transferred over the RPC implementation.
-	gob.Register(&object.UndefinedObj{})
-	gob.Register(&object.BoolObj{})
-	gob.Register(&object.IntObj{})
-	gob.Register(&object.FloatObj{})
-	gob.Register(&object.StringObj{})
-	gob.Register(&object.ListObj{})
-	gob.Register(&object.MapObj{})
-	gob.Register(object.KeyedObj{})
-
-	// Register various empty containers since these are common to transport
-	gob.Register([]interface{}{})
-	gob.Register(map[string]interface{}{})
-}

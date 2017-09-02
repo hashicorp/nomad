@@ -3,15 +3,22 @@
 package static
 
 import (
+	"bytes"
+	"encoding/gob"
+	"encoding/hex"
+	"fmt"
 	"reflect"
 
-	"github.com/hashicorp/sentinel/imports/framework"
+	"github.com/hashicorp/sentinel-sdk"
+	"github.com/hashicorp/sentinel-sdk/framework"
 	"github.com/hashicorp/sentinel/lang/object"
 	"github.com/hashicorp/sentinel/runtime/encoding"
+
+	"github.com/hashicorp/sentinel/imports/static/teststructs"
 )
 
 // New creates a new Import.
-func New() *framework.Import {
+func New() sdk.Import {
 	return &framework.Import{
 		Root: &root{},
 	}
@@ -21,7 +28,7 @@ func New() *framework.Import {
 // return a RuntimeObj with a Value that is a gobridge.Import. Therefore,
 // this function should only be used with the runtime evaluator.
 func NewObject(raw interface{}) (object.Object, error) {
-	v := recurseReturn(raw)
+	v := reflectReturn(raw)
 	if ns, ok := v.(framework.Namespace); ok {
 		return &object.RuntimeObj{
 			Value: &framework.Import{Root: &root{Namespace: ns}},
@@ -50,35 +57,22 @@ type root struct {
 
 // framework.Root impl.
 func (m *root) Configure(raw map[string]interface{}) error {
+	// If we have Gob data (tests), then decode it. We use gob as a
+	// transfer layer so that we can transfer more complex structs.
+	if data, ok := raw[teststructs.GobKey]; ok {
+		dataBytes, err := hex.DecodeString(data.(string))
+		if err != nil {
+			return fmt.Errorf("error decoding test data: %s", err)
+		}
+
+		raw = map[string]interface{}{}
+		if err := gob.NewDecoder(bytes.NewReader(dataBytes)).Decode(&raw); err != nil {
+			return fmt.Errorf("error decoding test data: %s", err)
+		}
+	}
+
 	// Set our root namespace
 	m.Namespace = &mapNS{objects: raw}
 
 	return nil
-}
-
-// recurseReturn can be called on a resulting value to determine what
-// further recursion can be done to the right namespace.
-func recurseReturn(raw interface{}) interface{} {
-	// If the value is a map, recurse further by returning a namespace
-	if m, ok := raw.(map[string]interface{}); ok {
-		return &mapNS{objects: m}
-	}
-
-	// If the value is a struct, setup a struct lookup
-	originalVal := reflect.ValueOf(raw)
-	v := originalVal
-	for v.Kind() == reflect.Ptr {
-		v = reflect.Indirect(v)
-	}
-	if !v.IsValid() {
-		return nil
-	}
-	if v.Kind() == reflect.Struct {
-		return &structNS{
-			value:    v,
-			original: originalVal,
-		}
-	}
-
-	return raw
 }

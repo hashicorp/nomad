@@ -11,9 +11,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	goplugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/sentinel/runtime/gobridge"
-	"github.com/hashicorp/sentinel/runtime/plugin"
-	sentinelrpc "github.com/hashicorp/sentinel/runtime/plugin/rpc"
+	"github.com/hashicorp/sentinel-sdk"
+	sentinelrpc "github.com/hashicorp/sentinel-sdk/rpc"
 )
 
 // Import defines an available import for Sentinel execution.
@@ -30,7 +29,7 @@ type Import struct {
 	// when this import is no longer in use.
 	//
 	// If Func and Path are both specified, Func takes precedence.
-	Func func() (plugin.Import, error)
+	Func func() (sdk.Import, error)
 
 	// The options below configure imports over an external plugin process.
 	//
@@ -64,7 +63,7 @@ type sentinelImport struct {
 // sentinelImportInstance represents a single instance of an import.
 // A plugin process can serve multiple instances of an import.
 type sentinelImportInstance struct {
-	Import   gobridge.Import
+	Import   sdk.Import
 	LastUsed int64
 }
 
@@ -146,7 +145,7 @@ func (m *sentinelImporter) Close() error {
 	return nil
 }
 
-func (m *sentinelImporter) Import(name string) (gobridge.Import, error) {
+func (m *sentinelImporter) Import(name string) (sdk.Import, error) {
 	// Grab a read lock
 	m.Sentinel.importsLock.RLock()
 	defer m.Sentinel.importsLock.RUnlock()
@@ -227,7 +226,7 @@ func (m *sentinelImporter) Import(name string) (gobridge.Import, error) {
 	return impt, nil
 }
 
-func (m *sentinelImporter) initImport(impt *sentinelImport) (plugin.Import, error) {
+func (m *sentinelImporter) initImport(impt *sentinelImport) (sdk.Import, error) {
 	// If the import specified a factory function, we just call that.
 	if impt.Import.Func != nil {
 		return impt.Import.Func()
@@ -243,11 +242,10 @@ func (m *sentinelImporter) initImport(impt *sentinelImport) (plugin.Import, erro
 		}
 
 		impt.pluginClient = goplugin.NewClient(&goplugin.ClientConfig{
-			HandshakeConfig: sentinelrpc.Handshake,
-			Plugins:         sentinelrpc.PluginMap,
-			Cmd:             cmd,
-			AllowedProtocols: []goplugin.Protocol{
-				goplugin.ProtocolNetRPC, goplugin.ProtocolGRPC},
+			HandshakeConfig:  sentinelrpc.Handshake,
+			Plugins:          sentinelrpc.PluginMap,
+			Cmd:              cmd,
+			AllowedProtocols: []goplugin.Protocol{goplugin.ProtocolGRPC},
 		})
 	}
 
@@ -263,7 +261,7 @@ func (m *sentinelImporter) initImport(impt *sentinelImport) (plugin.Import, erro
 		return nil, err
 	}
 
-	return raw.(plugin.Import), nil
+	return raw.(sdk.Import), nil
 }
 
 //-------------------------------------------------------------------

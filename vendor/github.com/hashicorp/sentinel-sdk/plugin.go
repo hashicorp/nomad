@@ -1,20 +1,32 @@
-// Package gobridge contains the interfaces for bridging Go code to Sentinel
-// code. These are the primary interfaces that should be implemented for
-// writing Go code that is invokable or accessible from Sentinel.
-package gobridge
+// Package sdk contains the low-level interfaces and API for creating Sentinel
+// plugins. A Sentinel plugin can provide data dynamically to Sentinel policies.
+//
+// For plugin authors, the subfolder "framework" contains a high-level
+// framework for easily implementing imports in Go.
+package sdk
 
 import (
 	"time"
-
-	"github.com/hashicorp/sentinel/lang/object"
 )
 
+type undefined struct{}
+type null struct{}
+
+var (
+	// Undefined is a constant value that represents the undefined object in
+	// Sentinel. By making this the return value, it'll be converted to
+	// Undefined.
+	Undefined = &undefined{}
+
+	// Null is a constant value that represents the null object in Sentinel.
+	// By making this a return value, it will convert to null.
+	Null = &null{}
+)
+
+//go:generate rm -f mock_Import.go
+//go:generate mockery -inpkg -note "Generated code. DO NOT MODIFY." -name=Import
+
 // Import is an importable package.
-//
-// As of writing, imports can only be implemented by Go so this is also the
-// only way to implement imports for Sentinel. You may also serve imports
-// across external plugins. See the "runtime/plugin" and "runtime/plugin/rpc"
-// package.
 //
 // Imports are a namespace that may contain objects and functions. The
 // root level has no value nor can it be called. For example `import "a'`
@@ -23,6 +35,10 @@ import (
 // difference between imports and external objects (which themselves express
 // a value).
 type Import interface {
+	// Configure is called to configure the plugin before it is accessed.
+	// This must be called before any call to Get().
+	Configure(map[string]interface{}) error
+
 	// Get is called when an import field is accessed or called as a function.
 	//
 	// Get may request more than one value at a time, represented by multiple
@@ -59,7 +75,7 @@ type GetReq struct {
 	// Args is the list of arguments for a call expression. This is "nil"
 	// if this isn't a call. This may be length zero (but non-nil) if this
 	// is a call with no arguments.
-	Args []object.Object
+	Args []interface{}
 }
 
 // Call returns true if this request is a call expression.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/hashicorp/sentinel-sdk"
 	"github.com/hashicorp/sentinel/lang/object"
 )
 
@@ -65,6 +66,11 @@ func GoToObject(raw interface{}) (object.Object, error) {
 
 	case string:
 		return &object.StringObj{Value: v}, nil
+	}
+
+	// Null
+	if raw == sdk.Null {
+		return object.Null, nil
 	}
 
 	// Otherwise, we have a more complex type and must use reflection.

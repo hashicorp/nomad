@@ -3,8 +3,8 @@ package encoding
 import (
 	"fmt"
 
+	"github.com/hashicorp/sentinel-sdk/proto/go"
 	"github.com/hashicorp/sentinel/lang/object"
-	"github.com/hashicorp/sentinel/proto/go"
 )
 
 // ObjectToValue converts a Sentinel object to a protobuf Value structure.
@@ -20,6 +20,12 @@ func ObjectToValue(obj object.Object) (*proto.Value, error) {
 		return &proto.Value{
 			Type:  proto.Value_INT,
 			Value: &proto.Value_ValueInt{ValueInt: obj.Value},
+		}, nil
+
+	case *object.FloatObj:
+		return &proto.Value{
+			Type:  proto.Value_FLOAT,
+			Value: &proto.Value_ValueFloat{ValueFloat: obj.Value},
 		}, nil
 
 	case *object.StringObj:

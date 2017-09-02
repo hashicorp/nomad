@@ -3,9 +3,9 @@ package rpc
 import (
 	"fmt"
 
-	"github.com/hashicorp/sentinel/proto/go"
-	"github.com/hashicorp/sentinel/runtime/encoding"
-	"github.com/hashicorp/sentinel/runtime/gobridge"
+	"github.com/hashicorp/sentinel-sdk"
+	"github.com/hashicorp/sentinel-sdk/encoding"
+	"github.com/hashicorp/sentinel-sdk/proto/go"
 	"golang.org/x/net/context"
 )
 
@@ -28,11 +28,7 @@ func (m *ImportGRPCClient) Close() error {
 }
 
 func (m *ImportGRPCClient) Configure(config map[string]interface{}) error {
-	obj, err := encoding.GoToObject(config)
-	if err != nil {
-		return fmt.Errorf("config couldn't be encoded to plugin: %s", err)
-	}
-	v, err := encoding.ObjectToValue(obj)
+	v, err := encoding.GoToValue(config)
 	if err != nil {
 		return fmt.Errorf("config couldn't be encoded to plugin: %s", err)
 	}
@@ -48,14 +44,14 @@ func (m *ImportGRPCClient) Configure(config map[string]interface{}) error {
 	return nil
 }
 
-func (m *ImportGRPCClient) Get(rawReqs []*gobridge.GetReq) ([]*gobridge.GetResult, error) {
+func (m *ImportGRPCClient) Get(rawReqs []*sdk.GetReq) ([]*sdk.GetResult, error) {
 	reqs := make([]*proto.Get_Request, 0, len(rawReqs))
 	for _, req := range rawReqs {
 		var args []*proto.Value
 		if req.Args != nil {
 			args = make([]*proto.Value, len(req.Args))
 			for i, raw := range req.Args {
-				v, err := encoding.ObjectToValue(raw)
+				v, err := encoding.GoToValue(raw)
 				if err != nil {
 					return nil, err
 				}
@@ -82,14 +78,14 @@ func (m *ImportGRPCClient) Get(rawReqs []*gobridge.GetReq) ([]*gobridge.GetResul
 		return nil, err
 	}
 
-	results := make([]*gobridge.GetResult, 0, len(resp.Responses))
+	results := make([]*sdk.GetResult, 0, len(resp.Responses))
 	for _, resp := range resp.Responses {
-		v, err := encoding.ValueToObject(resp.Value)
+		v, err := encoding.ValueToGo(resp.Value, nil)
 		if err != nil {
 			return nil, err
 		}
 
-		results = append(results, &gobridge.GetResult{
+		results = append(results, &sdk.GetResult{
 			KeyId: resp.KeyId,
 			Keys:  resp.Keys,
 			Value: v,

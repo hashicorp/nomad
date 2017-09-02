@@ -8,22 +8,20 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/sentinel/lang/object"
-	"github.com/hashicorp/sentinel/proto/go"
-	"github.com/hashicorp/sentinel/runtime/encoding"
-	"github.com/hashicorp/sentinel/runtime/gobridge"
-	"github.com/hashicorp/sentinel/runtime/plugin"
+	"github.com/hashicorp/sentinel-sdk"
+	"github.com/hashicorp/sentinel-sdk/encoding"
+	"github.com/hashicorp/sentinel-sdk/proto/go"
 	"golang.org/x/net/context"
 )
 
 // ImportGRPCServer is a gRPC server for Imports.
 type ImportGRPCServer struct {
-	F func() plugin.Import
+	F func() sdk.Import
 
 	// instanceId is the current instance ID. This should be modified
 	// with sync/atomic.
 	instanceId    uint64
-	instances     map[uint64]plugin.Import
+	instances     map[uint64]sdk.Import
 	instancesLock sync.RWMutex
 }
 
@@ -49,12 +47,8 @@ func (m *ImportGRPCServer) Close(
 func (m *ImportGRPCServer) Configure(
 	ctx context.Context, v *proto.Configure_Request) (*proto.Configure_Response, error) {
 	// Build the configuration
-	obj, err := encoding.ValueToObject(v.Config)
-	if err != nil {
-		return nil, fmt.Errorf("error converting config: %s", err)
-	}
 	var config map[string]interface{}
-	configRaw, err := encoding.ObjectToGo(obj, reflect.TypeOf(config))
+	configRaw, err := encoding.ValueToGo(v.Config, reflect.TypeOf(config))
 	if err != nil {
 		return nil, fmt.Errorf("error converting config: %s", err)
 	}
@@ -74,7 +68,7 @@ func (m *ImportGRPCServer) Configure(
 	// Put the import into the store
 	m.instancesLock.Lock()
 	if m.instances == nil {
-		m.instances = make(map[uint64]plugin.Import)
+		m.instances = make(map[uint64]sdk.Import)
 	}
 	m.instances[id] = impt
 	m.instancesLock.Unlock()
@@ -89,9 +83,9 @@ func (m *ImportGRPCServer) Get(
 	ctx context.Context, v *proto.Get_MultiRequest) (*proto.Get_MultiResponse, error) {
 	// Build the mapping of requests by instance ID. Then we can make the
 	// calls for each proper instance easily.
-	requestsById := make(map[uint64][]*gobridge.GetReq)
+	requestsById := make(map[uint64][]*sdk.GetReq)
 	for _, req := range v.Requests {
-		getReq := &gobridge.GetReq{
+		getReq := &sdk.GetReq{
 			ExecId:       req.ExecId,
 			ExecDeadline: time.Unix(int64(req.ExecDeadline), 0),
 			Keys:         req.Keys,
@@ -99,9 +93,9 @@ func (m *ImportGRPCServer) Get(
 		}
 
 		if req.Call {
-			args := make([]object.Object, len(req.Args))
+			args := make([]interface{}, len(req.Args))
 			for i, arg := range req.Args {
-				obj, err := encoding.ValueToObject(arg)
+				obj, err := encoding.ValueToGo(arg, nil)
 				if err != nil {
 					return nil, fmt.Errorf("error converting arg %d: %s", i, err)
 				}
@@ -130,11 +124,7 @@ func (m *ImportGRPCServer) Get(
 		}
 
 		for _, result := range results {
-			obj, err := encoding.GoToObject(result.Value)
-			if err != nil {
-				return nil, err
-			}
-			v, err := encoding.ObjectToValue(obj)
+			v, err := encoding.GoToValue(result.Value)
 			if err != nil {
 				return nil, err
 			}

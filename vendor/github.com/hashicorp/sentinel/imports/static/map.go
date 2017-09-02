@@ -12,7 +12,7 @@ func (m *mapNS) Get(key string) (interface{}, error) {
 		return nil, nil
 	}
 
-	return recurseReturn(result), nil
+	return reflectReturn(result), nil
 }
 
 // framework.Map impl.

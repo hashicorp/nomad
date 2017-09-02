@@ -234,6 +234,23 @@ func (s *Sentinel) Policy(id string) *Policy {
 	return result
 }
 
+// Policies returns the list of policies that have been registered with
+// this Sentinel instance. The returned IDs may represent policies that
+// are not yet "ready" but have been requested via Policy().
+//
+// The results are not in any specified order.
+func (s *Sentinel) Policies() []string {
+	s.policiesLock.RLock()
+	defer s.policiesLock.RUnlock()
+
+	result := make([]string, 0, len(s.policies))
+	for k := range s.policies {
+		result = append(result, k)
+	}
+
+	return result
+}
+
 // InvalidatePolicy removes a single policy from Sentinel, releasing
 // any currently used resources with it. If the policy didn't exist, then
 // this does nothing.

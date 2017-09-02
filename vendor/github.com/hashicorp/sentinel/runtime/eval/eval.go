@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/sentinel-sdk"
 	"github.com/hashicorp/sentinel/lang/ast"
 	"github.com/hashicorp/sentinel/lang/object"
 	"github.com/hashicorp/sentinel/lang/token"
 	"github.com/hashicorp/sentinel/runtime/encoding"
-	"github.com/hashicorp/sentinel/runtime/gobridge"
 	"github.com/hashicorp/sentinel/runtime/importer"
 	"github.com/hashicorp/sentinel/runtime/trace"
 )
@@ -75,10 +75,10 @@ type evalState struct {
 	Timeout  time.Duration     // Timeout for execution
 	Trace    *trace.Trace      // If non-nil, sets trace data here
 
-	deadline  time.Time                  // deadline of this execution
-	imports   map[string]gobridge.Import // imports are loaded imports
-	returnObj object.Object              // object set by last `return` statement
-	timeoutCh <-chan time.Time           // closed after a timeout is reached
+	deadline  time.Time             // deadline of this execution
+	imports   map[string]sdk.Import // imports are loaded imports
+	returnObj object.Object         // object set by last `return` statement
+	timeoutCh <-chan time.Time      // closed after a timeout is reached
 
 	// Trace data
 
@@ -297,6 +297,12 @@ func (e *evalState) eval(raw ast.Node, s *object.Scope) object.Object {
 				return object.ExternalFunc(e.funcPrint)
 
 			default:
+				if _, ok := e.imports[n.Name]; ok {
+					e.err(fmt.Sprintf(
+						"import %q cannot be accessed without a selector expression",
+						n.Name), raw, s)
+				}
+
 				e.err(fmt.Sprintf("unknown identifier accessed: %s", n.Name), raw, s)
 			}
 		}
@@ -477,7 +483,7 @@ func (e *evalState) evalBasicLit(n *ast.BasicLit, s *object.Scope) object.Object
 }
 
 func (e *evalState) evalFile(n *ast.File, s *object.Scope) object.Object {
-	e.imports = make(map[string]gobridge.Import)
+	e.imports = make(map[string]sdk.Import)
 
 	// Find implicit imports in our scope
 	for k, obj := range s.Objects {
@@ -486,7 +492,7 @@ func (e *evalState) evalFile(n *ast.File, s *object.Scope) object.Object {
 			delete(s.Objects, k)
 
 			// If it is an import, then we store it directly
-			impt, ok := r.Value.(gobridge.Import)
+			impt, ok := r.Value.(sdk.Import)
 			if !ok {
 				e.err(fmt.Sprintf(
 					"internal error: runtime object %q unknown type %T",
@@ -1365,17 +1371,22 @@ func (e *evalState) evalImportExpr(n *astImportExpr, s *object.Scope) object.Obj
 
 	// Build the args. This must be nil (not just an empty slice) if
 	// we aren't making a call (n.Args == nil).
-	var args []object.Object
+	var args []interface{}
 	if n.Args != nil {
-		args = make([]object.Object, len(n.Args))
+		args = make([]interface{}, len(n.Args))
 		for i, arg := range n.Args {
-			args[i] = e.eval(arg, s)
+			value, err := encoding.ObjectToGo(e.eval(arg, s), nil)
+			if err != nil {
+				e.err(fmt.Sprintf("error converting argument: %s", err), n, s)
+			}
+
+			args[i] = value
 		}
 	}
 
 	// Perform the external call
-	results, err := impt.Get([]*gobridge.GetReq{
-		&gobridge.GetReq{
+	results, err := impt.Get([]*sdk.GetReq{
+		&sdk.GetReq{
 			ExecId:       e.ExecId,
 			ExecDeadline: e.deadline,
 			KeyId:        42,
@@ -1388,14 +1399,14 @@ func (e *evalState) evalImportExpr(n *astImportExpr, s *object.Scope) object.Obj
 	}
 
 	// Find our resulting value
-	var result *gobridge.GetResult
+	var result *sdk.GetResult
 	for _, v := range results {
 		if v.KeyId == 42 {
 			result = v
 			break
 		}
 	}
-	if result == nil {
+	if result == nil || result.Value == sdk.Undefined {
 		return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
 	}
 

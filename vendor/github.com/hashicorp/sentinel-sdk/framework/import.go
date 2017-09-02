@@ -1,7 +1,7 @@
 // Package framework contains a high-level framework for implementing
 // Sentinel imports with Go.
 //
-// The direct runtime/gobridge.Import interface is a low-level interface
+// The direct sdk.Import interface is a low-level interface
 // that is tediuos, clunky, and difficult to implement correctly. The interface
 // is this way to assist in the performance of imports while executing
 // Sentinel policies. This package provides a high-level API that eases
@@ -16,13 +16,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/sentinel/lang/object"
-	"github.com/hashicorp/sentinel/runtime/encoding"
-	"github.com/hashicorp/sentinel/runtime/gobridge"
+	"github.com/hashicorp/sentinel-sdk"
+	"github.com/hashicorp/sentinel-sdk/encoding"
 )
 
-// Import implements gobridge.Import. Configure and return this structure
-// to simplify implementation of gobridge.Import.
+var stringTyp = reflect.TypeOf("")
+
+// Import implements sdk.Import. Configure and return this structure
+// to simplify implementation of sdk.Import.
 type Import struct {
 	// Root is the implementation of the import that the user of the
 	// framework should implement. It represents the minimum necessary
@@ -51,8 +52,8 @@ func (m *Import) Configure(raw map[string]interface{}) error {
 }
 
 // plugin.Import impl.
-func (m *Import) Get(reqs []*gobridge.GetReq) ([]*gobridge.GetResult, error) {
-	resp := make([]*gobridge.GetResult, len(reqs))
+func (m *Import) Get(reqs []*sdk.GetReq) ([]*sdk.GetResult, error) {
+	resp := make([]*sdk.GetResult, len(reqs))
 	for i, req := range reqs {
 		// Get the namespace
 		ns := m.namespace(req)
@@ -100,8 +101,20 @@ func (m *Import) Get(reqs []*gobridge.GetReq) ([]*gobridge.GetResult, error) {
 			case map[string]interface{}:
 				result = x[k]
 
-			// For any other type, the result is undefined
+			// Else...
 			default:
+				// If it is a map with reflection with a string key,
+				// then access it.
+				v := reflect.ValueOf(x)
+				if v.Kind() == reflect.Map && v.Type().Key() == stringTyp {
+					// If the value exists within the map, set it to the value
+					if v = v.MapIndex(reflect.ValueOf(k)); v.IsValid() {
+						result = v.Interface()
+						break
+					}
+				}
+
+				// Finally, its undefined
 				result = nil
 			}
 
@@ -121,26 +134,23 @@ func (m *Import) Get(reqs []*gobridge.GetReq) ([]*gobridge.GetResult, error) {
 			}
 		}
 
-		// If our result is a map[string]interface{}, we automatically
-		// convert namespace results that implement Map into their
-		// respective maps. We do this recursively.
-		if v := reflect.ValueOf(result); v.Kind() == reflect.Map {
-			var err error
-			result, err = flattenMapValues(v)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"error retrieving key %q: %s",
-					strings.Join(req.Keys, "."), err)
-			}
+		// We now need to do a bit of reflection to convert any dangling
+		// namespace values into values that can be returned across the
+		// plugin interface.
+		result, err := m.reflect(result)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"error retrieving key %q: %s",
+				strings.Join(req.Keys, "."), err)
 		}
 
 		// Convert the result based on types
 		if result == nil {
-			result = &object.UndefinedObj{}
+			result = sdk.Undefined
 		}
 
 		// Build the actual result
-		resp[i] = &gobridge.GetResult{
+		resp[i] = &sdk.GetResult{
 			KeyId: req.KeyId,
 			Keys:  req.Keys,
 			Value: result,
@@ -151,7 +161,7 @@ func (m *Import) Get(reqs []*gobridge.GetReq) ([]*gobridge.GetResult, error) {
 }
 
 // namespace returns the namespace for the request.
-func (m *Import) namespace(req *gobridge.GetReq) Namespace {
+func (m *Import) namespace(req *sdk.GetReq) Namespace {
 	if global, ok := m.Root.(Namespace); ok {
 		return global
 	}
@@ -203,7 +213,7 @@ func (m *Import) invalidateNamespace(id uint64) {
 }
 
 // call performs the typed function call via reflection for f.
-func (m *Import) call(f interface{}, args []object.Object) (interface{}, error) {
+func (m *Import) call(f interface{}, args []interface{}) (interface{}, error) {
 	// If a function call isn't supported for this key, then it is an error
 	if f == nil {
 		return nil, fmt.Errorf("function call unsupported")
@@ -227,21 +237,32 @@ func (m *Import) call(f interface{}, args []object.Object) (interface{}, error) 
 	// Go through the arguments and convert them to the proper type
 	funcArgs := make([]reflect.Value, funcType.NumIn())
 	for i := 0; i < funcType.NumIn(); i++ {
+		arg := args[i]
+		argValue := reflect.ValueOf(arg)
+
+		// If the raw argument cannot be assign to the expected arg
+		// types then we attempt a conversion. This is slow because we
+		// expect this to be rare.
 		t := funcType.In(i)
+		if !argValue.Type().AssignableTo(t) {
+			v, err := encoding.GoToValue(arg)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"error converting argument to %s: %s",
+					t, err)
+			}
 
-		// If the argument type is directly the object then use it as-is
-		if t == objectType {
-			funcArgs[i] = reflect.ValueOf(args[i])
-			continue
+			arg, err = encoding.ValueToGo(v, t)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"error converting argument to %s: %s",
+					t, err)
+			}
+
+			argValue = reflect.ValueOf(arg)
 		}
 
-		// Convert the argument to the desired type
-		arg, err := encoding.ObjectToGo(args[i], t)
-		if err != nil {
-			return nil, err
-		}
-
-		funcArgs[i] = reflect.ValueOf(arg)
+		funcArgs[i] = argValue
 	}
 
 	// Call the function
@@ -257,5 +278,3 @@ func (m *Import) call(f interface{}, args []object.Object) (interface{}, error) 
 
 	return funcRets[0].Interface(), err
 }
-
-var objectType = reflect.TypeOf((*object.Object)(nil)).Elem()

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/sentinel-sdk/proto/go"
 	"github.com/hashicorp/sentinel/lang/object"
-	"github.com/hashicorp/sentinel/proto/go"
 )
 
 // ValueToObject converts a protobuf Value structure to a Sentinel object.
@@ -15,7 +15,7 @@ func ValueToObject(v *proto.Value) (object.Object, error) {
 		return nil, errors.New("invalid value")
 
 	case proto.Value_UNDEFINED:
-		panic("TODO")
+		return &object.UndefinedObj{}, nil
 
 	case proto.Value_NULL:
 		return object.Null, nil
@@ -26,6 +26,11 @@ func ValueToObject(v *proto.Value) (object.Object, error) {
 	case proto.Value_INT:
 		return &object.IntObj{
 			Value: v.Value.(*proto.Value_ValueInt).ValueInt,
+		}, nil
+
+	case proto.Value_FLOAT:
+		return &object.FloatObj{
+			Value: v.Value.(*proto.Value_ValueFloat).ValueFloat,
 		}, nil
 
 	case proto.Value_STRING:

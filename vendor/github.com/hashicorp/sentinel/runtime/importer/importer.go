@@ -6,7 +6,7 @@
 package importer
 
 import (
-	"github.com/hashicorp/sentinel/runtime/gobridge"
+	"github.com/hashicorp/sentinel-sdk"
 )
 
 // Importer is responsible for processing "import" statements.
@@ -16,5 +16,5 @@ type Importer interface {
 	// found or doesn't exist, an error must be returned. A nil value
 	// returned here will cause an immediate runtime error for the
 	// executing policy.
-	Import(string) (gobridge.Import, error)
+	Import(string) (sdk.Import, error)
 }

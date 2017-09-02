@@ -15,6 +15,14 @@ func ObjectToGo(raw object.Object, t reflect.Type) (interface{}, error) {
 	return objectToGo(raw, t)
 }
 
+var (
+	interfaceTyp = reflect.TypeOf((*interface{})(nil)).Elem()
+	boolTyp      = reflect.TypeOf(true)
+	intTyp       = reflect.TypeOf(int64(0))
+	floatTyp     = reflect.TypeOf(float64(0))
+	stringTyp    = reflect.TypeOf("")
+)
+
 func objectToGo(raw object.Object, t reflect.Type) (interface{}, error) {
 	// t == nil if you call reflect.TypeOf(interface{}{}) or
 	// if the user explicitly send in nil which we make to mean
@@ -37,8 +45,40 @@ func objectToGo(raw object.Object, t reflect.Type) (interface{}, error) {
 		case object.STRING:
 			kind = reflect.String
 
+		case object.LIST:
+			kind = reflect.Slice
+
+		case object.MAP:
+			kind = reflect.Map
+
 		default:
 			return nil, convertErr(raw, "interface{}")
+		}
+	}
+
+	// If the type is nil, we set a default based on the kind
+	if t == nil || t.Kind() == reflect.Interface {
+		switch kind {
+		case reflect.Bool:
+			t = boolTyp
+
+		case reflect.Int64:
+			t = intTyp
+
+		case reflect.Float64:
+			t = floatTyp
+
+		case reflect.String:
+			t = stringTyp
+
+		case reflect.Map:
+			t = objectMapType(raw)
+
+		case reflect.Slice:
+			t = objectSliceType(raw)
+
+		default:
+			return nil, convertErr(raw, "nil type")
 		}
 	}
 
@@ -105,6 +145,9 @@ func convertObjectInt64(raw object.Object) (interface{}, error) {
 	case *object.IntObj:
 		return x.Value, nil
 
+	case *object.FloatObj:
+		return int64(x.Value), nil
+
 	case *object.StringObj:
 		return strconv.ParseInt(x.Value, 0, 64)
 
@@ -136,6 +179,9 @@ func convertObjectFloat(raw object.Object, bitSize int) (interface{}, error) {
 	case *object.IntObj:
 		return float64(x.Value), nil
 
+	case *object.FloatObj:
+		return x.Value, nil
+
 	case *object.StringObj:
 		return strconv.ParseFloat(x.Value, bitSize)
 
@@ -148,6 +194,9 @@ func convertObjectString(raw object.Object) (interface{}, error) {
 	switch x := raw.(type) {
 	case *object.IntObj:
 		return strconv.FormatInt(x.Value, 10), nil
+
+	case *object.FloatObj:
+		return strconv.FormatInt(int64(x.Value), 10), nil
 
 	case *object.StringObj:
 		return x.Value, nil
@@ -204,6 +253,68 @@ func convertObjectMap(raw object.Object, t reflect.Type) (interface{}, error) {
 	}
 
 	return mapVal.Interface(), nil
+}
+
+// objectMapType creates a map type to match the keys/values in the value.
+func objectMapType(raw object.Object) reflect.Type {
+	mapObj, ok := raw.(*object.MapObj)
+	if !ok {
+		return interfaceTyp
+	}
+
+	var keys []object.Object
+	var values []object.Object
+	for _, elt := range mapObj.Elts {
+		keys = append(keys, elt.Key)
+		values = append(values, elt.Value)
+	}
+
+	return reflect.MapOf(elemType(keys), elemType(values))
+}
+
+// objectSliceType creates a slice type to match the keys/values in the value.
+func objectSliceType(raw object.Object) reflect.Type {
+	list, ok := raw.(*object.ListObj)
+	if !ok {
+		return interfaceTyp
+	}
+
+	return reflect.SliceOf(elemType(list.Elts))
+}
+
+// elemTyp determines the least common type for a set of values, defaulting
+// to interface{} as the most generic type.
+func elemType(vs []object.Object) reflect.Type {
+	current := object.ILLEGAL
+	for _, v := range vs {
+		// If we haven't set a type yet, set it to this one
+		if current == object.ILLEGAL {
+			current = v.Type()
+		}
+
+		// If the types don't match, we have an interface type
+		if current != v.Type() {
+			return interfaceTyp
+		}
+	}
+
+	// We found a matching type, return the type based on the proto type
+	switch current {
+	case object.BOOL:
+		return boolTyp
+
+	case object.INT:
+		return intTyp
+
+	case object.FLOAT:
+		return floatTyp
+
+	case object.STRING:
+		return stringTyp
+
+	default:
+		return interfaceTyp
+	}
 }
 
 func convertErr(raw object.Object, t string) error {

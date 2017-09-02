@@ -3,6 +3,9 @@ package static
 import (
 	"reflect"
 	"strings"
+	"sync"
+
+	"github.com/hashicorp/sentinel-sdk/framework"
 )
 
 // Dynamic is an interface that allows structs to return dynamic values.
@@ -23,23 +26,12 @@ type structNS struct {
 
 	fieldMap map[string][]int
 	ns       Dynamic
+	once     sync.Once
 }
 
 // framework.Namespace impl.
 func (m *structNS) Get(key string) (interface{}, error) {
-	// On first access, build a lookup table for available keys and setup
-	// other internal state.
-	if m.fieldMap == nil {
-		// Build our lookup table
-		t := m.value.Type()
-		m.fieldMap = make(map[string][]int, t.NumField())
-		m.buildFieldMap(t, nil)
-
-		// Check if the original implements dynamic
-		if m.original.Type().Implements(dynamicTyp) {
-			m.ns = m.original.Interface().(Dynamic)
-		}
-	}
+	m.once.Do(m.init)
 
 	// Lookup this field
 	idx, ok := m.fieldMap[key]
@@ -48,7 +40,7 @@ func (m *structNS) Get(key string) (interface{}, error) {
 		if m.ns != nil {
 			v, err := m.ns.SentinelGet(key)
 			if err == nil {
-				v = recurseReturn(v)
+				v = reflectReturn(v)
 			}
 
 			return v, err
@@ -62,7 +54,30 @@ func (m *structNS) Get(key string) (interface{}, error) {
 		return nil, nil
 	}
 
-	return recurseReturn(field.Interface()), nil
+	return reflectReturn(field.Interface()), nil
+}
+
+func (m *structNS) Map() (map[string]interface{}, error) {
+	m.once.Do(m.init)
+
+	keys := make([]string, 0, len(m.fieldMap))
+	for k := range m.fieldMap {
+		keys = append(keys, k)
+	}
+
+	return framework.MapFromKeys(m, keys)
+}
+
+func (m *structNS) init() {
+	// Build our lookup table
+	t := m.value.Type()
+	m.fieldMap = make(map[string][]int, t.NumField())
+	m.buildFieldMap(t, nil)
+
+	// Check if the original implements dynamic
+	if m.original.Type().Implements(dynamicTyp) {
+		m.ns = m.original.Interface().(Dynamic)
+	}
 }
 
 func (m *structNS) buildFieldMap(t reflect.Type, parent []int) {
