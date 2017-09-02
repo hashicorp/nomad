@@ -51,9 +51,9 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // RegisterOptions is used to pass through job registration parameters
 type RegisterOptions struct {
-	EnforceIndex bool
-	ModifyIndex  uint64
-	Override     bool
+	EnforceIndex   bool
+	ModifyIndex    uint64
+	PolicyOverride bool
 }
 
 // Register is used to register a new job. It returns the ID

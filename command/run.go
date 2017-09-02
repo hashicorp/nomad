@@ -90,7 +90,7 @@ Run Options:
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
 
-  -override
+  -policy-override
 	Sets the flag to force override any soft mandatory Sentinel policies.
 `
 	return strings.TrimSpace(helpText)
@@ -117,7 +117,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
-	flags.BoolVar(&override, "override", false, "")
+	flags.BoolVar(&override, "policy-override", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
@@ -204,7 +204,7 @@ func (c *RunCommand) Run(args []string) int {
 		opts.ModifyIndex = checkIndex
 	}
 	if override {
-		opts.Override = true
+		opts.PolicyOverride = true
 	}
 
 	// Submit the job

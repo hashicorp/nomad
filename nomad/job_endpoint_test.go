@@ -180,7 +180,7 @@ func TestJobEndpoint_Register_Sentinel(t *testing.T) {
 	}
 
 	// Do the same request with an override set
-	req.Override = true
+	req.PolicyOverride = true
 
 	// Should work, with a warning
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
