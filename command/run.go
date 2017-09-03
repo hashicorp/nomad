@@ -77,8 +77,12 @@ Run Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -verbose
-    Display full information.
+  -output
+    Output the JSON that would be submitted to the HTTP API without submitting
+    the job.
+
+  -policy-override
+	Sets the flag to force override any soft mandatory Sentinel policies.
 
   -vault-token
     If set, the passed Vault token is stored in the job before sending to the
@@ -86,12 +90,8 @@ Run Options:
     the job file. This overrides the token found in $VAULT_TOKEN environment
     variable and that found in the job.
 
-  -output
-    Output the JSON that would be submitted to the HTTP API without submitting
-    the job.
-
-  -policy-override
-	Sets the flag to force override any soft mandatory Sentinel policies.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }

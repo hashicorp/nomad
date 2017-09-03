@@ -756,6 +756,7 @@ type JobRegisterRequest struct {
 	// register only occurs if the job is new.
 	EnforceIndex   bool
 	JobModifyIndex uint64
+	PolicyOverride bool
 
 	WriteRequest
 }

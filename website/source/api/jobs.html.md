@@ -100,7 +100,19 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-There are no parameters, but the request _body_ contains the entire job file.
+- `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
+
+- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
+  passed `JobModifyIndex` matches the current job's index. If the index is zero,
+  the register only occurs if the job is new. This paradigm allows check-and-set
+  style job updating.
+
+- `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
+  current job is at.
+
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overriden. This allows a job to be registered when it would be denied
+  by policy.
 
 ### Sample Payload
 
@@ -1032,13 +1044,17 @@ The table below shows this endpoint's support for
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
-- `EnforceIndex` `(int: 0)` - If set, the job will only be registered if the
+- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
   passed `JobModifyIndex` matches the current job's index. If the index is zero,
   the register only occurs if the job is new. This paradigm allows check-and-set
   style job updating.
 
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
+
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overriden. This allows a job to be registered when it would be denied
+  by policy.
 
 ### Sample Payload
 
@@ -1047,10 +1063,10 @@ The table below shows this endpoint's support for
   "Job": {
     // ...
   },
-  "EnforceIndex": 1,
+  "EnforceIndex": true,
   "JobModifyIndex": 4
 }
-```      
+```
 
 ### Sample Request
 
