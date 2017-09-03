@@ -96,7 +96,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -1035,7 +1035,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
