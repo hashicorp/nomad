@@ -1422,7 +1422,7 @@ type Job struct {
 	ID string
 
 	// ParentID is the unique identifier of the job that spawned this job.
-	ParentID string `sentinel:"parent_id"`
+	ParentID string
 
 	// Name is the logical name of the job used to refer to it. This is unique
 	// per region, but not unique globally.
@@ -1441,7 +1441,7 @@ type Job struct {
 	// AllAtOnce is used to control if incremental scheduling of task groups
 	// is allowed or if we must do a gang scheduling of the entire job. This
 	// can slow down larger jobs if resources are not available.
-	AllAtOnce bool `sentinel:"all_at_once"`
+	AllAtOnce bool
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
@@ -1452,7 +1452,7 @@ type Job struct {
 
 	// TaskGroups are the collections of task groups that this job needs
 	// to run. Each task group is an atomic unit of scheduling and placement.
-	TaskGroups []*TaskGroup `sentinel:"task_groups"`
+	TaskGroups []*TaskGroup
 
 	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 	Update UpdateStrategy
@@ -1462,7 +1462,7 @@ type Job struct {
 
 	// ParameterizedJob is used to specify the job as a parameterized job
 	// for dispatching.
-	ParameterizedJob *ParameterizedJobConfig `sentinel:"parameterized"`
+	ParameterizedJob *ParameterizedJobConfig
 
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte
@@ -1474,13 +1474,13 @@ type Job struct {
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
-	VaultToken string `sentinel:"vault_token"`
+	VaultToken string
 
 	// Job status
 	Status string
 
 	// StatusDescription is meant to provide more human useful information
-	StatusDescription string `sentinel:"status_description"`
+	StatusDescription string
 
 	// Stable marks a job as stable. Stability is only defined on "service" and
 	// "system" jobs. The stability of a job will be set automatically as part
@@ -1493,12 +1493,12 @@ type Job struct {
 
 	// SubmitTime is the time at which the job was submitted as a UnixNano in
 	// UTC
-	SubmitTime int64 `sentinel:"submit_time"`
+	SubmitTime int64
 
 	// Raft Indexes
-	CreateIndex    uint64 `sentinel:"create_index"`
-	ModifyIndex    uint64 `sentinel:"modify_index"`
-	JobModifyIndex uint64 `sentinel:"job_modify_index"`
+	CreateIndex    uint64
+	ModifyIndex    uint64
+	JobModifyIndex uint64
 }
 
 // Canonicalize is used to canonicalize fields in the Job. This should be called

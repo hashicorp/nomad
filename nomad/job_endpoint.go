@@ -1276,7 +1276,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 	dataCB := func() map[string]interface{} {
 		return map[string]interface{}{
-			"job": job,
+			"job": job.SentinelObject(),
 		}
 	}
 	return j.srv.enforceScope(override, structs.SentinelScopeSubmitJob, dataCB)
