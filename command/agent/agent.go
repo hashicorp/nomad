@@ -149,6 +149,9 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
 	}
+	if agentConfig.Sentinel != nil {
+		conf.SentinelConfig = agentConfig.Sentinel
+	}
 
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)

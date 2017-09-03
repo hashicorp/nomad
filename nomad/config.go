@@ -242,6 +242,9 @@ type Config struct {
 
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration
+
+	// SentinelConfig is this Agent's Sentinel configuration
+	SentinelConfig *config.SentinelConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

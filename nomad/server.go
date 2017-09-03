@@ -244,8 +244,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, err
 	}
 
-	// Sentinel instance. You only need one of these per process.
-	sent := sentinel.New(nil)
+	// Setup the sentinel configuration
+	sentConf := &sentinel.Config{
+		Imports: make(map[string]*sentinel.Import),
+	}
+	if config.SentinelConfig != nil {
+		for _, sImport := range config.SentinelConfig.Imports {
+			sentConf.Imports[sImport.Name] = &sentinel.Import{
+				Path: sImport.Path,
+				Args: sImport.Args,
+			}
+			logger.Printf("[DEBUG] nomad.sentinel: enabling import %q via %q", sImport.Name, sImport.Path)
+		}
+	}
+
+	// Create the Sentinel instance based on the configuration
+	sent := sentinel.New(sentConf)
 
 	// Create the server
 	s := &Server{
