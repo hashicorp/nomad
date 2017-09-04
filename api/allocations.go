@@ -72,6 +72,7 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                 string
+	Namespace          string
 	EvalID             string
 	Name               string
 	NodeID             string

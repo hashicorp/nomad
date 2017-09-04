@@ -33,7 +33,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.JobID)
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	// Force run the job.
-	eval, err := p.srv.periodicDispatcher.ForceRun(job.ID)
+	eval, err := p.srv.periodicDispatcher.ForceRun(args.RequestNamespace(), job.ID)
 	if err != nil {
 		return fmt.Errorf("force launch for job %q failed: %v", job.ID, err)
 	}

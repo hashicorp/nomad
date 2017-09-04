@@ -58,6 +58,7 @@ type Evaluation struct {
 	Priority             int
 	Type                 string
 	TriggeredBy          string
+	Namespace            string
 	JobID                string
 	JobModifyIndex       uint64
 	NodeID               string

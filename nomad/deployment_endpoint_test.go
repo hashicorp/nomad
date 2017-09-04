@@ -33,7 +33,10 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	// Lookup the deployments
 	get := &structs.DeploymentSpecificRequest{
 		DeploymentID: d.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.SingleDeploymentResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
@@ -76,6 +79,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 		DeploymentID: d2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -207,7 +211,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
 
 	// Lookup the job
-	jout, err := state.JobByID(ws, j.ID)
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
 	assert.Nil(err, "JobByID")
 	assert.NotNil(jout, "job")
 	assert.EqualValues(2, jout.Version, "reverted job version")
@@ -467,7 +471,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	assert.False(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
 
 	// Lookup the job
-	jout, err := state.JobByID(ws, j.ID)
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
 	assert.Nil(err, "JobByID")
 	assert.NotNil(jout, "job")
 	assert.EqualValues(2, jout.Version, "reverted job version")
@@ -492,7 +496,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 	// Lookup the deployments
 	get := &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.DeploymentListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
@@ -502,7 +509,11 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 	// Lookup the deploys by prefix
 	get = &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: d.ID[:4]},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+			Prefix:    d.ID[:4],
+		},
 	}
 
 	var resp2 structs.DeploymentListResponse
@@ -536,6 +547,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	req := &structs.DeploymentListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}
@@ -593,7 +605,10 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	// Lookup the allocations
 	get := &structs.DeploymentSpecificRequest{
 		DeploymentID: d.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.AllocListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
@@ -632,6 +647,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 		DeploymentID: d.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}

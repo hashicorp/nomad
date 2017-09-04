@@ -52,8 +52,8 @@ type EvalBroker struct {
 	// and is used to eventually fail an evaluation.
 	evals map[string]int
 
-	// jobEvals tracks queued evaluations by JobID to serialize them
-	jobEvals map[string]string
+	// jobEvals tracks queued evaluations by a job's ID and namespace to serialize them
+	jobEvals map[structs.NamespacedID]string
 
 	// blocked tracks the blocked evaluations by JobID in a priority queue
 	blocked map[string]PendingEvaluations
@@ -117,7 +117,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		enabled:             false,
 		stats:               new(BrokerStats),
 		evals:               make(map[string]int),
-		jobEvals:            make(map[string]string),
+		jobEvals:            make(map[structs.NamespacedID]string),
 		blocked:             make(map[string]PendingEvaluations),
 		ready:               make(map[string]PendingEvaluations),
 		unack:               make(map[string]*unackEval),
@@ -235,9 +235,13 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	}
 
 	// Check if there is an evaluation for this JobID pending
-	pendingEval := b.jobEvals[eval.JobID]
+	tuple := structs.NamespacedID{
+		ID:        eval.JobID,
+		Namespace: eval.Namespace,
+	}
+	pendingEval := b.jobEvals[tuple]
 	if pendingEval == "" {
-		b.jobEvals[eval.JobID] = eval.ID
+		b.jobEvals[tuple] = eval.ID
 	} else if pendingEval != eval.ID {
 		blocked := b.blocked[eval.JobID]
 		heap.Push(&blocked, eval)
@@ -513,7 +517,12 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	// Cleanup
 	delete(b.unack, evalID)
 	delete(b.evals, evalID)
-	delete(b.jobEvals, jobID)
+
+	tuple := structs.NamespacedID{
+		ID:        jobID,
+		Namespace: unack.Eval.Namespace,
+	}
+	delete(b.jobEvals, tuple)
 
 	// Check if there are any blocked evaluations
 	if blocked := b.blocked[jobID]; len(blocked) != 0 {
@@ -660,7 +669,7 @@ func (b *EvalBroker) Flush() {
 	b.stats.TotalWaiting = 0
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	b.evals = make(map[string]int)
-	b.jobEvals = make(map[string]string)
+	b.jobEvals = make(map[structs.NamespacedID]string)
 	b.blocked = make(map[string]PendingEvaluations)
 	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)

@@ -339,6 +339,9 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 	for _, job := range []*structs.Job{nonPeriodic, periodic, parameterizedPeriodic} {
 		req := structs.JobRegisterRequest{
 			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Namespace: job.Namespace,
+			},
 		}
 		_, _, err := leader.raftApply(structs.JobRegisterRequestType, req)
 		if err != nil {
@@ -364,15 +367,28 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 		t.Fatalf("should have leader")
 	})
 
+	tuplePeriodic := structs.NamespacedID{
+		ID:        periodic.ID,
+		Namespace: periodic.Namespace,
+	}
+	tupleNonPeriodic := structs.NamespacedID{
+		ID:        nonPeriodic.ID,
+		Namespace: nonPeriodic.Namespace,
+	}
+	tupleParameterized := structs.NamespacedID{
+		ID:        parameterizedPeriodic.ID,
+		Namespace: parameterizedPeriodic.Namespace,
+	}
+
 	// Check that the new leader is tracking the periodic job only
 	testutil.WaitForResult(func() (bool, error) {
-		if _, tracked := leader.periodicDispatcher.tracked[periodic.ID]; !tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tuplePeriodic]; !tracked {
 			return false, fmt.Errorf("periodic job not tracked")
 		}
-		if _, tracked := leader.periodicDispatcher.tracked[nonPeriodic.ID]; tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tupleNonPeriodic]; tracked {
 			return false, fmt.Errorf("non periodic job tracked")
 		}
-		if _, tracked := leader.periodicDispatcher.tracked[parameterizedPeriodic.ID]; tracked {
+		if _, tracked := leader.periodicDispatcher.tracked[tupleParameterized]; tracked {
 			return false, fmt.Errorf("parameterized periodic job tracked")
 		}
 		return true, nil
@@ -393,6 +409,9 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	job := testPeriodicJob(launch)
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -414,13 +433,17 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
-	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, tracked := s1.periodicDispatcher.tracked[tuple]; !tracked {
 		t.Fatalf("periodic job not restored")
 	}
 
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
-	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -445,6 +468,9 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	job := testPeriodicJob(past, now, future)
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -465,13 +491,17 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	s1.restorePeriodicDispatcher()
 
 	// Ensure the job is tracked.
-	if _, tracked := s1.periodicDispatcher.tracked[job.ID]; !tracked {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, tracked := s1.periodicDispatcher.tracked[tuple]; !tracked {
 		t.Fatalf("periodic job not restored")
 	}
 
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
-	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.ID)
+	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
 	if err != nil || last == nil {
 		t.Fatalf("failed to get periodic launch time: %v", err)
 	}
@@ -535,7 +565,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 		}
 
 		// See if there is a followup
-		evals, err := state.EvalsByJob(ws, eval.JobID)
+		evals, err := state.EvalsByJob(ws, eval.Namespace, eval.JobID)
 		if err != nil {
 			return false, err
 		}

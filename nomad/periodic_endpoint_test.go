@@ -30,8 +30,11 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 
 	// Force launch it.
 	req := &structs.PeriodicForceRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -75,8 +78,11 @@ func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 
 	// Force launch it.
 	req := &structs.PeriodicForceRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response

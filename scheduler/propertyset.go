@@ -17,6 +17,9 @@ type propertySet struct {
 	// jobID is the job we are operating on
 	jobID string
 
+	// namespace is the namespace of the job we are operating on
+	namespace string
+
 	// taskGroup is optionally set if the constraint is for a task group
 	taskGroup string
 
@@ -50,6 +53,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 	p := &propertySet{
 		ctx:            ctx,
 		jobID:          job.ID,
+		namespace:      job.Namespace,
 		existingValues: make(map[string]uint64),
 	}
 
@@ -109,7 +113,7 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 	// Retrieve all previously placed allocations
 	ws := memdb.NewWatchSet()
-	allocs, err := p.ctx.State().AllocsByJob(ws, p.jobID, false)
+	allocs, err := p.ctx.State().AllocsByJob(ws, p.namespace, p.jobID, false)
 	if err != nil {
 		p.errorBuilding = fmt.Errorf("failed to get job's allocations: %v", err)
 		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", p.errorBuilding)

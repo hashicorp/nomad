@@ -156,6 +156,9 @@ func (w *deploymentWatcher) SetAllocHealth(
 		u = w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
 	}
 
+	// Canonicalize the job in case it doesn't have namespace set
+	j.Canonicalize()
+
 	// Create the request
 	areq := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: *req,
@@ -396,7 +399,7 @@ func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 		return nil, err
 	}
 
-	versions, err := snap.JobVersionsByID(nil, w.d.JobID)
+	versions, err := snap.JobVersionsByID(nil, w.d.Namespace, w.d.JobID)
 	if err != nil {
 		return nil, err
 	}
@@ -443,6 +446,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	return &structs.Evaluation{
 		ID:           structs.GenerateUUID(),
+		Namespace:    w.j.Namespace,
 		Priority:     w.j.Priority,
 		Type:         w.j.Type,
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
@@ -514,7 +518,7 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 		return 0, err
 	}
 
-	evals, err := snap.EvalsByJob(nil, w.d.JobID)
+	evals, err := snap.EvalsByJob(nil, w.d.Namespace, w.d.JobID)
 	if err != nil {
 		return 0, err
 	}

@@ -128,6 +128,12 @@ const (
 	All         Context = "all"
 )
 
+// NamespacedID is a tuple of an ID and a namespace
+type NamespacedID struct {
+	ID        string
+	Namespace string
+}
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string
@@ -139,6 +145,9 @@ type RPCInfo interface {
 type QueryOptions struct {
 	// The target region for this query
 	Region string
+
+	// Namespace is the target namespace for the query.
+	Namespace string
 
 	// If set, wait until query exceeds given index. Must be provided
 	// with MaxQueryTime.
@@ -162,6 +171,13 @@ func (q QueryOptions) RequestRegion() string {
 	return q.Region
 }
 
+func (q QueryOptions) RequestNamespace() string {
+	if q.Namespace == "" {
+		return DefaultNamespace
+	}
+	return q.Namespace
+}
+
 // QueryOption only applies to reads, so always true
 func (q QueryOptions) IsRead() bool {
 	return true
@@ -175,6 +191,9 @@ type WriteRequest struct {
 	// The target region for this write
 	Region string
 
+	// Namespace is the target namespace for the write.
+	Namespace string
+
 	// SecretID is secret portion of the ACL token used for the request
 	SecretID string
 }
@@ -182,6 +201,13 @@ type WriteRequest struct {
 func (w WriteRequest) RequestRegion() string {
 	// The target region for this request
 	return w.Region
+}
+
+func (w WriteRequest) RequestNamespace() string {
+	if w.Namespace == "" {
+		return DefaultNamespace
+	}
+	return w.Namespace
 }
 
 // WriteRequest only applies to writes, always false
@@ -1434,6 +1460,9 @@ type Job struct {
 	// Region is the Nomad region that handles scheduling this job
 	Region string
 
+	// Namespace is the namespace the job is submitted into.
+	Namespace string
+
 	// ID is a unique identifier for the job per region. It can be
 	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
@@ -1522,11 +1551,20 @@ type Job struct {
 // when registering a Job. A set of warnings are returned if the job was changed
 // in anyway that the user should be made aware of.
 func (j *Job) Canonicalize() (warnings error) {
+	if j == nil {
+		return nil
+	}
+
 	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
 		j.Meta = nil
+	}
+
+	// Ensure the job is in a namespace.
+	if j.Namespace == "" {
+		j.Namespace = DefaultNamespace
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -1662,6 +1700,9 @@ func (j *Job) Validate() error {
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	}
+	if j.Namespace == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}
 	switch j.Type {
 	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem:
@@ -1969,7 +2010,11 @@ type JobListStub struct {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
+	// JobID is the ID of the job the summary is for
 	JobID string
+
+	// Namespace is the namespace of the job and its summary
+	Namespace string
 
 	// Summmary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
@@ -2279,8 +2324,9 @@ const (
 
 // PeriodicLaunch tracks the last launch time of a periodic job.
 type PeriodicLaunch struct {
-	ID     string    // ID of the periodic job.
-	Launch time.Time // The last launch time.
+	ID        string    // ID of the periodic job.
+	Namespace string    // Namespace of the periodic job
+	Launch    time.Time // The last launch time.
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -4199,6 +4245,9 @@ type Deployment struct {
 	// ID is a generated UUID for the deployment
 	ID string
 
+	// Namespace is the namespace the deployment is created in
+	Namespace string
+
 	// JobID is the job the deployment is created for
 	JobID string
 
@@ -4232,6 +4281,7 @@ type Deployment struct {
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
 		ID:                GenerateUUID(),
+		Namespace:         job.Namespace,
 		JobID:             job.ID,
 		JobVersion:        job.Version,
 		JobModifyIndex:    job.ModifyIndex,
@@ -4392,6 +4442,9 @@ const (
 type Allocation struct {
 	// ID of the allocation (UUID)
 	ID string
+
+	// Namespace is the namespace the allocation is created in
+	Namespace string
 
 	// ID of the evaluation that generated this allocation
 	EvalID string
@@ -4843,6 +4896,9 @@ type Evaluation struct {
 	// is assigned upon the creation of the evaluation.
 	ID string
 
+	// Namespace is the namespace the evaluation is created in
+	Namespace string
+
 	// Priority is used to control scheduling importance and if this job
 	// can preempt other jobs.
 	Priority int
@@ -5025,6 +5081,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerRollingUpdate,
@@ -5042,6 +5099,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
 		ID:                   GenerateUUID(),
+		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
 		TriggeredBy:          e.TriggeredBy,
@@ -5060,6 +5118,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerFailedFollowUp,

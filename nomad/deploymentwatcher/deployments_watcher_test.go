@@ -664,7 +664,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		evals, err := m.state.EvalsByJob(ws, j.ID)
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
 		if err != nil {
 			return false, err
 		}
@@ -702,7 +702,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		evals, err := m.state.EvalsByJob(ws, j.ID)
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
 		if err != nil {
 			return false, err
 		}
@@ -789,12 +789,12 @@ func TestWatcher_BatchEvals(t *testing.T) {
 	// Wait for there to be one eval for each job
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		evals1, err := m.state.EvalsByJob(ws, j1.ID)
+		evals1, err := m.state.EvalsByJob(ws, j1.Namespace, j1.ID)
 		if err != nil {
 			return false, err
 		}
 
-		evals2, err := m.state.EvalsByJob(ws, j2.ID)
+		evals2, err := m.state.EvalsByJob(ws, j2.Namespace, j2.ID)
 		if err != nil {
 			return false, err
 		}

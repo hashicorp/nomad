@@ -387,24 +387,41 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
+	ns1 := "namespace-one"
+	ns2 := "namespace-two"
 	eval := mock.Eval()
+	eval.Namespace = ns1
 	b.Enqueue(eval)
 
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
+	eval2.Namespace = ns1
 	eval2.CreateIndex = eval.CreateIndex + 1
 	b.Enqueue(eval2)
 
 	eval3 := mock.Eval()
 	eval3.JobID = eval.JobID
+	eval3.Namespace = ns1
 	eval3.CreateIndex = eval.CreateIndex + 2
 	b.Enqueue(eval3)
 
+	eval4 := mock.Eval()
+	eval4.JobID = eval.JobID
+	eval4.Namespace = ns2
+	eval4.CreateIndex = eval.CreateIndex + 3
+	b.Enqueue(eval4)
+
+	eval5 := mock.Eval()
+	eval5.JobID = eval.JobID
+	eval5.Namespace = ns2
+	eval5.CreateIndex = eval.CreateIndex + 4
+	b.Enqueue(eval5)
+
 	stats := b.Stats()
-	if stats.TotalReady != 1 {
+	if stats.TotalReady != 2 {
 		t.Fatalf("bad: %#v", stats)
 	}
-	if stats.TotalBlocked != 2 {
+	if stats.TotalBlocked != 3 {
 		t.Fatalf("bad: %#v", stats)
 	}
 
@@ -419,13 +436,13 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 0 {
+	if stats.TotalReady != 1 {
 		t.Fatalf("bad: %#v", stats)
 	}
 	if stats.TotalUnacked != 1 {
 		t.Fatalf("bad: %#v", stats)
 	}
-	if stats.TotalBlocked != 2 {
+	if stats.TotalBlocked != 3 {
 		t.Fatalf("bad: %#v", stats)
 	}
 
@@ -437,13 +454,13 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
+	if stats.TotalReady != 2 {
 		t.Fatalf("bad: %#v", stats)
 	}
 	if stats.TotalUnacked != 0 {
 		t.Fatalf("bad: %#v", stats)
 	}
-	if stats.TotalBlocked != 1 {
+	if stats.TotalBlocked != 2 {
 		t.Fatalf("bad: %#v", stats)
 	}
 
@@ -458,6 +475,84 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 
 	// Check the stats
 	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 2 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack out
+	err = b.Ack(eval2.ID, token)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 2 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, token, err = b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval3 {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Ack out
+	err = b.Ack(eval3.ID, token)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check the stats
+	stats = b.Stats()
+	if stats.TotalReady != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalUnacked != 0 {
+		t.Fatalf("bad: %#v", stats)
+	}
+	if stats.TotalBlocked != 1 {
+		t.Fatalf("bad: %#v", stats)
+	}
+
+	// Dequeue should work
+	out, token, err = b.Dequeue(defaultSched, time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != eval4 {
+		t.Fatalf("bad : %#v", out)
+	}
+
+	// Check the stats
+	stats = b.Stats()
 	if stats.TotalReady != 0 {
 		t.Fatalf("bad: %#v", stats)
 	}
@@ -469,7 +564,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Ack out
-	err = b.Ack(eval2.ID, token)
+	err = b.Ack(eval4.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -491,7 +586,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if out != eval3 {
+	if out != eval5 {
 		t.Fatalf("bad : %#v", out)
 	}
 
@@ -508,7 +603,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	}
 
 	// Ack out
-	err = b.Ack(eval3.ID, token)
+	err = b.Ack(eval5.ID, token)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
