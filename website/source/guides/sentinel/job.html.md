@@ -95,11 +95,83 @@ A task object has the following fields:
 * `task.constraints` - `nil` or list of constraint objects.
 * `task.resources`
 * `task.dispatch_payload`
+    * `task.dispatch_payload.file`
 * `task.meta`
 * `task.kill_timeout`
 * `task.log_config`
+    * `task.log_config.max_files`
+    * `task.log_config.max_filesize_mb`
 * `task.artifacts`
 * `task.leader`
 
+A task service object has the following fields:
 
+* `service.name`
+* `service.port_label`
+* `service.address_mode`
+* `service.tags`
+* `service.checks`
+
+A service check object has the following fields:
+
+* `check.name`
+* `check.type`
+* `check.command`
+* `check.args`
+* `check.path`
+* `check.protocol`
+* `check.port_label`
+* `check.interval`
+* `check.timeout`
+* `check.initial_status`
+* `check.tls_skip_verify`
+
+A task Vault object has the following fields:
+
+* `task.vault.policies`
+* `task.vault.env`
+* `task.vault.change_mode`
+* `task.vault.change_signal`
+
+A task template object has the following fields:
+
+* `template.source_path`
+* `template.destination_path`
+* `template.embedded_template`
+* `template.change_mode`
+* `template.change_signal`
+* `template.splay`
+* `template.permissions`
+* `template.left_delimiter`
+* `template.right_delimiter`
+* `template.env_vars`
+
+A task resource object has the following fields:
+
+* `task.resources.cpu`
+* `task.resources.memory_mb`
+* `task.resources.disk_mb`
+* `task.resources.iops`
+* `task.resources.networks`
+
+A network resource object has the following fields:
+
+* `network.device`
+* `network.cidr`
+* `network.ip`
+* `network.mbits`
+* `network.reserved_ports`
+* `network.dynamic_ports`
+
+A network port object has the following fields:
+
+* `port.label`
+* `port.value`
+
+A task artifact object has the following fields:
+
+* `artifact.source`
+* `artifact.options`
+* `artifact.getter_mode`
+* `artifact.relative_destination`
 

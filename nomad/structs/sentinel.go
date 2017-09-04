@@ -287,7 +287,7 @@ func (t *Template) SentinelObject() map[string]interface{} {
 	out := map[string]interface{}{
 		"source_path":       t.SourcePath,
 		"destination_path":  t.DestPath,
-		"embedded_tempalte": t.EmbeddedTmpl,
+		"embedded_template": t.EmbeddedTmpl,
 		"change_mode":       t.ChangeMode,
 		"change_signal":     t.ChangeSignal,
 		"splay":             t.Splay,
