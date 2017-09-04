@@ -130,7 +130,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
