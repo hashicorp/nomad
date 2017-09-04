@@ -9,31 +9,34 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UpsertNnamespace is used to register or updaate a namespace definition
-func (s *StateStore) UpsertNamespace(index uint64, ns *structs.Namespace) error {
+// UpsertNnamespace is used to register or update a set of namespaces
+func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namespace) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Check if the namespace already exists
-	existing, err := txn.First(TableNamespaces, "id", ns.Name)
-	if err != nil {
-		return fmt.Errorf("namespace lookup failed: %v", err)
+	for _, ns := range namespaces {
+		// Check if the namespace already exists
+		existing, err := txn.First(TableNamespaces, "id", ns.Name)
+		if err != nil {
+			return fmt.Errorf("namespace lookup failed: %v", err)
+		}
+
+		// Setup the indexes correctly
+		if existing != nil {
+			exist := existing.(*structs.Namespace)
+			ns.CreateIndex = exist.CreateIndex
+			ns.ModifyIndex = index
+		} else {
+			ns.CreateIndex = index
+			ns.ModifyIndex = index
+		}
+
+		// Insert the namespace
+		if err := txn.Insert(TableNamespaces, ns); err != nil {
+			return fmt.Errorf("namespace insert failed: %v", err)
+		}
 	}
 
-	// Setup the indexes correctly
-	if existing != nil {
-		exist := existing.(*structs.Namespace)
-		ns.CreateIndex = exist.CreateIndex
-		ns.ModifyIndex = index
-	} else {
-		ns.CreateIndex = index
-		ns.ModifyIndex = index
-	}
-
-	// Insert the namespace
-	if err := txn.Insert(TableNamespaces, ns); err != nil {
-		return fmt.Errorf("namespace insert failed: %v", err)
-	}
 	if err := txn.Insert("index", &IndexEntry{TableNamespaces, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
@@ -42,43 +45,46 @@ func (s *StateStore) UpsertNamespace(index uint64, ns *structs.Namespace) error 
 	return nil
 }
 
-// DeleteNamespace is used to remove a namespace
-func (s *StateStore) DeleteNamespace(index uint64, name string) error {
+// DeleteNamespaces is used to remove a set of namespaces
+func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Lookup the namespace
-	existing, err := txn.First(TableNamespaces, "id", name)
-	if err != nil {
-		return fmt.Errorf("namespace lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("namespace not found")
-	}
-
-	// Ensure that the namespace doesn't have any non-terminal jobs
-	iter, err := s.jobsByNamespaceImpl(nil, name, txn)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	for _, name := range names {
+		// Lookup the namespace
+		existing, err := txn.First(TableNamespaces, "id", name)
+		if err != nil {
+			return fmt.Errorf("namespace lookup failed: %v", err)
 		}
-		job := raw.(*structs.Job)
+		if existing == nil {
+			return fmt.Errorf("namespace not found")
+		}
 
-		if job.Status != structs.JobStatusDead {
-			return fmt.Errorf("namespace %q contains at least one non-terminal job %q. "+
-				"All jobs must be terminal in namespace before it can be deleted", name, job.ID)
+		// Ensure that the namespace doesn't have any non-terminal jobs
+		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+		if err != nil {
+			return err
+		}
+
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			job := raw.(*structs.Job)
+
+			if job.Status != structs.JobStatusDead {
+				return fmt.Errorf("namespace %q contains at least one non-terminal job %q. "+
+					"All jobs must be terminal in namespace before it can be deleted", name, job.ID)
+			}
+		}
+
+		// Delete the namespace
+		if err := txn.Delete(TableNamespaces, existing); err != nil {
+			return fmt.Errorf("namespace deletion failed: %v", err)
 		}
 	}
 
-	// Delete the namespace
-	if err := txn.Delete(TableNamespaces, existing); err != nil {
-		return fmt.Errorf("namespace deletion failed: %v", err)
-	}
 	if err := txn.Insert("index", &IndexEntry{TableNamespaces, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}

@@ -12,23 +12,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStateStore_UpsertNamespace(t *testing.T) {
+func TestStateStore_UpsertNamespaces(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
-	ns := mock.Namespace()
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	_, err := state.NamespaceByName(ws, ns.Name)
+	_, err := state.NamespaceByName(ws, ns1.Name)
 	assert.Nil(err)
 
-	assert.Nil(state.UpsertNamespace(1000, ns))
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
 	assert.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.NamespaceByName(ws, ns.Name)
+	out, err := state.NamespaceByName(ws, ns1.Name)
 	assert.Nil(err)
-	assert.Equal(ns, out)
+	assert.Equal(ns1, out)
+
+	out, err = state.NamespaceByName(ws, ns2.Name)
+	assert.Nil(err)
+	assert.Equal(ns2, out)
 
 	index, err := state.Index(TableNamespaces)
 	assert.Nil(err)
@@ -36,23 +41,28 @@ func TestStateStore_UpsertNamespace(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
-func TestStateStore_DeleteNamespace(t *testing.T) {
+func TestStateStore_DeleteNamespaces(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
-	ns := mock.Namespace()
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
 
-	assert.Nil(state.UpsertNamespace(1000, ns))
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	_, err := state.NamespaceByName(ws, ns.Name)
+	_, err := state.NamespaceByName(ws, ns1.Name)
 	assert.Nil(err)
 
-	assert.Nil(state.DeleteNamespace(1001, ns.Name))
+	assert.Nil(state.DeleteNamespaces(1001, []string{ns1.Name, ns2.Name}))
 	assert.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.NamespaceByName(ws, ns.Name)
+	out, err := state.NamespaceByName(ws, ns1.Name)
+	assert.Nil(err)
+	assert.Nil(out)
+
+	out, err = state.NamespaceByName(ws, ns2.Name)
 	assert.Nil(err)
 	assert.Nil(out)
 
@@ -62,12 +72,12 @@ func TestStateStore_DeleteNamespace(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
-func TestStateStore_DeleteNamespace_NonTerminalJobs(t *testing.T) {
+func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
 
 	ns := mock.Namespace()
-	assert.Nil(state.UpsertNamespace(1000, ns))
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
 
 	job := mock.Job()
 	job.Namespace = ns.Name
@@ -78,7 +88,7 @@ func TestStateStore_DeleteNamespace_NonTerminalJobs(t *testing.T) {
 	_, err := state.NamespaceByName(ws, ns.Name)
 	assert.Nil(err)
 
-	err = state.DeleteNamespace(1002, ns.Name)
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "one non-terminal")
 	assert.False(watchFired(ws))
@@ -102,9 +112,9 @@ func TestStateStore_Namespaces(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		ns := mock.Namespace()
 		namespaces = append(namespaces, ns)
-
-		assert.Nil(state.UpsertNamespace(1000+uint64(i), ns))
 	}
+
+	assert.Nil(state.UpsertNamespaces(1000, namespaces))
 
 	// Create a watchset so we can test that getters don't cause it to fire
 	ws := memdb.NewWatchSet()
@@ -132,7 +142,7 @@ func TestStateStore_NamespaceByNamePrefix(t *testing.T) {
 	ns := mock.Namespace()
 
 	ns.Name = "foobar"
-	assert.Nil(state.UpsertNamespace(1000, ns))
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
 
 	// Create a watchset so we can test that getters don't cause it to fire
 	ws := memdb.NewWatchSet()
@@ -164,7 +174,7 @@ func TestStateStore_NamespaceByNamePrefix(t *testing.T) {
 
 	ns = mock.Namespace()
 	ns.Name = "foozip"
-	err = state.UpsertNamespace(1001, ns)
+	err = state.UpsertNamespaces(1001, []*structs.Namespace{ns})
 	assert.Nil(err)
 	assert.True(watchFired(ws))
 
