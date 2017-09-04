@@ -861,6 +861,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
+	task.Config["dns_options"] = []string{"ndots:1"}
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
@@ -877,7 +878,11 @@ func TestDockerDriver_DNS(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(task.Config["dns_search_domains"], container.HostConfig.DNSSearch) {
-		t.Errorf("DNS Servers don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
+		t.Errorf("DNS Search Domains don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_search_domains"], container.HostConfig.DNSSearch)
+	}
+
+	if !reflect.DeepEqual(task.Config["dns_options"], container.HostConfig.DNSOptions) {
+		t.Errorf("DNS Options don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["dns_options"], container.HostConfig.DNSOptions)
 	}
 }
 

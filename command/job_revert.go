@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type JobRevertCommand struct {
@@ -35,6 +38,29 @@ Revert Options:
 
 func (c *JobRevertCommand) Synopsis() string {
 	return "Revert to a prior version of the job"
+}
+
+func (c *JobRevertCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *JobRevertCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobRevertCommand) Run(args []string) int {

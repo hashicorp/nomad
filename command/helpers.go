@@ -7,11 +7,13 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/posener/complete"
 
 	"github.com/ryanuber/columnize"
 )
@@ -317,4 +319,25 @@ func getVersion(job *api.Job) uint64 {
 	}
 
 	return 0
+}
+
+// mergeAutocompleteFlags is used to join multiple flag completion sets.
+func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
+	merged := make(map[string]complete.Predictor, len(flags))
+	for _, f := range flags {
+		for k, v := range f {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+// sanatizeUUIDPrefix is used to sanatize a UUID prefix. The returned result
+// will be a truncated version of the prefix if the prefix would not be
+// queriable.
+func sanatizeUUIDPrefix(prefix string) string {
+	hyphens := strings.Count(prefix, "-")
+	length := len(prefix) - hyphens
+	remainder := length % 2
+	return prefix[:len(prefix)-remainder]
 }

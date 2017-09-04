@@ -16,7 +16,7 @@ import (
 
 func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*Watcher, *mockBackend) {
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, m, qps, batchDur)
+	w := NewDeploymentsWatcher(testLogger(), m, qps, batchDur)
 	return w, m
 }
 
@@ -30,23 +30,11 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
-	// Return no allocations or evals
-	m.On("Allocations", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.AllocListResponse)
-		reply.Index = m.nextIndex()
-	})
-	m.On("Evaluations", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.JobEvaluationsResponse)
-		reply.Index = m.nextIndex()
-	})
-
 	// Create three jobs
 	j1, j2, j3 := mock.Job(), mock.Job(), mock.Job()
-	jobs := map[string]*structs.Job{
-		j1.ID: j1,
-		j2.ID: j2,
-		j3.ID: j3,
-	}
+	assert.Nil(m.state.UpsertJob(100, j1))
+	assert.Nil(m.state.UpsertJob(101, j2))
+	assert.Nil(m.state.UpsertJob(102, j3))
 
 	// Create three deployments all running
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
@@ -54,46 +42,27 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 	d2.JobID = j2.ID
 	d3.JobID = j3.ID
 
-	m.On("GetJob", mocker.Anything, mocker.Anything).
-		Return(nil).Run(func(args mocker.Arguments) {
-		in := args.Get(0).(*structs.JobSpecificRequest)
-		reply := args.Get(1).(*structs.SingleJobResponse)
-		reply.Job = jobs[in.JobID]
-		reply.Index = reply.Job.ModifyIndex
-	})
-
-	// Set up the calls for retrieving deployments
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.DeploymentListResponse)
-		reply.Deployments = []*structs.Deployment{d1}
-		reply.Index = m.nextIndex()
-	}).Once()
+	// Upsert the first deployment
+	assert.Nil(m.state.UpsertDeployment(103, d1))
 
 	// Next list 3
 	block1 := make(chan time.Time)
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.DeploymentListResponse)
-		reply.Deployments = []*structs.Deployment{d1, d2, d3}
-		reply.Index = m.nextIndex()
-	}).Once().WaitUntil(block1)
+	go func() {
+		<-block1
+		assert.Nil(m.state.UpsertDeployment(104, d2))
+		assert.Nil(m.state.UpsertDeployment(105, d3))
+	}()
 
 	//// Next list 3 but have one be terminal
 	block2 := make(chan time.Time)
 	d3terminal := d3.Copy()
 	d3terminal.Status = structs.DeploymentStatusFailed
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.DeploymentListResponse)
-		reply.Deployments = []*structs.Deployment{d1, d2, d3terminal}
-		reply.Index = m.nextIndex()
-	}).WaitUntil(block2)
+	go func() {
+		<-block2
+		assert.Nil(m.state.UpsertDeployment(106, d3terminal))
+	}()
 
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.DeploymentListResponse)
-		reply.Deployments = []*structs.Deployment{d1, d2, d3terminal}
-		reply.Index = m.nextIndex()
-	})
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "1 deployment returned") })
 
@@ -111,17 +80,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
-	w.SetEnabled(true)
-
-	// Set up the calls for retrieving deployments
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.DeploymentListResponse)
-		reply.Index = m.nextIndex()
-	})
-	m.On("GetDeployment", mocker.Anything, mocker.Anything).Return(nil).Run(func(args mocker.Arguments) {
-		reply := args.Get(1).(*structs.SingleDeploymentResponse)
-		reply.Index = m.nextIndex()
-	})
+	w.SetEnabled(true, m.state)
 
 	// The expected error is that it should be an unknown deployment
 	dID := structs.GenerateUUID()
@@ -181,16 +140,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -233,16 +183,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -283,16 +224,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -350,18 +282,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	j2.Stable = false
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -417,16 +338,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -473,16 +385,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -525,16 +428,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -574,16 +468,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -623,16 +508,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -672,16 +548,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -721,16 +588,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -783,18 +641,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	j2.Stable = false
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
 		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
 
@@ -912,30 +759,7 @@ func TestWatcher_BatchEvals(t *testing.T) {
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a1}), "UpsertAllocs")
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
 
-	// Assert the following methods will be called
-	m.On("List", mocker.Anything, mocker.Anything).Return(nil).Run(m.listFromState)
-
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d1.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-	m.On("Allocations", mocker.MatchedBy(matchDeploymentSpecificRequest(d2.ID)),
-		mocker.Anything).Return(nil).Run(m.allocationsFromState)
-
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-	m.On("Evaluations", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
-		mocker.Anything).Return(nil).Run(m.evaluationsFromState)
-
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j1.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-	m.On("GetJob", mocker.MatchedBy(matchJobSpecificRequest(j2.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobFromState)
-
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j1.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
-	m.On("GetJobVersions", mocker.MatchedBy(matchJobVersionsRequest(j2.ID)),
-		mocker.Anything).Return(nil).Run(m.getJobVersionsFromState)
-
-	w.SetEnabled(true)
+	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 2 == len(w.watchers), nil },
 		func(err error) { assert.Equal(2, len(w.watchers), "Should have 2 deployment") })
 

@@ -80,7 +80,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 	exp := []string{filepath.Join(td.Dir, taskDest, file), filepath.Join(td.Dir, taskDest, subDirName, subFile)}
 	for _, f := range exp {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
-			t.Fatalf("File %v not embeded: %v", f, err)
+			t.Fatalf("File %v not embedded: %v", f, err)
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 )
@@ -73,38 +72,25 @@ func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMet
 }
 
 func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
-	node, _, err := n.client.Nodes().Info(nodeID, q)
-	if err != nil {
-		return nil, err
-	}
-	if node.HTTPAddr == "" {
-		return nil, fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
-	}
-	client, err := NewClient(n.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
+	nodeClient, err := n.client.GetNodeClient(nodeID, q)
 	if err != nil {
 		return nil, err
 	}
 	var resp HostStats
-	if _, err := client.query("/v1/client/stats", &resp, nil); err != nil {
+	if _, err := nodeClient.query("/v1/client/stats", &resp, nil); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 func (n *Nodes) GC(nodeID string, q *QueryOptions) error {
-	node, _, err := n.client.Nodes().Info(nodeID, q)
+	nodeClient, err := n.client.GetNodeClient(nodeID, q)
 	if err != nil {
 		return err
 	}
-	if node.HTTPAddr == "" {
-		return fmt.Errorf("http addr of the node %q is running is not advertised", nodeID)
-	}
-	client, err := NewClient(n.client.config.CopyConfig(node.HTTPAddr, node.TLSEnabled))
-	if err != nil {
-		return err
-	}
+
 	var resp struct{}
-	_, err = client.query("/v1/client/gc", &resp, nil)
+	_, err = nodeClient.query("/v1/client/gc", &resp, nil)
 	return err
 }
 
@@ -169,6 +155,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Version           string
 	Drain             bool
 	Status            string
 	StatusDescription string

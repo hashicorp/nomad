@@ -230,7 +230,7 @@ func Parse(s string) (*Config, error) {
 	})
 
 	// FlattenFlatten keys belonging to the templates. We cannot do this above
-	// because it is an array of tmeplates.
+	// because it is an array of templates.
 	if templates, ok := parsed["template"].([]map[string]interface{}); ok {
 		for _, template := range templates {
 			flattenKeys(template, []string{

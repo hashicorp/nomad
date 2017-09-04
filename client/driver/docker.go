@@ -135,6 +135,25 @@ type DockerLoggingOpts struct {
 	Config    map[string]string   `mapstructure:"-"`
 }
 
+type DockerMount struct {
+	Target        string               `mapstructure:"target"`
+	Source        string               `mapstructure:"source"`
+	ReadOnly      bool                 `mapstructure:"readonly"`
+	VolumeOptions *DockerVolumeOptions `mapstructure:"volume_options"`
+}
+
+type DockerVolumeOptions struct {
+	NoCopy       bool                     `mapstructure:"no_copy"`
+	Labels       map[string]string        `mapstructure:"labels"`
+	DriverConfig DockerVolumeDriverConfig `mapstructure:"driver_config"`
+}
+
+// VolumeDriverConfig holds a map of volume driver specific options
+type DockerVolumeDriverConfig struct {
+	Name    string            `mapstructure:"name"`
+	Options map[string]string `mapstructure:"options"`
+}
+
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
@@ -153,6 +172,7 @@ type DockerDriverConfig struct {
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
 	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
@@ -165,6 +185,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
@@ -188,7 +209,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		return nil, err
 	}
 
-	// Interpolate everthing that is a string
+	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
@@ -205,6 +226,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.VolumeDriver = env.ReplaceEnv(dconf.VolumeDriver)
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
+	dconf.DNSOptions = env.ParseAndReplace(dconf.DNSOptions)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
@@ -230,6 +252,30 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 			for k, v := range c {
 				delete(c, k)
 				c[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+			}
+		}
+	}
+
+	for i, m := range dconf.Mounts {
+		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
+		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
+		if m.VolumeOptions != nil {
+			if m.VolumeOptions.Labels != nil {
+				for k, v := range m.VolumeOptions.Labels {
+					if k != env.ReplaceEnv(k) {
+						delete(dconf.Mounts[i].VolumeOptions.Labels, k)
+					}
+					dconf.Mounts[i].VolumeOptions.Labels[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+				}
+			}
+			dconf.Mounts[i].VolumeOptions.DriverConfig.Name = env.ReplaceEnv(m.VolumeOptions.DriverConfig.Name)
+			if m.VolumeOptions.DriverConfig.Options != nil {
+				for k, v := range m.VolumeOptions.DriverConfig.Options {
+					if k != env.ReplaceEnv(k) {
+						delete(dconf.Mounts[i].VolumeOptions.DriverConfig.Options, k)
+					}
+					dconf.Mounts[i].VolumeOptions.DriverConfig.Options[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+				}
 			}
 		}
 	}
@@ -409,6 +455,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"dns_servers": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
+			"dns_options": &fields.FieldSchema{
+				Type: fields.TypeArray,
+			},
 			"dns_search_domains": &fields.FieldSchema{
 				Type: fields.TypeArray,
 			},
@@ -451,6 +500,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"volume_driver": &fields.FieldSchema{
 				Type: fields.TypeString,
+			},
+			"mounts": {
+				Type: fields.TypeArray,
 			},
 			"force_pull": &fields.FieldSchema{
 				Type: fields.TypeBool,
@@ -591,7 +643,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		if err := d.startContainer(container); err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
 			pluginClient.Kill()
-			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+			return nil, structs.NewRecoverableError(fmt.Errorf("Failed to start container %s: %s", container.ID, err), structs.IsRecoverable(err))
 		}
 
 		// InspectContainer to get all of the container metadata as
@@ -622,7 +674,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
-		version:        d.config.Version,
+		version:        d.config.Version.VersionNumber(),
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan bool),
@@ -872,7 +924,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
-	if len(driverConfig.Logging) == 0 {
+	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
 		if runtime.GOOS != "darwin" {
 			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 			driverConfig.Logging = []DockerLoggingOpts{
@@ -935,8 +987,30 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		}
 	}
 
+	// Setup mounts
+	for _, m := range driverConfig.Mounts {
+		hm := docker.HostMount{
+			Target:   m.Target,
+			Source:   m.Source,
+			Type:     "volume", // Only type supported
+			ReadOnly: m.ReadOnly,
+		}
+		if m.VolumeOptions != nil {
+			hm.VolumeOptions = &docker.VolumeOptions{
+				NoCopy: m.VolumeOptions.NoCopy,
+				Labels: m.VolumeOptions.Labels,
+				DriverConfig: docker.VolumeDriverConfig{
+					Name:    m.VolumeOptions.DriverConfig.Name,
+					Options: m.VolumeOptions.DriverConfig.Options,
+				},
+			}
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+
 	// set DNS search domains and extra hosts
 	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IpcMode
@@ -1276,6 +1350,7 @@ START:
 			time.Sleep(1 * time.Second)
 			goto START
 		}
+		return structs.NewRecoverableError(startErr, true)
 	}
 
 	return recoverableErrTimeouts(startErr)

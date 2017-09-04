@@ -296,7 +296,7 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 		t.Fatalf("bad: %#v", brokerStats)
 	}
 
-	// Ack the evaluation which should cause the reblocked eval to transistion
+	// Ack the evaluation which should cause the reblocked eval to transition
 	// to ready
 	if err := broker.Ack(e.ID, token); err != nil {
 		t.Fatalf("err: %v", err)

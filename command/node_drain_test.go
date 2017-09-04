@@ -1,10 +1,14 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNodeDrainCommand_Implements(t *testing.T) {
@@ -81,4 +85,39 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix or id") {
 		t.Fatalf("expected not exist error, got: %s", out)
 	}
+}
+
+func TestNodeDrainCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to appear
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		nodeID = nodes[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	prefix := nodeID[:len(nodeID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(nodeID, res[0])
 }

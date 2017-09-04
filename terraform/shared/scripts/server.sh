@@ -11,6 +11,7 @@ HADOOP_VERSION=hadoop-2.7.3
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
+# Wait for network
 sleep 15
 
 IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
@@ -28,7 +29,7 @@ sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
 sudo cp $CONFIGDIR/consul_upstart.conf /etc/init/consul.conf
 
 sudo service consul start
-sleep 20
+sleep 10
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 

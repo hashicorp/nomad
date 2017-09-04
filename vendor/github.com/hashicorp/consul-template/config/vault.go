@@ -11,7 +11,7 @@ const (
 	// DefaultVaultGrace is the default grace period before which to read a new
 	// secret from Vault. If a lease is due to expire in 5 minutes, Consul
 	// Template will read a new secret at that time minus this value.
-	DefaultVaultGrace = 15 * time.Second
+	DefaultVaultGrace = 5 * time.Minute
 
 	// DefaultVaultRenewToken is the default value for if the Vault token should
 	// be renewed.

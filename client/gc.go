@@ -236,7 +236,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 	}
 
-	// If the host has enough free space to accomodate the new allocations then
+	// If the host has enough free space to accommodate the new allocations then
 	// we don't need to garbage collect terminated allocations
 	if hostStats := a.statsCollector.Stats(); hostStats != nil {
 		var availableForAllocations uint64
@@ -297,16 +297,14 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 }
 
 // MarkForCollection starts tracking an allocation for Garbage Collection
-func (a *AllocGarbageCollector) MarkForCollection(ar *AllocRunner) error {
-	if ar == nil {
-		return fmt.Errorf("nil allocation runner inserted for garbage collection")
-	}
+func (a *AllocGarbageCollector) MarkForCollection(ar *AllocRunner) {
 	if ar.Alloc() == nil {
 		a.destroyAllocRunner(ar, "alloc is nil")
+		return
 	}
 
 	a.logger.Printf("[INFO] client: marking allocation %v for GC", ar.Alloc().ID)
-	return a.allocRunners.Push(ar)
+	a.allocRunners.Push(ar)
 }
 
 // Remove removes an alloc runner without garbage collecting it
@@ -383,14 +381,15 @@ func NewIndexedGCAllocPQ() *IndexedGCAllocPQ {
 	}
 }
 
-func (i *IndexedGCAllocPQ) Push(ar *AllocRunner) error {
+// Push an alloc runner into the GC queue
+func (i *IndexedGCAllocPQ) Push(ar *AllocRunner) {
 	i.pqLock.Lock()
 	defer i.pqLock.Unlock()
 
 	alloc := ar.Alloc()
 	if _, ok := i.index[alloc.ID]; ok {
 		// No work to do
-		return nil
+		return
 	}
 	gcAlloc := &GCAlloc{
 		timeStamp:   time.Now(),
@@ -398,7 +397,7 @@ func (i *IndexedGCAllocPQ) Push(ar *AllocRunner) error {
 	}
 	i.index[alloc.ID] = gcAlloc
 	heap.Push(&i.heap, gcAlloc)
-	return nil
+	return
 }
 
 func (i *IndexedGCAllocPQ) Pop() *GCAlloc {

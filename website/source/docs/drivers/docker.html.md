@@ -78,6 +78,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
+* `dns_options` - (Optional) A list of DNS options for the container to use.
+
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
@@ -253,6 +255,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
     ```
 
 * `work_dir` - (Optional) The working directory inside the container.
+
+* `mounts` - (Optional) A list of
+  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
+  to be mounted into the container. Only volume type mounts are supported.
+
+    ```hcl
+    config {
+      mounts = [
+        {
+          target = "/path/in/container"
+          source = "name-of-volume"
+          readonly = false
+          volume_options {
+            no_copy = false
+            labels {
+              foo = "bar"
+            }
+            driver_config {
+              name = "flocker"
+              options = {
+                foo = "bar"
+              }
+            }
+          }
+        }
+      ]
+    }
+    ```
 
 ### Container Name
 

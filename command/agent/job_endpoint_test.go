@@ -1201,6 +1201,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Perms:        helper.StringToPtr("666"),
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
+								Envvars:      helper.BoolToPtr(true),
+								VaultGrace:   helper.TimeToPtr(3 * time.Second),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -1388,6 +1390,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Perms:        "666",
 								LeftDelim:    "abc",
 								RightDelim:   "def",
+								Envvars:      true,
+								VaultGrace:   3 * time.Second,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

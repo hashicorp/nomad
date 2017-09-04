@@ -4,7 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDeploymentStatusCommand_Implements(t *testing.T) {
@@ -33,4 +36,28 @@ func TestDeploymentStatusCommand_Fails(t *testing.T) {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
+}
+
+func TestDeploymentStatusCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &DeploymentStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a fake deployment
+	state := srv.Agent.Server().State()
+	d := mock.Deployment()
+	assert.Nil(state.UpsertDeployment(1000, d))
+
+	prefix := d.ID[:5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(d.ID, res[0])
 }

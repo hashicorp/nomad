@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: JSON Job Specification - HTTP API
-sidebar_current: api-jobs
+sidebar_current: api-json-jobs
 description: |-
   Jobs can also be specified via the HTTP API using a JSON format. This guide
   discusses the job specification in JSON format.
@@ -58,6 +58,8 @@ Below is the JSON representation of the job outputed by `$ nomad init`:
                         "Type": "tcp",
                         "Command": "",
                         "Args": null,
+                        "Header": {},
+                        "Method": "",
                         "Path": "",
                         "Protocol": "",
                         "PortLabel": "",
@@ -128,9 +130,11 @@ their default values if any for each type of object.
 
 The `Job` object supports the following keys:
 
-- `AllAtOnce` - Controls if the entire set of tasks in the job must
-  be placed atomically or if they can be scheduled incrementally.
-  This should only be used for special circumstances. Defaults to `false`.
+- `AllAtOnce` - Controls whether the scheduler can make partial placements if
+  optimistic scheduling resulted in an oversubscribed node. This does not
+  control whether all allocations for the job, where all would be the desired
+  count for each task group, must be placed atomically. This should only be
+  used for special circumstances. Defaults to `false`.
 
 - `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.
@@ -344,11 +348,17 @@ The `Task` object supports the following keys:
 
          - `Name`: The name of the health check.
 
+	 - `Header`: Headers for HTTP checks. Should be an object where the
+	   values are an array of values. Headers will be written once for each
+           value.
+
          - `Interval`: This indicates the frequency of the health checks that
            Consul will perform.
 
          - `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
+
+         - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
 
          - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
@@ -366,6 +376,12 @@ The `Task` object supports the following keys:
 
 	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+
+- `ShutdownDelay` - Specifies the duration to wait when killing a task between
+  removing it from Consul and sending it a shutdown signal. Ideally services
+  would fail healthchecks once they receive a shutdown signal. Alternatively
+  `ShutdownDelay` may be set to give in flight requests time to complete before
+  shutting down.
 
 - `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with
@@ -525,7 +541,7 @@ The `Constraint` object supports the following keys:
   - `set_contains` - Allows the `RTarget` to be a comma separated list of values
     that should be contained in the LTarget's value.
 
-  - `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
+  - `distinct_hosts` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which
         scopes the effect to just that group. The constraint may not be
@@ -736,6 +752,14 @@ README][ct].
   splay value before invoking the change mode. Should be specified in
   nanoseconds.
 
+- `VaultGrace` - Specifies the grace period between lease renewal and secret
+  re-acquisition. When renewing a secret, if the remaining lease is less than or
+  equal to the configured grace, the template will request a new credential.
+  This prevents Vault from revoking the secret at its expiration and the task
+  having a stale secret. If the grace is set to a value that is higher than your
+  default TTL or max TTL, the template will always read a new secret. If the
+  task defines several templates, the `vault_grace` will be set to the lowest
+  value across all the templates.
 
 ```json
 {

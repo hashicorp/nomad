@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/sean-/seed"
 )
@@ -43,7 +44,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 
 	cli := &cli.CLI{
 		Name:         "nomad",
-		Version:      PrettyVersion(GetVersionParts()),
+		Version:      version.GetVersion().FullVersionNumber(true),
 		Args:         args,
 		Commands:     commands,
 		Autocomplete: true,

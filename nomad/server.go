@@ -136,7 +136,7 @@ type Server struct {
 	blockedEvals *BlockedEvals
 
 	// deploymentWatcher is used to watch deployments and their allocations and
-	// make the required calls to continue to transistion the deployment.
+	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
 
 	// evalBroker is used to manage the in-progress evaluations
@@ -186,6 +186,7 @@ type endpoints struct {
 	Alloc      *Alloc
 	Deployment *Deployment
 	Region     *Region
+	Search     *Search
 	Periodic   *Periodic
 	System     *System
 	Operator   *Operator
@@ -722,23 +723,15 @@ func (s *Server) setupConsulSyncer() error {
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 
-	// Create the shims
-	stateShim := &deploymentWatcherStateShim{
-		region:         s.Region(),
-		evaluations:    s.endpoints.Job.Evaluations,
-		allocations:    s.endpoints.Deployment.Allocations,
-		list:           s.endpoints.Deployment.List,
-		getDeployment:  s.endpoints.Deployment.GetDeployment,
-		getJobVersions: s.endpoints.Job.GetJobVersions,
-		getJob:         s.endpoints.Job.GetJob,
-	}
+	// Create the raft shim type to restrict the set of raft methods that can be
+	// made
 	raftShim := &deploymentWatcherRaftShim{
 		apply: s.raftApply,
 	}
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, stateShim, raftShim,
+		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
 		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
@@ -771,6 +764,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Sentinel = &Sentinel{s}
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
+	s.endpoints.Search = &Search{s}
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.ACL)
@@ -786,6 +780,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Sentinel)
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
+	s.rpcServer.Register(s.endpoints.Search)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
@@ -1167,7 +1162,7 @@ func (s *Server) Stats() map[string]map[string]string {
 	return stats
 }
 
-// Region retuns the region of the server
+// Region returns the region of the server
 func (s *Server) Region() string {
 	return s.config.Region
 }
@@ -1194,7 +1189,7 @@ func (s *Server) ReplicationToken() string {
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. It should be formatted as a JSON array containing the address
-and port of each Consul server in the cluster, like this:
+and port (RPC) of each Nomad server in the cluster, like this:
 
 ["10.1.0.1:4647","10.1.0.2:4647","10.1.0.3:4647"]
 

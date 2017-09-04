@@ -8,7 +8,9 @@ import (
 
 	"golang.org/x/time/rate"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,9 +51,8 @@ type deploymentWatcher struct {
 	// deployment
 	deploymentTriggers
 
-	// DeploymentStateWatchers holds the methods required to watch objects for
-	// changes on behalf of the deployment
-	watchers DeploymentStateWatchers
+	// state is the state that is watched for state changes.
+	state *state.StateStore
 
 	// d is the deployment being watched
 	d *structs.Deployment
@@ -77,7 +78,7 @@ type deploymentWatcher struct {
 // newDeploymentWatcher returns a deployment watcher that is used to watch
 // deployments and trigger the scheduler as needed.
 func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
-	logger *log.Logger, watchers DeploymentStateWatchers, d *structs.Deployment,
+	logger *log.Logger, state *state.StateStore, d *structs.Deployment,
 	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
@@ -85,7 +86,7 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		queryLimiter:       queryLimiter,
 		d:                  d,
 		j:                  j,
-		watchers:           watchers,
+		state:              state,
 		deploymentTriggers: triggers,
 		logger:             logger,
 		ctx:                ctx,
@@ -116,15 +117,19 @@ func (w *deploymentWatcher) SetAllocHealth(
 		}
 
 		// Get the allocations for the deployment
-		args := &structs.DeploymentSpecificRequest{DeploymentID: req.DeploymentID}
-		var resp structs.AllocListResponse
-		if err := w.watchers.Allocations(args, &resp); err != nil {
+		snap, err := w.state.Snapshot()
+		if err != nil {
+			return err
+		}
+
+		allocs, err := snap.AllocsByDeployment(nil, req.DeploymentID)
+		if err != nil {
 			return err
 		}
 
 		// Determine if we should autorevert to an older job
 		desc := structs.DeploymentStatusDescriptionFailedAllocations
-		for _, alloc := range resp.Allocations {
+		for _, alloc := range allocs {
 			// Check that the alloc has been marked unhealthy
 			if _, ok := unhealthy[alloc.ID]; !ok {
 				continue
@@ -203,7 +208,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 func (w *deploymentWatcher) PauseDeployment(
 	req *structs.DeploymentPauseRequest,
 	resp *structs.DeploymentUpdateResponse) error {
-	// Determine the status we should transistion to and if we need to create an
+	// Determine the status we should transition to and if we need to create an
 	// evaluation
 	status, desc := structs.DeploymentStatusPaused, structs.DeploymentStatusDescriptionPaused
 	var eval *structs.Evaluation
@@ -257,6 +262,8 @@ func (w *deploymentWatcher) FailDeployment(
 
 		if rollbackJob != nil {
 			desc = structs.DeploymentStatusDescriptionRollback(desc, rollbackJob.Version)
+		} else {
+			desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 		}
 	}
 
@@ -293,7 +300,7 @@ func (w *deploymentWatcher) watch() {
 		// Block getting all allocations that are part of the deployment using
 		// the last evaluation index. This will have us block waiting for
 		// something to change past what the scheduler has evaluated.
-		allocResp, err := w.getAllocs(allocIndex)
+		allocs, index, err := w.getAllocs(allocIndex)
 		if err != nil {
 			if err == context.Canceled || w.ctx.Err() == context.Canceled {
 				return
@@ -302,7 +309,7 @@ func (w *deploymentWatcher) watch() {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.d.ID, err)
 			return
 		}
-		allocIndex = allocResp.Index
+		allocIndex = index
 
 		// Get the latest evaluation index
 		latestEval, err := w.latestEvalIndex()
@@ -318,7 +325,7 @@ func (w *deploymentWatcher) watch() {
 		// Create an evaluation trigger if there is any allocation whose
 		// deployment status has been updated past the latest eval index.
 		createEval, failDeployment, rollback := false, false, false
-		for _, alloc := range allocResp.Allocations {
+		for _, alloc := range allocs {
 			if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.ModifyIndex <= latestEval {
 				continue
 			}
@@ -361,6 +368,8 @@ func (w *deploymentWatcher) watch() {
 				// version N
 				if j != nil {
 					desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+				} else {
+					desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 				}
 			}
 
@@ -375,21 +384,25 @@ func (w *deploymentWatcher) watch() {
 			}
 		} else if createEval {
 			// Create an eval to push the deployment along
-			w.createEvalBatched(allocResp.Index)
+			w.createEvalBatched(index)
 		}
 	}
 }
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
 func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
-	args := &structs.JobVersionsRequest{JobID: w.d.JobID}
-	var resp structs.JobVersionsResponse
-	if err := w.watchers.GetJobVersions(args, &resp); err != nil {
+	snap, err := w.state.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	versions, err := snap.JobVersionsByID(nil, w.d.JobID)
+	if err != nil {
 		return nil, err
 	}
 
 	var stable *structs.Job
-	for _, job := range resp.Versions {
+	for _, job := range versions {
 		if job.Stable {
 			stable = job
 			break
@@ -450,27 +463,42 @@ func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *stru
 
 // getAllocs retrieves the allocations that are part of the deployment blocking
 // at the given index.
-func (w *deploymentWatcher) getAllocs(index uint64) (*structs.AllocListResponse, error) {
-	// Build the request
-	args := &structs.DeploymentSpecificRequest{
-		DeploymentID: w.d.ID,
-		QueryOptions: structs.QueryOptions{
-			MinQueryIndex: index,
-		},
+func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, uint64, error) {
+	resp, index, err := w.state.BlockingQuery(w.getAllocsImpl, index, w.ctx)
+	if err != nil {
+		return nil, 0, err
 	}
-	var resp structs.AllocListResponse
-
-	for resp.Index <= index {
-		if err := w.queryLimiter.Wait(w.ctx); err != nil {
-			return nil, err
-		}
-
-		if err := w.watchers.Allocations(args, &resp); err != nil {
-			return nil, err
-		}
+	if err := w.ctx.Err(); err != nil {
+		return nil, 0, err
 	}
 
-	return &resp, nil
+	return resp.([]*structs.AllocListStub), index, nil
+}
+
+// getDeploysImpl retrieves all deployments from the passed state store.
+func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+	if err := w.queryLimiter.Wait(w.ctx); err != nil {
+		return nil, 0, err
+	}
+
+	// Capture all the allocations
+	allocs, err := state.AllocsByDeployment(ws, w.d.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	stubs := make([]*structs.AllocListStub, 0, len(allocs))
+	for _, alloc := range allocs {
+		stubs = append(stubs, alloc.Stub())
+	}
+
+	// Use the last index that affected the jobs table
+	index, err := state.Index("allocs")
+	if err != nil {
+		return nil, index, err
+	}
+
+	return stubs, index, nil
 }
 
 // latestEvalIndex returns the index of the last evaluation created for
@@ -481,22 +509,26 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 		return 0, err
 	}
 
-	args := &structs.JobSpecificRequest{
-		JobID: w.d.JobID,
-	}
-	var resp structs.JobEvaluationsResponse
-	err := w.watchers.Evaluations(args, &resp)
+	snap, err := w.state.Snapshot()
 	if err != nil {
 		return 0, err
 	}
 
-	if len(resp.Evaluations) == 0 {
-		w.setLatestEval(resp.Index)
-		return resp.Index, nil
+	evals, err := snap.EvalsByJob(nil, w.d.JobID)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(evals) == 0 {
+		idx, err := snap.Index("evals")
+		if err != nil {
+			w.setLatestEval(idx)
+		}
+		return idx, err
 	}
 
 	// Prefer using the snapshot index. Otherwise use the create index
-	e := resp.Evaluations[0]
+	e := evals[0]
 	if e.SnapshotIndex != 0 {
 		w.setLatestEval(e.SnapshotIndex)
 		return e.SnapshotIndex, nil

@@ -148,7 +148,8 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								KillTimeout: helper.TimeToPtr(22 * time.Second),
+								KillTimeout:   helper.TimeToPtr(22 * time.Second),
+								ShutdownDelay: 11 * time.Second,
 								LogConfig: &api.LogConfig{
 									MaxFiles:      helper.IntToPtr(14),
 									MaxFileSizeMB: helper.IntToPtr(101),
@@ -183,6 +184,7 @@ func TestParse(t *testing.T) {
 										Splay:        helper.TimeToPtr(10 * time.Second),
 										Perms:        helper.StringToPtr("0644"),
 										Envvars:      helper.BoolToPtr(true),
+										VaultGrace:   helper.TimeToPtr(33 * time.Second),
 									},
 									{
 										SourcePath: helper.StringToPtr("bar"),
@@ -448,9 +450,14 @@ func TestParse(t *testing.T) {
 											{
 												Name:          "check-name",
 												Type:          "http",
+												Path:          "/",
 												Interval:      10 * time.Second,
 												Timeout:       2 * time.Second,
 												InitialStatus: capi.HealthPassing,
+												Method:        "POST",
+												Header: map[string][]string{
+													"Authorization": {"Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
+												},
 											},
 										},
 									},
@@ -461,6 +468,16 @@ func TestParse(t *testing.T) {
 				},
 			},
 			false,
+		},
+		{
+			"service-check-bad-header.hcl",
+			nil,
+			true,
+		},
+		{
+			"service-check-bad-header-2.hcl",
+			nil,
+			true,
 		},
 		{
 			// TODO This should be pushed into the API

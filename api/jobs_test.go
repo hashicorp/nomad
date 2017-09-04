@@ -275,6 +275,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										EmbeddedTmpl: helper.StringToPtr("FOO=bar\n"),
 										DestPath:     helper.StringToPtr("local/file.env"),
 										Envvars:      helper.BoolToPtr(true),
+										VaultGrace:   helper.TimeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -389,6 +390,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(false),
+										VaultGrace:   helper.TimeToPtr(5 * time.Minute),
 									},
 									{
 										SourcePath:   helper.StringToPtr(""),
@@ -401,6 +403,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(true),
+										VaultGrace:   helper.TimeToPtr(3 * time.Second),
 									},
 								},
 							},

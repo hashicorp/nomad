@@ -97,7 +97,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return fmt.Errorf("failed to computed node class: %v", err)
 	}
 
-	// Look for the node so we can detect a state transistion
+	// Look for the node so we can detect a state transition
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err

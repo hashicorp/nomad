@@ -92,7 +92,7 @@ client {
  "client", like `"/opt/nomad/client"`. This must be an absolute path.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
-  attempts to garbage collect terminal allocation directories. 
+  attempts to garbage collect terminal allocation directories.
 
 - `gc_disk_usage_threshold` `(float: 80)` - Specifies the disk usage percent which
   Nomad tries to maintain by garbage collecting terminal allocations.
@@ -264,6 +264,19 @@ see the [drivers documentation](/docs/drivers/index.html).
     client {
       options = {
         "fingerprint.blacklist" = "network"
+      }
+    }
+    ```
+
+- `"fingerprint.network.disallow_link_local"` `(string: "false")` - Specifies
+  whether the network fingerprinter should ignore link-local addresses in the
+  case that no globally routable address is found. The fingerprinter will always
+  prefer globally routable addresses.
+
+    ```hcl
+    client {
+      options = {
+        "fingerprint.network.disallow_link_local" = "true"
       }
     }
     ```

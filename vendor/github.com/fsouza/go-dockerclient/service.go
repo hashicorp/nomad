@@ -6,9 +6,11 @@ package docker
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
@@ -31,6 +33,7 @@ func (err *NoSuchService) Error() string {
 //
 // See https://goo.gl/KrVjHz for more details.
 type CreateServiceOptions struct {
+	Auth AuthConfiguration `qs:"-"`
 	swarm.ServiceSpec
 	Context context.Context
 }
@@ -40,8 +43,13 @@ type CreateServiceOptions struct {
 //
 // See https://goo.gl/KrVjHz for more details.
 func (c *Client) CreateService(opts CreateServiceOptions) (*swarm.Service, error) {
+	headers, err := headersWithAuth(opts.Auth)
+	if err != nil {
+		return nil, err
+	}
 	path := "/services/create?" + queryString(opts)
 	resp, err := c.do("POST", path, doOptions{
+		headers:   headers,
 		data:      opts.ServiceSpec,
 		forceJSON: true,
 		context:   opts.Context,
@@ -85,6 +93,7 @@ func (c *Client) RemoveService(opts RemoveServiceOptions) error {
 //
 // See https://goo.gl/wu3MmS for more details.
 type UpdateServiceOptions struct {
+	Auth AuthConfiguration `qs:"-"`
 	swarm.ServiceSpec
 	Context context.Context
 	Version uint64
@@ -94,9 +103,14 @@ type UpdateServiceOptions struct {
 //
 // See https://goo.gl/wu3MmS for more details.
 func (c *Client) UpdateService(id string, opts UpdateServiceOptions) error {
+	headers, err := headersWithAuth(opts.Auth)
+	if err != nil {
+		return err
+	}
 	params := make(url.Values)
 	params.Set("version", strconv.FormatUint(opts.Version, 10))
 	resp, err := c.do("POST", "/services/"+id+"/update?"+params.Encode(), doOptions{
+		headers:   headers,
 		data:      opts.ServiceSpec,
 		forceJSON: true,
 		context:   opts.Context,
@@ -154,4 +168,49 @@ func (c *Client) ListServices(opts ListServicesOptions) ([]swarm.Service, error)
 		return nil, err
 	}
 	return services, nil
+}
+
+// LogsServiceOptions represents the set of options used when getting logs from a
+// service.
+type LogsServiceOptions struct {
+	Context           context.Context
+	Service           string        `qs:"-"`
+	OutputStream      io.Writer     `qs:"-"`
+	ErrorStream       io.Writer     `qs:"-"`
+	InactivityTimeout time.Duration `qs:"-"`
+	Tail              string
+
+	// Use raw terminal? Usually true when the container contains a TTY.
+	RawTerminal bool `qs:"-"`
+	Since       int64
+	Follow      bool
+	Stdout      bool
+	Stderr      bool
+	Timestamps  bool
+	Details     bool
+}
+
+// GetServiceLogs gets stdout and stderr logs from the specified service.
+//
+// When LogsServiceOptions.RawTerminal is set to false, go-dockerclient will multiplex
+// the streams and send the containers stdout to LogsServiceOptions.OutputStream, and
+// stderr to LogsServiceOptions.ErrorStream.
+//
+// When LogsServiceOptions.RawTerminal is true, callers will get the raw stream on
+// LogsServiceOptions.OutputStream.
+func (c *Client) GetServiceLogs(opts LogsServiceOptions) error {
+	if opts.Service == "" {
+		return &NoSuchService{ID: opts.Service}
+	}
+	if opts.Tail == "" {
+		opts.Tail = "all"
+	}
+	path := "/services/" + opts.Service + "/logs?" + queryString(opts)
+	return c.stream("GET", path, streamOptions{
+		setRawTerminal:    opts.RawTerminal,
+		stdout:            opts.OutputStream,
+		stderr:            opts.ErrorStream,
+		inactivityTimeout: opts.InactivityTimeout,
+		context:           opts.Context,
+	})
 }

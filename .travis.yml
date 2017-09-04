@@ -7,11 +7,12 @@ services:
 language: go
 
 go:
-  -  1.8.x
+  -  1.9.x
 
 branches:
   only:
     - master
+    - f-acl
 
 before_install:
     - sudo apt-get update
@@ -22,7 +23,12 @@ before_install:
     - ./scripts/install_vault.sh
 
 install:
+  - export TRAVIS_REPO_SLUG=hashicorp/nomad
+  - cd ../../
+  - git clone --branch=$TRAVIS_BRANCH git@github.com:hashicorp/nomad-enterprise.git $TRAVIS_REPO_SLUG
+  - cd $TRAVIS_REPO_SLUG
+  - git checkout -qf $TRAVIS_COMMIT
   - make bootstrap
 
 script:
-  - make travis
+  - sudo -E "PATH=$PATH" make travis

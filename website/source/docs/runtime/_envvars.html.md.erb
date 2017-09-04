@@ -106,4 +106,34 @@
       information.
     </td>
   </tr>
+  <tr>
+    <td><tt>NOMAD_IP_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td>
+      Host IP for the given port <tt>label</tt> and <tt>task</tt> for tasks in
+      the same task group.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_PORT_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td>
+      Port for the given port <tt>label</tt> and <tt>task</tt> for tasks in
+      the same task group. Driver-specified port when a port
+      map is used, otherwise the host's static or dynamic port allocation.
+      Services should bind to this port.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_ADDR_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td>
+      Host <tt>IP:Port</tt> pair for the given port <tt>label</tt> and
+      <tt>task</tt> for tasks in the same task group.
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD_HOST_PORT_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td>
+      Port on the host for the port <tt>label</tt> and <tt>task</tt> for tasks
+      in the same task group.
+    </td>
+  </tr>
 </table>

@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type StopCommand struct {
@@ -46,6 +49,31 @@ Stop Options:
 
 func (c *StopCommand) Synopsis() string {
 	return "Stop a running job"
+}
+
+func (c *StopCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-purge":   complete.PredictNothing,
+			"-yes":     complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *StopCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *StopCommand) Run(args []string) int {

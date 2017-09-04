@@ -139,6 +139,19 @@ const (
 	SentinelScopeSubmitJob = "submit-job"
 )
 
+// Context defines the scope in which a search for Nomad object operates, and
+// is also used to query the matching index value for this context
+type Context string
+
+const (
+	Allocs      Context = "allocs"
+	Deployments Context = "deployment"
+	Evals       Context = "evals"
+	Jobs        Context = "jobs"
+	Nodes       Context = "nodes"
+	All         Context = "all"
+)
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string
@@ -284,6 +297,35 @@ type NodeEvaluateRequest struct {
 type NodeSpecificRequest struct {
 	NodeID   string
 	SecretID string
+	QueryOptions
+}
+
+// SearchResponse is used to return matches and information about whether
+// the match list is truncated specific to each type of context.
+type SearchResponse struct {
+	// Map of context types to ids which match a specified prefix
+	Matches map[Context][]string
+
+	// Truncations indicates whether the matches for a particular context have
+	// been truncated
+	Truncations map[Context]bool
+
+	QueryMeta
+}
+
+// SearchRequest is used to parameterize a request, and returns a
+// list of matches made up of jobs, allocations, evaluations, and/or nodes,
+// along with whether or not the information returned is truncated.
+type SearchRequest struct {
+	// Prefix is what ids are matched to. I.e, if the given prefix were
+	// "a", potential matches might be "abcd" or "aabb"
+	Prefix string
+
+	// Context is the type that can be matched against. A context can be a job,
+	// node, evaluation, allocation, or empty (indicated every context should be
+	// matched)
+	Context Context
+
 	QueryOptions
 }
 
@@ -555,7 +597,7 @@ type DeriveVaultTokenResponse struct {
 	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
 
-	// Error stores any error that occured. Errors are stored here so we can
+	// Error stores any error that occurred. Errors are stored here so we can
 	// communicate whether it is retriable
 	Error *RecoverableError
 
@@ -720,7 +762,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include
@@ -1089,6 +1131,7 @@ func (n *Node) Stub() *NodeListStub {
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
 		NodeClass:         n.NodeClass,
+		Version:           n.Attributes["nomad.version"],
 		Drain:             n.Drain,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
@@ -1104,6 +1147,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Version           string
 	Drain             bool
 	Status            string
 	StatusDescription string
@@ -2027,7 +2071,7 @@ var (
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
 		Stagger:         30 * time.Second,
-		MaxParallel:     0,
+		MaxParallel:     1,
 		HealthCheck:     UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 5 * time.Minute,
@@ -2091,8 +2135,8 @@ func (u *UpdateStrategy) Validate() error {
 		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
-	if u.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+	if u.MaxParallel < 1 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than one: %d < 1", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
@@ -2690,17 +2734,19 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name          string        // Name of the check, defaults to id
-	Type          string        // Type of the check - tcp, http, docker and script
-	Command       string        // Command is the command to run for script checks
-	Args          []string      // Args is a list of argumes for script checks
-	Path          string        // path of the health check url for http type check
-	Protocol      string        // Protocol to use if check is http, defaults to http
-	PortLabel     string        // The port to use for tcp/http checks
-	Interval      time.Duration // Interval of the check
-	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus string        // Initial status of the check
-	TLSSkipVerify bool          // Skip TLS verification when Protocol=https
+	Name          string              // Name of the check, defaults to id
+	Type          string              // Type of the check - tcp, http, docker and script
+	Command       string              // Command is the command to run for script checks
+	Args          []string            // Args is a list of argumes for script checks
+	Path          string              // path of the health check url for http type check
+	Protocol      string              // Protocol to use if check is http, defaults to http
+	PortLabel     string              // The port to use for tcp/http checks
+	Interval      time.Duration       // Interval of the check
+	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus string              // Initial status of the check
+	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
+	Method        string              // HTTP Method to use (GET by default)
+	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2709,14 +2755,26 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
+	nsc.Args = helper.CopySliceString(sc.Args)
+	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
 	return nsc
 }
 
 func (sc *ServiceCheck) Canonicalize(serviceName string) {
-	// Ensure empty slices are treated as null to avoid scheduling issues when
-	// using DeepEquals.
+	// Ensure empty maps/slices are treated as null to avoid scheduling
+	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
 		sc.Args = nil
+	}
+
+	if len(sc.Header) == 0 {
+		sc.Header = nil
+	} else {
+		for k, v := range sc.Header {
+			if len(v) == 0 {
+				sc.Header[k] = nil
+			}
+		}
 	}
 
 	if sc.Name == "" {
@@ -2728,28 +2786,15 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
-		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
-		} else if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
-		}
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
 
-		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
-		} else if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
-		}
 	case ServiceCheckScript:
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
 		}
-
-		// TODO: enforce timeout on the Client side and reenable
-		// validation.
 	default:
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
@@ -2758,6 +2803,12 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) cannot be lower than %v", sc.Interval, minCheckInterval)
+	}
+
+	if sc.Timeout == 0 {
+		return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
+	} else if sc.Timeout < minCheckTimeout {
+		return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 	}
 
 	switch sc.InitialStatus {
@@ -2800,10 +2851,23 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
+	io.WriteString(h, sc.Method)
 	// Only include TLSSkipVerify if set to maintain ID stability with Nomad <0.6
 	if sc.TLSSkipVerify {
 		io.WriteString(h, "true")
 	}
+
+	// Since map iteration order isn't stable we need to write k/v pairs to
+	// a slice and sort it before hashing.
+	if len(sc.Header) > 0 {
+		headers := make([]string, 0, len(sc.Header))
+		for k, v := range sc.Header {
+			headers = append(headers, k+strings.Join(v, ""))
+		}
+		sort.Strings(headers)
+		io.WriteString(h, strings.Join(headers, ""))
+	}
+
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -3025,6 +3089,10 @@ type Task struct {
 	// Leader marks the task as the leader within the group. When the leader
 	// task exits, other tasks will be gracefully terminated.
 	Leader bool
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay time.Duration
 }
 
 func (t *Task) Copy() *Task {
@@ -3132,8 +3200,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
-	if t.KillTimeout.Nanoseconds() < 0 {
+	if t.KillTimeout < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
+	if t.ShutdownDelay < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 	}
 
 	// Validate the resources.
@@ -3346,6 +3417,11 @@ type Template struct {
 	// Empty lines and lines starting with # will be ignored, but to avoid
 	// escaping issues #s within lines will not be treated as comments.
 	Envvars bool
+
+	// VaultGrace is the grace duration between lease renewal and reacquiring a
+	// secret. If the lease of a secret is less than the grace, a new secret is
+	// acquired.
+	VaultGrace time.Duration
 }
 
 // DefaultTemplate returns a default template.
@@ -3417,6 +3493,10 @@ func (t *Template) Validate() error {
 		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
 			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
 		}
+	}
+
+	if t.VaultGrace.Nanoseconds() < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Vault grace must be greater than zero: %v < 0", t.VaultGrace))
 	}
 
 	return mErr.ErrorOrNil()
@@ -3562,6 +3642,9 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
+
+	// TaskGenericMessage is used by various subsystems to emit a message.
+	TaskGenericMessage = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -3623,6 +3706,9 @@ type TaskEvent struct {
 
 	// DriverMessage indicates a driver action being taken.
 	DriverMessage string
+
+	// GenericSource is the source of a message.
+	GenericSource string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -3651,7 +3737,7 @@ func NewTaskEvent(event string) *TaskEvent {
 	}
 }
 
-// SetSetupError is used to store an error that occured while setting up the
+// SetSetupError is used to store an error that occurred while setting up the
 // task
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
@@ -3759,6 +3845,11 @@ func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
+	return e
+}
+
+func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
+	e.GenericSource = s
 	return e
 }
 
@@ -3941,12 +4032,6 @@ func (c *Constraint) Validate() error {
 	switch c.Operand {
 	case ConstraintDistinctHosts:
 		requireLtarget = false
-		if c.RTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow RTarget. Got %q", c.RTarget))
-		}
-		if c.LTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow LTarget. Got %q", c.LTarget))
-		}
 	case ConstraintSetContains:
 		if c.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
@@ -4031,7 +4116,7 @@ const (
 	VaultChangeModeRestart = "restart"
 )
 
-// Vault stores the set of premissions a task needs access to from Vault.
+// Vault stores the set of permissions a task needs access to from Vault.
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
@@ -4086,7 +4171,7 @@ func (v *Vault) Validate() error {
 
 	for _, p := range v.Policies {
 		if p == "root" {
-			multierror.Append(&mErr, fmt.Errorf("Can not specifiy \"root\" policy"))
+			multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))
 		}
 	}
 
@@ -4129,8 +4214,14 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
+// DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
+// a deployment when there is no target to rollback to but autorevet is desired.
+func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
+	return fmt.Sprintf("%s - no stable job version to auto revert to", baseDescription)
+}
+
 // Deployment is the object that represents a job deployment which is used to
-// transistion a job between versions.
+// transition a job between versions.
 type Deployment struct {
 	// ID is a generated UUID for the deployment
 	ID string
@@ -4991,7 +5082,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 }
 
 // CreateFailedFollowUpEval creates a follow up evaluation when the current one
-// has been marked as failed becasue it has hit the delivery limit and will not
+// has been marked as failed because it has hit the delivery limit and will not
 // be retried by the eval_broker.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
@@ -5125,7 +5216,7 @@ type PlanResult struct {
 	// Deployment is the deployment that was committed.
 	Deployment *Deployment
 
-	// DeploymentUpdates is the set of deployment updates that were commited.
+	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
 	// RefreshIndex is the index the worker should refresh state up to.

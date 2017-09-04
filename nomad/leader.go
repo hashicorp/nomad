@@ -79,8 +79,7 @@ RECONCILE:
 	// Check if we need to handle initial leadership actions
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v",
-				err)
+			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
 			goto WAIT
 		}
 		establishedLeader = true
@@ -140,7 +139,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.blockedEvals.SetEnabled(true)
 
 	// Enable the deployment watcher, since we are now the leader
-	if err := s.deploymentWatcher.SetEnabled(true); err != nil {
+	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
 		return err
 	}
 
@@ -157,7 +156,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
-	s.periodicDispatcher.Start()
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -304,6 +302,13 @@ func (s *Server) restorePeriodicDispatcher() error {
 	now := time.Now()
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
+
+		// We skip adding parameterized jobs because they themselves aren't
+		// tracked, only the dispatched children are.
+		if job.IsParameterized() {
+			continue
+		}
+
 		s.periodicDispatcher.Add(job)
 
 		// If the periodic job has never been launched before, launch will hold
@@ -505,7 +510,7 @@ func (s *Server) revokeLeadership() error {
 	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
-	if err := s.deploymentWatcher.SetEnabled(false); err != nil {
+	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
 		return err
 	}
 

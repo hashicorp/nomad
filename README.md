@@ -1,4 +1,4 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Nomad [![Build Status](https://travis-ci.com/hashicorp/nomad-enterprise.svg?token=9DiGfqdqXxT3U5oxbdEW&branch=master)](https://travis-ci.com/hashicorp/nomad-enterprise)
 =========
 
 * Website: [www.nomadproject.io](https://www.nomadproject.io)
@@ -58,7 +58,7 @@ Developing Nomad
 
 If you wish to work on Nomad itself or any of its built-in systems,
 you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.8+ is *required*).
+machine (version 1.9+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
@@ -107,11 +107,11 @@ $ bin/nomad
 ...
 ```
 
-To cross-compile Nomad, run `make bin`. This will compile Nomad for multiple
+To cross-compile Nomad, run `make release`. This will compile Nomad for multiple
 platforms and place the resulting binaries into the `./pkg` directory:
 
 ```sh
-$ make bin
+$ make release
 ...
 $ ls ./pkg
 ...

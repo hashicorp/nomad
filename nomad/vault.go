@@ -562,7 +562,7 @@ func (v *vaultClient) renew() error {
 	}
 
 	v.lastRenewed = time.Now()
-	v.logger.Printf("[DEBUG] vault: succesfully renewed server token")
+	v.logger.Printf("[DEBUG] vault: successfully renewed server token")
 	return nil
 }
 
@@ -628,7 +628,7 @@ func (v *vaultClient) parseSelfToken() error {
 	// 2) Must have update capability for "auth/token/lookup/" (used to verify incoming tokens)
 	// 3) Must have update capability for "/auth/token/revoke-accessor/" (used to revoke unneeded tokens)
 	// 4) If configured to create tokens against a role:
-	//   a) Must have read capability for "auth/token/roles/<role_name" (Can just attemp a read)
+	//   a) Must have read capability for "auth/token/roles/<role_name" (Can just attempt a read)
 	//   b) Must have update capability for path "auth/token/create/<role_name>"
 	//   c) Role must:
 	//     1) Not allow orphans
@@ -754,7 +754,7 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 
 // hasCapability takes a path and returns whether the token has at least one of
 // the required capabilities on the given path. It also returns the set of
-// capabilities the token does have as well as any error that occured.
+// capabilities the token does have as well as any error that occurred.
 func (v *vaultClient) hasCapability(path string, required []string) (bool, []string, error) {
 	caps, err := v.client.Sys().CapabilitiesSelf(path)
 	if err != nil {

@@ -450,7 +450,7 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 	ws := memdb.NewWatchSet()
 	summary, err := w.srv.fsm.state.JobSummaryByID(ws, eval.JobID)
 	if err != nil {
-		return fmt.Errorf("couldn't retreive job summary: %v", err)
+		return fmt.Errorf("couldn't retrieve job summary: %v", err)
 	}
 	if summary != nil {
 		var hasChanged bool

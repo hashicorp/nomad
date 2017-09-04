@@ -1596,7 +1596,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	job2 := job.Copy()
 	job2.TaskGroups[0].Count = 5
 	job2.TaskGroups[0].Update = &structs.UpdateStrategy{
-		MaxParallel:     1,
+		MaxParallel:     5,
 		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
@@ -1607,7 +1607,6 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
-	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
 		Priority:    50,

@@ -37,7 +37,7 @@ type allocReconciler struct {
 	job *structs.Job
 
 	// jobID is the ID of the job being operated on. The job may be nil if it is
-	// being stopped so we require this seperately.
+	// being stopped so we require this separately.
 	jobID string
 
 	// oldDeployment is the last deployment for the job
@@ -365,13 +365,32 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		dstate.DesiredTotal += len(place)
 	}
 
-	if !a.deploymentPaused && !a.deploymentFailed && !canaryState {
-		// Place all new allocations
+	// deploymentPlaceReady tracks whether the deployment is in a state where
+	// placements can be made without any other consideration.
+	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !canaryState
+
+	if deploymentPlaceReady {
 		desiredChanges.Place += uint64(len(place))
 		for _, p := range place {
 			a.result.place = append(a.result.place, p)
 		}
 
+		min := helper.IntMin(len(place), limit)
+		limit -= min
+	} else if !deploymentPlaceReady && len(lost) != 0 {
+		// We are in a situation where we shouldn't be placing more than we need
+		// to but we have lost allocations. It is a very weird user experience
+		// if you have a node go down and Nomad doesn't replace the allocations
+		// because the deployment is paused/failed so we only place to recover
+		// the lost allocations.
+		allowed := helper.IntMin(len(lost), len(place))
+		desiredChanges.Place += uint64(allowed)
+		for _, p := range place[:allowed] {
+			a.result.place = append(a.result.place, p)
+		}
+	}
+
+	if deploymentPlaceReady {
 		// Do all destructive updates
 		min := helper.IntMin(len(destructive), limit)
 		limit -= min
@@ -563,7 +582,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 }
 
 // computePlacement returns the set of allocations to place given the group
-// definiton, the set of untainted and migrating allocations for the group.
+// definition, the set of untainted and migrating allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate allocSet) []allocPlaceResult {
 
@@ -585,7 +604,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 }
 
 // computeStop returns the set of allocations that are marked for stopping given
-// the group definiton, the set of allocations in various states and whether we
+// the group definition, the set of allocations in various states and whether we
 // are canarying.
 func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
 	untainted, migrate, lost, canaries allocSet, canaryState bool) allocSet {

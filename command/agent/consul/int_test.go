@@ -118,7 +118,7 @@ func TestConsul_Integration(t *testing.T) {
 	}
 
 	logger := testLogger()
-	logUpdate := func(name, state string, event *structs.TaskEvent) {
+	logUpdate := func(name, state string, event *structs.TaskEvent, lazySync bool) {
 		logger.Printf("[TEST] test.updater: name=%q state=%q event=%v", name, state, event)
 	}
 	allocDir := allocdir.NewAllocDir(logger, filepath.Join(conf.AllocDir, alloc.ID))
@@ -208,13 +208,18 @@ func TestConsul_Integration(t *testing.T) {
 	}
 
 	// Assert the service client returns all the checks for the allocation.
-	checksOut, err := serviceClient.Checks(alloc)
+	reg, err := serviceClient.AllocRegistrations(alloc.ID)
 	if err != nil {
 		t.Fatalf("unexpected error retrieving allocation checks: %v", err)
 	}
-
-	if l := len(checksOut); l != 2 {
-		t.Fatalf("got %d checks; want %d", l, 2)
+	if reg == nil {
+		t.Fatalf("Unexpected nil allocation registration")
+	}
+	if snum := reg.NumServices(); snum != 2 {
+		t.Fatalf("Unexpected number of services registered. Got %d; want 2", snum)
+	}
+	if cnum := reg.NumChecks(); cnum != 2 {
+		t.Fatalf("Unexpected number of checks registered. Got %d; want 2", cnum)
 	}
 
 	logger.Printf("[TEST] consul.test: killing task")

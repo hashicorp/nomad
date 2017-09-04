@@ -666,6 +666,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Env = apiTask.Env
 	structsTask.Meta = apiTask.Meta
 	structsTask.KillTimeout = *apiTask.KillTimeout
+	structsTask.ShutdownDelay = apiTask.ShutdownDelay
 
 	if l := len(apiTask.Constraints); l != 0 {
 		structsTask.Constraints = make([]*structs.Constraint, l)
@@ -701,6 +702,8 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Timeout:       check.Timeout,
 						InitialStatus: check.InitialStatus,
 						TLSSkipVerify: check.TLSSkipVerify,
+						Header:        check.Header,
+						Method:        check.Method,
 					}
 				}
 			}
@@ -784,6 +787,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				LeftDelim:    *template.LeftDelim,
 				RightDelim:   *template.RightDelim,
 				Envvars:      *template.Envvars,
+				VaultGrace:   *template.VaultGrace,
 			}
 		}
 	}

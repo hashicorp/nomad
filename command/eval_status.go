@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type EvalStatusCommand struct {
@@ -44,6 +46,35 @@ Eval Status Options:
 
 func (c *EvalStatusCommand) Synopsis() string {
 	return "Display evaluation status and placement failure reasons"
+}
+
+func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-monitor": complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Evals, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Evals]
+	})
 }
 
 func (c *EvalStatusCommand) Run(args []string) int {
@@ -107,12 +138,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(evalID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		evalID = evalID[:len(evalID)-1]
-	}
 
+	evalID = sanatizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %v", err))

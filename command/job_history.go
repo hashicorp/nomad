@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
 
@@ -21,7 +23,7 @@ Usage: nomad job history [options] <job>
 
 History is used to display the known versions of a particular job. The command
 can display the diff between job versions and can be useful for understanding
-the changes that occured to the job as well as deciding job versions to revert
+the changes that occurred to the job as well as deciding job versions to revert
 to.
 
 General Options:
@@ -32,7 +34,7 @@ History Options:
 
   -p
     Display the difference between each job and its predecessor.
-    
+
   -full
     Display the full job definition for each version.
 
@@ -50,6 +52,32 @@ History Options:
 
 func (c *JobHistoryCommand) Synopsis() string {
 	return "Display all tracked versions of a job"
+}
+
+func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-p":       complete.PredictNothing,
+			"-full":    complete.PredictNothing,
+			"-version": complete.PredictAnything,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
+}
+
+func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobHistoryCommand) Run(args []string) int {

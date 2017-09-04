@@ -586,6 +586,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"meta",
 			"resources",
 			"service",
+			"shutdown_delay",
 			"template",
 			"user",
 			"vault",
@@ -863,6 +864,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"source",
 			"splay",
 			"env",
+			"vault_grace",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -960,6 +962,8 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"args",
 			"initial_status",
 			"tls_skip_verify",
+			"header",
+			"method",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -970,6 +974,37 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
 			return err
 		}
+
+		// HCL allows repeating stanzas so merge 'header' into a single
+		// map[string][]string.
+		if headerI, ok := cm["header"]; ok {
+			headerRaw, ok := headerI.([]map[string]interface{})
+			if !ok {
+				return fmt.Errorf("check -> header -> expected a []map[string][]string but found %T", headerI)
+			}
+			m := map[string][]string{}
+			for _, rawm := range headerRaw {
+				for k, vI := range rawm {
+					vs, ok := vI.([]interface{})
+					if !ok {
+						return fmt.Errorf("check -> header -> %q expected a []string but found %T", k, vI)
+					}
+					for _, vI := range vs {
+						v, ok := vI.(string)
+						if !ok {
+							return fmt.Errorf("check -> header -> %q expected a string but found %T", k, vI)
+						}
+						m[k] = append(m[k], v)
+					}
+				}
+			}
+
+			check.Header = m
+
+			// Remove "header" as it has been parsed
+			delete(cm, "header")
+		}
+
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 			WeaklyTypedInput: true,

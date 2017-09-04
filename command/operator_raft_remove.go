@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type OperatorRaftRemoveCommand struct {
@@ -34,6 +35,17 @@ Remove Peer Options:
     Remove a Nomad server with given address from the Raft configuration.
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-peer-address": complete.PredictAnything,
+		})
+}
+
+func (c *OperatorRaftRemoveCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *OperatorRaftRemoveCommand) Synopsis() string {

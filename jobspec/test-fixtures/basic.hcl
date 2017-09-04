@@ -129,6 +129,8 @@ job "binstore-storagelocker" {
 
       kill_timeout = "22s"
 
+      shutdown_delay = "11s"
+
       artifact {
         source = "http://foo.com/artifact"
 
@@ -158,6 +160,7 @@ job "binstore-storagelocker" {
         change_signal = "foo"
         splay = "10s"
         env = true
+        vault_grace = "33s"
       }
 
       template {

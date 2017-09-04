@@ -95,7 +95,7 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	// uniquely identifies a node, such as ip, should be marked as unique. When
 	// marked as unique, the key isn't included in the computed node class.
 	keys := map[string]bool{
-		"ami-id":                      true,
+		"ami-id":                      false,
 		"hostname":                    true,
 		"instance-id":                 true,
 		"instance-type":               false,

@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -42,14 +43,18 @@ type MockTaskHooks struct {
 
 	KillReason string
 	KillCh     chan struct{}
+
+	Events      []string
+	EmitEventCh chan struct{}
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
 	return &MockTaskHooks{
-		UnblockCh: make(chan struct{}, 1),
-		RestartCh: make(chan struct{}, 1),
-		SignalCh:  make(chan struct{}, 1),
-		KillCh:    make(chan struct{}, 1),
+		UnblockCh:   make(chan struct{}, 1),
+		RestartCh:   make(chan struct{}, 1),
+		SignalCh:    make(chan struct{}, 1),
+		KillCh:      make(chan struct{}, 1),
+		EmitEventCh: make(chan struct{}, 1),
 	}
 }
 func (m *MockTaskHooks) Restart(source, reason string) {
@@ -86,6 +91,14 @@ func (m *MockTaskHooks) UnblockStart(source string) {
 	m.Unblocked = true
 }
 
+func (m *MockTaskHooks) EmitEvent(source, message string) {
+	m.Events = append(m.Events, message)
+	select {
+	case m.EmitEventCh <- struct{}{}:
+	default:
+	}
+}
+
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
@@ -99,6 +112,7 @@ type testHarness struct {
 	taskDir    string
 	vault      *testutil.TestVault
 	consul     *ctestutil.TestServer
+	emitRate   time.Duration
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
@@ -110,6 +124,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		templates: templates,
 		node:      mock.Node(),
 		config:    &config.Config{Region: region},
+		emitRate:  DefaultMaxTemplateEventRate,
 	}
 
 	// Build the task environment
@@ -145,20 +160,29 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 }
 
 func (h *testHarness) start(t *testing.T) {
-	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.envBuilder)
-	if err != nil {
+	if err := h.startWithErr(); err != nil {
 		t.Fatalf("failed to build task template manager: %v", err)
 	}
-
-	h.manager = manager
 }
 
 func (h *testHarness) startWithErr() error {
-	manager, err := NewTaskTemplateManager(h.mockHooks, h.templates,
-		h.config, h.vaultToken, h.taskDir, h.envBuilder)
-	h.manager = manager
+	var err error
+	h.manager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+		Hooks:                h.mockHooks,
+		Templates:            h.templates,
+		ClientConfig:         h.config,
+		VaultToken:           h.vaultToken,
+		TaskDir:              h.taskDir,
+		EnvBuilder:           h.envBuilder,
+		MaxTemplateEventRate: h.emitRate,
+		retryRate:            10 * time.Millisecond,
+	})
+
 	return err
+}
+
+func (h *testHarness) setEmitRate(d time.Duration) {
+	h.emitRate = d
 }
 
 // stop is used to stop any running Vault or Consul server plus the task manager
@@ -177,61 +201,118 @@ func (h *testHarness) stop() {
 	}
 }
 
-func TestTaskTemplateManager_Invalid(t *testing.T) {
+func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	t.Parallel()
 	hooks := NewMockTaskHooks()
-	var tmpls []*structs.Template
-	region := "global"
-	config := &config.Config{Region: region}
+	clientConfig := &config.Config{Region: "global"}
 	taskDir := "foo"
-	vaultToken := ""
 	a := mock.Alloc()
-	envBuilder := env.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], config.Region)
+	envBuilder := env.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
 
-	_, err := NewTaskTemplateManager(nil, nil, nil, "", "", nil)
-	if err == nil {
-		t.Fatalf("Expected error")
+	cases := []struct {
+		name        string
+		config      *TaskTemplateManagerConfig
+		expectedErr string
+	}{
+		{
+			name:        "nil config",
+			config:      nil,
+			expectedErr: "Nil config passed",
+		},
+		{
+			name: "bad hooks",
+			config: &TaskTemplateManagerConfig{
+				ClientConfig:         clientConfig,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "task hooks",
+		},
+		{
+			name: "bad client config",
+			config: &TaskTemplateManagerConfig{
+				Hooks:                hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "client config",
+		},
+		{
+			name: "bad task dir",
+			config: &TaskTemplateManagerConfig{
+				ClientConfig:         clientConfig,
+				Hooks:                hooks,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "task directory",
+		},
+		{
+			name: "bad env builder",
+			config: &TaskTemplateManagerConfig{
+				ClientConfig:         clientConfig,
+				Hooks:                hooks,
+				TaskDir:              taskDir,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "task environment",
+		},
+		{
+			name: "bad max event rate",
+			config: &TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				Hooks:        hooks,
+				TaskDir:      taskDir,
+				EnvBuilder:   envBuilder,
+			},
+			expectedErr: "template event rate",
+		},
+		{
+			name: "valid",
+			config: &TaskTemplateManagerConfig{
+				ClientConfig:         clientConfig,
+				Hooks:                hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+		},
+		{
+			name: "invalid signal",
+			config: &TaskTemplateManagerConfig{
+				Templates: []*structs.Template{
+					{
+						DestPath:     "foo",
+						EmbeddedTmpl: "hello, world",
+						ChangeMode:   structs.TemplateChangeModeSignal,
+						ChangeSignal: "foobarbaz",
+					},
+				},
+				ClientConfig:         clientConfig,
+				Hooks:                hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "parse signal",
+		},
 	}
 
-	_, err = NewTaskTemplateManager(nil, tmpls, config, vaultToken, taskDir, envBuilder)
-	if err == nil || !strings.Contains(err.Error(), "task hook") {
-		t.Fatalf("Expected invalid task hook error: %v", err)
-	}
-
-	_, err = NewTaskTemplateManager(hooks, tmpls, nil, vaultToken, taskDir, envBuilder)
-	if err == nil || !strings.Contains(err.Error(), "config") {
-		t.Fatalf("Expected invalid config error: %v", err)
-	}
-
-	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, "", envBuilder)
-	if err == nil || !strings.Contains(err.Error(), "task directory") {
-		t.Fatalf("Expected invalid task dir error: %v", err)
-	}
-
-	_, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, nil)
-	if err == nil || !strings.Contains(err.Error(), "task environment") {
-		t.Fatalf("Expected invalid task environment error: %v", err)
-	}
-
-	tm, err := NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	} else if tm == nil {
-		t.Fatalf("Bad %v", tm)
-	}
-
-	// Build a template with a bad signal
-	tmpl := &structs.Template{
-		DestPath:     "foo",
-		EmbeddedTmpl: "hello, world",
-		ChangeMode:   structs.TemplateChangeModeSignal,
-		ChangeSignal: "foobarbaz",
-	}
-
-	tmpls = append(tmpls, tmpl)
-	tm, err = NewTaskTemplateManager(hooks, tmpls, config, vaultToken, taskDir, envBuilder)
-	if err == nil || !strings.Contains(err.Error(), "Failed to parse signal") {
-		t.Fatalf("Expected signal parsing error: %v", err)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := NewTaskTemplateManager(c.config)
+			if err != nil {
+				if c.expectedErr == "" {
+					t.Fatalf("unexpected error: %v", err)
+				} else if !strings.Contains(err.Error(), c.expectedErr) {
+					t.Fatalf("expected error to contain %q; got %q", c.expectedErr, err.Error())
+				}
+			} else if c.expectedErr != "" {
+				t.Fatalf("expected an error to contain %q", c.expectedErr)
+			}
+		})
 	}
 }
 
@@ -447,9 +528,6 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
-
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
 	harness.start(t)
 	defer harness.stop()
@@ -496,9 +574,6 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
-
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, true)
 	harness.start(t)
@@ -555,9 +630,6 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 		DestPath:     consulFile,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
-
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
 
 	harness := newTestHarness(t, []*structs.Template{template, template2}, true, false)
 	harness.start(t)
@@ -616,9 +688,6 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
-
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
 	harness.start(t)
@@ -703,9 +772,6 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 		ChangeSignal: "SIGBUS",
 	}
 
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
-
 	harness := newTestHarness(t, []*structs.Template{template, template2}, true, false)
 	harness.start(t)
 	defer harness.stop()
@@ -788,9 +854,6 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 		DestPath:     file1,
 		ChangeMode:   structs.TemplateChangeModeRestart,
 	}
-
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
 	harness.start(t)
@@ -891,9 +954,6 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeSignal,
 		ChangeSignal: "SIGALRM",
 	}
-
-	// Drop the retry rate
-	testRetryRate = 10 * time.Millisecond
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
 	harness.start(t)
@@ -1062,12 +1122,117 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 		Addr:          "https://localhost/",
 		TLSServerName: "notlocalhost",
 	}
-	ctconf, err := runnerConfig(c, "token")
+	config := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+	}
+	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
 		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
+	}
+}
+
+// TestTaskTemplateManager_Config_VaultGrace asserts the vault_grace setting is
+// propogated to consul-template's configuration.
+func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+	}
+
+	alloc := mock.Alloc()
+	config := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+
+		// Make a template that will render immediately
+		Templates: []*structs.Template{
+			{
+				EmbeddedTmpl: "bar",
+				DestPath:     "foo",
+				ChangeMode:   structs.TemplateChangeModeNoop,
+				VaultGrace:   10 * time.Second,
+			},
+			{
+				EmbeddedTmpl: "baz",
+				DestPath:     "bam",
+				ChangeMode:   structs.TemplateChangeModeNoop,
+				VaultGrace:   100 * time.Second,
+			},
+		},
+		EnvBuilder: env.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+	}
+
+	ctmplMapping, err := parseTemplateConfigs(config)
+	assert.Nil(err, "Parsing Templates")
+
+	ctconf, err := newRunnerConfig(config, ctmplMapping)
+	assert.Nil(err, "Building Runner Config")
+	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
+	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
+}
+
+func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
+	t.Parallel()
+	// Make a template that will render based on a key in Consul
+	var embedded string
+	for i := 0; i < 5; i++ {
+		embedded += fmt.Sprintf(`{{key "%d"}}`, i)
+	}
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.setEmitRate(100 * time.Millisecond)
+	harness.start(t)
+	defer harness.stop()
+
+	// Ensure that we get a blocked event
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-harness.mockHooks.EmitEventCh:
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check to see we got a correct message
+	event := harness.mockHooks.Events[0]
+	if !strings.Contains(event, "and 2 more") {
+		t.Fatalf("bad event: %q", event)
+	}
+
+	// Write 3 keys to Consul
+	for i := 0; i < 3; i++ {
+		harness.consul.SetKV(t, fmt.Sprintf("%d", i), []byte{0xa})
+	}
+
+	// Ensure that we get a blocked event
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-harness.mockHooks.EmitEventCh:
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check to see we got a correct message
+	event = harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
+	if !strings.Contains(event, "Missing") || strings.Contains(event, "more") {
+		t.Fatalf("bad event: %q", event)
 	}
 }

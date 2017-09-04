@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,7 +24,7 @@ type mockConsulOp struct {
 }
 
 func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) mockConsulOp {
-	if op != "add" && op != "remove" && op != "update" && op != "checks" {
+	if op != "add" && op != "remove" && op != "update" && op != "alloc_registrations" {
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
 	return mockConsulOp{
@@ -44,8 +44,9 @@ type mockConsulServiceClient struct {
 
 	logger *log.Logger
 
-	// checksFn allows injecting return values for the Checks function.
-	checksFn func(*structs.Allocation) ([]*api.AgentCheck, error)
+	// allocRegistrationsFn allows injecting return values for the
+	// AllocRegistrations function.
+	allocRegistrationsFn func(allocID string) (*consul.AllocRegistration, error)
 }
 
 func newMockConsulServiceClient() *mockConsulServiceClient {
@@ -82,14 +83,14 @@ func (m *mockConsulServiceClient) RemoveTask(allocID string, task *structs.Task)
 	m.ops = append(m.ops, newMockConsulOp("remove", allocID, task, nil, nil))
 }
 
-func (m *mockConsulServiceClient) Checks(alloc *structs.Allocation) ([]*api.AgentCheck, error) {
+func (m *mockConsulServiceClient) AllocRegistrations(allocID string) (*consul.AllocRegistration, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: Checks(%q)", alloc.ID)
-	m.ops = append(m.ops, newMockConsulOp("checks", alloc.ID, nil, nil, nil))
+	m.logger.Printf("[TEST] mock_consul: AllocRegistrations(%q)", allocID)
+	m.ops = append(m.ops, newMockConsulOp("alloc_registrations", allocID, nil, nil, nil))
 
-	if m.checksFn != nil {
-		return m.checksFn(alloc)
+	if m.allocRegistrationsFn != nil {
+		return m.allocRegistrationsFn(allocID)
 	}
 
 	return nil, nil

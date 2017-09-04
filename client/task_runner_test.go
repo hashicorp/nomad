@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,11 +18,13 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 func testLogger() *log.Logger {
@@ -41,7 +44,7 @@ type MockTaskStateUpdater struct {
 	events []*structs.TaskEvent
 }
 
-func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
+func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent, _ bool) {
 	if state != "" {
 		m.state = state
 	}
@@ -718,7 +721,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskStarted)
 	}
 	if ctx.upd.events[8].Type != structs.TaskKilling {
-		t.Fatalf("Nineth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
+		t.Fatalf("Ninth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
 	}
 
 	if ctx.upd.events[9].Type != structs.TaskKilled {
@@ -1613,4 +1616,149 @@ func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
 	t.Run(run("0.5.6", "exec", "tcp", false))
 	t.Run(run("0.5.6", "java", "tcp", false))
 	t.Run(run("0.5.6", "mock_driver", "tcp", false))
+}
+
+func TestTaskRunner_interpolateServices(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "${name}",
+				PortLabel: "${portlabel}",
+				Tags:      []string{"${tags}"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "${checkname}",
+						Type:          "${checktype}",
+						Command:       "${checkcmd}",
+						Args:          []string{"${checkarg}"},
+						Path:          "${checkstr}",
+						Protocol:      "${checkproto}",
+						PortLabel:     "${checklabel}",
+						InitialStatus: "${checkstatus}",
+						Method:        "${checkmethod}",
+						Header: map[string][]string{
+							"${checkheaderk}": {"${checkheaderv}"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	env := &env.TaskEnv{
+		EnvMap: map[string]string{
+			"name":         "name",
+			"portlabel":    "portlabel",
+			"tags":         "tags",
+			"checkname":    "checkname",
+			"checktype":    "checktype",
+			"checkcmd":     "checkcmd",
+			"checkarg":     "checkarg",
+			"checkstr":     "checkstr",
+			"checkpath":    "checkpath",
+			"checkproto":   "checkproto",
+			"checklabel":   "checklabel",
+			"checkstatus":  "checkstatus",
+			"checkmethod":  "checkmethod",
+			"checkheaderk": "checkheaderk",
+			"checkheaderv": "checkheaderv",
+		},
+	}
+
+	interpTask := interpolateServices(env, task)
+
+	exp := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "name",
+				PortLabel: "portlabel",
+				Tags:      []string{"tags"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "checkname",
+						Type:          "checktype",
+						Command:       "checkcmd",
+						Args:          []string{"checkarg"},
+						Path:          "checkstr",
+						Protocol:      "checkproto",
+						PortLabel:     "checklabel",
+						InitialStatus: "checkstatus",
+						Method:        "checkmethod",
+						Header: map[string][]string{
+							"checkheaderk": {"checkheaderv"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if diff := pretty.Diff(interpTask, exp); len(diff) > 0 {
+		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
+	}
+}
+
+func TestTaskRunner_ShutdownDelay(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
+
+	// No shutdown escape hatch for this delay, so don't set it too high
+	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, ctx)
+
+	// Begin the tear down
+	ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	destroyed := time.Now()
+
+	// Service should get removed quickly; loop until RemoveTask is called
+	found := false
+	mockConsul := ctx.tr.consul.(*mockConsulServiceClient)
+	deadline := destroyed.Add(task.ShutdownDelay)
+	for time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+
+		mockConsul.mu.Lock()
+		n := len(mockConsul.ops)
+		if n < 2 {
+			mockConsul.mu.Unlock()
+			continue
+		}
+
+		lastOp := mockConsul.ops[n-1].op
+		mockConsul.mu.Unlock()
+
+		if lastOp == "remove" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("task was not removed from Consul first")
+	}
+
+	// Wait for actual exit
+	select {
+	case <-ctx.tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// It should be impossible to reach here in less time than the shutdown delay
+	if time.Now().Before(destroyed.Add(task.ShutdownDelay)) {
+		t.Fatalf("task exited before shutdown delay")
+	}
 }

@@ -592,6 +592,32 @@ func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
 
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff Header
+	if headerDiff := checkHeaderDiff(old.Header, new.Header, contextual); headerDiff != nil {
+		diff.Objects = append(diff.Objects, headerDiff)
+	}
+
+	return diff
+}
+
+// checkHeaderDiff returns the diff of two service check header objects. If
+// contextual diff is enabled, all fields will be returned, even if no diff
+// occurred.
+func checkHeaderDiff(old, new map[string][]string, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Header"}
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if len(old) == 0 {
+		diff.Type = DiffTypeAdded
+	} else if len(new) == 0 {
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+	oldFlat := flatmap.Flatten(old, nil, false)
+	newFlat := flatmap.Flatten(new, nil, false)
+	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
 	return diff
 }
 
@@ -609,17 +635,17 @@ func serviceCheckDiffs(old, new []*ServiceCheck, contextual bool) []*ObjectDiff 
 	}
 
 	var diffs []*ObjectDiff
-	for name, oldService := range oldMap {
+	for name, oldCheck := range oldMap {
 		// Diff the same, deleted and edited
-		if diff := serviceCheckDiff(oldService, newMap[name], contextual); diff != nil {
+		if diff := serviceCheckDiff(oldCheck, newMap[name], contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	for name, newService := range newMap {
+	for name, newCheck := range newMap {
 		// Diff the added
 		if old, ok := oldMap[name]; !ok {
-			if diff := serviceCheckDiff(old, newService, contextual); diff != nil {
+			if diff := serviceCheckDiff(old, newCheck, contextual); diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}

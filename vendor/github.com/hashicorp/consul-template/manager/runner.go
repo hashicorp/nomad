@@ -42,8 +42,7 @@ type Runner struct {
 	dry, once bool
 
 	// outStream and errStream are the io.Writer streams where the runner will
-	// write information. These streams can be set using the SetOutStream()
-	// and SetErrStream() functions.
+	// write information.
 
 	// inStream is the ioReader where the runner will read information.
 	outStream, errStream io.Writer
@@ -64,6 +63,12 @@ type Runner struct {
 
 	// renderedCh is used to signal that a template has been rendered
 	renderedCh chan struct{}
+
+	// renderEventCh is used to signal that there is a new render event. A
+	// render event doesn't necessarily mean that a template has been rendered,
+	// only that templates attempted to render and may have updated their
+	// dependency sets.
+	renderEventCh chan struct{}
 
 	// dependencies is the list of dependencies this runner is watching.
 	dependencies map[string]dep.Dependency
@@ -117,6 +122,9 @@ type RenderEvent struct {
 
 	// Template is the template attempting to be rendered.
 	Template *template.Template
+
+	// Contents is the raw, rendered contents from the template.
+	Contents []byte
 
 	// TemplateConfigs is the list of template configs that correspond to this
 	// template.
@@ -241,11 +249,15 @@ func (r *Runner) Start() {
 		}
 
 		if r.allTemplatesRendered() {
+			log.Printf("[DEBUG] (runner) all templates rendered")
+
 			// If an exec command was given and a command is not currently running,
 			// spawn the child process for supervision.
 			if config.StringPresent(r.config.Exec.Command) {
 				// Lock the child because we are about to check if it exists.
 				r.childLock.Lock()
+
+				log.Printf("[TRACE] (runner) acquired child lock for command, spawning")
 
 				if r.child == nil {
 					env := r.config.Exec.Env.Copy()
@@ -393,10 +405,16 @@ func (r *Runner) Stop() {
 	close(r.DoneCh)
 }
 
-// TemplateRenderedCh returns a channel that will return the path of the
-// template when it is rendered.
+// TemplateRenderedCh returns a channel that will be triggered when one or more
+// templates are rendered.
 func (r *Runner) TemplateRenderedCh() <-chan struct{} {
 	return r.renderedCh
+}
+
+// RenderEventCh returns a channel that will be triggered when there is a new
+// render event.
+func (r *Runner) RenderEventCh() <-chan struct{} {
+	return r.renderEventCh
 }
 
 // RenderEvents returns the render events for each template was rendered. The
@@ -484,199 +502,36 @@ func (r *Runner) Signal(s os.Signal) error {
 func (r *Runner) Run() error {
 	log.Printf("[INFO] (runner) initiating run")
 
-	var wouldRenderAny, renderedAny bool
-	var commands []*config.TemplateConfig
-	depsMap := make(map[string]dep.Dependency)
+	var newRenderEvent, wouldRenderAny, renderedAny bool
+	runCtx := &templateRunCtx{
+		depsMap: make(map[string]dep.Dependency),
+	}
 
 	for _, tmpl := range r.templates {
-		log.Printf("[DEBUG] (runner) checking template %s", tmpl.ID())
-
-		// Grab the last event
-		lastEvent := r.renderEvents[tmpl.ID()]
-
-		// Create the event
-		event := &RenderEvent{
-			Template:        tmpl,
-			TemplateConfigs: r.templateConfigsFor(tmpl),
-		}
-
-		if lastEvent != nil {
-			event.LastWouldRender = lastEvent.LastWouldRender
-			event.LastDidRender = lastEvent.LastDidRender
-		}
-
-		// Check if we are currently the leader instance
-		isLeader := true
-		if r.dedup != nil {
-			isLeader = r.dedup.IsLeader(tmpl)
-		}
-
-		// If we are in once mode and this template was already rendered, move
-		// onto the next one. We do not want to re-render the template if we are
-		// in once mode, and we certainly do not want to re-run any commands.
-		if r.once {
-			r.renderEventsLock.RLock()
-			_, rendered := r.renderEvents[tmpl.ID()]
-			r.renderEventsLock.RUnlock()
-			if rendered {
-				log.Printf("[DEBUG] (runner) once mode and already rendered")
-				continue
-			}
-		}
-
-		// Attempt to render the template, returning any missing dependencies and
-		// the rendered contents. If there are any missing dependencies, the
-		// contents cannot be rendered or trusted!
-		result, err := tmpl.Execute(&template.ExecuteInput{
-			Brain: r.brain,
-			Env:   r.childEnv(),
-		})
+		event, err := r.runTemplate(tmpl, runCtx)
 		if err != nil {
-			return errors.Wrap(err, tmpl.Source())
+			return err
 		}
 
-		// Grab the list of used and missing dependencies.
-		missing, used := result.Missing, result.Used
+		// If there was a render event store it
+		if event != nil {
+			r.renderEventsLock.Lock()
+			r.renderEvents[tmpl.ID()] = event
+			r.renderEventsLock.Unlock()
 
-		// Add the dependency to the list of dependencies for this runner.
-		for _, d := range used.List() {
-			// If we've taken over leadership for a template, we may have data
-			// that is cached, but not have the watcher. We must treat this as
-			// missing so that we create the watcher and re-run the template.
-			if isLeader && !r.watcher.Watching(d) {
-				missing.Add(d)
-			}
-			if _, ok := depsMap[d.String()]; !ok {
-				depsMap[d.String()] = d
-			}
-		}
+			// Record that there is at least one new render event
+			newRenderEvent = true
 
-		// Diff any missing dependencies the template reported with dependencies
-		// the watcher is watching.
-		unwatched := new(dep.Set)
-		for _, d := range missing.List() {
-			if !r.watcher.Watching(d) {
-				unwatched.Add(d)
-			}
-		}
-
-		// If there are unwatched dependencies, start the watcher and move onto the
-		// next one.
-		if l := unwatched.Len(); l > 0 {
-			log.Printf("[DEBUG] (runner) was not watching %d dependencies", l)
-			for _, d := range unwatched.List() {
-				// If we are deduplicating, we must still handle non-sharable
-				// dependencies, since those will be ignored.
-				if isLeader || !d.CanShare() {
-					r.watcher.Add(d)
-				}
-			}
-			continue
-		}
-
-		// If the template is missing data for some dependencies then we are not
-		// ready to render and need to move on to the next one.
-		if l := missing.Len(); l > 0 {
-			log.Printf("[DEBUG] (runner) missing data for %d dependencies", l)
-			continue
-		}
-
-		// Trigger an update of the de-duplicaiton manager
-		if r.dedup != nil && isLeader {
-			if err := r.dedup.UpdateDeps(tmpl, used.List()); err != nil {
-				log.Printf("[ERR] (runner) failed to update dependency data for de-duplication: %v", err)
-			}
-		}
-
-		// Update event information with dependencies.
-		event.MissingDeps = missing
-		event.UnwatchedDeps = unwatched
-		event.UsedDeps = used
-
-		// If quiescence is activated, start/update the timers and loop back around.
-		// We do not want to render the templates yet.
-		if q, ok := r.quiescenceMap[tmpl.ID()]; ok {
-			q.tick()
-			continue
-		}
-
-		// For each template configuration that is tied to this template, attempt to
-		// render it to disk and accumulate commands for later use.
-		for _, templateConfig := range r.templateConfigsFor(tmpl) {
-			log.Printf("[DEBUG] (runner) rendering %s", templateConfig.Display())
-
-			// Render the template, taking dry mode into account
-			result, err := Render(&RenderInput{
-				Backup:    config.BoolVal(templateConfig.Backup),
-				Contents:  result.Output,
-				Dry:       r.dry,
-				DryStream: r.outStream,
-				Path:      config.StringVal(templateConfig.Destination),
-				Perms:     config.FileModeVal(templateConfig.Perms),
-			})
-			if err != nil {
-				return errors.Wrap(err, "error rendering "+templateConfig.Display())
-			}
-
-			renderTime := time.Now().UTC()
-
-			// If we would have rendered this template (but we did not because the
-			// contents were the same or something), we should consider this template
-			// rendered even though the contents on disk have not been updated. We
-			// will not fire commands unless the template was _actually_ rendered to
-			// disk though.
-			if result.WouldRender {
-				// This event would have rendered
-				event.WouldRender = true
-				event.LastWouldRender = renderTime
-
-				// Record that at least one template would have been rendered.
+			// Record that at least one template would have been rendered.
+			if event.WouldRender {
 				wouldRenderAny = true
 			}
 
-			// If we _actually_ rendered the template to disk, we want to run the
-			// appropriate commands.
-			if result.DidRender {
-				log.Printf("[INFO] (runner) rendered %s", templateConfig.Display())
-
-				// This event did render
-				event.DidRender = true
-				event.LastDidRender = renderTime
-
-				// Record that at least one template was rendered.
+			// Record that at least one template was rendered.
+			if event.DidRender {
 				renderedAny = true
-
-				if !r.dry {
-					// If the template was rendered (changed) and we are not in dry-run mode,
-					// aggregate commands, ignoring previously known commands
-					//
-					// Future-self Q&A: Why not use a map for the commands instead of an
-					// array with an expensive lookup option? Well I'm glad you asked that
-					// future-self! One of the API promises is that commands are executed
-					// in the order in which they are provided in the TemplateConfig
-					// definitions. If we inserted commands into a map, we would lose that
-					// relative ordering and people would be unhappy.
-					// if config.StringPresent(ctemplate.Command)
-					if c := config.StringVal(templateConfig.Exec.Command); c != "" {
-						existing := findCommand(templateConfig, commands)
-						if existing != nil {
-							log.Printf("[DEBUG] (runner) skipping command %q from %s (already appended from %s)",
-								c, templateConfig.Display(), existing.Display())
-						} else {
-							log.Printf("[DEBUG] (runner) appending command %q from %s",
-								c, templateConfig.Display())
-							commands = append(commands, templateConfig)
-						}
-					}
-				}
 			}
 		}
-
-		// Send updated render event
-		r.renderEventsLock.Lock()
-		event.UpdatedAt = time.Now().UTC()
-		r.renderEvents[tmpl.ID()] = event
-		r.renderEventsLock.Unlock()
 	}
 
 	// Check if we need to deliver any rendered signals
@@ -688,13 +543,21 @@ func (r *Runner) Run() error {
 		}
 	}
 
+	// Check if we need to deliver any event signals
+	if newRenderEvent {
+		select {
+		case r.renderEventCh <- struct{}{}:
+		default:
+		}
+	}
+
 	// Perform the diff and update the known dependencies.
-	r.diffAndUpdateDeps(depsMap)
+	r.diffAndUpdateDeps(runCtx.depsMap)
 
 	// Execute each command in sequence, collecting any errors that occur - this
 	// ensures all commands execute at least once.
 	var errs []error
-	for _, t := range commands {
+	for _, t := range runCtx.commands {
 		command := config.StringVal(t.Exec.Command)
 		log.Printf("[INFO] (runner) executing command %q from %s", command, t.Display())
 		env := t.Exec.Env.Copy()
@@ -737,6 +600,208 @@ func (r *Runner) Run() error {
 	}
 
 	return nil
+}
+
+type templateRunCtx struct {
+	// commands is the set of commands that will be executed after all templates
+	// have run. When adding to the commands, care should be taken not to
+	// duplicate any existing command from a previous template.
+	commands []*config.TemplateConfig
+
+	// depsMap is the set of dependencies shared across all templates.
+	depsMap map[string]dep.Dependency
+}
+
+// runTemplate is used to run a particular template. It takes as input the
+// template to run and a shared run context that allows sharing of information
+// between templates. The run returns a potentially nil render event and any
+// error that occured. The render event is nil in the case that the template has
+// been already rendered and is a once template or if there is an error.
+func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*RenderEvent, error) {
+	log.Printf("[DEBUG] (runner) checking template %s", tmpl.ID())
+
+	// Grab the last event
+	r.renderEventsLock.RLock()
+	lastEvent := r.renderEvents[tmpl.ID()]
+	r.renderEventsLock.RUnlock()
+
+	// Create the event
+	event := &RenderEvent{
+		Template:        tmpl,
+		TemplateConfigs: r.templateConfigsFor(tmpl),
+	}
+
+	if lastEvent != nil {
+		event.LastWouldRender = lastEvent.LastWouldRender
+		event.LastDidRender = lastEvent.LastDidRender
+	}
+
+	// Check if we are currently the leader instance
+	isLeader := true
+	if r.dedup != nil {
+		isLeader = r.dedup.IsLeader(tmpl)
+	}
+
+	// If we are in once mode and this template was already rendered, move
+	// onto the next one. We do not want to re-render the template if we are
+	// in once mode, and we certainly do not want to re-run any commands.
+	if r.once {
+		r.renderEventsLock.RLock()
+		event, ok := r.renderEvents[tmpl.ID()]
+		r.renderEventsLock.RUnlock()
+		if ok && (event.WouldRender || event.DidRender) {
+			log.Printf("[DEBUG] (runner) once mode and already rendered")
+			return nil, nil
+		}
+	}
+
+	// Attempt to render the template, returning any missing dependencies and
+	// the rendered contents. If there are any missing dependencies, the
+	// contents cannot be rendered or trusted!
+	result, err := tmpl.Execute(&template.ExecuteInput{
+		Brain: r.brain,
+		Env:   r.childEnv(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, tmpl.Source())
+	}
+
+	// Grab the list of used and missing dependencies.
+	missing, used := result.Missing, result.Used
+
+	// Add the dependency to the list of dependencies for this runner.
+	for _, d := range used.List() {
+		// If we've taken over leadership for a template, we may have data
+		// that is cached, but not have the watcher. We must treat this as
+		// missing so that we create the watcher and re-run the template.
+		if isLeader && !r.watcher.Watching(d) {
+			missing.Add(d)
+		}
+		if _, ok := runCtx.depsMap[d.String()]; !ok {
+			runCtx.depsMap[d.String()] = d
+		}
+	}
+
+	// Diff any missing dependencies the template reported with dependencies
+	// the watcher is watching.
+	unwatched := new(dep.Set)
+	for _, d := range missing.List() {
+		if !r.watcher.Watching(d) {
+			unwatched.Add(d)
+		}
+	}
+
+	// Update the event with the new dependency information
+	event.MissingDeps = missing
+	event.UnwatchedDeps = unwatched
+	event.UsedDeps = used
+	event.UpdatedAt = time.Now().UTC()
+
+	// If there are unwatched dependencies, start the watcher and exit since we
+	// won't have data.
+	if l := unwatched.Len(); l > 0 {
+		log.Printf("[DEBUG] (runner) was not watching %d dependencies", l)
+		for _, d := range unwatched.List() {
+			// If we are deduplicating, we must still handle non-sharable
+			// dependencies, since those will be ignored.
+			if isLeader || !d.CanShare() {
+				r.watcher.Add(d)
+			}
+		}
+		return event, nil
+	}
+
+	// If the template is missing data for some dependencies then we are not
+	// ready to render and need to move on to the next one.
+	if l := missing.Len(); l > 0 {
+		log.Printf("[DEBUG] (runner) missing data for %d dependencies", l)
+		return event, nil
+	}
+
+	// Trigger an update of the de-duplicaiton manager
+	if r.dedup != nil && isLeader {
+		if err := r.dedup.UpdateDeps(tmpl, used.List()); err != nil {
+			log.Printf("[ERR] (runner) failed to update dependency data for de-duplication: %v", err)
+		}
+	}
+
+	// If quiescence is activated, start/update the timers and loop back around.
+	// We do not want to render the templates yet.
+	if q, ok := r.quiescenceMap[tmpl.ID()]; ok {
+		q.tick()
+		return event, nil
+	}
+
+	// For each template configuration that is tied to this template, attempt to
+	// render it to disk and accumulate commands for later use.
+	for _, templateConfig := range r.templateConfigsFor(tmpl) {
+		log.Printf("[DEBUG] (runner) rendering %s", templateConfig.Display())
+
+		// Render the template, taking dry mode into account
+		result, err := Render(&RenderInput{
+			Backup:    config.BoolVal(templateConfig.Backup),
+			Contents:  result.Output,
+			Dry:       r.dry,
+			DryStream: r.outStream,
+			Path:      config.StringVal(templateConfig.Destination),
+			Perms:     config.FileModeVal(templateConfig.Perms),
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "error rendering "+templateConfig.Display())
+		}
+
+		renderTime := time.Now().UTC()
+
+		// If we would have rendered this template (but we did not because the
+		// contents were the same or something), we should consider this template
+		// rendered even though the contents on disk have not been updated. We
+		// will not fire commands unless the template was _actually_ rendered to
+		// disk though.
+		if result.WouldRender {
+			// This event would have rendered
+			event.WouldRender = true
+			event.LastWouldRender = renderTime
+		}
+
+		// If we _actually_ rendered the template to disk, we want to run the
+		// appropriate commands.
+		if result.DidRender {
+			log.Printf("[INFO] (runner) rendered %s", templateConfig.Display())
+
+			// This event did render
+			event.DidRender = true
+			event.LastDidRender = renderTime
+
+			// Update the contents
+			event.Contents = result.Contents
+
+			if !r.dry {
+				// If the template was rendered (changed) and we are not in dry-run mode,
+				// aggregate commands, ignoring previously known commands
+				//
+				// Future-self Q&A: Why not use a map for the commands instead of an
+				// array with an expensive lookup option? Well I'm glad you asked that
+				// future-self! One of the API promises is that commands are executed
+				// in the order in which they are provided in the TemplateConfig
+				// definitions. If we inserted commands into a map, we would lose that
+				// relative ordering and people would be unhappy.
+				// if config.StringPresent(ctemplate.Command)
+				if c := config.StringVal(templateConfig.Exec.Command); c != "" {
+					existing := findCommand(templateConfig, runCtx.commands)
+					if existing != nil {
+						log.Printf("[DEBUG] (runner) skipping command %q from %s (already appended from %s)",
+							c, templateConfig.Display(), existing.Display())
+					} else {
+						log.Printf("[DEBUG] (runner) appending command %q from %s",
+							c, templateConfig.Display())
+						runCtx.commands = append(runCtx.commands, templateConfig)
+					}
+				}
+			}
+		}
+	}
+
+	return event, nil
 }
 
 // init() creates the Runner's underlying data structures and returns an error
@@ -804,6 +869,7 @@ func (r *Runner) init() error {
 	r.dependencies = make(map[string]dep.Dependency)
 
 	r.renderedCh = make(chan struct{}, 1)
+	r.renderEventCh = make(chan struct{}, 1)
 
 	r.ctemplatesMap = ctemplatesMap
 	r.inStream = os.Stdin
@@ -884,7 +950,8 @@ func (r *Runner) allTemplatesRendered() bool {
 	defer r.renderEventsLock.RUnlock()
 
 	for _, tmpl := range r.templates {
-		if _, rendered := r.renderEvents[tmpl.ID()]; !rendered {
+		event, rendered := r.renderEvents[tmpl.ID()]
+		if !rendered || !event.DidRender {
 			return false
 		}
 	}
@@ -1175,6 +1242,7 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 		RetryFuncDefault: nil,
 		RetryFuncVault:   watch.RetryFunc(c.Vault.Retry.RetryFunc()),
 		VaultGrace:       config.TimeDurationVal(c.Vault.Grace),
+		VaultToken:       config.StringVal(c.Vault.Token),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "runner")

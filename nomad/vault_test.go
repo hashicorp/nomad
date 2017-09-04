@@ -171,7 +171,7 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	}
 }
 
-// started seperately.
+// started separately.
 // Test that the Vault Client can establish a connection even if it is started
 // before Vault is available.
 func TestVaultClient_EstablishConnection(t *testing.T) {

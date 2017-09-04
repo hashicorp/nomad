@@ -64,6 +64,7 @@ var (
 	procQueryServiceConfigW                = modadvapi32.NewProc("QueryServiceConfigW")
 	procChangeServiceConfig2W              = modadvapi32.NewProc("ChangeServiceConfig2W")
 	procQueryServiceConfig2W               = modadvapi32.NewProc("QueryServiceConfig2W")
+	procEnumServicesStatusExW              = modadvapi32.NewProc("EnumServicesStatusExW")
 	procGetLastError                       = modkernel32.NewProc("GetLastError")
 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
 	procLoadLibraryExW                     = modkernel32.NewProc("LoadLibraryExW")
@@ -78,6 +79,7 @@ var (
 	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
 	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
+	procSetStdHandle                       = modkernel32.NewProc("SetStdHandle")
 	procFindFirstFileW                     = modkernel32.NewProc("FindFirstFileW")
 	procFindNextFileW                      = modkernel32.NewProc("FindNextFileW")
 	procFindClose                          = modkernel32.NewProc("FindClose")
@@ -93,6 +95,7 @@ var (
 	procGetComputerNameExW                 = modkernel32.NewProc("GetComputerNameExW")
 	procSetEndOfFile                       = modkernel32.NewProc("SetEndOfFile")
 	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
+	procGetSystemTimePreciseAsFileTime     = modkernel32.NewProc("GetSystemTimePreciseAsFileTime")
 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
 	procCreateIoCompletionPort             = modkernel32.NewProc("CreateIoCompletionPort")
 	procGetQueuedCompletionStatus          = modkernel32.NewProc("GetQueuedCompletionStatus")
@@ -136,6 +139,9 @@ var (
 	procFlushViewOfFile                    = modkernel32.NewProc("FlushViewOfFile")
 	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
 	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
+	procVirtualAlloc                       = modkernel32.NewProc("VirtualAlloc")
+	procVirtualFree                        = modkernel32.NewProc("VirtualFree")
+	procVirtualProtect                     = modkernel32.NewProc("VirtualProtect")
 	procTransmitFile                       = modmswsock.NewProc("TransmitFile")
 	procReadDirectoryChangesW              = modkernel32.NewProc("ReadDirectoryChangesW")
 	procCertOpenSystemStoreW               = modcrypt32.NewProc("CertOpenSystemStoreW")
@@ -155,6 +161,8 @@ var (
 	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
 	procGetCurrentProcessId                = modkernel32.NewProc("GetCurrentProcessId")
 	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
+	procSetConsoleMode                     = modkernel32.NewProc("SetConsoleMode")
+	procGetConsoleScreenBufferInfo         = modkernel32.NewProc("GetConsoleScreenBufferInfo")
 	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
 	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
@@ -165,7 +173,11 @@ var (
 	procCreateHardLinkW                    = modkernel32.NewProc("CreateHardLinkW")
 	procGetCurrentThreadId                 = modkernel32.NewProc("GetCurrentThreadId")
 	procCreateEventW                       = modkernel32.NewProc("CreateEventW")
+	procCreateEventExW                     = modkernel32.NewProc("CreateEventExW")
+	procOpenEventW                         = modkernel32.NewProc("OpenEventW")
 	procSetEvent                           = modkernel32.NewProc("SetEvent")
+	procResetEvent                         = modkernel32.NewProc("ResetEvent")
+	procPulseEvent                         = modkernel32.NewProc("PulseEvent")
 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
@@ -428,6 +440,18 @@ func QueryServiceConfig2(service Handle, infoLevel uint32, buff *byte, buffSize 
 	return
 }
 
+func EnumServicesStatusEx(mgr Handle, infoLevel uint32, serviceType uint32, serviceState uint32, services *byte, bufSize uint32, bytesNeeded *uint32, servicesReturned *uint32, resumeHandle *uint32, groupName *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall12(procEnumServicesStatusExW.Addr(), 10, uintptr(mgr), uintptr(infoLevel), uintptr(serviceType), uintptr(serviceState), uintptr(unsafe.Pointer(services)), uintptr(bufSize), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(servicesReturned)), uintptr(unsafe.Pointer(resumeHandle)), uintptr(unsafe.Pointer(groupName)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func GetLastError() (lasterr error) {
 	r0, _, _ := syscall.Syscall(procGetLastError.Addr(), 0, 0, 0, 0)
 	if r0 != 0 {
@@ -619,10 +643,22 @@ func CloseHandle(handle Handle) (err error) {
 	return
 }
 
-func GetStdHandle(stdhandle int) (handle Handle, err error) {
+func GetStdHandle(stdhandle uint32) (handle Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procGetStdHandle.Addr(), 1, uintptr(stdhandle), 0, 0)
 	handle = Handle(r0)
 	if handle == InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetStdHandle(stdhandle uint32, handle Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetStdHandle.Addr(), 2, uintptr(stdhandle), uintptr(handle), 0)
+	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
@@ -804,6 +840,11 @@ func SetEndOfFile(handle Handle) (err error) {
 
 func GetSystemTimeAsFileTime(time *Filetime) {
 	syscall.Syscall(procGetSystemTimeAsFileTime.Addr(), 1, uintptr(unsafe.Pointer(time)), 0, 0)
+	return
+}
+
+func GetSystemTimePreciseAsFileTime(time *Filetime) {
+	syscall.Syscall(procGetSystemTimePreciseAsFileTime.Addr(), 1, uintptr(unsafe.Pointer(time)), 0, 0)
 	return
 }
 
@@ -1352,6 +1393,43 @@ func VirtualUnlock(addr uintptr, length uintptr) (err error) {
 	return
 }
 
+func VirtualAlloc(address uintptr, size uintptr, alloctype uint32, protect uint32) (value uintptr, err error) {
+	r0, _, e1 := syscall.Syscall6(procVirtualAlloc.Addr(), 4, uintptr(address), uintptr(size), uintptr(alloctype), uintptr(protect), 0, 0)
+	value = uintptr(r0)
+	if value == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func VirtualFree(address uintptr, size uintptr, freetype uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procVirtualFree.Addr(), 3, uintptr(address), uintptr(size), uintptr(freetype))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func VirtualProtect(address uintptr, size uintptr, newprotect uint32, oldprotect *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procVirtualProtect.Addr(), 4, uintptr(address), uintptr(size), uintptr(newprotect), uintptr(unsafe.Pointer(oldprotect)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall9(procTransmitFile.Addr(), 7, uintptr(s), uintptr(handle), uintptr(bytesToWrite), uintptr(bytsPerSend), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(transmitFileBuf)), uintptr(flags), 0, 0)
 	if r1 == 0 {
@@ -1557,6 +1635,30 @@ func GetConsoleMode(console Handle, mode *uint32) (err error) {
 	return
 }
 
+func SetConsoleMode(console Handle, mode uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetConsoleMode.Addr(), 2, uintptr(console), uintptr(mode), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetConsoleScreenBufferInfo.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(info)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) {
 	r1, _, e1 := syscall.Syscall6(procWriteConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(towrite), uintptr(unsafe.Pointer(written)), uintptr(unsafe.Pointer(reserved)), 0)
 	if r1 == 0 {
@@ -1660,8 +1762,40 @@ func GetCurrentThreadId() (id uint32) {
 	return
 }
 
-func CreateEvent(eventAttrs *syscall.SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle Handle, err error) {
+func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle Handle, err error) {
 	r0, _, e1 := syscall.Syscall6(procCreateEventW.Addr(), 4, uintptr(unsafe.Pointer(eventAttrs)), uintptr(manualReset), uintptr(initialState), uintptr(unsafe.Pointer(name)), 0, 0)
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func CreateEventEx(eventAttrs *SecurityAttributes, name *uint16, flags uint32, desiredAccess uint32) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall6(procCreateEventExW.Addr(), 4, uintptr(unsafe.Pointer(eventAttrs)), uintptr(unsafe.Pointer(name)), uintptr(flags), uintptr(desiredAccess), 0, 0)
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func OpenEvent(desiredAccess uint32, inheritHandle bool, name *uint16) (handle Handle, err error) {
+	var _p0 uint32
+	if inheritHandle {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall(procOpenEventW.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(unsafe.Pointer(name)))
 	handle = Handle(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -1675,6 +1809,30 @@ func CreateEvent(eventAttrs *syscall.SecurityAttributes, manualReset uint32, ini
 
 func SetEvent(event Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procSetEvent.Addr(), 1, uintptr(event), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func ResetEvent(event Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procResetEvent.Addr(), 1, uintptr(event), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func PulseEvent(event Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procPulseEvent.Addr(), 1, uintptr(event), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)

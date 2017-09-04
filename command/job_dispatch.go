@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/posener/complete"
 )
 
 type JobDispatchCommand struct {
@@ -18,7 +20,7 @@ func (c *JobDispatchCommand) Help() string {
 Usage: nomad job dispatch [options] <parameterized job> [input source]
 
 Dispatch creates an instance of a parameterized job. A data payload to the
-dispatched instance can be provided via stdin by using "-" or by specifiying a
+dispatched instance can be provided via stdin by using "-" or by specifying a
 path to a file. Metadata can be supplied by using the meta flag one or more
 times. 
 
@@ -33,9 +35,9 @@ General Options:
 Dispatch Options:
 
   -meta <key>=<value>
-    Meta takes a key/value pair seperated by "=". The metadata key will be
+    Meta takes a key/value pair separated by "=". The metadata key will be
     merged into the job's metadata. The job may define a default value for the
-    key which is overriden when dispatching. The flag can be provided more than
+    key which is overridden when dispatching. The flag can be provided more than
     once to inject multiple metadata key/value pairs. Arbitrary keys are not
     allowed. The parameterized job must allow the key to be merged.
     
@@ -52,6 +54,30 @@ Dispatch Options:
 
 func (c *JobDispatchCommand) Synopsis() string {
 	return "Dispatch an instance of a parameterized job"
+}
+
+func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-meta":    complete.PredictAnything,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobDispatchCommand) Run(args []string) int {

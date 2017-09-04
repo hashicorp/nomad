@@ -70,8 +70,9 @@ port.
 * RPC (Default 4647). This is used by servers and clients to communicate among
   each other. TCP only.
 
-* Serf WAN (Default 4648). This is used by servers to gossip over the WAN to
-  other servers. TCP and UDP.
+* Serf WAN (Default 4648). This is used by servers to gossip both over the LAN and
+  WAN to other servers. It isn't required that Nomad clients can reach this address.
+  TCP and UDP.
 
 When tasks ask for dynamic ports, they are allocated out of the port range
 between 20,000 and 32,000. This is well under the ephemeral port range suggested

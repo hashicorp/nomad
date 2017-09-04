@@ -1922,8 +1922,8 @@ func TestTaskGroupDiff(t *testing.T) {
 						Driver: "docker",
 					},
 					{
-						Name:   "baz",
-						Driver: "docker",
+						Name:          "baz",
+						ShutdownDelay: 1 * time.Second,
 					},
 				},
 			},
@@ -1934,12 +1934,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Driver: "docker",
 					},
 					{
-						Name:   "baz",
-						Driver: "exec",
-					},
-					{
 						Name:   "bam",
 						Driver: "docker",
+					},
+					{
+						Name:          "baz",
+						ShutdownDelay: 2 * time.Second,
 					},
 				},
 			},
@@ -1968,6 +1968,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "false",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ShutdownDelay",
+								Old:  "",
+								New:  "0",
+							},
 						},
 					},
 					{
@@ -1980,9 +1986,9 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
-								Name: "Driver",
-								Old:  "docker",
-								New:  "exec",
+								Name: "ShutdownDelay",
+								Old:  "1000000000",
+								New:  "2000000000",
 							},
 						},
 					},
@@ -2006,6 +2012,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Leader",
 								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ShutdownDelay",
+								Old:  "0",
 								New:  "",
 							},
 						},
@@ -3398,6 +3410,9 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "critical",
+								Header: map[string][]string{
+									"Foo": {"bar"},
+								},
 							},
 						},
 					},
@@ -3418,6 +3433,11 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "passing",
+								Method:        "POST",
+								Header: map[string][]string{
+									"Foo":  {"bar", "baz"},
+									"Eggs": {"spam"},
+								},
 							},
 						},
 					},
@@ -3473,6 +3493,12 @@ func TestTaskDiff(t *testing.T) {
 										New:  "1000000000",
 									},
 									{
+										Type: DiffTypeAdded,
+										Name: "Method",
+										Old:  "",
+										New:  "POST",
+									},
+									{
 										Type: DiffTypeNone,
 										Name: "Name",
 										Old:  "foo",
@@ -3513,6 +3539,32 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Type",
 										Old:  "http",
 										New:  "tcp",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Header",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Eggs[0]",
+												Old:  "",
+												New:  "spam",
+											},
+											{
+												Type: DiffTypeNone,
+												Name: "Foo[0]",
+												Old:  "bar",
+												New:  "bar",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "Foo[1]",
+												Old:  "",
+												New:  "baz",
+											},
+										},
 									},
 								},
 							},
@@ -3798,6 +3850,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						VaultGrace:   3 * time.Second,
 					},
 					{
 						SourcePath:   "foo2",
@@ -3808,6 +3861,7 @@ func TestTaskDiff(t *testing.T) {
 						Splay:        2,
 						Perms:        "0666",
 						Envvars:      true,
+						VaultGrace:   5 * time.Second,
 					},
 				},
 			},
@@ -3821,6 +3875,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						VaultGrace:   3 * time.Second,
 					},
 					{
 						SourcePath:   "foo3",
@@ -3830,6 +3885,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
 						Perms:        "0776",
+						VaultGrace:   10 * time.Second,
 					},
 				},
 			},
@@ -3888,6 +3944,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "3",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "VaultGrace",
+								Old:  "",
+								New:  "10000000000",
+							},
 						},
 					},
 					{
@@ -3940,6 +4002,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Splay",
 								Old:  "2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "VaultGrace",
+								Old:  "5000000000",
 								New:  "",
 							},
 						},

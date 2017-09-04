@@ -385,11 +385,11 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 }
 
 func (u *UpdateStrategy) Canonicalize() {
-	if u.MaxParallel == nil {
-		u.MaxParallel = helper.IntToPtr(0)
-	}
-
 	d := structs.DefaultUpdateStrategy
+
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(d.MaxParallel)
+	}
 
 	if u.Stagger == nil {
 		u.Stagger = helper.TimeToPtr(d.Stagger)
@@ -414,6 +414,43 @@ func (u *UpdateStrategy) Canonicalize() {
 	if u.Canary == nil {
 		u.Canary = helper.IntToPtr(d.Canary)
 	}
+}
+
+// Empty returns whether the UpdateStrategy is empty or has user defined values.
+func (u *UpdateStrategy) Empty() bool {
+	if u == nil {
+		return true
+	}
+
+	if u.Stagger != nil && *u.Stagger != 0 {
+		return false
+	}
+
+	if u.MaxParallel != nil && *u.MaxParallel != 0 {
+		return false
+	}
+
+	if u.HealthCheck != nil && *u.HealthCheck != "" {
+		return false
+	}
+
+	if u.MinHealthyTime != nil && *u.MinHealthyTime != 0 {
+		return false
+	}
+
+	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.Canary != nil && *u.Canary != 0 {
+		return false
+	}
+
+	return true
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -725,7 +762,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include

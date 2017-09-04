@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client"
+	"github.com/posener/complete"
 )
 
 type AllocStatusCommand struct {
@@ -56,6 +58,31 @@ Alloc Status Options:
 
 func (c *AllocStatusCommand) Synopsis() string {
 	return "Display allocation status information and metadata"
+}
+
+func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-short":   complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
+}
+
+func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
 
 func (c *AllocStatusCommand) Run(args []string) int {
@@ -119,12 +146,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(allocID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		allocID = allocID[:len(allocID)-1]
-	}
 
+	allocID = sanatizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
@@ -398,6 +421,9 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 			desc = event.DriverMessage
 		case api.TaskLeaderDead:
 			desc = "Leader Task in Group dead"
+		case api.TaskGenericMessage:
+			event.Type = event.GenericSource
+			desc = event.Message
 		}
 
 		// Reverse order so we are sorted by time

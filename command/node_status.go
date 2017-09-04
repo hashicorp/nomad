@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/mitchellh/colorstring"
+	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -57,7 +59,7 @@ Node Status Options:
   -self
     Query the status of the local node.
 
-  -stats 
+  -stats
     Display detailed resource usage statistics.
 
   -allocs
@@ -81,6 +83,34 @@ Node Status Options:
 
 func (c *NodeStatusCommand) Synopsis() string {
 	return "Display status information about nodes"
+}
+
+func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-allocs":  complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-self":    complete.PredictNothing,
+			"-short":   complete.PredictNothing,
+			"-stats":   complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
 }
 
 func (c *NodeStatusCommand) Run(args []string) int {
@@ -148,35 +178,40 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
+
+		out[0] = "ID|DC|Name|Class|"
+
+		if c.verbose {
+			out[0] += "Version|"
+		}
+
+		out[0] += "Drain|Status"
+
 		if c.list_allocs {
-			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
-		} else {
-			out[0] = "ID|DC|Name|Class|Drain|Status"
+			out[0] += "|Running Allocs"
 		}
 
 		for i, node := range nodes {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+				limit(node.ID, c.length),
+				node.Datacenter,
+				node.Name,
+				node.NodeClass)
+			if c.verbose {
+				out[i+1] += fmt.Sprintf("|%s",
+					node.Version)
+			}
+			out[i+1] += fmt.Sprintf("|%v|%s",
+				node.Drain,
+				node.Status)
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Drain,
-					node.Status,
+				out[i+1] += fmt.Sprintf("|%v",
 					len(numAllocs))
-			} else {
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Drain,
-					node.Status)
 			}
 		}
 
@@ -200,12 +235,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(nodeID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		nodeID = nodeID[:len(nodeID)-1]
-	}
 
+	nodeID = sanatizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))

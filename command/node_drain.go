@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type NodeDrainCommand struct {
@@ -40,6 +43,31 @@ Node Drain Options:
 
 func (c *NodeDrainCommand) Synopsis() string {
 	return "Toggle drain mode on a given node"
+}
+
+func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-disable": complete.PredictNothing,
+			"-enable":  complete.PredictNothing,
+			"-self":    complete.PredictNothing,
+			"-yes":     complete.PredictNothing,
+		})
+}
+
+func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {
@@ -93,12 +121,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(nodeID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		nodeID = nodeID[:len(nodeID)-1]
-	}
 
+	nodeID = sanatizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))

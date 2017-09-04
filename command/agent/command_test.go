@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
 
@@ -57,6 +58,7 @@ func TestCommand_Args(t *testing.T) {
 		shutdownCh := make(chan struct{})
 		close(shutdownCh)
 		cmd := &Command{
+			Version:    version.GetVersion(),
 			Ui:         ui,
 			ShutdownCh: shutdownCh,
 		}
@@ -92,6 +94,7 @@ func TestRetryJoin(t *testing.T) {
 	}()
 
 	cmd := &Command{
+		Version:    version.GetVersion(),
 		ShutdownCh: shutdownCh,
 		Ui: &cli.BasicUi{
 			Reader:      os.Stdin,

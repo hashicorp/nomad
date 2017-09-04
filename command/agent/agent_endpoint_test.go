@@ -36,6 +36,23 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		if len(self.Stats) == 0 {
 			t.Fatalf("bad: %#v", self)
 		}
+
+		// Check the Vault config
+		if self.Config.Vault.Token != "" {
+			t.Fatalf("bad: %#v", self)
+		}
+
+		// Assign a Vault token and assert it is redacted.
+		s.Config.Vault.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		self = obj.(agentSelf)
+		if self.Config.Vault.Token != "<redacted>" {
+			t.Fatalf("bad: %#v", self)
+		}
 	})
 }
 

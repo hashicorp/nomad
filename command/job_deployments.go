@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type JobDeploymentsCommand struct {
@@ -38,6 +41,31 @@ Deployments Options:
 
 func (c *JobDeploymentsCommand) Synopsis() string {
 	return "List deployments for a job"
+}
+
+func (c *JobDeploymentsCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-latest":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *JobDeploymentsCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobDeploymentsCommand) Run(args []string) int {

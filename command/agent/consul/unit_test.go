@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 const (
@@ -215,7 +217,8 @@ func (c *fakeConsul) UpdateTTL(id string, output string, status string) error {
 func TestConsul_ChangeTags(t *testing.T) {
 	ctx := setupFake()
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil, nil); err != nil {
+	allocID := "allocid"
+	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, nil, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -225,6 +228,22 @@ func TestConsul_ChangeTags(t *testing.T) {
 
 	if n := len(ctx.FakeConsul.services); n != 1 {
 		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	}
+
+	// Query the allocs registrations and then again when we update. The IDs
+	// should change
+	reg1, err := ctx.ServiceClient.AllocRegistrations(allocID)
+	if err != nil {
+		t.Fatalf("Looking up alloc registration failed: %v", err)
+	}
+	if reg1 == nil {
+		t.Fatalf("Nil alloc registrations: %v", err)
+	}
+	if num := reg1.NumServices(); num != 1 {
+		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+	}
+	if num := reg1.NumChecks(); num != 0 {
+		t.Fatalf("Wrong number of checks: got %d; want 0", num)
 	}
 
 	origKey := ""
@@ -261,6 +280,34 @@ func TestConsul_ChangeTags(t *testing.T) {
 		}
 		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
 			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
+		}
+	}
+
+	// Check again and ensure the IDs changed
+	reg2, err := ctx.ServiceClient.AllocRegistrations(allocID)
+	if err != nil {
+		t.Fatalf("Looking up alloc registration failed: %v", err)
+	}
+	if reg2 == nil {
+		t.Fatalf("Nil alloc registrations: %v", err)
+	}
+	if num := reg2.NumServices(); num != 1 {
+		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+	}
+	if num := reg2.NumChecks(); num != 0 {
+		t.Fatalf("Wrong number of checks: got %d; want 0", num)
+	}
+
+	for task, treg := range reg1.Tasks {
+		otherTaskReg, ok := reg2.Tasks[task]
+		if !ok {
+			t.Fatalf("Task %q not in second reg", task)
+		}
+
+		for sID := range treg.Services {
+			if _, ok := otherTaskReg.Services[sID]; ok {
+				t.Fatalf("service ID didn't change")
+			}
 		}
 	}
 }
@@ -442,7 +489,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
 			}
 		default:
-			t.Errorf("Unkown check: %q", k)
+			t.Errorf("Unknown check: %q", k)
 		}
 	}
 }
@@ -461,7 +508,8 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	allocID := "allocid"
+	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -471,6 +519,22 @@ func TestConsul_ChangeChecks(t *testing.T) {
 
 	if n := len(ctx.FakeConsul.services); n != 1 {
 		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	}
+
+	// Query the allocs registrations and then again when we update. The IDs
+	// should change
+	reg1, err := ctx.ServiceClient.AllocRegistrations(allocID)
+	if err != nil {
+		t.Fatalf("Looking up alloc registration failed: %v", err)
+	}
+	if reg1 == nil {
+		t.Fatalf("Nil alloc registrations: %v", err)
+	}
+	if num := reg1.NumServices(); num != 1 {
+		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+	}
+	if num := reg1.NumChecks(); num != 1 {
+		t.Fatalf("Wrong number of checks: got %d; want 1", num)
 	}
 
 	origServiceKey := ""
@@ -493,13 +557,13 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		}
 	}
 
-	// Now add a check
+	// Now add a check and modify the original
 	origTask := ctx.Task.Copy()
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
 			Type:      "tcp",
-			Interval:  time.Second,
+			Interval:  2 * time.Second,
 			Timeout:   time.Second,
 			PortLabel: "x",
 		},
@@ -542,7 +606,42 @@ func TestConsul_ChangeChecks(t *testing.T) {
 				t.Errorf("expected Port x=%v but found: %v", expected, v.HTTP)
 			}
 		default:
-			t.Errorf("Unkown check: %q", k)
+			t.Errorf("Unknown check: %q", k)
+		}
+	}
+
+	// Check again and ensure the IDs changed
+	reg2, err := ctx.ServiceClient.AllocRegistrations(allocID)
+	if err != nil {
+		t.Fatalf("Looking up alloc registration failed: %v", err)
+	}
+	if reg2 == nil {
+		t.Fatalf("Nil alloc registrations: %v", err)
+	}
+	if num := reg2.NumServices(); num != 1 {
+		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+	}
+	if num := reg2.NumChecks(); num != 2 {
+		t.Fatalf("Wrong number of checks: got %d; want 2", num)
+	}
+
+	for task, treg := range reg1.Tasks {
+		otherTaskReg, ok := reg2.Tasks[task]
+		if !ok {
+			t.Fatalf("Task %q not in second reg", task)
+		}
+
+		for sID, sreg := range treg.Services {
+			otherServiceReg, ok := otherTaskReg.Services[sID]
+			if !ok {
+				t.Fatalf("service ID changed")
+			}
+
+			for newID := range sreg.checkIDs {
+				if _, ok := otherServiceReg.checkIDs[newID]; ok {
+					t.Fatalf("check IDs should change")
+				}
+			}
 		}
 	}
 }
@@ -1253,5 +1352,49 @@ func TestIsNomadService(t *testing.T) {
 				t.Errorf("%q should be %t but found %t", test.id, test.result, actual)
 			}
 		})
+	}
+}
+
+// TestCreateCheckReg asserts Nomad ServiceCheck structs are properly converted
+// to Consul API AgentCheckRegistrations.
+func TestCreateCheckReg(t *testing.T) {
+	check := &structs.ServiceCheck{
+		Name:      "name",
+		Type:      "http",
+		Path:      "/path",
+		PortLabel: "label",
+		Method:    "POST",
+		Header: map[string][]string{
+			"Foo": {"bar"},
+		},
+	}
+
+	serviceID := "testService"
+	checkID := check.Hash(serviceID)
+	host := "localhost"
+	port := 41111
+
+	expected := &api.AgentCheckRegistration{
+		ID:        checkID,
+		Name:      "name",
+		ServiceID: serviceID,
+		AgentServiceCheck: api.AgentServiceCheck{
+			Timeout:  "0s",
+			Interval: "0s",
+			HTTP:     fmt.Sprintf("http://%s:%d/path", host, port),
+			Method:   "POST",
+			Header: map[string][]string{
+				"Foo": {"bar"},
+			},
+		},
+	}
+
+	actual, err := createCheckReg(serviceID, checkID, check, host, port)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if diff := pretty.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
 	}
 }

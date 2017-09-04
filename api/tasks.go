@@ -94,6 +94,8 @@ type ServiceCheck struct {
 	Timeout       time.Duration
 	InitialStatus string `mapstructure:"initial_status"`
 	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
+	Header        map[string][]string
+	Method        string
 }
 
 // The Service model represents a Consul service definition
@@ -186,8 +188,8 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jc := job.Update.Copy()
 		jc.Merge(g.Update)
 		g.Update = jc
-	} else if ju {
-		// Inherit the jobs
+	} else if ju && !job.Update.Empty() {
+		// Inherit the jobs as long as it is non-empty.
 		jc := job.Update.Copy()
 		g.Update = jc
 	}
@@ -292,6 +294,7 @@ type Task struct {
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
 	Leader          bool
+	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -364,6 +367,7 @@ type Template struct {
 	LeftDelim    *string        `mapstructure:"left_delimiter"`
 	RightDelim   *string        `mapstructure:"right_delimiter"`
 	Envvars      *bool          `mapstructure:"env"`
+	VaultGrace   *time.Duration `mapstructure:"vault_grace"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -403,6 +407,9 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = helper.BoolToPtr(false)
+	}
+	if tmpl.VaultGrace == nil {
+		tmpl.VaultGrace = helper.TimeToPtr(5 * time.Minute)
 	}
 }
 
@@ -502,6 +509,7 @@ const (
 	TaskRestartSignal          = "Restart Signaled"
 	TaskLeaderDead             = "Leader Task Dead"
 	TaskBuildingTaskDir        = "Building Task Directory"
+	TaskGenericMessage         = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -529,4 +537,5 @@ type TaskEvent struct {
 	VaultError       string
 	TaskSignalReason string
 	TaskSignal       string
+	GenericSource    string
 }
