@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/nomad"
@@ -187,7 +188,14 @@ func (a *TestAgent) start() (*Agent, error) {
 		a.LogOutput = os.Stderr
 	}
 
-	agent, err := NewAgent(a.Config, a.LogOutput)
+	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
+	metrics.NewGlobal(metrics.DefaultConfig("service-name"), inm)
+
+	if inm == nil {
+		return nil, fmt.Errorf("unable to set up in memory metrics neede for agent initialization")
+	}
+
+	agent, err := NewAgent(a.Config, a.LogOutput, inm)
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client"
@@ -66,15 +67,18 @@ type Agent struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	InmemSink *metrics.InmemSink
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logOutput io.Writer) (*Agent, error) {
+func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logger:     log.New(logOutput, "", log.LstdFlags|log.Lmicroseconds),
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
+		InmemSink:  inmem,
 	}
 
 	if err := a.setupConsul(config.Consul); err != nil {
