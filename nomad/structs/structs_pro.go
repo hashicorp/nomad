@@ -9,6 +9,13 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 )
 
+// Offset the Nomad Pro specific values so that we don't overlap
+// the OSS/Enterprise values.
+const (
+	NamespaceUpsertRequestType MessageType = (64 + iota)
+	NamespaceDeleteRequestType
+)
+
 var (
 	// validNamespaceName is used to validate a namespace name
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
@@ -52,4 +59,39 @@ func (n *Namespace) Copy() *Namespace {
 	nc := new(Namespace)
 	*nc = *n
 	return nc
+}
+
+// NamespaceListRequest is used to request a list of namespaces
+type NamespaceListRequest struct {
+	QueryOptions
+}
+
+// NamespaceListResponse is used for a list request
+type NamespaceListResponse struct {
+	Namespaces []*Namespace
+	QueryMeta
+}
+
+// NamespaceSpecificRequest is used to query a specific namespace
+type NamespaceSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// SingleNamespaceResponse is used to return a single namespace
+type SingleNamespaceResponse struct {
+	Namespace *Namespace
+	QueryMeta
+}
+
+// NamespaceDeleteRequest is used to delete a set of namespaces
+type NamespaceDeleteRequest struct {
+	Namespaces []string
+	WriteRequest
+}
+
+// NamespaceUpsertRequest is used to upsert a set of namespaces
+type NamespaceUpsertRequest struct {
+	Namespaces []*Namespace
+	WriteRequest
 }

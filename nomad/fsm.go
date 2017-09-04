@@ -45,6 +45,20 @@ const (
 	ACLTokenSnapshot
 )
 
+// LogApplier is the definition of a function that can apply a Raft log
+type LogApplier func(buf []byte, index uint64) interface{}
+
+// LogAppliers is a mapping of the Raft MessageType to the appropriate log
+// applier
+type LogAppliers map[structs.MessageType]LogApplier
+
+// SnapshotRestorer is the definition of a function that can apply a Raft log
+type SnapshotRestorer func(restore *state.StateRestore, dec *codec.Decoder) error
+
+// SnapshotRestorers is a mapping of the SnapshotType to the appropriate
+// snapshot restorer.
+type SnapshotRestorers map[SnapshotType]SnapshotRestorer
+
 // nomadFSM implements a finite state machine that is used
 // along with Raft to provide strong consistency. We implement
 // this outside the Server to avoid exposing this outside the package.
@@ -56,6 +70,12 @@ type nomadFSM struct {
 	logger             *log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
+
+	// enterpriseAppliers holds the set of enterprise only LogAppliers
+	enterpriseAppliers LogAppliers
+
+	// enterpriseRestorers holds the set of enterprise only snapshot restorers
+	enterpriseRestorers SnapshotRestorers
 
 	// stateLock is only used to protect outside callers to State() from
 	// racing with Restore(), which is called by Raft (it puts in a totally
@@ -86,14 +106,23 @@ func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch,
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:         evalBroker,
-		periodicDispatcher: periodic,
-		blockedEvals:       blocked,
-		logOutput:          logOutput,
-		logger:             log.New(logOutput, "", log.LstdFlags),
-		state:              state,
-		timetable:          NewTimeTable(timeTableGranularity, timeTableLimit),
+		evalBroker:          evalBroker,
+		periodicDispatcher:  periodic,
+		blockedEvals:        blocked,
+		logOutput:           logOutput,
+		logger:              log.New(logOutput, "", log.LstdFlags),
+		state:               state,
+		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
+		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
+		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
 	}
+
+	// Register all the log applier functions
+	fsm.registerLogAppliers()
+
+	// Register all the snapshot restorer functions
+	fsm.registerSnapshotRestorers()
+
 	return fsm, nil
 }
 
@@ -179,14 +208,20 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenDelete(buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
-	default:
-		if ignoreUnknown {
-			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
-			return nil
-		} else {
-			panic(fmt.Errorf("failed to apply request: %#v", buf))
-		}
 	}
+
+	// Check enterprise only message types.
+	if applier, ok := n.enterpriseAppliers[msgType]; ok {
+		return applier(buf[1:], log.Index)
+	}
+
+	// We didn't match anything, either panic or ignore
+	if ignoreUnknown {
+		n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
+		return nil
+	}
+
+	panic(fmt.Errorf("failed to apply request: %#v", buf))
 }
 
 func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
@@ -815,7 +850,8 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 
 		// Decode
-		switch SnapshotType(msgType[0]) {
+		snapType := SnapshotType(msgType[0])
+		switch snapType {
 		case TimeTableSnapshot:
 			if err := n.timetable.Deserialize(dec); err != nil {
 				return fmt.Errorf("time table deserialize failed: %v", err)
@@ -940,7 +976,16 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			}
 
 		default:
-			return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
+			// Check if this is an enterprise only object being restored
+			restorer, ok := n.enterpriseRestorers[snapType]
+			if !ok {
+				return fmt.Errorf("Unrecognized snapshot type: %v", msgType)
+			}
+
+			// Restore the enterprise only object
+			if err := restorer(restore, dec); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1154,6 +1199,11 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
+	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+
 	return nil
 }
 
