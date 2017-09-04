@@ -13,6 +13,9 @@ For more details about Sentinel policies, please see the [Sentinel Policy Guide]
 
 Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
 
+~> **Enterprise Only!** This API endpoint and functionality only exists in
+Nomad Enterprise. This is not present in the open source version of Nomad.
+
 ## List Policies
 
 This endpoint lists all Sentinel policies. This lists the policies that have been replicated
