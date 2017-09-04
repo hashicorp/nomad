@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRemoveAllocs(t *testing.T) {
@@ -267,5 +270,108 @@ func TestGenerateUUID(t *testing.T) {
 		if !matched || err != nil {
 			t.Fatalf("expected match %s %v %s", id, matched, err)
 		}
+	}
+}
+
+func TestACLPolicyListHash(t *testing.T) {
+	h1 := ACLPolicyListHash(nil)
+	assert.NotEqual(t, "", h1)
+
+	p1 := &ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+
+	h2 := ACLPolicyListHash([]*ACLPolicy{p1})
+	assert.NotEqual(t, "", h2)
+	assert.NotEqual(t, h1, h2)
+
+	// Create P2 as copy of P1 with new name
+	p2 := &ACLPolicy{}
+	*p2 = *p1
+	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+
+	h3 := ACLPolicyListHash([]*ACLPolicy{p1, p2})
+	assert.NotEqual(t, "", h3)
+	assert.NotEqual(t, h2, h3)
+
+	h4 := ACLPolicyListHash([]*ACLPolicy{p2})
+	assert.NotEqual(t, "", h4)
+	assert.NotEqual(t, h3, h4)
+
+	// ModifyIndex should change the hash
+	p2.ModifyIndex++
+	h5 := ACLPolicyListHash([]*ACLPolicy{p2})
+	assert.NotEqual(t, "", h5)
+	assert.NotEqual(t, h4, h5)
+}
+
+func TestCompileACLObject(t *testing.T) {
+	p1 := &ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+
+	// Create P2 as copy of P1 with new name
+	p2 := &ACLPolicy{}
+	*p2 = *p1
+	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+
+	// Create a small cache
+	cache, err := lru.New2Q(16)
+	assert.Nil(t, err)
+
+	// Test compilation
+	aclObj, err := CompileACLObject(cache, []*ACLPolicy{p1})
+	assert.Nil(t, err)
+	assert.NotNil(t, aclObj)
+
+	// Should get the same object
+	aclObj2, err := CompileACLObject(cache, []*ACLPolicy{p1})
+	assert.Nil(t, err)
+	if aclObj != aclObj2 {
+		t.Fatalf("expected the same object")
+	}
+
+	// Should get another object
+	aclObj3, err := CompileACLObject(cache, []*ACLPolicy{p1, p2})
+	assert.Nil(t, err)
+	assert.NotNil(t, aclObj3)
+	if aclObj == aclObj3 {
+		t.Fatalf("unexpected same object")
+	}
+
+	// Should be order independent
+	aclObj4, err := CompileACLObject(cache, []*ACLPolicy{p2, p1})
+	assert.Nil(t, err)
+	assert.NotNil(t, aclObj4)
+	if aclObj3 != aclObj4 {
+		t.Fatalf("expected same object")
 	}
 }

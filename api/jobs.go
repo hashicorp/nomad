@@ -743,6 +743,9 @@ type WriteRequest struct {
 
 	// Namespace is the target namespace for this write
 	Namespace string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // JobValidateRequest is used to validate a job

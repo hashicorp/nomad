@@ -74,6 +74,8 @@ testing.
 
 ## General Parameters
 
+- `acl` <code>([ACL][acl]: nil)</code> - Specifies configuration which is specific to ACLs.
+
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
   precedence over the default [bind_addr](#bind_addr).
@@ -230,3 +232,4 @@ http_api_response_headers {
 [tls]: /docs/agent/configuration/tls.html "Nomad Agent tls Configuration"
 [client]: /docs/agent/configuration/client.html "Nomad Agent client Configuration"
 [server]: /docs/agent/configuration/server.html "Nomad Agent server Configuration"
+[acl]: /docs/agent/configuration/acl.html "Nomad Agent ACL Configuration"

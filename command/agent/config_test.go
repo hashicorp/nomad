@@ -27,6 +27,7 @@ func TestConfig_Merge(t *testing.T) {
 		Telemetry:      &Telemetry{},
 		Client:         &ClientConfig{},
 		Server:         &ServerConfig{},
+		ACL:            &ACLConfig{},
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
@@ -91,6 +92,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
+			AuthoritativeRegion:    "global",
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
@@ -99,6 +101,12 @@ func TestConfig_Merge(t *testing.T) {
 			HeartbeatGrace:         30 * time.Second,
 			MinHeartbeatTTL:        30 * time.Second,
 			MaxHeartbeatsPerSecond: 30.0,
+		},
+		ACL: &ACLConfig{
+			Enabled:          true,
+			TokenTTL:         60 * time.Second,
+			PolicyTTL:        60 * time.Second,
+			ReplicationToken: "foo",
 		},
 		Ports: &Ports{
 			HTTP: 4646,
@@ -223,6 +231,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Server: &ServerConfig{
 			Enabled:                true,
+			AuthoritativeRegion:    "global2",
 			BootstrapExpect:        2,
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
@@ -237,6 +246,12 @@ func TestConfig_Merge(t *testing.T) {
 			RetryJoin:              []string{"1.1.1.1"},
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
+		},
+		ACL: &ACLConfig{
+			Enabled:          true,
+			TokenTTL:         20 * time.Second,
+			PolicyTTL:        20 * time.Second,
+			ReplicationToken: "foobar",
 		},
 		Ports: &Ports{
 			HTTP: 20000,

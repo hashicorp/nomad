@@ -356,7 +356,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		WriteRequest: structs.WriteRequest{
-			Region: args.WriteRequest.Region,
+			Region:   args.WriteRequest.Region,
+			SecretID: args.WriteRequest.SecretID,
 		},
 	}
 	s.parseWriteRequest(req, &regReq.WriteRequest)
