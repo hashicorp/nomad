@@ -189,6 +189,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
+
+	// Register enterprise endpoints.
+	s.registerEnterpriseHandlers()
 }
 
 // HTTPCodedError is used to provide the HTTP error code
