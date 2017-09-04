@@ -84,14 +84,14 @@ type SingleNamespaceResponse struct {
 	QueryMeta
 }
 
-// NamespaceDeleteRequest is used to delete a namespace
+// NamespaceDeleteRequest is used to delete a set of namespaces
 type NamespaceDeleteRequest struct {
-	Name string
+	Namespaces []string
 	WriteRequest
 }
 
-// NamespaceUpsertRequest is used to upsert a namespace
+// NamespaceUpsertRequest is used to upsert a set of namespaces
 type NamespaceUpsertRequest struct {
-	Namespace *Namespace
+	Namespaces []*Namespace
 	WriteRequest
 }

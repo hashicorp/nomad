@@ -31,7 +31,7 @@ func (n *nomadFSM) registerProSnapshotRestorers() {
 	n.enterpriseRestorers[NamespaceSnapshot] = restoreNamespace
 }
 
-// applyNamespaceUpsert is used to upsert a namespace
+// applyNamespaceUpsert is used to upsert a set of namespaces
 func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_upsert"}, time.Now())
 	var req structs.NamespaceUpsertRequest
@@ -39,15 +39,15 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertNamespace(index, req.Namespace); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertNamespace failed: %v", err)
+	if err := n.state.UpsertNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpsertNamespaces failed: %v", err)
 		return err
 	}
 
 	return nil
 }
 
-// applyNamespaceDelete is used to delete a namespace
+// applyNamespaceDelete is used to delete a set of namespaces
 func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_delete"}, time.Now())
 	var req structs.NamespaceDeleteRequest
@@ -55,8 +55,8 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNamespace(index, req.Name); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteNamespace failed: %v", err)
+	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: DeleteNamespaces failed: %v", err)
 		return err
 	}
 

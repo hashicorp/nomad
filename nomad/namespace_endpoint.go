@@ -17,18 +17,24 @@ type Namespace struct {
 	srv *Server
 }
 
-func (n *Namespace) UpsertNamespace(args *structs.NamespaceUpsertRequest,
+// UpsertNamespaces is used to upsert a set of namespaces
+func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
-	if done, err := n.srv.forward("Namespace.UpsertNamespace", args, args, reply); done {
+	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespace"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
-	// Validate the namespace
-	if args.Namespace == nil {
-		return fmt.Errorf("missing namespace for registration")
-	} else if err := args.Namespace.Validate(); err != nil {
-		return err
+	// Validate there is at least one namespace
+	if len(args.Namespaces) == 0 {
+		return fmt.Errorf("must specify at least one namespace")
+	}
+
+	// Validate the namespaces
+	for _, ns := range args.Namespaces {
+		if err := ns.Validate(); err != nil {
+			return fmt.Errorf("Invalid namespace %q: %v", ns.Name, err)
+		}
 	}
 
 	// Update via Raft
@@ -42,16 +48,16 @@ func (n *Namespace) UpsertNamespace(args *structs.NamespaceUpsertRequest,
 	return nil
 }
 
-// DeleteNamespace is used to delete a namespace
-func (n *Namespace) DeleteNamespace(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
-	if done, err := n.srv.forward("Namespace.DeleteNamespace", args, args, reply); done {
+// DeleteNamespaces is used to delete a namespace
+func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
+	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespace"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
-	// Validate non-zero set of policies
-	if len(args.Name) == 0 {
-		return fmt.Errorf("must specify namespace to delete")
+	// Validate at least one namespace
+	if len(args.Namespaces) == 0 {
+		return fmt.Errorf("must specify at least one namespace to delete")
 	}
 
 	// Update via Raft
