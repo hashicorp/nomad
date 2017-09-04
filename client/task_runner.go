@@ -1849,11 +1849,15 @@ func (r *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 // emitStats emits resource usage stats of tasks to remote metrics collector
 // sinks
 func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
-	if ru.ResourceUsage.MemoryStats != nil && r.config.PublishAllocationMetrics {
+	if !r.config.PublishAllocationMetrics {
+		return
+	}
+
+	if ru.ResourceUsage.MemoryStats != nil {
 		r.setGaugeForMemory(ru)
 	}
 
-	if ru.ResourceUsage.CpuStats != nil && r.config.PublishAllocationMetrics {
+	if ru.ResourceUsage.CpuStats != nil {
 		r.setGaugeForCPU(ru)
 	}
 }

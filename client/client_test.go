@@ -148,8 +148,11 @@ func TestClient_BaseLabels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	baseLabels := client.baseLabels
+	assert.NotEqual(0, len(baseLabels))
+
 	nodeID := client.Node().ID
-	for _, e := range client.baseLabels {
+	for _, e := range baseLabels {
 		if e.Name == "node_id" {
 			assert.Equal(nodeID, e.Value)
 		}
