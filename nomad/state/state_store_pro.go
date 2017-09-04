@@ -60,6 +60,11 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 			return fmt.Errorf("namespace not found")
 		}
 
+		ns := existing.(*structs.Namespace)
+		if ns.Name == structs.DefaultNamespace {
+			return fmt.Errorf("default namespace can not be deleted")
+		}
+
 		// Ensure that the namespace doesn't have any non-terminal jobs
 		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
 		if err != nil {

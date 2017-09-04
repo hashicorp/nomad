@@ -72,6 +72,19 @@ func TestStateStore_DeleteNamespaces(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
+func TestStateStore_DeleteNamespaces_Default(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	ns.Name = structs.DefaultNamespace
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	err := state.DeleteNamespaces(1002, []string{ns.Name})
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "can not be deleted")
+}
+
 func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
