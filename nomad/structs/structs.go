@@ -112,7 +112,8 @@ const (
 	ACLManagementToken = "management"
 
 	// DefaultNamespace is the default namespace.
-	DefaultNamespace = "default"
+	DefaultNamespace            = "default"
+	DefaultNamespaceDescription = "Default shared namespace"
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
