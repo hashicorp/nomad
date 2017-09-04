@@ -80,9 +80,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			return structs.ErrPermissionDenied
 		}
 		// Check if override is set and we do not have permissions
-		if args.PolicyOverride && !aclObj.AllowNSOP(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
-			j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
-			return structs.ErrPermissionDenied
+		if args.PolicyOverride {
+			if !aclObj.AllowNSOP(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+				j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
+				return structs.ErrPermissionDenied
+			}
+			j.srv.logger.Printf("[WARN] nomad.job: policy override set for Job %q", args.Job.ID)
 		}
 	}
 
