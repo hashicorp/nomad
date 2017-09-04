@@ -148,6 +148,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
 
+	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
+	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
+
+	s.mux.HandleFunc("/v1/acl/bootstrap", s.wrap(s.ACLTokenBootstrap))
+	s.mux.HandleFunc("/v1/acl/tokens", s.wrap(s.ACLTokensRequest))
+	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
+	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
+
 	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
 	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
 	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))
@@ -351,9 +359,24 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 	}
 }
 
+// parseToken is used to parse the X-Nomad-Token param
+func (s *HTTPServer) parseToken(req *http.Request, token *string) {
+	if other := req.Header.Get("X-Nomad-Token"); other != "" {
+		*token = other
+		return
+	}
+}
+
+// parseWrite is a convenience method for endpoints that call write methods
+func (s *HTTPServer) parseWrite(req *http.Request, b *structs.WriteRequest) {
+	s.parseRegion(req, &b.Region)
+	s.parseToken(req, &b.SecretID)
+}
+
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
+	s.parseToken(req, &b.SecretID)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	return parseWait(resp, req, b)

@@ -101,6 +101,10 @@ type Config struct {
 	// Region is the region this Nomad server belongs to.
 	Region string
 
+	// AuthoritativeRegion is the region which is treated as the authoritative source
+	// for ACLs and Policies. This provides a single source of truth to resolve conflicts.
+	AuthoritativeRegion string
+
 	// Datacenter is the datacenter this Nomad server belongs to.
 	Datacenter string
 
@@ -224,6 +228,17 @@ type Config struct {
 
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *config.TLSConfig
+
+	// ACLEnabled controls if ACL enforcement and management is enabled.
+	ACLEnabled bool
+
+	// ReplicationBackoff is how much we backoff when replication errors.
+	// This is a tunable knob for testing primarily.
+	ReplicationBackoff time.Duration
+
+	// ReplicationToken is the ACL Token Secret ID used to fetch from
+	// the Authoritative Region.
+	ReplicationToken string
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -247,6 +262,7 @@ func DefaultConfig() *Config {
 
 	c := &Config{
 		Region:                           DefaultRegion,
+		AuthoritativeRegion:              DefaultRegion,
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
 		ProtocolVersion:                  ProtocolVersionMax,
@@ -279,6 +295,7 @@ func DefaultConfig() *Config {
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,
 		TLSConfig:                        &config.TLSConfig{},
+		ReplicationBackoff:               30 * time.Second,
 	}
 
 	// Enable all known schedulers by default

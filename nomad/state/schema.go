@@ -26,6 +26,8 @@ func stateStoreSchema() *memdb.DBSchema {
 		evalTableSchema,
 		allocTableSchema,
 		vaultAccessorTableSchema,
+		aclPolicyTableSchema,
+		aclTokenTableSchema,
 	}
 
 	// Add each of the tables
@@ -425,6 +427,58 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "NodeID",
+				},
+			},
+		},
+	}
+}
+
+// aclPolicyTableSchema returns the MemDB schema for the policy table.
+// This table is used to store the policies which are refrenced by tokens
+func aclPolicyTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "acl_policy",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+		},
+	}
+}
+
+// aclTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store the bearer tokens which are used to authenticate
+func aclTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "acl_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": &memdb.IndexSchema{
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
+				},
+			},
+			"secret": &memdb.IndexSchema{
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
+				},
+			},
+			"global": &memdb.IndexSchema{
+				Name:         "global",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Global",
 				},
 			},
 		},

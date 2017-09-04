@@ -96,6 +96,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"vault",
 		"tls",
 		"http_api_response_headers",
+		"acl",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
@@ -118,6 +119,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "vault")
 	delete(m, "tls")
 	delete(m, "http_api_response_headers")
+	delete(m, "acl")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -156,6 +158,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("server"); len(o.Items) > 0 {
 		if err := parseServer(&result.Server, o); err != nil {
 			return multierror.Prefix(err, "server ->")
+		}
+	}
+
+	// Parse ACL config
+	if o := list.Filter("acl"); len(o.Items) > 0 {
+		if err := parseACL(&result.ACL, o); err != nil {
+			return multierror.Prefix(err, "acl ->")
 		}
 	}
 
@@ -514,6 +523,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"retry_interval",
 		"rejoin_after_leave",
 		"encrypt",
+		"authoritative_region",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -525,6 +535,56 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 	}
 
 	var config ServerConfig
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &config,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = &config
+	return nil
+}
+
+func parseACL(result **ACLConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'acl' block allowed")
+	}
+
+	// Get our server object
+	obj := list.Items[0]
+
+	// Value should be an object
+	var listVal *ast.ObjectList
+	if ot, ok := obj.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("acl value: should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"enabled",
+		"token_ttl",
+		"policy_ttl",
+		"replication_token",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var config ACLConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,

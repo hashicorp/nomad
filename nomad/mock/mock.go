@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -335,4 +336,55 @@ func Plan() *structs.Plan {
 
 func PlanResult() *structs.PlanResult {
 	return &structs.PlanResult{}
+}
+
+func ACLPolicy() *structs.ACLPolicy {
+	ap := &structs.ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+	ap.SetHash()
+	return ap
+}
+
+func ACLToken() *structs.ACLToken {
+	tk := &structs.ACLToken{
+		AccessorID:  structs.GenerateUUID(),
+		SecretID:    structs.GenerateUUID(),
+		Name:        "my cool token " + structs.GenerateUUID(),
+		Type:        "client",
+		Policies:    []string{"foo", "bar"},
+		Global:      false,
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+	tk.SetHash()
+	return tk
+}
+
+func ACLManagementToken() *structs.ACLToken {
+	return &structs.ACLToken{
+		AccessorID:  structs.GenerateUUID(),
+		SecretID:    structs.GenerateUUID(),
+		Name:        "management " + structs.GenerateUUID(),
+		Type:        "management",
+		Global:      true,
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
 }

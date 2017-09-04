@@ -338,6 +338,24 @@ func TestParseRegion(t *testing.T) {
 	}
 }
 
+func TestParseToken(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	req, err := http.NewRequest("GET", "/v1/jobs", nil)
+	req.Header.Add("X-Nomad-Token", "foobar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var token string
+	s.Server.parseToken(req, &token)
+	if token != "foobar" {
+		t.Fatalf("bad %s", token)
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
@@ -494,6 +512,22 @@ func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
+}
+
+func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.Agent.RPC)
+	f(s)
+}
+
+func setToken(req *http.Request, token *structs.ACLToken) {
+	req.Header.Set("X-Nomad-Token", token.SecretID)
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {

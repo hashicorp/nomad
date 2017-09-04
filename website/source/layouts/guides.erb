@@ -1,6 +1,10 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
-    <ul class="nav docs-sidenav">
+      <ul class="nav docs-sidenav">
+
+      <li<%= sidebar_current("guides-acl") %>>
+        <a href="/guides/acl.html">ACLs</a>
+      </li>
 
       <li<%= sidebar_current("guides-spark") %>>
         <a href="/guides/spark/spark.html">Apache Spark Integration</a>

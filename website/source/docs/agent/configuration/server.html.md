@@ -34,6 +34,11 @@ server {
 
 ## `server` Parameters
 
+- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
+  provides a single source of truth for global configurations such as ACL Policies and
+  global ACL tokens. Non-authoritative regions will replicate from the authoritative
+  to act as a mirror. By default, the local region is assumed to be authoritative.
+
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
   wait for before bootstrapping. It is most common to use the odd-numbered
   integers `3` or `5` for this value, depending on the cluster size. A value of

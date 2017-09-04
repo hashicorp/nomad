@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -36,6 +37,21 @@ func tmpDir(t *testing.T) string {
 		t.Fatalf("err: %v", err)
 	}
 	return dir
+}
+
+func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
+	server := testServer(t, func(c *Config) {
+		c.ACLEnabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	token := mock.ACLManagementToken()
+	err := server.State().BootstrapACLTokens(1, token)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACL token: %v", err)
+	}
+	return server, token
 }
 
 func testServer(t *testing.T, cb func(*Config)) *Server {
