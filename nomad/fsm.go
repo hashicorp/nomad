@@ -890,6 +890,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(eval); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if eval.Namespace == "" {
+				eval.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.EvalRestore(eval); err != nil {
 				return err
 			}
@@ -899,6 +905,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(alloc); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if alloc.Namespace == "" {
+				alloc.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.AllocRestore(alloc); err != nil {
 				return err
 			}
@@ -917,6 +929,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(launch); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if launch.Namespace == "" {
+				launch.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.PeriodicLaunchRestore(launch); err != nil {
 				return err
 			}
@@ -926,6 +944,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(summary); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if summary.Namespace == "" {
+				summary.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.JobSummaryRestore(summary); err != nil {
 				return err
 			}
@@ -944,6 +968,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(version); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if version.Namespace == "" {
+				version.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.JobVersionRestore(version); err != nil {
 				return err
 			}
@@ -953,6 +983,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(deployment); err != nil {
 				return err
 			}
+
+			// COMPAT: Handle upgrade to v0.7.0
+			if deployment.Namespace == "" {
+				deployment.Namespace = structs.DefaultNamespace
+			}
+
 			if err := restore.DeploymentRestore(deployment); err != nil {
 				return err
 			}
