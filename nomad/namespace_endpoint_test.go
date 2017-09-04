@@ -213,6 +213,23 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 	assert.NotEqual(uint64(0), resp.Index)
 }
 
+func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Delete the default namespace
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{structs.DefaultNamespace},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp))
+}
+
 func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
