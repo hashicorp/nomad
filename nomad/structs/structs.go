@@ -20,10 +20,13 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -33,8 +36,13 @@ import (
 )
 
 var (
-	ErrNoLeader     = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath = fmt.Errorf("No path to region")
+	ErrNoLeader         = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath     = fmt.Errorf("No path to region")
+	ErrTokenNotFound    = errors.New("ACL token not found")
+	ErrPermissionDenied = errors.New("Permission denied")
+
+	// validPolicyName is used to validate a policy name
+	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 type MessageType uint8
@@ -59,6 +67,11 @@ const (
 	DeploymentAllocHealthRequestType
 	DeploymentDeleteRequestType
 	JobStabilityRequestType
+	ACLPolicyUpsertRequestType
+	ACLPolicyDeleteRequestType
+	ACLTokenUpsertRequestType
+	ACLTokenDeleteRequestType
+	ACLTokenBootstrapRequestType
 )
 
 const (
@@ -87,6 +100,19 @@ const (
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"
+
+	// maxPolicyDescriptionLength limits a policy description length
+	maxPolicyDescriptionLength = 256
+
+	// maxTokenNameLength limits a ACL token name length
+	maxTokenNameLength = 64
+
+	// ACLClientToken and ACLManagementToken are the only types of tokens
+	ACLClientToken     = "client"
+	ACLManagementToken = "management"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -127,6 +153,9 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -145,6 +174,9 @@ func (q QueryOptions) AllowStaleRead() bool {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (w WriteRequest) RequestRegion() string {
@@ -5323,4 +5355,309 @@ func IsRecoverable(e error) bool {
 		return re.IsRecoverable()
 	}
 	return false
+}
+
+// ACLPolicy is used to represent an ACL policy
+type ACLPolicy struct {
+	Name        string // Unique name
+	Description string // Human readable
+	Rules       string // HCL or JSON format
+	Hash        []byte
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL policy
+func (c *ACLPolicy) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(c.Name))
+	hash.Write([]byte(c.Description))
+	hash.Write([]byte(c.Rules))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	c.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLPolicy) Stub() *ACLPolicyListStub {
+	return &ACLPolicyListStub{
+		Name:        a.Name,
+		Description: a.Description,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+func (a *ACLPolicy) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(a.Name) {
+		err := fmt.Errorf("invalid name '%s'", a.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if _, err := acl.Parse(a.Rules); err != nil {
+		err = fmt.Errorf("failed to parse rules: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(a.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLPolicyListStub is used to for listing ACL policies
+type ACLPolicyListStub struct {
+	Name        string
+	Description string
+	Hash        []byte
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLPolicyListRequest is used to request a list of policies
+type ACLPolicyListRequest struct {
+	QueryOptions
+}
+
+// ACLPolicySpecificRequest is used to query a specific policy
+type ACLPolicySpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// ACLPolicySetRequest is used to query a set of policies
+type ACLPolicySetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// ACLPolicyListResponse is used for a list request
+type ACLPolicyListResponse struct {
+	Policies []*ACLPolicyListStub
+	QueryMeta
+}
+
+// SingleACLPolicyResponse is used to return a single policy
+type SingleACLPolicyResponse struct {
+	Policy *ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicySetResponse is used to return a set of policies
+type ACLPolicySetResponse struct {
+	Policies map[string]*ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicyDeleteRequest is used to delete a set of policies
+type ACLPolicyDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLPolicyUpsertRequest is used to upsert a set of policies
+type ACLPolicyUpsertRequest struct {
+	Policies []*ACLPolicy
+	WriteRequest
+}
+
+// ACLToken represents a client token which is used to Authenticate
+type ACLToken struct {
+	AccessorID  string   // Public Accessor ID (UUID)
+	SecretID    string   // Secret ID, private (UUID)
+	Name        string   // Human friendly name
+	Type        string   // Client or Management
+	Policies    []string // Policies this token ties to
+	Global      bool     // Global or Region local
+	Hash        []byte
+	CreateTime  time.Time // Time of creation
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+var (
+	// AnonymousACLToken is used no SecretID is provided, and the
+	// request is made anonymously.
+	AnonymousACLToken = &ACLToken{
+		AccessorID: "anonymous",
+		Name:       "Anonymous Token",
+		Type:       ACLClientToken,
+		Policies:   []string{"anonymous"},
+		Global:     false,
+	}
+)
+
+type ACLTokenListStub struct {
+	AccessorID  string
+	Name        string
+	Type        string
+	Policies    []string
+	Global      bool
+	Hash        []byte
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL token
+func (a *ACLToken) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(a.Name))
+	hash.Write([]byte(a.Type))
+	for _, policyName := range a.Policies {
+		hash.Write([]byte(policyName))
+	}
+	if a.Global {
+		hash.Write([]byte("global"))
+	} else {
+		hash.Write([]byte("local"))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	a.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLToken) Stub() *ACLTokenListStub {
+	return &ACLTokenListStub{
+		AccessorID:  a.AccessorID,
+		Name:        a.Name,
+		Type:        a.Type,
+		Policies:    a.Policies,
+		Global:      a.Global,
+		Hash:        a.Hash,
+		CreateTime:  a.CreateTime,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// Validate is used to sanity check a token
+func (a *ACLToken) Validate() error {
+	var mErr multierror.Error
+	if len(a.Name) > maxTokenNameLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token name too long"))
+	}
+	switch a.Type {
+	case ACLClientToken:
+		if len(a.Policies) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("client token missing policies"))
+		}
+	case ACLManagementToken:
+		if len(a.Policies) != 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("management token cannot be associated with policies"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// PolicySubset checks if a given set of policies is a subset of the token
+func (a *ACLToken) PolicySubset(policies []string) bool {
+	// Hot-path the management tokens, superset of all policies.
+	if a.Type == ACLManagementToken {
+		return true
+	}
+	associatedPolicies := make(map[string]struct{}, len(a.Policies))
+	for _, policy := range a.Policies {
+		associatedPolicies[policy] = struct{}{}
+	}
+	for _, policy := range policies {
+		if _, ok := associatedPolicies[policy]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// ACLTokenListRequest is used to request a list of tokens
+type ACLTokenListRequest struct {
+	GlobalOnly bool
+	QueryOptions
+}
+
+// ACLTokenSpecificRequest is used to query a specific token
+type ACLTokenSpecificRequest struct {
+	AccessorID string
+	QueryOptions
+}
+
+// ACLTokenSetRequest is used to query a set of tokens
+type ACLTokenSetRequest struct {
+	AccessorIDS []string
+	QueryOptions
+}
+
+// ACLTokenListResponse is used for a list request
+type ACLTokenListResponse struct {
+	Tokens []*ACLTokenListStub
+	QueryMeta
+}
+
+// SingleACLTokenResponse is used to return a single token
+type SingleACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenSetResponse is used to return a set of token
+type ACLTokenSetResponse struct {
+	Tokens map[string]*ACLToken // Keyed by Accessor ID
+	QueryMeta
+}
+
+// ResolveACLTokenRequest is used to resolve a specific token
+type ResolveACLTokenRequest struct {
+	SecretID string
+	QueryOptions
+}
+
+// ResolveACLTokenResponse is used to resolve a single token
+type ResolveACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenDeleteRequest is used to delete a set of tokens
+type ACLTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenBootstrapRequest is used to bootstrap ACLs
+type ACLTokenBootstrapRequest struct {
+	Token *ACLToken // Not client specifiable
+	WriteRequest
+}
+
+// ACLTokenUpsertRequest is used to upsert a set of tokens
+type ACLTokenUpsertRequest struct {
+	Tokens []*ACLToken
+	WriteRequest
+}
+
+// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
+type ACLTokenUpsertResponse struct {
+	Tokens []*ACLToken
+	WriteMeta
 }

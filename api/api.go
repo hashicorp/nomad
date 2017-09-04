@@ -41,6 +41,9 @@ type QueryOptions struct {
 
 	// Set HTTP parameters on the query.
 	Params map[string]string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // WriteOptions are used to parameterize a write
@@ -48,6 +51,9 @@ type WriteOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config
 	Region string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // QueryMeta is used to return meta data about a query
@@ -97,6 +103,9 @@ type Config struct {
 	// httpClient is the client to use. Default will be used if not provided.
 	httpClient *http.Client
 
+	// SecretID to use. This can be overwritten per request.
+	SecretID string
+
 	// HttpAuth is the auth info to use for http access.
 	HttpAuth *HttpBasicAuth
 
@@ -121,6 +130,7 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     region,
 		httpClient: defaultConfig.httpClient,
+		SecretID:   c.SecretID,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
@@ -217,7 +227,9 @@ func DefaultConfig() *Config {
 			config.TLSConfig.Insecure = insecure
 		}
 	}
-
+	if v := os.Getenv("NOMAD_TOKEN"); v != "" {
+		config.SecretID = v
+	}
 	return config
 }
 
@@ -345,12 +357,18 @@ func (c *Client) getNodeClientImpl(nodeID string, q *QueryOptions, lookup nodeLo
 	return NewClient(conf)
 }
 
+// SetSecretID sets the ACL token secret for API requests.
+func (c *Client) SetSecretID(secretID string) {
+	c.config.SecretID = secretID
+}
+
 // request is used to help build up a request
 type request struct {
 	config *Config
 	method string
 	url    *url.URL
 	params url.Values
+	token  string
 	body   io.Reader
 	obj    interface{}
 }
@@ -363,6 +381,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.SecretID != "" {
+		r.token = q.SecretID
 	}
 	if q.AllowStale {
 		r.params.Set("stale", "")
@@ -394,6 +415,9 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.SecretID != "" {
+		r.token = q.SecretID
 	}
 }
 
@@ -427,6 +451,10 @@ func (r *request) toHTTP() (*http.Request, error) {
 	}
 
 	req.Header.Add("Accept-Encoding", "gzip")
+	if r.token != "" {
+		req.Header.Set("X-Nomad-Token", r.token)
+	}
+
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
 	req.Host = r.url.Host
@@ -456,6 +484,9 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 	}
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
+	}
+	if c.config.SecretID != "" {
+		r.token = r.config.SecretID
 	}
 
 	// Add in the query parameters, if any

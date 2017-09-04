@@ -150,6 +150,9 @@ type Client struct {
 	// garbageCollector is used to garbage collect terminal allocations present
 	// in the node automatically
 	garbageCollector *AllocGarbageCollector
+
+	// clientACLResolver holds the ACL resolution state
+	clientACLResolver
 }
 
 var (
@@ -190,6 +193,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
+	}
+
+	// Initialize the ACL state
+	if err := c.clientACLResolver.init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
 	}
 
 	// Add the stats collector

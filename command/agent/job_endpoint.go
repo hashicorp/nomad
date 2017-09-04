@@ -349,6 +349,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 	s.parseRegion(req, &args.Region)
+	s.parseToken(req, &args.SecretID)
 
 	sJob := ApiJobToStructJob(args.Job)
 
@@ -357,7 +358,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		WriteRequest: structs.WriteRequest{
-			Region: args.WriteRequest.Region,
+			Region:   args.WriteRequest.Region,
+			SecretID: args.WriteRequest.SecretID,
 		},
 	}
 	var out structs.JobRegisterResponse

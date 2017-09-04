@@ -30,6 +30,21 @@ func getPort() int {
 	return 1030 + int(rand.Int31n(6440))
 }
 
+func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
+	server, addr := testServer(t, func(c *nomad.Config) {
+		c.ACLEnabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	token := mock.ACLManagementToken()
+	err := server.State().BootstrapACLTokens(1, token)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACL token: %v", err)
+	}
+	return server, addr, token
+}
+
 func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	// Setup the default settings
 	config := nomad.DefaultConfig()

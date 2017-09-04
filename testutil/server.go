@@ -42,6 +42,7 @@ type TestServerConfig struct {
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
 	Vault             *VaultConfig  `json:"vault,omitempty"`
+	ACL               *ACLConfig    `json:"acl,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
@@ -73,6 +74,11 @@ type ClientConfig struct {
 
 // VaultConfig is used to configure Vault
 type VaultConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ACLConfig is used to configure ACLs
+type ACLConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -108,6 +114,9 @@ func defaultServerConfig() *TestServerConfig {
 			Enabled: false,
 		},
 		Vault: &VaultConfig{
+			Enabled: false,
+		},
+		ACL: &ACLConfig{
 			Enabled: false,
 		},
 	}
