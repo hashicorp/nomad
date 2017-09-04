@@ -5694,7 +5694,7 @@ func TestStateStore_DeleteVaultAccessors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1000 {
+	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
 
@@ -5877,7 +5877,7 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1001 {
+	if index != 1000 {
 		t.Fatalf("bad: %d", index)
 	}
 
