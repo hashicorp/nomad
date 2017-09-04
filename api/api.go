@@ -130,7 +130,6 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     region,
 		httpClient: defaultConfig.httpClient,
-		Region:     c.Region,
 		SecretID:   c.SecretID,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
