@@ -197,6 +197,7 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// TODO(alex): Remove before releasing
 	if jobSummary.Namespace == "" {
 		panic("empty namespace")
 	}

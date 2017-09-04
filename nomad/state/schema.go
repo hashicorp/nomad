@@ -117,7 +117,7 @@ func jobTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the tuple of (ID, Namespace) is
+				// Use a compound index so the tuple of (Namespace, ID) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
@@ -170,7 +170,7 @@ func jobSummarySchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the tuple of (JobID, Namespace) is
+				// Use a compound index so the tuple of (Namespace, JobID) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
@@ -199,7 +199,7 @@ func jobVersionSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the tuple of (JobID, Version) is
+				// Use a compound index so the tuple of (Namespace, ID, Version) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
@@ -301,7 +301,7 @@ func deploymentSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       false,
 
-				// Use a compound index so the tuple of (JobID, Namespace) is
+				// Use a compound index so the tuple of (Namespace, JobID) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
@@ -333,7 +333,7 @@ func periodicLaunchTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the tuple of (Job.ID, Namespace) is
+				// Use a compound index so the tuple of (Namespace, JobID) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
