@@ -38,8 +38,13 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	}
 
 	// Update via Raft
-	_, index, err := n.srv.raftApply(structs.NamespaceUpsertRequestType, args)
+	out, index, err := n.srv.raftApply(structs.NamespaceUpsertRequestType, args)
 	if err != nil {
+		return err
+	}
+
+	// Check if there was an error when applying.
+	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -60,9 +65,20 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		return fmt.Errorf("must specify at least one namespace to delete")
 	}
 
+	for _, ns := range args.Namespaces {
+		if ns == structs.DefaultNamespace {
+			return fmt.Errorf("can not delete default namespace")
+		}
+	}
+
 	// Update via Raft
-	_, index, err := n.srv.raftApply(structs.NamespaceDeleteRequestType, args)
+	out, index, err := n.srv.raftApply(structs.NamespaceDeleteRequestType, args)
 	if err != nil {
+		return err
+	}
+
+	// Check if there was an error when applying.
+	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 

@@ -203,6 +203,12 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		go s.replicateACLPolicies(stopCh)
 		go s.replicateACLTokens(stopCh)
 	}
+
+	// Setup any enterprise systems required.
+	if err := s.establishEnterpriseLeadership(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -511,6 +517,11 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the deployment watcher as it is only useful as a leader.
 	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
+		return err
+	}
+
+	// Disable any enterprise systems required.
+	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
 	}
 
