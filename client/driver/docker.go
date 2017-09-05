@@ -1017,20 +1017,22 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 			ReadOnly: m.ReadOnly,
 		}
 		if len(m.VolumeOptions) == 1 {
+			vo := m.VolumeOptions[0]
 			hm.VolumeOptions = &docker.VolumeOptions{
-				NoCopy: m.VolumeOptions[0].NoCopy,
+				NoCopy: vo.NoCopy,
 			}
 
-			if len(m.VolumeOptions[0].DriverConfig) == 1 {
+			if len(vo.DriverConfig) == 1 {
+				dc := vo.DriverConfig[0]
 				hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
-					Name: m.VolumeOptions[0].DriverConfig[0].Name,
+					Name: dc.Name,
 				}
-				if len(m.VolumeOptions[0].DriverConfig[0].Options) == 1 {
-					hm.VolumeOptions.DriverConfig.Options = m.VolumeOptions[0].DriverConfig[0].Options[0]
+				if len(dc.Options) == 1 {
+					hm.VolumeOptions.DriverConfig.Options = dc.Options[0]
 				}
 			}
-			if len(m.VolumeOptions[0].Labels) == 1 {
-				hm.VolumeOptions.Labels = m.VolumeOptions[0].Labels[0]
+			if len(vo.Labels) == 1 {
+				hm.VolumeOptions.Labels = vo.Labels[0]
 			}
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
