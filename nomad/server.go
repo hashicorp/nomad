@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
-	"github.com/hashicorp/sentinel/sentinel"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -167,8 +166,8 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
 
-	// sentinel is a shared instance of the policy engine
-	sentinel *sentinel.Sentinel
+	// EnterpriseState is used to fill in state for Pro/Ent builds
+	EnterpriseState
 
 	left         bool
 	shutdown     bool
@@ -191,7 +190,6 @@ type endpoints struct {
 	System     *System
 	Operator   *Operator
 	ACL        *ACL
-	Sentinel   *Sentinel
 	Enterprise *EnterpriseEndpoints
 }
 
@@ -246,23 +244,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, err
 	}
 
-	// Setup the sentinel configuration
-	sentConf := &sentinel.Config{
-		Imports: make(map[string]*sentinel.Import),
-	}
-	if config.SentinelConfig != nil {
-		for _, sImport := range config.SentinelConfig.Imports {
-			sentConf.Imports[sImport.Name] = &sentinel.Import{
-				Path: sImport.Path,
-				Args: sImport.Args,
-			}
-			logger.Printf("[DEBUG] nomad.sentinel: enabling import %q via %q", sImport.Name, sImport.Path)
-		}
-	}
-
-	// Create the Sentinel instance based on the configuration
-	sent := sentinel.New(sentConf)
-
 	// Create the server
 	s := &Server{
 		config:        config,
@@ -279,7 +260,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		planQueue:     planQueue,
 		rpcTLS:        incomingTLS,
 		aclCache:      aclCache,
-		sentinel:      sent,
 		shutdownCh:    make(chan struct{}),
 	}
 
@@ -332,6 +312,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
 
+	// Setup the enterprise state
+	if err := s.setupEnterprise(config); err != nil {
+		return nil, err
+	}
+
 	// Monitor leadership changes
 	go s.monitorLeadership()
 
@@ -356,10 +341,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Emit metrics
 	go s.heartbeatStats()
 
-	// GC Sentinel policies if enabled
-	if s.config.ACLEnabled {
-		go s.gcSentinelPolicies(s.shutdownCh)
-	}
+	// Start enterprise background workers
+	s.startEnterpriseBackground()
 
 	// Done
 	return s, nil
@@ -762,7 +745,6 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Periodic = &Periodic{s}
 	s.endpoints.Plan = &Plan{s}
 	s.endpoints.Region = &Region{s}
-	s.endpoints.Sentinel = &Sentinel{s}
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
 	s.endpoints.Search = &Search{s}
@@ -779,7 +761,6 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Periodic)
 	s.rpcServer.Register(s.endpoints.Plan)
 	s.rpcServer.Register(s.endpoints.Region)
-	s.rpcServer.Register(s.endpoints.Sentinel)
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
 	s.rpcServer.Register(s.endpoints.Search)
