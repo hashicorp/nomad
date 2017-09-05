@@ -7,6 +7,7 @@ BUG FIXES:
  * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
+ * cli: Handle reading files that are in a symlinked directory [GH-3164]
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
