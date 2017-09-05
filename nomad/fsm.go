@@ -45,12 +45,6 @@ const (
 	ACLTokenSnapshot
 )
 
-// Offset all the Enterprise-specific values so that we don't overlap
-// the OSS/Enterprise values.
-const (
-	SentinelPolicySnapshot SnapshotType = (64 + iota)
-)
-
 // LogApplier is the definition of a function that can apply a Raft log
 type LogApplier func(buf []byte, index uint64) interface{}
 
@@ -214,17 +208,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenDelete(buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
-	case structs.SentinelPolicyUpsertRequestType:
-		return n.applySentinelPolicyUpsert(buf[1:], log.Index)
-	case structs.SentinelPolicyDeleteRequestType:
-		return n.applySentinelPolicyDelete(buf[1:], log.Index)
-	default:
-		if ignoreUnknown {
-			n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
-			return nil
-		} else {
-			panic(fmt.Errorf("failed to apply request: %#v", buf))
-		}
 	}
 
 	// Check enterprise only message types.
@@ -816,36 +799,6 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 	return nil
 }
 
-// applySentinelPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applySentinelPolicyUpsert(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_sentinel_policy_upsert"}, time.Now())
-	var req structs.SentinelPolicyUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertSentinelPolicies(index, req.Policies); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertSentinelPolicies failed: %v", err)
-		return err
-	}
-	return nil
-}
-
-// applySentinelPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applySentinelPolicyDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_sentinel_policy_delete"}, time.Now())
-	var req structs.SentinelPolicyDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteSentinelPolicies(index, req.Names); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteSentinelPolicies failed: %v", err)
-		return err
-	}
-	return nil
-}
-
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1055,15 +1008,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.ACLTokenRestore(token); err != nil {
-				return err
-			}
-
-		case SentinelPolicySnapshot:
-			policy := new(structs.SentinelPolicy)
-			if err := dec.Decode(policy); err != nil {
-				return err
-			}
-			if err := restore.SentinelPolicyRestore(policy); err != nil {
 				return err
 			}
 
@@ -1288,10 +1232,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLTokens(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistSentinelPolicies(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1625,34 +1565,6 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		// Write out a token registration
 		sink.Write([]byte{byte(ACLTokenSnapshot)})
 		if err := encoder.Encode(token); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistSentinelPolicies(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-	// Get all the policies
-	ws := memdb.NewWatchSet()
-	policies, err := s.snap.SentinelPolicies(ws)
-	if err != nil {
-		return err
-	}
-
-	for {
-		// Get the next item
-		raw := policies.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		policy := raw.(*structs.SentinelPolicy)
-
-		// Write out a policy registration
-		sink.Write([]byte{byte(SentinelPolicySnapshot)})
-		if err := encoder.Encode(policy); err != nil {
 			return err
 		}
 	}
