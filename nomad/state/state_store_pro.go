@@ -15,6 +15,12 @@ func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namesp
 	defer txn.Abort()
 
 	for _, ns := range namespaces {
+		// Ensure the namespace hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(ns.Hash) == 0 {
+			ns.SetHash()
+		}
+
 		// Check if the namespace already exists
 		existing, err := txn.First(TableNamespaces, "id", ns.Name)
 		if err != nil {

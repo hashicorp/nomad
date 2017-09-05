@@ -5,6 +5,8 @@ package structs
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespace_Validate(t *testing.T) {
@@ -68,4 +70,23 @@ func TestNamespace_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNamespace_SetHash(t *testing.T) {
+	assert := assert.New(t)
+	ns := &Namespace{
+		Name:        "foo",
+		Description: "bar",
+	}
+	out1 := ns.SetHash()
+	assert.NotNil(out1)
+	assert.NotNil(ns.Hash)
+	assert.Equal(out1, ns.Hash)
+
+	ns.Description = "bam"
+	out2 := ns.SetHash()
+	assert.NotNil(out2)
+	assert.NotNil(ns.Hash)
+	assert.Equal(out2, ns.Hash)
+	assert.NotEqual(out1, out2)
 }
