@@ -136,22 +136,22 @@ type DockerLoggingOpts struct {
 }
 
 type DockerMount struct {
-	Target        string               `mapstructure:"target"`
-	Source        string               `mapstructure:"source"`
-	ReadOnly      bool                 `mapstructure:"readonly"`
-	VolumeOptions *DockerVolumeOptions `mapstructure:"volume_options"`
+	Target        string                 `mapstructure:"target"`
+	Source        string                 `mapstructure:"source"`
+	ReadOnly      bool                   `mapstructure:"readonly"`
+	VolumeOptions []*DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
 type DockerVolumeOptions struct {
-	NoCopy       bool                     `mapstructure:"no_copy"`
-	Labels       map[string]string        `mapstructure:"labels"`
-	DriverConfig DockerVolumeDriverConfig `mapstructure:"driver_config"`
+	NoCopy       bool                       `mapstructure:"no_copy"`
+	Labels       []map[string]string        `mapstructure:"labels"`
+	DriverConfig []DockerVolumeDriverConfig `mapstructure:"driver_config"`
 }
 
 // VolumeDriverConfig holds a map of volume driver specific options
 type DockerVolumeDriverConfig struct {
-	Name    string            `mapstructure:"name"`
-	Options map[string]string `mapstructure:"options"`
+	Name    string              `mapstructure:"name"`
+	Options []map[string]string `mapstructure:"options"`
 }
 
 type DockerDriverConfig struct {
@@ -259,22 +259,43 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	for i, m := range dconf.Mounts {
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
-		if m.VolumeOptions != nil {
-			if m.VolumeOptions.Labels != nil {
-				for k, v := range m.VolumeOptions.Labels {
+
+		if len(m.VolumeOptions) > 1 {
+			return nil, fmt.Errorf("Only one volume_options stanza allowed")
+		}
+
+		if len(m.VolumeOptions) == 1 {
+			vo := m.VolumeOptions[0]
+			if len(vo.Labels) > 1 {
+				return nil, fmt.Errorf("labels may only be specified once in volume_options stanza")
+			}
+
+			if len(vo.Labels) == 1 {
+				for k, v := range vo.Labels[0] {
 					if k != env.ReplaceEnv(k) {
-						delete(dconf.Mounts[i].VolumeOptions.Labels, k)
+						delete(vo.Labels[0], k)
 					}
-					dconf.Mounts[i].VolumeOptions.Labels[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+					vo.Labels[0][env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 				}
 			}
-			dconf.Mounts[i].VolumeOptions.DriverConfig.Name = env.ReplaceEnv(m.VolumeOptions.DriverConfig.Name)
-			if m.VolumeOptions.DriverConfig.Options != nil {
-				for k, v := range m.VolumeOptions.DriverConfig.Options {
-					if k != env.ReplaceEnv(k) {
-						delete(dconf.Mounts[i].VolumeOptions.DriverConfig.Options, k)
+
+			if len(vo.DriverConfig) > 1 {
+				return nil, fmt.Errorf("volume driver config may only be specified once")
+			}
+			if len(vo.DriverConfig) == 1 {
+				vo.DriverConfig[0].Name = env.ReplaceEnv(vo.DriverConfig[0].Name)
+				if len(vo.DriverConfig[0].Options) > 1 {
+					return nil, fmt.Errorf("volume driver options may only be specified once")
+				}
+
+				if len(vo.DriverConfig[0].Options) == 1 {
+					options := vo.DriverConfig[0].Options[0]
+					for k, v := range options {
+						if k != env.ReplaceEnv(k) {
+							delete(options, k)
+						}
+						options[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 					}
-					dconf.Mounts[i].VolumeOptions.DriverConfig.Options[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
 				}
 			}
 		}
@@ -995,14 +1016,21 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 			Type:     "volume", // Only type supported
 			ReadOnly: m.ReadOnly,
 		}
-		if m.VolumeOptions != nil {
+		if len(m.VolumeOptions) == 1 {
 			hm.VolumeOptions = &docker.VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
-				DriverConfig: docker.VolumeDriverConfig{
-					Name:    m.VolumeOptions.DriverConfig.Name,
-					Options: m.VolumeOptions.DriverConfig.Options,
-				},
+				NoCopy: m.VolumeOptions[0].NoCopy,
+			}
+
+			if len(m.VolumeOptions[0].DriverConfig) == 1 {
+				hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
+					Name: m.VolumeOptions[0].DriverConfig[0].Name,
+				}
+				if len(m.VolumeOptions[0].DriverConfig[0].Options) == 1 {
+					hm.VolumeOptions.DriverConfig.Options = m.VolumeOptions[0].DriverConfig[0].Options[0]
+				}
+			}
+			if len(m.VolumeOptions[0].Labels) == 1 {
+				hm.VolumeOptions.Labels = m.VolumeOptions[0].Labels[0]
 			}
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
