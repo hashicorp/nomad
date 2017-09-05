@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,4 +63,29 @@ func TestNamespaceDeleteCommand_Good(t *testing.T) {
 	namespaces, _, err := client.Namespaces().List(nil)
 	assert.Nil(t, err)
 	assert.Len(t, namespaces, 1)
+}
+
+func TestNamespaceDeleteCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &NamespaceDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a namespace other than default
+	ns := &api.Namespace{
+		Name: "diddo",
+	}
+	_, err := client.Namespaces().Register(ns, nil)
+	assert.Nil(err)
+
+	args := complete.Args{Last: "d"}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(ns.Name, res[0])
 }

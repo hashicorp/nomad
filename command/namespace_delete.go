@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -29,8 +30,28 @@ func (c *NamespaceDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NamespaceDeleteCommand) AutocompleteArgs() complete.Predictor {
-	// TODO
-	return complete.PredictNothing
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Namespaces, nil)
+		if err != nil {
+			return []string{}
+		}
+
+		// Filter out the default namespace
+		matches := resp.Matches[contexts.Namespaces]
+		var i int
+		for i = 0; i < len(matches); i++ {
+			if matches[i] == "default" {
+				break
+			}
+		}
+		matches = append(matches[:i], matches[i+1:]...)
+		return matches
+	})
 }
 
 func (c *NamespaceDeleteCommand) Synopsis() string {
