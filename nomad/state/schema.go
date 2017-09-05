@@ -43,7 +43,6 @@ func init() {
 		vaultAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
-		sentinelPolicyTableSchema,
 	}...)
 }
 
@@ -586,32 +585,6 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.FieldSetIndex{
 					Field: "Global",
-				},
-			},
-		},
-	}
-}
-
-// sentinelPolicyTableSchema turns the MemDB schema for the sentinel policy table.
-// This table is used to store the policies which are enforced.
-func sentinelPolicyTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "sentinel_policy",
-		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Name",
-				},
-			},
-			"scope": &memdb.IndexSchema{
-				Name:         "scope",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Scope",
 				},
 			},
 		},
