@@ -89,6 +89,8 @@ func TestConfig_Merge(t *testing.T) {
 				ReservedPorts:       "1,10-30,55",
 				ParsedReservedPorts: []int{1, 2, 4},
 			},
+			DisableTaggedMetrics:       true,
+			BackwardsCompatibleMetrics: true,
 		},
 		Server: &ServerConfig{
 			Enabled:                false,

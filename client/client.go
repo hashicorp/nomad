@@ -2033,6 +2033,8 @@ func (c *Client) emitHostStats() {
 	c.setGaugeForUptime(hStats)
 	c.setGaugeForCPUStats(nodeID, hStats)
 	c.setGaugeForDiskStats(nodeID, hStats)
+
+	// TODO: This should be moved to emitClientMetrics
 	c.setGaugeForAllocationStats(nodeID)
 }
 
