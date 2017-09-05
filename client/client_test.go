@@ -148,6 +148,10 @@ func TestClient_BaseLabels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// directly invoke this function, as otherwise this will fail on a CI build
+	// due to a race condition
+	client.emitStats()
+
 	baseLabels := client.baseLabels
 	assert.NotEqual(0, len(baseLabels))
 
