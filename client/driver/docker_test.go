@@ -1376,6 +1376,186 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Mounts(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.SkipNow()
+	}
+
+	goodMount := map[string]interface{}{
+		"target": "/nomad",
+		"volume_options": []interface{}{
+			map[string]interface{}{
+				"labels": []interface{}{
+					map[string]string{"foo": "bar"},
+				},
+				"driver_config": []interface{}{
+					map[string]interface{}{
+						"name": "local",
+						"options": []interface{}{
+							map[string]interface{}{
+								"foo": "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		"readonly": true,
+		"source":   "test",
+	}
+
+	cases := []struct {
+		Name   string
+		Mounts []interface{}
+		Error  string
+	}{
+		{
+			Name:   "good-one",
+			Error:  "",
+			Mounts: []interface{}{goodMount},
+		},
+		{
+			Name:   "good-many",
+			Error:  "",
+			Mounts: []interface{}{goodMount, goodMount, goodMount},
+		},
+		{
+			Name:  "multiple volume options",
+			Error: "Only one volume_options stanza allowed",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"target": "/nomad",
+					"volume_options": []interface{}{
+						map[string]interface{}{
+							"driver_config": []interface{}{
+								map[string]interface{}{
+									"name": "local",
+								},
+							},
+						},
+						map[string]interface{}{
+							"driver_config": []interface{}{
+								map[string]interface{}{
+									"name": "local",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:  "multiple driver configs",
+			Error: "volume driver config may only be specified once",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"target": "/nomad",
+					"volume_options": []interface{}{
+						map[string]interface{}{
+							"driver_config": []interface{}{
+								map[string]interface{}{
+									"name": "local",
+								},
+								map[string]interface{}{
+									"name": "local",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:  "multiple volume labels",
+			Error: "labels may only be",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"target": "/nomad",
+					"volume_options": []interface{}{
+						map[string]interface{}{
+							"labels": []interface{}{
+								map[string]string{"foo": "bar"},
+								map[string]string{"baz": "bam"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:  "multiple driver options",
+			Error: "driver options may only",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"target": "/nomad",
+					"volume_options": []interface{}{
+						map[string]interface{}{
+							"driver_config": []interface{}{
+								map[string]interface{}{
+									"name": "local",
+									"options": []interface{}{
+										map[string]interface{}{
+											"foo": "bar",
+										},
+										map[string]interface{}{
+											"bam": "bar",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	task := &structs.Task{
+		Name:   "redis-demo",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "/bin/sleep",
+			"args":    []string{"10000"},
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			// Build the task
+			task.Config["mounts"] = c.Mounts
+
+			ctx := testDockerDriverContexts(t, task)
+			driver := NewDockerDriver(ctx.DriverCtx)
+			copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+			defer ctx.AllocDir.Destroy()
+
+			_, err := driver.Prestart(ctx.ExecCtx, task)
+			if err == nil && c.Error != "" {
+				t.Fatalf("expected error: %v", c.Error)
+			} else if err != nil {
+				if c.Error == "" {
+					t.Fatalf("unexpected error in prestart: %v", err)
+				} else if !strings.Contains(err.Error(), c.Error) {
+					t.Fatalf("expected error %q; got %v", c.Error, err)
+				}
+			}
+		})
+	}
+}
+
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
 	if !tu.IsTravis() {
