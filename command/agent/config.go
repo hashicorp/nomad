@@ -229,6 +229,14 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// DisableTaggedMetrics disables a new version of generating metrics which
+	// uses tags
+	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
+
+	// BackwardsCompatibleMetrics allows for generating metrics in a simple
+	// key/value structure as done in older versions of Nomad
+	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -1095,6 +1103,14 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
+	}
+
+	if b.DisableTaggedMetrics {
+		result.DisableTaggedMetrics = b.DisableTaggedMetrics
+	}
+
+	if b.BackwardsCompatibleMetrics {
+		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
 	// Add the servers

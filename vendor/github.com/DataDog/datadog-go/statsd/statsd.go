@@ -27,8 +27,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,35 +54,71 @@ any number greater than that will see frames being cut out.
 */
 const MaxUDPPayloadSize = 65467
 
-// A Client is a handle for sending udp messages to dogstatsd.  It is safe to
+/*
+UnixAddressPrefix holds the prefix to use to enable Unix Domain Socket
+traffic instead of UDP.
+*/
+const UnixAddressPrefix = "unix://"
+
+/*
+Stat suffixes
+*/
+var (
+	gaugeSuffix     = []byte("|g")
+	countSuffix     = []byte("|c")
+	histogramSuffix = []byte("|h")
+	decrSuffix      = []byte("-1|c")
+	incrSuffix      = []byte("1|c")
+	setSuffix       = []byte("|s")
+	timingSuffix    = []byte("|ms")
+)
+
+// A statsdWriter offers a standard interface regardless of the underlying
+// protocol. For now UDS and UPD writers are available.
+type statsdWriter interface {
+	Write(data []byte) error
+	SetWriteTimeout(time.Duration) error
+	Close() error
+}
+
+// A Client is a handle for sending messages to dogstatsd.  It is safe to
 // use one Client from multiple goroutines simultaneously.
 type Client struct {
-	conn net.Conn
+	// Writer handles the underlying networking protocol
+	writer statsdWriter
 	// Namespace to prepend to all statsd calls
 	Namespace string
 	// Tags are global tags to be added to every statsd call
 	Tags []string
+	// skipErrors turns off error passing and allows UDS to emulate UDP behaviour
+	SkipErrors bool
 	// BufferLength is the length of the buffer in commands.
 	bufferLength int
 	flushTime    time.Duration
 	commands     []string
 	buffer       bytes.Buffer
-	stop         bool
+	stop         chan struct{}
 	sync.Mutex
 }
 
-// New returns a pointer to a new Client given an addr in the format "hostname:port".
+// New returns a pointer to a new Client given an addr in the format "hostname:port" or
+// "unix:///path/to/socket".
 func New(addr string) (*Client, error) {
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return nil, err
+	if strings.HasPrefix(addr, UnixAddressPrefix) {
+		w, err := newUdsWriter(addr[len(UnixAddressPrefix)-1:])
+		if err != nil {
+			return nil, err
+		}
+		client := &Client{writer: w}
+		return client, nil
+	} else {
+		w, err := newUdpWriter(addr)
+		if err != nil {
+			return nil, err
+		}
+		client := &Client{writer: w, SkipErrors: false}
+		return client, nil
 	}
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return nil, err
-	}
-	client := &Client{conn: conn}
-	return client, nil
 }
 
 // NewBuffered returns a Client that buffers its output and sends it in chunks.
@@ -95,56 +131,73 @@ func NewBuffered(addr string, buflen int) (*Client, error) {
 	client.bufferLength = buflen
 	client.commands = make([]string, 0, buflen)
 	client.flushTime = time.Millisecond * 100
+	client.stop = make(chan struct{}, 1)
 	go client.watch()
 	return client, nil
 }
 
 // format a message from its name, value, tags and rate.  Also adds global
 // namespace and tags.
-func (c *Client) format(name, value string, tags []string, rate float64) string {
+func (c *Client) format(name string, value interface{}, suffix []byte, tags []string, rate float64) string {
 	var buf bytes.Buffer
 	if c.Namespace != "" {
 		buf.WriteString(c.Namespace)
 	}
 	buf.WriteString(name)
 	buf.WriteString(":")
-	buf.WriteString(value)
+
+	switch val := value.(type) {
+	case float64:
+		buf.Write(strconv.AppendFloat([]byte{}, val, 'f', 6, 64))
+
+	case int64:
+		buf.Write(strconv.AppendInt([]byte{}, val, 10))
+
+	case string:
+		buf.WriteString(val)
+
+	default:
+		// do nothing
+	}
+	buf.Write(suffix)
+
 	if rate < 1 {
 		buf.WriteString(`|@`)
 		buf.WriteString(strconv.FormatFloat(rate, 'f', -1, 64))
 	}
 
-	// do not append to c.Tags directly, because it's shared
-	// across all invocations of this function
-	tagCopy := make([]string, len(c.Tags), len(c.Tags)+len(tags))
-	copy(tagCopy, c.Tags)
-	tags = append(tagCopy, tags...)
-	if len(tags) > 0 {
-		buf.WriteString("|#")
-		buf.WriteString(tags[0])
-		for _, tag := range tags[1:] {
-			buf.WriteString(",")
-			buf.WriteString(tag)
-		}
-	}
+	writeTagString(&buf, c.Tags, tags)
+
 	return buf.String()
 }
 
+// SetWriteTimeout allows the user to set a custom UDS write timeout. Not supported for UDP.
+func (c *Client) SetWriteTimeout(d time.Duration) error {
+	return c.writer.SetWriteTimeout(d)
+}
+
 func (c *Client) watch() {
-	for _ = range time.Tick(c.flushTime) {
-		if c.stop {
+	ticker := time.NewTicker(c.flushTime)
+
+	for {
+		select {
+		case <-ticker.C:
+			c.Lock()
+			if len(c.commands) > 0 {
+				// FIXME: eating error here
+				c.flush()
+			}
+			c.Unlock()
+		case <-c.stop:
+			ticker.Stop()
 			return
 		}
-		c.Lock()
-		if len(c.commands) > 0 {
-			// FIXME: eating error here
-			c.flush()
-		}
-		c.Unlock()
 	}
 }
 
 func (c *Client) append(cmd string) error {
+	c.Lock()
+	defer c.Unlock()
 	c.commands = append(c.commands, cmd)
 	// if we should flush, lets do it
 	if len(c.commands) == c.bufferLength {
@@ -208,7 +261,7 @@ func (c *Client) flush() error {
 	var err error
 	cmdsFlushed := 0
 	for i, data := range frames {
-		_, e := c.conn.Write(data)
+		e := c.writer.Write(data)
 		if e != nil {
 			err = e
 			break
@@ -228,64 +281,65 @@ func (c *Client) flush() error {
 }
 
 func (c *Client) sendMsg(msg string) error {
+	// return an error if message is bigger than MaxUDPPayloadSize
+	if len(msg) > MaxUDPPayloadSize {
+		return errors.New("message size exceeds MaxUDPPayloadSize")
+	}
+
 	// if this client is buffered, then we'll just append this
-	c.Lock()
-	defer c.Unlock()
 	if c.bufferLength > 0 {
-		// return an error if message is bigger than OptimalPayloadSize
-		if len(msg) > MaxUDPPayloadSize {
-			return errors.New("message size exceeds MaxUDPPayloadSize")
-		}
 		return c.append(msg)
 	}
-	_, err := c.conn.Write([]byte(msg))
-	return err
+
+	err := c.writer.Write([]byte(msg))
+
+	if c.SkipErrors {
+		return nil
+	} else {
+		return err
+	}
 }
 
 // send handles sampling and sends the message over UDP. It also adds global namespace prefixes and tags.
-func (c *Client) send(name, value string, tags []string, rate float64) error {
+func (c *Client) send(name string, value interface{}, suffix []byte, tags []string, rate float64) error {
 	if c == nil {
 		return nil
 	}
 	if rate < 1 && rand.Float64() > rate {
 		return nil
 	}
-	data := c.format(name, value, tags, rate)
+	data := c.format(name, value, suffix, tags, rate)
 	return c.sendMsg(data)
 }
 
 // Gauge measures the value of a metric at a particular time.
 func (c *Client) Gauge(name string, value float64, tags []string, rate float64) error {
-	stat := fmt.Sprintf("%f|g", value)
-	return c.send(name, stat, tags, rate)
+	return c.send(name, value, gaugeSuffix, tags, rate)
 }
 
 // Count tracks how many times something happened per second.
 func (c *Client) Count(name string, value int64, tags []string, rate float64) error {
-	stat := fmt.Sprintf("%d|c", value)
-	return c.send(name, stat, tags, rate)
+	return c.send(name, value, countSuffix, tags, rate)
 }
 
 // Histogram tracks the statistical distribution of a set of values.
 func (c *Client) Histogram(name string, value float64, tags []string, rate float64) error {
-	stat := fmt.Sprintf("%f|h", value)
-	return c.send(name, stat, tags, rate)
+	return c.send(name, value, histogramSuffix, tags, rate)
 }
 
-// Decr is just Count of 1
+// Decr is just Count of -1
 func (c *Client) Decr(name string, tags []string, rate float64) error {
-	return c.send(name, "-1|c", tags, rate)
+	return c.send(name, nil, decrSuffix, tags, rate)
 }
 
 // Incr is just Count of 1
 func (c *Client) Incr(name string, tags []string, rate float64) error {
-	return c.send(name, "1|c", tags, rate)
+	return c.send(name, nil, incrSuffix, tags, rate)
 }
 
 // Set counts the number of unique elements in a group.
 func (c *Client) Set(name string, value string, tags []string, rate float64) error {
-	stat := fmt.Sprintf("%s|s", value)
-	return c.send(name, stat, tags, rate)
+	return c.send(name, value, setSuffix, tags, rate)
 }
 
 // Timing sends timing information, it is an alias for TimeInMilliseconds
@@ -296,12 +350,14 @@ func (c *Client) Timing(name string, value time.Duration, tags []string, rate fl
 // TimeInMilliseconds sends timing information in milliseconds.
 // It is flushed by statsd with percentiles, mean and other info (https://github.com/etsy/statsd/blob/master/docs/metric_types.md#timing)
 func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
-	stat := fmt.Sprintf("%f|ms", value)
-	return c.send(name, stat, tags, rate)
+	return c.send(name, value, timingSuffix, tags, rate)
 }
 
 // Event sends the provided Event.
 func (c *Client) Event(e *Event) error {
+	if c == nil {
+		return nil
+	}
 	stat, err := e.Encode(c.Tags...)
 	if err != nil {
 		return err
@@ -325,7 +381,7 @@ func (c *Client) ServiceCheck(sc *ServiceCheck) error {
 }
 
 // SimpleServiceCheck sends an serviceCheck with the provided name and status.
-func (c *Client) SimpleServiceCheck(name string, status serviceCheckStatus) error {
+func (c *Client) SimpleServiceCheck(name string, status ServiceCheckStatus) error {
 	sc := NewServiceCheck(name, status)
 	return c.ServiceCheck(sc)
 }
@@ -335,8 +391,11 @@ func (c *Client) Close() error {
 	if c == nil {
 		return nil
 	}
-	c.stop = true
-	return c.conn.Close()
+	select {
+	case c.stop <- struct{}{}:
+	default:
+	}
+	return c.writer.Close()
 }
 
 // Events support
@@ -458,34 +517,24 @@ func (e Event) Encode(tags ...string) (string, error) {
 		buffer.WriteString(string(e.AlertType))
 	}
 
-	if len(tags)+len(e.Tags) > 0 {
-		all := make([]string, 0, len(tags)+len(e.Tags))
-		all = append(all, tags...)
-		all = append(all, e.Tags...)
-		buffer.WriteString("|#")
-		buffer.WriteString(all[0])
-		for _, tag := range all[1:] {
-			buffer.WriteString(",")
-			buffer.WriteString(tag)
-		}
-	}
+	writeTagString(&buffer, tags, e.Tags)
 
 	return buffer.String(), nil
 }
 
 // ServiceCheck support
 
-type serviceCheckStatus byte
+type ServiceCheckStatus byte
 
 const (
 	// Ok is the "ok" ServiceCheck status
-	Ok serviceCheckStatus = 0
+	Ok ServiceCheckStatus = 0
 	// Warn is the "warning" ServiceCheck status
-	Warn serviceCheckStatus = 1
+	Warn ServiceCheckStatus = 1
 	// Critical is the "critical" ServiceCheck status
-	Critical serviceCheckStatus = 2
+	Critical ServiceCheckStatus = 2
 	// Unknown is the "unknown" ServiceCheck status
-	Unknown serviceCheckStatus = 3
+	Unknown ServiceCheckStatus = 3
 )
 
 // An ServiceCheck is an object that contains status of DataDog service check.
@@ -493,7 +542,7 @@ type ServiceCheck struct {
 	// Name of the service check.  Required.
 	Name string
 	// Status of service check.  Required.
-	Status serviceCheckStatus
+	Status ServiceCheckStatus
 	// Timestamp is a timestamp for the serviceCheck.  If not provided, the dogstatsd
 	// server will set this to the current time.
 	Timestamp time.Time
@@ -507,7 +556,7 @@ type ServiceCheck struct {
 
 // NewServiceCheck creates a new serviceCheck with the given name and status.  Error checking
 // against these values is done at send-time, or upon running sc.Check.
-func NewServiceCheck(name string, status serviceCheckStatus) *ServiceCheck {
+func NewServiceCheck(name string, status ServiceCheckStatus) *ServiceCheck {
 	return &ServiceCheck{
 		Name:   name,
 		Status: status,
@@ -551,17 +600,7 @@ func (sc ServiceCheck) Encode(tags ...string) (string, error) {
 		buffer.WriteString(sc.Hostname)
 	}
 
-	if len(tags)+len(sc.Tags) > 0 {
-		all := make([]string, 0, len(tags)+len(sc.Tags))
-		all = append(all, tags...)
-		all = append(all, sc.Tags...)
-		buffer.WriteString("|#")
-		buffer.WriteString(all[0])
-		for _, tag := range all[1:] {
-			buffer.WriteString(",")
-			buffer.WriteString(tag)
-		}
-	}
+	writeTagString(&buffer, tags, sc.Tags)
 
 	if len(message) != 0 {
 		buffer.WriteString("|m:")
@@ -578,4 +617,28 @@ func (e Event) escapedText() string {
 func (sc ServiceCheck) escapedMessage() string {
 	msg := strings.Replace(sc.Message, "\n", "\\n", -1)
 	return strings.Replace(msg, "m:", `m\:`, -1)
+}
+
+func removeNewlines(str string) string {
+	return strings.Replace(str, "\n", "", -1)
+}
+
+func writeTagString(w io.Writer, tagList1, tagList2 []string) {
+	// the tag lists may be shared with other callers, so we cannot modify
+	// them in any way (which means we cannot append to them either)
+	// therefore we must make an entirely separate copy just for this call
+	totalLen := len(tagList1) + len(tagList2)
+	if totalLen == 0 {
+		return
+	}
+	tags := make([]string, 0, totalLen)
+	tags = append(tags, tagList1...)
+	tags = append(tags, tagList2...)
+
+	io.WriteString(w, "|#")
+	io.WriteString(w, removeNewlines(tags[0]))
+	for _, tag := range tags[1:] {
+		io.WriteString(w, ",")
+		io.WriteString(w, removeNewlines(tag))
+	}
 }

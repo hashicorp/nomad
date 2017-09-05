@@ -357,6 +357,8 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
+		"disable_tagged_metrics",
+		"backwards_compatible_metrics",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
