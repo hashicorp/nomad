@@ -11,6 +11,7 @@ BUG FIXES:
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
    contacting nodes that are using TLS [GH-3127]
+ * driver/docker: Fix issue in which mounts could parse incorrectly [GH-3163]
  * driver/docker: Fix issue where potentially incorrect syslog server address is
    used [GH-3135]
  * jobspec: Allow distinct_host constraint to have L/RTarget set [GH-3136]
