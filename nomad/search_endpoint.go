@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -19,6 +18,11 @@ var (
 	// allContexts are the available contexts which are searched to find matches
 	// for a given prefix
 	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
+		structs.Evals, structs.Deployments, structs.Namespaces}
+
+	// ossContexts are the oss contexts which are searched to find matches
+	// for a given prefix
+	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
 		structs.Evals, structs.Deployments}
 )
 
@@ -51,8 +55,13 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		case *structs.Deployment:
 			id = raw.(*structs.Deployment).ID
 		default:
-			s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
-			continue
+			matchID, ok := getEnterpriseMatch(raw)
+			if !ok {
+				s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
+				continue
+			}
+
+			id = matchID
 		}
 
 		if !strings.HasPrefix(id, prefix) {
@@ -80,7 +89,7 @@ func getResourceIter(context structs.Context, namespace, prefix string, ws memdb
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	default:
-		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+		return getEnterpriseResourceIter(context, namespace, prefix, ws, state)
 	}
 }
 
