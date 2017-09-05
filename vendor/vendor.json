@@ -750,16 +750,16 @@
 			"revisionTime": "2017-06-02T22:43:19Z"
 		},
 		{
-			"checksumSHA1": "Glhu9BTy826XCLfMw7rexQ5mKeY=",
+			"checksumSHA1": "aYYfKsxwxF3pz3YqKlmDVxGMrnM=",
 			"path": "github.com/hashicorp/go-getter",
-			"revision": "6aae8e4e2dee8131187c6a54b52664796e5a02b0",
-			"revisionTime": "2017-07-13T01:23:01Z"
+			"revision": "80eb888f740e980f6585273d48582c74b3a34f88",
+			"revisionTime": "2017-09-05T20:52:06Z"
 		},
 		{
 			"checksumSHA1": "9J+kDr29yDrwsdu2ULzewmqGjpA=",
 			"path": "github.com/hashicorp/go-getter/helper/url",
-			"revision": "2814e6fb2ca5b3bd950c97eff22553ecb3c7f77b",
-			"revisionTime": "2017-07-06T02:51:20Z"
+			"revision": "80eb888f740e980f6585273d48582c74b3a34f88",
+			"revisionTime": "2017-09-05T20:52:06Z"
 		},
 		{
 			"checksumSHA1": "miVF4/7JP0lRwZvFJGKwZWk7aAQ=",
@@ -1293,14 +1293,14 @@
 			"revisionTime": "2017-06-05T21:53:11Z"
 		},
 		{
-			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
-			"path": "golang.org/x/crypto/ssh/terminal",
-			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
-			"revisionTime": "2017-08-07T10:11:13Z"
-        },
-        {
 			"checksumSHA1": "pE9lQ5mMiW10+m6CS9XQDhSACNU=",
 			"path": "golang.org/x/crypto/blake2b",
+			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
+			"revisionTime": "2017-08-07T10:11:13Z"
+		},
+		{
+			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
+			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
 			"revisionTime": "2017-08-07T10:11:13Z"
 		},
