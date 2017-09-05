@@ -1795,15 +1795,21 @@ func authFromHelper(helperName string) authBackend {
 		}
 		helper := dockerAuthHelperPrefix + helperName
 		cmd := exec.Command(helper, "get")
+
+		// Ensure that the HTTPs prefix exists
+		if !strings.HasPrefix(repo, "https://") {
+			repo = fmt.Sprintf("https://%s", repo)
+		}
+
 		cmd.Stdin = strings.NewReader(repo)
 
 		output, err := cmd.Output()
 		if err != nil {
-			switch e := err.(type) {
+			switch err.(type) {
 			default:
 				return nil, err
 			case *exec.ExitError:
-				return nil, fmt.Errorf("%s failed with stderr: %s", helper, string(e.Stderr))
+				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, output)
 			}
 		}
 
