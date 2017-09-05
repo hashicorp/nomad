@@ -1,3 +1,8 @@
+## 0.7 (Unreleased)
+
+IMPROVEMENTS:
+ * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
+
 ## 0.6.3 (Unreleased)
 
 BUG FIXES:
