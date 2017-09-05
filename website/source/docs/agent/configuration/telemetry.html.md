@@ -162,3 +162,12 @@ These `telemetry` parameters apply to
   best use of this is to as a hint for which broker should be used based on
   *where* this particular instance is running (e.g. a specific geographic location or
   datacenter, dc:sfo).
+
+
+### Tagged Metrics
+
+We are slowly moving towards supporting tagged metrics in Nomad. Currently,
+tagged metrics are available on Nomad clients. For more information about how
+tagged metrics are useful for analysis, see this article by DataDog on [tagged
+metrics](https://www.datadoghq.com/blog/the-power-of-tagged-metrics/).
+

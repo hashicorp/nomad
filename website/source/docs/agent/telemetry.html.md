@@ -12,7 +12,14 @@ The Nomad agent collects various runtime metrics about the performance of
 different libraries and subsystems. These metrics are aggregated on a ten
 second interval and are retained for one minute.
 
-To view this data, you must send a signal to the Nomad process: on Unix,
+This data can be accessed via an HTTP endpoint or via sending a signal to the
+Nomad process.
+
+Via HTTP, this data is available at `/metrics`. See
+[Metrics](/api/metrics_endpoint.html) for more information.
+
+
+To view this data via sending a signal to the Nomad process: on Unix,
 this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
 it will dump the current telemetry information to the agent's `stderr`.
 
