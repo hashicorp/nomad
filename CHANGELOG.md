@@ -22,6 +22,8 @@ BUG FIXES:
  * driver/docker: Fix issue in which mounts could parse incorrectly [GH-3163]
  * driver/docker: Fix issue where potentially incorrect syslog server address is
    used [GH-3135]
+ * driver/docker: Fix server url passed to credential helpers and properly
+   capture error output [GH-3165]
  * jobspec: Allow distinct_host constraint to have L/RTarget set [GH-3136]
 
 ## 0.6.2 (August 28, 2017)
