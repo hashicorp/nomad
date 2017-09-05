@@ -79,17 +79,19 @@ func (d *VaultTokenQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfa
 	}
 
 	// The secret isn't renewable, probably the generic secret backend.
+	// TODO This is incorrect when given a non-renewable template. We should
+	// instead to a lookup self to determine the lease duration.
 	dur := vaultRenewDuration(d.secret)
 	if dur < opts.VaultGrace {
-		log.Printf("[TRACE] %s: remaining lease %s is less than grace, skipping sleep", d, dur)
-	} else {
-		log.Printf("[TRACE] %s: token is not renewable, sleeping for %s", d, dur)
-		select {
-		case <-time.After(dur):
-			// The lease is almost expired, it's time to request a new one.
-		case <-d.stopCh:
-			return nil, nil, ErrStopped
-		}
+		dur = opts.VaultGrace
+	}
+
+	log.Printf("[TRACE] %s: token is not renewable, sleeping for %s", d, dur)
+	select {
+	case <-time.After(dur):
+		// The lease is almost expired, it's time to request a new one.
+	case <-d.stopCh:
+		return nil, nil, ErrStopped
 	}
 
 	return nil, nil, ErrLeaseExpired
