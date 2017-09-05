@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
@@ -40,11 +41,10 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 }
 
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
+	assert.Nil(err)
 	defer os.RemoveAll(tmpDir)
 
 	// Start in dev mode so we get a node registration
@@ -54,9 +54,7 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	{
 		cmd := exec.Command("nomad", "init")
 		cmd.Dir = tmpDir
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("error running init: %v", err)
-		}
+		assert.Nil(cmd.Run())
 	}
 
 	{
@@ -74,23 +72,15 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		out, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("error validating example.nomad: %v", err)
-		}
+		assert.Nil(err)
 
 		var req api.JobRegisterRequest
 		dec := json.NewDecoder(bytes.NewReader(out))
-		if err := dec.Decode(&req); err != nil {
-			t.Fatalf("failed to demarshal into register request: %v", err)
-		}
+		assert.Nil(dec.Decode(&req))
 
 		var resp api.JobRegisterResponse
-		if _, err := client.Raw().Write("/v1/jobs", req, &resp, nil); err != nil {
-			t.Fatalf("failed to put job: %v", err)
-		}
-
-		if resp.EvalID == "" {
-			t.Fatalf("didn't create an eval")
-		}
+		_, err = client.Raw().Write("/v1/jobs", req, &resp, nil)
+		assert.Nil(err)
+		assert.NotZero(resp.EvalID)
 	}
 }
