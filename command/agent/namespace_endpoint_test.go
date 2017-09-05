@@ -40,8 +40,8 @@ func TestHTTP_NamespaceList(t *testing.T) {
 		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
 		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"))
 
-		// Check the output
-		assert.Len(obj.([]*structs.Namespace), 3)
+		// Check the output (the 3 we register + default)
+		assert.Len(obj.([]*structs.Namespace), 4)
 	})
 }
 
