@@ -102,7 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 	return complete.Flags{
 		"-address":         complete.PredictAnything,
 		"-region":          complete.PredictAnything,
-		"-namespace":       complete.PredictAnything,
+		"-namespace":       NamespacePredictor(m.Client, nil),
 		"-no-color":        complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
@@ -112,6 +112,9 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-tls-skip-verify": complete.PredictNothing,
 	}
 }
+
+// ApiClientFactory is the signature of a API client factory
+type ApiClientFactory func() (*api.Client, error)
 
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
