@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -42,7 +43,9 @@ type serverParts struct {
 	Expect       int
 	MajorVersion int
 	MinorVersion int
+	Build        version.Version
 	Addr         net.Addr
+	Status       serf.MemberStatus
 }
 
 func (s *serverParts) String() string {
@@ -77,6 +80,11 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
+	build_version, err := version.NewVersion(m.Tags["build"])
+	if err != nil {
+		return false, nil
+	}
+
 	// The "vsn" tag was Version, which is now the MajorVersion number.
 	majorVersionStr := m.Tags["vsn"]
 	majorVersion, err := strconv.Atoi(majorVersionStr)
@@ -103,8 +111,24 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		Addr:         addr,
 		MajorVersion: majorVersion,
 		MinorVersion: minorVersion,
+		Build:        *build_version,
+		Status:       m.Status,
 	}
 	return true, parts
+}
+
+// ServersMeetMinimumVersion returns whether the given alive servers are at least on the
+// given Nomad version
+func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version) bool {
+	for _, member := range members {
+		if valid, parts := isNomadServer(member); valid && parts.Status == serf.StatusAlive {
+			if parts.Build.LessThan(minVersion) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // shuffleStrings randomly shuffles the list of strings

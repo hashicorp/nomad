@@ -32,7 +32,10 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 	// Lookup the allocations
 	get := &structs.AllocListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.AllocListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp); err != nil {
@@ -51,7 +54,11 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 	// Lookup the allocations by prefix
 	get = &structs.AllocListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: alloc.ID[:4]},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+			Prefix:    alloc.ID[:4],
+		},
 	}
 
 	var resp2 structs.AllocListResponse
@@ -95,6 +102,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	req := &structs.AllocListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}

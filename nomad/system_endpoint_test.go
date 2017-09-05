@@ -49,7 +49,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if the job has been GC'd
 		ws := memdb.NewWatchSet()
-		exist, err := state.JobByID(ws, job.ID)
+		exist, err := state.JobByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -78,7 +78,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	}
 
 	// Delete the job summary
-	state.DeleteJobSummary(1001, job.ID)
+	state.DeleteJobSummary(1001, job.Namespace, job.ID)
 
 	// Make the GC request
 	req := &structs.GenericRequest{
@@ -94,7 +94,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if Nomad has reconciled the summary for the job
 		ws := memdb.NewWatchSet()
-		summary, err := state.JobSummaryByID(ws, job.ID)
+		summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -105,7 +105,8 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 		// setting the modifyindex and createindex of the expected summary to
 		// the output so that we can do deep equal
 		expectedSummary := structs.JobSummary{
-			JobID: job.ID,
+			JobID:     job.ID,
+			Namespace: job.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
 				"web": structs.TaskGroupSummary{
 					Queued: 10,

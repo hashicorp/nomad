@@ -192,6 +192,7 @@ type endpoints struct {
 	Operator   *Operator
 	ACL        *ACL
 	Sentinel   *Sentinel
+	Enterprise *EnterpriseEndpoints
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -765,6 +766,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
 	s.endpoints.Search = &Search{s}
+	s.endpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 	// Register the handlers
 	s.rpcServer.Register(s.endpoints.ACL)
@@ -781,6 +783,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
 	s.rpcServer.Register(s.endpoints.Search)
+	s.endpoints.Enterprise.Register(s)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {

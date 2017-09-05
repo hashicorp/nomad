@@ -16,21 +16,26 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 type MockJobEvalDispatcher struct {
-	Jobs map[string]*structs.Job
+	Jobs map[structs.NamespacedID]*structs.Job
 	lock sync.Mutex
 }
 
 func NewMockJobEvalDispatcher() *MockJobEvalDispatcher {
-	return &MockJobEvalDispatcher{Jobs: make(map[string]*structs.Job)}
+	return &MockJobEvalDispatcher{Jobs: make(map[structs.NamespacedID]*structs.Job)}
 }
 
 func (m *MockJobEvalDispatcher) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.Jobs[job.ID] = job
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	m.Jobs[tuple] = job
 	return nil, nil
 }
 
@@ -38,7 +43,7 @@ func (m *MockJobEvalDispatcher) RunningChildren(parent *structs.Job) (bool, erro
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	for _, job := range m.Jobs {
-		if job.ParentID == parent.ID {
+		if job.ParentID == parent.ID && job.Namespace == parent.Namespace {
 			return true, nil
 		}
 	}
@@ -46,12 +51,12 @@ func (m *MockJobEvalDispatcher) RunningChildren(parent *structs.Job) (bool, erro
 }
 
 // LaunchTimes returns the launch times of child jobs in sorted order.
-func (m *MockJobEvalDispatcher) LaunchTimes(p *PeriodicDispatch, parentID string) ([]time.Time, error) {
+func (m *MockJobEvalDispatcher) LaunchTimes(p *PeriodicDispatch, namespace, parentID string) ([]time.Time, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	var launches []time.Time
 	for _, job := range m.Jobs {
-		if job.ParentID != parentID {
+		if job.ParentID != parentID || job.Namespace != namespace {
 			continue
 		}
 
@@ -179,6 +184,22 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	}
 }
 
+func TestPeriodicDispatch_Add_Remove_Namespaced(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	p, _ := testPeriodicDispatcher()
+	job := mock.PeriodicJob()
+	job2 := mock.PeriodicJob()
+	job2.Namespace = "test"
+	assert.Nil(p.Add(job))
+	assert.Nil(p.Add(job2))
+	assert.Len(p.Tracked(), 2)
+
+	assert.Nil(p.Remove(job2.Namespace, job2.ID))
+	assert.Len(p.Tracked(), 1)
+	assert.Equal(p.Tracked()[0], job)
+}
+
 func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
@@ -224,14 +245,18 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	}
 
 	// Check that nothing is created.
-	if _, ok := m.Jobs[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := m.Jobs[tuple]; ok {
 		t.Fatalf("periodic dispatcher created eval at the wrong time")
 	}
 
 	time.Sleep(2 * time.Second)
 
 	// Check that job was launched correctly.
-	times, err := m.LaunchTimes(p, job.ID)
+	times, err := m.LaunchTimes(p, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("failed to get launch times for job %q", job.ID)
 	}
@@ -246,7 +271,7 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 func TestPeriodicDispatch_Remove_Untracked(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
-	if err := p.Remove("foo"); err != nil {
+	if err := p.Remove("ns", "foo"); err != nil {
 		t.Fatalf("Remove failed %v; expected a no-op", err)
 	}
 }
@@ -265,7 +290,7 @@ func TestPeriodicDispatch_Remove_Tracked(t *testing.T) {
 		t.Fatalf("Add didn't track the job: %v", tracked)
 	}
 
-	if err := p.Remove(job.ID); err != nil {
+	if err := p.Remove(job.Namespace, job.ID); err != nil {
 		t.Fatalf("Remove failed %v", err)
 	}
 
@@ -288,7 +313,7 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 	}
 
 	// Remove the job.
-	if err := p.Remove(job.ID); err != nil {
+	if err := p.Remove(job.Namespace, job.ID); err != nil {
 		t.Fatalf("Add failed %v", err)
 	}
 
@@ -296,7 +321,11 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 
 	// Check that an eval wasn't created.
 	d := p.dispatcher.(*MockJobEvalDispatcher)
-	if _, ok := d.Jobs[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := d.Jobs[tuple]; ok {
 		t.Fatalf("Remove didn't cancel creation of an eval")
 	}
 }
@@ -305,7 +334,7 @@ func TestPeriodicDispatch_ForceRun_Untracked(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
 
-	if _, err := p.ForceRun("foo"); err == nil {
+	if _, err := p.ForceRun("ns", "foo"); err == nil {
 		t.Fatal("ForceRun of untracked job should fail")
 	}
 }
@@ -323,12 +352,12 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	}
 
 	// ForceRun the job
-	if _, err := p.ForceRun(job.ID); err != nil {
+	if _, err := p.ForceRun(job.Namespace, job.ID); err != nil {
 		t.Fatalf("ForceRun failed %v", err)
 	}
 
 	// Check that job was launched correctly.
-	launches, err := m.LaunchTimes(p, job.ID)
+	launches, err := m.LaunchTimes(p, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("failed to get launch times for job %q: %v", job.ID, err)
 	}
@@ -357,7 +386,7 @@ func TestPeriodicDispatch_Run_DisallowOverlaps(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Check that only one job was launched.
-	times, err := m.LaunchTimes(p, job.ID)
+	times, err := m.LaunchTimes(p, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("failed to get launch times for job %q", job.ID)
 	}
@@ -386,7 +415,7 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Check that job was launched correctly.
-	times, err := m.LaunchTimes(p, job.ID)
+	times, err := m.LaunchTimes(p, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("failed to get launch times for job %q", job.ID)
 	}
@@ -418,11 +447,55 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 		t.Fatalf("Add failed %v", err)
 	}
 
+	if l := len(p.Tracked()); l != 2 {
+		t.Fatalf("got %d tracked; want 2", l)
+	}
+
 	time.Sleep(2 * time.Second)
 
 	// Check that the jobs were launched correctly.
 	for _, job := range []*structs.Job{job, job2} {
-		times, err := m.LaunchTimes(p, job.ID)
+		times, err := m.LaunchTimes(p, job.Namespace, job.ID)
+		if err != nil {
+			t.Fatalf("failed to get launch times for job %q", job.ID)
+		}
+		if len(times) != 1 {
+			t.Fatalf("incorrect number of launch times for job %q; got %d; want 1", job.ID, len(times))
+		}
+		if times[0] != launch {
+			t.Fatalf("periodic dispatcher created eval for time %v; want %v", times[0], launch)
+		}
+	}
+}
+
+func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
+	t.Parallel()
+	p, m := testPeriodicDispatcher()
+
+	// Create two job that will be launched at the same time.
+	launch := time.Now().Round(1 * time.Second).Add(1 * time.Second)
+	job := testPeriodicJob(launch)
+	job2 := testPeriodicJob(launch)
+	job2.ID = job.ID
+	job2.Namespace = "test"
+
+	// Add them.
+	if err := p.Add(job); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+	if err := p.Add(job2); err != nil {
+		t.Fatalf("Add failed %v", err)
+	}
+
+	if l := len(p.Tracked()); l != 2 {
+		t.Fatalf("got %d tracked; want 2", l)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	// Check that the jobs were launched correctly.
+	for _, job := range []*structs.Job{job, job2} {
+		times, err := m.LaunchTimes(p, job.Namespace, job.ID)
 		if err != nil {
 			t.Fatalf("failed to get launch times for job %q", job.ID)
 		}
@@ -493,7 +566,7 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	}
 
 	for _, job := range toDelete {
-		if err := p.Remove(job.ID); err != nil {
+		if err := p.Remove(job.Namespace, job.ID); err != nil {
 			t.Fatalf("Remove failed %v", err)
 		}
 	}
@@ -501,9 +574,9 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	actual := make(map[string][]time.Time, len(expected))
 	for _, job := range jobs {
-		launches, err := m.LaunchTimes(p, job.ID)
+		launches, err := m.LaunchTimes(p, job.Namespace, job.ID)
 		if err != nil {
-			t.Fatalf("LaunchTimes(%v) failed %v", job.ID, err)
+			t.Fatalf("LaunchTimes(%v, %v) failed %v", job.Namespace, job.ID, err)
 		}
 
 		actual[job.ID] = launches

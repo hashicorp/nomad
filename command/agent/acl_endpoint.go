@@ -84,7 +84,7 @@ func (s *HTTPServer) aclPolicyUpdate(resp http.ResponseWriter, req *http.Request
 	args := structs.ACLPolicyUpsertRequest{
 		Policies: []*structs.ACLPolicy{&policy},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("ACL.UpsertPolicies", &args, &out); err != nil {
@@ -100,7 +100,7 @@ func (s *HTTPServer) aclPolicyDelete(resp http.ResponseWriter, req *http.Request
 	args := structs.ACLPolicyDeleteRequest{
 		Names: []string{policyName},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("ACL.DeletePolicies", &args, &out); err != nil {
@@ -140,7 +140,7 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 
 	// Format the request
 	args := structs.ACLTokenBootstrapRequest{}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.ACLTokenUpsertResponse
 	if err := s.agent.RPC("ACL.Bootstrap", &args, &out); err != nil {
@@ -220,7 +220,7 @@ func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
 	args := structs.ACLTokenUpsertRequest{
 		Tokens: []*structs.ACLToken{&token},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.ACLTokenUpsertResponse
 	if err := s.agent.RPC("ACL.UpsertTokens", &args, &out); err != nil {
@@ -239,7 +239,7 @@ func (s *HTTPServer) aclTokenDelete(resp http.ResponseWriter, req *http.Request,
 	args := structs.ACLTokenDeleteRequest{
 		AccessorIDs: []string{tokenAccessor},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("ACL.DeleteTokens", &args, &out); err != nil {

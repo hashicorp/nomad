@@ -281,6 +281,9 @@ func TestFSM_RegisterJob(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -294,7 +297,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 
 	// Verify we are registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -306,12 +309,16 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify it was added to the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; !ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; !ok {
 		t.Fatal("job not added to periodic runner")
 	}
 
 	// Verify the launch time was tracked.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -330,6 +337,9 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -344,6 +354,9 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -357,7 +370,7 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -366,12 +379,16 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 
 	// Verify it was removed from the periodic launch table.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -387,6 +404,9 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -401,6 +421,9 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: false,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -414,7 +437,7 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -426,12 +449,16 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 
 	// Verify it was removed from the periodic launch table.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1218,7 +1245,7 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 	}
 
 	// Check that the job was created
-	jout, _ := state.JobByID(ws, j.ID)
+	jout, _ := state.JobByID(ws, j.Namespace, j.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1250,6 +1277,9 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 		JobID:      job.ID,
 		JobVersion: job.Version,
 		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobStabilityRequestType, req)
 	if err != nil {
@@ -1262,7 +1292,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 
 	// Check that the stability was updated properly
 	ws := memdb.NewWatchSet()
-	jout, _ := state.JobByIDAndVersion(ws, job.ID, job.Version)
+	jout, _ := state.JobByIDAndVersion(ws, job.Namespace, job.ID, job.Version)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1451,7 +1481,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	}
 
 	// Check that the job was created
-	jout, _ := state.JobByID(ws, j.ID)
+	jout, _ := state.JobByID(ws, j.Namespace, j.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1778,8 +1808,8 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobByID(ws, job1.ID)
-	out2, _ := state2.JobByID(ws, job2.ID)
+	out1, _ := state2.JobByID(ws, job1.Namespace, job1.ID)
+	out2, _ := state2.JobByID(ws, job2.Namespace, job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -1918,18 +1948,26 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	launch1 := &structs.PeriodicLaunch{ID: job1.ID, Launch: time.Now()}
+	launch1 := &structs.PeriodicLaunch{
+		ID:        job1.ID,
+		Namespace: job1.Namespace,
+		Launch:    time.Now(),
+	}
 	state.UpsertPeriodicLaunch(1000, launch1)
 	job2 := mock.Job()
-	launch2 := &structs.PeriodicLaunch{ID: job2.ID, Launch: time.Now()}
+	launch2 := &structs.PeriodicLaunch{
+		ID:        job2.ID,
+		Namespace: job2.Namespace,
+		Launch:    time.Now(),
+	}
 	state.UpsertPeriodicLaunch(1001, launch2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 	ws := memdb.NewWatchSet()
-	out1, _ := state2.PeriodicLaunchByID(ws, launch1.ID)
-	out2, _ := state2.PeriodicLaunchByID(ws, launch2.ID)
+	out1, _ := state2.PeriodicLaunchByID(ws, launch1.Namespace, launch1.ID)
+	out2, _ := state2.PeriodicLaunchByID(ws, launch2.Namespace, launch2.ID)
 
 	if !cmp.Equal(launch1, out1) {
 		t.Fatalf("bad: %v", cmp.Diff(launch1, out1))
@@ -1948,17 +1986,17 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	job1 := mock.Job()
 	state.UpsertJob(1000, job1)
 	ws := memdb.NewWatchSet()
-	js1, _ := state.JobSummaryByID(ws, job1.ID)
+	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
 	state.UpsertJob(1001, job2)
-	js2, _ := state.JobSummaryByID(ws, job2.ID)
+	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobSummaryByID(ws, job1.ID)
-	out2, _ := state2.JobSummaryByID(ws, job2.ID)
+	out1, _ := state2.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	out2, _ := state2.JobSummaryByID(ws, job2.Namespace, job2.ID)
 	if !reflect.DeepEqual(js1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", js1, out1)
 	}
@@ -2005,8 +2043,8 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobByIDAndVersion(ws, job1.ID, job1.Version)
-	out2, _ := state2.JobByIDAndVersion(ws, job2.ID, job2.Version)
+	out1, _ := state2.JobByIDAndVersion(ws, job1.Namespace, job1.ID, job1.Version)
+	out2, _ := state2.JobByIDAndVersion(ws, job2.Namespace, job2.ID, job2.Version)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -2111,7 +2149,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
 
 	// Delete the summary
-	state.DeleteJobSummary(1040, alloc.Job.ID)
+	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
 
 	// Delete the index
 	if err := state.RemoveIndex("job_summary"); err != nil {
@@ -2123,9 +2161,10 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	latestIndex, _ := state.LatestIndex()
 
 	ws := memdb.NewWatchSet()
-	out, _ := state2.JobSummaryByID(ws, alloc.Job.ID)
+	out, _ := state2.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected := structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Starting: 1,
@@ -2161,8 +2200,8 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
 
 	// Delete the summaries
-	state.DeleteJobSummary(1030, job1.ID)
-	state.DeleteJobSummary(1040, alloc.Job.ID)
+	state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
+	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
 
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
@@ -2176,9 +2215,10 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	out1, _ := state.JobSummaryByID(ws, job1.ID)
+	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 	expected := structs.JobSummary{
-		JobID: job1.ID,
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Queued: 10,
@@ -2194,9 +2234,10 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state.JobSummaryByID(ws, alloc.Job.ID)
+	out2, _ := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected = structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": structs.TaskGroupSummary{
 				Queued:   9,

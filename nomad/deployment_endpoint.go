@@ -224,9 +224,9 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.DeploymentsByIDPrefix(ws, prefix)
+				iter, err = state.DeploymentsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				iter, err = state.Deployments(ws)
+				iter, err = state.DeploymentsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err

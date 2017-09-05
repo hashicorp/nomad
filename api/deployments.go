@@ -125,6 +125,7 @@ func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []s
 // Deployment is used to serialize an deployment.
 type Deployment struct {
 	ID                string
+	Namespace         string
 	JobID             string
 	JobVersion        uint64
 	JobModifyIndex    uint64

@@ -204,6 +204,12 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		go s.replicateACLTokens(stopCh)
 		go s.replicateSentinelPolicies(stopCh)
 	}
+
+	// Setup any enterprise systems required.
+	if err := s.establishEnterpriseLeadership(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -314,7 +320,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// If the periodic job has never been launched before, launch will hold
 		// the time the periodic job was added. Otherwise it has the last launch
 		// time of the periodic job.
-		launch, err := s.fsm.State().PeriodicLaunchByID(ws, job.ID)
+		launch, err := s.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
 		if err != nil || launch == nil {
 			return fmt.Errorf("failed to get periodic launch time: %v", err)
 		}
@@ -329,7 +335,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		if _, err := s.periodicDispatcher.ForceRun(job.ID); err != nil {
+		if _, err := s.periodicDispatcher.ForceRun(job.Namespace, job.ID); err != nil {
 			msg := fmt.Sprintf("force run of periodic job %q failed: %v", job.ID, err)
 			s.logger.Printf("[ERR] nomad.periodic: %s", msg)
 			return errors.New(msg)
@@ -387,6 +393,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation {
 	return &structs.Evaluation{
 		ID:          structs.GenerateUUID(),
+		Namespace:   "-",
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,
@@ -511,6 +518,11 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the deployment watcher as it is only useful as a leader.
 	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
+		return err
+	}
+
+	// Disable any enterprise systems required.
+	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
 	}
 

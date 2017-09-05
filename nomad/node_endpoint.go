@@ -844,6 +844,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		// Create a new eval
 		eval := &structs.Evaluation{
 			ID:              structs.GenerateUUID(),
+			Namespace:       alloc.Namespace,
 			Priority:        alloc.Job.Priority,
 			Type:            alloc.Job.Type,
 			TriggeredBy:     structs.EvalTriggerNodeUpdate,
@@ -867,6 +868,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		// Create a new eval
 		eval := &structs.Evaluation{
 			ID:              structs.GenerateUUID(),
+			Namespace:       job.Namespace,
 			Priority:        job.Priority,
 			Type:            job.Type,
 			TriggeredBy:     structs.EvalTriggerNodeUpdate,

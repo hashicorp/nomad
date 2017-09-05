@@ -67,18 +67,18 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context structs.Context, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
-		return state.JobsByIDPrefix(ws, prefix)
+		return state.JobsByIDPrefix(ws, namespace, prefix)
 	case structs.Evals:
-		return state.EvalsByIDPrefix(ws, prefix)
+		return state.EvalsByIDPrefix(ws, namespace, prefix)
 	case structs.Allocs:
-		return state.AllocsByIDPrefix(ws, prefix)
+		return state.AllocsByIDPrefix(ws, namespace, prefix)
 	case structs.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
-		return state.DeploymentsByIDPrefix(ws, prefix)
+		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	default:
 		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 	}
@@ -122,7 +122,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			}
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
 					e := err.Error()
