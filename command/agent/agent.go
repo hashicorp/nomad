@@ -494,7 +494,12 @@ func (a *Agent) setupClient() error {
 	}
 
 	// Create the client
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
+	clientTelemetry := &client.ClientTelemetry{
+		DisableTaggedMetrics:       a.config.Telemetry.DisableTaggedMetrics,
+		BackwardsCompatibleMetrics: a.config.Telemetry.BackwardsCompatibleMetrics,
+	}
+
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger, clientTelemetry)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

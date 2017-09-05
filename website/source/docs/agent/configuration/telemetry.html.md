@@ -58,6 +58,14 @@ The following options are available on all telemetry configurations.
 - `publish_node_metrics` `(bool: false)` - Specifies if Nomad should publish
   runtime metrics of nodes.
 
+- `backwards_compatible_metrics` `(bool: false)` - Specifies if Nomad should
+  publish metrics that are backwards compatible with versions below 0.7, as
+  post version 0.7, Nomad emits tagged metrics.
+
+- `disable_tagged_metrics` `(bool: false)` - Specifies if Nomad should not emit
+  tagged metrics and only emit metrics compatible with versions below Nomad
+  0.7.
+
 ### `statsite`
 
 These `telemetry` parameters apply to
@@ -164,10 +172,4 @@ These `telemetry` parameters apply to
   datacenter, dc:sfo).
 
 
-### Tagged Metrics
-
-We are slowly moving towards supporting tagged metrics in Nomad. Currently,
-tagged metrics are available on Nomad clients. For more information about how
-tagged metrics are useful for analysis, see this article by DataDog on [tagged
-metrics](https://www.datadoghq.com/blog/the-power-of-tagged-metrics/).
 

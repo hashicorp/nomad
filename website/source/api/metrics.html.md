@@ -1,5 +1,5 @@
 ---
-layout: metrics
+layout: api
 page_title: Metrics - HTTP API
 sidebar_current: metrics-search
 description: |-
@@ -25,8 +25,7 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```text
-$ curl \
-    https://nomad.rocks/v1/metrics
+$ curl https://nomad.rocks/v1/metrics
 ```
 
 ### Sample Response
@@ -35,16 +34,14 @@ $ curl \
 {
   "Counters":[
   {
-    "Count":1,
-      "Labels":{
-
-      },
+    "Count":11,
+      "Labels":{},
       "Max":1.0,
       "Mean":1.0,
       "Min":1.0,
-      "Name":"nomad.client.consul.sync_failure",
+      "Name":"nomad.nomad.rpc.query",
       "Stddev":0.0,
-      "Sum":1.0
+      "Sum":11.0
   }
   ],
   "Gauges":[
@@ -68,11 +65,8 @@ $ curl \
   "Samples":[
   {
     "Count":20,
-    "Labels":{
-
-    },
-    "Max":0.03
-      544100001454353,
+    "Labels":{},
+    "Max":0.03544100001454353,
     "Mean":0.023678050097078084,
     "Min":0.00956599973142147,
     "Name":"nomad.memberlist.gossip",
@@ -81,12 +75,9 @@ $ curl \
   },
   {
     "Count":1,
-    "Labels":{
-
-    },
+    "Labels":{},
     "Max":0.0964059978723526,
-    "Mean
-      ":0.0964059978723526,
+    "Mean":0.0964059978723526,
     "Min":0.0964059978723526,
     "Name":"nomad.nomad.client.update_status",
     "Stddev":0.0,

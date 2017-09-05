@@ -16,7 +16,7 @@ This data can be accessed via an HTTP endpoint or via sending a signal to the
 Nomad process.
 
 Via HTTP, this data is available at `/metrics`. See
-[Metrics](/api/metrics_endpoint.html) for more information.
+[Metrics](/api/metrics.html) for more information.
 
 
 To view this data via sending a signal to the Nomad process: on Unix,

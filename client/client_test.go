@@ -122,7 +122,8 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 	catalog := consul.NewMockCatalog(logger)
 	mockService := newMockConsulServiceClient()
 	mockService.logger = logger
-	client, err := NewClient(conf, catalog, mockService, logger)
+	telemetry := &ClientTelemetry{DisableTaggedMetrics: false, BackwardsCompatibleMetrics: false}
+	client, err := NewClient(conf, catalog, mockService, logger, telemetry)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -794,7 +795,8 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	catalog := consul.NewMockCatalog(logger)
 	mockService := newMockConsulServiceClient()
 	mockService.logger = logger
-	c2, err := NewClient(c1.config, catalog, mockService, logger)
+	telemetry := &ClientTelemetry{DisableTaggedMetrics: false, BackwardsCompatibleMetrics: false}
+	c2, err := NewClient(c1.config, catalog, mockService, logger, telemetry)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
