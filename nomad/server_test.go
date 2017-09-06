@@ -57,7 +57,7 @@ func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) 
 func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.Build = "unittest"
+	config.Build = "0.7.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
