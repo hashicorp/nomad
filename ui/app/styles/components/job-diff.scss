@@ -1,0 +1,38 @@
+.job-diff {
+  font-family: $family-monospace;
+
+  .diff-section-label {
+    position: relative;
+
+    &::before {
+      position: absolute;
+      left: 0;
+      text-indent: 0;
+    }
+
+    &.is-added::before {
+      color: $nomad-green;
+      content: "+";
+    }
+
+    &.is-edited::before {
+      color: $orange;
+      content: "+/-";
+    }
+
+    &.is-deleted::before {
+      color: $red;
+      content: "-";
+    }
+  }
+
+  .diff-section-gutter {
+    position: relative;
+    padding-left: 2ch;
+    text-indent: 0;
+
+    &.is-edited {
+      text-indent: 2ch;
+    }
+  }
+}
