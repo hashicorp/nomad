@@ -14,7 +14,7 @@
       +/-
     {{/if}}
   </span>
-  Job: "{{diff.ID}}"
+  <span class="diff-section-bold">Job: "{{diff.ID}}"</span>
 </div>
 
 {{!-- Show job field and object diffs if the job is edited --}}
@@ -39,7 +39,7 @@
         +/-
       {{/if}}
     </span>
-    Task Group: "{{group.Name}}"
+    <span class="diff-section-bold">Task Group: "{{group.Name}}"</span>
     {{#if group.Updates}}
       ({{#each-in group.Updates as |updateType count|}}
         <span class="job-diff-update-count {{css-class updateType}}">{{count}} {{updateType}}</span>

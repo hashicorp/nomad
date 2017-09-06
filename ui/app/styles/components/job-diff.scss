@@ -1,4 +1,5 @@
 .job-diff {
+  color: $grey-blue;
   font-family: $family-monospace;
 
   &.is-added,
@@ -36,6 +37,32 @@
       .marker {
         color: $red;
       }
+    }
+  }
+
+  .diff-section-bold {
+    color: $white;
+    font-weight: $weight-bold;
+  }
+
+  .diff-section-change {
+    color: $white;
+    font-weight: $weight-bold;
+  }
+
+  .diff-section-table {
+    display: table;
+  }
+
+  .diff-section-table-row {
+    display: table-row;
+  }
+
+  .diff-section-table-cell {
+    display: table-cell;
+
+    & + .diff-section-table-cell {
+      text-indent: 1ch;
     }
   }
 }
