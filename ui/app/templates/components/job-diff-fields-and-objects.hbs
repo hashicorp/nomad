@@ -2,10 +2,16 @@
   <div class="{{concat
     "diff-section-label is-"
     (lowercase field.Type)
-    " "
-    "diff-section-gutter is-"
-    (lowercase field.Type)
   }}">
+    <span class="marker">
+      {{#if (eq (lowercase field.Type) "added")}}
+        +
+      {{else if (eq (lowercase field.Type) "deleted")}}
+        -
+      {{else if (eq (lowercase field.Type) "edited")}}
+        +/-
+      {{/if}}
+    </span>
     {{field.Name}}:
     {{#if (eq (lowercase field.Type) "added")}}
       "{{field.New}}"
@@ -23,10 +29,16 @@
   <div class="{{concat
     "diff-section-label is-"
     (lowercase object.Type)
-    " "
-    "diff-section-gutter is-"
-    (lowercase object.Type)
   }}">
+    <span class="marker">
+      {{#if (eq (lowercase object.Type) "added")}}
+        +
+      {{else if (eq (lowercase object.Type) "deleted")}}
+        -
+      {{else if (eq (lowercase object.Type) "edited")}}
+        +/-
+      {{/if}}
+    </span>
     {{object.Name}} {
       {{job-diff-fields-and-objects fields=object.Fields objects=object.Objects}}
     }

@@ -3,11 +3,19 @@
   (concat
     "diff-section-label is-"
     (lowercase diff.Type)
-    " "
-    "diff-section-gutter is-"
-    (lowercase diff.Type)
   )
-}}">Job: "{{diff.ID}}"</div>
+}}">
+  <span class="marker">
+    {{#if (eq (lowercase diff.Type) "added")}}
+      +
+    {{else if (eq (lowercase diff.Type) "deleted")}}
+      -
+    {{else if (eq (lowercase diff.Type) "edited")}}
+      +/-
+    {{/if}}
+  </span>
+  Job: "{{diff.ID}}"
+</div>
 
 {{!-- Show job field and object diffs if the job is edited --}}
 {{#if (eq (lowercase diff.Type) "edited")}}
@@ -20,11 +28,18 @@
     (concat
       "diff-section-label is-"
       (lowercase group.Type)
-      " "
-      "diff-section-gutter is-"
-      (lowercase group.Type)
     )
-  }}">Task Group: "{{group.Name}}"
+  }}">
+    <span class="marker">
+      {{#if (eq (lowercase group.Type) "added")}}
+        +
+      {{else if (eq (lowercase group.Type) "deleted")}}
+        -
+      {{else if (eq (lowercase group.Type) "edited")}}
+        +/-
+      {{/if}}
+    </span>
+    Task Group: "{{group.Name}}"
     {{#if group.Updates}}
       ({{#each-in group.Updates as |updateType count|}}
         <span class="job-diff-update-count {{css-class updateType}}">{{count}} {{updateType}}</span>
@@ -42,11 +57,18 @@
         (concat
           "diff-section-label is-"
           (lowercase group.Type)
-          " "
-          "diff-section-gutter is-"
-          (lowercase group.Type)
         )
-      }}">Task: "{{task.Name}}"
+      }}">
+      <span class="marker">
+        {{#if (eq (lowercase task.Type) "added")}}
+          +
+        {{else if (eq (lowercase task.Type) "deleted")}}
+          -
+        {{else if (eq (lowercase task.Type) "edited")}}
+          +/-
+        {{/if}}
+      </span>
+      Task: "{{task.Name}}"
         {{#if task.Annotations}}
           ({{#each task.Annotations as |annotation index|}}
             <span class="{{css-class annotation}}">{{annotation}}</span>

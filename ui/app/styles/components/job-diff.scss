@@ -1,38 +1,41 @@
 .job-diff {
   font-family: $family-monospace;
 
-  .diff-section-label {
-    position: relative;
-
-    &::before {
-      position: absolute;
-      left: 0;
-      text-indent: 0;
-    }
-
-    &.is-added::before {
-      color: $nomad-green;
-      content: "+";
-    }
-
-    &.is-edited::before {
-      color: $orange;
-      content: "+/-";
-    }
-
-    &.is-deleted::before {
-      color: $red;
-      content: "-";
-    }
+  &.is-added,
+  &.is-deleted {
+    padding-left: 1ch;
   }
 
-  .diff-section-gutter {
-    position: relative;
+  &.is-edited {
     padding-left: 2ch;
+  }
+
+  .diff-section-label {
     text-indent: 0;
+    padding-left: 2ch;
+
+    &.is-added {
+      text-indent: -2ch;
+
+      .marker {
+        color: $nomad-green;
+      }
+    }
 
     &.is-edited {
-      text-indent: 2ch;
+      text-indent: -4ch;
+
+      .marker {
+        color: $orange;
+      }
+    }
+
+    &.is-deleted {
+      text-indent: -2ch;
+
+      .marker {
+        color: $red;
+      }
     }
   }
 }
