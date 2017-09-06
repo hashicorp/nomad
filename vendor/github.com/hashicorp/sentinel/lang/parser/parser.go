@@ -700,10 +700,16 @@ func (p *parser) parseRule() ast.Expr {
 	}
 
 	pos := p.expect(token.RULE)
+
+	// Check if this rule has a when predicate
+	var when ast.Expr
+	if p.tok == token.WHEN {
+		p.expect(token.WHEN)      // "when"
+		when = p.parseExpr(false) // parse the predicate
+	}
+
 	scope := ast.NewScope(p.topScope) // function scope
-
 	p.exprLev++
-
 	lbrace := p.expect(token.LBRACE) // {
 	p.topScope = scope               // open rule scope
 	expr := p.parseExpr(false)       // parse the one expression
@@ -719,7 +725,7 @@ func (p *parser) parseRule() ast.Expr {
 
 	p.exprLev--
 
-	return &ast.RuleLit{Rule: pos, Lbrace: lbrace, Expr: expr, Rbrace: rbrace}
+	return &ast.RuleLit{Rule: pos, When: when, Lbrace: lbrace, Expr: expr, Rbrace: rbrace}
 }
 
 func (p *parser) parseFunc() ast.Expr {

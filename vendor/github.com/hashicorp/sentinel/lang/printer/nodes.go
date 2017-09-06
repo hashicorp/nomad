@@ -443,6 +443,13 @@ func (p *printer) selector(x *ast.SelectorExpr) bool {
 
 func (p *printer) rule(x *ast.RuleLit, depth int) {
 	p.print(x.Rule, token.RULE)
+
+	// If the rule has a "when" then we need to print that
+	if x.When != nil {
+		p.print(blank, token.WHEN, blank)
+		p.expr0(x.When, depth)
+	}
+
 	p.print(blank, x.Lbrace, token.LBRACE)
 
 	// If the body looks "small enough" then put it all on one line. We

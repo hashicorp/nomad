@@ -59,7 +59,7 @@ func (e *evalState) funcPrint(args []object.Object) (interface{}, error) {
 		e.Trace.Print.WriteRune('\n')
 	}
 
-	return nil, nil
+	return true, nil
 }
 
 func (e *evalState) funcPrintBuf(buf *bytes.Buffer, args []object.Object) {

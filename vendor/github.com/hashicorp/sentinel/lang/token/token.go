@@ -85,6 +85,7 @@ const (
 
 	IMPORT // import
 	AS     // as
+	WHEN   // when
 
 	FUNC   // func
 	RULE   // rule
@@ -157,6 +158,7 @@ var tokens = [...]string{
 
 	IMPORT: "import",
 	AS:     "as",
+	WHEN:   "when",
 
 	FUNC:   "func",
 	RULE:   "rule",

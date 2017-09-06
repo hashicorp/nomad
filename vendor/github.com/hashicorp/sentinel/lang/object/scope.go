@@ -1,5 +1,12 @@
 package object
 
+import (
+	"bytes"
+	"fmt"
+	"sort"
+	"text/tabwriter"
+)
+
 // Scope maintains the set of declared entities and a link to the outer scope.
 // This is the main structure used for identifier lookup.
 type Scope struct {
@@ -41,4 +48,36 @@ func (s *Scope) Lookup(key string) Object {
 	}
 
 	return nil
+}
+
+// String outputs all of the keys and values that are in scope. This includes
+// values that are in parent scopes.
+func (s *Scope) String() string {
+	// Build the list of available keys in scope
+	var keys []string
+	keysSet := make(map[string]struct{})
+	root := s
+	for s != nil {
+		for k := range s.Objects {
+			if _, ok := keysSet[k]; !ok {
+				keys = append(keys, k)
+				keysSet[k] = struct{}{}
+			}
+		}
+
+		s = s.Outer
+	}
+	sort.Strings(keys)
+
+	// Write each value out
+	var buf bytes.Buffer
+	tw := tabwriter.NewWriter(&buf, 0, 1, 1, ' ', 0)
+
+	for _, k := range keys {
+		fmt.Fprintf(tw, "%s\t=\t%s\n", k, root.Lookup(k).String())
+	}
+
+	// Flush and return
+	tw.Flush()
+	return buf.String()
 }

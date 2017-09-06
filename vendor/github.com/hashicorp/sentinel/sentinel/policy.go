@@ -176,6 +176,43 @@ func (p *Policy) SetReady() error {
 	return nil
 }
 
+// ResetReady makes the policy not ready again. The lock must be held
+// prior to calling this. If the write lock is already held, then this will
+// return immediately. If a read lock is held, this will block until the
+// write lock can be acquired.
+//
+// Once this returns, the Policy should be treated like a not ready policy.
+// SetReady should be called, Unlock should be called, etc.
+//
+// This will not reset any of the data or configuration associated with
+// a policy. You can call SetReady directly after this to retain the existing
+// policy.
+func (p *Policy) ResetReady() {
+	// If we're not already ready, then just ignore this call. This is safe
+	// because the precondition is that a lock MUST be held to call this.
+	// If we have a read lock, this will be ready. If we have a write lock,
+	// then we have an exclusive lock. In either case, we're safely handling
+	// locks.
+	if !p.Ready() {
+		return
+	}
+
+	// Acquire readylock so only one writer can exist. If the policy
+	// is alread not ready, then this will block waiting for the person
+	// with the write lock to yield.
+	p.readyLock.Lock()
+
+	// We should have the read lock so unlock that first.
+	p.rwmutex.RUnlock()
+
+	// Grab a write lock on the rwmutex. This will only properly
+	// happen once all the readers unlock.
+	p.rwmutex.Lock()
+
+	// Set not ready
+	atomic.StoreUint32(&p.ready, readyNotReady)
+}
+
 // Lock locks the Policy. It automatically grabs a reader or writer lock
 // based on the value of Ready().
 func (p *Policy) Lock() {

@@ -67,10 +67,12 @@ type (
 
 	// RuleObj represents a rule.
 	RuleObj struct {
-		Expr  ast.Expr // Expr is the un-evaluated expression
-		Scope *Scope   // Scope to evaluate the rule in
-		Eval  bool     // Eval is true if evaluated
-		Value Object   // Value is the set value once evaluated
+		WhenExpr  ast.Expr // WhenExpr is the un-evaluated when predicate
+		WhenValue Object   // WhenValue is the value of the predicate once evaluated
+		Expr      ast.Expr // Expr is the un-evaluated expression
+		Scope     *Scope   // Scope to evaluate the rule in
+		Eval      bool     // Eval is true if evaluated
+		Value     Object   // Value is the set value once evaluated
 	}
 
 	// KeyedObj represents a key/value pair. This doens't actual implement

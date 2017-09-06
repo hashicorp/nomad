@@ -338,7 +338,7 @@ func (e *evalState) eval(raw ast.Node, s *object.Scope) object.Object {
 
 	case *ast.RuleLit:
 		// Just set the rule literal, we don't evaluate
-		return &object.RuleObj{Expr: n.Expr, Scope: s}
+		return &object.RuleObj{WhenExpr: n.When, Expr: n.Expr, Scope: s}
 
 	case *ast.FuncLit:
 		return &object.FuncObj{Params: n.Params, Body: n.Body.List, Scope: s}
@@ -1421,6 +1421,30 @@ func (e *evalState) evalImportExpr(n *astImportExpr, s *object.Scope) object.Obj
 func (e *evalState) evalRuleObj(ident string, r *object.RuleObj) object.Object {
 	if r.Value != nil {
 		return r.Value
+	}
+
+	// If this rule has a when predicate, check that.
+	if r.WhenExpr != nil {
+		// If we haven't evalutated the when expression before, do it
+		if r.WhenValue == nil {
+			r.WhenValue = e.eval(r.WhenExpr, r.Scope)
+		}
+
+		switch v := r.WhenValue.(type) {
+		case *object.UndefinedObj:
+			// If the predicate is undefined, we continue to chain it
+			return r.WhenValue
+
+		case *object.BoolObj:
+			// If the predicate failed, then the result of the rule is always true
+			if !v.Value {
+				r.Value = object.True // Set the memoized value so we don't exec again
+				return r.Value
+			}
+
+		default:
+			e.err("rule predicate evaluated to a non-boolean value", r.WhenExpr, r.Scope)
+		}
 	}
 
 	// If tracing is enabled and we haven't traced the execution

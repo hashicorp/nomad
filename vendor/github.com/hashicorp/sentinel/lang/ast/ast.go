@@ -256,6 +256,7 @@ type (
 	// A RuleLit represents a rule.
 	RuleLit struct {
 		Rule   token.Pos // position of "rule" keyword
+		When   Expr      // when predicate if not nil
 		Lbrace token.Pos // position of "{"
 		Expr   Expr
 		Rbrace token.Pos // position of "}"
