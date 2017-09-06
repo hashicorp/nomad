@@ -192,7 +192,7 @@ func (a *TestAgent) start() (*Agent, error) {
 	metrics.NewGlobal(metrics.DefaultConfig("service-name"), inm)
 
 	if inm == nil {
-		return nil, fmt.Errorf("unable to set up in memory metrics neede for agent initialization")
+		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
 	agent, err := NewAgent(a.Config, a.LogOutput, inm)

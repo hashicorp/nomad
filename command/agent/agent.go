@@ -335,9 +335,13 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	conf.ConsulConfig = a.config.Consul
 	conf.VaultConfig = a.config.Vault
+
+	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics
+	conf.DisableTaggedMetrics = a.config.Telemetry.DisableTaggedMetrics
+	conf.BackwardsCompatibleMetrics = a.config.Telemetry.BackwardsCompatibleMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = a.config.TLSConfig
@@ -493,13 +497,7 @@ func (a *Agent) setupClient() error {
 		}
 	}
 
-	// Create the client
-	clientTelemetry := &client.ClientTelemetry{
-		DisableTaggedMetrics:       a.config.Telemetry.DisableTaggedMetrics,
-		BackwardsCompatibleMetrics: a.config.Telemetry.BackwardsCompatibleMetrics,
-	}
-
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger, clientTelemetry)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func getPort() int {
@@ -314,6 +315,29 @@ func TestAgent_ClientConfig(t *testing.T) {
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}
+}
+
+// Clients should inherit telemetry configuration
+func TestAget_Client_TelemetryConfiguration(t *testing.T) {
+	assert := assert.New(t)
+
+	conf := DefaultConfig()
+	conf.DevMode = true
+	conf.Telemetry.DisableTaggedMetrics = true
+	conf.Telemetry.BackwardsCompatibleMetrics = true
+
+	a := &Agent{config: conf}
+
+	c, err := a.clientConfig()
+	assert.Nil(err)
+
+	telemetry := conf.Telemetry
+
+	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
+	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
+	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
+	assert.Equal(c.DisableTaggedMetrics, telemetry.DisableTaggedMetrics)
+	assert.Equal(c.BackwardsCompatibleMetrics, telemetry.BackwardsCompatibleMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP

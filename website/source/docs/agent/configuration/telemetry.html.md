@@ -60,11 +60,17 @@ The following options are available on all telemetry configurations.
 
 - `backwards_compatible_metrics` `(bool: false)` - Specifies if Nomad should
   publish metrics that are backwards compatible with versions below 0.7, as
-  post version 0.7, Nomad emits tagged metrics.
+  post version 0.7, Nomad emits tagged metrics. and all new metrics will
+  only be added to tagged metrics. Note that this option is used to transition
+  monitoring to tagged metrics and will eventually be deprecated.
+
 
 - `disable_tagged_metrics` `(bool: false)` - Specifies if Nomad should not emit
   tagged metrics and only emit metrics compatible with versions below Nomad
-  0.7.
+  0.7. Note that this option is used to transition monitoring to tagged
+  metrics and will eventually be deprecated.
+
+
 
 ### `statsite`
 
@@ -170,6 +176,3 @@ These `telemetry` parameters apply to
   best use of this is to as a hint for which broker should be used based on
   *where* this particular instance is running (e.g. a specific geographic location or
   datacenter, dc:sfo).
-
-
-
