@@ -8,6 +8,8 @@ export default Component.extend({
 
   diff: null,
 
+  verbose: true,
+
   isEdited: computed.equal('diff.Type', 'Edited'),
   isAdded: computed.equal('diff.Type', 'Added'),
   isDeleted: computed.equal('diff.Type', 'Deleted'),

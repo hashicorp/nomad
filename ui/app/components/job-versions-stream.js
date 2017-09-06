@@ -9,6 +9,9 @@ export default Component.extend({
 
   versions: computed(() => []),
 
+  // Passes through to the job-diff component
+  verbose: true,
+
   annotatedVersions: computed('versions.[]', function() {
     const versions = this.get('versions');
     return versions.map((version, index) => {

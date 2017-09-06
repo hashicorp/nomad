@@ -47,7 +47,7 @@
     {{/if}}
 
     {{!-- Show task group field and object diffs if the task group is edited --}}
-    {{#if (eq (lowercase group.Type) "edited")}}
+    {{#if (or (eq (lowercase group.Type) "edited") verbose)}}
       {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
     {{/if}}
 
@@ -75,9 +75,9 @@
             {{#unless (eq index (dec annotations.length))}},{{/unless}}
           {{/each}})
         {{/if}}
-        {{#unless (or (eq task.Type "None") (eq task.Type "Deleted") (eq task.Type "Added"))}}
+        {{#if (or verbose (eq (lowercase task.Type "edited")))}}
           {{job-diff-fields-and-objects fields=task.Fields objects=task.Objects}}
-        {{/unless}}
+        {{/if}}
       </div>
     {{/each}}
   </div>

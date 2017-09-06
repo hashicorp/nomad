@@ -10,6 +10,9 @@ export default Component.extend({
   version: null,
   isOpen: false,
 
+  // Passes through to the job-diff component
+  verbose: true,
+
   changeCount: computed('version.diff', function() {
     const diff = this.get('version.diff');
     const taskGroups = diff.TaskGroups || [];
