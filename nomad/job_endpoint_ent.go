@@ -8,7 +8,7 @@ import "github.com/hashicorp/nomad/nomad/structs"
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 	dataCB := func() map[string]interface{} {
 		return map[string]interface{}{
-			"job": job.SentinelObject(),
+			"job": job,
 		}
 	}
 	return j.srv.enforceScope(override, structs.SentinelScopeSubmitJob, dataCB)
