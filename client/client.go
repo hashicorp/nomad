@@ -155,30 +155,6 @@ type Client struct {
 	clientACLResolver
 }
 
-// migrateAllocCtrl indicates whether migration is complete
-type migrateAllocCtrl struct {
-	alloc  *structs.Allocation
-	ch     chan struct{}
-	closed bool
-	chLock sync.Mutex
-}
-
-func newMigrateAllocCtrl(alloc *structs.Allocation) *migrateAllocCtrl {
-	return &migrateAllocCtrl{
-		ch:    make(chan struct{}),
-		alloc: alloc,
-	}
-}
-
-func (m *migrateAllocCtrl) closeCh() {
-	m.chLock.Lock()
-	defer m.chLock.Unlock()
-
-	if m.closed {
-		return
-	}
-}
-
 var (
 	// noServersErr is returned by the RPC method when the client has no
 	// configured servers. This is used to trigger Consul discovery if
