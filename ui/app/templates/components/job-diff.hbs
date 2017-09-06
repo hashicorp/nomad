@@ -5,7 +5,7 @@
     (lowercase diff.Type)
   )
 }}">
-  <span class="marker">
+  <span class="marker {{concat "is-" (lowercase diff.Type)}}">
     {{#if (eq (lowercase diff.Type) "added")}}
       +
     {{else if (eq (lowercase diff.Type) "deleted")}}
@@ -18,8 +18,10 @@
 </div>
 
 {{!-- Show job field and object diffs if the job is edited --}}
-{{#if (eq (lowercase diff.Type) "edited")}}
-  {{job-diff-fields-and-objects fields=diff.Fields objects=diff.Objects}}
+{{#if (or verbose (eq (lowercase diff.Type) "edited"))}}
+  <div class="diff-section-label">
+    {{job-diff-fields-and-objects fields=diff.Fields objects=diff.Objects}}
+  </div>
 {{/if}}
 
 {{!-- Each task group --}}
@@ -30,7 +32,7 @@
       (lowercase group.Type)
     )
   }}">
-    <span class="marker">
+    <span class="marker {{concat "is-" (lowercase group.Type)}}">
       {{#if (eq (lowercase group.Type) "added")}}
         +
       {{else if (eq (lowercase group.Type) "deleted")}}
@@ -48,18 +50,20 @@
 
     {{!-- Show task group field and object diffs if the task group is edited --}}
     {{#if (or (eq (lowercase group.Type) "edited") verbose)}}
-      {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
+      <div class="diff-section-label">
+        {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
+      </div>
     {{/if}}
 
     {{!-- Each task --}}
     {{#each group.Tasks as |task|}}
-      <div class="{{if group.Type
+      <div class="{{if task.Type
         (concat
           "diff-section-label is-"
-          (lowercase group.Type)
+          (lowercase task.Type)
         )
       }}">
-      <span class="marker">
+      <span class="marker {{concat "is-" (lowercase task.Type)}}">
         {{#if (eq (lowercase task.Type) "added")}}
           +
         {{else if (eq (lowercase task.Type) "deleted")}}

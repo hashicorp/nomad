@@ -5,7 +5,7 @@
       (lowercase field.Type)
     }}">
       <span class="diff-section-table-cell">
-        <span class="marker">
+        <span class="marker {{concat "is-" (lowercase field.Type)}}">
           {{#if (eq (lowercase field.Type) "added")}}
             +
           {{else if (eq (lowercase field.Type) "deleted")}}
@@ -34,7 +34,7 @@
     "diff-section-label is-"
     (lowercase object.Type)
   }}">
-    <span class="marker">
+    <span class="marker {{concat "is-" (lowercase object.Type)}}">
       {{#if (eq (lowercase object.Type) "added")}}
         +
       {{else if (eq (lowercase object.Type) "deleted")}}

@@ -17,27 +17,33 @@
 
     &.is-added {
       text-indent: -2ch;
-
-      .marker {
-        color: $nomad-green;
-      }
     }
 
     &.is-edited {
       text-indent: -4ch;
-
-      .marker {
-        color: $orange;
-      }
     }
 
     &.is-deleted {
       text-indent: -2ch;
+    }
 
-      .marker {
+    .marker {
+      &.is-added {
+        color: $nomad-green;
+      }
+
+      &.is-edited {
+        color: $orange;
+      }
+
+      &.is-deleted {
         color: $red;
       }
     }
+  }
+
+  .diff-section-block {
+    padding-left: 0;
   }
 
   .diff-section-bold {
