@@ -1,3 +1,5 @@
+// +build ent
+
 package agent
 
 import (
@@ -84,7 +86,7 @@ func (s *HTTPServer) sentinelPolicyUpdate(resp http.ResponseWriter, req *http.Re
 	args := structs.SentinelPolicyUpsertRequest{
 		Policies: []*structs.SentinelPolicy{&policy},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("Sentinel.UpsertPolicies", &args, &out); err != nil {
@@ -100,7 +102,7 @@ func (s *HTTPServer) sentinelPolicyDelete(resp http.ResponseWriter, req *http.Re
 	args := structs.SentinelPolicyDeleteRequest{
 		Names: []string{policyName},
 	}
-	s.parseWrite(req, &args.WriteRequest)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("Sentinel.DeletePolicies", &args, &out); err != nil {

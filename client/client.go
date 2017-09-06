@@ -177,9 +177,6 @@ func (m *migrateAllocCtrl) closeCh() {
 	if m.closed {
 		return
 	}
-
-	// clientACLResolver holds the ACL resolution state
-	clientACLResolver
 }
 
 var (

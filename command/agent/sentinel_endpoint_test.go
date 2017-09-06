@@ -1,3 +1,5 @@
+// +build ent
+
 package agent
 
 import (
