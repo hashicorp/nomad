@@ -48,6 +48,7 @@
     "ember-cli-sass": "^6.2.0",
     "ember-cli-shims": "^1.1.0",
     "ember-cli-sri": "^2.1.0",
+    "ember-cli-string-helpers": "^1.4.0",
     "ember-cli-uglify": "^1.2.0",
     "ember-composable-helpers": "^2.0.3",
     "ember-data": "^2.14.0",
