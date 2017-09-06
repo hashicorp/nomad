@@ -1,0 +1,34 @@
+{{#each fields as |field|}}
+  <div class="{{concat
+    "diff-section-label is-"
+    (lowercase field.Type)
+    " "
+    "diff-section-gutter is-"
+    (lowercase field.Type)
+  }}">
+    {{field.Name}}:
+    {{#if (eq (lowercase field.Type) "added")}}
+      "{{field.New}}"
+    {{else if (eq (lowercase field.Type) "deleted")}}
+      "{{field.Old}}"
+    {{else if (eq (lowercase field.Type) "edited")}}
+      "{{field.Old}}" => "{{field.New}}"
+    {{else}}
+      "{{field.New}}"
+    {{/if}}
+  </div>
+{{/each}}
+
+{{#each objects as |object|}}
+  <div class="{{concat
+    "diff-section-label is-"
+    (lowercase object.Type)
+    " "
+    "diff-section-gutter is-"
+    (lowercase object.Type)
+  }}">
+    {{object.Name}} {
+      {{job-diff-fields-and-objects fields=object.Fields objects=object.Objects}}
+    }
+  </div>
+{{/each}}

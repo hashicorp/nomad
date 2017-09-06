@@ -1,0 +1,62 @@
+{{!-- Job heading --}}
+<div class="{{if diff.Type
+  (concat
+    "diff-section-label is-"
+    (lowercase diff.Type)
+    " "
+    "diff-section-gutter is-"
+    (lowercase diff.Type)
+  )
+}}">Job: "{{diff.ID}}"</div>
+
+{{!-- Show job field and object diffs if the job is edited --}}
+{{#if (eq (lowercase diff.Type) "edited")}}
+  {{job-diff-fields-and-objects fields=diff.Fields objects=diff.Objects}}
+{{/if}}
+
+{{!-- Each task group --}}
+{{#each diff.TaskGroups as |group|}}
+  <div class="{{if group.Type
+    (concat
+      "diff-section-label is-"
+      (lowercase group.Type)
+      " "
+      "diff-section-gutter is-"
+      (lowercase group.Type)
+    )
+  }}">Task Group: "{{group.Name}}"
+    {{#if group.Updates}}
+      ({{#each-in group.Updates as |updateType count|}}
+        <span class="job-diff-update-count {{css-class updateType}}">{{count}} {{updateType}}</span>
+      {{/each-in}})
+    {{/if}}
+
+    {{!-- Show task group field and object diffs if the task group is edited --}}
+    {{#if (eq (lowercase group.Type) "edited")}}
+      {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
+    {{/if}}
+
+    {{!-- Each task --}}
+    {{#each group.Tasks as |task|}}
+      <div class="{{if group.Type
+        (concat
+          "diff-section-label is-"
+          (lowercase group.Type)
+          " "
+          "diff-section-gutter is-"
+          (lowercase group.Type)
+        )
+      }}">Task: "{{task.Name}}"
+        {{#if task.Annotations}}
+          ({{#each task.Annotations as |annotation index|}}
+            <span class="{{css-class annotation}}">{{annotation}}</span>
+            {{#unless (eq index (dec annotations.length))}},{{/unless}}
+          {{/each}})
+        {{/if}}
+        {{#unless (or (eq task.Type "None") (eq task.Type "Deleted") (eq task.Type "Added"))}}
+          {{job-diff-fields-and-objects fields=task.Fields objects=task.Objects}}
+        {{/unless}}
+      </div>
+    {{/each}}
+  </div>
+{{/each}}
