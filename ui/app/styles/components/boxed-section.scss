@@ -48,6 +48,7 @@
     &.is-dark {
       background: darken($dark, 5%);
       border-color: lighten($dark, 30%);
+      color: $white;
     }
   }
 
