@@ -18,6 +18,7 @@ func getEnterpriseMatch(match interface{}) (id string, ok bool) {
 // getEnterpriseResourceIter is used to retrieve an iterator over an enterprise
 // only table.
 func getEnterpriseResourceIter(context structs.Context, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
-	// If we have made it here there
+	// If we have made it here then it is an error since we have exhausted all
+	// open source contexts.
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", ossContexts, context)
 }

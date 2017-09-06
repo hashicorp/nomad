@@ -36,6 +36,9 @@ func NamespacePredictor(factory ApiClientFactory, filter map[string]struct{}) co
 			return []string{}
 		}
 
+		// Filter the returned namespaces. We assign the unfiltered slice to the
+		// filtered slice but with no elements. This causes the slices to share
+		// the underlying array and makes the filtering allocation free.
 		unfiltered := resp.Matches[contexts.Namespaces]
 		filtered := unfiltered[:0]
 		for _, ns := range unfiltered {

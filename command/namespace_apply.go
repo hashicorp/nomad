@@ -68,16 +68,16 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Validate we have at-least a name
+	if name == "" {
+		c.Ui.Error("Namespace name required")
+		return 1
+	}
+
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
-	}
-
-	// Validate we have at-least a name
-	if name == "" {
-		c.Ui.Error("Namespace name required")
 		return 1
 	}
 
