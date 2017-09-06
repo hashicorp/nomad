@@ -19,6 +19,7 @@ BUG FIXES:
    contacting nodes that are using TLS [GH-3127]
  * client/template: Fix issue in which the template block could cause high load
    on Vault when secret lease duration was less than the Vault grace [GH-3153]
+ * driver/docker: Always purge stopped containers [GH-3148]
  * driver/docker: Fix issue in which mounts could parse incorrectly [GH-3163]
  * driver/docker: Fix issue where potentially incorrect syslog server address is
    used [GH-3135]
