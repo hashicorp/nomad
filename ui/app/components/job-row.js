@@ -8,6 +8,12 @@ export default Component.extend({
 
   job: null,
 
+  onClick() {},
+
+  click(event) {
+    this.get('onClick')(event);
+  },
+
   didReceiveAttrs() {
     // Reload the job in order to get detail information
     const job = this.get('job');

@@ -24,7 +24,7 @@
           <th class="is-3">Allocation Status</th>
         {{/t.head}}
         {{#t.body key="model.id" as |row|}}
-          {{job-row job=row.model}}
+          {{job-row job=row.model onClick=(action "gotoJob" row.model)}}
         {{/t.body}}
       {{/list-table}}
       <div class="table-foot">
