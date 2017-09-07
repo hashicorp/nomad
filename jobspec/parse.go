@@ -136,6 +136,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"id",
 		"meta",
 		"name",
+		"namespace",
 		"periodic",
 		"priority",
 		"region",

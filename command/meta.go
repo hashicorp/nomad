@@ -15,11 +15,6 @@ import (
 )
 
 const (
-	// Names of environment variables used to supply various
-	// config options to the Nomad CLI.
-	EnvNomadAddress = "NOMAD_ADDR"
-	EnvNomadRegion  = "NOMAD_REGION"
-
 	// Constants for CLI identifier length
 	shortId = 8
 	fullId  = 36
@@ -49,6 +44,9 @@ type Meta struct {
 	// The region to send API requests
 	region string
 
+	// namespace to send API requests
+	namespace string
+
 	caCert     string
 	caPath     string
 	clientCert string
@@ -68,6 +66,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	if fs&FlagSetClient != 0 {
 		f.StringVar(&m.flagAddress, "address", "", "")
 		f.StringVar(&m.region, "region", "", "")
+		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
@@ -103,6 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 	return complete.Flags{
 		"-address":         complete.PredictAnything,
 		"-region":          complete.PredictAnything,
+		"-namespace":       NamespacePredictor(m.Client, nil),
 		"-no-color":        complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
@@ -113,22 +113,23 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 	}
 }
 
+// ApiClientFactory is the signature of a API client factory
+type ApiClientFactory func() (*api.Client, error)
+
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
 func (m *Meta) Client() (*api.Client, error) {
 	config := api.DefaultConfig()
-	if v := os.Getenv(EnvNomadAddress); v != "" {
-		config.Address = v
-	}
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
-	}
-	if v := os.Getenv(EnvNomadRegion); v != "" {
-		config.Region = v
 	}
 	if m.region != "" {
 		config.Region = m.region
 	}
+	if m.namespace != "" {
+		config.Namespace = m.namespace
+	}
+
 	// If we need custom TLS configuration, then set it
 	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.insecure {
 		t := &api.TLSConfig{
@@ -164,6 +165,11 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
+
+  -namespace=<namespace>
+    The target namespace for queries and actions bound to a namespace.
+    Overrides the NOMAD_NAMESPACE environment variable if set.
+    Defaults to the "default" namespace.
 
   -no-color
     Disables colored command output.

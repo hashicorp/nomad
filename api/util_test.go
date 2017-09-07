@@ -55,3 +55,10 @@ func testPeriodicJob() *Job {
 	})
 	return job
 }
+
+func testNamespace() *Namespace {
+	return &Namespace{
+		Name:        "test-namespace",
+		Description: "Testing namespaces",
+	}
+}

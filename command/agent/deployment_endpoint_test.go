@@ -159,7 +159,10 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		args := structs.DeploymentPauseRequest{
 			DeploymentID: d.ID,
 			Pause:        false,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
@@ -197,7 +200,10 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		args := structs.DeploymentPromoteRequest{
 			DeploymentID: d.ID,
 			All:          true,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
@@ -239,7 +245,10 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		args := structs.DeploymentAllocHealthRequest{
 			DeploymentID:         d.ID,
 			HealthyAllocationIDs: []string{a.ID},
-			WriteRequest:         structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
