@@ -26,4 +26,10 @@ export default Controller.extend(Sortable, Searchable, {
   listToSort: computed.alias('nodes'),
   listToSearch: computed.alias('listSorted'),
   sortedNodes: computed.alias('listSearched'),
+
+  actions: {
+    gotoNode(node) {
+      this.transitionToRoute('nodes.node', node);
+    },
+  },
 });

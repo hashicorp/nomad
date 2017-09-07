@@ -1,17 +1,17 @@
 import Ember from 'ember';
 
-const { Component, inject } = Ember;
+const { Component } = Ember;
 
 export default Component.extend({
-  router: inject.service(),
-
   tagName: 'tr',
   classNames: ['client-node-row', 'is-interactive'],
 
   node: null,
 
-  click() {
-    this.get('router').transitionTo('nodes.node', this.get('node'));
+  onClick() {},
+
+  click(event) {
+    this.get('onClick')(event);
   },
 
   didReceiveAttrs() {
