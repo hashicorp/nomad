@@ -229,14 +229,6 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
-
-	// DisableTaggedMetrics disables a new version of generating metrics which
-	// uses tags
-	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
-
-	// BackwardsCompatibleMetrics allows for generating metrics in a simple
-	// key/value structure as done in older versions of Nomad
-	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -370,6 +362,14 @@ type Telemetry struct {
 	collectionInterval       time.Duration `mapstructure:"-"`
 	PublishAllocationMetrics bool          `mapstructure:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `mapstructure:"publish_node_metrics"`
+
+	// DisableTaggedMetrics disables a new version of generating metrics which
+	// uses tags
+	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
+
+	// BackwardsCompatibleMetrics allows for generating metrics in a simple
+	// key/value structure as done in older versions of Nomad
+	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
@@ -1105,14 +1105,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.NoHostUUID = b.NoHostUUID
 	}
 
-	if b.DisableTaggedMetrics {
-		result.DisableTaggedMetrics = b.DisableTaggedMetrics
-	}
-
-	if b.BackwardsCompatibleMetrics {
-		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
-	}
-
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
 
@@ -1214,6 +1206,15 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
 	}
+
+	if b.DisableTaggedMetrics {
+		result.DisableTaggedMetrics = b.DisableTaggedMetrics
+	}
+
+	if b.BackwardsCompatibleMetrics {
+		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
+	}
+
 	return &result
 }
 

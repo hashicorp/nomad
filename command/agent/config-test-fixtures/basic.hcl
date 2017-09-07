@@ -60,8 +60,6 @@ client {
     gc_inode_usage_threshold = 91
     gc_max_allocs = 50
     no_host_uuid = false
-    disable_tagged_metrics = true
-    backwards_compatible_metrics = true
 }
 server {
 	enabled = true
@@ -98,6 +96,8 @@ telemetry {
     collection_interval = "3s"
     publish_allocation_metrics = true
     publish_node_metrics = true
+    disable_tagged_metrics = true
+    backwards_compatible_metrics = true
 }
 leave_on_interrupt = true
 leave_on_terminate = true
