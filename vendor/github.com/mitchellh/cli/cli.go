@@ -173,7 +173,7 @@ func (c *CLI) Run() (int, error) {
 
 	// Just print the help when only '-h' or '--help' is passed.
 	if c.IsHelp() && c.Subcommand() == "" {
-		c.HelpWriter.Write([]byte(c.HelpFunc(c.Commands) + "\n"))
+		c.HelpWriter.Write([]byte(c.HelpFunc(c.helpCommands(c.Subcommand())) + "\n"))
 		return 0, nil
 	}
 
@@ -216,7 +216,7 @@ func (c *CLI) Run() (int, error) {
 	raw, ok := c.commandTree.Get(c.Subcommand())
 	if !ok {
 		c.HelpWriter.Write([]byte(c.HelpFunc(c.helpCommands(c.subcommandParent())) + "\n"))
-		return 1, nil
+		return 127, nil
 	}
 
 	command, err := raw.(CommandFactory)()

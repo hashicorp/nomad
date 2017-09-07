@@ -38,6 +38,92 @@ func TestJobDeploymentsCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 }
 
+func TestJobDeploymentsCommand_Run(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
+
+	// Should return an error message for no job match
+	if code := cmd.Run([]string{"-address=" + url, "foo"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+
+	// Create a job without a deployment
+	job := mock.Job()
+	state := srv.Agent.Server().State()
+	assert.Nil(state.UpsertJob(100, job))
+
+	// Should display no match if the job doesn't have deployments
+	if code := cmd.Run([]string{"-address=" + url, job.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "No deployments found") {
+		t.Fatalf("expected no deployments output, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Inject a deployment
+	d := mock.Deployment()
+	d.JobID = job.ID
+	assert.Nil(state.UpsertDeployment(200, d))
+
+	// Should now display the deployment
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", job.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, d.ID) {
+		t.Fatalf("expected deployment output, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+}
+
+func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
+
+	// Should return an error message for no job match
+	if code := cmd.Run([]string{"-address=" + url, "-latest", "foo"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+
+	// Create a job without a deployment
+	job := mock.Job()
+	state := srv.Agent.Server().State()
+	assert.Nil(state.UpsertJob(100, job))
+
+	// Should display no match if the job doesn't have deployments
+	if code := cmd.Run([]string{"-address=" + url, "-latest", job.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "No deployment found") {
+		t.Fatalf("expected no deployments output, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	// Inject a deployment
+	d := mock.Deployment()
+	d.JobID = job.ID
+	assert.Nil(state.UpsertDeployment(200, d))
+
+	// Should now display the deployment
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", "-latest", job.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, d.ID) {
+		t.Fatalf("expected deployment output, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+}
+
 func TestJobDeploymentsCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()

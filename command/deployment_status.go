@@ -169,6 +169,9 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 }
 
 func formatDeployment(d *api.Deployment, uuidLength int) string {
+	if d == nil {
+		return "No deployment found"
+	}
 	// Format the high-level elements
 	high := []string{
 		fmt.Sprintf("ID|%s", limit(d.ID, uuidLength)),
