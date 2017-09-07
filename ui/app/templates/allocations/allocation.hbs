@@ -32,7 +32,7 @@
               <em>No message</em>
             {{/if}}
           </td>
-          <td>{{moment-format row.model.events.lastObject.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+          <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
           <td>
             <ul>
               {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
@@ -51,9 +51,9 @@
   {{#each model.states as |state|}}
     <div class="message task-state-events">
       <div class="message-header">
-        {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "DD/MM/YY HH:mm:ss [UTC]"}}
+        {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "MM/DD/YY HH:mm:ss [UTC]"}}
         {{#unless state.isActive}}
-          Ended: {{moment-format state.finishedAt "DD/MM/YY HH:mm:ss [UTC]"}}
+          Ended: {{moment-format state.finishedAt "MM/DD/YY HH:mm:ss [UTC]"}}
         {{/unless}}
       </div>
       <table class="table is-striped task-events">
@@ -67,7 +67,7 @@
         <tbody>
           {{#each (reverse state.events) as |event|}}
             <tr>
-              <td>{{moment-format event.time "DD/MM/YY HH:mm:ss [UTC]"}}</td>
+              <td>{{moment-format event.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
               <td>{{event.type}}</td>
               <td>
                 {{#if event.displayMessage}}

@@ -21,10 +21,22 @@ moduleForAcceptance('Acceptance | allocation detail', {
 test('/allocation/:id should name the allocation and link to the corresponding job and node', function(
   assert
 ) {
-  assert.ok(find('h1').text().includes(allocation.name), 'Allocation name is in the heading');
-  assert.ok(find('h3').text().includes(job.name), 'Job name is in the subheading');
   assert.ok(
-    find('h3').text().includes(node.id.split('-')[0]),
+    find('h1')
+      .text()
+      .includes(allocation.name),
+    'Allocation name is in the heading'
+  );
+  assert.ok(
+    find('h3')
+      .text()
+      .includes(job.name),
+    'Job name is in the subheading'
+  );
+  assert.ok(
+    find('h3')
+      .text()
+      .includes(node.id.split('-')[0]),
     'Node short id is in the subheading'
   );
 
@@ -58,12 +70,36 @@ test('each task row should list high-level information for the task', function(a
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
 
-  assert.equal(taskRow.find('td:eq(0)').text().trim(), task.name, 'Name');
-  assert.equal(taskRow.find('td:eq(1)').text().trim(), task.state, 'State');
-  assert.equal(taskRow.find('td:eq(2)').text().trim(), event.message, 'Event Message');
   assert.equal(
-    taskRow.find('td:eq(3)').text().trim(),
-    moment(event.time / 1000000).format('DD/MM/YY HH:mm:ss [UTC]'),
+    taskRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
+    task.name,
+    'Name'
+  );
+  assert.equal(
+    taskRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    task.state,
+    'State'
+  );
+  assert.equal(
+    taskRow
+      .find('td:eq(2)')
+      .text()
+      .trim(),
+    event.message,
+    'Event Message'
+  );
+  assert.equal(
+    taskRow
+      .find('td:eq(3)')
+      .text()
+      .trim(),
+    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
     'Event Time'
   );
 
@@ -90,12 +126,15 @@ test('each recent events list should include the name, state, and time info for 
 ) {
   const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
   const recentEventsSection = find('.task-state-events:eq(0)');
-  const heading = recentEventsSection.find('.message-header').text().trim();
+  const heading = recentEventsSection
+    .find('.message-header')
+    .text()
+    .trim();
 
   assert.ok(heading.includes(task.name), 'Task name');
   assert.ok(heading.includes(task.state), 'Task state');
   assert.ok(
-    heading.includes(moment(task.startedAt).format('DD/MM/YY HH:mm:ss [UTC]')),
+    heading.includes(moment(task.startedAt).format('MM/DD/YY HH:mm:ss [UTC]')),
     'Task started at'
   );
 });
@@ -119,10 +158,27 @@ test('each recent event should list the time, type, and description of the event
   const recentEvent = find('.task-state-events:eq(0) .task-events tbody tr:last');
 
   assert.equal(
-    recentEvent.find('td:eq(0)').text().trim(),
-    moment(event.time / 1000000).format('DD/MM/YY HH:mm:ss [UTC]'),
+    recentEvent
+      .find('td:eq(0)')
+      .text()
+      .trim(),
+    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
     'Event timestamp'
   );
-  assert.equal(recentEvent.find('td:eq(1)').text().trim(), event.type, 'Event type');
-  assert.equal(recentEvent.find('td:eq(2)').text().trim(), event.message, 'Event message');
+  assert.equal(
+    recentEvent
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    event.type,
+    'Event type'
+  );
+  assert.equal(
+    recentEvent
+      .find('td:eq(2)')
+      .text()
+      .trim(),
+    event.message,
+    'Event message'
+  );
 });
