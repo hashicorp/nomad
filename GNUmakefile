@@ -96,7 +96,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \

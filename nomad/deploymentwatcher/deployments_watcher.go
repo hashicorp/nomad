@@ -149,7 +149,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 		// Block getting all deployments using the last deployment index.
 		deployments, idx, err := w.getDeploys(ctx, dindex)
 		if err != nil {
-			if err == context.Canceled || ctx.Err() == context.Canceled {
+			if err == context.Canceled {
 				return
 			}
 
@@ -177,9 +177,6 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.Deployment, uint64, error) {
 	resp, index, err := w.state.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
 	if err != nil {
-		return nil, 0, err
-	}
-	if err := ctx.Err(); err != nil {
 		return nil, 0, err
 	}
 

@@ -60,6 +60,8 @@ client {
     gc_inode_usage_threshold = 91
     gc_max_allocs = 50
     no_host_uuid = false
+    disable_tagged_metrics = true
+    backwards_compatible_metrics = true
 }
 server {
 	enabled = true

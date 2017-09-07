@@ -1,18 +1,32 @@
+## 0.7 (Unreleased)
+
+IMPROVEMENTS:
+ * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
+
 ## 0.6.3 (Unreleased)
 
 BUG FIXES:
  * api: Search handles prefix longer than allowed UUIDs [GH-3138]
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
  * cli: Sort task groups when displaying a deployment [GH-3137]
+ * cli: Handle reading files that are in a symlinked directory [GH-3164]
  * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
+ * cli: Fix job deployment -latest handling of jobs without deployments
+   [GH-3166]
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
    contacting nodes that are using TLS [GH-3127]
+ * client/template: Fix issue in which the template block could cause high load
+   on Vault when secret lease duration was less than the Vault grace [GH-3153]
+ * driver/docker: Always purge stopped containers [GH-3148]
+ * driver/docker: Fix issue in which mounts could parse incorrectly [GH-3163]
  * driver/docker: Fix issue where potentially incorrect syslog server address is
    used [GH-3135]
+ * driver/docker: Fix server url passed to credential helpers and properly
+   capture error output [GH-3165]
  * jobspec: Allow distinct_host constraint to have L/RTarget set [GH-3136]
 
 ## 0.6.2 (August 28, 2017)
