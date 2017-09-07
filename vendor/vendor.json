@@ -1033,10 +1033,10 @@
 			"revision": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
 		},
 		{
-			"checksumSHA1": "gPuHq0UytpuYPb2YWmFVb22Twcc=",
+			"checksumSHA1": "mjxSVrqngLZSyaQoEW2OLUb3oDs=",
 			"path": "github.com/mitchellh/cli",
-			"revision": "0ce7cd515f64496ee660ab19f6bbf373945d3af0",
-			"revisionTime": "2017-08-24T19:02:09Z"
+			"revision": "7a1a617034de956eee640dfa5a7407ccc8c8d7e6",
+			"revisionTime": "2017-09-06T23:20:06Z"
 		},
 		{
 			"checksumSHA1": "ttEN1Aupb7xpPMkQLqb3tzLFdXs=",
