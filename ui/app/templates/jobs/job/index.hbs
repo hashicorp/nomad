@@ -66,7 +66,7 @@
               {{#t.sort-by prop="reservedDisk"}}Reserved Disk{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{task-group-row taskGroup=row.model}}
+              {{task-group-row taskGroup=row.model onClick=(action "gotoTaskGroup" row.model)}}
             {{/t.body}}
           {{/list-table}}
         {{/list-pagination}}

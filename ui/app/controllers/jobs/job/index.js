@@ -28,4 +28,10 @@ export default Controller.extend(Sortable, {
 
   listToSort: computed.alias('taskGroups'),
   sortedTaskGroups: computed.alias('listSorted'),
+
+  actions: {
+    gotoTaskGroup(taskGroup) {
+      this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
+    },
+  },
 });

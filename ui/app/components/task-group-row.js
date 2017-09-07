@@ -5,7 +5,13 @@ const { Component } = Ember;
 export default Component.extend({
   tagName: 'tr',
 
-  classNames: ['task-group-row'],
+  classNames: ['task-group-row', 'is-interactive'],
 
   taskGroup: null,
+
+  onClick() {},
+
+  click(event) {
+    this.get('onClick')(event);
+  },
 });
