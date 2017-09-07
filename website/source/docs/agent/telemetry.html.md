@@ -253,56 +253,56 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     <td>Total amount of CPU shares the scheduler has allocated to tasks</td>
     <td>MHz</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.unallocated.cpu`</td>
     <td>Total amount of CPU shares free for the scheduler to allocate to tasks</td>
     <td>MHz</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.allocated.memory`</td>
     <td>Total amount of memory the scheduler has allocated to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.unallocated.memory`</td>
     <td>Total amount of memory free for the scheduler to allocate to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.allocated.disk`</td>
     <td>Total amount of disk space the scheduler has allocated to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.unallocated.disk`</td>
     <td>Total amount of disk space free for the scheduler to allocate to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.allocated.iops`</td>
     <td>Total amount of IOPS the scheduler has allocated to tasks</td>
     <td>IOPS</td>
     <td>Gauge</td>
-    <td>Host ID</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.unallocated.iops`</td>
     <td>Total amount of IOPS free for the scheduler to allocate to tasks</td>
     <td>IOPS</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.allocated.network`</td>
@@ -310,7 +310,7 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     given device</td>
     <td>Megabits</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, device</td>
   </tr>
   <tr>
     <td>`nomad.client.unallocated.network`</td>
@@ -318,14 +318,14 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     the given device</td>
     <td>Megabits</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, device</td>
   </tr>
   <tr>
     <td>`nomad.client.host.memory.total`</td>
     <td>Total amount of physical memory on the node</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.host.memory.available`</td>
@@ -333,91 +333,91 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     cached memory</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.host.memory.used`</td>
     <td>Amount of memory used by processes</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.host.memory.free`</td>
     <td>Amount of memory which is free</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.uptime`</td>
     <td>Uptime of the host running the Nomad client</td>
     <td>Seconds</td>
     <td>Gauge</td>
-    <td>Host ID, Datacenter</td>
+    <td>node_id, datacenter</td>
   </tr>
   <tr>
     <td>`nomad.client.host.cpu.total`</td>
     <td>Total CPU utilization</td>
     <td>Percentage</td>
     <td>Gauge</td>
-    <td>CPU-Core, Host ID, Datacenter</td>
+    <td>node_id, datacenter, cpu</td>
   </tr>
   <tr>
     <td>`nomad.client.host.cpu.user`</td>
     <td>CPU utilization in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
-    <td>CPU-Core, Host ID, Datacenter</td>
+    <td>node_id, datacenter, cpu</td>
   </tr>
   <tr>
     <td>`nomad.client.host.cpu.system`</td>
     <td>CPU utilization in the system space</td>
     <td>Percentage</td>
     <td>Gauge</td>
-    <td>CPU-Core, Host ID, Datacenter</td>
+    <td>node_id, datacenter, cpu</td>
   </tr>
   <tr>
     <td>`nomad.client.host.cpu.idle`</td>
     <td>Idle time spent by the CPU</td>
     <td>Percentage</td>
     <td>Gauge</td>
-    <td>CPU-Core, Host ID, Datacenter</td>
+    <td>node_id, datacenter, cpu</td>
   </tr>
   <tr>
     <td>`nomad.client.host.disk.size`</td>
     <td>Total size of the device</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, disk</td>
   </tr>
   <tr>
     <td>`nomad.client.host.disk.used`</td>
     <td>Amount of space which has been used</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, disk</td>
   </tr>
   <tr>
     <td>`nomad.client.host.disk.available`</td>
     <td>Amount of space which is available</td>
     <td>Bytes</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, disk</td>
   </tr>
   <tr>
     <td>`nomad.client.host.disk.used_percent`</td>
     <td>Percentage of disk space used</td>
     <td>Percentage</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, disk</td>
   </tr>
   <tr>
     <td>`nomad.client.host.disk.inodes_percent`</td>
     <td>Disk space consumed by the inodes</td>
     <td>Percent</td>
     <td>Gauge</td>
-    <td>Device Name, Host ID, Datacenter</td>
+    <td>node_id, datacenter, disk</td>
   </tr>
 </table>
 
