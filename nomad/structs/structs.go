@@ -52,6 +52,7 @@ const (
 	NodeDeregisterRequestType
 	NodeUpdateStatusRequestType
 	NodeUpdateDrainRequestType
+	NodeUpdateFreezeRequestType
 	JobRegisterRequestType
 	JobDeregisterRequestType
 	EvalUpdateRequestType
@@ -260,6 +261,13 @@ type NodeUpdateStatusRequest struct {
 type NodeUpdateDrainRequest struct {
 	NodeID string
 	Drain  bool
+	WriteRequest
+}
+
+// NodeUpdateFreezeRequest is used for updatin the freeze status
+type NodeUpdateFreezeRequest struct {
+	NodeID string
+	Freeze bool
 	WriteRequest
 }
 
@@ -774,6 +782,14 @@ type NodeDrainUpdateResponse struct {
 	QueryMeta
 }
 
+// NodeFreezeUpdateResponse is used to respond to a node freeze update
+type NodeFreezeUpdateResponse struct {
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	NodeModifyIndex uint64
+	QueryMeta
+}
+
 // NodeAllocsResponse is used to return allocs for a single node
 type NodeAllocsResponse struct {
 	Allocs []*Allocation
@@ -1052,6 +1068,11 @@ type Node struct {
 	// allocations will be drained.
 	Drain bool
 
+	// Freeze is controlled by the servers, and not the client.
+	// If true, no jobs will be scheduled to this node, byt existing
+	// allocations will not be affected.
+	Freeze bool
+
 	// Status of this node
 	Status string
 
@@ -1069,7 +1090,7 @@ type Node struct {
 
 // Ready returns if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	return n.Status == NodeStatusReady && !n.Drain
+	return n.Status == NodeStatusReady && !n.Drain && !n.Freeze
 }
 
 func (n *Node) Copy() *Node {
@@ -1106,6 +1127,7 @@ func (n *Node) Stub() *NodeListStub {
 		NodeClass:         n.NodeClass,
 		Version:           n.Attributes["nomad.version"],
 		Drain:             n.Drain,
+		Freeze:            n.Freeze,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
 		CreateIndex:       n.CreateIndex,
@@ -1122,6 +1144,7 @@ type NodeListStub struct {
 	NodeClass         string
 	Version           string
 	Drain             bool
+	Freeze            bool
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64

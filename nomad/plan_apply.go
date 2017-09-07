@@ -395,6 +395,8 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "node is not ready for placements", nil
 	} else if node.Drain {
 		return false, "node is draining", nil
+	} else if node.Freeze {
+		return false, "node is freezed", nil
 	}
 
 	// Get the existing allocations that are non-terminal

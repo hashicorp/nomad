@@ -139,6 +139,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
 		return n.applyDrainUpdate(buf[1:], log.Index)
+	case structs.NodeUpdateFreezeRequestType:
+		return n.applyFreezeUpdate(buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
@@ -261,6 +263,20 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 
 	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.Drain); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyFreezeUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_freeze_update"}, time.Now())
+	var req structs.NodeUpdateFreezeRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateNodeFreeze(index, req.NodeID, req.Freeze); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeFreeze failed: %v", err)
 		return err
 	}
 	return nil

@@ -47,7 +47,7 @@ type Node struct {
 	updatesLock sync.Mutex
 }
 
-// Register is used to upsert a client that is available for scheduling
+// Register is used to upset a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
 		return err
@@ -414,6 +414,62 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		_, index, err = n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
+			return err
+		}
+		reply.NodeModifyIndex = index
+	}
+
+	// Always attempt to create Node evaluations because there may be a System
+	// job registered that should be evaluated.
+	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		return err
+	}
+	reply.EvalIDs = evalIDs
+	reply.EvalCreateIndex = evalIndex
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
+
+// UpdateFreeze is used to update the freeze mode of a client node
+func (n *Node) UpdateFreeze(args *structs.NodeUpdateFreezeRequest,
+	reply *structs.NodeFreezeUpdateResponse) error {
+	if done, err := n.srv.forward("Node.UpdateFreeze", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_freeze"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for freeze update")
+	}
+
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Update the timestamp to
+	node.StatusUpdatedAt = time.Now().Unix()
+
+	// Commit this update via Raft
+	var index uint64
+	if node.Freeze != args.Freeze {
+		_, index, err = n.srv.raftApply(structs.NodeUpdateFreezeRequestType, args)
+		if err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: freeze update failed: %v", err)
 			return err
 		}
 		reply.NodeModifyIndex = index

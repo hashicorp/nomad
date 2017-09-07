@@ -441,7 +441,8 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		exist := existing.(*structs.Node)
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
-		node.Drain = exist.Drain // Retain the drain mode
+		node.Drain = exist.Drain   // Retain the drain mode
+		node.Freeze = exist.Freeze // Retain the freeze mode
 	} else {
 		node.CreateIndex = index
 		node.ModifyIndex = index
@@ -541,6 +542,41 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Update the drain in the copy
 	copyNode.Drain = drain
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeFreeze is used to update the drain of a node
+func (s *StateStore) UpdateNodeFreeze(index uint64, nodeID string, freeze bool) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := new(structs.Node)
+	*copyNode = *existingNode
+
+	// Update the freeze in the copy
+	copyNode.Freeze = freeze
 	copyNode.ModifyIndex = index
 
 	// Insert the node

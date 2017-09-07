@@ -168,6 +168,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"node-freeze": func() (cli.Command, error) {
+			return &command.NodeFreezeCommand{
+				Meta: meta,
+			}, nil
+		},
 		"node-status": func() (cli.Command, error) {
 			return &command.NodeStatusCommand{
 				Meta: meta,

@@ -249,6 +249,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 		if node.Drain {
 			continue
 		}
+		if node.Freeze {
+			continue
+		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
 			continue
 		}
