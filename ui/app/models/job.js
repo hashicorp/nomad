@@ -51,6 +51,7 @@ export default Model.extend({
 
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
+  deployments: hasMany('deployments'),
 
   fetchRawDefinition() {
     return this.store.adapterFor('job').fetchRawDefinition(this);

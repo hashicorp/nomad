@@ -50,6 +50,11 @@ export default ApplicationSerializer.extend({
           related: `${jobURL}/versions?diffs=true`,
         },
       },
+      deployments: {
+        links: {
+          related: `${jobURL}/deployments`,
+        },
+      },
     };
   },
 });
