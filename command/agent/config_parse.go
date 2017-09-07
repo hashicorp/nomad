@@ -357,8 +357,6 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
-		"disable_tagged_metrics",
-		"backwards_compatible_metrics",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err
@@ -635,6 +633,8 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_check_tags",
 		"circonus_broker_id",
 		"circonus_broker_select_tag",
+		"disable_tagged_metrics",
+		"backwards_compatible_metrics",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err

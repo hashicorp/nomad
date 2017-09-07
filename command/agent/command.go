@@ -15,12 +15,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-checkpoint"
-	"github.com/hashicorp/go-syslog"
+	checkpoint "github.com/hashicorp/go-checkpoint"
+	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper/flag-helpers"
 	"github.com/hashicorp/nomad/helper/gated-writer"
@@ -331,9 +331,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
+func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-	agent, err := NewAgent(config, logOutput)
+	agent, err := NewAgent(config, logOutput, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
@@ -444,13 +444,14 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Initialize the telemetry
-	if err := c.setupTelemetry(config); err != nil {
+	inmem, err := c.setupTelemetry(config)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
 	}
 
 	// Create the agent
-	if err := c.setupAgent(config, logOutput); err != nil {
+	if err := c.setupAgent(config, logOutput, inmem); err != nil {
 		logGate.Flush()
 		return 1
 	}
@@ -619,7 +620,7 @@ func (c *Command) handleReload(config *Config) *Config {
 }
 
 // setupTelemetry is used ot setup the telemetry sub-systems
-func (c *Command) setupTelemetry(config *Config) error {
+func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	/* Setup telemetry
 	Aggregate on 10 second intervals for 1 minute. Expose the
 	metrics over stderr when there is a SIGUSR1 received.
@@ -646,7 +647,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 	if telConfig.StatsiteAddr != "" {
 		sink, err := metrics.NewStatsiteSink(telConfig.StatsiteAddr)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		fanout = append(fanout, sink)
 	}
@@ -655,7 +656,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 	if telConfig.StatsdAddr != "" {
 		sink, err := metrics.NewStatsdSink(telConfig.StatsdAddr)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		fanout = append(fanout, sink)
 	}
@@ -664,7 +665,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 	if telConfig.DataDogAddr != "" {
 		sink, err := datadog.NewDogStatsdSink(telConfig.DataDogAddr, config.NodeName)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		fanout = append(fanout, sink)
 	}
@@ -700,7 +701,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 
 		sink, err := circonus.NewCirconusSink(cfg)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		sink.Start()
 		fanout = append(fanout, sink)
@@ -714,7 +715,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
-	return nil
+	return inm, nil
 }
 
 // setupSCADA is used to start a new SCADA provider and listener,
