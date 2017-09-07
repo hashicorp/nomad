@@ -129,6 +129,11 @@ func (c *PlanCommand) Run(args []string) int {
 		client.SetRegion(*r)
 	}
 
+	// Force the namespace to be that of the job.
+	if n := job.Namespace; n != nil {
+		client.SetNamespace(*n)
+	}
+
 	// Submit the job
 	resp, _, err := client.Jobs().Plan(job, diff, nil)
 	if err != nil {

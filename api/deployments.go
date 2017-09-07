@@ -14,7 +14,7 @@ func (c *Client) Deployments() *Deployments {
 	return &Deployments{client: c}
 }
 
-// List is used to dump all of the evaluations.
+// List is used to dump all of the deployments.
 func (d *Deployments) List(q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
 	var resp []*Deployment
 	qm, err := d.client.query("/v1/deployments", &resp, q)
@@ -29,7 +29,7 @@ func (d *Deployments) PrefixList(prefix string) ([]*Deployment, *QueryMeta, erro
 	return d.List(&QueryOptions{Prefix: prefix})
 }
 
-// Info is used to query a single evaluation by its ID.
+// Info is used to query a single deployment by its ID.
 func (d *Deployments) Info(deploymentID string, q *QueryOptions) (*Deployment, *QueryMeta, error) {
 	var resp Deployment
 	qm, err := d.client.query("/v1/deployment/"+deploymentID, &resp, q)
