@@ -214,6 +214,16 @@ clean: ## Remove build artifacts
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
+.PHONY: testcluster
+testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
+	vagrant up nomad-server01 \
+		nomad-server02 \
+		nomad-server03 \
+		nomad-client01 \
+		nomad-client02 \
+		nomad-client03 \
+		$(if $(PROVIDER),--provider $(PROVIDER))
+
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help
 help: ## Display this usage information
