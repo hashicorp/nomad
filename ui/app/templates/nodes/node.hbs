@@ -47,7 +47,7 @@
               <th>Memory</th>
             {{/t.head}}
             {{#t.body as |row|}}
-              {{allocation-row allocation=row.model context="node"}}
+              {{allocation-row allocation=row.model context="node" onClick=(action "gotoAllocation" row.model)}}
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">

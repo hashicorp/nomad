@@ -35,4 +35,10 @@ export default Controller.extend(Sortable, Searchable, {
       { label: this.get('model.name'), args: ['jobs.job.task-group', this.get('model.name')] },
     ]);
   }),
+
+  actions: {
+    gotoAllocation(allocation) {
+      this.transitionToRoute('allocations.allocation', allocation);
+    },
+  },
 });

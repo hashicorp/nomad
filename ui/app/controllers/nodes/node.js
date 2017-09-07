@@ -23,4 +23,10 @@ export default Controller.extend(Sortable, Searchable, {
   listToSort: computed.alias('model.allocations'),
   listToSearch: computed.alias('listSorted'),
   sortedAllocations: computed.alias('listSearched'),
+
+  actions: {
+    gotoAllocation(allocation) {
+      this.transitionToRoute('allocations.allocation', allocation);
+    },
+  },
 });
