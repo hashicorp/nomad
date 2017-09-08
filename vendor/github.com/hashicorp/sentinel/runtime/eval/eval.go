@@ -1507,7 +1507,7 @@ policy to execute within this time.
 const errUndefined = `Result value was 'undefined'.
 
 This means that undefined behavior was experienced at one or more locations
-and the result of your policy ultimately resulted in "undefined". This usual
+and the result of your policy ultimately resulted in "undefined". This usually
 represents a policy which doesn't handle all possible cases and should be
 corrected.
 

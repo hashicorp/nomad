@@ -90,7 +90,7 @@ func (m *structNS) buildFieldMap(t reflect.Type, parent []int) {
 		}
 
 		// Default key is the lowercased name
-		key := strings.ToLower(f.Name)
+		key := underscore(f.Name)
 
 		// Build the index for lookup
 		fieldIndex := f.Index
