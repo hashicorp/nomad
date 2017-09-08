@@ -9,9 +9,10 @@ const Router = Ember.Router.extend({
 Router.map(function() {
   this.route('jobs', function() {
     this.route('job', { path: '/:job_id' }, function() {
+      this.route('task-group', { path: '/:name' });
       this.route('definition');
       this.route('versions');
-      this.route('task-group', { path: '/:name' });
+      this.route('deployments');
     });
   });
 
