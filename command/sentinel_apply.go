@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type SentinelApplyCommand struct {
@@ -39,6 +40,19 @@ Apply Options:
 
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *SentinelApplyCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-description": complete.PredictAnything,
+			"-scope":       complete.PredictAnything,
+			"-level":       complete.PredictAnything,
+		})
+}
+
+func (c *SentinelApplyCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *SentinelApplyCommand) Synopsis() string {

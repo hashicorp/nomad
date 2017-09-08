@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type SentinelDeleteCommand struct {
@@ -21,6 +23,15 @@ General Options:
 
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *SentinelDeleteCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{})
+}
+
+func (c *SentinelDeleteCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *SentinelDeleteCommand) Synopsis() string {

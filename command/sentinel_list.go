@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type SentinelListCommand struct {
@@ -21,6 +23,15 @@ General Options:
 
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *SentinelListCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{})
+}
+
+func (c *SentinelListCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *SentinelListCommand) Synopsis() string {

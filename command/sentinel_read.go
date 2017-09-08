@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type SentinelReadCommand struct {
@@ -26,6 +28,17 @@ Read Options:
 
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *SentinelReadCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-raw": complete.PredictNothing,
+		})
+}
+
+func (c *SentinelReadCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *SentinelReadCommand) Synopsis() string {
