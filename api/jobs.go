@@ -221,21 +221,36 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+// PlanOptions is used to pass through job planning parameters
+type PlanOptions struct {
+	Diff           bool
+	PolicyOverride bool
+}
+
 func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
+	opts := PlanOptions{Diff: diff}
+	return j.PlanOpts(job, &opts, q)
+}
+
+func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
 	if job == nil {
 		return nil, nil, fmt.Errorf("must pass non-nil job")
 	}
 
-	var resp JobPlanResponse
+	// Setup the request
 	req := &JobPlanRequest{
-		Job:  job,
-		Diff: diff,
+		Job: job,
 	}
+	if opts != nil {
+		req.Diff = opts.Diff
+		req.PolicyOverride = opts.PolicyOverride
+	}
+
+	var resp JobPlanResponse
 	wm, err := j.client.write("/v1/job/"+*job.ID+"/plan", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return &resp, wm, nil
 }
 
@@ -842,8 +857,9 @@ type JobDeregisterResponse struct {
 }
 
 type JobPlanRequest struct {
-	Job  *Job
-	Diff bool
+	Job            *Job
+	Diff           bool
+	PolicyOverride bool
 	WriteRequest
 }
 

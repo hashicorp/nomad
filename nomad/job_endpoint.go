@@ -921,6 +921,31 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
+	// Check job submission permissions, which we assume is the same for plan
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
+
+	// Enforce Sentinel policies
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	if err != nil {
+		return err
+	}
+	if policyWarnings != nil {
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
+			canonicalizeWarnings, policyWarnings)
+	}
+
 	// Acquire a snapshot of the state
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {

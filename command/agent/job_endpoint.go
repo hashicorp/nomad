@@ -124,8 +124,9 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 
 	sJob := ApiJobToStructJob(args.Job)
 	planReq := structs.JobPlanRequest{
-		Job:  sJob,
-		Diff: args.Diff,
+		Job:            sJob,
+		Diff:           args.Diff,
+		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
 			Region: args.WriteRequest.Region,
 		},

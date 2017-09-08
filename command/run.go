@@ -210,7 +210,7 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Set the registero ptions
+	// Set the register options
 	opts := &api.RegisterOptions{}
 	if enforce {
 		opts.EnforceIndex = true

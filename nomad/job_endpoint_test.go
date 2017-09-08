@@ -2580,6 +2580,39 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Plan_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a plan request
+	job := mock.Job()
+	planReq := &structs.JobPlanRequest{
+		Job:  job,
+		Diff: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Try without a token, expect failure
+	var planResp structs.JobPlanResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	// Try with a token
+	planReq.SecretID = root.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {

@@ -125,3 +125,64 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 }
+
+func TestJobEndpoint_Plan_Sentinel(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a passing policy
+	policy1 := mock.SentinelPolicy()
+	policy1.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
+	policy1.Policy = `
+	main = rule { all_drivers_exec }
+
+	all_drivers_exec = rule {
+		all job.task_groups as tg {
+			all tg.tasks as task {
+				task.driver is "exec"
+			}
+		}
+	}
+	`
+	s1.State().UpsertSentinelPolicies(1000,
+		[]*structs.SentinelPolicy{policy1})
+
+	// Create a plan request
+	job := mock.Job()
+	planReq := &structs.JobPlanRequest{
+		Job:  job,
+		Diff: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+			SecretID:  root.SecretID,
+		},
+	}
+
+	// Fetch the response
+	var planResp structs.JobPlanResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a failing job
+	job2 := mock.Job()
+	job2.TaskGroups[0].Tasks[0].Driver = "docker"
+	planReq.Job = job2
+
+	// Should fail
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	// Should fail, even with override
+	planReq.PolicyOverride = true
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err == nil {
+		t.Fatalf("expected error")
+	}
+}

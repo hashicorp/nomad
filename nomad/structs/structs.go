@@ -386,6 +386,8 @@ type JobListRequest struct {
 type JobPlanRequest struct {
 	Job  *Job
 	Diff bool // Toggles an annotated diff
+	// PolicyOverride is set when the user is attempting to override any policies
+	PolicyOverride bool
 	WriteRequest
 }
 
