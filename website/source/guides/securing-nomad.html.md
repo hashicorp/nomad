@@ -390,9 +390,10 @@ server {
 ## Switching an existing cluster to TLS
 
 Since Nomad does _not_ use different ports for TLS and non-TLS communication,
-the use of TLS should be consistent across the cluster. Switching an existing
-cluster to use TLS everywhere is similar to upgrading between versions of
-Nomad:
+the use of TLS must be consistent across the cluster. Switching an existing
+cluster to use TLS everywhere is operationally similar to upgrading between
+versions of Nomad, but requires additional steps to preventing needlessly
+rescheduling allocations.
 
 1. Add the appropriate key and certificates to all nodes.
   * Ensure the private key file is only readable by the Nomad user.
@@ -400,17 +401,33 @@ Nomad:
 1. Add the appropriate `tls` block to the configuration file on all nodes.
 1. Generate a gossip key and add it the Nomad server configuration.
 
-At this point a rolling restart of the cluster will enable TLS everywhere.
-
-1. Restart servers, one at a time
-1. Restart clients, one or more at a time
-
 ~> Once a quorum of servers are TLS-enabled, clients will no longer be able to
    communicate with the servers until their client configuration is updated and
    reloaded.
 
+At this point a rolling restart of the cluster will enable TLS everywhere.
+However, once servers are restarted clients will be unable to heartbeat. This
+means any client unable to restart with TLS enabled before their heartbeat TTTL
+expires will have their allocations marked as lost and rescheduled.
+
+While the default heartbeat settings may be sufficient for concurrently
+restarting a small number of nodes without any allocations being marked as
+`lost`, most operators should raise the `heartbeat_grace` configuration setting
+before restarting their servers:
+
+1. Set `heartbeat_grace = "1h"` or an appropriate duration on servers
+1. Restart servers, one at a time
+1. Restart clients, one or more at a time
+1. Set `heartbeat_grace` back to its previos value (or remove to accept the
+   default)
+1. Restart servers, one at a time
+
+~> In a future release Nomad will allow upgrading a cluster to use TLS without
+   multiple server restarts.
+
 Jobs running in the cluster will _not_ be affected and will continue running
-throughout the switch.
+throughout the switch as long as all clients can restart within their heartbeat
+TTL.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
