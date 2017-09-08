@@ -15,11 +15,6 @@ const (
 )
 
 var (
-	// allContexts are the available contexts which are searched to find matches
-	// for a given prefix
-	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
-		structs.Evals, structs.Deployments, structs.Namespaces}
-
 	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
 	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
