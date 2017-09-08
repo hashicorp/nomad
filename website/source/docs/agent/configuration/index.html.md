@@ -194,6 +194,8 @@ testing.
   with potentially multiple zones, which map to [datacenters](#datacenter) such
   as `us-west` and `us-east`.
 
+- `sentinel` <code>([Sentinel][sentinel]: nil)</code> - Specifies configuration for Sentinel policies.
+
 - `server` <code>([Server][server]: nil)</code> - Specifies configuration which is specific to the Nomad server.
 
 - `syslog_facility` `(string: "LOCAL0")` - Specifies the syslog facility to write to. This has no effect unless `enable_syslog` is true.
@@ -231,5 +233,6 @@ http_api_response_headers {
 [vault]: /docs/agent/configuration/vault.html "Nomad Agent vault Configuration"
 [tls]: /docs/agent/configuration/tls.html "Nomad Agent tls Configuration"
 [client]: /docs/agent/configuration/client.html "Nomad Agent client Configuration"
+[sentinel]: /docs/agent/configuration/sentinel.html "Nomad Agent sentinel Configuration"
 [server]: /docs/agent/configuration/server.html "Nomad Agent server Configuration"
 [acl]: /docs/agent/configuration/acl.html "Nomad Agent ACL Configuration"

@@ -1239,7 +1239,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-
 	return nil
 }
 

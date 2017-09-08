@@ -97,6 +97,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"tls",
 		"http_api_response_headers",
 		"acl",
+		"sentinel",
 	}
 	if err := checkHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
@@ -120,6 +121,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "tls")
 	delete(m, "http_api_response_headers")
 	delete(m, "acl")
+	delete(m, "sentinel")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -200,6 +202,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("tls"); len(o.Items) > 0 {
 		if err := parseTLSConfig(&result.TLSConfig, o); err != nil {
 			return multierror.Prefix(err, "tls ->")
+		}
+	}
+
+	// Parse Sentinel config
+	if o := list.Filter("sentinel"); len(o.Items) > 0 {
+		if err := parseSentinel(&result.Sentinel, o); err != nil {
+			return multierror.Prefix(err, "sentinel->")
 		}
 	}
 
@@ -831,6 +840,40 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 	}
 
 	*result = vaultConfig
+	return nil
+}
+
+func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'sentinel' block allowed")
+	}
+
+	// Get our sentinel object
+	obj := list.Items[0]
+
+	// Value should be an object
+	var listVal *ast.ObjectList
+	if ot, ok := obj.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("sentinel value: should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"import",
+	}
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var config config.SentinelConfig
+	if err := hcl.DecodeObject(&config, listVal); err != nil {
+		return err
+	}
+
+	*result = &config
 	return nil
 }
 

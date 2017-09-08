@@ -34,6 +34,7 @@ func TestConfig_Merge(t *testing.T) {
 		Atlas:          &AtlasConfig{},
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
+		Sentinel:       &config.SentinelConfig{},
 	}
 
 	c2 := &Config{
@@ -309,6 +310,15 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:     &trueValue,
 			ClientAutoJoin:     &trueValue,
 			ChecksUseAdvertise: &trueValue,
+		},
+		Sentinel: &config.SentinelConfig{
+			Imports: []*config.SentinelImport{
+				&config.SentinelImport{
+					Name: "foo",
+					Path: "foo",
+					Args: []string{"a", "b", "c"},
+				},
+			},
 		},
 	}
 

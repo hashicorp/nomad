@@ -14,6 +14,8 @@ import (
 const (
 	NamespaceUpsertRequestType MessageType = (64 + iota)
 	NamespaceDeleteRequestType
+	SentinelPolicyUpsertRequestType
+	SentinelPolicyDeleteRequestType
 )
 
 var (

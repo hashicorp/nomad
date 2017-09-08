@@ -18,6 +18,7 @@ import (
 // the OSS/Enterprise values.
 const (
 	NamespaceSnapshot SnapshotType = (64 + iota)
+	SentinelPolicySnapshot
 )
 
 // registerProLogAppliers registers all the Nomad Pro Raft log appliers

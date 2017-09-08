@@ -3,10 +3,7 @@ layout: "guides"
 page_title: "ACLs"
 sidebar_current: "guides-acl"
 description: |-
-  Don't panic! This is a critical first step. Depending on your deployment
-  configuration, it may take only a single server failure for cluster
-  unavailability. Recovery requires an operator to intervene, but recovery is
-  straightforward.
+ Nomad provides an optional Access Control List (ACL) system which can be used to control access to data and APIs. The ACL is Capability-based, relying on tokens which are associated with policies to determine which fine grained rules can be applied. Nomad's capability based ACL system is very similar to the design of AWS IAM.
 ---
 
 # ACL System
@@ -232,6 +229,7 @@ Namespace rules are keyed by the namespace name they apply to. When no namespace
 * `submit-job` - Allows jobs to be submitted or modified.
 * `read-logs` - Allows the logs associated with a job to be viewed.
 * `read-fs` - Allows the filesystem of allocations associated to be viewed.
+* `sentinel-override` - Allows soft mandatory policies to be overriden.
 
 The coarse grained policy dispositions are shorthand for the fine grained capabilities:
 

@@ -4,7 +4,7 @@ package nomad
 
 // establishEnterpriseLeadership is used to instantiate Nomad Pro systems upon
 // acquiring leadership.
-func (s *Server) establishEnterpriseLeadership() error {
+func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}) error {
 	return s.establishProLeadership()
 }
 

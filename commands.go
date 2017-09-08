@@ -229,6 +229,31 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"sentinel": func() (cli.Command, error) {
+			return &command.SentinelCommand{
+				Meta: meta,
+			}, nil
+		},
+		"sentinel list": func() (cli.Command, error) {
+			return &command.SentinelListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"sentinel apply": func() (cli.Command, error) {
+			return &command.SentinelApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"sentinel delete": func() (cli.Command, error) {
+			return &command.SentinelDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"sentinel read": func() (cli.Command, error) {
+			return &command.SentinelReadCommand{
+				Meta: meta,
+			}, nil
+		},
 		"server-force-leave": func() (cli.Command, error) {
 			return &command.ServerForceLeaveCommand{
 				Meta: meta,
