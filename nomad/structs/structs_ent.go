@@ -3,6 +3,7 @@
 package structs
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
@@ -186,4 +187,150 @@ type SentinelPolicyDeleteRequest struct {
 type SentinelPolicyUpsertRequest struct {
 	Policies []*SentinelPolicy
 	WriteRequest
+}
+
+// QuotaSpec specifies the allowed resource usage across regions.
+type QuotaSpec struct {
+	// Name is the name for the quota object
+	Name string
+
+	// Description is an optional description for the quota object
+	Description string
+
+	// Limits is the set of quota limits encapsulated by this quota object. Each
+	// limit applies quota in a particular region and in the future over a
+	// particular priority range and datacenter set.
+	Limits []*QuotaLimit
+
+	// Hash is the hash of the object and is used to make replication efficient.
+	Hash []byte
+
+	// Raft indexes to track creation and modification
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the QuotaSpec
+func (q *QuotaSpec) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(q.Name))
+	hash.Write([]byte(q.Description))
+
+	for _, l := range q.Limits {
+		hash.Write(l.Hash())
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	q.Hash = hashVal
+	return hashVal
+}
+
+func (q *QuotaSpec) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(q.Name) {
+		err := fmt.Errorf("invalid name %q", q.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(q.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	if len(q.Limits) == 0 {
+		err := fmt.Errorf("must provide at least one quota limit")
+		mErr.Errors = append(mErr.Errors, err)
+	} else {
+		for i, l := range q.Limits {
+			if err := l.Validate(); err != nil {
+				wrapped := fmt.Errorf("invalid quota limit %d: %v", i, err)
+				mErr.Errors = append(mErr.Errors, wrapped)
+			}
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// QuotaLimit describes the resource limit in a particular region.
+type QuotaLimit struct {
+	// Region is the region in which this limit has affect
+	Region string
+
+	// RegionLimit is the quota limit that applies to any allocation within a
+	// referencing namespace in the region.
+	RegionLimit *Resources
+}
+
+// Hash is used to compute the hash of the QuotaLimit
+func (q *QuotaLimit) Hash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(q.Region))
+
+	if q.RegionLimit != nil {
+		binary.Write(hash, binary.LittleEndian, q.RegionLimit.CPU)
+		binary.Write(hash, binary.LittleEndian, q.RegionLimit.MemoryMB)
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+	return hashVal
+}
+
+// Validate validates the QuotaLimit
+func (q *QuotaLimit) Validate() error {
+	var mErr multierror.Error
+
+	if q.Region == "" {
+		err := fmt.Errorf("must provide a region")
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	if q.RegionLimit == nil {
+		err := fmt.Errorf("must provide a region limit")
+		mErr.Errors = append(mErr.Errors, err)
+	} else {
+		if q.RegionLimit.DiskMB > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("quota can not limit disk"))
+		}
+		if len(q.RegionLimit.Networks) > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("quota can not limit networks"))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// Key returns a key that gets invalidated on changes to the QuotaLimit
+func (q *QuotaLimit) Key() string {
+	return q.Region
+}
+
+// QuotaUsage is local to a region and is used to track current
+// resource usage for the quota object.
+type QuotaUsage struct {
+	// Name is a uniquely identifying name that is shared with the spec
+	Name string
+
+	// Used is the currently used resources for each quota limit. The map is
+	// keyed by the QuotaLimit Key function.
+	Used map[string]*QuotaLimit
+
+	// Raft indexes to track creation and modification
+	CreateIndex uint64
+	ModifyIndex uint64
 }
