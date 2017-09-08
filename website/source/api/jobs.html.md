@@ -1314,7 +1314,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -1327,12 +1327,17 @@ The table below shows this endpoint's support for
   submitted and server side version of the job should be included in the
   response.
 
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overriden. This allows a job to be registered when it would be denied
+  by policy.
+
 ### Sample Payload
 
 ```json
 {
   "Job": "...",
-  "Diff": true
+  "Diff": true,
+  "PolicyOverride": false
 }
 ```
 
