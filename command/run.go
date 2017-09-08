@@ -167,6 +167,11 @@ func (c *RunCommand) Run(args []string) int {
 		client.SetRegion(*r)
 	}
 
+	// Force the namespace to be that of the job.
+	if n := job.Namespace; n != nil {
+		client.SetNamespace(*n)
+	}
+
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()

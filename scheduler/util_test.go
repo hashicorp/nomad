@@ -731,11 +731,12 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 
 	// Register an alloc
 	alloc := &structs.Allocation{
-		ID:     structs.GenerateUUID(),
-		EvalID: eval.ID,
-		NodeID: node.ID,
-		JobID:  job.ID,
-		Job:    job,
+		Namespace: structs.DefaultNamespace,
+		ID:        structs.GenerateUUID(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -779,11 +780,12 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 
 	// Register an alloc
 	alloc := &structs.Allocation{
-		ID:     structs.GenerateUUID(),
-		EvalID: eval.ID,
-		NodeID: node.ID,
-		JobID:  job.ID,
-		Job:    job,
+		Namespace: structs.DefaultNamespace,
+		ID:        structs.GenerateUUID(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
 		Resources: &structs.Resources{
 			CPU:      2048,
 			MemoryMB: 2048,
@@ -826,6 +828,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	// Register an alloc
 	alloc := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
 		ID:        structs.GenerateUUID(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,

@@ -104,6 +104,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:                helper.StringToPtr(""),
 				Name:              helper.StringToPtr(""),
 				Region:            helper.StringToPtr("global"),
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				Type:              helper.StringToPtr("service"),
 				ParentID:          helper.StringToPtr(""),
 				Priority:          helper.IntToPtr(50),
@@ -146,9 +147,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "partial",
 			input: &Job{
-				Name:     helper.StringToPtr("foo"),
-				ID:       helper.StringToPtr("bar"),
-				ParentID: helper.StringToPtr("lol"),
+				Name:      helper.StringToPtr("foo"),
+				Namespace: helper.StringToPtr("bar"),
+				ID:        helper.StringToPtr("bar"),
+				ParentID:  helper.StringToPtr("lol"),
 				TaskGroups: []*TaskGroup{
 					{
 						Name: helper.StringToPtr("bar"),
@@ -161,6 +163,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr("bar"),
 				ID:                helper.StringToPtr("bar"),
 				Name:              helper.StringToPtr("foo"),
 				Region:            helper.StringToPtr("global"),
@@ -284,6 +287,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("example_template"),
 				Name:              helper.StringToPtr("example_template"),
 				ParentID:          helper.StringToPtr(""),
@@ -420,6 +424,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Periodic: &PeriodicConfig{},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("bar"),
 				ParentID:          helper.StringToPtr(""),
 				Name:              helper.StringToPtr("bar"),
@@ -489,6 +494,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("bar"),
 				Name:              helper.StringToPtr("foo"),
 				Region:            helper.StringToPtr("global"),

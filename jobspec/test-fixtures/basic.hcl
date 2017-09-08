@@ -1,5 +1,6 @@
 job "binstore-storagelocker" {
   region      = "fooregion"
+  namespace   = "foonamespace"
   type        = "batch"
   priority    = 52
   all_at_once = true

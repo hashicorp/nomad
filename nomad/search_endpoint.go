@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -16,9 +15,9 @@ const (
 )
 
 var (
-	// allContexts are the available contexts which are searched to find matches
+	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
-	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
+	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
 		structs.Evals, structs.Deployments}
 )
 
@@ -51,8 +50,13 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		case *structs.Deployment:
 			id = raw.(*structs.Deployment).ID
 		default:
-			s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
-			continue
+			matchID, ok := getEnterpriseMatch(raw)
+			if !ok {
+				s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
+				continue
+			}
+
+			id = matchID
 		}
 
 		if !strings.HasPrefix(id, prefix) {
@@ -67,20 +71,20 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context structs.Context, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context structs.Context, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
-		return state.JobsByIDPrefix(ws, prefix)
+		return state.JobsByIDPrefix(ws, namespace, prefix)
 	case structs.Evals:
-		return state.EvalsByIDPrefix(ws, prefix)
+		return state.EvalsByIDPrefix(ws, namespace, prefix)
 	case structs.Allocs:
-		return state.AllocsByIDPrefix(ws, prefix)
+		return state.AllocsByIDPrefix(ws, namespace, prefix)
 	case structs.Nodes:
 		return state.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
-		return state.DeploymentsByIDPrefix(ws, prefix)
+		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	default:
-		return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+		return getEnterpriseResourceIter(context, namespace, prefix, ws, state)
 	}
 }
 
@@ -122,7 +126,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			}
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {
 					e := err.Error()

@@ -191,7 +191,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
 	ws := memdb.NewWatchSet()
-	s.job, err = s.state.JobByID(ws, s.eval.JobID)
+	s.job, err = s.state.JobByID(ws, s.eval.Namespace, s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job %q: %v", s.eval.JobID, err)
 	}
@@ -208,7 +208,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	if !s.batch {
 		// Get any existing deployment
-		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.JobID)
+		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
 			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
 		}
@@ -365,7 +365,7 @@ func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) ([
 func (s *GenericScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
-	allocs, err := s.state.AllocsByJob(ws, s.eval.JobID, true)
+	allocs, err := s.state.AllocsByJob(ws, s.eval.Namespace, s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)
@@ -517,6 +517,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:            structs.GenerateUUID(),
+					Namespace:     s.job.Namespace,
 					EvalID:        s.eval.ID,
 					Name:          missing.Name(),
 					JobID:         s.job.ID,

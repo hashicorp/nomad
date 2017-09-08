@@ -184,7 +184,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		t.Fatalf("bad: %v", outA2)
 	}
 
-	outB, err := state.JobByID(ws, job.ID)
+	outB, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -698,7 +698,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -744,7 +744,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	}
 
 	// Should not still exist
-	out, err = state.JobByID(ws, job.ID)
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -835,7 +835,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -881,7 +881,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	}
 
 	// Should not still exist
-	out, err = state.JobByID(ws, job.ID)
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -979,7 +979,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1084,7 +1084,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 
 	// Shouldn't still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1161,7 +1161,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 
 	// Shouldn't still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1217,7 +1217,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1248,7 +1248,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	}
 
 	// Should not exist
-	out, err = state.JobByID(ws, job.ID)
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1292,7 +1292,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1323,7 +1323,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	}
 
 	// Should not exist
-	out, err = state.JobByID(ws, job.ID)
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

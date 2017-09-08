@@ -448,7 +448,7 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 	// Update the evaluation if the queued jobs is not same as what is
 	// recorded in the job summary
 	ws := memdb.NewWatchSet()
-	summary, err := w.srv.fsm.state.JobSummaryByID(ws, eval.JobID)
+	summary, err := w.srv.fsm.state.JobSummaryByID(ws, eval.Namespace, eval.JobID)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve job summary: %v", err)
 	}

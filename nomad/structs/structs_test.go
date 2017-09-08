@@ -26,16 +26,19 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[2].Error(), "job name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "job type") {
+	if !strings.Contains(mErr.Errors[3].Error(), "namespace") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "priority") {
+	if !strings.Contains(mErr.Errors[4].Error(), "job type") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[5].Error(), "datacenters") {
+	if !strings.Contains(mErr.Errors[5].Error(), "priority") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[6].Error(), "task groups") {
+	if !strings.Contains(mErr.Errors[6].Error(), "datacenters") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[7].Error(), "task groups") {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -62,6 +65,7 @@ func TestJob_Validate(t *testing.T) {
 	j = &Job{
 		Region:      "global",
 		ID:          GenerateUUID(),
+		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
 		Priority:    50,
@@ -161,7 +165,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			Name:     "One task group",
 			Warnings: []string{"conversion to new update stanza"},
 			Job: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -174,7 +179,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -202,7 +208,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			Name:     "One task group batch",
 			Warnings: []string{"Update stanza is disallowed for batch jobs"},
 			Job: &Job{
-				Type: JobTypeBatch,
+				Namespace: "test",
+				Type:      JobTypeBatch,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -215,8 +222,9 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type:   JobTypeBatch,
-				Update: UpdateStrategy{},
+				Namespace: "test",
+				Type:      JobTypeBatch,
+				Update:    UpdateStrategy{},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:          "foo",
@@ -231,7 +239,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			Name:     "One task group batch - new spec",
 			Warnings: []string{"Update stanza is disallowed for batch jobs"},
 			Job: &Job{
-				Type: JobTypeBatch,
+				Namespace: "test",
+				Type:      JobTypeBatch,
 				Update: UpdateStrategy{
 					Stagger:         2 * time.Second,
 					MaxParallel:     2,
@@ -256,8 +265,9 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type:   JobTypeBatch,
-				Update: UpdateStrategy{},
+				Namespace: "test",
+				Type:      JobTypeBatch,
+				Update:    UpdateStrategy{},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:          "foo",
@@ -271,7 +281,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 		{
 			Name: "One task group service - new spec",
 			Job: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					Stagger:         2 * time.Second,
 					MaxParallel:     2,
@@ -296,7 +307,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					Stagger:         2 * time.Second,
 					MaxParallel:     2,
@@ -327,7 +339,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			Name:     "One task group; too high of parallelism",
 			Warnings: []string{"conversion to new update stanza"},
 			Job: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 200,
 					Stagger:     10 * time.Second,
@@ -340,7 +353,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 200,
 					Stagger:     10 * time.Second,
@@ -368,7 +382,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 			Name:     "Multiple task group; rounding",
 			Warnings: []string{"conversion to new update stanza"},
 			Job: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -389,7 +404,8 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 			},
 			Expected: &Job{
-				Type: JobTypeService,
+				Namespace: "test",
+				Type:      JobTypeService,
 				Update: UpdateStrategy{
 					MaxParallel: 2,
 					Stagger:     10 * time.Second,
@@ -515,6 +531,7 @@ func testJob() *Job {
 	return &Job{
 		Region:      "global",
 		ID:          GenerateUUID(),
+		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
 		Priority:    50,

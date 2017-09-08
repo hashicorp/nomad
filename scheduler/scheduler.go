@@ -66,7 +66,7 @@ type State interface {
 	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 
 	// AllocsByJob returns the allocations by JobID
-	AllocsByJob(ws memdb.WatchSet, jobID string, all bool) ([]*structs.Allocation, error)
+	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error)
 
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error)
@@ -78,11 +78,11 @@ type State interface {
 	NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, error)
 
 	// GetJobByID is used to lookup a job by ID
-	JobByID(ws memdb.WatchSet, id string) (*structs.Job, error)
+	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
 
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
-	LatestDeploymentByJobID(ws memdb.WatchSet, jobID string) (*structs.Deployment, error)
+	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

@@ -442,7 +442,10 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 	// Lookup the eval
 	get := &structs.EvalListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp structs.EvalListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
@@ -458,7 +461,11 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 	// Lookup the eval by prefix
 	get = &structs.EvalListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: "aaaabb"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+			Prefix:    "aaaabb",
+		},
 	}
 	var resp2 structs.EvalListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp2); err != nil {
@@ -495,6 +502,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	req := &structs.EvalListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     structs.DefaultNamespace,
 			MinQueryIndex: 1,
 		},
 	}

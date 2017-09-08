@@ -241,7 +241,7 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 		return nil, err
 	}
 
-	job, err := snap.JobByID(nil, d.JobID)
+	job, err := snap.JobByID(nil, d.Namespace, d.JobID)
 	if err != nil {
 		return nil, err
 	}
