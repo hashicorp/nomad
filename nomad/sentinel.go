@@ -35,8 +35,8 @@ func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCa
 	if len(registered) == 0 {
 		return nil, nil
 	}
-	// TODO: Use labeled version
-	defer metrics.MeasureSince([]string{"nomad", "sentinel", "enforce_scope", scope}, time.Now())
+	defer metrics.MeasureSinceWithLabels([]string{"nomad", "sentinel", "enforce_scope"}, time.Now(),
+		[]metrics.Label{{Name: "scope", Value: scope}})
 
 	// Prepare the policies for execution
 	prepared, err := prepareSentinelPolicies(s.sentinel, registered)
