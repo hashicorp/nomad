@@ -15,6 +15,8 @@ BUG FIXES:
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
  * cli: Fix job deployment -latest handling of jobs without deployments
    [GH-3166]
+ * cli: Hide CLI commands not expected to be run by user from autocomplete
+   suggestions [GH-3177]
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
