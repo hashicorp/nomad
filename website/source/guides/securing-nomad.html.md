@@ -407,7 +407,7 @@ rescheduling allocations.
 
 At this point a rolling restart of the cluster will enable TLS everywhere.
 However, once servers are restarted clients will be unable to heartbeat. This
-means any client unable to restart with TLS enabled before their heartbeat TTTL
+means any client unable to restart with TLS enabled before their heartbeat TTL
 expires will have their allocations marked as lost and rescheduled.
 
 While the default heartbeat settings may be sufficient for concurrently
@@ -415,15 +415,16 @@ restarting a small number of nodes without any allocations being marked as
 `lost`, most operators should raise the `heartbeat_grace` configuration setting
 before restarting their servers:
 
-1. Set `heartbeat_grace = "1h"` or an appropriate duration on servers
-1. Restart servers, one at a time
-1. Restart clients, one or more at a time
-1. Set `heartbeat_grace` back to its previos value (or remove to accept the
-   default)
-1. Restart servers, one at a time
+1. Set `heartbeat_grace = "1h"` or an appropriate duration on servers.
+1. Restart servers, one at a time.
+1. Restart clients, one or more at a time.
+1. Set `heartbeat_grace` back to its previous value (or remove to accept the
+   default).
+1. Restart servers, one at a time.
 
-~> In a future release Nomad will allow upgrading a cluster to use TLS without
-   multiple server restarts.
+~> In a future release Nomad will allow upgrading a cluster to use TLS by
+   allowing servers to accept TLS and non-TLS connections from clients during
+   the migration.
 
 Jobs running in the cluster will _not_ be affected and will continue running
 throughout the switch as long as all clients can restart within their heartbeat
