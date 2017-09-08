@@ -231,13 +231,27 @@ func (h *HostCpuStatsCalculator) Calculate(times cpu.TimesStat) (idle float64, u
 
 	deltaTotal := currentTotal - h.prevTotal
 	idle = ((currentIdle - h.prevIdle) / deltaTotal) * 100
+	if math.IsNaN(idle) {
+		idle = 100.0
+	}
+
 	user = ((currentUser - h.prevUser) / deltaTotal) * 100
+	if math.IsNaN(user) {
+		user = 0.0
+	}
+
 	system = ((currentSystem - h.prevSystem) / deltaTotal) * 100
+	if math.IsNaN(system) {
+		system = 0.0
+	}
 
 	currentBusy := times.User + times.System + times.Nice + times.Iowait + times.Irq +
 		times.Softirq + times.Steal + times.Guest + times.GuestNice + times.Stolen
 
 	total = ((currentBusy - h.prevBusy) / deltaTotal) * 100
+	if math.IsNaN(total) {
+		total = 0.0
+	}
 
 	h.prevIdle = currentIdle
 	h.prevUser = currentUser
