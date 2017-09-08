@@ -11,6 +11,21 @@
     color: findColorInvert(darken($grey-blue, 10%));
   }
 
+  &.is-running {
+    background: $blue;
+    color: $blue-invert;
+  }
+
+  &.is-error {
+    background: $danger;
+    color: $danger-invert;
+  }
+
+  &.is-cancelled {
+    background: $orange;
+    color: $orange-invert;
+  }
+
   &.is-hollow {
     font-weight: $weight-semibold;
     color: darken($grey-blue, 20%);

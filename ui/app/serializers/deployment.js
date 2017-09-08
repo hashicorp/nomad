@@ -4,6 +4,10 @@ import ApplicationSerializer from './application';
 const { get, assign } = Ember;
 
 export default ApplicationSerializer.extend({
+  attrs: {
+    versionNumber: 'JobVersion',
+  },
+
   normalize(typeHash, hash) {
     hash.TaskGroupSummaries = Object.keys(get(hash, 'TaskGroups')).map(key => {
       const deploymentStats = get(hash, `TaskGroups.${key}`);

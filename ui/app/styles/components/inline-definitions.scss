@@ -19,5 +19,10 @@
     &.is-faded {
       color: darken($grey-blue, 20%);
     }
+
+    .has-emphasis {
+      color: $text;
+      font-weight: $weight-semibold;
+    }
   }
 }
