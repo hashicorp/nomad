@@ -23,7 +23,7 @@ to the region, and may lag behind the authoritative region.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/sentinel/policies`              | `application/json`         |
+| `GET`  | `/sentinel/policies`         | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries), [consistency modes](/api/index.html#consistency-modes) and

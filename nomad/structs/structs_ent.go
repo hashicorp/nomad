@@ -16,8 +16,13 @@ import (
 
 // Restrict the possible Sentinel policy types
 const (
-	SentinelEnforcementLevelAdvisory      = "advisory"
+	// SentinelEnforcementLevelAdvisory allows a policy to fail and issues a warning
+	SentinelEnforcementLevelAdvisory = "advisory"
+
+	// SentinelEnforcementLevelSoftMandatory prevents an operation unless an override is set, and then warns
 	SentinelEnforcementLevelSoftMandatory = "soft-mandatory"
+
+	// SentinelEnforcementLevelHardMandatory prevents an operation on failure
 	SentinelEnforcementLevelHardMandatory = "hard-mandatory"
 )
 

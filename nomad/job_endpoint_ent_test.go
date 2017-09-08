@@ -118,4 +118,10 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
 		t.Fatalf("expected error")
 	}
+
+	// Should fail even with override
+	req.PolicyOverride = true
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
+		t.Fatalf("expected error")
+	}
 }

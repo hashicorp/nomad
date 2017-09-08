@@ -19,6 +19,13 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// data call back for enforement
+	dataCB := func() map[string]interface{} {
+		return map[string]interface{}{
+			"foo_bar": false,
+		}
+	}
+
 	// Create a fake policy
 	policy1 := mock.SentinelPolicy()
 	policy2 := mock.SentinelPolicy()
@@ -26,18 +33,18 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 		[]*structs.SentinelPolicy{policy1, policy2})
 
 	// Check that everything passes
-	warn, err := s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	warn, err := s1.enforceScope(false, structs.SentinelScopeSubmitJob, dataCB)
 	assert.Nil(t, err)
 	assert.Nil(t, warn)
 
 	// Add a failing policy
 	policy3 := mock.SentinelPolicy()
 	policy3.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
-	policy3.Policy = "main = rule { false }"
+	policy3.Policy = "main = rule { foo_bar }"
 	s1.State().UpsertSentinelPolicies(1001, []*structs.SentinelPolicy{policy3})
 
 	// Check that we get an error
-	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, dataCB)
 	assert.NotNil(t, err)
 	assert.Nil(t, warn)
 
@@ -48,7 +55,7 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 	s1.State().UpsertSentinelPolicies(1002, []*structs.SentinelPolicy{p3update})
 
 	// Check that we get a warning
-	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, nil)
+	warn, err = s1.enforceScope(false, structs.SentinelScopeSubmitJob, dataCB)
 	assert.Nil(t, err)
 	assert.NotNil(t, warn)
 }

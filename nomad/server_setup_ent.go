@@ -32,7 +32,7 @@ func (s *Server) setupEnterprise(config *Config) error {
 
 // startEnterpriseBackground starts the Enterprise specific workers
 func (s *Server) startEnterpriseBackground() {
-	// GC Sentinel policies if enabled
+	// Garbage collect Sentinel policies if enabled
 	if s.config.ACLEnabled {
 		go s.gcSentinelPolicies(s.shutdownCh)
 	}

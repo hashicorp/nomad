@@ -82,7 +82,7 @@ Run Options:
     the job.
 
   -policy-override
-	Sets the flag to force override any soft mandatory Sentinel policies.
+    Sets the flag to force override any soft mandatory Sentinel policies.
 
   -vault-token
     If set, the passed Vault token is stored in the job before sending to the
@@ -103,11 +103,12 @@ func (c *RunCommand) Synopsis() string {
 func (c *RunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-check-index": complete.PredictNothing,
-			"-detach":      complete.PredictNothing,
-			"-verbose":     complete.PredictNothing,
-			"-vault-token": complete.PredictAnything,
-			"-output":      complete.PredictNothing,
+			"-check-index":     complete.PredictNothing,
+			"-detach":          complete.PredictNothing,
+			"-verbose":         complete.PredictNothing,
+			"-vault-token":     complete.PredictAnything,
+			"-output":          complete.PredictNothing,
+			"-policy-override": complete.PredictNothing,
 		})
 }
 

@@ -118,14 +118,14 @@ func (s *Sentinel) ListPolicies(args *structs.SentinelPolicyListRequest, reply *
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, snap *state.StateStore) error {
 			// Iterate over all the policies
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.SentinelPolicyByNamePrefix(ws, prefix)
+				iter, err = snap.SentinelPolicyByNamePrefix(ws, prefix)
 			} else {
-				iter, err = state.SentinelPolicies(ws)
+				iter, err = snap.SentinelPolicies(ws)
 			}
 			if err != nil {
 				return err
@@ -143,7 +143,7 @@ func (s *Sentinel) ListPolicies(args *structs.SentinelPolicyListRequest, reply *
 			}
 
 			// Use the last index that affected the policy table
-			index, err := state.Index("sentinel_policy")
+			index, err := snap.Index(state.TableSentinelPolicies)
 			if err != nil {
 				return err
 			}
@@ -180,9 +180,9 @@ func (s *Sentinel) GetPolicy(args *structs.SentinelPolicySpecificRequest, reply 
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, snap *state.StateStore) error {
 			// Look for the policy
-			out, err := state.SentinelPolicyByName(ws, args.Name)
+			out, err := snap.SentinelPolicyByName(ws, args.Name)
 			if err != nil {
 				return err
 			}
@@ -193,7 +193,7 @@ func (s *Sentinel) GetPolicy(args *structs.SentinelPolicySpecificRequest, reply 
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the policy table
-				index, err := state.Index("sentinel_policy")
+				index, err := snap.Index(state.TableSentinelPolicies)
 				if err != nil {
 					return err
 				}
@@ -225,13 +225,13 @@ func (s *Sentinel) GetPolicies(args *structs.SentinelPolicySetRequest, reply *st
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, snap *state.StateStore) error {
 			// Setup the output
 			reply.Policies = make(map[string]*structs.SentinelPolicy, len(args.Names))
 
 			// Look for the policy
 			for _, policyName := range args.Names {
-				out, err := state.SentinelPolicyByName(ws, policyName)
+				out, err := snap.SentinelPolicyByName(ws, policyName)
 				if err != nil {
 					return err
 				}
@@ -241,7 +241,7 @@ func (s *Sentinel) GetPolicies(args *structs.SentinelPolicySetRequest, reply *st
 			}
 
 			// Use the last index that affected the policy table
-			index, err := state.Index("sentinel_policy")
+			index, err := snap.Index(state.TableSentinelPolicies)
 			if err != nil {
 				return err
 			}

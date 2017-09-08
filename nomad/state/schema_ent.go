@@ -9,7 +9,7 @@ const (
 )
 
 func init() {
-	// Register pro schemas
+	// Register premium schemas
 	RegisterSchemaFactories([]SchemaFactory{
 		sentinelPolicyTableSchema,
 	}...)

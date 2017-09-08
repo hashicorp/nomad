@@ -122,8 +122,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	return acl, nil
 }
 
-// AllowNSOP is shorthand for AllowNamespaceOperation
-func (a *ACL) AllowNSOP(ns string, op string) bool {
+// AllowNsOp is shorthand for AllowNamespaceOperation
+func (a *ACL) AllowNsOp(ns string, op string) bool {
 	return a.AllowNamespaceOperation(ns, op)
 }
 

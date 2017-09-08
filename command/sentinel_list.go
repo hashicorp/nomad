@@ -3,8 +3,6 @@ package command
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ryanuber/columnize"
 )
 
 type SentinelListCommand struct {
@@ -61,6 +59,6 @@ func (c *SentinelListCommand) Run(args []string) int {
 		line := fmt.Sprintf("%s|%s|%s|%s", p.Name, p.Scope, p.EnforcementLevel, p.Description)
 		out = append(out, line)
 	}
-	c.Ui.Output(columnize.SimpleFormat(out))
+	c.Ui.Output(formatList(out))
 	return 0
 }

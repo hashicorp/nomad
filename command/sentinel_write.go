@@ -28,14 +28,14 @@ General Options:
 Write Options:
 
   -description
-    Sets a human readable description for the policy
+    Sets a human readable description for the policy.
 
   -scope (default: submit-job)
     Sets the scope of the policy and when it should be enforced.
 
   -level (default: advisory)
     Sets the enforcment level of the policy. Must be one of advisory,
-	soft-mandatory, hard-mandatory.
+    soft-mandatory, hard-mandatory.
 
 `
 	return strings.TrimSpace(helpText)

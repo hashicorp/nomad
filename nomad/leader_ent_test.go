@@ -48,6 +48,18 @@ func TestLeader_ReplicateSentinelPolicies(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("should replicate policy")
 	})
+
+	// Delete the namespace at the authoritative region
+	assert.Nil(t, s1.State().DeleteSentinelPolicies(200, []string{p1.Name}))
+
+	// Wait for the deletion to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		state := s2.State()
+		out, err := state.SentinelPolicyByName(nil, p1.Name)
+		return out == nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate policy deletion")
+	})
 }
 
 func TestLeader_DiffSentinelPolicies(t *testing.T) {

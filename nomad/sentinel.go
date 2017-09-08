@@ -19,7 +19,7 @@ type sentinelDataCallback func() map[string]interface{}
 
 // enforceScope is to enforce any Sentinel policies for a given scope.
 // Returns either a set of warnings or errors.
-func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCallback) (error, error) {
+func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCallback) (warn, err error) {
 	// Fast-path if ACLs are disabled
 	if !s.config.ACLEnabled {
 		return nil, nil
@@ -35,6 +35,7 @@ func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCa
 	if len(registered) == 0 {
 		return nil, nil
 	}
+	// TODO: Use labeled version
 	defer metrics.MeasureSince([]string{"nomad", "sentinel", "enforce_scope", scope}, time.Now())
 
 	// Prepare the policies for execution
@@ -128,7 +129,7 @@ func prepareSentinelPolicies(sent *sentinel.Sentinel, policies []*structs.Sentin
 
 // sentinelResultToWarnErr is used to convert a sentinel evaluation result
 // into either a set of warnings or a set of errors.
-func sentinelResultToWarnErr(result *sentinel.EvalResult) (error, error) {
+func sentinelResultToWarnErr(result *sentinel.EvalResult) (warn, err error) {
 	// Check for an error
 	if result.Error != nil {
 		return nil, errors.New(result.String())

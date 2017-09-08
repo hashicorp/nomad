@@ -22,7 +22,7 @@ func (s *StateStore) UpsertSentinelPolicies(index uint64, policies []*structs.Se
 		}
 
 		// Check if the policy already exists
-		existing, err := txn.First("sentinel_policy", "id", policy.Name)
+		existing, err := txn.First(TableSentinelPolicies, "id", policy.Name)
 		if err != nil {
 			return fmt.Errorf("policy lookup failed: %v", err)
 		}
@@ -37,13 +37,13 @@ func (s *StateStore) UpsertSentinelPolicies(index uint64, policies []*structs.Se
 		}
 
 		// Update the policy
-		if err := txn.Insert("sentinel_policy", policy); err != nil {
+		if err := txn.Insert(TableSentinelPolicies, policy); err != nil {
 			return fmt.Errorf("upserting policy failed: %v", err)
 		}
 	}
 
-	// Update the indexes tabl
-	if err := txn.Insert("index", &IndexEntry{"sentinel_policy", index}); err != nil {
+	// Update the indexes table
+	if err := txn.Insert("index", &IndexEntry{TableSentinelPolicies, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -58,11 +58,11 @@ func (s *StateStore) DeleteSentinelPolicies(index uint64, names []string) error 
 
 	// Delete the policy
 	for _, name := range names {
-		if _, err := txn.DeleteAll("sentinel_policy", "id", name); err != nil {
+		if _, err := txn.DeleteAll(TableSentinelPolicies, "id", name); err != nil {
 			return fmt.Errorf("deleting sentinel policy failed: %v", err)
 		}
 	}
-	if err := txn.Insert("index", &IndexEntry{"sentinel_policy", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableSentinelPolicies, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	txn.Commit()
@@ -73,7 +73,7 @@ func (s *StateStore) DeleteSentinelPolicies(index uint64, names []string) error 
 func (s *StateStore) SentinelPolicyByName(ws memdb.WatchSet, name string) (*structs.SentinelPolicy, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("sentinel_policy", "id", name)
+	watchCh, existing, err := txn.FirstWatch(TableSentinelPolicies, "id", name)
 	if err != nil {
 		return nil, fmt.Errorf("sentinel policy lookup failed: %v", err)
 	}
@@ -89,7 +89,7 @@ func (s *StateStore) SentinelPolicyByName(ws memdb.WatchSet, name string) (*stru
 func (s *StateStore) SentinelPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("sentinel_policy", "id_prefix", prefix)
+	iter, err := txn.Get(TableSentinelPolicies, "id_prefix", prefix)
 	if err != nil {
 		return nil, fmt.Errorf("sentinel policy lookup failed: %v", err)
 	}
@@ -103,7 +103,7 @@ func (s *StateStore) SentinelPolicies(ws memdb.WatchSet) (memdb.ResultIterator, 
 	txn := s.db.Txn(false)
 
 	// Walk the entire table
-	iter, err := txn.Get("sentinel_policy", "id")
+	iter, err := txn.Get(TableSentinelPolicies, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *StateStore) SentinelPoliciesByScope(ws memdb.WatchSet, scope string) (m
 	txn := s.db.Txn(false)
 
 	// Walk the entire table
-	iter, err := txn.Get("sentinel_policy", "scope", scope)
+	iter, err := txn.Get(TableSentinelPolicies, "scope", scope)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *StateStore) SentinelPoliciesByScope(ws memdb.WatchSet, scope string) (m
 
 // SentinelPolicyRestore is used to restore an Sentinel policy
 func (r *StateRestore) SentinelPolicyRestore(policy *structs.SentinelPolicy) error {
-	if err := r.txn.Insert("sentinel_policy", policy); err != nil {
+	if err := r.txn.Insert(TableSentinelPolicies, policy); err != nil {
 		return fmt.Errorf("inserting sentinel policy failed: %v", err)
 	}
 	return nil
