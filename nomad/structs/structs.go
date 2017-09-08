@@ -126,6 +126,7 @@ const (
 	Evals       Context = "evals"
 	Jobs        Context = "jobs"
 	Nodes       Context = "nodes"
+	Namespaces  Context = "namespaces"
 	All         Context = "all"
 )
 
@@ -4999,7 +5000,7 @@ func (e *Evaluation) TerminalStatus() bool {
 }
 
 func (e *Evaluation) GoString() string {
-	return fmt.Sprintf("<Eval '%s' JobID: '%s'>", e.ID, e.JobID)
+	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
 }
 
 func (e *Evaluation) Copy() *Evaluation {

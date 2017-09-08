@@ -330,6 +330,11 @@ func (c *Client) SetRegion(region string) {
 	c.config.Region = region
 }
 
+// SetNamespace sets the namespace to forward API requests to.
+func (c *Client) SetNamespace(namespace string) {
+	c.config.Namespace = namespace
+}
+
 // GetNodeClient returns a new Client that will dial the specified node. If the
 // QueryOptions is set, its region will be used.
 func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) {

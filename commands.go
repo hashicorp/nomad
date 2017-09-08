@@ -163,6 +163,26 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"namespace": func() (cli.Command, error) {
+			return &command.NamespaceCommand{
+				Meta: meta,
+			}, nil
+		},
+		"namespace apply": func() (cli.Command, error) {
+			return &command.NamespaceApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"namespace delete": func() (cli.Command, error) {
+			return &command.NamespaceDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"namespace list": func() (cli.Command, error) {
+			return &command.NamespaceListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"node-drain": func() (cli.Command, error) {
 			return &command.NodeDrainCommand{
 				Meta: meta,

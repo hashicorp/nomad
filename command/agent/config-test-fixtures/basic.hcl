@@ -96,6 +96,8 @@ telemetry {
     collection_interval = "3s"
     publish_allocation_metrics = true
     publish_node_metrics = true
+    disable_tagged_metrics = true
+    backwards_compatible_metrics = true
 }
 leave_on_interrupt = true
 leave_on_terminate = true

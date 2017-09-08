@@ -22,6 +22,7 @@ import (
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
+	"github.com/stretchr/testify/assert"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -133,6 +134,32 @@ func TestClient_StartStop(t *testing.T) {
 	client := testClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+}
+
+// Certain labels for metrics are dependant on client intial setup. This tests
+// that the client has properly initialized before we assign values to labels
+func TestClient_BaseLabels(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	client := testClient(t, nil)
+	if err := client.Shutdown(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// directly invoke this function, as otherwise this will fail on a CI build
+	// due to a race condition
+	client.emitStats()
+
+	baseLabels := client.baseLabels
+	assert.NotEqual(0, len(baseLabels))
+
+	nodeID := client.Node().ID
+	for _, e := range baseLabels {
+		if e.Name == "node_id" {
+			assert.Equal(nodeID, e.Value)
+		}
 	}
 }
 

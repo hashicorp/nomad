@@ -366,6 +366,14 @@ type Telemetry struct {
 	PublishAllocationMetrics bool          `mapstructure:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `mapstructure:"publish_node_metrics"`
 
+	// DisableTaggedMetrics disables a new version of generating metrics which
+	// uses tags
+	DisableTaggedMetrics bool `mapstructure:"disable_tagged_metrics"`
+
+	// BackwardsCompatibleMetrics allows for generating metrics in a simple
+	// key/value structure as done in older versions of Nomad
+	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
+
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -1210,6 +1218,15 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
 	}
+
+	if b.DisableTaggedMetrics {
+		result.DisableTaggedMetrics = b.DisableTaggedMetrics
+	}
+
+	if b.BackwardsCompatibleMetrics {
+		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
+	}
+
 	return &result
 }
 
