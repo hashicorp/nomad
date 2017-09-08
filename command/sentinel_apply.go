@@ -9,15 +9,15 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-type SentinelWriteCommand struct {
+type SentinelApplyCommand struct {
 	Meta
 }
 
-func (c *SentinelWriteCommand) Help() string {
+func (c *SentinelApplyCommand) Help() string {
 	helpText := `
-Usage: nomad sentinel write [options] <name> <file>
+Usage: nomad sentinel apply [options] <name> <file>
 
-Write is used to write a new Sentinel policy or update an existing one.
+Apply is used to write a new Sentinel policy or update an existing one.
 The name of the policy and file must be specified. The file will be read
 from stdin by specifying "-".
 
@@ -25,7 +25,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Write Options:
+Apply Options:
 
   -description
     Sets a human readable description for the policy.
@@ -41,14 +41,14 @@ Write Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *SentinelWriteCommand) Synopsis() string {
+func (c *SentinelApplyCommand) Synopsis() string {
 	return "Create a new or update existing Sentinel policies"
 }
 
-func (c *SentinelWriteCommand) Run(args []string) int {
+func (c *SentinelApplyCommand) Run(args []string) int {
 	var description, scope, enfLevel string
 	var err error
-	flags := c.Meta.FlagSet("sentinel write", FlagSetClient)
+	flags := c.Meta.FlagSet("sentinel apply", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 	flags.StringVar(&scope, "scope", "submit-job", "")

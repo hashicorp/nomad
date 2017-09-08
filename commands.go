@@ -239,8 +239,8 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"sentinel write": func() (cli.Command, error) {
-			return &command.SentinelWriteCommand{
+		"sentinel apply": func() (cli.Command, error) {
+			return &command.SentinelApplyCommand{
 				Meta: meta,
 			}, nil
 		},

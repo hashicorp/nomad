@@ -84,7 +84,7 @@ main = rule { false }
 Then, install this as an `advisory` policy which issues a warning on failure:
 
 ```
-$ nomad sentinel write -level=advisory test-policy test.sentinel
+$ nomad sentinel apply -level=advisory test-policy test.sentinel
 Successfully wrote "test-policy" Sentinel policy!
 ```
 
@@ -134,7 +134,7 @@ all_drivers_exec = rule {
 Then install the updated policy at a soft mandatory level:
 
 ```
-$ nomad sentinel write -level=soft-mandatory test-policy test.sentinel
+$ nomad sentinel apply -level=soft-mandatory test-policy test.sentinel
 Successfully wrote "test-policy" Sentinel policy!
 ```
 

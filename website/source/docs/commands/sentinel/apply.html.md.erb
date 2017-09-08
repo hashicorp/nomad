@@ -1,29 +1,29 @@
 ---
 layout: "docs"
-page_title: "Commands: sentinel write"
-sidebar_current: "docs-commands-sentinel-write"
+page_title: "Commands: sentinel apply"
+sidebar_current: "docs-commands-sentinel-apply"
 description: >
-  The sentinel write command is used to write a new, or update an existing, Sentinel policy.
+  The sentinel apply command is used to write a new, or update an existing, Sentinel policy.
 ---
 
-# Command: sentinel write
+# Command: sentinel apply
 
-The `sentinel write` command is used to write a new, or update an existing, Sentinel policy.
+The `sentinel apply` command is used to write a new, or update an existing, Sentinel policy.
 
 ## Usage
 
 ```
-nomad sentinel write [options] <Policy Name> <Policy File>
+nomad sentinel apply [options] <Policy Name> <Policy File>
 ```
 
-The `sentinel write` command requires two arguments, the policy name and the policy file.
+The `sentinel apply` command requires two arguments, the policy name and the policy file.
 The policy file can be read from stdin by specifying "-" as the file name.
 
 ## General Options
 
 <%= partial "docs/commands/_general_options" %>
 
-## Write Options
+## Apply Options
 
 * `-description` : Sets a human readable description for the policy
 
