@@ -95,6 +95,10 @@ def configureLinuxProvisioners(vmCfg)
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
+		path: './scripts/vagrant-linux-priv-go.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
 		path: './scripts/vagrant-linux-priv-config.sh'
 
 	vmCfg.vm.provision "shell",

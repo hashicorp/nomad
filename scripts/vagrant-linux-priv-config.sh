@@ -9,9 +9,6 @@ apt-get install -y software-properties-common
 # Add i386 architecture (for libraries)
 dpkg --add-architecture i386
 
-# Add a Golang PPA
-sudo add-apt-repository ppa:gophers/archive
-
 # Add the Docker repository
 apt-key adv \
 	--keyserver hkp://p80.pool.sks-keyservers.net:80 \
@@ -28,7 +25,6 @@ apt-get update
 apt-get install -y \
 	build-essential \
 	git \
-	golang-1.9 \
 	libc6-dev-i386 \
 	liblxc1 \
 	libpcre3-dev \
@@ -66,29 +62,6 @@ apt-get install -y \
 
 # Ensure everything is up to date
 apt-get upgrade -y
-
-# Ensure Go is on PATH
-if [ ! -e /usr/bin/go ] ; then
-	ln -s /usr/lib/go-1.9/bin/go /usr/bin/go
-fi
-if [ ! -e /usr/bin/gofmt ] ; then
-	ln -s /usr/lib/go-1.9/bin/gofmt /usr/bin/gofmt
-fi
-
-# Ensure that the GOPATH tree is owned by vagrant:vagrant
-mkdir -p /opt/gopath
-chown vagrant:vagrant \
-       /opt/gopath \
-       /opt/gopath/src \
-       /opt/gopath/src/github.com \
-       /opt/gopath/src/github.com/hashicorp
-
-# Ensure new sessions know about GOPATH
-cat <<EOF > /etc/profile.d/gopath.sh
-export GOPATH="/opt/gopath"
-export PATH="/opt/gopath/bin:\$PATH"
-EOF
-chmod 755 /etc/profile.d/gopath.sh
 
 # Restart Docker in case it got upgraded
 systemctl restart docker.service
