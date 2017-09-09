@@ -13,6 +13,7 @@ import (
 	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/sentinel-sdk"
 	sentinelrpc "github.com/hashicorp/sentinel-sdk/rpc"
+	"github.com/hashicorp/sentinel/imports/stdlib"
 )
 
 // Import defines an available import for Sentinel execution.
@@ -46,6 +47,69 @@ type Import struct {
 	// will override this config completely.
 	Config map[string]interface{}
 }
+
+// ImportsMap wraps a map of defined imports to provide helper APIs to
+// make working with imports easier. These APIs are designed to work well
+// with expected user configuration styles.
+type ImportsMap map[string]*Import
+
+// Configure will set the configuration for the given imports. If a
+// configuration is set for an import that isn't in the map, it is ignored.
+func (m ImportsMap) Configure(cfg map[string]map[string]interface{}) {
+	for k, c := range cfg {
+		if impt, ok := m[k]; ok {
+			impt.Config = c
+		}
+	}
+}
+
+// Blacklist can be called to remove matching imports from the map. This is
+// useful for excluding standard libraries from the imports map.
+func (m ImportsMap) Blacklist(keys []string) {
+	for _, k := range keys {
+		delete(m, k)
+	}
+}
+
+// Whitelist filters the map to only the given keys. This is useful for
+// only allowing specific imports in the map.
+func (m ImportsMap) Whitelist(keys []string) {
+	keyMap := make(map[string]struct{})
+	for _, k := range keys {
+		keyMap[k] = struct{}{}
+	}
+
+	for k := range m {
+		if _, ok := keyMap[k]; !ok {
+			delete(m, k)
+		}
+	}
+}
+
+//-------------------------------------------------------------------
+// Stdlib
+
+// StdImports returns all of the standard library imports without any
+// configuration. The caller can then use simple map delete to remove any
+// unwanted imports.
+//
+// This is a reasonable default to start with when configuring imports. This
+// will return a newly allocated map on each call.
+func StdImports() map[string]*Import {
+	m := make(map[string]*Import)
+	for k, raw := range stdlib.Imports {
+		f := raw // Have to make the copy since Go reuses the range var
+
+		m[k] = &Import{
+			Func: func() (sdk.Import, error) { return f(), nil },
+		}
+	}
+
+	return m
+}
+
+//-------------------------------------------------------------------
+// Importer
 
 // sentinelImport is the internal structure that tracks available imports.
 type sentinelImport struct {

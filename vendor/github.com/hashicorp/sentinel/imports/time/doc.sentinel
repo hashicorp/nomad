@@ -1,0 +1,38 @@
+// The time import provides access to the time.
+//
+// During the execution of a policy the time is fixed to the moment of first
+// access. This gives the illusion that a policy instantly executes at a
+// single moment of time. As an example of this, if a policy accessed
+// `time.hour`, then the time at the moment that field is accessed would be
+// reused for the remainder of time accessors.
+import "time"
+
+// The default timezone for time access. This will default to the system
+// local time if it isn't set. The value should be a string with the full
+// timezone name, such as "America/Los_Angeles".
+config.timezone
+
+// A fixed time for all time accessors to reference, rather than the current
+// time. The value should be a Unix timestamp in integer format.
+config.fixed_time
+
+// The hour from 0 to 23.
+time.hour
+
+// The minute from 0 to 59.
+time.minute
+
+// The second from 0 to 59.
+time.second
+
+// The day of the month, starting from 1.
+time.day
+
+// The month of the year as an integer, starting from 1.
+time.month
+
+// The weekday as an integer, where 0 is Sunday and 6 is Saturday.
+time.weekday
+
+// The year as an integer.
+time.year

@@ -968,92 +968,122 @@
 		{
 			"checksumSHA1": "gOQnu/SNRt4gI/h23ZyAm43AcGU=",
 			"path": "github.com/hashicorp/sentinel/cmd/format",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
+		},
+		{
+			"checksumSHA1": "y0o6KENXdYZsYkN5vbBSGwfHYmY=",
+			"path": "github.com/hashicorp/sentinel/imports/sockaddr",
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "2zG8RxHsT3GsanExQpZ87cArDPI=",
 			"path": "github.com/hashicorp/sentinel/imports/static",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "BUpFUtrgQgsLdIz3qIyF5J7yZ9k=",
 			"path": "github.com/hashicorp/sentinel/imports/static/teststructs",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
+		},
+		{
+			"checksumSHA1": "dSX3gBv3SXpY3vr0DoLP+4ScaoI=",
+			"path": "github.com/hashicorp/sentinel/imports/stdlib",
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
+		},
+		{
+			"checksumSHA1": "GAPMUum+yWwpKAxjBGIuYnku78k=",
+			"path": "github.com/hashicorp/sentinel/imports/strings",
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
+		},
+		{
+			"checksumSHA1": "ASoPrGh1sQgBH4dU6zjrUwYSWK4=",
+			"path": "github.com/hashicorp/sentinel/imports/time",
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
+		},
+		{
+			"checksumSHA1": "FUOoLEeNfGfWGeShRDukVAAZDxE=",
+			"path": "github.com/hashicorp/sentinel/imports/units",
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "L5WxI7zYjEgv1DUSZ1dt8vLNQhc=",
 			"path": "github.com/hashicorp/sentinel/lang/ast",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "doSCLoMczrkXHodM7ALu8Qyz0wE=",
 			"path": "github.com/hashicorp/sentinel/lang/object",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "MNhHGfltnAQlbJbZASFQhDDwY/U=",
 			"path": "github.com/hashicorp/sentinel/lang/parser",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "+8/5o3vT6mrRUBr+JoGnKvQFkJE=",
 			"path": "github.com/hashicorp/sentinel/lang/printer",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "0KkAnfSyte4ELfQOHgp72XLd11k=",
 			"path": "github.com/hashicorp/sentinel/lang/scanner",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "0kNa2qIHMZvyEfircmV2TGRpLa4=",
 			"path": "github.com/hashicorp/sentinel/lang/semantic",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "NpJ/1TLRm4fmYtdcq3DUQ8i/RVM=",
 			"path": "github.com/hashicorp/sentinel/lang/token",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "Ncr7gD9tW5Y4hqO4TN4awBDTvAo=",
 			"path": "github.com/hashicorp/sentinel/runtime/encoding",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "6Poqkk+YLdYh4GBfXjTae8MubHQ=",
 			"path": "github.com/hashicorp/sentinel/runtime/eval",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "HOBs8pQReXrc7qRzJ+Ix9q3BOPI=",
 			"path": "github.com/hashicorp/sentinel/runtime/importer",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "ZLHeq+qxNL8lGqVCzIFDF3pKDtE=",
 			"path": "github.com/hashicorp/sentinel/runtime/trace",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
-			"checksumSHA1": "ZM2vWJmDV0XWdsEE7TIYHVwl5OE=",
+			"checksumSHA1": "+3t3Xf9p9CDrUQOUI0utBVaxxZY=",
 			"path": "github.com/hashicorp/sentinel/sentinel",
-			"revision": "0877f6c01de0de515e6ae7c31b720ae7250df865",
-			"revisionTime": "2017-09-08T18:41:49Z"
+			"revision": "1fc50cf97867f29863d64f8a2269a6a2b502ea71",
+			"revisionTime": "2017-09-09T21:10:19Z"
 		},
 		{
 			"checksumSHA1": "/oss17GO4hXGM7QnUdI3VzcAHzA=",
