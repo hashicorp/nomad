@@ -54,15 +54,15 @@ func QuotaUsage() *structs.QuotaUsage {
 
 	l1.RegionLimit.CPU = 4000
 	l1.RegionLimit.MemoryMB = 5000
-
 	l2.RegionLimit.CPU = 40000
 	l2.RegionLimit.MemoryMB = 50000
+	qs.SetHash()
 
 	qu := &structs.QuotaUsage{
 		Name: fmt.Sprintf("quota-usage-%s", structs.GenerateUUID()),
 		Used: map[string]*structs.QuotaLimit{
-			l1.Key(): l1,
-			l2.Key(): l2,
+			string(l1.Hash): l1,
+			string(l2.Hash): l2,
 		},
 	}
 

@@ -223,7 +223,7 @@ func (q *QuotaSpec) SetHash() []byte {
 	hash.Write([]byte(q.Description))
 
 	for _, l := range q.Limits {
-		hash.Write(l.Hash())
+		hash.Write(l.SetHash())
 	}
 
 	// Finalize the hash
@@ -268,10 +268,13 @@ type QuotaLimit struct {
 	// RegionLimit is the quota limit that applies to any allocation within a
 	// referencing namespace in the region.
 	RegionLimit *Resources
+
+	// Hash is the hash of the object and is used to make replication efficient.
+	Hash []byte
 }
 
-// Hash is used to compute the hash of the QuotaLimit
-func (q *QuotaLimit) Hash() []byte {
+// SetHash is used to compute and set the hash of the QuotaLimit
+func (q *QuotaLimit) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
 	hash, err := blake2b.New256(nil)
 	if err != nil {
@@ -288,6 +291,7 @@ func (q *QuotaLimit) Hash() []byte {
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
+	q.Hash = hashVal
 	return hashVal
 }
 
@@ -315,11 +319,6 @@ func (q *QuotaLimit) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// Key returns a key that gets invalidated on changes to the QuotaLimit
-func (q *QuotaLimit) Key() string {
-	return q.Region
-}
-
 // QuotaUsage is local to a region and is used to track current
 // resource usage for the quota object.
 type QuotaUsage struct {
@@ -327,10 +326,80 @@ type QuotaUsage struct {
 	Name string
 
 	// Used is the currently used resources for each quota limit. The map is
-	// keyed by the QuotaLimit Key function.
+	// keyed by the QuotaLimit hash.
 	Used map[string]*QuotaLimit
 
 	// Raft indexes to track creation and modification
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// QuotaSpecListRequest is used to request a list of quota specifications
+type QuotaSpecListRequest struct {
+	QueryOptions
+}
+
+// QuotaSpecSpecificRequest is used to query a specific quota specification
+type QuotaSpecSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// QuotaSpecSetRequest is used to query a set of quota specs
+type QuotaSpecSetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// QuotaSpecListResponse is used for a list request
+type QuotaSpecListResponse struct {
+	Quotas []*QuotaSpec
+	QueryMeta
+}
+
+// SingleQuotaSpecResponse is used to return a single quota specification
+type SingleQuotaSpecResponse struct {
+	Quota *QuotaSpec
+	QueryMeta
+}
+
+// QuotaSpecSetResponse is used to return a set of quota specifications
+type QuotaSpecSetResponse struct {
+	Quotas map[string]*QuotaSpec
+	QueryMeta
+}
+
+// QuotaSpecDeleteRequest is used to delete a set of quota specifications
+type QuotaSpecDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// QuotaSpecUpsertRequest is used to upsert a set of quota specifications
+type QuotaSpecUpsertRequest struct {
+	Quotas []*QuotaSpec
+	WriteRequest
+}
+
+// QuotaUsageListRequest is used to request a list of quota usages
+type QuotaUsageListRequest struct {
+	QueryOptions
+}
+
+// QuotaUsageSpecificRequest is used to query a specific quota usage
+type QuotaUsageSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// QuotaUsageListResponse is used for a list request
+type QuotaUsageListResponse struct {
+	Usages []*QuotaUsage
+	QueryMeta
+}
+
+// SingleQuotaUsageResponse is used to return a single quota usage
+type SingleQuotaUsageResponse struct {
+	Usage *QuotaUsage
+	QueryMeta
 }

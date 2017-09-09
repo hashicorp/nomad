@@ -18,6 +18,8 @@ const (
 	NamespaceDeleteRequestType
 	SentinelPolicyUpsertRequestType
 	SentinelPolicyDeleteRequestType
+	QuotaSpecUpsertRequestType
+	QuotaSpecDeleteRequestType
 )
 
 var (
