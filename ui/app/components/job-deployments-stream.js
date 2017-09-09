@@ -9,8 +9,14 @@ export default Component.extend({
 
   deployments: computed(() => []),
 
-  annotatedDeployments: computed('deployments.@each.version', function() {
-    const deployments = this.get('deployments');
+  sortedDeployments: computed('deployments.@each.version.submitTime', function() {
+    return this.get('deployments')
+      .sortBy('version.submitTime')
+      .reverse();
+  }),
+
+  annotatedDeployments: computed('sortedDeployments.@each.version', function() {
+    const deployments = this.get('sortedDeployments');
     return deployments.map((deployment, index) => {
       const meta = {};
 
