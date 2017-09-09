@@ -60,6 +60,34 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 	assert.NotNil(t, warn)
 }
 
+// Ensure the standard lib is present
+func TestServer_Sentinel_EnforceScope_Stdlib(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// data call back for enforement
+	dataCB := func() map[string]interface{} {
+		return map[string]interface{}{
+			"my_string": "foobar",
+		}
+	}
+
+	// Add a policy
+	policy1 := mock.SentinelPolicy()
+	policy1.EnforcementLevel = structs.SentinelEnforcementLevelHardMandatory
+	policy1.Policy = `import "strings"
+	main = rule { strings.has_prefix(my_string, "foo") }
+	`
+	s1.State().UpsertSentinelPolicies(1001, []*structs.SentinelPolicy{policy1})
+
+	// Check that we pass
+	warn, err := s1.enforceScope(false, structs.SentinelScopeSubmitJob, dataCB)
+	assert.Nil(t, err)
+	assert.Nil(t, warn)
+}
+
 func TestServer_SentinelPoliciesByScope(t *testing.T) {
 	t.Parallel()
 	s1, _ := testACLServer(t, nil)

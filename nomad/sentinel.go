@@ -41,7 +41,7 @@ func (s *Server) enforceScope(override bool, scope string, dataCB sentinelDataCa
 	// Prepare the policies for execution
 	prepared, err := prepareSentinelPolicies(s.sentinel, registered)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare policies: %v", err)
 	}
 
 	// Materialize the data if we have a callback

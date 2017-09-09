@@ -11,9 +11,12 @@ type EnterpriseState struct {
 
 // setupEnterprise is used for Enterprise specific setup
 func (s *Server) setupEnterprise(config *Config) error {
+	// Enable the standard lib by default
+	stdlib := sentinel.StdImports()
+
 	// Setup the sentinel configuration
 	sentConf := &sentinel.Config{
-		Imports: make(map[string]*sentinel.Import),
+		Imports: stdlib,
 	}
 	if config.SentinelConfig != nil {
 		for _, sImport := range config.SentinelConfig.Imports {
