@@ -12,7 +12,7 @@ function install_go() {
 
 	wget -q -O /tmp/go.tar.gz ${download}
 
-	tar -C /tmp -xvf /tmp/go.tar.gz
+	tar -C /tmp -xf /tmp/go.tar.gz
 	sudo mv /tmp/go /usr/local
 	sudo chown -R root:root /usr/local/go
 }

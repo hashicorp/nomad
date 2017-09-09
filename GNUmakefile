@@ -164,6 +164,11 @@ check: ## Lint the source code
 		$(CHECKS) \
 		./...
 
+.PHONY: checkscripts
+checkscripts: ## Lint shell scripts
+	@echo "==> Linting scripts..."
+	@shellcheck ./scripts/*
+
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
