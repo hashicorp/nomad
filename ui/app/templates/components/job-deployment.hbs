@@ -1,6 +1,9 @@
 <div class="boxed-section-head is-light inline-definitions">
   <span>{{deployment.shortId}}</span>
   <span class="bumper-left tag {{deployment.statusClass}}">{{deployment.status}}</span>
+  {{#if deployment.requiresPromotion}}
+    <span class="bumper-left badge is-warning is-hollow">Requires Promotion</span>
+  {{/if}}
   <span class="pull-right">
     <span class="pair is-faded">
       <span class="term">Version</span>

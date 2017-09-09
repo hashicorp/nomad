@@ -1,6 +1,7 @@
 .badge {
   font-size: $size-7;
   height: 1.5em;
+  line-height: 1;
   border-radius: $radius;
   padding: 0.25em 0.75em;
 
@@ -14,6 +15,12 @@
 
       &.is-faded {
         color: rgba($color-invert, 0.8);
+      }
+
+      &.is-hollow {
+        box-shadow: 0 0 0 1px $color;
+        background: $white;
+        color: darken($color, 10%);
       }
     }
   }

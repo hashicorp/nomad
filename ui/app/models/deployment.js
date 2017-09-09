@@ -14,11 +14,15 @@ export default Model.extend({
   job: belongsTo('job'),
   versionNumber: attr('number'),
 
-  // If any task group is not promoted, the deployment needs promotion
+  // If any task group is not promoted and the deployment is still running,
+  // the deployment needs promotion.
   requiresPromotion: computed('taskGroupSummaries.@each.promoted', function() {
-    return this.get('taskGroupSummaries')
-      .mapBy('promoted')
-      .some(promoted => !promoted);
+    return (
+      this.get('status') === 'running' &&
+      this.get('taskGroupSummaries')
+        .mapBy('promoted')
+        .some(promoted => !promoted)
+    );
   }),
 
   status: attr('string'),
