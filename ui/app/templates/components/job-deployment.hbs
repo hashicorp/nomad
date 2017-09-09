@@ -12,20 +12,61 @@
 </div>
 {{#if isOpen}}
   <div class="boxed-section-body">
-    {{#list-table
-      source=deployment.allocations
-      class="allocations" as |t|}}
-      {{#t.head}}
-        <th>ID</th>
-        <th>Name</th>
-        <th>Status</th>
-        <th>Job</th>
-        <th>CPU</th>
-        <th>Memory</th>
-      {{/t.head}}
-      {{#t.body as |row|}}
-        {{allocation-row allocation=row.model context="job"}}
-      {{/t.body}}
-    {{/list-table}}
+    <div class="content has-text-centered">
+      <div class="metric-group">
+        <div class="metric">
+          <h3 class="label">Canaries</h3>
+          <p class="value">0 / 0</p>
+        </div>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric">
+          <h3 class="label">Desired</h3>
+          <p class="value">0</p>
+        </div>
+        <div class="metric">
+          <h3 class="label">Placed</h3>
+          <p class="value">0</p>
+        </div>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric">
+          <h3 class="label">Healthy</h3>
+          <p class="value">0</p>
+        </div>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric">
+          <h3 class="label">Unhealthy</h3>
+          <p class="value">0</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Allocations
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table
+          source=deployment.allocations
+          class="allocations" as |t|}}
+          {{#t.head}}
+            <th>ID</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Job</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row allocation=row.model context="job"}}
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
   </div>
 {{/if}}
