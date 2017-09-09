@@ -1,0 +1,31 @@
+<div class="boxed-section-head is-light inline-definitions">
+  <span>{{deployment.shortId}}</span>
+  <span class="bumper-left tag {{deployment.statusClass}}">{{deployment.status}}</span>
+  <span class="pull-right">
+    <span class="pair is-faded">
+      <span class="term">Version</span>
+      <span class="has-emphasis">#{{deployment.version.number}}</span>
+      <span>| {{moment-from-now deployment.version.submitTime}}</span>
+    </span>
+    <button class="button is-light is-compact pull-right" {{action (toggle "isOpen" this)}}>details</button>
+ </span>
+</div>
+{{#if isOpen}}
+  <div class="boxed-section-body">
+    {{#list-table
+      source=deployment.allocations
+      class="allocations" as |t|}}
+      {{#t.head}}
+        <th>ID</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Job</th>
+        <th>CPU</th>
+        <th>Memory</th>
+      {{/t.head}}
+      {{#t.body as |row|}}
+        {{allocation-row allocation=row.model context="job"}}
+      {{/t.body}}
+    {{/list-table}}
+  </div>
+{{/if}}

@@ -5,7 +5,7 @@ import { hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
-const { computed } = Ember;
+const { computed, observer } = Ember;
 
 export default Model.extend({
   region: attr('string'),

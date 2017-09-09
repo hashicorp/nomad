@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
-import { belongsTo } from 'ember-data/relationships';
+import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
@@ -23,8 +23,9 @@ export default Model.extend({
   status: attr('string'),
   statusDescription: attr('string'),
   taskGroupSummaries: fragmentArray('task-group-deployment-summary'),
+  allocations: hasMany('allocations'),
 
-  version: computed('versionNumber', 'job.versions.[]', function() {
+  version: computed('versionNumber', 'job.versions.content.@each.number', function() {
     return (this.get('job.versions') || []).findBy('number', this.get('versionNumber'));
   }),
 

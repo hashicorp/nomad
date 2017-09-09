@@ -16,4 +16,20 @@ export default ApplicationSerializer.extend({
 
     return this._super(typeHash, hash);
   },
+
+  extractRelationships(modelClass, hash) {
+    const namespace = this.store.adapterFor(modelClass.modelName).get('namespace');
+    const id = this.extractId(modelClass, hash);
+
+    return assign(
+      {
+        allocations: {
+          links: {
+            related: `/${namespace}/deployment/allocations/${id}`,
+          },
+        },
+      },
+      this._super(modelClass, hash)
+    );
+  },
 });

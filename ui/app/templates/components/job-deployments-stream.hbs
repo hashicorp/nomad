@@ -9,19 +9,6 @@
     </li>
   {{/if}}
   <li class="timeline-object">
-    <div class="boxed-section">
-      <div class="boxed-section-head is-light inline-definitions">
-        <span>{{record.deployment.shortId}}</span>
-        <span class="bumper-left tag {{record.deployment.statusClass}}">{{record.deployment.status}}</span>
-        <span class="pull-right">
-          <span class="pair is-faded">
-            <span class="term">Version</span>
-            <span class="has-emphasis">#{{record.deployment.version.number}}</span>
-            <span>| {{moment-from-now record.deployment.version.submitTime}}</span>
-          </span>
-          <button class="button is-light is-compact pull-right">details</button>
-       </span>
-      </div>
-    </div>
+  {{job-deployment deployment=record.deployment}}
   </li>
 {{/each}}
