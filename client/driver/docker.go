@@ -626,17 +626,20 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	// Only launch syslog server if we're going to use it!
+	// The user hasn't specified any logging options so launch our own syslog
+	// server if possible.
 	syslogAddr := ""
-	if runtime.GOOS == "darwin" && len(d.driverConfig.Logging) == 0 {
-		d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
-	} else if len(d.driverConfig.Logging) == 0 || d.driverConfig.Logging[0].Type == "syslog" {
-		ss, err := exec.LaunchSyslogServer()
-		if err != nil {
-			pluginClient.Kill()
-			return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+	if len(d.driverConfig.Logging) == 0 {
+		if runtime.GOOS == "darwin" {
+			d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
+		} else {
+			ss, err := exec.LaunchSyslogServer()
+			if err != nil {
+				pluginClient.Kill()
+				return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+			}
+			syslogAddr = ss.Addr
 		}
-		syslogAddr = ss.Addr
 	}
 
 	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
@@ -945,14 +948,14 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
-	if len(driverConfig.Logging) == 0 || driverConfig.Logging[0].Type == "syslog" {
-		if runtime.GOOS != "darwin" {
+	if len(driverConfig.Logging) == 0 {
+		if runtime.GOOS == "darwin" {
+			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
+		} else {
 			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 			driverConfig.Logging = []DockerLoggingOpts{
 				{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
 			}
-		} else {
-			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
 		}
 	}
 
