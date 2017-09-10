@@ -65,13 +65,29 @@ var (
 	taskRunnerStateAllKey = []byte("simple-all")
 )
 
+// taskRestartEvent wraps a TaskEvent with additional metadata to control
+// restart behavior.
+type taskRestartEvent struct {
+	// taskEvent to report
+	taskEvent *structs.TaskEvent
+
+	// if false, don't count against restart count
+	failure bool
+}
+
+func newTaskRestartEvent(source, reason string, failure bool) *taskRestartEvent {
+	return &taskRestartEvent{
+		taskEvent: structs.NewTaskEvent(source).SetRestartReason(reason),
+		failure:   failure,
+	}
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	stateDB        *bolt.DB
 	config         *config.Config
 	updater        TaskStateUpdater
 	logger         *log.Logger
-	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 	consul         ConsulServiceAPI
 
@@ -82,8 +98,13 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.RWMutex
 
+	alloc   *structs.Allocation
 	task    *structs.Task
 	taskDir *allocdir.TaskDir
+
+	// Synchronizes access to alloc and task since the main Run loop may
+	// update them concurrent with reads in exported methods.
+	allocLock sync.Mutex
 
 	// envBuilder is used to build the task's environment
 	envBuilder *env.Builder
@@ -139,7 +160,7 @@ type TaskRunner struct {
 	unblockLock sync.Mutex
 
 	// restartCh is used to restart a task
-	restartCh chan *structs.TaskEvent
+	restartCh chan *taskRestartEvent
 
 	// lastStart tracks the last time this task was started or restarted
 	lastStart   time.Time
@@ -251,7 +272,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		waitCh:           make(chan struct{}),
 		startCh:          make(chan struct{}, 1),
 		unblockCh:        make(chan struct{}),
-		restartCh:        make(chan *structs.TaskEvent),
+		restartCh:        make(chan *taskRestartEvent),
 		signalCh:         make(chan SignalEvent),
 	}
 
@@ -776,7 +797,8 @@ OUTER:
 					return
 				}
 			case structs.VaultChangeModeRestart:
-				r.Restart("vault", "new Vault token acquired")
+				const failure = false
+				r.Restart("vault", "new Vault token acquired", failure)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
@@ -1141,7 +1163,7 @@ func (r *TaskRunner) run() {
 				res := r.handle.Signal(se.s)
 				se.result <- res
 
-			case event := <-r.restartCh:
+			case restartEvent := <-r.restartCh:
 				r.runningLock.Lock()
 				running := r.running
 				r.runningLock.Unlock()
@@ -1151,8 +1173,8 @@ func (r *TaskRunner) run() {
 					continue
 				}
 
-				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, event.RestartReason)
-				r.setState(structs.TaskStateRunning, event, false)
+				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, restartEvent.taskEvent.RestartReason)
+				r.setState(structs.TaskStateRunning, restartEvent.taskEvent, false)
 				r.killTask(nil)
 
 				close(stopCollection)
@@ -1161,9 +1183,13 @@ func (r *TaskRunner) run() {
 					<-handleWaitCh
 				}
 
-				// Since the restart isn't from a failure, restart immediately
-				// and don't count against the restart policy
-				r.restartTracker.SetRestartTriggered()
+				if restartEvent.failure {
+					r.restartTracker.SetFailure()
+				} else {
+					// Since the restart isn't from a failure, restart immediately
+					// and don't count against the restart policy
+					r.restartTracker.SetRestartTriggered()
+				}
 				break WAIT
 
 			case <-r.destroyCh:
@@ -1593,6 +1619,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
 			updatedTask = t.Copy()
+			break
 		}
 	}
 	if updatedTask == nil {
@@ -1678,20 +1705,10 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 	return
 }
 
-// Restart will restart the task
-func (r *TaskRunner) Restart(source, reason string) {
-	r.lastStartMu.Lock()
-	defer r.lastStartMu.Unlock()
-
-	r.restart(source, reason)
-}
-
-// restart is the internal task restart method. Callers must hold lastStartMu.
-func (r *TaskRunner) restart(source, reason string) {
-	r.lastStart = time.Now()
-
+// Restart will restart the task.
+func (r *TaskRunner) Restart(source, reason string, failure bool) {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
-	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
+	event := newTaskRestartEvent(source, reasonStr, failure)
 
 	select {
 	case r.restartCh <- event:
@@ -1699,23 +1716,10 @@ func (r *TaskRunner) restart(source, reason string) {
 	}
 }
 
-// RestartBy deadline. Restarts a task iff the last time it was started was
-// before the deadline.  Returns true if restart occurs; false if skipped.
-func (r *TaskRunner) RestartBy(deadline time.Time, source, reason string) {
-	r.lastStartMu.Lock()
-	defer r.lastStartMu.Unlock()
-
-	if r.lastStart.Before(deadline) {
-		r.restart(source, reason)
-	}
-}
-
-// LastStart returns the last time this task was started (including restarts).
-func (r *TaskRunner) LastStart() time.Time {
-	r.lastStartMu.Lock()
-	ls := r.lastStart
-	r.lastStartMu.Unlock()
-	return ls
+// RestartDelay returns the value of the delay for this task's restart policy
+// for use by the healtcheck watcher.
+func (r *TaskRunner) RestartDelay() time.Duration {
+	return r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup).RestartPolicy.Delay
 }
 
 // Signal will send a signal to the task
@@ -1742,6 +1746,9 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 // Kill will kill a task and store the error, no longer restarting the task. If
 // fail is set, the task is marked as having failed.
 func (r *TaskRunner) Kill(source, reason string, fail bool) {
+	r.allocLock.Lock()
+	defer r.allocLock.Unlock()
+
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskKilling).SetKillReason(reasonStr)
 	if fail {

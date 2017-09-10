@@ -20,8 +20,8 @@ type ConsulChecks interface {
 }
 
 type TaskRestarter interface {
-	LastStart() time.Time
-	RestartBy(deadline time.Time, source, reason string)
+	RestartDelay() time.Duration
+	Restart(source, reason string, failure bool)
 }
 
 // checkRestart handles restarting a task if a check is unhealthy.
@@ -34,16 +34,22 @@ type checkRestart struct {
 	// remove this checkID (if true only checkID will be set)
 	remove bool
 
-	task      TaskRestarter
-	grace     time.Duration
-	interval  time.Duration
-	timeLimit time.Duration
-	warning   bool
+	task         TaskRestarter
+	restartDelay time.Duration
+	grace        time.Duration
+	interval     time.Duration
+	timeLimit    time.Duration
+	warning      bool
+
+	// Mutable fields
 
 	// unhealthyStart is the time a check first went unhealthy. Set to the
 	// zero value if the check passes before timeLimit.
-	// This is the only mutable field on checkRestart.
 	unhealthyStart time.Time
+
+	// graceUntil is when the check's grace period expires and unhealthy
+	// checks should be counted.
+	graceUntil time.Time
 
 	logger *log.Logger
 }
@@ -66,9 +72,8 @@ func (c *checkRestart) update(now time.Time, status string) {
 		return
 	}
 
-	if now.Before(c.task.LastStart().Add(c.grace)) {
-		// In grace period, reset state and exit
-		c.unhealthyStart = time.Time{}
+	if now.Before(c.graceUntil) {
+		// In grace period exit
 		return
 	}
 
@@ -81,10 +86,17 @@ func (c *checkRestart) update(now time.Time, status string) {
 	restartAt := c.unhealthyStart.Add(c.timeLimit)
 
 	// Must test >= because if limit=1, restartAt == first failure
-	if now.UnixNano() >= restartAt.UnixNano() {
+	if now.Equal(restartAt) || now.After(restartAt) {
 		// hasn't become healthy by deadline, restart!
 		c.logger.Printf("[DEBUG] consul.health: restarting alloc %q task %q due to unhealthy check %q", c.allocID, c.taskName, c.checkName)
-		c.task.RestartBy(now, "healthcheck", fmt.Sprintf("check %q unhealthy", c.checkName))
+
+		// Tell TaskRunner to restart due to failure
+		const failure = true
+		c.task.Restart("healthcheck", fmt.Sprintf("check %q unhealthy", c.checkName), failure)
+
+		// Reset grace time to grace + restart.delay + (restart.delay * 25%) (the max jitter)
+		c.graceUntil = now.Add(c.grace + c.restartDelay + time.Duration(float64(c.restartDelay)*0.25))
+		c.unhealthyStart = time.Time{}
 	}
 }
 
@@ -190,7 +202,10 @@ func (w *checkWatcher) Run(ctx context.Context) {
 				for cid, check := range checks {
 					result, ok := results[cid]
 					if !ok {
-						w.logger.Printf("[WARN] consul.health: watched check %q (%s) not found in Consul", check.checkName, cid)
+						// Only warn if outside grace period to avoid races with check registration
+						if now.After(check.graceUntil) {
+							w.logger.Printf("[WARN] consul.health: watched check %q (%s) not found in Consul", check.checkName, cid)
+						}
 						continue
 					}
 
@@ -209,16 +224,18 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 	}
 
 	c := checkRestart{
-		allocID:   allocID,
-		taskName:  taskName,
-		checkID:   checkID,
-		checkName: check.Name,
-		task:      restarter,
-		interval:  check.Interval,
-		grace:     check.CheckRestart.Grace,
-		timeLimit: check.Interval * time.Duration(check.CheckRestart.Limit-1),
-		warning:   check.CheckRestart.OnWarning,
-		logger:    w.logger,
+		allocID:      allocID,
+		taskName:     taskName,
+		checkID:      checkID,
+		checkName:    check.Name,
+		task:         restarter,
+		restartDelay: restarter.RestartDelay(),
+		interval:     check.Interval,
+		grace:        check.CheckRestart.Grace,
+		graceUntil:   time.Now().Add(check.CheckRestart.Grace),
+		timeLimit:    check.Interval * time.Duration(check.CheckRestart.Limit-1),
+		warning:      check.CheckRestart.OnWarning,
+		logger:       w.logger,
 	}
 
 	select {

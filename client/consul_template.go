@@ -49,7 +49,7 @@ var (
 // TaskHooks is an interface which provides hooks into the tasks life-cycle
 type TaskHooks interface {
 	// Restart is used to restart the task
-	Restart(source, reason string)
+	Restart(source, reason string, failure bool)
 
 	// Signal is used to signal the task
 	Signal(source, reason string, s os.Signal) error
@@ -439,7 +439,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				}
 
 				if restart {
-					tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered")
+					const failure = false
+					tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered", failure)
 				} else if len(signals) != 0 {
 					var mErr multierror.Error
 					for signal := range signals {

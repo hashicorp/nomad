@@ -37,6 +37,7 @@ type RestartTracker struct {
 	waitRes          *dstructs.WaitResult
 	startErr         error
 	restartTriggered bool      // Whether the task has been signalled to be restarted
+	failure          bool      // Whether a failure triggered the restart
 	count            int       // Current number of attempts.
 	onSuccess        bool      // Whether to restart on successful exit code.
 	startTime        time.Time // When the interval began
@@ -79,6 +80,15 @@ func (r *RestartTracker) SetRestartTriggered() *RestartTracker {
 	return r
 }
 
+// SetFailure is used to mark that a task should be restarted due to failure
+// such as a failed Consul healthcheck.
+func (r *RestartTracker) SetFailure() *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.failure = true
+	return r
+}
+
 // GetReason returns a human-readable description for the last state returned by
 // GetState.
 func (r *RestartTracker) GetReason() string {
@@ -106,6 +116,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.startErr = nil
 		r.waitRes = nil
 		r.restartTriggered = false
+		r.failure = false
 	}()
 
 	// Hot path if a restart was triggered
@@ -138,6 +149,8 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		return r.handleStartError()
 	} else if r.waitRes != nil {
 		return r.handleWaitResult()
+	} else if r.failure {
+		return r.handleFailure()
 	}
 
 	return "", 0
@@ -180,6 +193,25 @@ func (r *RestartTracker) handleWaitResult() (string, time.Duration) {
 		return structs.TaskTerminated, 0
 	}
 
+	if r.count > r.policy.Attempts {
+		if r.policy.Mode == structs.RestartPolicyModeFail {
+			r.reason = fmt.Sprintf(
+				`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
+				r.policy.Attempts, r.policy.Interval)
+			return structs.TaskNotRestarting, 0
+		} else {
+			r.reason = ReasonDelay
+			return structs.TaskRestarting, r.getDelay()
+		}
+	}
+
+	r.reason = ReasonWithinPolicy
+	return structs.TaskRestarting, r.jitter()
+}
+
+// handleFailure returns the new state and potential wait duration for
+// restarting the task due to a failure like an unhealthy Consul check.
+func (r *RestartTracker) handleFailure() (string, time.Duration) {
 	if r.count > r.policy.Attempts {
 		if r.policy.Mode == structs.RestartPolicyModeFail {
 			r.reason = fmt.Sprintf(
