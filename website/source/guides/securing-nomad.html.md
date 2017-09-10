@@ -177,7 +177,7 @@ tls {
 }
 ```
 
-The new `tls` section is worth breaking down in more detail:
+The new [`tls`][tls_block] section is worth breaking down in more detail:
 
 ```hcl
 tls {
@@ -216,21 +216,21 @@ tls {
 ```
 
 These two settings are important for ensuring all of Nomad's mTLS security
-properties are met. If `verify_server_hostname` is set to `false` the node's
-cerificate will be checked to ensure it is signed by the same CA, but its role
-and region will not be verified. This means any service with a certificate
-signed by same CA as Nomad can act as a client or server of any region.
+properties are met. If [`verify_server_hostname`][verify_server_hostname] is
+set to `false` the node's cerificate will be checked to ensure it is signed by
+the same CA, but its role and region will not be verified. This means any
+service with a certificate signed by same CA as Nomad can act as a client or
+server of any region.
 
-`verify_https_client` requires HTTP API clients to present a certificate signed
-by the same CA as Nomad's certificate. It may be disabled to allow HTTP API
-clients (eg Nomad CLI, Consul, or curl) to communicate with the HTTPS API
-without presenting a client-side certificate. If `verify_https_client` is
-enabled ony HTTP API clients presenting a certificate signed by the same CA as
-Nomad's certificate are allowed to access Nomad.
+[`verify_https_client`][verify_https_client] requires HTTP API clients to
+present a certificate signed by the same CA as Nomad's certificate. It may be
+disabled to allow HTTP API clients (eg Nomad CLI, Consul, or curl) to
+communicate with the HTTPS API without presenting a client-side certificate. If
+`verify_https_client` is enabled ony HTTP API clients presenting a certificate
+signed by the same CA as Nomad's certificate are allowed to access Nomad.
 
-~> Enabling `verify_https_client` feature effectively protects Nomad from
-   unauthorized network access at the cost of breaking compatibility with Consul
-   HTTPS health checks.
+~> Enabling `verify_https_client` effectively protects Nomad from unauthorized
+   network access at the cost of losing Consul HTTPS health checks for agents.
 
 ### Client Configuration
 
@@ -390,35 +390,58 @@ server {
 ## Switching an existing cluster to TLS
 
 Since Nomad does _not_ use different ports for TLS and non-TLS communication,
-the use of TLS should be consistent across the cluster. Switching an existing
-cluster to use TLS everywhere is similar to upgrading between versions of
-Nomad:
+the use of TLS must be consistent across the cluster. Switching an existing
+cluster to use TLS everywhere is operationally similar to upgrading between
+versions of Nomad, but requires additional steps to preventing needlessly
+rescheduling allocations.
 
 1. Add the appropriate key and certificates to all nodes.
   * Ensure the private key file is only readable by the Nomad user.
 1. Add the environment variables to all nodes where the CLI is used.
-1. Add the appropriate `tls` block to the configuration file on all nodes.
+1. Add the appropriate [`tls`][tls_block] block to the configuration file on
+   all nodes.
 1. Generate a gossip key and add it the Nomad server configuration.
-
-At this point a rolling restart of the cluster will enable TLS everywhere.
-
-1. Restart servers, one at a time
-1. Restart clients, one or more at a time
 
 ~> Once a quorum of servers are TLS-enabled, clients will no longer be able to
    communicate with the servers until their client configuration is updated and
    reloaded.
 
+At this point a rolling restart of the cluster will enable TLS everywhere.
+However, once servers are restarted clients will be unable to heartbeat. This
+means any client unable to restart with TLS enabled before their heartbeat TTL
+expires will have their allocations marked as `lost` and rescheduled.
+
+While the default heartbeat settings may be sufficient for concurrently
+restarting a small number of nodes without any allocations being marked as
+`lost`, most operators should raise the [`heartbeat_grace`][heartbeat_grace]
+configuration setting before restarting their servers:
+
+1. Set `heartbeat_grace = "1h"` or an appropriate duration on servers.
+1. Restart servers, one at a time.
+1. Restart clients, one or more at a time.
+1. Set [`heartbeat_grace`][heartbeat_grace] back to its previous value (or
+   remove to accept the default).
+1. Restart servers, one at a time.
+
+~> In a future release Nomad will allow upgrading a cluster to use TLS by
+   allowing servers to accept TLS and non-TLS connections from clients during
+   the migration.
+
 Jobs running in the cluster will _not_ be affected and will continue running
-throughout the switch.
+throughout the switch as long as all clients can restart within their heartbeat
+TTL.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
 [guide-install]: https://www.nomadproject.io/intro/getting-started/install.html
 [guide-cluster]: https://www.nomadproject.io/intro/getting-started/cluster.html
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
+[heartbeat_grace]: /docs/agent/configuration/server.html#heartbeat_grace
 [letsencrypt]: https://letsencrypt.org/
 [tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
+[tls_block]: /docs/agent/configuration/tls.html
 [vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile
 [vault]: https://www.vaultproject.io/
 [vault-pki]: https://www.vaultproject.io/docs/secrets/pki/index.html
+[verify_https_client]: /docs/agent/configuration/tls.html#verify_https_client
+[verify_server_hostname]: /docs/agent/configuration/tls.html#verify_server_hostname
