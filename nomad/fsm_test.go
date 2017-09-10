@@ -1623,6 +1623,27 @@ func TestFSM_BootstrapACLTokens(t *testing.T) {
 	out, err := fsm.State().ACLTokenByAccessorID(nil, token.AccessorID)
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
+
+	// Teset with reset
+	token2 := mock.ACLToken()
+	req = structs.ACLTokenBootstrapRequest{
+		Token:      token2,
+		ResetIndex: out.CreateIndex,
+	}
+	buf, err = structs.Encode(structs.ACLTokenBootstrapRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out2, err := fsm.State().ACLTokenByAccessorID(nil, token2.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out2)
 }
 
 func TestFSM_UpsertACLTokens(t *testing.T) {
