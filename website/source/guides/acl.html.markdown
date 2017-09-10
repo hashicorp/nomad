@@ -104,7 +104,7 @@ $ curl \
 }
 ```
 
-Once the initial bootstrap is performed, it _cannot be performed again_. Make sure to save this AccessorID and SecretID.
+Once the initial bootstrap is performed, it cannot be performed again until [reset](#reseting-acl-bootstrap). Make sure to save this AccessorID and SecretID.
 The bootstrap token is a `management` type token, meaning it can perform any operation. It should be used to setup the ACL policies and create additional ACL tokens. The bootstrap token can be deleted and is like any other token, so care should be taken to not revoke all management tokens.
 
 ### Enable ACLs on Nomad Clients
@@ -309,4 +309,59 @@ ACL policies and global ACL tokens. All other regions asychronously replicate fr
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
+
+### Reseting ACL Bootstrap
+
+If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
+First, we need to determine the reset index, this can be done by calling the reset endpoint:
+
+```
+$ curl \
+    --request POST \
+    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+
+ACL bootstrap already done (reset index: 7)
+```
+
+Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory:
+
+```
+$ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
+```
+
+Now, we can bootstrap like normal using the reset key:
+
+```
+$ curl \
+    --request POST \
+    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+```
+
+```json
+{
+    "AccessorID":"52d3353d-d7b9-d945-0591-1af608732b76",
+    "SecretID":"4b0a41ca-6d32-1853-e64b-de0d347e4525",
+    "Name":"Bootstrap Token",
+    "Type":"management",
+    "Policies":null,
+    "Global":true,
+    "Hash":"BUJ3BerTfrqFVm1P+vZr1gz9ubOkd+JAvYjNAJyaU9Y=",
+    "CreateTime":"2017-09-10T23:11:49.34730714Z",
+    "CreateIndex":11,
+    "ModifyIndex":11
+}
+```
+
+If we attempt to bootstrap again, we will get a mismatch on the reset index:
+
+```
+$ curl \
+    --request POST \
+    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+
+Invalid bootstrap reset index (specified 7, reset index: 11)
+```
+
+This is because the reset file is in place, but with the incorrect index.
+The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
