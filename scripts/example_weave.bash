@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ "$USER" != "vagrant" ]]; then
     echo "WARNING: This script is intended to be run from Nomad's Vagrant"
-    read -rsp $'Press any key to continue anyway...\n' -n1 key
+    read -rsp $'Press any key to continue anyway...\n' -n1
 fi
 
 set -e
@@ -12,7 +12,7 @@ if [[ ! -a /usr/local/bin/weave ]]; then
     sudo chmod a+x /usr/local/bin/weave
 fi
 weave launch || echo "weave running"
-eval $(weave env)
+eval "$(weave env)"
 
 if curl -s localhost:8500 > /dev/null; then
     echo "Consul running"

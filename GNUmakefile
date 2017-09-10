@@ -12,7 +12,7 @@ CHECKS ?= --enable goimports
 
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux))
+ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
 $(error Building Nomad is currently only supported on Darwin and Linux.)
 endif
 
@@ -36,14 +36,27 @@ ALL_TARGETS += linux_amd64-lxc
 endif
 endif
 
-# On MacOS we only build for MacOS
+# On MacOS, we only build for MacOS
 ifeq (Darwin,$(THIS_OS))
 ALL_TARGETS += darwin_amd64
+endif
+
+# On FreeBSD, we only build for FreeBSD
+ifeq (FreeBSD,$(THIS_OS))
+ALL_TARGETS += freebsd_amd64
 endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@..."
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
+pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
+	@echo "==> Building $@..."
+	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
@@ -151,6 +164,11 @@ check: ## Lint the source code
 		$(CHECKS) \
 		./...
 
+.PHONY: checkscripts
+checkscripts: ## Lint shell scripts
+	@echo "==> Linting scripts..."
+	@shellcheck ./scripts/*
+
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
@@ -200,6 +218,16 @@ clean: ## Remove build artifacts
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
+
+.PHONY: testcluster
+testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
+	vagrant up nomad-server01 \
+		nomad-server02 \
+		nomad-server03 \
+		nomad-client01 \
+		nomad-client02 \
+		nomad-client03 \
+		$(if $(PROVIDER),--provider $(PROVIDER))
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help
