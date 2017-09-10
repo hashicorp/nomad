@@ -15,8 +15,6 @@ import (
 	"github.com/NYTimes/gziphandler"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ugorji/go/codec"
 )
 
@@ -85,12 +83,6 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Handle requests with gzip compression
 	go http.Serve(ln, gziphandler.GzipHandler(mux))
 
-	// Register Prometheus separately as this requires uncompressed responses
-	srv.registerPrometheusHandler()
-
-	// Handle requests without gzip compression
-	go http.Serve(ln, mux)
-
 	return srv, nil
 }
 
@@ -112,12 +104,6 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 
 	// Handle requests with gzip compression
 	go http.Serve(list, gziphandler.GzipHandler(mux))
-
-	// Register Prometheus separately as this requires uncompressed responses
-	srv.registerPrometheusHandler()
-
-	// Handle requests without gzip compression
-	go http.Serve(list, mux)
 
 	return srv
 }
@@ -145,19 +131,6 @@ func (s *HTTPServer) Shutdown() {
 		s.logger.Printf("[DEBUG] http: Shutting down http server")
 		s.listener.Close()
 	}
-}
-
-// Create a prometheus handler and register it separately, as other requests
-// use gzip compression
-func (s *HTTPServer) registerPrometheusHandler() {
-	handlerOptions := promhttp.HandlerOpts{
-		ErrorLog:           s.logger,
-		ErrorHandling:      promhttp.ContinueOnError,
-		DisableCompression: true,
-	}
-
-	handler := promhttp.HandlerFor(prometheus.DefaultGatherer, handlerOptions)
-	s.mux.Handle("/metrics", handler)
 }
 
 // registerHandlers is used to attach our handlers to the mux
