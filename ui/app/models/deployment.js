@@ -19,9 +19,9 @@ export default Model.extend({
   requiresPromotion: computed('taskGroupSummaries.@each.promoted', function() {
     return (
       this.get('status') === 'running' &&
-      this.get('taskGroupSummaries').some(
-        summary => summary.get('requiresPromotion') && !summary.get('promoted')
-      )
+      this.get('taskGroupSummaries')
+        .toArray()
+        .some(summary => summary.get('requiresPromotion') && !summary.get('promoted'))
     );
   }),
 
