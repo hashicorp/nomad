@@ -82,9 +82,9 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
-	Limit          int           `mapstructure:"limit"`
-	Grace          time.Duration `mapstructure:"grace_period"`
-	IgnoreWarnings bool          `mapstructure:"ignore_warnings"`
+	Limit          int            `mapstructure:"limit"`
+	Grace          *time.Duration `mapstructure:"grace_period"`
+	IgnoreWarnings bool           `mapstructure:"ignore_warnings"`
 }
 
 // The ServiceCheck data model represents the consul health check that
@@ -107,6 +107,14 @@ type ServiceCheck struct {
 	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
 }
 
+func (c *ServiceCheck) Canonicalize() {
+	if c.CheckRestart != nil {
+		if c.CheckRestart.Grace == nil {
+			c.CheckRestart.Grace = helper.TimeToPtr(1 * time.Second)
+		}
+	}
+}
+
 // The Service model represents a Consul service definition
 type Service struct {
 	Id           string
@@ -126,6 +134,10 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default to AddressModeAuto
 	if s.AddressMode == "" {
 		s.AddressMode = "auto"
+	}
+
+	for _, c := range s.Checks {
+		c.Canonicalize()
 	}
 }
 

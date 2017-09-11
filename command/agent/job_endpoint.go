@@ -688,7 +688,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			if service.CheckRestart != nil {
 				structsTask.Services[i].CheckRestart = &structs.CheckRestart{
 					Limit:          service.CheckRestart.Limit,
-					Grace:          service.CheckRestart.Grace,
+					Grace:          *service.CheckRestart.Grace,
 					IgnoreWarnings: service.CheckRestart.IgnoreWarnings,
 				}
 			}
@@ -714,7 +714,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
 							Limit:          check.CheckRestart.Limit,
-							Grace:          check.CheckRestart.Grace,
+							Grace:          *check.CheckRestart.Grace,
 							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
 						}
 					}
