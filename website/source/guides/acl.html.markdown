@@ -104,7 +104,7 @@ $ curl \
 }
 ```
 
-Once the initial bootstrap is performed, it cannot be performed again until [reset](#reseting-acl-bootstrap). Make sure to save this AccessorID and SecretID.
+Once the initial bootstrap is performed, it cannot be performed again unless [reset](#reseting-acl-bootstrap). Make sure to save this AccessorID and SecretID.
 The bootstrap token is a `management` type token, meaning it can perform any operation. It should be used to setup the ACL policies and create additional ACL tokens. The bootstrap token can be deleted and is like any other token, so care should be taken to not revoke all management tokens.
 
 ### Enable ACLs on Nomad Clients

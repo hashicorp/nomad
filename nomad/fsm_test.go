@@ -1624,7 +1624,7 @@ func TestFSM_BootstrapACLTokens(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, out)
 
-	// Teset with reset
+	// Test with reset
 	token2 := mock.ACLToken()
 	req = structs.ACLTokenBootstrapRequest{
 		Token:      token2,
