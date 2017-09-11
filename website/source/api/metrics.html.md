@@ -22,10 +22,20 @@ The table below shows this endpoint's support for
 | ---------------- | ------------ |
 | `NO`             | `none`       |
 
+### Parameters
+
+- `format` `(string: "")` - Specifies the metrics format to be other than the
+  JSON default. Currently, only `prometheus` is supported as an alterntaive
+  format. This is specified as a querystring parameter.
+
 ### Sample Request
 
 ```text
 $ curl https://nomad.rocks/v1/metrics
+```
+
+```text
+$ curl https://nomad.rocks/v1/metrics?format=prometheus
 ```
 
 ### Sample Response

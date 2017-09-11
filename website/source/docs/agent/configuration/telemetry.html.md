@@ -114,6 +114,15 @@ telemetry {
 }
 ```
 
+### `prometheus`
+
+These `telemetry` parameters apply to
+[Prometheus](https://prometheus.io).
+
+- `prometheus_metrics` `(bool: false)` - Specifies whether the agent should
+  initialize a PrometheusSink, where metrics will be reachable via the metrics
+  path `/v1/netrics?format=prometheus`.
+
 ### `circonus`
 
 These `telemetry` parameters apply to
