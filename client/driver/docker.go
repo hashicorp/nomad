@@ -970,8 +970,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		VolumeDriver: driverConfig.VolumeDriver,
 	}
 
-	// Windows does not support MemorySwap #2193
-	if runtime.GOOS != "windows" {
+	// Windows does not support MemorySwap/MemorySwappiness #2193
+	if runtime.GOOS == "windows" {
+		hostConfig.MemorySwap = 0
+		hostConfig.MemorySwappiness = -1
+	} else {
 		hostConfig.MemorySwap = memLimit // MemorySwap is memory + swap.
 	}
 
