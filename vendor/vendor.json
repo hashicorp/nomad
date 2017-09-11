@@ -1293,10 +1293,10 @@
 			"revisionTime": "2017-06-05T21:53:11Z"
 		},
 		{
-			"checksumSHA1": "pE9lQ5mMiW10+m6CS9XQDhSACNU=",
+			"checksumSHA1": "5TlXhxVMqfHQKpCKucmXNeE6/kc=",
 			"path": "golang.org/x/crypto/blake2b",
-			"revision": "eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035",
-			"revisionTime": "2017-08-07T10:11:13Z"
+			"revision": "74b34b9dd60829a9fcaf56a59e81c3877a8ecd2c",
+			"revisionTime": "2017-09-02T17:19:23Z"
 		},
 		{
 			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
