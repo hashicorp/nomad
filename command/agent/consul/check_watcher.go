@@ -34,12 +34,12 @@ type checkRestart struct {
 	// remove this checkID (if true only checkID will be set)
 	remove bool
 
-	task         TaskRestarter
-	restartDelay time.Duration
-	grace        time.Duration
-	interval     time.Duration
-	timeLimit    time.Duration
-	warning      bool
+	task           TaskRestarter
+	restartDelay   time.Duration
+	grace          time.Duration
+	interval       time.Duration
+	timeLimit      time.Duration
+	ignoreWarnings bool
 
 	// Mutable fields
 
@@ -61,8 +61,8 @@ func (c *checkRestart) update(now time.Time, status string) {
 	switch status {
 	case api.HealthCritical:
 	case api.HealthWarning:
-		if !c.warning {
-			// Warnings are ok, reset state and exit
+		if c.ignoreWarnings {
+			// Warnings are ignored, reset state and exit
 			c.unhealthyStart = time.Time{}
 			return
 		}
@@ -79,6 +79,8 @@ func (c *checkRestart) update(now time.Time, status string) {
 
 	if c.unhealthyStart.IsZero() {
 		// First failure, set restart deadline
+		c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became unhealthy. Restarting in %s if not healthy",
+			c.allocID, c.taskName, c.checkName, c.timeLimit)
 		c.unhealthyStart = now
 	}
 
@@ -224,18 +226,18 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 	}
 
 	c := checkRestart{
-		allocID:      allocID,
-		taskName:     taskName,
-		checkID:      checkID,
-		checkName:    check.Name,
-		task:         restarter,
-		restartDelay: restarter.RestartDelay(),
-		interval:     check.Interval,
-		grace:        check.CheckRestart.Grace,
-		graceUntil:   time.Now().Add(check.CheckRestart.Grace),
-		timeLimit:    check.Interval * time.Duration(check.CheckRestart.Limit-1),
-		warning:      check.CheckRestart.OnWarning,
-		logger:       w.logger,
+		allocID:        allocID,
+		taskName:       taskName,
+		checkID:        checkID,
+		checkName:      check.Name,
+		task:           restarter,
+		restartDelay:   restarter.RestartDelay(),
+		interval:       check.Interval,
+		grace:          check.CheckRestart.Grace,
+		graceUntil:     time.Now().Add(check.CheckRestart.Grace),
+		timeLimit:      check.Interval * time.Duration(check.CheckRestart.Limit-1),
+		ignoreWarnings: check.CheckRestart.IgnoreWarnings,
+		logger:         w.logger,
 	}
 
 	select {

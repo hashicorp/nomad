@@ -2760,9 +2760,9 @@ func (tg *TaskGroup) GoString() string {
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
-	Limit     int           // Restart task after this many unhealthy intervals
-	Grace     time.Duration // Grace time to give tasks after starting to get healthy
-	OnWarning bool          // If true treat checks in `warning` as unhealthy
+	Limit          int           // Restart task after this many unhealthy intervals
+	Grace          time.Duration // Grace time to give tasks after starting to get healthy
+	IgnoreWarnings bool          // If true treat checks in `warning` as passing
 }
 
 func (c *CheckRestart) Copy() *CheckRestart {
@@ -2798,8 +2798,8 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 		nc.Grace = o.Grace
 	}
 
-	if !nc.OnWarning {
-		nc.OnWarning = o.OnWarning
+	if nc.IgnoreWarnings {
+		nc.IgnoreWarnings = o.IgnoreWarnings
 	}
 
 	return nc

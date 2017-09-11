@@ -1063,7 +1063,7 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 	valid := []string{
 		"limit",
 		"grace_period",
-		"on_warning",
+		"ignore_warnings",
 	}
 
 	if err := checkHCLKeys(cro.Val, valid); err != nil {

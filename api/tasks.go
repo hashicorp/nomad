@@ -82,9 +82,9 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
-	Limit     int           `mapstructure:"limit"`
-	Grace     time.Duration `mapstructure:"grace_period"`
-	OnWarning bool          `mapstructure:"on_warning"`
+	Limit          int           `mapstructure:"limit"`
+	Grace          time.Duration `mapstructure:"grace_period"`
+	IgnoreWarnings bool          `mapstructure:"ignore_warnings"`
 }
 
 // The ServiceCheck data model represents the consul health check that
