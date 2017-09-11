@@ -6530,11 +6530,12 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	tk1 := mock.ACLToken()
 	tk2 := mock.ACLToken()
 
-	ok, err := state.CanBootstrapACLToken()
+	ok, resetIdx, err := state.CanBootstrapACLToken()
 	assert.Nil(t, err)
 	assert.Equal(t, true, ok)
+	assert.EqualValues(t, 0, resetIdx)
 
-	if err := state.BootstrapACLTokens(1000, tk1); err != nil {
+	if err := state.BootstrapACLTokens(1000, 0, tk1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6542,11 +6543,12 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk1, out)
 
-	ok, err = state.CanBootstrapACLToken()
+	ok, resetIdx, err = state.CanBootstrapACLToken()
 	assert.Nil(t, err)
 	assert.Equal(t, false, ok)
+	assert.EqualValues(t, 1000, resetIdx)
 
-	if err := state.BootstrapACLTokens(1001, tk2); err == nil {
+	if err := state.BootstrapACLTokens(1001, 0, tk2); err == nil {
 		t.Fatalf("expected error")
 	}
 
@@ -6580,6 +6582,27 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if index != 1000 {
+		t.Fatalf("bad: %d", index)
+	}
+
+	// Should allow bootstrap with reset index
+	if err := state.BootstrapACLTokens(1001, 1000, tk2); err != nil {
+		t.Fatalf("err %v", err)
+	}
+
+	// Check we've modified the index
+	index, err = state.Index("acl_token")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
+		t.Fatalf("bad: %d", index)
+	}
+	index, err = state.Index("acl_token_bootstrap")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if index != 1001 {
 		t.Fatalf("bad: %d", index)
 	}
 }

@@ -14,7 +14,8 @@ For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
 ## Bootstrap Token
 
 This endpoint is used to bootstrap the ACL system and provide the initial management token.
-This request is always forwarded to the authoritative region. It can only be invoked once.
+This request is always forwarded to the authoritative region. It can only be invoked once
+until a [bootstrap reset](/guides/acl.html#reseting-acl-bootstrap) is performed.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |

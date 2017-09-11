@@ -792,7 +792,7 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BootstrapACLTokens(index, req.Token); err != nil {
+	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: BootstrapACLToken failed: %v", err)
 		return err
 	}
