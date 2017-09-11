@@ -25,4 +25,20 @@
     color: $orange;
     border-color: $orange;
   }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+
+    &.is-#{$name} {
+      background: lighten($color, 40%);
+      color: $color;
+      border-color: $color;
+    }
+  }
+
+  &.is-light {
+    background: lighten($white-ter, 5%);
+    color: darken($grey-blue, 20%);
+    border-color: $grey-blue;
+  }
 }
