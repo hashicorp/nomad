@@ -11,6 +11,13 @@ export default Factory.extend({
 
   jobId: null,
   version: 0,
+
+  afterCreate(version, server) {
+    server.create('deployment', {
+      jobId: version.jobId,
+      versionNumber: version.version,
+    });
+  },
 });
 
 function generateDiff(version) {
