@@ -3,14 +3,14 @@
 IMPROVEMENTS:
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
 
-## 0.6.3 (Unreleased)
+## 0.6.3 (September 11, 2017)
 
 BUG FIXES:
  * api: Search handles prefix longer than allowed UUIDs [GH-3138]
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
+ * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: Sort task groups when displaying a deployment [GH-3137]
  * cli: Handle reading files that are in a symlinked directory [GH-3164]
- * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
  * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
  * cli: Fix job deployment -latest handling of jobs without deployments
