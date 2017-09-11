@@ -1,4 +1,5 @@
 import ApplicationSerializer from './application';
+import { arrToObj } from '../utils';
 
 export default ApplicationSerializer.extend({
   embed: true,
@@ -18,14 +19,4 @@ export default ApplicationSerializer.extend({
 function serializeAllocation(allocation) {
   allocation.TaskStates = allocation.TaskStates.reduce(arrToObj('Name'), {});
   allocation.TaskResources = allocation.TaskResources.reduce(arrToObj('Name', 'Resources'), {});
-}
-
-function arrToObj(prop, alias = '') {
-  return (obj, element) => {
-    const name = element[prop];
-    delete element[prop];
-
-    obj[name] = alias ? element[alias] : element;
-    return obj;
-  };
 }
