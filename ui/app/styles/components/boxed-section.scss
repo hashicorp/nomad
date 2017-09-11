@@ -88,17 +88,17 @@
     $color-invert: nth($pair, 2);
 
     &.is-#{$name} {
-      .boxed-section-head {
+      > .boxed-section-head {
         background: $color;
         border-color: $color;
         color: $color-invert;
       }
 
-      .boxed-section-body {
+      > .boxed-section-body {
         border-color: $color;
       }
 
-      .boxed-section-foot {
+      > .boxed-section-foot {
         border-color: $color;
         background: lighten($color, 40%);
         color: $color;

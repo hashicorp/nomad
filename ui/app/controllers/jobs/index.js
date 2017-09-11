@@ -28,6 +28,8 @@ export default Controller.extend(Sortable, Searchable, {
   listToSearch: computed.alias('listSorted'),
   sortedJobs: computed.alias('listSearched'),
 
+  isShowingDeploymentDetails: false,
+
   actions: {
     gotoJob(job) {
       this.transitionToRoute('jobs.job', job);

@@ -5,7 +5,7 @@ import { hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
-const { computed, observer } = Ember;
+const { computed } = Ember;
 
 export default Model.extend({
   region: attr('string'),
@@ -52,6 +52,10 @@ export default Model.extend({
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
   deployments: hasMany('deployments'),
+
+  runningDeployment: computed('deployments.@each.status', function() {
+    return this.get('deployments').findBy('status', 'running');
+  }),
 
   fetchRawDefinition() {
     return this.store.adapterFor('job').fetchRawDefinition(this);
