@@ -1940,6 +1940,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats) {
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
 func (c *Client) setGaugeForAllocationStats(nodeID string) {
+	c.configLock.RLock()
 	node := c.configCopy.Node
 	c.configLock.RUnlock()
 	total := node.Resources
