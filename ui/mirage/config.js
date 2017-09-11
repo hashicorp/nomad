@@ -32,6 +32,19 @@ export default function() {
     return this.serialize(jobVersions.where({ jobId: params.id }));
   });
 
+  this.get('/job/:id/deployments', function({ deployments }, { params }) {
+    return this.serialize(deployments.where({ jobId: params.id }));
+  });
+
+  this.get('/deployment/:id');
+
+  this.get('/deployment/allocations/:id', function(schema, { params }) {
+    const job = schema.jobs.find(schema.deployments.find(params.id).jobId);
+    const allocations = schema.allocations.where({ jobId: job.id });
+
+    return this.serialize(allocations.slice(0, 3));
+  });
+
   this.get('/nodes', function({ nodes }) {
     const json = this.serialize(nodes.all());
     return json;
