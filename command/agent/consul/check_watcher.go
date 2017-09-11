@@ -15,10 +15,14 @@ const (
 	defaultPollFreq = 900 * time.Millisecond
 )
 
-type ConsulChecks interface {
+// ChecksAPI is the part of the Consul API the checkWatcher requires.
+type ChecksAPI interface {
+	// Checks returns a list of all checks.
 	Checks() (map[string]*api.AgentCheck, error)
 }
 
+// TaskRestarter allows the checkWatcher to restart tasks and how long the
+// grace period should be afterward.
 type TaskRestarter interface {
 	RestartDelay() time.Duration
 	Restart(source, reason string, failure bool)
@@ -96,8 +100,8 @@ func (c *checkRestart) update(now time.Time, status string) {
 		const failure = true
 		c.task.Restart("healthcheck", fmt.Sprintf("check %q unhealthy", c.checkName), failure)
 
-		// Reset grace time to grace + restart.delay + (restart.delay * 25%) (the max jitter)
-		c.graceUntil = now.Add(c.grace + c.restartDelay + time.Duration(float64(c.restartDelay)*0.25))
+		// Reset grace time to grace + restart.delay
+		c.graceUntil = now.Add(c.grace + c.restartDelay)
 		c.unhealthyStart = time.Time{}
 	}
 }
@@ -105,10 +109,13 @@ func (c *checkRestart) update(now time.Time, status string) {
 // checkWatcher watches Consul checks and restarts tasks when they're
 // unhealthy.
 type checkWatcher struct {
-	consul ConsulChecks
+	consul ChecksAPI
 
+	// pollFreq is how often to poll the checks API and defaults to
+	// defaultPollFreq
 	pollFreq time.Duration
 
+	// watchCh is how watches (and removals) are sent to the main watching loop
 	watchCh chan *checkRestart
 
 	// done is closed when Run has exited
@@ -122,7 +129,7 @@ type checkWatcher struct {
 }
 
 // newCheckWatcher creates a new checkWatcher but does not call its Run method.
-func newCheckWatcher(logger *log.Logger, consul ConsulChecks) *checkWatcher {
+func newCheckWatcher(logger *log.Logger, consul ChecksAPI) *checkWatcher {
 	return &checkWatcher{
 		consul:   consul,
 		pollFreq: defaultPollFreq,
