@@ -12,12 +12,14 @@
 
     .nav-item {
       color: rgba($primary-invert, 0.8);
+      text-decoration: none;
 
       &:hover {
         color: $primary-invert;
       }
 
-      &.is-active, &.active {
+      &.is-active,
+      &.active {
         color: $primary-invert;
         border-bottom-color: $primary-invert;
       }
@@ -29,7 +31,7 @@
           width: 1px;
           height: 1em;
           background: rgba($primary-invert, 0.5);
-          content: ' ';
+          content: " ";
           display: block;
           position: absolute;
           left: 0px;
