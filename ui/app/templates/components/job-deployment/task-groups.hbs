@@ -18,7 +18,13 @@
       {{#t.body as |row|}}
         <tr>
           <td>{{row.model.name}}</td>
-          <td>{{row.model.promoted}}</td>
+          <td>
+            {{#if row.model.requiresPromotion}}
+              {{if row.model.promoted "No" "Yes"}}
+            {{else}}
+              N/A
+            {{/if}}
+          </td>
           <td>{{row.model.autoRevert}}</td>
           <td>{{or row.model.placedCanaries 0}} / {{row.model.desiredCanaries}}</td>
           <td>{{row.model.placedAllocs}} / {{row.model.desiredTotal}}</td>
