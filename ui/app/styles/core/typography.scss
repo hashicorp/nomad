@@ -1,3 +1,13 @@
+a {
+  color: $blue;
+  text-decoration: underline;
+
+  &:hover {
+    color: $blue;
+    text-decoration: underline;
+  }
+}
+
 code {
   color: currentColor;
   background: transparent;

@@ -22,6 +22,11 @@
         background: $white;
         color: darken($color, 10%);
       }
+
+      &.is-subtle {
+        background: rgba($color, 0.3);
+        color: $white;
+      }
     }
   }
 

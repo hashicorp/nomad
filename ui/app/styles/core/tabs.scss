@@ -13,8 +13,10 @@
     border-bottom: none;
     box-shadow: inset 0 0 0 $grey-blue;
     transition: box-shadow 0.1s ease-in-out;
+    text-decoration: none;
 
-    &:hover, &.is-active {
+    &:hover,
+    &.is-active {
       border-bottom: none;
       box-shadow: inset 0 -3px 0 $blue;
       color: $blue;

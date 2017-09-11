@@ -2,6 +2,7 @@
   .breadcrumb {
     color: $white;
     opacity: 0.7;
+    text-decoration: none;
 
     &:hover {
       color: $primary-invert;
@@ -11,7 +12,7 @@
     + .breadcrumb {
       margin-left: 15px;
       &::before {
-        content: '/';
+        content: "/";
         color: $primary;
         position: relative;
         left: -7px;
