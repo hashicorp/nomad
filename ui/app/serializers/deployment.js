@@ -9,7 +9,7 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(typeHash, hash) {
-    hash.TaskGroupSummaries = Object.keys(get(hash, 'TaskGroups')).map(key => {
+    hash.TaskGroupSummaries = Object.keys(get(hash, 'TaskGroups') || {}).map(key => {
       const deploymentStats = get(hash, `TaskGroups.${key}`);
       return assign({ Name: key }, deploymentStats);
     });
