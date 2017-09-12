@@ -314,7 +314,16 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		s.periodicDispatcher.Add(job)
+		added, err := s.periodicDispatcher.Add(job)
+		if err != nil {
+			return err
+		}
+
+		// We did not add the job to the tracker, this can be for a variety of
+		// reasons, but it means that we do not need to force run it.
+		if !added {
+			continue
+		}
 
 		// If the periodic job has never been launched before, launch will hold
 		// the time the periodic job was added. Otherwise it has the last launch
