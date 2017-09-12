@@ -100,7 +100,7 @@ func (c *PlanCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("plan", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
-	flags.BoolVar(&policyOverride, "policy-override", true, "")
+	flags.BoolVar(&policyOverride, "policy-override", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
