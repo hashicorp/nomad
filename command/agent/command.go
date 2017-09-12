@@ -666,8 +666,9 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	if telConfig.PrometheusMetrics {
 		promSink, err := prometheus.NewPrometheusSink()
 		if err != nil {
-			fanout = append(fanout, promSink)
+			return inm, err
 		}
+		fanout = append(fanout, promSink)
 	}
 
 	// Configure the datadog sink
