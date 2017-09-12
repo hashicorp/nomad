@@ -7,7 +7,7 @@ scrape_configs:
 
     consul_sd_configs:
     - server: 'localhost:8500'
-      services: ['nomad-client', 'nomad-server-nomad']
+      services: ['nomad-client', 'nomad']
 
     scrape_interval: 5s
     metrics_path: /metrics
