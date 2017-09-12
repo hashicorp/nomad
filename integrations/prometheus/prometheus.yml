@@ -1,0 +1,14 @@
+global:
+  external_labels:
+    monitor: 'codelab-monitor'
+
+scrape_configs:
+  - job_name: 'nomad_data'
+
+    consul_sd_configs:
+    - server: 'localhost:8500'
+      services: ['nomad-client', 'nomad-server-nomad']
+
+    scrape_interval: 5s
+    metrics_path: /metrics
+
