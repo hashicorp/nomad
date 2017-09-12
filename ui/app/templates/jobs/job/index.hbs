@@ -45,12 +45,12 @@
     </div>
 
     {{#if model.runningDeployment}}
-      <div class="boxed-section is-info">
+      <div class="boxed-section is-info active-deployment">
         <div class="boxed-section-head">
           <div class="boxed-section-row">
             Active Deployment
             <span class="badge is-white is-subtle bumper-left">{{model.runningDeployment.shortId}}</span>
-            <span class="pull-right">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
+            <span class="pull-right submit-time">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
           </div>
           <div class="boxed-section-row">
             <span class="tag is-info is-outlined">Running</span>
@@ -69,7 +69,7 @@
           {{/job-deployment-details}}
         </div>
         <div class="boxed-section-foot">
-          <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}}>
+          <a class="pull-right active-deployment-details-toggle" {{action (toggle "isShowingDeploymentDetails" this)}}>
             {{if isShowingDeploymentDetails "Hide" "Show"}} deployment task groups and allocations
           </a>
         </div>
