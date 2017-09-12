@@ -30,9 +30,16 @@ export default Factory.extend({
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
-  // Directive used to control whether or not allocations are automatically
-  // created.
+  // Directive used to control sub-resources
+
+  // When false, no allocations are made
   createAllocations: true,
+
+  // When true, deployments for the job will never have a 'running' status
+  noActiveDeployment: false,
+
+  // When true, deployments for the job will always have a 'running' status
+  activeDeployment: false,
 
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
@@ -61,6 +68,8 @@ export default Factory.extend({
         return server.create('job-version', {
           job,
           version: index,
+          noActiveDeployment: job.noActiveDeployment,
+          activeDeployment: job.activeDeployment,
         });
       });
   },

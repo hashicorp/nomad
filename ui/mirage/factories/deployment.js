@@ -1,4 +1,4 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
@@ -10,8 +10,16 @@ export default Factory.extend({
   jobId: null,
   versionNumber: null,
 
-  status: 'running', //faker.list.random(...DEPLOYMENT_STATUSES),
+  status: faker.list.random(...DEPLOYMENT_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
+
+  notActive: trait({
+    status: faker.list.random(...DEPLOYMENT_STATUSES.without('running')),
+  }),
+
+  active: trait({
+    status: 'running',
+  }),
 
   afterCreate(deployment, server) {
     const job = server.db.jobs.find(deployment.jobId);

@@ -12,11 +12,23 @@ export default Factory.extend({
   jobId: null,
   version: 0,
 
+  // Directive to restrict any related deployments from having a 'running' status
+  noActiveDeployment: false,
+
+  // Directive to restrict any related deployments from having a status other than 'running'
+  activeDeployment: false,
+
   afterCreate(version, server) {
-    server.create('deployment', {
-      jobId: version.jobId,
-      versionNumber: version.version,
-    });
+    const args = [
+      'deployment',
+      version.noActiveDeployment && 'notActive',
+      version.activeDeployment && 'active',
+      {
+        jobId: version.jobId,
+        versionNumber: version.version,
+      },
+    ].compact();
+    server.create(...args);
   },
 });
 
