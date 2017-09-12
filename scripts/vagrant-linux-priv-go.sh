@@ -21,11 +21,7 @@ install_go
 	
 # Ensure that the GOPATH tree is owned by vagrant:vagrant
 mkdir -p /opt/gopath
-chown vagrant:vagrant \
-	/opt/gopath \
-	/opt/gopath/src \
-	/opt/gopath/src/github.com \
-	/opt/gopath/src/github.com/hashicorp
+chown -R vagrant:vagrant /opt/gopath
 
 # Ensure Go is on PATH
 if [ ! -e /usr/bin/go ] ; then
