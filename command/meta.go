@@ -47,6 +47,9 @@ type Meta struct {
 	// namespace to send API requests
 	namespace string
 
+	// token is used for ACLs to access privilaged information
+	token string
+
 	caCert     string
 	caPath     string
 	clientCert string
@@ -74,6 +77,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.clientKey, "client-key", "", "")
 		f.BoolVar(&m.insecure, "insecure", false, "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
+		f.StringVar(&m.token, "token", "", "")
 
 	}
 
@@ -110,6 +114,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-client-key":      complete.PredictFiles("*"),
 		"-insecure":        complete.PredictNothing,
 		"-tls-skip-verify": complete.PredictNothing,
+		"-token":           complete.PredictAnything,
 	}
 }
 
@@ -140,6 +145,10 @@ func (m *Meta) Client() (*api.Client, error) {
 			Insecure:   m.insecure,
 		}
 		config.TLSConfig = t
+	}
+
+	if m.token != "" {
+		config.SecretID = m.token
 	}
 
 	return api.NewClient(config)
@@ -198,6 +207,9 @@ func generalOptionsUsage() string {
   -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
+
+  -token
+    Provide an ACL token to access privilated information
 `
 	return strings.TrimSpace(helpText)
 }

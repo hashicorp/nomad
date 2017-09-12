@@ -281,6 +281,7 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 // Summary retreives the summary of a job
 func (j *Job) Summary(args *structs.JobSummaryRequest,
 	reply *structs.JobSummaryResponse) error {
+
 	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
