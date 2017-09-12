@@ -393,6 +393,8 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "node does not exist", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
+	} else if node.Drain && node.Freeze {
+		return false, "node is draining and freezed", nil
 	} else if node.Drain {
 		return false, "node is draining", nil
 	} else if node.Freeze {

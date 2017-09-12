@@ -47,7 +47,7 @@ type Node struct {
 	updatesLock sync.Mutex
 }
 
-// Register is used to upset a client that is available for scheduling
+// Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
 		return err

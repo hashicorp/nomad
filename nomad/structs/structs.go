@@ -1069,7 +1069,7 @@ type Node struct {
 	Drain bool
 
 	// Freeze is controlled by the servers, and not the client.
-	// If true, no jobs will be scheduled to this node, byt existing
+	// If true, no jobs will be scheduled to this node, but existing
 	// allocations will not be affected.
 	Freeze bool
 
