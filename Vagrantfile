@@ -19,7 +19,7 @@ Vagrant.configure(2) do |config|
 			'/opt/gopath/src/github.com/hashicorp/nomad'
 
 		vmCfg.vm.provision "shell",
-			privileged: true,
+			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 	end
 
