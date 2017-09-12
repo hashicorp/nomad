@@ -67,6 +67,7 @@ func (p *PrometheusSink) SetGaugeWithLabels(parts []string, val float32, labels 
 		})
 		prometheus.MustRegister(g)
 		p.gauges[key] = g
+		panic("we shold be registering labels globally! " + key)
 	}
 	g.Set(float64(val))
 }
