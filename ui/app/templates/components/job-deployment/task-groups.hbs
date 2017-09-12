@@ -25,7 +25,7 @@
               N/A
             {{/if}}
           </td>
-          <td>{{row.model.autoRevert}}</td>
+          <td>{{if row.model.autoRevert "Yes" "No"}}</td>
           <td>{{or row.model.placedCanaries 0}} / {{row.model.desiredCanaries}}</td>
           <td>{{row.model.placedAllocs}} / {{row.model.desiredTotal}}</td>
           <td>{{row.model.healthyAllocs}}</td>
