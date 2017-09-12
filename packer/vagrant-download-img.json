@@ -1,0 +1,29 @@
+{
+	"builders": [
+		{
+			"type": "virtualbox-ovf",
+			"source_path": "https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64.ova",
+			"format": "ova",
+			"shutdown_command": "sudo shutdown -P",
+			"ssh_username": "vagrant",
+			"ssh_password": "vagrant",
+			"headless": true
+		}
+	],
+	"provisioners": [
+		{
+			"type": "shell",
+			"scripts": [
+				"vagrant-linux-config.sh",
+				"vagrant-linux-consul.sh",
+				"vagrant-linux-go.sh",
+				"vagrant-linux-rkt.sh",
+				"vagrant-linux-vault.sh",
+				"vagrant-linux-bootstrap.sh"
+			]
+		}
+	],
+	"post-processors": [
+		"vagrant"
+	]
+}
