@@ -19,7 +19,7 @@
       <div class="field">
         <label class="label">Secret ID</label>
         <div class="control">
-          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.secret}} oninput={{action "setTokenProperty" "secret"}}>
+          <input class="input token-secret" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.secret}} oninput={{action "setTokenProperty" "secret"}}>
         </div>
         <p class="help">Sent with every request to determine authorization</p>
       </div>
@@ -27,7 +27,7 @@
       <div class="field">
         <label class="label">Accessor ID</label>
         <div class="control">
-          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.accessor}} oninput={{action "setTokenProperty" "accessor"}}>
+          <input class="input token-accessor" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.accessor}} oninput={{action "setTokenProperty" "accessor"}}>
         </div>
         <p class="help">Used to look up authorized policies</p>
       </div>
