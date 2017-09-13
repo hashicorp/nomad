@@ -3,6 +3,9 @@
 IMPROVEMENTS:
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
 
+BUG FIXES:
+ * core: *Fix restoration of stopped periodic jobs [GH-3201]
+
 ## 0.6.3 (September 11, 2017)
 
 BUG FIXES:
