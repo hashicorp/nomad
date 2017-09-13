@@ -1,4 +1,4 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS } from '../common';
 
@@ -20,6 +20,13 @@ export default Factory.extend({
   httpAddr() {
     return this.name.split('@')[1];
   },
+
+  forceIPv4: trait({
+    name: i => {
+      const ipv4Hosts = HOSTS.filter(h => !h.startsWith('['));
+      return `nomad@${ipv4Hosts[i % ipv4Hosts.length]}`;
+    },
+  }),
 
   attributes() {
     // TODO add variability to these

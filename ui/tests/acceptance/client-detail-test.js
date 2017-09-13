@@ -5,7 +5,7 @@ let node;
 
 moduleForAcceptance('Acceptance | client detail', {
   beforeEach() {
-    server.create('node');
+    server.create('node', 'forceIPv4');
     node = server.db.nodes[0];
 
     // Related models
@@ -32,8 +32,18 @@ test('/nodes/:id should have a breadrcumb trail linking back to nodes', function
 });
 
 test('/nodes/:id should list immediate details for the node in the title', function(assert) {
-  assert.ok(find('.title').text().includes(node.name), 'Title includes name');
-  assert.ok(find('.title').text().includes(node.id), 'Title includes id');
+  assert.ok(
+    find('.title')
+      .text()
+      .includes(node.name),
+    'Title includes name'
+  );
+  assert.ok(
+    find('.title')
+      .text()
+      .includes(node.id),
+    'Title includes id'
+  );
   assert.ok(find(`.title .node-status-light.${node.status}`).length, 'Title includes status light');
 });
 
@@ -76,31 +86,56 @@ test('each allocation should have high-level details for the allocation', functi
     .reverse()[0];
 
   assert.equal(
-    allocationRow.find('td:eq(0)').text().trim(),
+    allocationRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
     allocation.id.split('-')[0],
     'Allocation short ID'
   );
-  assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
   assert.equal(
-    allocationRow.find('td:eq(2)').text().trim(),
+    allocationRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    allocation.name,
+    'Allocation name'
+  );
+  assert.equal(
+    allocationRow
+      .find('td:eq(2)')
+      .text()
+      .trim(),
     allocation.clientStatus,
     'Client status'
   );
   assert.ok(
-    allocationRow.find('td:eq(3)').text().includes(server.db.jobs.find(allocation.jobId).name),
+    allocationRow
+      .find('td:eq(3)')
+      .text()
+      .includes(server.db.jobs.find(allocation.jobId).name),
     'Job name'
   );
   assert.ok(
-    allocationRow.find('td:eq(3) .is-faded').text().includes(allocation.taskGroup),
+    allocationRow
+      .find('td:eq(3) .is-faded')
+      .text()
+      .includes(allocation.taskGroup),
     'Task group name'
   );
   assert.equal(
-    allocationRow.find('td:eq(4)').text().trim(),
+    allocationRow
+      .find('td:eq(4)')
+      .text()
+      .trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
   );
   assert.equal(
-    allocationRow.find('td:eq(5)').text().trim(),
+    allocationRow
+      .find('td:eq(5)')
+      .text()
+      .trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.MemoryStats.Cache,
     'Memory used'
   );

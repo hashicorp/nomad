@@ -10,7 +10,7 @@ const sum = (total, n) => total + n;
 
 moduleForAcceptance('Acceptance | task group detail', {
   beforeEach() {
-    server.create('node');
+    server.create('node', 'forceIPv4');
 
     job = server.create('job', {
       groupsCount: 2,
@@ -22,7 +22,7 @@ moduleForAcceptance('Acceptance | task group detail', {
 
     tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
 
-    server.create('node');
+    server.create('node', 'forceIPv4');
 
     allocations = server.createList('allocation', 2, {
       jobId: job.id,
@@ -129,18 +129,34 @@ test('each allocation should show basic information about the allocation', funct
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(
-    allocationRow.find('td:eq(0)').text().trim(),
+    allocationRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
     allocation.id.split('-')[0],
     'Allocation short id'
   );
-  assert.equal(allocationRow.find('td:eq(1)').text().trim(), allocation.name, 'Allocation name');
   assert.equal(
-    allocationRow.find('td:eq(2)').text().trim(),
+    allocationRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    allocation.name,
+    'Allocation name'
+  );
+  assert.equal(
+    allocationRow
+      .find('td:eq(2)')
+      .text()
+      .trim(),
     allocation.clientStatus,
     'Client status'
   );
   assert.equal(
-    allocationRow.find('td:eq(3)').text().trim(),
+    allocationRow
+      .find('td:eq(3)')
+      .text()
+      .trim(),
     server.db.nodes.find(allocation.nodeId).id.split('-')[0],
     'Node name'
   );
@@ -153,13 +169,19 @@ test('each allocation should show stats about the allocation, retrieved directly
   const allocationRow = find('.allocations tbody tr:eq(0)');
 
   assert.equal(
-    allocationRow.find('td:eq(4)').text().trim(),
+    allocationRow
+      .find('td:eq(4)')
+      .text()
+      .trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
     'CPU %'
   );
 
   assert.equal(
-    allocationRow.find('td:eq(5)').text().trim(),
+    allocationRow
+      .find('td:eq(5)')
+      .text()
+      .trim(),
     server.db.clientAllocationStats.find(allocation.id).resourceUsage.MemoryStats.Cache,
     'Memory used'
   );
