@@ -18,6 +18,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
+	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	gsyslog "github.com/hashicorp/go-syslog"
@@ -659,6 +660,15 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 			return inm, err
 		}
 		fanout = append(fanout, sink)
+	}
+
+	// Configure the prometheus sink
+	if telConfig.PrometheusMetrics {
+		promSink, err := prometheus.NewPrometheusSink()
+		if err != nil {
+			return inm, err
+		}
+		fanout = append(fanout, promSink)
 	}
 
 	// Configure the datadog sink

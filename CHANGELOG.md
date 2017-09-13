@@ -1,6 +1,7 @@
 ## 0.7 (Unreleased)
 
 IMPROVEMENTS:
+ * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
 
 BUG FIXES:
@@ -15,7 +16,7 @@ BUG FIXES:
  * cli: Sort task groups when displaying a deployment [GH-3137]
  * cli: Handle reading files that are in a symlinked directory [GH-3164]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
- * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
+ * cli: Fix autocompletion of paths that include directories on zsh [GH-3129]
  * cli: Fix job deployment -latest handling of jobs without deployments
    [GH-3166]
  * cli: Hide CLI commands not expected to be run by user from autocomplete

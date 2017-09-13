@@ -113,6 +113,7 @@ func TestConfig_Parse(t *testing.T) {
 				Telemetry: &Telemetry{
 					StatsiteAddr:               "127.0.0.1:1234",
 					StatsdAddr:                 "127.0.0.1:2345",
+					PrometheusMetrics:          true,
 					DisableHostname:            true,
 					UseNodeName:                false,
 					CollectionInterval:         "3s",
