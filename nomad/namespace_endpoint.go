@@ -128,6 +128,12 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 			if err != nil {
 				return err
 			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
 			reply.Index = index
 			return nil
 		}}
@@ -161,6 +167,12 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 				index, err := s.Index(state.TableNamespaces)
 				if err != nil {
 					return err
+				}
+
+				// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+				// We floor the index at one, since realistically the first write must have a higher index.
+				if index == 0 {
+					index = 1
 				}
 				reply.Index = index
 			}
@@ -199,6 +211,12 @@ func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *stru
 			index, err := s.Index(state.TableNamespaces)
 			if err != nil {
 				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
+			if index == 0 {
+				index = 1
 			}
 			reply.Index = index
 			return nil
