@@ -106,14 +106,14 @@ type Config struct {
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
+	// SecretID to use. This can be overwritten per request.
+	SecretID string
+
 	// Namespace to use. If not provided the default namespace is used.
 	Namespace string
 
 	// httpClient is the client to use. Default will be used if not provided.
 	httpClient *http.Client
-
-	// SecretID to use. This can be overwritten per request.
-	SecretID string
 
 	// HttpAuth is the auth info to use for http access.
 	HttpAuth *HttpBasicAuth

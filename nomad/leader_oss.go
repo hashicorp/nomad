@@ -3,7 +3,7 @@
 package nomad
 
 // establishEnterpriseLeadership is a no-op on OSS.
-func (s *Server) establishEnterpriseLeadership() error {
+func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}) error {
 	return nil
 }
 
