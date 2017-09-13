@@ -158,10 +158,6 @@ type TaskRunner struct {
 	// restartCh is used to restart a task
 	restartCh chan *taskRestartEvent
 
-	// lastStart tracks the last time this task was started or restarted
-	lastStart   time.Time
-	lastStartMu sync.Mutex
-
 	// signalCh is used to send a signal to a task
 	signalCh chan SignalEvent
 
@@ -1388,11 +1384,6 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 
 // startTask creates the driver, task dir, and starts the task.
 func (r *TaskRunner) startTask() error {
-	// Update lastStart
-	r.lastStartMu.Lock()
-	r.lastStart = time.Now()
-	r.lastStartMu.Unlock()
-
 	// Create a driver
 	drv, err := r.createDriver()
 	if err != nil {
