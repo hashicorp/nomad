@@ -1,12 +1,23 @@
 import Ember from 'ember';
 import RESTAdapter from 'ember-data/adapters/rest';
 
-const { get } = Ember;
+const { get, computed, inject } = Ember;
 
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
   namespace,
+
+  token: inject.service(),
+
+  headers: computed('token.secret', function() {
+    const token = this.get('token.secret');
+    return (
+      token && {
+        'X-Nomad-Token': token,
+      }
+    );
+  }),
 
   // Single record requests deviate from REST practice by using
   // the singular form of the resource name.
