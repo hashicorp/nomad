@@ -3842,7 +3842,7 @@ type TaskEvent struct {
 }
 
 func (te *TaskEvent) GoString() string {
-	return fmt.Sprintf("%v at %v", te.Type, te.Time)
+	return fmt.Sprintf("%v - %v", te.Time, te.Type)
 }
 
 // SetMessage sets the message of TaskEvent

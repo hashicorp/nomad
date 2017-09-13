@@ -62,17 +62,25 @@ type checkRestart struct {
 // timestamp is passed in so all check updates have the same view of time (and
 // to ease testing).
 func (c *checkRestart) update(now time.Time, status string) {
+	healthy := func() {
+		if !c.unhealthyStart.IsZero() {
+			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became healthy; canceling restart",
+				c.allocID, c.taskName, c.checkName)
+			c.unhealthyStart = time.Time{}
+		}
+		return
+	}
 	switch status {
 	case api.HealthCritical:
 	case api.HealthWarning:
 		if c.ignoreWarnings {
 			// Warnings are ignored, reset state and exit
-			c.unhealthyStart = time.Time{}
+			healthy()
 			return
 		}
 	default:
 		// All other statuses are ok, reset state and exit
-		c.unhealthyStart = time.Time{}
+		healthy()
 		return
 	}
 
@@ -83,8 +91,10 @@ func (c *checkRestart) update(now time.Time, status string) {
 
 	if c.unhealthyStart.IsZero() {
 		// First failure, set restart deadline
-		c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became unhealthy. Restarting in %s if not healthy",
-			c.allocID, c.taskName, c.checkName, c.timeLimit)
+		if c.timeLimit != 0 {
+			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became unhealthy. Restarting in %s if not healthy",
+				c.allocID, c.taskName, c.checkName, c.timeLimit)
+		}
 		c.unhealthyStart = now
 	}
 
@@ -150,12 +160,6 @@ func (w *checkWatcher) Run(ctx context.Context) {
 	// timer for check polling
 	checkTimer := time.NewTimer(0)
 	defer checkTimer.Stop() // ensure timer is never leaked
-	resetTimer := func(d time.Duration) {
-		if !checkTimer.Stop() {
-			<-checkTimer.C
-		}
-		checkTimer.Reset(d)
-	}
 
 	// Main watch loop
 	for {
@@ -169,9 +173,13 @@ func (w *checkWatcher) Run(ctx context.Context) {
 					w.logger.Printf("[DEBUG] consul.health: told to stop watching an unwatched check: %q", c.checkID)
 				} else {
 					checks[c.checkID] = c
+					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q", c.allocID, c.taskName, c.checkName)
 
-					// First check should be after grace period
-					resetTimer(c.grace)
+					// Begin polling
+					if !checkTimer.Stop() {
+						<-checkTimer.C
+					}
+					checkTimer.Reset(w.pollFreq)
 				}
 			case <-ctx.Done():
 				return

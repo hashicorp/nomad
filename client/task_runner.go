@@ -75,9 +75,9 @@ type taskRestartEvent struct {
 	failure bool
 }
 
-func newTaskRestartEvent(source, reason string, failure bool) *taskRestartEvent {
+func newTaskRestartEvent(reason string, failure bool) *taskRestartEvent {
 	return &taskRestartEvent{
-		taskEvent: structs.NewTaskEvent(source).SetRestartReason(reason),
+		taskEvent: structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason),
 		failure:   failure,
 	}
 }
@@ -1708,7 +1708,7 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 // Restart will restart the task.
 func (r *TaskRunner) Restart(source, reason string, failure bool) {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
-	event := newTaskRestartEvent(source, reasonStr, failure)
+	event := newTaskRestartEvent(reasonStr, failure)
 
 	select {
 	case r.restartCh <- event:

@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -54,12 +53,62 @@ func testTask() *structs.Task {
 	}
 }
 
+// checkRestartRecord is used by a testFakeCtx to record when restarts occur
+// due to a watched check.
+type checkRestartRecord struct {
+	timestamp time.Time
+	source    string
+	reason    string
+	failure   bool
+}
+
+// fakeCheckRestarter is a test implementation of
+type fakeCheckRestarter struct {
+
+	// restartDelay is returned by RestartDelay to control the behavior of
+	// the checkWatcher
+	restartDelay time.Duration
+
+	// restarts is a slice of all of the restarts triggered by the checkWatcher
+	restarts []checkRestartRecord
+}
+
+func newFakeCheckRestarter() *fakeCheckRestarter {
+	return &fakeCheckRestarter{}
+}
+
+// RestartDelay implements part of the TaskRestarter interface needed for check
+// watching and is normally fulfilled by a task runner.
+//
+// The return value is determined by the restartDelay field.
+func (c *fakeCheckRestarter) RestartDelay() time.Duration {
+	return c.restartDelay
+}
+
+// Restart implements part of the TaskRestarter interface needed for check
+// watching and is normally fulfilled by a TaskRunner.
+//
+// Restarts are recorded in the []restarts field.
+func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
+	c.restarts = append(c.restarts, checkRestartRecord{time.Now(), source, reason, failure})
+}
+
+// String for debugging
+func (c *fakeCheckRestarter) String() string {
+	s := ""
+	for _, r := range c.restarts {
+		s += fmt.Sprintf("%s - %s: %s (failure: %t)\n", r.timestamp, r.source, r.reason, r.failure)
+	}
+	return s
+}
+
 // testFakeCtx contains a fake Consul AgentAPI and implements the Exec
 // interface to allow testing without running Consul.
 type testFakeCtx struct {
 	ServiceClient *ServiceClient
-	FakeConsul    *fakeConsul
+	FakeConsul    *MockAgent
 	Task          *structs.Task
+	Restarter     *fakeCheckRestarter
 
 	// Ticked whenever a script is called
 	execs chan int
@@ -99,126 +148,21 @@ func (t *testFakeCtx) syncOnce() error {
 // setupFake creates a testFakeCtx with a ServiceClient backed by a fakeConsul.
 // A test Task is also provided.
 func setupFake() *testFakeCtx {
-	fc := newFakeConsul()
+	fc := NewMockAgent()
 	return &testFakeCtx{
 		ServiceClient: NewServiceClient(fc, true, testLogger()),
 		FakeConsul:    fc,
 		Task:          testTask(),
+		Restarter:     newFakeCheckRestarter(),
 		execs:         make(chan int, 100),
 	}
-}
-
-// fakeConsul is a fake in-memory Consul backend for ServiceClient.
-type fakeConsul struct {
-	// maps of what services and checks have been registered
-	services map[string]*api.AgentServiceRegistration
-	checks   map[string]*api.AgentCheckRegistration
-	mu       sync.Mutex
-
-	// when UpdateTTL is called the check ID will have its counter inc'd
-	checkTTLs map[string]int
-
-	// What check status to return from Checks()
-	checkStatus string
-}
-
-func newFakeConsul() *fakeConsul {
-	return &fakeConsul{
-		services:    make(map[string]*api.AgentServiceRegistration),
-		checks:      make(map[string]*api.AgentCheckRegistration),
-		checkTTLs:   make(map[string]int),
-		checkStatus: api.HealthPassing,
-	}
-}
-
-func (c *fakeConsul) Services() (map[string]*api.AgentService, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	r := make(map[string]*api.AgentService, len(c.services))
-	for k, v := range c.services {
-		r[k] = &api.AgentService{
-			ID:                v.ID,
-			Service:           v.Name,
-			Tags:              make([]string, len(v.Tags)),
-			Port:              v.Port,
-			Address:           v.Address,
-			EnableTagOverride: v.EnableTagOverride,
-		}
-		copy(r[k].Tags, v.Tags)
-	}
-	return r, nil
-}
-
-func (c *fakeConsul) Checks() (map[string]*api.AgentCheck, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	r := make(map[string]*api.AgentCheck, len(c.checks))
-	for k, v := range c.checks {
-		r[k] = &api.AgentCheck{
-			CheckID:     v.ID,
-			Name:        v.Name,
-			Status:      c.checkStatus,
-			Notes:       v.Notes,
-			ServiceID:   v.ServiceID,
-			ServiceName: c.services[v.ServiceID].Name,
-		}
-	}
-	return r, nil
-}
-
-func (c *fakeConsul) CheckRegister(check *api.AgentCheckRegistration) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.checks[check.ID] = check
-
-	// Be nice and make checks reachable-by-service
-	scheck := check.AgentServiceCheck
-	c.services[check.ServiceID].Checks = append(c.services[check.ServiceID].Checks, &scheck)
-	return nil
-}
-
-func (c *fakeConsul) CheckDeregister(checkID string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.checks, checkID)
-	delete(c.checkTTLs, checkID)
-	return nil
-}
-
-func (c *fakeConsul) ServiceRegister(service *api.AgentServiceRegistration) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.services[service.ID] = service
-	return nil
-}
-
-func (c *fakeConsul) ServiceDeregister(serviceID string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.services, serviceID)
-	return nil
-}
-
-func (c *fakeConsul) UpdateTTL(id string, output string, status string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	check, ok := c.checks[id]
-	if !ok {
-		return fmt.Errorf("unknown check id: %q", id)
-	}
-	// Flip initial status to passing
-	check.Status = "passing"
-	c.checkTTLs[id]++
-	return nil
 }
 
 func TestConsul_ChangeTags(t *testing.T) {
 	ctx := setupFake()
 
 	allocID := "allocid"
-	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, nil, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx.Restarter, nil, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -260,7 +204,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	origTask := ctx.Task
 	ctx.Task = testTask()
 	ctx.Task.Services[0].Tags[0] = "newtag"
-	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, nil, nil); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, nil, nil, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 	if err := ctx.syncOnce(); err != nil {
@@ -342,7 +286,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -430,7 +374,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 			// Removed PortLabel; should default to service's (y)
 		},
 	}
-	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, nil, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 	if err := ctx.syncOnce(); err != nil {
@@ -509,7 +453,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 	}
 
 	allocID := "allocid"
-	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -576,7 +520,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 			PortLabel: "x",
 		},
 	}
-	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, nil, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 	if err := ctx.syncOnce(); err != nil {
@@ -650,7 +594,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 func TestConsul_RegServices(t *testing.T) {
 	ctx := setupFake()
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -676,7 +620,7 @@ func TestConsul_RegServices(t *testing.T) {
 	// Make a change which will register a new service
 	ctx.Task.Services[0].Name = "taskname-service2"
 	ctx.Task.Services[0].Tags[0] = "tag3"
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
 		t.Fatalf("unpexpected error registering task: %v", err)
 	}
 
@@ -750,7 +694,7 @@ func TestConsul_ShutdownOK(t *testing.T) {
 	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -823,7 +767,7 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -894,7 +838,7 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	go ctx.ServiceClient.Run()
 
 	// Register a task and agent
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -951,7 +895,7 @@ func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, nil, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -991,7 +935,7 @@ func TestConsul_CancelScript(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -1028,7 +972,7 @@ func TestConsul_CancelScript(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx, nil); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", origTask, ctx.Task, ctx.Restarter, ctx, nil); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -1115,7 +1059,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 		AutoAdvertise: true,
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, net); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, net); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -1218,7 +1162,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 		AutoAdvertise: false,
 	}
 
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, net); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, net); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -1304,7 +1248,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 	}
 
 	// Initial service should advertise host port x
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx, net); err != nil {
+	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, ctx, net); err != nil {
 		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
@@ -1314,7 +1258,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 	orig := ctx.Task.Copy()
 	ctx.Task.Services[0].AddressMode = structs.AddressModeHost
 
-	if err := ctx.ServiceClient.UpdateTask("allocid", orig, ctx.Task, ctx, net); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", orig, ctx.Task, ctx.Restarter, ctx, net); err != nil {
 		t.Fatalf("unexpected error updating task: %v", err)
 	}
 
@@ -1324,7 +1268,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 	orig = ctx.Task.Copy()
 	ctx.Task.Services[0].AddressMode = structs.AddressModeDriver
 
-	if err := ctx.ServiceClient.UpdateTask("allocid", orig, ctx.Task, ctx, net); err != nil {
+	if err := ctx.ServiceClient.UpdateTask("allocid", orig, ctx.Task, ctx.Restarter, ctx, net); err != nil {
 		t.Fatalf("unexpected error updating task: %v", err)
 	}
 
