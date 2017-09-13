@@ -25,7 +25,7 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 	ns := mock.Namespace()
 	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
 
-	// Lookup the policy
+	// Lookup the namespace
 	get := &structs.NamespaceSpecificRequest{
 		Name:         ns.Name,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -35,7 +35,7 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 	assert.EqualValues(1000, resp.Index)
 	assert.Equal(ns, resp.Namespace)
 
-	// Lookup non-existing policy
+	// Lookup non-existing namespace
 	get.Name = structs.GenerateUUID()
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
 	assert.EqualValues(1000, resp.Index)
@@ -65,7 +65,7 @@ func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
 		assert.Nil(state.UpsertNamespaces(200, []*structs.Namespace{ns2}))
 	})
 
-	// Lookup the policy
+	// Lookup the namespace
 	req := &structs.NamespaceSpecificRequest{
 		Name: ns2.Name,
 		QueryOptions: structs.QueryOptions{
@@ -101,6 +101,91 @@ func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
 	}
 }
 
+func TestNamespaceEndpoint_GetNamespaces(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Lookup the namespace
+	get := &structs.NamespaceSetRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.NamespaceSetResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
+	assert.EqualValues(1000, resp.Index)
+	assert.Len(resp.Namespaces, 2)
+	assert.Contains(resp.Namespaces, ns1.Name)
+	assert.Contains(resp.Namespaces, ns2.Name)
+}
+
+func TestNamespaceEndpoint_GetNamespaces_Blocking(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the namespaces
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+
+	// First create an namespace
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.UpsertNamespaces(100, []*structs.Namespace{ns1}))
+	})
+
+	// Upsert the namespace we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		assert.Nil(state.UpsertNamespaces(200, []*structs.Namespace{ns2}))
+	})
+
+	// Lookup the namespace
+	req := &structs.NamespaceSetRequest{
+		Namespaces: []string{ns2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.NamespaceSetResponse
+	start := time.Now()
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", req, &resp))
+	assert.EqualValues(200, resp.Index)
+	assert.Len(resp.Namespaces, 1)
+	assert.Contains(resp.Namespaces, ns2.Name)
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	// Namespace delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.DeleteNamespaces(300, []string{ns2.Name}))
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.NamespaceSetResponse
+	start = time.Now()
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", req, &resp2))
+	assert.EqualValues(300, resp2.Index)
+	assert.Empty(resp2.Namespaces)
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+}
+
 func TestNamespaceEndpoint_List(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
@@ -124,7 +209,7 @@ func TestNamespaceEndpoint_List(t *testing.T) {
 	var resp structs.NamespaceListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
 	assert.EqualValues(1000, resp.Index)
-	assert.Len(resp.Namespaces, 2)
+	assert.Len(resp.Namespaces, 3)
 
 	// Lookup the namespaces by prefix
 	get = &structs.NamespaceListRequest{
@@ -153,13 +238,13 @@ func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
 
 	// Upsert namespace triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertNamespaces(2, []*structs.Namespace{ns}))
+		assert.Nil(state.UpsertNamespaces(200, []*structs.Namespace{ns}))
 	})
 
 	req := &structs.NamespaceListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 150,
 		},
 	}
 	start := time.Now()
@@ -169,16 +254,15 @@ func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
 	}
-	assert.EqualValues(2, resp.Index)
-	assert.Len(resp.Namespaces, 1)
-	assert.Equal(ns.Name, resp.Namespaces[0].Name)
+	assert.EqualValues(200, resp.Index)
+	assert.Len(resp.Namespaces, 2)
 
 	// Namespace deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.DeleteNamespaces(3, []string{ns.Name}))
+		assert.Nil(state.DeleteNamespaces(300, []string{ns.Name}))
 	})
 
-	req.MinQueryIndex = 2
+	req.MinQueryIndex = 200
 	start = time.Now()
 	var resp2 structs.NamespaceListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", req, &resp2))
@@ -186,8 +270,8 @@ func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
 	}
-	assert.EqualValues(3, resp2.Index)
-	assert.Len(resp2.Namespaces, 0)
+	assert.EqualValues(300, resp2.Index)
+	assert.Len(resp2.Namespaces, 1)
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
@@ -203,7 +287,7 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 	ns2 := mock.Namespace()
 	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
 
-	// Lookup the policies
+	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{
 		Namespaces:   []string{ns1.Name, ns2.Name},
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -242,7 +326,7 @@ func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 	ns1 := mock.Namespace()
 	ns2 := mock.Namespace()
 
-	// Lookup the policies
+	// Lookup the namespaces
 	req := &structs.NamespaceUpsertRequest{
 		Namespaces:   []*structs.Namespace{ns1, ns2},
 		WriteRequest: structs.WriteRequest{Region: "global"},

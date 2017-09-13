@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"golang.org/x/crypto/blake2b"
+
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -36,6 +38,10 @@ type Namespace struct {
 	// Description is a human readable description of the namespace
 	Description string
 
+	// Hash is the hash of the namespace which is used to efficiently replicate
+	// cross-regions.
+	Hash []byte
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -57,9 +63,31 @@ func (n *Namespace) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// SetHash is used to compute and set the hash of the namespace
+func (n *Namespace) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(n.Name))
+	hash.Write([]byte(n.Description))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	n.Hash = hashVal
+	return hashVal
+}
+
 func (n *Namespace) Copy() *Namespace {
 	nc := new(Namespace)
 	*nc = *n
+	nc.Hash = make([]byte, len(n.Hash))
+	copy(nc.Hash, n.Hash)
 	return nc
 }
 
@@ -83,6 +111,18 @@ type NamespaceSpecificRequest struct {
 // SingleNamespaceResponse is used to return a single namespace
 type SingleNamespaceResponse struct {
 	Namespace *Namespace
+	QueryMeta
+}
+
+// NamespaceSetRequest is used to query a set of namespaces
+type NamespaceSetRequest struct {
+	Namespaces []string
+	QueryOptions
+}
+
+// NamespaceSetResponse is used to return a set of namespaces
+type NamespaceSetResponse struct {
+	Namespaces map[string]*Namespace // Keyed by namespace Name
 	QueryMeta
 }
 

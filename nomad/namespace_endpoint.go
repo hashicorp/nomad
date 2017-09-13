@@ -30,11 +30,13 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 		return fmt.Errorf("must specify at least one namespace")
 	}
 
-	// Validate the namespaces
+	// Validate the namespaces and set the hash
 	for _, ns := range args.Namespaces {
 		if err := ns.Validate(); err != nil {
 			return fmt.Errorf("Invalid namespace %q: %v", ns.Name, err)
 		}
+
+		ns.SetHash()
 	}
 
 	// Update via Raft
@@ -126,6 +128,12 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 			if err != nil {
 				return err
 			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
 			reply.Index = index
 			return nil
 		}}
@@ -160,8 +168,57 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 				if err != nil {
 					return err
 				}
+
+				// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+				// We floor the index at one, since realistically the first write must have a higher index.
+				if index == 0 {
+					index = 1
+				}
 				reply.Index = index
 			}
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
+}
+
+// GetNamespaces is used to get a set of namespaces
+func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *structs.NamespaceSetResponse) error {
+	if done, err := n.srv.forward("Namespace.GetNamespaces", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespaces"}, time.Now())
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+			// Setup the output
+			reply.Namespaces = make(map[string]*structs.Namespace, len(args.Namespaces))
+
+			// Look for the namespace
+			for _, namespace := range args.Namespaces {
+				out, err := s.NamespaceByName(ws, namespace)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.Namespaces[namespace] = out
+				}
+			}
+
+			// Use the last index that affected the policy table
+			index, err := s.Index(state.TableNamespaces)
+			if err != nil {
+				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
+			reply.Index = index
 			return nil
 		}}
 	return n.srv.blockingRPC(&opts)
