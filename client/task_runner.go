@@ -102,10 +102,6 @@ type TaskRunner struct {
 	task    *structs.Task
 	taskDir *allocdir.TaskDir
 
-	// Synchronizes access to alloc and task since the main Run loop may
-	// update them concurrent with reads in exported methods.
-	allocLock sync.Mutex
-
 	// envBuilder is used to build the task's environment
 	envBuilder *env.Builder
 
@@ -1747,9 +1743,6 @@ func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 // Kill will kill a task and store the error, no longer restarting the task. If
 // fail is set, the task is marked as having failed.
 func (r *TaskRunner) Kill(source, reason string, fail bool) {
-	r.allocLock.Lock()
-	defer r.allocLock.Unlock()
-
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
 	event := structs.NewTaskEvent(structs.TaskKilling).SetKillReason(reasonStr)
 	if fail {
