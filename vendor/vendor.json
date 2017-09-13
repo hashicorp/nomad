@@ -87,10 +87,10 @@
 			"revisionTime": "2017-08-09T01:16:44Z"
 		},
 		{
-			"checksumSHA1": "sLK17mCfroZDH/jcaaEEodDWwjw=",
+			"checksumSHA1": "NER1U5W8xgC+tAxVUuEckTffFsE=",
 			"path": "github.com/armon/go-metrics/prometheus",
-			"revision": "023a4bbe4bb9bfb23ee7e1afc8d0abad217641f3",
-			"revisionTime": "2017-08-09T01:16:44Z"
+			"revision": "0a12dc6f6b9da6da644031a1b9b5a85478c5ee27",
+			"revisionTime": "2017-09-13T18:48:37Z"
 		},
 		{
 			"checksumSHA1": "gNO0JNpLzYOdInGeq7HqMZUzx9M=",
