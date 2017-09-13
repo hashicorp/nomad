@@ -205,7 +205,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	}
 
 	// Setup any enterprise systems required.
-	if err := s.establishEnterpriseLeadership(); err != nil {
+	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
 		return err
 	}
 
