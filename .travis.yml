@@ -12,7 +12,6 @@ go:
 branches:
   only:
     - master
-    - f-acl
 
 before_install:
     - sudo apt-get update
