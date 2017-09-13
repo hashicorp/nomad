@@ -102,7 +102,7 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 	if l%2 == 0 {
 		return prefix
 	}
-	return prefix[:l-1]
+	return prefix[:len(prefix)-1]
 }
 
 // PrefixSearch is used to list matches for a given prefix, and returns
@@ -135,6 +135,8 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 					// this case we want to ignore.
 					case strings.Contains(e, "Invalid UUID: encoding/hex"):
 					case strings.Contains(e, "UUID have 36 characters"):
+					case strings.Contains(e, "must be even length"):
+					case strings.Contains(e, "UUID should have maximum of 4"):
 					default:
 						return err
 					}

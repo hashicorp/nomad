@@ -61,7 +61,7 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 
 func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	assert := assert.New(t)
-	prefix := "example-test"
+	prefix := "example-test-------" // Assert that a job with more than 4 hyphens works
 
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -88,7 +88,6 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	}
 
 	req := &structs.SearchRequest{
-		Prefix:  "example-",
 		Context: structs.All,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
@@ -96,14 +95,15 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 		},
 	}
 
-	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
+	// req.Prefix = "example-te": 9
+	for i := 1; i < len(prefix); i++ {
+		req.Prefix = prefix[:i]
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(1, len(resp.Matches[structs.Jobs]))
+		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+		assert.EqualValues(jobIndex, resp.Index)
 	}
-
-	assert.Equal(1, len(resp.Matches[structs.Jobs]))
-	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
-	assert.EqualValues(jobIndex, resp.Index)
 }
 
 func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
@@ -312,7 +312,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	assert.Equal(uint64(90), resp.Index)
 }
 
-func TestSearch_PrefixSearch_All_UUID_EvenPrefix(t *testing.T) {
+func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	s := testServer(t, func(c *Config) {
@@ -345,11 +345,7 @@ func TestSearch_PrefixSearch_All_UUID_EvenPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	prefix := alloc.ID[:13]
-	t.Log(prefix)
-
 	req := &structs.SearchRequest{
-		Prefix:  prefix,
 		Context: structs.All,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
@@ -357,16 +353,15 @@ func TestSearch_PrefixSearch_All_UUID_EvenPrefix(t *testing.T) {
 		},
 	}
 
-	var resp structs.SearchResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
+	for i := 1; i < len(alloc.ID); i++ {
+		req.Prefix = alloc.ID[:i]
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(1, len(resp.Matches[structs.Allocs]))
+		assert.Equal(alloc.ID, resp.Matches[structs.Allocs][0])
+		assert.Equal(resp.Truncations[structs.Allocs], false)
+		assert.EqualValues(1002, resp.Index)
 	}
-
-	assert.Equal(1, len(resp.Matches[structs.Allocs]))
-	assert.Equal(alloc.ID, resp.Matches[structs.Allocs][0])
-	assert.Equal(resp.Truncations[structs.Allocs], false)
-
-	assert.EqualValues(1002, resp.Index)
 }
 
 func TestSearch_PrefixSearch_Node(t *testing.T) {
