@@ -43,6 +43,7 @@ $gutter-width: 250px;
 
 // Override Bulma details where appropriate
 @import "./core/buttons";
+@import "./core/columns";
 @import "./core/forms";
 @import "./core/level";
 @import "./core/menu";
@@ -54,6 +55,7 @@ $gutter-width: 250px;
 @import "./core/table";
 @import "./core/tabs";
 @import "./core/tag";
+@import "./core/title";
 @import "./core/typography";
 
 // Add unique core extensions

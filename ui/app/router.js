@@ -28,6 +28,10 @@ Router.map(function() {
     this.route('allocation', { path: '/:allocation_id' });
   });
 
+  this.route('settings', function() {
+    this.route('tokens');
+  });
+
   if (config.environment === 'development') {
     this.route('freestyle');
   }
