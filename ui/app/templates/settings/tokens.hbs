@@ -11,7 +11,7 @@
             <p>To protect Secret IDs, tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage">session storage</a>. Your ACL token is automatically cleared from storage upon closing your browser window. You can also manually clear your token instead.</p>
           </div>
           <div class="column is-centered is-minimum">
-            <button class="button is-info">Clear Token</button>
+            <button class="button is-info" {{action "clearTokenProperties"}}>Clear Token</button>
           </div>
         </div>
       </div>
@@ -19,7 +19,7 @@
       <div class="field">
         <label class="label">Secret ID</label>
         <div class="control">
-          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.secret}} oninput={{action "setTokenProperty" "secret"}}>
         </div>
         <p class="help">Sent with every request to determine authorization</p>
       </div>
@@ -27,7 +27,7 @@
       <div class="field">
         <label class="label">Accessor ID</label>
         <div class="control">
-          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+          <input class="input" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.accessor}} oninput={{action "setTokenProperty" "accessor"}}>
         </div>
         <p class="help">Used to look up authorized policies</p>
       </div>
