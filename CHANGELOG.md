@@ -3,6 +3,7 @@
 IMPROVEMENTS:
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
+ * telemetry: Add basic Prometheus configuration for a Nomad cluster [GH-3186]
 
 BUG FIXES:
  * core: *Fix restoration of stopped periodic jobs [GH-3201]
