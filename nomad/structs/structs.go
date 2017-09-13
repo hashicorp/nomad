@@ -932,7 +932,27 @@ type SingleEvalResponse struct {
 type EvalDequeueResponse struct {
 	Eval  *Evaluation
 	Token string
+
+	// WaitIndex is the Raft index the worker should wait until invoking the
+	// scheduler.
+	WaitIndex uint64
+
 	QueryMeta
+}
+
+// GetWaitIndex is used to retrieve the Raft index in which state should be at
+// or beyond before invoking the scheduler.
+func (e *EvalDequeueResponse) GetWaitIndex() uint64 {
+	// Prefer the wait index sent. This will be populated on all responses from
+	// 0.7.0 and above
+	if e.WaitIndex != 0 {
+		return e.WaitIndex
+	} else if e.Eval != nil {
+		return e.Eval.ModifyIndex
+	}
+
+	// This should never happen
+	return 1
 }
 
 // PlanResponse is used to return from a PlanRequest
