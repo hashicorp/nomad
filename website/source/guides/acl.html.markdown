@@ -82,25 +82,19 @@ Please take care to restart the servers one at a time, and ensure each server ha
 
 ### Generate the initial token
 
-Once the ACL system is enabled, we need to generate our initial token. This first token is used to bootstrap the system and care should be taken not to lose it. Once the ACL system is enabled, we use the [Bootstrap API](/api/acl-tokens.html#bootstrap-token):
+Once the ACL system is enabled, we need to generate our initial token. This first token is used to bootstrap the system and care should be taken not to lose it. Once the ACL system is enabled, we use the [Bootstrap CLI](/docs/commands/acl/bootstrap.html):
 
 ```text
-$ curl \
-    --request POST \
-    https://nomad.rocks/v1/acl/bootstrap?pretty=true
-```
-```json
-{
-    "AccessorID":"b780e702-98ce-521f-2e5f-c6b87de05b24",
-    "SecretID":"3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
-    "Name":"Bootstrap Token",
-    "Type":"management",
-    "Policies":null,
-    "Global":true,
-    "CreateTime":"2017-08-23T22:47:14.695408057Z",
-    "CreateIndex":7,
-    "ModifyIndex":7
-}
+$ nomad acl bootstrap
+Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
+Secret ID    = 9184ec35-65d4-9258-61e3-0c066d0a45c5
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 17:38:10.999089612 +0000 UTC
+Create Index = 7
+Modify Index = 7
 ```
 
 Once the initial bootstrap is performed, it cannot be performed again unless [reset](#reseting-acl-bootstrap). Make sure to save this AccessorID and SecretID.
@@ -315,11 +309,9 @@ If all management tokens are lost, it is possible to reset the ACL bootstrap so 
 First, we need to determine the reset index, this can be done by calling the reset endpoint:
 
 ```
-$ curl \
-    --request POST \
-    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+$ nomad acl bootstrap
 
-ACL bootstrap already done (reset index: 7)
+Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
 ```
 
 Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory:
@@ -328,37 +320,27 @@ Here we can see the `reset index`. To reset the ACL system, we create the `acl-b
 $ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
 ```
 
-Now, we can bootstrap like normal using the reset key:
+With the reset key setup, we can bootstrap like normal:
 
 ```
-$ curl \
-    --request POST \
-    https://nomad.rocks/v1/acl/bootstrap?pretty=true
-```
-
-```json
-{
-    "AccessorID":"52d3353d-d7b9-d945-0591-1af608732b76",
-    "SecretID":"4b0a41ca-6d32-1853-e64b-de0d347e4525",
-    "Name":"Bootstrap Token",
-    "Type":"management",
-    "Policies":null,
-    "Global":true,
-    "Hash":"BUJ3BerTfrqFVm1P+vZr1gz9ubOkd+JAvYjNAJyaU9Y=",
-    "CreateTime":"2017-09-10T23:11:49.34730714Z",
-    "CreateIndex":11,
-    "ModifyIndex":11
-}
+$ nomad acl bootstrap
+Accessor ID  = 52d3353d-d7b9-d945-0591-1af608732b76
+Secret ID    = 4b0a41ca-6d32-1853-e64b-de0d347e4525
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 18:38:11.929089612 +0000 UTC
+Create Index = 11
+Modify Index = 11
 ```
 
 If we attempt to bootstrap again, we will get a mismatch on the reset index:
 
 ```
-$ curl \
-    --request POST \
-    https://nomad.rocks/v1/acl/bootstrap?pretty=true
+$ nomad acl bootstrap
 
-Invalid bootstrap reset index (specified 7, reset index: 11)
+Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset index (specified 7, reset index: 11))
 ```
 
 This is because the reset file is in place, but with the incorrect index.
