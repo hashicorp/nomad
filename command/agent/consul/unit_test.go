@@ -64,7 +64,6 @@ type checkRestartRecord struct {
 
 // fakeCheckRestarter is a test implementation of
 type fakeCheckRestarter struct {
-
 	// restartDelay is returned by RestartDelay to control the behavior of
 	// the checkWatcher
 	restartDelay time.Duration
