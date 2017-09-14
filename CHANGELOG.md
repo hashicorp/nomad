@@ -6,6 +6,12 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
+ * core: Fix issue where node-drain with complete batch allocation would create
+   replacement [GH-3217]
+ * core: Fix issue in which batch allocations from previous job versions may not
+   have been stopped properly. [GH-3217]
+ * core: Fix issue in which allocations with the same name during a scale
+   down/stop event wouldn't be properly stopped [GH-3217]
  * core: Fix a race condition in which scheduling results from one invocation of
    the scheduler wouldn't be considered by the next for the same job [GH-3206]
  * api: Sort /v1/agent/servers output so that output of Consul checks does not
