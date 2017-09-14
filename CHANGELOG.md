@@ -6,6 +6,8 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: *Fix restoration of stopped periodic jobs [GH-3201]
+ * api: Sort /v1/agent/servers output so that output of Consul checks does not
+   change [GH-3214]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [GH-3203]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
