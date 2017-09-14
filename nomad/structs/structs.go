@@ -4630,18 +4630,7 @@ func (a *Allocation) Terminated() bool {
 // RanSuccessfully returns whether the client has ran the allocation and all
 // tasks finished successfully
 func (a *Allocation) RanSuccessfully() bool {
-	// Handle the case the client hasn't started the allocation.
-	if len(a.TaskStates) == 0 {
-		return false
-	}
-
-	// Check to see if all the tasks finised successfully in the allocation
-	allSuccess := true
-	for _, state := range a.TaskStates {
-		allSuccess = allSuccess && state.Successful()
-	}
-
-	return allSuccess
+	return a.ClientStatus == AllocClientStatusComplete
 }
 
 // ShouldMigrate returns if the allocation needs data migration
