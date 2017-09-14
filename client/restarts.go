@@ -60,6 +60,7 @@ func (r *RestartTracker) SetStartError(err error) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.startErr = err
+	r.failure = true
 	return r
 }
 
@@ -68,6 +69,7 @@ func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.waitRes = res
+	r.failure = true
 	return r
 }
 
@@ -145,87 +147,40 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.startTime = now
 	}
 
-	if r.startErr != nil {
-		return r.handleStartError()
-	} else if r.waitRes != nil {
-		return r.handleWaitResult()
-	} else if r.failure {
-		return r.handleFailure()
+	// Handle restarts due to failures
+	if r.failure {
+		if r.startErr != nil {
+			// If the error is not recoverable, do not restart.
+			if !structs.IsRecoverable(r.startErr) {
+				r.reason = ReasonUnrecoverableErrror
+				return structs.TaskNotRestarting, 0
+			}
+		} else if r.waitRes != nil {
+			// If the task started successfully and restart on success isn't specified,
+			// don't restart but don't mark as failed.
+			if r.waitRes.Successful() && !r.onSuccess {
+				r.reason = "Restart unnecessary as task terminated successfully"
+				return structs.TaskTerminated, 0
+			}
+		}
+
+		if r.count > r.policy.Attempts {
+			if r.policy.Mode == structs.RestartPolicyModeFail {
+				r.reason = fmt.Sprintf(
+					`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
+					r.policy.Attempts, r.policy.Interval)
+				return structs.TaskNotRestarting, 0
+			} else {
+				r.reason = ReasonDelay
+				return structs.TaskRestarting, r.getDelay()
+			}
+		}
+
+		r.reason = ReasonWithinPolicy
+		return structs.TaskRestarting, r.jitter()
 	}
 
 	return "", 0
-}
-
-// handleStartError returns the new state and potential wait duration for
-// restarting the task after it was not successfully started. On start errors,
-// the restart policy is always treated as fail mode to ensure we don't
-// infinitely try to start a task.
-func (r *RestartTracker) handleStartError() (string, time.Duration) {
-	// If the error is not recoverable, do not restart.
-	if !structs.IsRecoverable(r.startErr) {
-		r.reason = ReasonUnrecoverableErrror
-		return structs.TaskNotRestarting, 0
-	}
-
-	if r.count > r.policy.Attempts {
-		if r.policy.Mode == structs.RestartPolicyModeFail {
-			r.reason = fmt.Sprintf(
-				`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
-				r.policy.Attempts, r.policy.Interval)
-			return structs.TaskNotRestarting, 0
-		} else {
-			r.reason = ReasonDelay
-			return structs.TaskRestarting, r.getDelay()
-		}
-	}
-
-	r.reason = ReasonWithinPolicy
-	return structs.TaskRestarting, r.jitter()
-}
-
-// handleWaitResult returns the new state and potential wait duration for
-// restarting the task after it has exited.
-func (r *RestartTracker) handleWaitResult() (string, time.Duration) {
-	// If the task started successfully and restart on success isn't specified,
-	// don't restart but don't mark as failed.
-	if r.waitRes.Successful() && !r.onSuccess {
-		r.reason = "Restart unnecessary as task terminated successfully"
-		return structs.TaskTerminated, 0
-	}
-
-	if r.count > r.policy.Attempts {
-		if r.policy.Mode == structs.RestartPolicyModeFail {
-			r.reason = fmt.Sprintf(
-				`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
-				r.policy.Attempts, r.policy.Interval)
-			return structs.TaskNotRestarting, 0
-		} else {
-			r.reason = ReasonDelay
-			return structs.TaskRestarting, r.getDelay()
-		}
-	}
-
-	r.reason = ReasonWithinPolicy
-	return structs.TaskRestarting, r.jitter()
-}
-
-// handleFailure returns the new state and potential wait duration for
-// restarting the task due to a failure like an unhealthy Consul check.
-func (r *RestartTracker) handleFailure() (string, time.Duration) {
-	if r.count > r.policy.Attempts {
-		if r.policy.Mode == structs.RestartPolicyModeFail {
-			r.reason = fmt.Sprintf(
-				`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
-				r.policy.Attempts, r.policy.Interval)
-			return structs.TaskNotRestarting, 0
-		} else {
-			r.reason = ReasonDelay
-			return structs.TaskRestarting, r.getDelay()
-		}
-	}
-
-	r.reason = ReasonWithinPolicy
-	return structs.TaskRestarting, r.jitter()
 }
 
 // getDelay returns the delay time to enter the next interval.
