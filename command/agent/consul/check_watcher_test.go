@@ -89,7 +89,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 
 	// Check should have been dropped as it's not watched
-	if n := len(cw.watchCh); n != 0 {
+	if n := len(cw.checkUpdateCh); n != 0 {
 		t.Fatalf("expected 0 checks to be enqueued for watching but found %d", n)
 	}
 }

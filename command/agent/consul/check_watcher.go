@@ -35,9 +35,6 @@ type checkRestart struct {
 	checkID   string
 	checkName string
 
-	// remove this checkID (if true only checkID will be set)
-	remove bool
-
 	task           TaskRestarter
 	restartDelay   time.Duration
 	grace          time.Duration
@@ -116,6 +113,13 @@ func (c *checkRestart) update(now time.Time, status string) {
 	}
 }
 
+// checkWatchUpdates add or remove checks from the watcher
+type checkWatchUpdate struct {
+	checkID      string
+	remove       bool
+	checkRestart *checkRestart
+}
+
 // checkWatcher watches Consul checks and restarts tasks when they're
 // unhealthy.
 type checkWatcher struct {
@@ -125,8 +129,9 @@ type checkWatcher struct {
 	// defaultPollFreq
 	pollFreq time.Duration
 
-	// watchCh is how watches (and removals) are sent to the main watching loop
-	watchCh chan *checkRestart
+	// checkUpdateCh is how watches (and removals) are sent to the main
+	// watching loop
+	checkUpdateCh chan checkWatchUpdate
 
 	// done is closed when Run has exited
 	done chan struct{}
@@ -141,11 +146,11 @@ type checkWatcher struct {
 // newCheckWatcher creates a new checkWatcher but does not call its Run method.
 func newCheckWatcher(logger *log.Logger, consul ChecksAPI) *checkWatcher {
 	return &checkWatcher{
-		consul:   consul,
-		pollFreq: defaultPollFreq,
-		watchCh:  make(chan *checkRestart, 8),
-		done:     make(chan struct{}),
-		logger:   logger,
+		consul:        consul,
+		pollFreq:      defaultPollFreq,
+		checkUpdateCh: make(chan checkWatchUpdate, 8),
+		done:          make(chan struct{}),
+		logger:        logger,
 	}
 }
 
@@ -167,13 +172,14 @@ func (w *checkWatcher) Run(ctx context.Context) {
 		// trigger restarts.
 		for len(checks) == 0 {
 			select {
-			case c := <-w.watchCh:
-				if c.remove {
+			case update := <-w.checkUpdateCh:
+				if update.remove {
 					// should not happen
-					w.logger.Printf("[DEBUG] consul.health: told to stop watching an unwatched check: %q", c.checkID)
+					w.logger.Printf("[DEBUG] consul.health: told to stop watching an unwatched check: %q", update.checkID)
 				} else {
-					checks[c.checkID] = c
-					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q", c.allocID, c.taskName, c.checkName)
+					checks[update.checkID] = update.checkRestart
+					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
+						update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
 
 					// Begin polling
 					if !checkTimer.Stop() {
@@ -189,12 +195,13 @@ func (w *checkWatcher) Run(ctx context.Context) {
 		// As long as there are checks to be watched, keep watching
 		for len(checks) > 0 {
 			select {
-			case c := <-w.watchCh:
-				if c.remove {
-					delete(checks, c.checkID)
+			case update := <-w.checkUpdateCh:
+				if update.remove {
+					delete(checks, update.checkID)
 				} else {
-					checks[c.checkID] = c
-					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q", c.allocID, c.taskName, c.checkName)
+					checks[update.checkID] = update.checkRestart
+					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
+						update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
 				}
 			case <-ctx.Done():
 				return
@@ -240,7 +247,7 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 		return
 	}
 
-	c := checkRestart{
+	c := &checkRestart{
 		allocID:        allocID,
 		taskName:       taskName,
 		checkID:        checkID,
@@ -255,8 +262,13 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 		logger:         w.logger,
 	}
 
+	update := checkWatchUpdate{
+		checkID:      checkID,
+		checkRestart: c,
+	}
+
 	select {
-	case w.watchCh <- &c:
+	case w.checkUpdateCh <- update:
 		// sent watch
 	case <-w.done:
 		// exited; nothing to do
@@ -265,12 +277,12 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 
 // Unwatch a task.
 func (w *checkWatcher) Unwatch(cid string) {
-	c := checkRestart{
+	c := checkWatchUpdate{
 		checkID: cid,
 		remove:  true,
 	}
 	select {
-	case w.watchCh <- &c:
+	case w.checkUpdateCh <- c:
 		// sent remove watch
 	case <-w.done:
 		// exited; nothing to do
