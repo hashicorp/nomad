@@ -21,10 +21,8 @@ type ChecksAPI interface {
 	Checks() (map[string]*api.AgentCheck, error)
 }
 
-// TaskRestarter allows the checkWatcher to restart tasks and how long the
-// grace period should be afterward.
+// TaskRestarter allows the checkWatcher to restart tasks.
 type TaskRestarter interface {
-	RestartDelay() time.Duration
 	Restart(source, reason string, failure bool)
 }
 
@@ -36,7 +34,6 @@ type checkRestart struct {
 	checkName string
 
 	task           TaskRestarter
-	restartDelay   time.Duration
 	grace          time.Duration
 	interval       time.Duration
 	timeLimit      time.Duration
@@ -55,17 +52,19 @@ type checkRestart struct {
 	logger *log.Logger
 }
 
-// update restart state for check and restart task if necessary. Currrent
+// apply restart state for check and restart task if necessary. Currrent
 // timestamp is passed in so all check updates have the same view of time (and
 // to ease testing).
-func (c *checkRestart) update(now time.Time, status string) {
+//
+// Returns true if a restart was triggered in which case this check should be
+// removed (checks are added on task startup).
+func (c *checkRestart) apply(now time.Time, status string) bool {
 	healthy := func() {
 		if !c.unhealthyStart.IsZero() {
 			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became healthy; canceling restart",
 				c.allocID, c.taskName, c.checkName)
 			c.unhealthyStart = time.Time{}
 		}
-		return
 	}
 	switch status {
 	case api.HealthCritical:
@@ -73,17 +72,17 @@ func (c *checkRestart) update(now time.Time, status string) {
 		if c.ignoreWarnings {
 			// Warnings are ignored, reset state and exit
 			healthy()
-			return
+			return false
 		}
 	default:
 		// All other statuses are ok, reset state and exit
 		healthy()
-		return
+		return false
 	}
 
 	if now.Before(c.graceUntil) {
-		// In grace period exit
-		return
+		// In grace period, exit
+		return false
 	}
 
 	if c.unhealthyStart.IsZero() {
@@ -106,11 +105,10 @@ func (c *checkRestart) update(now time.Time, status string) {
 		// Tell TaskRunner to restart due to failure
 		const failure = true
 		c.task.Restart("healthcheck", fmt.Sprintf("check %q unhealthy", c.checkName), failure)
-
-		// Reset grace time to grace + restart.delay
-		c.graceUntil = now.Add(c.grace + c.restartDelay)
-		c.unhealthyStart = time.Time{}
+		return true
 	}
+
+	return false
 }
 
 // checkWatchUpdates add or remove checks from the watcher
@@ -179,17 +177,16 @@ func (w *checkWatcher) Run(ctx context.Context) {
 
 	// Main watch loop
 	for {
+		// disable polling if there are no checks
+		if len(checks) == 0 {
+			stopTimer()
+		}
+
 		select {
 		case update := <-w.checkUpdateCh:
 			if update.remove {
 				// Remove a check
 				delete(checks, update.checkID)
-
-				// disable polling if last check was removed
-				if len(checks) == 0 {
-					stopTimer()
-				}
-
 				continue
 			}
 
@@ -235,7 +232,13 @@ func (w *checkWatcher) Run(ctx context.Context) {
 					continue
 				}
 
-				check.update(now, result.Status)
+				restarted := check.apply(now, result.Status)
+				if restarted {
+					// Checks are registered+watched on
+					// startup, so it's safe to remove them
+					// whenever they're restarted
+					delete(checks, cid)
+				}
 			}
 		}
 	}
@@ -254,7 +257,6 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 		checkID:        checkID,
 		checkName:      check.Name,
 		task:           restarter,
-		restartDelay:   restarter.RestartDelay(),
 		interval:       check.Interval,
 		grace:          check.CheckRestart.Grace,
 		graceUntil:     time.Now().Add(check.CheckRestart.Grace),

@@ -64,37 +64,43 @@ type checkRestartRecord struct {
 
 // fakeCheckRestarter is a test implementation of
 type fakeCheckRestarter struct {
-	// restartDelay is returned by RestartDelay to control the behavior of
-	// the checkWatcher
-	restartDelay time.Duration
-
 	// restarts is a slice of all of the restarts triggered by the checkWatcher
 	restarts []checkRestartRecord
+
+	// need the checkWatcher to re-Watch restarted tasks like TaskRunner
+	watcher *checkWatcher
+
+	// check to re-Watch on restarts
+	check     *structs.ServiceCheck
+	allocID   string
+	taskName  string
+	checkName string
 }
 
-func newFakeCheckRestarter() *fakeCheckRestarter {
-	return &fakeCheckRestarter{}
-}
-
-// RestartDelay implements part of the TaskRestarter interface needed for check
-// watching and is normally fulfilled by a task runner.
-//
-// The return value is determined by the restartDelay field.
-func (c *fakeCheckRestarter) RestartDelay() time.Duration {
-	return c.restartDelay
+func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeCheckRestarter {
+	return &fakeCheckRestarter{
+		watcher:   w,
+		check:     c,
+		allocID:   allocID,
+		taskName:  taskName,
+		checkName: checkName,
+	}
 }
 
 // Restart implements part of the TaskRestarter interface needed for check
 // watching and is normally fulfilled by a TaskRunner.
 //
-// Restarts are recorded in the []restarts field.
+// Restarts are recorded in the []restarts field and re-Watch the check.
 func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
 	c.restarts = append(c.restarts, checkRestartRecord{time.Now(), source, reason, failure})
+
+	// Re-Watch the check just like TaskRunner
+	c.watcher.Watch(c.allocID, c.taskName, c.checkName, c.check, c)
 }
 
 // String for debugging
 func (c *fakeCheckRestarter) String() string {
-	s := ""
+	s := fmt.Sprintf("%s %s %s restarts:\n", c.allocID, c.taskName, c.checkName)
 	for _, r := range c.restarts {
 		s += fmt.Sprintf("%s - %s: %s (failure: %t)\n", r.timestamp, r.source, r.reason, r.failure)
 	}
@@ -152,7 +158,6 @@ func setupFake() *testFakeCtx {
 		ServiceClient: NewServiceClient(fc, true, testLogger()),
 		FakeConsul:    fc,
 		Task:          testTask(),
-		Restarter:     newFakeCheckRestarter(),
 		execs:         make(chan int, 100),
 	}
 }

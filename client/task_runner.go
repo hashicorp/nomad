@@ -1703,13 +1703,6 @@ func (r *TaskRunner) Restart(source, reason string, failure bool) {
 	}
 }
 
-// RestartDelay returns the *max* value of the delay for this task's restart
-// policy for use by the healtcheck watcher.
-func (r *TaskRunner) RestartDelay() time.Duration {
-	delay := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup).RestartPolicy.Delay
-	return delay + time.Duration(float64(delay)*jitter)
-}
-
 // Signal will send a signal to the task
 func (r *TaskRunner) Signal(source, reason string, s os.Signal) error {
 

@@ -85,7 +85,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	check.CheckRestart = nil
 
 	cw := newCheckWatcher(testLogger(), newFakeChecksAPI())
-	restarter1 := newFakeCheckRestarter()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 
 	// Check should have been dropped as it's not watched
@@ -101,13 +101,13 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	fakeAPI, cw := testWatcherSetup()
 
 	check1 := testCheck()
-	restarter1 := newFakeCheckRestarter()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	check2 := testCheck()
 	check2.CheckRestart.Limit = 1
 	check2.CheckRestart.Grace = 0
-	restarter2 := newFakeCheckRestarter()
+	restarter2 := newFakeCheckRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
 	cw.Watch("testalloc2", "testtask2", "testcheck2", check2, restarter2)
 
 	// Make both checks healthy from the beginning
@@ -135,14 +135,13 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 	fakeAPI, cw := testWatcherSetup()
 
 	check1 := testCheck()
-	restarter1 := newFakeCheckRestarter()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	check2 := testCheck()
 	check2.CheckRestart.Limit = 1
-	check2.CheckRestart.Grace = 0
-	restarter2 := newFakeCheckRestarter()
-	restarter2.restartDelay = 600 * time.Millisecond
+	check2.CheckRestart.Grace = 200 * time.Millisecond
+	restarter2 := newFakeCheckRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
 	cw.Watch("testalloc2", "testtask2", "testcheck2", check2, restarter2)
 
 	// Check 1 always passes, check 2 always fails
@@ -150,7 +149,7 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 	fakeAPI.add("testcheck2", "critical", time.Time{})
 
 	// Run for 1 second
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
@@ -176,15 +175,14 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 0
 	check1.CheckRestart.IgnoreWarnings = true
-	restarter1 := newFakeCheckRestarter()
-	restarter1.restartDelay = 1100 * time.Millisecond
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	// Check is always in warning but that's ok
 	fakeAPI.add("testcheck1", "warning", time.Time{})
 
 	// Run for 1 second
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
@@ -203,7 +201,7 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 
 	check1 := testCheck()
 	check1.CheckRestart.Grace = 0
-	restarter1 := newFakeCheckRestarter()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	// Check flaps and is never failing for the full 200ms needed to restart
@@ -214,7 +212,7 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 	fakeAPI.add("testcheck1", "critical", now.Add(300*time.Millisecond))
 	fakeAPI.add("testcheck1", "passing", now.Add(450*time.Millisecond))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
@@ -234,14 +232,14 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 100 * time.Millisecond
-	restarter1 := newFakeCheckRestarter()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 	cw.Unwatch("testcheck1")
 
 	// Always failing
 	fakeAPI.add("testcheck1", "critical", time.Time{})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
