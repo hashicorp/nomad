@@ -42,9 +42,9 @@ type checkRestart struct {
 
 	// Mutable fields
 
-	// unhealthyStart is the time a check first went unhealthy. Set to the
+	// unhealthyState is the time a check first went unhealthy. Set to the
 	// zero value if the check passes before timeLimit.
-	unhealthyStart time.Time
+	unhealthyState time.Time
 
 	// graceUntil is when the check's grace period expires and unhealthy
 	// checks should be counted.
@@ -61,10 +61,10 @@ type checkRestart struct {
 // removed (checks are added on task startup).
 func (c *checkRestart) apply(now time.Time, status string) bool {
 	healthy := func() {
-		if !c.unhealthyStart.IsZero() {
+		if !c.unhealthyState.IsZero() {
 			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became healthy; canceling restart",
 				c.allocID, c.taskName, c.checkName)
-			c.unhealthyStart = time.Time{}
+			c.unhealthyState = time.Time{}
 		}
 	}
 	switch status {
@@ -86,17 +86,17 @@ func (c *checkRestart) apply(now time.Time, status string) bool {
 		return false
 	}
 
-	if c.unhealthyStart.IsZero() {
+	if c.unhealthyState.IsZero() {
 		// First failure, set restart deadline
 		if c.timeLimit != 0 {
 			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became unhealthy. Restarting in %s if not healthy",
 				c.allocID, c.taskName, c.checkName, c.timeLimit)
 		}
-		c.unhealthyStart = now
+		c.unhealthyState = now
 	}
 
 	// restart timeLimit after start of this check becoming unhealthy
-	restartAt := c.unhealthyStart.Add(c.timeLimit)
+	restartAt := c.unhealthyState.Add(c.timeLimit)
 
 	// Must test >= because if limit=1, restartAt == first failure
 	if now.Equal(restartAt) || now.After(restartAt) {
