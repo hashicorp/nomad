@@ -2775,36 +2775,6 @@ func (c *CheckRestart) Copy() *CheckRestart {
 	return nc
 }
 
-// Merge non-zero values from other CheckRestart into a copy of this
-// CheckRestart. Returns nil iff both are nil.
-func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
-	if c == nil {
-		// Just return other
-		return o
-	}
-
-	nc := c.Copy()
-
-	if o == nil {
-		// Nothing to merge
-		return nc.Copy()
-	}
-
-	if nc.Limit == 0 {
-		nc.Limit = o.Limit
-	}
-
-	if nc.Grace == 0 {
-		nc.Grace = o.Grace
-	}
-
-	if nc.IgnoreWarnings {
-		nc.IgnoreWarnings = o.IgnoreWarnings
-	}
-
-	return nc
-}
-
 func (c *CheckRestart) Validate() error {
 	if c == nil {
 		return nil
@@ -3008,9 +2978,6 @@ type Service struct {
 
 	Tags   []string        // List of tags for the service
 	Checks []*ServiceCheck // List of checks associated with the service
-
-	// CheckRestart will be propagated to Checks if set.
-	CheckRestart *CheckRestart
 }
 
 func (s *Service) Copy() *Service {
@@ -3020,7 +2987,6 @@ func (s *Service) Copy() *Service {
 	ns := new(Service)
 	*ns = *s
 	ns.Tags = helper.CopySliceString(ns.Tags)
-	ns.CheckRestart = s.CheckRestart.Copy()
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -3056,14 +3022,6 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
 	}
-
-	// If CheckRestart is set propagate it to checks
-	if s.CheckRestart != nil {
-		for _, check := range s.Checks {
-			// Merge Service CheckRestart into Check's so Check's takes precedence
-			check.CheckRestart = check.CheckRestart.Merge(s.CheckRestart)
-		}
-	}
 }
 
 // Validate checks if the Check definition is valid
@@ -3096,10 +3054,6 @@ func (s *Service) Validate() error {
 		if err := c.validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
 		}
-	}
-
-	if s.CheckRestart != nil && len(s.Checks) == 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("check_restart specified but no checks"))
 	}
 
 	return mErr.ErrorOrNil()

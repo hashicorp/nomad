@@ -685,13 +685,6 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Tags:        service.Tags,
 				AddressMode: service.AddressMode,
 			}
-			if service.CheckRestart != nil {
-				structsTask.Services[i].CheckRestart = &structs.CheckRestart{
-					Limit:          service.CheckRestart.Limit,
-					Grace:          *service.CheckRestart.Grace,
-					IgnoreWarnings: service.CheckRestart.IgnoreWarnings,
-				}
-			}
 
 			if l := len(service.Checks); l != 0 {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
