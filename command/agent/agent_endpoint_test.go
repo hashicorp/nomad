@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
@@ -134,45 +133,35 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 
 func TestHTTP_AgentSetServers(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Establish a baseline number of servers
 		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
 		// Create the request
 		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 
 		// Send the request
 		respW = httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
-		if err == nil || !strings.Contains(err.Error(), "missing server address") {
-			t.Fatalf("expected missing servers error, got: %#v", err)
-		}
+		assert.NotNil(err)
+		assert.Contains(err.Error(), "missing server address")
 
 		// Create a valid request
 		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 
 		// Send the request
 		respW = httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 
 		// Retrieve the servers again
 		req, err = http.NewRequest("GET", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 		respW = httptest.NewRecorder()
 
 		// Make the request and check the result
@@ -182,16 +171,10 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 			"127.0.0.3:4647",
 		}
 		out, err := s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		assert.Nil(err)
 		servers := out.([]string)
-		if n := len(servers); n != len(expected) {
-			t.Fatalf("expected %d servers, got: %d: %v", len(expected), n, servers)
-		}
-		if !reflect.DeepEqual(servers, expected) {
-			t.Fatalf("got %v; want %v", servers, expected)
-		}
+		assert.Len(servers, len(expected))
+		assert.Equal(expected, servers)
 	})
 }
 
