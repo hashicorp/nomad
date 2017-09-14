@@ -15,5 +15,8 @@ scrape_configs:
       action: keep
 
     scrape_interval: 5s
-    metrics_path: /metrics
+    metrics_path: /v1/metrics
+    params:
+      format: ['prometheus']
+
 
