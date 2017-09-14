@@ -50,7 +50,9 @@
           <div class="boxed-section-row">
             Active Deployment
             <span class="badge is-white is-subtle bumper-left">{{model.runningDeployment.shortId}}</span>
-            <span class="pull-right submit-time">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
+            {{#if model.runningDeployment.version.submitTime}}
+              <span class="pull-right submit-time">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
+            {{/if}}
           </div>
           <div class="boxed-section-row">
             <span class="tag is-info is-outlined">Running</span>
