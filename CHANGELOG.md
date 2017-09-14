@@ -5,7 +5,7 @@ IMPROVEMENTS:
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
 
 BUG FIXES:
- * core: *Fix restoration of stopped periodic jobs [GH-3201]
+ * core: Fix restoration of stopped periodic jobs [GH-3201]
  * core: Fix a race condition in which scheduling results from one invocation of
    the scheduler wouldn't be considered by the next for the same job [GH-3206]
  * api: Sort /v1/agent/servers output so that output of Consul checks does not
