@@ -2,12 +2,69 @@ package consul
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// checkRestartRecord is used by a testFakeCtx to record when restarts occur
+// due to a watched check.
+type checkRestartRecord struct {
+	timestamp time.Time
+	source    string
+	reason    string
+	failure   bool
+}
+
+// fakeCheckRestarter is a test implementation of TaskRestarter.
+type fakeCheckRestarter struct {
+	// restarts is a slice of all of the restarts triggered by the checkWatcher
+	restarts []checkRestartRecord
+
+	// need the checkWatcher to re-Watch restarted tasks like TaskRunner
+	watcher *checkWatcher
+
+	// check to re-Watch on restarts
+	check     *structs.ServiceCheck
+	allocID   string
+	taskName  string
+	checkName string
+}
+
+// newFakeCheckRestart creates a new TaskRestarter. It needs all of the
+// parameters checkWatcher.Watch expects.
+func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeCheckRestarter {
+	return &fakeCheckRestarter{
+		watcher:   w,
+		check:     c,
+		allocID:   allocID,
+		taskName:  taskName,
+		checkName: checkName,
+	}
+}
+
+// Restart implements part of the TaskRestarter interface needed for check
+// watching and is normally fulfilled by a TaskRunner.
+//
+// Restarts are recorded in the []restarts field and re-Watch the check.
+func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
+	c.restarts = append(c.restarts, checkRestartRecord{time.Now(), source, reason, failure})
+
+	// Re-Watch the check just like TaskRunner
+	c.watcher.Watch(c.allocID, c.taskName, c.checkName, c.check, c)
+}
+
+// String for debugging
+func (c *fakeCheckRestarter) String() string {
+	s := fmt.Sprintf("%s %s %s restarts:\n", c.allocID, c.taskName, c.checkName)
+	for _, r := range c.restarts {
+		s += fmt.Sprintf("%s - %s: %s (failure: %t)\n", r.timestamp, r.source, r.reason, r.failure)
+	}
+	return s
+}
 
 // checkResponse is a response returned by the fakeChecksAPI after the given
 // time.
