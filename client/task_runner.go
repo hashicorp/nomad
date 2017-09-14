@@ -1175,13 +1175,7 @@ func (r *TaskRunner) run() {
 					<-handleWaitCh
 				}
 
-				if restartEvent.failure {
-					r.restartTracker.SetFailure()
-				} else {
-					// Since the restart isn't from a failure, restart immediately
-					// and don't count against the restart policy
-					r.restartTracker.SetRestartTriggered()
-				}
+				r.restartTracker.SetRestartTriggered(restartEvent.failure)
 				break WAIT
 
 			case <-r.destroyCh:

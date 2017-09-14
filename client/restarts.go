@@ -75,19 +75,14 @@ func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker
 
 // SetRestartTriggered is used to mark that the task has been signalled to be
 // restarted
-func (r *RestartTracker) SetRestartTriggered() *RestartTracker {
+func (r *RestartTracker) SetRestartTriggered(failure bool) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.restartTriggered = true
-	return r
-}
-
-// SetFailure is used to mark that a task should be restarted due to failure
-// such as a failed Consul healthcheck.
-func (r *RestartTracker) SetFailure() *RestartTracker {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	r.failure = true
+	if failure {
+		r.failure = true
+	} else {
+		r.restartTriggered = true
+	}
 	return r
 }
 
