@@ -296,6 +296,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 	}
 
+	// Filter batch allocations that do not need to be considered.
+	all, ignore := a.batchFiltration(all)
+	desiredChanges.Ignore += uint64(len(ignore))
+
 	canaries, all := a.handleGroupCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
@@ -482,6 +486,27 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 
 	return deploymentComplete
+}
+
+// batchFiltration filters batch allocations that should be ignored. These are
+// allocations that are terminal from a previous job version.
+func (a *allocReconciler) batchFiltration(all allocSet) (filtered, ignore allocSet) {
+	if !a.batch {
+		return all, nil
+	}
+
+	filtered = filtered.union(all)
+	ignored := make(map[string]*structs.Allocation)
+
+	// Ignore terminal batch jobs from older versions
+	for id, alloc := range filtered {
+		if alloc.Job.Version < a.job.Version && alloc.TerminalStatus() {
+			delete(filtered, id)
+			ignored[id] = alloc
+		}
+	}
+
+	return filtered, ignored
 }
 
 // handleGroupCanaries handles the canaries for the group by stopping the
@@ -673,12 +698,34 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// Select the allocs with the highest count to remove
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range untainted {
-		if _, remove := removeNames[alloc.Name]; remove {
+		if _, ok := removeNames[alloc.Name]; ok {
 			stop[id] = alloc
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             alloc,
 				statusDescription: allocNotNeeded,
 			})
+			delete(untainted, id)
+
+			remove--
+			if remove == 0 {
+				return stop
+			}
+		}
+	}
+
+	// It is possible that we didn't stop as many as we should have if there
+	// were allocations with duplicate names.
+	for id, alloc := range untainted {
+		stop[id] = alloc
+		a.result.stop = append(a.result.stop, allocStopResult{
+			alloc:             alloc,
+			statusDescription: allocNotNeeded,
+		})
+		delete(untainted, id)
+
+		remove--
+		if remove == 0 {
+			return stop
 		}
 	}
 
