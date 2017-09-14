@@ -114,53 +114,17 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	fakeAPI.add("testcheck1", "passing", time.Time{})
 	fakeAPI.add("testcheck2", "passing", time.Time{})
 
-	// Run for 1 second
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	cw.Run(ctx)
-
-	// Assert Restart was never called
-	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d", n)
-	}
-	if n := len(restarter2.restarts); n > 0 {
-		t.Errorf("expected check 2 to not be restarted but found %d", n)
-	}
-}
-
-// TestCheckWatcher_Unhealthy asserts unhealthy tasks are not restarted.
-func TestCheckWatcher_Unhealthy(t *testing.T) {
-	t.Parallel()
-
-	fakeAPI, cw := testWatcherSetup()
-
-	check1 := testCheck()
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
-
-	check2 := testCheck()
-	check2.CheckRestart.Limit = 1
-	check2.CheckRestart.Grace = 200 * time.Millisecond
-	restarter2 := newFakeCheckRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
-	cw.Watch("testalloc2", "testtask2", "testcheck2", check2, restarter2)
-
-	// Check 1 always passes, check 2 always fails
-	fakeAPI.add("testcheck1", "passing", time.Time{})
-	fakeAPI.add("testcheck2", "critical", time.Time{})
-
-	// Run for 1 second
+	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
-	// Ensure restart was never called on check 1
+	// Ensure restart was never called
 	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d", n)
+		t.Errorf("expected check 1 to not be restarted but found %d:\n%s", n, restarter1)
 	}
-
-	// Ensure restart was called twice on check 2
-	if n := len(restarter2.restarts); n != 2 {
-		t.Errorf("expected check 2 to be restarted 2 times but found %d:\n%s", n, restarter2)
+	if n := len(restarter2.restarts); n > 0 {
+		t.Errorf("expected check 2 to not be restarted but found %d:\n%s", n, restarter2)
 	}
 }
 
@@ -181,7 +145,7 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	// Check is always in warning but that's ok
 	fakeAPI.add("testcheck1", "warning", time.Time{})
 
-	// Run for 1 second
+	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
@@ -246,5 +210,55 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 	// Ensure restart was never called on check 1
 	if n := len(restarter1.restarts); n > 0 {
 		t.Errorf("expected check 1 to not be restarted but found %d\n%s", n, restarter1)
+	}
+}
+
+// TestCheckWatcher_MultipleChecks asserts that when there are multiple checks
+// for a single task, all checks should be removed when any of them restart the
+// task to avoid multiple restarts.
+func TestCheckWatcher_MultipleChecks(t *testing.T) {
+	t.Parallel()
+
+	fakeAPI, cw := testWatcherSetup()
+
+	check1 := testCheck()
+	check1.CheckRestart.Limit = 1
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+
+	check2 := testCheck()
+	check2.CheckRestart.Limit = 1
+	restarter2 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck2", check2)
+	cw.Watch("testalloc1", "testtask1", "testcheck2", check2, restarter2)
+
+	check3 := testCheck()
+	check3.CheckRestart.Limit = 1
+	restarter3 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck3", check3)
+	cw.Watch("testalloc1", "testtask1", "testcheck3", check3, restarter3)
+
+	// check 2 & 3 fail long enough to cause 1 restart, but only 1 should restart
+	now := time.Now()
+	fakeAPI.add("testcheck1", "critical", now)
+	fakeAPI.add("testcheck1", "passing", now.Add(150*time.Millisecond))
+	fakeAPI.add("testcheck2", "critical", now)
+	fakeAPI.add("testcheck2", "passing", now.Add(150*time.Millisecond))
+	fakeAPI.add("testcheck3", "passing", time.Time{})
+
+	// Run
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cw.Run(ctx)
+
+	// Ensure restart was only called on restarter1
+	if n := len(restarter1.restarts); n != 1 {
+		t.Errorf("expected check 1 to be restarted 1 time but found %d\n%s", n, restarter1)
+	}
+
+	if n := len(restarter2.restarts); n != 0 {
+		t.Errorf("expected check 2 to not be restarted but found %d:\n%s", n, restarter2)
+	}
+
+	if n := len(restarter3.restarts); n != 0 {
+		t.Errorf("expected check 3 to not be restarted but found %d:\n%s", n, restarter3)
 	}
 }

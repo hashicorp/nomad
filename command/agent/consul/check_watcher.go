@@ -32,6 +32,7 @@ type checkRestart struct {
 	taskName  string
 	checkID   string
 	checkName string
+	taskKey   string // composite of allocID + taskName for uniqueness
 
 	task           TaskRestarter
 	grace          time.Duration
@@ -221,8 +222,19 @@ func (w *checkWatcher) Run(ctx context.Context) {
 
 			w.lastErr = false
 
+			// Keep track of tasks restarted this period so they
+			// are only restarted once and all of their checks are
+			// removed.
+			restartedTasks := map[string]struct{}{}
+
 			// Loop over watched checks and update their status from results
 			for cid, check := range checks {
+				if _, ok := restartedTasks[check.taskKey]; ok {
+					// Check for this task already restarted; remove and skip check
+					delete(checks, cid)
+					continue
+				}
+
 				result, ok := results[cid]
 				if !ok {
 					// Only warn if outside grace period to avoid races with check registration
@@ -238,6 +250,17 @@ func (w *checkWatcher) Run(ctx context.Context) {
 					// startup, so it's safe to remove them
 					// whenever they're restarted
 					delete(checks, cid)
+
+					restartedTasks[check.taskKey] = struct{}{}
+				}
+			}
+
+			// Ensure even passing checks for restartedTasks are removed
+			if len(restartedTasks) > 0 {
+				for cid, check := range checks {
+					if _, ok := restartedTasks[check.taskKey]; ok {
+						delete(checks, cid)
+					}
 				}
 			}
 		}
@@ -256,6 +279,7 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 		taskName:       taskName,
 		checkID:        checkID,
 		checkName:      check.Name,
+		taskKey:        fmt.Sprintf("%s%s", allocID, taskName), // unique task ID
 		task:           restarter,
 		interval:       check.Interval,
 		grace:          check.CheckRestart.Grace,
