@@ -14,6 +14,7 @@ BUG FIXES:
    length could cause lookup error [GH-3203]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [GH-3195]
+ * driver/docker: Fix docker user specified syslogging [GH-3184]
 
 ## 0.6.3 (September 11, 2017)
 
