@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -95,7 +96,16 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 		// Get the index that the worker should wait until before scheduling.
 		waitIndex, err := e.getWaitIndex(eval.Namespace, eval.JobID)
 		if err != nil {
-			return err
+			var mErr multierror.Error
+			multierror.Append(&mErr, err)
+
+			// We have dequeued the evaluation but won't be returning it to the
+			// worker so Nack the eval.
+			if err := e.srv.evalBroker.Nack(eval.ID, token); err != nil {
+				multierror.Append(&mErr, err)
+			}
+
+			return &mErr
 		}
 
 		reply.Eval = eval
