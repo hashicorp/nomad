@@ -63,9 +63,9 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	goodToken := CreatePolicyAndToken(t, state, 1001, "test-good",
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
 		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	badToken := CreatePolicyAndToken(t, state, 1003, "test-bad",
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	// Lookup the deployments without a token and expect failure
@@ -80,13 +80,13 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 
 	// Try with a good token
-	get.SecretID = goodToken.SecretID
+	get.SecretID = validToken.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
 
 	// Try with a bad token
-	get.SecretID = badToken.SecretID
+	get.SecretID = invalidToken.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp)
 	assert.NotNil(err, "RPC")
 	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
