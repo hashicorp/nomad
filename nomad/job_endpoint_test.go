@@ -2061,7 +2061,8 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	req.SecretID = invalidToken.SecretID
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err == nil {
+	var invalidResp structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &invalidResp); err == nil {
 		t.Fatalf("expected error for invalid token")
 	}
 
