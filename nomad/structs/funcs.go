@@ -18,15 +18,15 @@ import (
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
 // merges them into a returnable string. Both the errors may be nil.
 func MergeMultierrorWarnings(warnings ...error) string {
-	if len(warnings) == 0 {
-		return ""
-	}
-
 	var warningMsg multierror.Error
 	for _, warn := range warnings {
 		if warn != nil {
 			multierror.Append(&warningMsg, warn)
 		}
+	}
+
+	if len(warningMsg.Errors) == 0 {
+		return ""
 	}
 
 	// Set the formatter
