@@ -23,7 +23,25 @@ export default Model.extend({
   desiredStatus: attr('string'),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
-    return this.get('job.taskGroups').findBy('name', this.get('taskGroupName'));
+    const taskGroups = this.get('job.taskGroups');
+    return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
+  }),
+
+  percentMemory: computed(
+    'taskGroup.reservedMemory',
+    'stats.ResourceUsage.MemoryStats.Cache',
+    function() {
+      const used = this.get('stats.ResourceUsage.MemoryStats.Cache');
+      const total = this.get('taskGroup.reservedMemory');
+      if (!total || !used) {
+        return 0;
+      }
+      return used / total;
+    }
+  ),
+
+  percentCPU: computed('stats.ResourceUsage.CpuStats.Percent', function() {
+    return this.get('stats.ResourceUsage.CpuStats.Percent') || 0;
   }),
 
   stats: computed('node.{isPartial,httpAddr}', function() {

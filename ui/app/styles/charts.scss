@@ -4,7 +4,8 @@
 
 .inline-chart {
   height: 1.5rem;
-  display: block;
+  display: flex;
+  align-items: center;
 }
 
 // Patterns are templates referenced by other SVG fill properties.

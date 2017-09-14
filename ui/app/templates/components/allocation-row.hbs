@@ -21,7 +21,14 @@
   {{else if allocation.stats.isRejected}}
     !!!
   {{else}}
-    {{allocation.stats.ResourceUsage.CpuStats.Percent}}
+    <div class="inline-chart">
+      <progress
+        class="progress is-info is-small"
+        value="{{allocation.percentCPU}}"
+        max="1">
+        {{allocation.percentCPU}}
+      </progress>
+    </div>
   {{/if}}
 </td>
 <td>
@@ -30,6 +37,13 @@
   {{else if allocation.stats.isRejected}}
     !!!
   {{else}}
-    {{allocation.stats.ResourceUsage.MemoryStats.Cache}}
+    <div class="inline-chart">
+      <progress
+        class="progress is-danger is-small"
+        value="{{allocation.percentMemory}}"
+        max="1">
+        {{allocation.percentMemory}}
+      </progress>
+    </div>
   {{/if}}
 </td>
