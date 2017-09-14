@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -175,10 +176,10 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		respW = httptest.NewRecorder()
 
 		// Make the request and check the result
-		expected := map[string]bool{
-			"127.0.0.1:4647": true,
-			"127.0.0.2:4647": true,
-			"127.0.0.3:4647": true,
+		expected := []string{
+			"127.0.0.1:4647",
+			"127.0.0.2:4647",
+			"127.0.0.3:4647",
 		}
 		out, err := s.Server.AgentServersRequest(respW, req)
 		if err != nil {
@@ -188,19 +189,8 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		if n := len(servers); n != len(expected) {
 			t.Fatalf("expected %d servers, got: %d: %v", len(expected), n, servers)
 		}
-		received := make(map[string]bool, len(servers))
-		for _, server := range servers {
-			received[server] = true
-		}
-		foundCount := 0
-		for k, _ := range received {
-			_, found := expected[k]
-			if found {
-				foundCount++
-			}
-		}
-		if foundCount != len(expected) {
-			t.Fatalf("bad servers result")
+		if !reflect.DeepEqual(servers, expected) {
+			t.Fatalf("got %v; want %v", servers, expected)
 		}
 	})
 }
