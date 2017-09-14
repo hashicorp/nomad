@@ -117,6 +117,8 @@ scripts.
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
   other value for a failing health check. This is required for script-based
@@ -167,72 +169,6 @@ scripts.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
   checks. Requires Consul >= 0.7.2.
-
-#### `check_restart` Stanza
-
-As of Nomad 0.7 `check` stanzas may include a `check_restart` stanza to restart
-tasks with unhealthy checks. Restarts use the parameters from the
-[`restart`][restart_stanza] stanza, so if a task group has the default `15s`
-delay, tasks won't be restarted for an extra 15 seconds after the
-`check_restart` block considers it failed. `check_restart` stanzas have the
-follow parameters:
-
-- `limit` `(int: 0)` - Restart task after `limit` failing health checks. For
-  example 1 causes a restart on the first failure. The default, `0`, disables
-  healtcheck based restarts. Failures must be consecutive. A single passing
-  check will reset the count, so flapping services may not be restarted.
-
-- `grace` `(string: "1s")` - Duration to wait after a task starts or restarts
-  before checking its health. On restarts the `delay` and max jitter is added
-  to the grace period to prevent checking a task's health before it has
-  restarted.
-
-- `ignore_warnings` `(bool: false)` - By default checks with both `critical`
-  and `warning` statuses are considered unhealthy. Setting `ignore_warnings =
-  true` treats a `warning` status like `passing` and will not trigger a restart.
-
-For example:
-
-```hcl
-restart {
-  delay = "8s"
-}
-
-task "mysqld" {
-  service {
-    # ...
-    check {
-      type     = "script"
-      name     = "check_table"
-      command  = "/usr/local/bin/check_mysql_table_status"
-      args     = ["--verbose"]
-      interval = "20s"
-      timeout  = "5s"
-  
-      check_restart {
-        # Restart the task after 3 consecutive failed checks (180s)
-        limit = 3
-  
-        # Ignore failed checks for 90s after a service starts or restarts
-        grace = "90s"
-  
-        # Treat warnings as unhealthy (the default)
-        ignore_warnings = false
-      }
-    }
-  }
-}
-```
-
-In this example the `mysqld` task has `90s` from startup to begin passing
-healthchecks. After the grace period if `mysqld` would remain unhealthy for
-`60s` (as determined by `limit * interval`) it would be restarted after `8s`
-(as determined by the `restart.delay`). Nomad would then wait `100s` (as
-determined by `grace + delay + (delay * 0.25)`) before checking `mysqld`'s
-health again.
-
-~> `check_restart` stanzas may also be placed in `service` stanzas to apply the
-   same restart logic to multiple checks.
 
 #### `header` Stanza
 
@@ -388,6 +324,7 @@ service {
 [qemu driver][qemu] since the Nomad client does not have access to the file
 system of a task for that driver.</small>
 
+[check_restart_stanza]: /docs/job-specification/check_restart.html "check_restart stanza"
 [service-discovery]: /docs/service-discovery/index.html "Nomad Service Discovery"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
