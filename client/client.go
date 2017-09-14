@@ -369,8 +369,7 @@ func (c *Client) Leave() error {
 
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
-	dc := c.config.Node.Datacenter
-	return dc
+	return c.config.Node.Datacenter
 }
 
 // Region returns the region for the given client

@@ -8,6 +8,8 @@ BUG FIXES:
  * core: *Fix restoration of stopped periodic jobs [GH-3201]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [GH-3203]
+ * client: Fix lock contention that could cause a node to miss a heartbeat and
+   be marked as down [GH-3195]
 
 ## 0.6.3 (September 11, 2017)
 
