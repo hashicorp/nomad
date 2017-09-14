@@ -130,6 +130,11 @@ func TestParse(t *testing.T) {
 												PortLabel: "admin",
 												Interval:  10 * time.Second,
 												Timeout:   2 * time.Second,
+												CheckRestart: &api.CheckRestart{
+													Limit:          3,
+													Grace:          helper.TimeToPtr(10 * time.Second),
+													IgnoreWarnings: true,
+												},
 											},
 										},
 									},
