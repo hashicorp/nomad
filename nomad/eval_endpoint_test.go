@@ -170,6 +170,56 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	if token != resp.Token {
 		t.Fatalf("bad token: %#v %#v", token, resp.Token)
 	}
+
+	if resp.WaitIndex != eval1.ModifyIndex {
+		t.Fatalf("bad wait index; got %d; want %d", resp.WaitIndex, eval1.ModifyIndex)
+	}
+}
+
+func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.evalBroker.Enqueue(eval1)
+	s1.fsm.State().UpsertEvals(1001, []*structs.Evaluation{eval2})
+
+	// Dequeue the eval
+	get := &structs.EvalDequeueRequest{
+		Schedulers:       defaultSched,
+		SchedulerVersion: scheduler.SchedulerVersion,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.EvalDequeueResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(eval1, resp.Eval) {
+		t.Fatalf("bad: %v %v", eval1, resp.Eval)
+	}
+
+	// Ensure outstanding
+	token, ok := s1.evalBroker.Outstanding(eval1.ID)
+	if !ok {
+		t.Fatalf("should be outstanding")
+	}
+	if token != resp.Token {
+		t.Fatalf("bad token: %#v %#v", token, resp.Token)
+	}
+
+	if resp.WaitIndex != 1001 {
+		t.Fatalf("bad wait index; got %d; want %d", resp.WaitIndex, 1001)
+	}
 }
 
 func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
