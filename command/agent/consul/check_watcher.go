@@ -166,75 +166,76 @@ func (w *checkWatcher) Run(ctx context.Context) {
 	checkTimer := time.NewTimer(0)
 	defer checkTimer.Stop() // ensure timer is never leaked
 
+	stopTimer := func() {
+		checkTimer.Stop()
+		select {
+		case <-checkTimer.C:
+		default:
+		}
+	}
+
+	// disable by default
+	stopTimer()
+
 	// Main watch loop
 	for {
-		// Don't start watching until we actually have checks that
-		// trigger restarts.
-		for len(checks) == 0 {
-			select {
-			case update := <-w.checkUpdateCh:
-				if update.remove {
-					// should not happen
-					w.logger.Printf("[DEBUG] consul.health: told to stop watching an unwatched check: %q", update.checkID)
-				} else {
-					checks[update.checkID] = update.checkRestart
-					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
-						update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
+		select {
+		case update := <-w.checkUpdateCh:
+			if update.remove {
+				// Remove a check
+				delete(checks, update.checkID)
 
-					// Begin polling
-					if !checkTimer.Stop() {
-						<-checkTimer.C
-					}
-					checkTimer.Reset(w.pollFreq)
+				// disable polling if last check was removed
+				if len(checks) == 0 {
+					stopTimer()
 				}
-			case <-ctx.Done():
-				return
+
+				continue
 			}
-		}
 
-		// As long as there are checks to be watched, keep watching
-		for len(checks) > 0 {
-			select {
-			case update := <-w.checkUpdateCh:
-				if update.remove {
-					delete(checks, update.checkID)
-				} else {
-					checks[update.checkID] = update.checkRestart
-					w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
-						update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
-				}
-			case <-ctx.Done():
-				return
-			case <-checkTimer.C:
+			// Add/update a check
+			checks[update.checkID] = update.checkRestart
+			w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
+				update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
+
+			// if first check was added make sure polling is enabled
+			if len(checks) == 1 {
+				stopTimer()
 				checkTimer.Reset(w.pollFreq)
+			}
 
-				// Set "now" as the point in time the following check results represent
-				now := time.Now()
+		case <-ctx.Done():
+			return
 
-				results, err := w.consul.Checks()
-				if err != nil {
-					if !w.lastErr {
-						w.lastErr = true
-						w.logger.Printf("[ERR] consul.health: error retrieving health checks: %q", err)
+		case <-checkTimer.C:
+			checkTimer.Reset(w.pollFreq)
+
+			// Set "now" as the point in time the following check results represent
+			now := time.Now()
+
+			results, err := w.consul.Checks()
+			if err != nil {
+				if !w.lastErr {
+					w.lastErr = true
+					w.logger.Printf("[ERR] consul.health: error retrieving health checks: %q", err)
+				}
+				continue
+			}
+
+			w.lastErr = false
+
+			// Loop over watched checks and update their status from results
+			for cid, check := range checks {
+				result, ok := results[cid]
+				if !ok {
+					// Only warn if outside grace period to avoid races with check registration
+					if now.After(check.graceUntil) {
+						w.logger.Printf("[WARN] consul.health: watched check %q (%s) not found in Consul", check.checkName, cid)
 					}
 					continue
 				}
 
-				w.lastErr = false
-
-				// Loop over watched checks and update their status from results
-				for cid, check := range checks {
-					result, ok := results[cid]
-					if !ok {
-						// Only warn if outside grace period to avoid races with check registration
-						if now.After(check.graceUntil) {
-							w.logger.Printf("[WARN] consul.health: watched check %q (%s) not found in Consul", check.checkName, cid)
-						}
-						continue
-					}
-
-					check.update(now, result.Status)
-				}
+				check.update(now, result.Status)
 			}
 		}
 	}
