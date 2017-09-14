@@ -9,6 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2028,7 +2029,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	}
 	reg.SecretID = root.SecretID
 
-	// Register the job
+	// Register the job with a valid token
 	var regResp structs.JobRegisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &regResp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -2049,11 +2050,26 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	// Expect failure for request without a token
 	var resp structs.JobSummaryResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err == nil {
-		t.Fatalf("expected error")
+		t.Fatalf("expected error for no token")
+	}
+
+	// Create the namespace policy and tokens
+	state := srv.fsm.State()
+
+	// Expect failure for request with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	req.SecretID = invalidToken.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err == nil {
+		t.Fatalf("expected error for invalid token")
 	}
 
 	// Try with a valid token
-	req.SecretID = root.SecretID
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req.SecretID = validToken.SecretID
 	var authResp structs.JobSummaryResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &authResp); err != nil {
 		t.Fatalf("err: %v", err)
