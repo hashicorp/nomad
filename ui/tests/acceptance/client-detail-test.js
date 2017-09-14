@@ -85,6 +85,14 @@ test('each allocation should have high-level details for the allocation', functi
     .sortBy('modifyIndex')
     .reverse()[0];
 
+  const allocStats = server.db.clientAllocationStats.find(allocation.id);
+  const taskGroup = server.db.taskGroups.findBy({
+    name: allocation.taskGroup,
+    jobId: allocation.jobId,
+  });
+
+  const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
+
   assert.equal(
     allocationRow
       .find('td:eq(0)')
@@ -128,7 +136,7 @@ test('each allocation should have high-level details for the allocation', functi
       .find('td:eq(4)')
       .text()
       .trim(),
-    server.db.clientAllocationStats.find(allocation.id).resourceUsage.CpuStats.Percent,
+    allocStats.resourceUsage.CpuStats.Percent,
     'CPU %'
   );
   assert.equal(
@@ -136,7 +144,8 @@ test('each allocation should have high-level details for the allocation', functi
       .find('td:eq(5)')
       .text()
       .trim(),
-    server.db.clientAllocationStats.find(allocation.id).resourceUsage.MemoryStats.Cache,
+    allocStats.resourceUsage.MemoryStats.Cache /
+      tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0),
     'Memory used'
   );
 });
