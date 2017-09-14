@@ -2912,9 +2912,9 @@ func (sc *ServiceCheck) RequiresPort() bool {
 	}
 }
 
-// Watched returns true if this check should be watched and trigger a restart
+// TriggersRestarts returns true if this check should be watched and trigger a restart
 // on failure.
-func (sc *ServiceCheck) Watched() bool {
+func (sc *ServiceCheck) TriggersRestarts() bool {
 	return sc.CheckRestart != nil && sc.CheckRestart.Limit > 0
 }
 

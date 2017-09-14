@@ -269,7 +269,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 
 // Watch a task and restart it if unhealthy.
 func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter TaskRestarter) {
-	if !check.Watched() {
+	if !check.TriggersRestarts() {
 		// Not watched, noop
 		return
 	}

@@ -697,7 +697,7 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restart
 	for _, service := range task.Services {
 		serviceID := makeTaskServiceID(allocID, task.Name, service)
 		for _, check := range service.Checks {
-			if check.Watched() {
+			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
 				c.checkWatcher.Watch(allocID, task.Name, checkID, check, restarter)
 			}
@@ -737,7 +737,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 				ops.deregChecks = append(ops.deregChecks, cid)
 
 				// Unwatch watched checks
-				if check.Watched() {
+				if check.TriggersRestarts() {
 					c.checkWatcher.Unwatch(cid)
 				}
 			}
@@ -787,7 +787,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			}
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
-			if check.Watched() {
+			if check.TriggersRestarts() {
 				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
 			}
 		}
@@ -797,7 +797,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			ops.deregChecks = append(ops.deregChecks, cid)
 
 			// Unwatch checks
-			if check.Watched() {
+			if check.TriggersRestarts() {
 				c.checkWatcher.Unwatch(cid)
 			}
 		}
@@ -823,7 +823,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 	for _, service := range newIDs {
 		serviceID := makeTaskServiceID(allocID, newTask.Name, service)
 		for _, check := range service.Checks {
-			if check.Watched() {
+			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
 				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
 			}
@@ -846,7 +846,7 @@ func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 			cid := makeCheckID(id, check)
 			ops.deregChecks = append(ops.deregChecks, cid)
 
-			if check.Watched() {
+			if check.TriggersRestarts() {
 				c.checkWatcher.Unwatch(cid)
 			}
 		}
