@@ -8,7 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2004,6 +2004,73 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
 		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
 	}
+}
+
+func TestJobEndpoint_Summary_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer srv.Shutdown()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	// Create the job
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	reg.SecretID = root.SecretID
+
+	// Register the job
+	var regResp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &regResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	job.CreateIndex = regResp.JobModifyIndex
+	job.ModifyIndex = regResp.JobModifyIndex
+	job.JobModifyIndex = regResp.JobModifyIndex
+
+	req := &structs.JobSummaryRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	// Try with a valid token
+	req.SecretID = root.SecretID
+	var authResp structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &authResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedJobSummary := &structs.JobSummary{
+		JobID:     job.ID,
+		Namespace: job.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		Children:    new(structs.JobChildrenSummary),
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.ModifyIndex,
+	}
+
+	assert.Equal(expectedJobSummary, authResp.JobSummary)
 }
 
 func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
