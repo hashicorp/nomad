@@ -285,6 +285,14 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job_summary", "get_job_summary"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,

@@ -8,7 +8,8 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2004,6 +2005,93 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
 		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
 	}
+}
+
+func TestJobEndpoint_Summary_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer srv.Shutdown()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	// Create the job
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	reg.SecretID = root.SecretID
+
+	var err error
+
+	// Register the job with a valid token
+	var regResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &regResp)
+	assert.Nil(err)
+
+	job.CreateIndex = regResp.JobModifyIndex
+	job.ModifyIndex = regResp.JobModifyIndex
+	job.JobModifyIndex = regResp.JobModifyIndex
+
+	req := &structs.JobSummaryRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp)
+	assert.NotNil(err)
+
+	expectedJobSummary := &structs.JobSummary{
+		JobID:     job.ID,
+		Namespace: job.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": structs.TaskGroupSummary{},
+		},
+		Children:    new(structs.JobChildrenSummary),
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.ModifyIndex,
+	}
+
+	// Expect success when using a management token
+	req.SecretID = root.SecretID
+	var mgmtResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &mgmtResp)
+	assert.Nil(err)
+	assert.Equal(expectedJobSummary, mgmtResp.JobSummary)
+
+	// Create the namespace policy and tokens
+	state := srv.fsm.State()
+
+	// Expect failure for request with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	req.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &invalidResp)
+	assert.NotNil(err)
+
+	// Try with a valid token
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req.SecretID = validToken.SecretID
+	var authResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &authResp)
+	assert.Nil(err)
+	assert.Equal(expectedJobSummary, authResp.JobSummary)
 }
 
 func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
